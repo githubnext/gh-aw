@@ -25,8 +25,7 @@ Split work into fixed-size pages using `GITHUB_RUN_NUMBER`. Each run processes o
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 2 * * 1-5"  # Weekdays at 2 AM
+  schedule: daily on weekdays
   workflow_dispatch:
 
 tools:

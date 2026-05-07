@@ -256,8 +256,7 @@ A scheduled workflow that automatically pushes changes to open pull-request bran
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 * * * *"
+  schedule: hourly
 
 checkout:
   - repository: org/target-repo

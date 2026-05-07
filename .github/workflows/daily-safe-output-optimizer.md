@@ -4,7 +4,6 @@ description: Analyzes gateway logs for errored safe output tool calls and create
 on:
   schedule: daily
   workflow_dispatch:
-  skip-if-match: 'is:issue is:open in:title "[safeoutputs]"'
 
 permissions:
   contents: read
@@ -24,6 +23,9 @@ timeout-minutes: 30
 strict: true
 
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[safeoutputs]"
   - shared/aw-logs-24h-fetch.md
   - shared/activation-app.md
   - shared/jqschema.md

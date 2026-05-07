@@ -3,7 +3,6 @@ description: Daily analysis of recent commits and merged PRs for breaking CLI ch
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
-  skip-if-match: 'is:issue is:open in:title "[breaking-change]"'
 permissions:
   contents: read
   actions: read
@@ -22,6 +21,9 @@ tools:
     - "grep:*"
   edit:
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[breaking-change]"
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[breaking-change] "

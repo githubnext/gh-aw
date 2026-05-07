@@ -47,7 +47,7 @@ to another, including the code changes, title, and body. Useful for
 migrating work from trial repositories to production repositories.
 
 Available subcommands:
-  • transfer - Transfer a pull request to another repository
+  - transfer - Transfer a pull request to another repository
 
 Examples:
   gh aw pr transfer https://github.com/trial/repo/pull/234

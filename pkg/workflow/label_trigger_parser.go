@@ -47,6 +47,7 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 		startIdx = 2
 	} else {
 		// Not a label trigger shorthand
+		labelTriggerParserLog.Printf("Input %q does not match any label trigger pattern (first token: %q)", input, tokens[0])
 		return "", nil, false, nil
 	}
 
@@ -140,14 +141,17 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 
 // getItemTypeName returns the human-readable item type name for the entity type
 func getItemTypeName(entityType string) string {
+	var name string
 	switch entityType {
 	case "issues":
-		return "issue"
+		name = "issue"
 	case "pull_request":
-		return "pull request"
+		name = "pull request"
 	case "discussion":
-		return "discussion"
+		name = "discussion"
 	default:
-		return "item" // Fallback (though this shouldn't happen with our parser)
+		name = "item" // Fallback (though this shouldn't happen with our parser)
 	}
+	labelTriggerParserLog.Printf("Resolved item type name for %q: %q", entityType, name)
+	return name
 }

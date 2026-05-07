@@ -53,6 +53,9 @@ steps:
         touch /tmp/gh-aw/agent/test-diff.txt
       fi
 
+      git diff "${{ github.event.pull_request.base.sha }}...HEAD" --numstat \
+        > /tmp/gh-aw/agent/diff-numstat.txt 2>/dev/null || true
+
       echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"
 safe-outputs:
   add-comment:
@@ -71,6 +74,7 @@ imports:
   - shared/reporting.md
 features:
   copilot-requests: true
+  inline-agents: true
 ---
 
 # Test Quality Sentinel 🧪
@@ -103,6 +107,9 @@ cat /tmp/gh-aw/agent/test-files.txt
 
 # Diff for test files only
 cat /tmp/gh-aw/agent/test-diff.txt
+
+# Numstat for all changed files
+cat /tmp/gh-aw/agent/diff-numstat.txt
 ```
 
 Then identify all **new and modified test files** in the diff:
@@ -155,24 +162,10 @@ For each changed test file, run structural checks using available tools.
 
 ### 3a. Go — `Test*` functions
 
-Analyze Go test functions using grep and awk on the diff. This codebase uses **both** stdlib assertions (`t.Errorf`, `t.Fatalf`, `t.Error`) **and** testify (`assert.*`, `require.*`). The project guideline is **no mock libraries** — tests must interact with real components; any use of `gomock`, `testify/mock`, or `EXPECT()` in Go is itself a red flag.
-
-```bash
-# Count assertions, error checks, table-driven subtests, and any forbidden mock calls per Test* function
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*_test.go' | awk '
-/^\+func Test/ {
-  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks
-  match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0; table_driven=0; forbidden_mocks=0
-}
-test_name && /^\+.*(assert\.|require\.)/ { assertions++ }
-test_name && /^\+.*t\.(Error|Errorf|Fatal|Fatalf)\(/ { assertions++; errors++ }
-test_name && /^\+.*(assert\.Error|require\.Error|assert\.NoError|require\.NoError)/ { errors++ }
-test_name && /^\+.*t\.Run\(/ { table_driven++ }
-test_name && /^\+.*(gomock\.|testify\/mock|\.EXPECT\(\)|\.On\(|\.Return\()/ { forbidden_mocks++ }
-test_name && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks; test_name="" }
-END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks }
-'
-```
+Use the `go-test-analyzer` agent to extract per-function assertion counts, error coverage,
+table-driven usage, and forbidden mock calls from the pre-fetched test diff. It also checks
+for missing `//go:build` tags in newly added Go test files. Use its table and build-tag findings
+as input to Step 4.
 
 Key signals for Go tests in this codebase:
 - **Assertions (accepted forms)**:
@@ -185,22 +178,9 @@ Key signals for Go tests in this codebase:
 
 ### 3b. JavaScript — vitest `test()` / `it()` blocks
 
-This codebase uses **vitest** (not jest). Mock helpers come from vitest: `vi.fn()`, `vi.spyOn()`, `vi.mock()`. Primary test file extension is `.test.cjs`; scripts tests use `.test.js`.
-
-```bash
-# Count expect() assertions, error matchers, and vi.* mock calls per test block
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.cjs' '*.test.js' | awk '
-/^\+(it|test)\(/ {
-  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
-  match($0, /(it|test)\(["'"'"']([^"'"'"']+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
-}
-test_name && /^\+.*expect\(/ { assertions++ }
-test_name && /^\+.*(\.toThrow|\.rejects|\.toThrowError)/ { errors++ }
-test_name && /^\+.*(vi\.mock|vi\.spyOn|vi\.fn)/ { mocks++ }
-test_name && /^\+\}\)/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
-END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
-'
-```
+Use the `js-test-analyzer` agent to extract per-test assertion counts, error matcher usage,
+and `vi.*` mock calls from the pre-fetched test diff. Covers both `.test.cjs` (primary) and
+`.test.js` (scripts) formats. Use its table as input to Step 4.
 
 Key signals for JavaScript tests in this codebase:
 - **Assertions**: `expect(...)` calls with vitest matchers (`.toBe`, `.toEqual`, `.toMatchObject`, `.toContain`, `.toBeNull`, etc.)
@@ -254,8 +234,7 @@ Calculate the test inflation ratio for each changed test file:
 
 ```bash
 # Count lines added to test files vs. production files
-git diff ${{ github.event.pull_request.base.sha }}...HEAD --stat | grep -E "test|spec" || echo "no test stat"
-git diff ${{ github.event.pull_request.base.sha }}...HEAD --numstat
+cat /tmp/gh-aw/agent/diff-numstat.txt
 ```
 
 For each **Go and JavaScript** test file, find the corresponding production file and compare the ratio of lines added:
@@ -475,3 +454,73 @@ After posting the comment, submit a pull request review based on the verdict:
   2. In the PR comment (Step 7), add a note such as: "⚠️ Sampling applied — analyzed the first 50 of N test functions. Prioritized newly added tests."
 - Keep individual test analysis concise — 2–3 sentences per test in the flagged section.
 - Use `<details>` tags for per-test tables with more than 10 rows.
+
+## agent: `go-test-analyzer`
+---
+description: Run awk analysis on Go test diff and return per-function stats plus missing build tags
+model: small
+---
+Read the pre-fetched test diff and extract per-function Go test stats:
+
+```bash
+cat /tmp/gh-aw/agent/test-diff.txt | awk '
+/^\+func Test/ {
+  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks
+  match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0; table_driven=0; forbidden_mocks=0
+}
+test_name && /^\+.*(assert\.|require\.)/ { assertions++ }
+test_name && /^\+.*t\.(Error|Errorf|Fatal|Fatalf)\(/ { assertions++; errors++ }
+test_name && /^\+.*(assert\.Error|require\.Error|assert\.NoError|require\.NoError)/ { errors++ }
+test_name && /^\+.*t\.Run\(/ { table_driven++ }
+test_name && /^\+.*(gomock\.|testify\/mock|\.EXPECT\(\)|\.On\(|\.Return\()/ { forbidden_mocks++ }
+test_name && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks; test_name="" }
+END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks }
+'
+```
+
+Also check for newly added Go test files missing the mandatory build tag:
+
+```bash
+git diff ${{ github.event.pull_request.base.sha }}...HEAD --diff-filter=A --name-only | grep '_test\.go$' | while read f; do
+  if ! head -1 "$f" | grep -qE '^//go:build'; then
+    echo "MISSING BUILD TAG: $f"
+  fi
+done
+```
+
+Return:
+1. A markdown table with this exact header:
+   `| Test Function | Assertions | Error Checks | Table-Driven Subtests | Forbidden Mock Calls |`
+   Example row:
+   `| TestCompile | 4 | 2 | 1 | 0 |`
+2. A `Missing Build Tags` section listing any `MISSING BUILD TAG: <file>` lines, or `None.`
+3. If no Go test functions are in the diff, return: `No Go test functions found in diff.`
+
+## agent: `js-test-analyzer`
+---
+description: Run awk analysis on JavaScript vitest diff and return per-test stats
+model: small
+---
+Read the pre-fetched test diff and extract per-test JavaScript vitest stats:
+
+```bash
+cat /tmp/gh-aw/agent/test-diff.txt | awk '
+/^\+(it|test)\(/ {
+  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
+  match($0, /(it|test)\(["'"'"']([^"'"'"']+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
+}
+test_name && /^\+.*expect\(/ { assertions++ }
+test_name && /^\+.*(\.toThrow|\.rejects|\.toThrowError)/ { errors++ }
+test_name && /^\+.*(vi\.mock|vi\.spyOn|vi\.fn)/ { mocks++ }
+test_name && /^\+\}\)/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
+END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
+'
+```
+
+Return a markdown table with this exact header:
+`| Test Name | Assertions | Error Matchers | vi.* Mock Calls |`
+
+Example row:
+`| should_validate_input | 3 | 1 | 0 |`
+
+If no JavaScript test blocks are in the diff, return: `No JavaScript test blocks found in diff.`

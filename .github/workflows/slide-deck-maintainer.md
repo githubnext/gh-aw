@@ -10,7 +10,6 @@ on:
         description: 'Focus area (feature-deep-dive or global-sweep)'
         required: false
         default: 'global-sweep'
-  skip-if-match: 'is:pr is:open in:title "[slides]"'
 permissions:
   contents: read
   pull-requests: read
@@ -20,6 +19,10 @@ concurrency:
 tracker-id: slide-deck-maintainer
 engine: copilot
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[slides]"
+      kind: "pr"
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[slides] "

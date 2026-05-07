@@ -4,8 +4,6 @@ description: Guidance for adding Python data visualization to agentic workflows 
 
 # Python Data Visualization in Agentic Workflows
 
-Consult this file when creating or updating a workflow that generates charts, trend graphs, or any Python-based data visualization.
-
 ## Choosing a Shared Workflow
 
 Three shared workflows provide Python charting capabilities. Choose based on your needs:
@@ -180,24 +178,8 @@ steps:
 
 ### Agent Instructions
 
-Python scientific libraries have been installed. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
-
-**Installed Libraries**:
-- **NumPy**: Array processing and numerical operations
-- **Pandas**: Data manipulation and analysis
-- **Matplotlib**: Chart generation and plotting
-- **Seaborn**: Statistical data visualization
-- **SciPy**: Scientific computing utilities
-
-**Directory Structure**:
-
-```
-/tmp/gh-aw/python/
-├── data/          # Store all data files here (CSV, JSON, etc.)
-├── charts/        # Generated chart images (PNG)
-├── artifacts/     # Additional output files
-└── *.py           # Python scripts
-```
+Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
+Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`
 
 **Data Separation Requirement**
 
@@ -234,14 +216,6 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
             facecolor='white',
             edgecolor='none')
 ```
-
-**Chart Quality Guidelines**:
-- **DPI**: Use 300 or higher for publication quality
-- **Figure Size**: Standard is 10×6 inches (adjustable based on needs)
-- **Labels**: Always include clear axis labels and titles
-- **Legend**: Add legends when plotting multiple series
-- **Grid**: Enable grid lines for easier reading
-- **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
 
 **Cache Memory for Reusable Helpers**:
 
@@ -283,21 +257,6 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
 print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
 ```
 
-**Error Handling**:
-
-```python
-import os
-
-data_file = '/tmp/gh-aw/python/data/data.csv'
-if not os.path.exists(data_file):
-    raise FileNotFoundError(f"Data file not found: {data_file}")
-
-required_cols = ['category', 'value']
-missing = set(required_cols) - set(data.columns)
-if missing:
-    raise ValueError(f"Missing columns: {missing}")
-```
-
 ---
 
 ## Option C: Charts with Trending (Full Guide)
@@ -322,8 +281,6 @@ safe-outputs:
 ```
 
 ### Agent Instructions
-
-You are an expert at creating compelling trend visualizations with persistent data storage across workflow runs.
 
 **Cache-Memory Organization**:
 
@@ -513,25 +470,6 @@ print(f"✅ Trend chart generated with {len(df)} data points")
 
 ## Trends Visualization Best Practices
 
-When generating trending charts, focus on:
-
-### Time Series Excellence
-- Use line charts for continuous trends over time
-- Add trend lines or moving averages to highlight patterns
-- Include clear date/time labels on the x-axis
-- Show confidence intervals or error bands when relevant
-
-### Comparative Trends
-- Use multi-line charts to compare multiple trends
-- Apply distinct colors for each series with a clear legend
-- Consider using area charts for stacked trends
-- Highlight key inflection points or anomalies
-
-### Contextual Information
-- Show percentage changes or growth rates
-- Include baseline comparisons (year-over-year, month-over-month)
-- Add summary statistics (min, max, average, median)
-
 ### Example Chart Types
 
 **Temporal Trends**:
@@ -652,12 +590,3 @@ For workflows tracking Copilot coding agent session data:
 
 ---
 
-## Tips for Success
-
-1. **Consistency**: Use the same metric names and file paths across runs
-2. **Timestamps**: Always use ISO 8601 format in data points
-3. **Data first**: Write data to a CSV/JSON file before plotting — never inline
-4. **Quality**: DPI 300+, clear axis labels, seaborn whitegrid, white background
-5. **Retention**: Prune cache-memory data to 90 days to prevent unbounded growth
-6. **Upload**: Use `upload asset` for every chart to get embeddable URLs
-7. **Story**: Annotate significant events; add context with moving averages

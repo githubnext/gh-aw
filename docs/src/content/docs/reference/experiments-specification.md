@@ -691,6 +691,13 @@ implemented within a single workflow file. Engine-switching experiments **MUST**
 compiled workflow files (one per variant), which can then be compared via their respective
 GitHub Actions run metrics.
 
+**R-MULTI-005**: When two or more experiments are simultaneously active in the same analysis
+window, reporting tools **MUST** detect and bound interaction risk by preserving the full
+assignment vector per run and evaluating whether each observed combination cell has sufficient
+sample coverage. If interaction effects cannot be bounded (for example, sparse cells below
+`min_samples`), the report **MUST** emit an explicit interaction-risk status and **MUST NOT**
+recommend PROMOTE for affected variants.
+
 ### 12.1 Conflict Resolution Norms
 
 A **conflict** occurs when two or more simultaneously active experiments would assign
@@ -1115,9 +1122,25 @@ approximate minimum runs per variant are:
 5. **State branch growth**: The experiments git branch grows monotonically. Operators
    **MAY** prune old commits from the experiments branch without affecting the current state.
 
+### Sync Follow-ups (May 2026 Expert Review)
+
+This appendix itemizes corrective follow-ups referenced in the abstract.
+
+- **FR-001 (implemented via R-SELECT-006)**: Weighted selection increments invocation counters after each selection.
+- **FR-002 (implemented via R-STAT-001/R-STAT-002)**: Reporting uses `state.runs` assignment records instead of count-delta inference.
+- **FR-003 (implemented via R-STAT-011/R-STAT-012)**: Reporting workflows that write issues/discussions declare explicit write permissions.
+- **FR-004 (implemented via R-MULTI-005)**: Concurrent-experiment interaction effects are explicitly detected and bounded before promotion decisions.
+- **TODO(experiments, owner: @gh-aw-maintainers, target: v1.1.0)**: Add factorial-interaction analysis helpers to reporting workflows for K₁×K₂ cell significance output.
+- **TODO(experiments, owner: @gh-aw-maintainers, target: v1.1.0)**: Add compiler diagnostics for sparse interaction cells when >1 experiment is active and weighted traffic is configured.
+
 ---
 
 ## Change Log
+
+### Version 1.0.1 (Draft) — 2026-05-07
+
+- **Added**: R-MULTI-005 requiring interaction-risk detection/bounding for simultaneous experiments.
+- **Added**: Sync Follow-ups appendix with itemized May 2026 expert-review corrective items and owned TODOs.
 
 ### Version 1.0.0 (Draft) — 2026-05-03
 

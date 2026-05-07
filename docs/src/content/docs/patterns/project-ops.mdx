@@ -82,8 +82,7 @@ Let's start with a simple agentic workflow that reviews project board state and 
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 14 * * 1"
+  schedule: weekly on monday
 permissions:
   contents: read
   actions: read

@@ -34,6 +34,8 @@ type ImportsResult struct {
 	MergedBots                    []string              // Merged bots list from all imports (union of bot names)
 	MergedSkipRoles               []string              // Merged skip-roles list from all imports (union of role names)
 	MergedSkipBots                []string              // Merged skip-bots list from all imports (union of usernames)
+	MergedSkipIfMatch             string                // on.skip-if-match from first imported workflow that defines it (JSON-encoded)
+	MergedSkipIfNoMatch           string                // on.skip-if-no-match from first imported workflow that defines it (JSON-encoded)
 	MergedActivationGitHubToken   string                // GitHub token from on.github-token in first imported workflow that defines it
 	MergedActivationGitHubApp     string                // JSON-encoded on.github-app from first imported workflow that defines it
 	MergedTopLevelGitHubApp       string                // JSON-encoded top-level github-app from first imported workflow that defines it

@@ -3,13 +3,16 @@ name: Code Scanning Fixer
 description: Automatically fixes code scanning alerts by creating pull requests with remediation
 on:
   workflow_dispatch:
-  skip-if-match: 'is:pr is:open in:title "[code-scanning-fix]"'
 permissions:
   contents: read
   pull-requests: read
   security-events: read
 engine: copilot
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[code-scanning-fix]"
+      kind: "pr"
   - shared/security-analysis-base.md
   - uses: shared/daily-pr-base.md
     with:

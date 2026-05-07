@@ -563,8 +563,7 @@ on:
 imports:
   - .github/workflows/shared/shared-ops.md
 on:
-  schedule:
-    - cron: "*/30 * * * *"
+  schedule: every 30 minutes
   skip-if-no-match:
     query: "org:myorg label:agent-fix is:issue is:open"
     scope: none
@@ -620,8 +619,7 @@ By default the query is scoped to the current repository. Use `scope: none` to d
 
 ```yaml wrap
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  schedule: every 15 minutes
   skip-if-match:
     query: "org:myorg label:ops:in-progress is:issue is:open"
     scope: none
@@ -662,8 +660,7 @@ The same `scope: none` field available on `skip-if-match` works identically here
 
 ```yaml wrap
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  schedule: every 15 minutes
   skip-if-no-match:
     query: "org:myorg label:agent-fix -label:ops:agentic is:issue is:open"
     scope: none

@@ -32,6 +32,7 @@ func parseSlashCommandShorthand(input string) (commandName string, isSlashComman
 // expandSlashCommandShorthand takes a command name and returns a map that represents
 // the expanded slash_command + workflow_dispatch configuration.
 func expandSlashCommandShorthand(commandName string) map[string]any {
+	slashCommandParserLog.Printf("Expanding slash command shorthand: /%s -> slash_command + workflow_dispatch", commandName)
 	return map[string]any{
 		"slash_command":     commandName,
 		"workflow_dispatch": nil,

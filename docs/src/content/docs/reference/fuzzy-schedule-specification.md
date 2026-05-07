@@ -524,6 +524,15 @@ The scattering algorithm MUST provide:
 3. **Stability**: Scattered times remain constant across recompilations
 4. **Uniqueness**: Different workflow identifiers produce different scattered times
 
+The scattering algorithm uses the following formal input entities:
+
+| Entity | Type | Constraints | Description |
+|---|---|---|---|
+| `workflow_identifier` | string | MUST be non-empty; SHOULD use `owner/repo/path/to/workflow.md` format | Canonical identifier hashed for deterministic scatter selection |
+| `schedule_string` | string | MUST match a supported fuzzy placeholder form (`FUZZY:*`) | Parsed schedule expression that determines algorithm branch |
+| `seed` | unsigned 32-bit integer | MUST be derived deterministically from `workflow_identifier` using the configured hash function | Hash-derived seed used for modulo operations |
+| `window_minutes` | integer | MUST be positive; MUST NOT exceed 1440 | Candidate-minute search window for around/between scattering |
+
 ### 6.2 Hash Function Requirements
 
 #### 6.2.1 Hash Algorithm Selection

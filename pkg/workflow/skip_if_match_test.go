@@ -450,4 +450,53 @@ This workflow uses a GitHub App token for org-wide search.
 			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
 		}
 	})
+
+	t.Run("skip_if_match_imported_from_shared_on_section", func(t *testing.T) {
+		sharedContent := `---
+on:
+  skip-if-match: 'is:issue is:open in:title "[dedup]"'
+---
+`
+		sharedFile := filepath.Join(tmpDir, "shared-skip.md")
+		if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		workflowContent := `---
+on:
+  schedule:
+    - cron: "0 8 * * *"
+engine: claude
+imports:
+  - ./shared-skip.md
+---
+
+# Imported skip-if-match
+`
+		workflowFile := filepath.Join(tmpDir, "skip-match-imported-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
+			t.Error("Expected skip-if-match check to be present from imported on.skip-if-match")
+		}
+
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "is:issue is:open in:title \"[dedup]\""`) {
+			t.Error("Expected GH_AW_SKIP_QUERY to use the imported shared skip-if-match query")
+		}
+	})
 }

@@ -4,7 +4,6 @@ description: Tracks repository code health over time using file length, cyclomat
 on:
   schedule: "daily on weekdays"
   workflow_dispatch:
-  skip-if-match: 'is:issue is:open in:title "[refactoring-cadence]"'
 permissions:
   contents: read
   issues: read
@@ -12,6 +11,9 @@ permissions:
 tracker-id: refactoring-cadence
 engine: copilot
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[refactoring-cadence]"
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[refactoring-cadence] "

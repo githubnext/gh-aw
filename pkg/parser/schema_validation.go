@@ -1,8 +1,10 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -12,6 +14,24 @@ var schemaValidationLog = logger.New("parser:schema_validation")
 
 // sharedWorkflowForbiddenFields is a map for O(1) lookup of forbidden fields in shared workflows
 var sharedWorkflowForbiddenFields = buildForbiddenFieldsMap()
+
+var sharedWorkflowAllowedOnFieldList = []string{
+	"skip-if-match",
+	"skip-if-no-match",
+	"skip-roles",
+	"skip-bots",
+	"github-token",
+	"github-app",
+}
+
+var sharedWorkflowAllowedOnFields = map[string]struct{}{
+	"skip-if-match":    {},
+	"skip-if-no-match": {},
+	"skip-roles":       {},
+	"skip-bots":        {},
+	"github-token":     {},
+	"github-app":       {},
+}
 
 // buildForbiddenFieldsMap converts the SharedWorkflowForbiddenFields slice to a map for efficient lookup
 func buildForbiddenFieldsMap() map[string]bool {
@@ -28,6 +48,12 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 	var forbiddenFound []string
 
 	for key := range frontmatter {
+		if key == "on" {
+			if err := validateSharedWorkflowOnField(frontmatter["on"]); err != nil {
+				return err
+			}
+			continue
+		}
 		if sharedWorkflowForbiddenFields[key] {
 			forbiddenFound = append(forbiddenFound, key)
 		}
@@ -39,6 +65,32 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 			return fmt.Errorf("field '%s' cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound[0])
 		}
 		return fmt.Errorf("fields %v cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound)
+	}
+
+	return nil
+}
+
+// validateSharedWorkflowOnField validates on: usage in shared workflows.
+// Shared workflows may use on: only for import-safe activation fields.
+func validateSharedWorkflowOnField(onValue any) error {
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return errors.New("field 'on' cannot be used in shared workflows (only import-safe on fields are allowed)")
+	}
+
+	var disallowed []string
+	for key := range onMap {
+		if _, ok := sharedWorkflowAllowedOnFields[key]; !ok {
+			disallowed = append(disallowed, key)
+		}
+	}
+
+	if len(disallowed) > 0 {
+		return fmt.Errorf(
+			"field 'on' in shared workflows can only include import-safe fields (%s); found unsupported keys: %s",
+			strings.Join(sharedWorkflowAllowedOnFieldList, ", "),
+			strings.Join(disallowed, ", "),
+		)
 	}
 
 	return nil

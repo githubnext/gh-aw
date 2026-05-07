@@ -25,8 +25,7 @@ The [`go-fan`](https://github.com/github/gh-aw/blob/main/.github/workflows/go-fa
 ---
 name: Go Fan
 on:
-  schedule:
-    - cron: "0 7 * * 1-5"
+  schedule: daily on weekdays
   workflow_dispatch:
 engine: claude
 safe-outputs:

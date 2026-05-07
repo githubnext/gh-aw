@@ -1,9 +1,20 @@
 ---
 title: Frontmatter Hash Specification
 description: Specification for computing deterministic hashes of agentic workflow frontmatter
+version: 1.0.0
+status: Draft
+publication_date: 2026-05-07
 ---
 
 # Frontmatter Hash Specification
+
+**Version**: 1.0.0  
+**Status**: Draft  
+**Publication Date**: 2026-05-07  
+**Latest Version**: [frontmatter-hash-specification](/gh-aw/reference/frontmatter-hash-specification/)  
+**Editor**: GitHub Agentic Workflows Team
+
+---
 
 This document specifies the algorithm for computing a deterministic hash of agentic workflow frontmatter, including contributions from imported workflows.
 
@@ -13,6 +24,17 @@ The frontmatter hash provides:
 1. **Stale lock detection**: Identify when the compiled lock file is out of sync with the source workflow (e.g. after editing the `.md` file without recompiling)
 2. **Reproducibility**: Ensure identical configurations produce identical hashes across languages (Go and JavaScript)
 3. **Change detection**: Verify that workflow configuration has not changed between compilation and execution
+
+## Conformance
+
+### Conformance Classes
+
+- **Basic Conformance**: An implementation MUST compute a deterministic SHA-256 hash from canonicalized frontmatter input and MUST produce the same output for identical input.
+- **Full Conformance**: An implementation MUST satisfy Basic Conformance and MUST implement cross-language consistency checks between Go and JavaScript implementations.
+
+### Requirements Notation
+
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
 ## Hash Algorithm
 
@@ -261,6 +283,12 @@ The hash includes `versions.gh-aw`, `versions.awf`, and `versions.agents`. Upgra
 The Go and JavaScript implementations must produce byte-for-byte identical canonical JSON. Any divergence in key sorting, number representation, or null/undefined handling between the two implementations will cause the JavaScript runtime to report a false stale-lock mismatch for every workflow run.
 
 **Mitigation**: Maintain a shared test-vector file (at minimum: empty frontmatter, single-field workflow, multi-level imports, all field types). Run cross-language hash tests in CI. Any change to the serialization algorithm in either language MUST be accompanied by updated test vectors verified against both implementations.
+
+### S-6: Maximum Frontmatter Input Size
+
+Very large frontmatter payloads can cause excessive memory use and hash-computation latency during compilation and runtime verification. This can degrade CI reliability and increase stale-lock false positives due to timeout or resource pressure.
+
+**Mitigation**: Implementations SHOULD enforce a maximum cumulative frontmatter input size and MUST fail deterministically with a descriptive error when the limit is exceeded. A limit of 1 MiB for the combined normalized frontmatter input is RECOMMENDED unless repository-specific requirements justify a higher bound.
 
 ---
 

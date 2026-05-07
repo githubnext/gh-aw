@@ -40,8 +40,9 @@ This document is governed by the GitHub Agentic Workflows project specifications
 10. [Compliance Testing](#10-compliance-testing)
 11. [Appendices](#appendices)
 12. [Model Multiplier Registry](#model-multiplier-registry)
-13. [References](#references)
-14. [Change Log](#change-log)
+13. [Sync Notes](#sync-notes)
+14. [References](#references)
+15. [Change Log](#change-log)
 
 ---
 
@@ -473,9 +474,28 @@ This file is embedded at compile time into the `gh-aw` binary using a Go `//go:e
 
 **R-REG-006**: Custom multipliers supplied by the caller (e.g., via API or configuration) MUST be merged with registry multipliers. Custom values take precedence and MUST be disclosed in any report that uses them.
 
+**R-REG-007**: The registry MUST NOT contain placeholder values such as `TBD`, `null`, or empty strings for any model multiplier entry. Each declared model key MUST map to a numeric multiplier value.
+
+**R-REG-008**: When adding support for a new model, maintainers MUST register the model in `pkg/cli/data/model_multipliers.json` with a concrete numeric multiplier before release. If calibration is incomplete, the model MUST be omitted from the registry and the implementation fallback behavior in R-REG-005 applies.
+
 ### Registry Versioning
 
 The `version` field in `model_multipliers.json` corresponds to the registry schema version, not the gh-aw binary version. Implementations SHOULD include the registry version in all ET summary reports to enable historical reconstruction.
+
+---
+
+## Sync Notes
+
+The Effective Tokens registry is maintained in `pkg/cli/data/model_multipliers.json` and loaded by `pkg/cli/effective_tokens.go`.
+
+To keep specification and implementation synchronized:
+
+1. Update this specification's registry requirements when adding, removing, or re-scaling model multipliers.
+2. Update `pkg/cli/data/model_multipliers.json` in the same change.
+3. Verify loading and fallback behavior in `pkg/cli/effective_tokens_test.go` (`TestModelMultipliersJSONEmbedded`, `TestResolveEffectiveWeightsDefault`, and inventory checks).
+4. Run `make build` so the embedded registry is rebuilt into the `gh-aw` binary.
+
+Conforming releases SHOULD include a test assertion for newly added model multipliers to ensure implementation-registry parity.
 
 ---
 

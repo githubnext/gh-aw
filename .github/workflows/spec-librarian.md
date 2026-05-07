@@ -4,7 +4,6 @@ description: Daily review of all package README.md specifications to detect inco
 on:
   schedule: daily
   workflow_dispatch:
-  skip-if-match: 'is:issue is:open in:title "[spec-librarian]"'
 
 permissions:
   contents: read
@@ -16,6 +15,9 @@ engine: copilot
 strict: true
 
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[spec-librarian]"
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[spec-librarian] "

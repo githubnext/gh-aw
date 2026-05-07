@@ -1,11 +1,11 @@
 ---
 title: Scheduled Workflows
-description: Workflows that run automatically on a schedule using cron expressions - daily reports, weekly research, and continuous improvement patterns
+description: Workflows that run automatically on a schedule using fuzzy schedules - daily reports, weekly research, and continuous improvement patterns
 sidebar:
   order: 1
 ---
 
-Scheduled workflows run automatically at specified times using cron expressions. They're perfect for recurring tasks like daily status updates, weekly research reports, continuous code improvements, and automated maintenance.
+Scheduled workflows run automatically at specified times using fuzzy schedule expressions. They're perfect for recurring tasks like daily status updates, weekly research reports, continuous code improvements, and automated maintenance.
 
 ## When to Use Scheduled Workflows
 

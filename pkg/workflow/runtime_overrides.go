@@ -85,11 +85,13 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			}
 		} else {
 			// Check if this is a known runtime
+			runtimeSetupLog.Printf("Runtime %s not in requirements, checking known runtimes", runtimeID)
 			var runtime *Runtime
 			for _, knownRuntime := range knownRuntimes {
 				if knownRuntime.ID == runtimeID {
 					// Clone the known runtime if we need to customize it
 					if actionRepo != "" || actionVersion != "" {
+						runtimeSetupLog.Printf("Cloning known runtime %s with custom action config: repo=%s, version=%s", runtimeID, actionRepo, actionVersion)
 						runtime = &Runtime{
 							ID:              knownRuntime.ID,
 							Name:            knownRuntime.Name,
@@ -109,6 +111,7 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 							runtime.ActionVersion = actionVersion
 						}
 					} else {
+						runtimeSetupLog.Printf("Using known runtime %s as-is", runtimeID)
 						runtime = knownRuntime
 					}
 					break
@@ -117,13 +120,16 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 
 			// If runtime is known or we have custom action configuration, create a new requirement
 			if runtime != nil {
+				runtimeSetupLog.Printf("Adding new requirement for runtime %s: version=%s", runtimeID, version)
 				requirements[runtimeID] = &RuntimeRequirement{
 					Runtime:     runtime,
 					Version:     version,
 					IfCondition: ifCondition,
 				}
+			} else {
+				// If runtime is unknown and no action-repo specified, skip it (user might have typo)
+				runtimeSetupLog.Printf("Skipping unknown runtime %s: not in known runtimes and no action-repo specified", runtimeID)
 			}
-			// If runtime is unknown and no action-repo specified, skip it (user might have typo)
 		}
 	}
 }

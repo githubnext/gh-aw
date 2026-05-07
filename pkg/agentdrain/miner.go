@@ -48,7 +48,7 @@ func (m *Miner) Train(line string) (*MatchResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	result, _ := m.match(tokens)
+	result, _ := m.findBestMatchingCluster(tokens)
 	if result != nil {
 		// Merge and update existing cluster.
 		c, _ := m.store.get(result.ClusterID)
@@ -73,10 +73,10 @@ func (m *Miner) Train(line string) (*MatchResult, error) {
 	}, nil
 }
 
-// match is the internal (non-locking) lookup. Must be called with mu held.
-func (m *Miner) match(tokens []string) (*MatchResult, bool) {
+// findBestMatchingCluster is the internal (non-locking) lookup. Must be called with mu held.
+func (m *Miner) findBestMatchingCluster(tokens []string) (*MatchResult, bool) {
 	candidates := m.tree.search(tokens, m.cfg.Depth, m.cfg.ParamToken)
-	minerLog.Printf("match: searching %d candidate cluster(s) for %d token(s)", len(candidates), len(tokens))
+	minerLog.Printf("findBestMatchingCluster: searching %d candidate cluster(s) for %d token(s)", len(candidates), len(tokens))
 	bestSim := -1.0
 	var best *Cluster
 	for _, id := range candidates {
@@ -91,11 +91,11 @@ func (m *Miner) match(tokens []string) (*MatchResult, bool) {
 		}
 	}
 	if best == nil || bestSim < m.cfg.SimThreshold {
-		minerLog.Printf("match: no cluster matched (best_sim=%.2f, threshold=%.2f)", bestSim, m.cfg.SimThreshold)
+		minerLog.Printf("findBestMatchingCluster: no cluster matched (best_sim=%.2f, threshold=%.2f)", bestSim, m.cfg.SimThreshold)
 		return nil, false
 	}
 	params := extractParams(tokens, best.Template, m.cfg.ParamToken)
-	minerLog.Printf("match: matched cluster id=%d, similarity=%.2f, params=%d", best.ID, bestSim, len(params))
+	minerLog.Printf("findBestMatchingCluster: matched cluster id=%d, similarity=%.2f, params=%d", best.ID, bestSim, len(params))
 	return &MatchResult{
 		ClusterID:  best.ID,
 		Template:   strings.Join(best.Template, " "),
@@ -135,7 +135,7 @@ func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, erro
 	}
 
 	m.mu.RLock()
-	inferResult, _ := m.match(tokens)
+	inferResult, _ := m.findBestMatchingCluster(tokens)
 	m.mu.RUnlock()
 
 	isNew := inferResult == nil
@@ -149,7 +149,10 @@ func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, erro
 	cluster, _ = m.store.get(result.ClusterID)
 	m.mu.RUnlock()
 
-	detector := NewAnomalyDetector(m.cfg.SimThreshold, m.cfg.RareClusterThreshold)
+	detector, err := NewAnomalyDetector(m.cfg.SimThreshold, m.cfg.RareClusterThreshold)
+	if err != nil {
+		return nil, nil, fmt.Errorf("agentdrain: AnalyzeEvent: %w", err)
+	}
 	report := detector.Analyze(result, isNew, cluster)
 	return result, report, nil
 }

@@ -360,6 +360,14 @@ Imports support a parameterized form using `uses`/`with` syntax when the shared 
 
 A typed parameter contract declared in a shared workflow file that enables callers to pass values via `uses`/`with` syntax. The compiler validates each caller's `with` values against the schema and substitutes them into the shared file's frontmatter and body before processing. Supports typed fields with optional defaults; required fields without defaults cause a compile-time error if omitted. See [Imports Reference](/gh-aw/reference/imports/#import-schema-import-schema).
 
+### MCP Gateway Settings (`engine.mcp`)
+
+`engine.mcp` is the subset of `engine:` configuration that controls MCP gateway behavior — specifically `tool-timeout` and `session-timeout`. Shared workflow files can export only these settings (without specifying an engine identifier), allowing importers to inherit MCP timeout configuration without coupling a shared component to a specific engine. The importing workflow's own `engine.mcp` values take precedence; among imports, the first-wins strategy applies. See [Imports Reference — Importing MCP Gateway Settings](/gh-aw/reference/imports/#importing-mcp-gateway-settings).
+
+### Runtime Import (`{{#runtime-import}}`)
+
+A body-level directive that injects the text content of another file at a specific point in the workflow markdown. Unlike the `imports:` frontmatter field (which merges configuration), `{{#runtime-import filepath}}` splices raw markdown text — useful for sharing reusable prompt snippets, tone instructions, or reference material. Use `{{#runtime-import? filepath}}` for an optional include that silently skips a missing file. Paths are resolved within the `.github` folder with or without the `.github/` prefix. See [Runtime Imports](/gh-aw/reference/templating/#runtime-imports).
+
 ### Label Trigger Shorthand
 
 A compact syntax for label-based triggers: `on: issue labeled bug` or `on: pull_request labeled needs-review`. The compiler expands the shorthand to standard GitHub Actions trigger syntax and automatically includes a `workflow_dispatch` trigger with an `inputs.item_number` parameter, enabling manual dispatch for a specific issue or pull request. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps patterns](/gh-aw/patterns/label-ops/).
@@ -662,6 +670,10 @@ Parameters provided when manually triggering a workflow with `workflow_dispatch`
 ## Operational Patterns
 
 Operational patterns (suffixed with "-Ops") are established workflow architectures for common automation scenarios. Each pattern addresses specific use cases with recommended triggers, tools, and safe outputs.
+
+### AgenticOps
+
+Repository-wide observability pattern where a scheduled workflow inspects other agentic workflows, classifies notable behavior, and publishes a structured report. When it detects repeated failures, abnormal token consumption, or other unhealthy patterns, it escalates findings into issues for follow-up. Creates a durable operational record instead of relying on ad hoc inspection of individual runs. See [AgenticOps](/gh-aw/patterns/agentic-ops/).
 
 ### BatchOps
 

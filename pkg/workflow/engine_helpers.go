@@ -360,24 +360,3 @@ func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) ma
 	engineHelpersLog.Printf("Filtered environment variables: kept=%d, removed=%d", len(filtered), secretsRemoved)
 	return filtered
 }
-
-// EngineHasValidateSecretStep checks if the engine provides a validate-secret step.
-// This is used to determine whether the secret_verification_result job output should be added.
-//
-// The validate-secret step is provided by engines that override GetSecretValidationStep():
-//   - Copilot engine: Adds step unless copilot-requests feature is enabled or custom command is set
-//   - Claude engine: Adds step unless custom command is set
-//   - Codex engine: Adds step unless custom command is set
-//   - Gemini engine: Adds step unless custom command is set
-//   - Custom engine: Never adds this step (uses BaseEngine default which returns empty)
-//
-// Parameters:
-//   - engine: The agentic engine to check
-//   - data: The workflow data (needed for GetSecretValidationStep)
-//
-// Returns:
-//   - bool: true if the engine provides a validate-secret step, false otherwise
-func EngineHasValidateSecretStep(engine CodingAgentEngine, data *WorkflowData) bool {
-	step := engine.GetSecretValidationStep(data)
-	return len(step) > 0
-}

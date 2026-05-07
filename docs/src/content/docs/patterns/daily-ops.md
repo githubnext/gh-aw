@@ -16,8 +16,7 @@ Workflows run on weekday schedules (avoiding weekends) with `workflow_dispatch` 
 ```aw wrap
 ---
 on:
-  schedule:
-    - cron: "0 2 * * 1-5"  # Weekdays only (no short syntax available)
+  schedule: daily on weekdays
   workflow_dispatch:
 ---
 ```

@@ -155,10 +155,7 @@ func countPinKeyMismatches(entries map[string]ActionPin) int {
 			keyVersion := key[idx+1:]
 			if keyVersion != pin.Version {
 				count++
-				shortSHA := pin.SHA
-				if len(pin.SHA) > 8 {
-					shortSHA = pin.SHA[:8]
-				}
+				shortSHA := pin.SHA[:min(len(pin.SHA), 8)]
 				log.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
 					key, keyVersion, pin.Version, shortSHA)
 			}
