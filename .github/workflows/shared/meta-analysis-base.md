@@ -22,4 +22,4 @@ tools:
     toolsets: ${{ github.aw.import-inputs.toolsets }}
 ---
 
-**IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files and the `mcpscripts-gh` tool for GitHub CLI commands.
+**IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files.

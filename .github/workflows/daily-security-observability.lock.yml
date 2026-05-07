@@ -258,7 +258,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_df4ffbba47e4b409_EOF'
           </system>
-          **IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files and the `mcpscripts-gh` tool for GitHub CLI commands.
+          **IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files.
           
           
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
