@@ -1053,9 +1053,12 @@ function getErrorMessage(errorEntry) {
     return "";
   }
 
-  const normalizedError = /** @type {{ type?: unknown, message?: unknown, error?: unknown }} */ errorEntry;
-  const type = typeof normalizedError.type === "string" ? normalizedError.type.trim() : "";
-  const message = typeof normalizedError.message === "string" ? normalizedError.message.trim() : typeof normalizedError.error === "string" ? normalizedError.error.trim() : "";
+  const normalizedError = /** @type {Record<string, unknown>} */ errorEntry;
+  const rawType = normalizedError["type"];
+  const rawMessage = normalizedError["message"];
+  const rawError = normalizedError["error"];
+  const type = typeof rawType === "string" ? rawType.trim() : "";
+  const message = typeof rawMessage === "string" ? rawMessage.trim() : typeof rawError === "string" ? rawError.trim() : "";
 
   if (type && message) {
     return `${type}:${message}`.slice(0, MAX_ATTR_VALUE_LENGTH);
