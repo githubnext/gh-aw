@@ -240,25 +240,25 @@ When refactoring a large workflow:
 
 ## Benefits
 
-### Maintainability (+20 points)
-- Easier to understand focused modules
-- Changes to shared logic benefit all workflows
+### Maintainability
+- Focused modules are easier to understand
+- Changes to shared logic propagate to all workflows
 - Clear separation of concerns
 
-### Testability (+15 points)
-- Smaller units are easier to test
-- Can test shared modules independently
+### Testability
+- Smaller modules reduce test scope
+- Shared modules can be tested independently
 - Reduced cognitive load for reviewers
 
-### Reusability (+25 points)
-- Shared modules benefit multiple workflows
+### Reusability
+- Shared modules serve multiple workflows
 - Common patterns defined once
-- Easier to create new workflows
+- New workflows can import existing modules
 
-### Debugging (+30 points)
-- Easier to isolate issues
-- Clear module boundaries
-- Better error messages with specific module context
+### Debugging
+- Module boundaries isolate failure scope
+- Error messages include specific module context
+- Issues are localized to a single concern
 
 ## Common Patterns
 
