@@ -17,8 +17,8 @@
 Navigate to the docs directory and start the development server in the background, binding to all network interfaces on a fixed port:
 
 ```bash
-cd docs
 mkdir -p /tmp/gh-aw
+cd docs
 nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/preview.log 2>&1 &
 PID=$!
 echo $PID > /tmp/gh-aw/server.pid

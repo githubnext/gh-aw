@@ -171,6 +171,7 @@ pre-agent-steps:
 
   - name: Start documentation dev server
     run: |
+      mkdir -p /tmp/gh-aw
       cd docs
       nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/preview.log 2>&1 &
       PID=$!
