@@ -335,9 +335,11 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 // Returns an error if frontmatter is opened but never closed.
 func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
-	// Increase the max token size beyond the default 64 KB to handle files with
-	// large frontmatter values or long base64-encoded lines.
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	// Use a small initial buffer (4 KB, matching the default scanner allocation)
+	// but allow growth up to 1 MB to handle files with large frontmatter values
+	// or long base64-encoded lines.  Keeping the initial size small avoids a
+	// costly 64 KB heap allocation on every call.
+	scanner.Buffer(make([]byte, 4*1024), 1024*1024)
 	firstLine := true
 	inFrontmatter := false
 	for scanner.Scan() {
