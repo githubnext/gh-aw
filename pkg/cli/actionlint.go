@@ -22,6 +22,12 @@ var actionlintLog = logger.New("cli:actionlint")
 // actionlintVersion caches the actionlint version to avoid repeated Docker calls
 var actionlintVersion string
 
+type actionlintRunOptions struct {
+	IncludeShellcheck bool
+	IncludePyflakes   bool
+	IgnorePatterns    []string
+}
+
 // getActionlintDocsURL returns the documentation URL for a given actionlint error kind
 // Error kinds map to documentation anchors at https://github.com/rhysd/actionlint/blob/main/docs/checks.md
 func getActionlintDocsURL(kind string) string {
@@ -187,6 +193,13 @@ func getActionlintVersion() (string, error) {
 
 // runActionlintOnFiles runs the actionlint linter on one or more .lock.yml files using Docker
 func runActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runActionlintOnFilesWithOptions(lockFiles, verbose, strict, actionlintRunOptions{
+		IncludeShellcheck: true,
+		IncludePyflakes:   true,
+	})
+}
+
+func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bool, options actionlintRunOptions) error {
 	if len(lockFiles) == 0 {
 		return nil
 	}
@@ -236,15 +249,32 @@ func runActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		"rhysd/actionlint:latest",
 		"-format", "{{json .}}",
 	}
+	if !options.IncludeShellcheck {
+		dockerArgs = append(dockerArgs, "-shellcheck=")
+	}
+	if !options.IncludePyflakes {
+		dockerArgs = append(dockerArgs, "-pyflakes=")
+	}
+	for _, ignorePattern := range options.IgnorePatterns {
+		dockerArgs = append(dockerArgs, "-ignore", ignorePattern)
+	}
 	dockerArgs = append(dockerArgs, relPaths...)
 
 	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
 
 	// Always show that actionlint is running (regular verbosity)
+	integrationStatus := "with shellcheck & pyflakes"
+	if !options.IncludeShellcheck && !options.IncludePyflakes {
+		integrationStatus = "without shellcheck/pyflakes"
+	} else if !options.IncludeShellcheck {
+		integrationStatus = "without shellcheck"
+	} else if !options.IncludePyflakes {
+		integrationStatus = "without pyflakes"
+	}
 	if len(lockFiles) == 1 {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running actionlint (includes shellcheck & pyflakes) on "+relPaths[0]))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running actionlint ("+integrationStatus+") on "+relPaths[0]))
 	} else {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (includes shellcheck & pyflakes) on %d files", len(lockFiles))))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (%s) on %d files", integrationStatus, len(lockFiles))))
 	}
 
 	// In verbose mode, also show the command that users can run directly
