@@ -278,9 +278,9 @@ func ExtractGitHubContextExpressionsFromValue(value string) map[string]string {
 func ExtractWorkflowInputExpressionsFromValue(value string) map[string]string {
 	result := make(map[string]string)
 
-	for _, match := range workflowInputDotExprPattern.FindAllStringSubmatch(value, -1) {
+	processMatch := func(match []string) {
 		if len(match) < 2 {
-			continue
+			return
 		}
 		inputName := match[1]
 		fullExpr := match[0]
@@ -289,15 +289,12 @@ func ExtractWorkflowInputExpressionsFromValue(value string) map[string]string {
 		secretLog.Printf("Extracted workflow input expression: %s -> %s", fullExpr, envVar)
 	}
 
+	for _, match := range workflowInputDotExprPattern.FindAllStringSubmatch(value, -1) {
+		processMatch(match)
+	}
+
 	for _, match := range workflowInputBracketExprPattern.FindAllStringSubmatch(value, -1) {
-		if len(match) < 2 {
-			continue
-		}
-		inputName := match[1]
-		fullExpr := match[0]
-		envVar := formatInputNameAsEnvVar(inputName)
-		result[envVar] = fullExpr
-		secretLog.Printf("Extracted workflow input expression: %s -> %s", fullExpr, envVar)
+		processMatch(match)
 	}
 
 	return result
