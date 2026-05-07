@@ -55,7 +55,7 @@ URL="http://localhost:4321/gh-aw/"
 STATUS=""
 echo "Readiness check target: $URL"
 for i in {1..45}; do
-  STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 5 "$URL" || true)
+  STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 5 "$URL" || true)
   [ "$STATUS" = "200" ] && echo "Server ready at $URL" && break
   if [ -z "$STATUS" ]; then STATUS="curl_error"; fi
   echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
