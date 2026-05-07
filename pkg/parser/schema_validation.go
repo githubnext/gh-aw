@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"strings"
@@ -74,7 +75,7 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 func validateSharedWorkflowOnField(onValue any) error {
 	onMap, ok := onValue.(map[string]any)
 	if !ok {
-		return fmt.Errorf("field 'on' cannot be used in shared workflows (only import-safe on fields are allowed)")
+		return errors.New("field 'on' cannot be used in shared workflows (only import-safe on fields are allowed)")
 	}
 
 	var disallowed []string

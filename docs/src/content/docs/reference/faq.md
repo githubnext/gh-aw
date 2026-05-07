@@ -389,11 +389,9 @@ Suppress these PRs by adding an `ignore` entry in `.github/dependabot.yml`:
 ```yaml
 updates:
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: "/.github/workflows"
     ignore:
-      # ignore updates to gh-aw-actions, which only appears in auto-generated *.lock.yml
-      # files managed by 'gh aw compile' and should not be touched by dependabot
-      - dependency-name: "github/gh-aw-actions"
+      - dependency-name: "github/gh-aw-actions/**" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
 ```
 
 See [Dependabot and gh-aw-actions](/gh-aw/reference/compilation-process/#dependabot-and-gh-aw-actions) for more details.

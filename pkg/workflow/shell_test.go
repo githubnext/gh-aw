@@ -123,6 +123,25 @@ func TestShellEscapeArg(t *testing.T) {
 			input:    `${{ env.X == "test" && env.Y || env.Z }}`,
 			expected: `"${{ env.X == \"test\" && env.Y || env.Z }}"`,
 		},
+		// --- $schema / bare-dollar escaping in double-quote mode ---
+		// When a string contains both a GitHub Actions expression and a bare $ (e.g. a
+		// JSON $schema key), the bare $ must be escaped to \$ so bash does not expand
+		// it as a variable inside the double-quoted shell argument.
+		{
+			name:     "JSON with $schema key and GitHub Actions expression escapes bare dollar",
+			input:    `{"$schema":"https://example.com","network":{"allowDomains":["${{ env.DOMAINS }}"]}}`,
+			expected: `"{\"\$schema\":\"https://example.com\",\"network\":{\"allowDomains\":[\"${{ env.DOMAINS }}\"]}}"`,
+		},
+		{
+			name:     "GitHub Actions expression preceded by bare dollar sign escapes the bare dollar",
+			input:    "plain-$var,${{ env.DOMAINS }}",
+			expected: `"plain-\$var,${{ env.DOMAINS }}"`,
+		},
+		{
+			name:     "sole GitHub Actions expression has no bare dollar, no extra escaping needed",
+			input:    "${{ env.DOMAINS }}",
+			expected: `"${{ env.DOMAINS }}"`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -288,5 +307,73 @@ func TestBuildDockerCommandWithExpandableVars_UnbracedVariable(t *testing.T) {
 	expected := "'docker run -v $GITHUB_WORKSPACE:/workspace'"
 	if result != expected {
 		t.Errorf("Unbraced $GITHUB_WORKSPACE should be quoted normally (not preserved for expansion), got %q, expected %q", result, expected)
+	}
+}
+
+func TestEscapeBareShellDollarSigns(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "no dollar signs",
+			input:    "no dollars here",
+			expected: "no dollars here",
+		},
+		{
+			name:     "bare dollar followed by identifier",
+			input:    "$schema",
+			expected: `\$schema`,
+		},
+		{
+			name:     "dollar sign at end of string",
+			input:    "trailing$",
+			expected: `trailing\$`,
+		},
+		{
+			name:     "GitHub Actions expression is preserved",
+			input:    "${{ env.DOMAINS }}",
+			expected: "${{ env.DOMAINS }}",
+		},
+		{
+			name:     "multiple GitHub Actions expressions are preserved",
+			input:    "${{ env.A }},${{ env.B }}",
+			expected: "${{ env.A }},${{ env.B }}",
+		},
+		{
+			name:     "bare dollar mixed with GitHub Actions expression",
+			input:    `$schema and ${{ env.X }}`,
+			expected: `\$schema and ${{ env.X }}`,
+		},
+		{
+			name:     "JSON $schema key alongside expression",
+			input:    `{"$schema":"https://example.com","allowDomains":["${{ env.DOMAINS }}"]}`,
+			expected: `{"\$schema":"https://example.com","allowDomains":["${{ env.DOMAINS }}"]}`,
+		},
+		{
+			name:     "dollar followed by single open brace is escaped",
+			input:    "${HOME}",
+			expected: `\${HOME}`,
+		},
+		{
+			name:     "dollar followed by ${{ is preserved",
+			input:    "${{",
+			expected: "${{",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := escapeBareShellDollarSigns(tt.input)
+			if result != tt.expected {
+				t.Errorf("escapeBareShellDollarSigns(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
 	}
 }

@@ -451,3 +451,73 @@ func TestExtractGitHubContextExpressionsFromValue(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractWorkflowInputExpressionsFromValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected map[string]string
+	}{
+		{
+			name:  "single input expression",
+			value: `"repo":"${{ inputs.target_repo }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target_repo }}",
+			},
+		},
+		{
+			name:  "multiple input expressions with bracket dash and underscore",
+			value: `"repo":"${{ inputs['target-repo'] }}","base":"${{ inputs.base_branch }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_TARGET_REPO": "${{ inputs['target-repo'] }}",
+				"GH_AW_INPUT_BASE_BRANCH": "${{ inputs.base_branch }}",
+			},
+		},
+		{
+			name:  "dot notation with dash remains supported",
+			value: `"repo":"${{ inputs.target-repo }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target-repo }}",
+			},
+		},
+		{
+			name:  "double-quote bracket notation",
+			value: `"base":"${{ inputs["base-branch"] }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_BASE_BRANCH": `${{ inputs["base-branch"] }}`,
+			},
+		},
+		{
+			name:     "no input expressions",
+			value:    `"repo":"${{ github.repository }}"`,
+			expected: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractWorkflowInputExpressionsFromValue(tt.value)
+			assert.Equal(t, tt.expected, result, "Should extract expected workflow input expressions")
+		})
+	}
+}
+
+func TestFormatInputNameAsEnvVar(t *testing.T) {
+	tests := []struct {
+		name      string
+		inputName string
+		expected  string
+	}{
+		{name: "underscore", inputName: "target_repo", expected: "GH_AW_INPUT_TARGET_REPO"},
+		{name: "dash", inputName: "base-branch", expected: "GH_AW_INPUT_BASE_BRANCH"},
+		{name: "consecutive separators", inputName: "my--input__name", expected: "GH_AW_INPUT_MY__INPUT__NAME"},
+		{name: "mixed case and numeric", inputName: "Repo2Name", expected: "GH_AW_INPUT_REPO2NAME"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := formatInputNameAsEnvVar(tt.inputName)
+			assert.Equal(t, tt.expected, actual, "Input name should be converted to the expected env var")
+		})
+	}
+}

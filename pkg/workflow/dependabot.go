@@ -3,12 +3,14 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -18,6 +20,10 @@ import (
 )
 
 var dependabotLog = logger.New("workflow:dependabot")
+
+const managedDependabotIgnoreComment = "Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump."
+
+const dependabotConfigRelativePath = ".github/dependabot.yml"
 
 // PackageJSON represents the structure of a package.json file
 type PackageJSON struct {
@@ -410,6 +416,261 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 	}
 
 	return nil
+}
+
+// ReconcileManagedDependabotIgnores updates existing github-actions entries in .github/dependabot.yml
+// with compiler-managed ignore rules for compiler-emitted action refs.
+// This function is a no-op when dependabot.yml does not exist or has no github-actions update entries.
+func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read dependabot.yml: %w", err)
+	}
+
+	var root map[string]any
+	if err := yaml.Unmarshal(original, &root); err != nil {
+		return fmt.Errorf("failed to parse dependabot.yml: %w", err)
+	}
+
+	updatesAny, ok := root["updates"]
+	if !ok {
+		return nil
+	}
+	updates, ok := dependabotToAnySlice(updatesAny)
+	if !ok {
+		return nil
+	}
+
+	managedPatterns := []string{fmt.Sprintf("%s/**", c.effectiveActionsRepo())}
+	changed := false
+	originalStr := string(original)
+	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
+
+	for i, updateAny := range updates {
+		updateMap, ok := dependabotToStringAnyMap(updateAny)
+		if !ok {
+			continue
+		}
+
+		ecosystem, _ := updateMap["package-ecosystem"].(string)
+		if ecosystem != "github-actions" {
+			continue
+		}
+
+		ignoreAny, hasIgnore := updateMap["ignore"]
+		if !hasIgnore || isYAMLNullOrEmptyScalar(ignoreAny) {
+			updateMap["ignore"] = []any{}
+			ignoreAny = updateMap["ignore"]
+			changed = true
+		}
+
+		ignoreEntries, ok := dependabotToAnySlice(ignoreAny)
+		if !ok {
+			continue
+		}
+
+		managedPresent := make(map[string]bool, len(managedPatterns))
+		for _, ignoreEntryAny := range ignoreEntries {
+			ignoreEntryMap, ok := dependabotToStringAnyMap(ignoreEntryAny)
+			if !ok {
+				continue
+			}
+			dependencyName, _ := ignoreEntryMap["dependency-name"].(string)
+			if dependencyName == "" {
+				continue
+			}
+
+			for _, pattern := range managedPatterns {
+				if dependencyName == pattern {
+					managedPresent[pattern] = true
+					if !managedPatternsWithComment[pattern] {
+						changed = true
+					}
+				}
+			}
+		}
+
+		for _, pattern := range managedPatterns {
+			if managedPresent[pattern] {
+				continue
+			}
+			ignoreEntries = append(ignoreEntries, map[string]any{"dependency-name": pattern})
+			changed = true
+		}
+
+		updateMap["ignore"] = ignoreEntries
+		updates[i] = updateMap
+	}
+
+	if !changed {
+		return nil
+	}
+
+	root["updates"] = updates
+	updated, err := yaml.Marshal(root)
+	if err != nil {
+		return fmt.Errorf("failed to encode dependabot.yml: %w", err)
+	}
+	updated = normalizeDependabotIgnoreEntries(updated, managedPatterns)
+
+	if bytes.Equal(original, updated) {
+		return nil
+	}
+	if err := os.WriteFile(path, updated, 0644); err != nil {
+		return fmt.Errorf("failed to write dependabot.yml: %w", err)
+	}
+	return nil
+}
+
+// DependabotConfigPath resolves the repository-local Dependabot config path.
+func DependabotConfigPath(gitRoot string) string {
+	return filepath.Join(gitRoot, dependabotConfigRelativePath)
+}
+
+// ReconcileManagedDependabotIgnoresInRepo reconciles managed ignores in the
+// Dependabot config located under a repository root.
+func (c *Compiler) ReconcileManagedDependabotIgnoresInRepo(gitRoot string) error {
+	return c.ReconcileManagedDependabotIgnores(DependabotConfigPath(gitRoot))
+}
+
+func dependabotToAnySlice(value any) ([]any, bool) {
+	if value == nil {
+		return nil, false
+	}
+	if direct, ok := value.([]any); ok {
+		return direct, true
+	}
+
+	// goccy/go-yaml can decode typed slices depending on source shape.
+	// Use reflection fallback to safely normalize those typed slices to []any.
+	rv := reflect.ValueOf(value)
+	if rv.Kind() != reflect.Slice {
+		return nil, false
+	}
+	dependabotLog.Printf(
+		"Normalizing typed slice %T to []any via reflection (goccy/go-yaml may return typed slices depending on YAML structure)",
+		value,
+	)
+
+	out := make([]any, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		out[i] = rv.Index(i).Interface()
+	}
+	return out, true
+}
+
+func dependabotToStringAnyMap(value any) (map[string]any, bool) {
+	if value == nil {
+		return nil, false
+	}
+	if direct, ok := value.(map[string]any); ok {
+		return direct, true
+	}
+
+	// goccy/go-yaml can decode typed maps in dynamic sections.
+	// Use reflection fallback to safely normalize those maps to map[string]any.
+	rv := reflect.ValueOf(value)
+	if rv.Kind() != reflect.Map {
+		return nil, false
+	}
+	dependabotLog.Printf(
+		"Normalizing typed map %T to map[string]any via reflection (goccy/go-yaml may return typed maps in dynamic sections)",
+		value,
+	)
+
+	out := make(map[string]any, rv.Len())
+	iter := rv.MapRange()
+	for iter.Next() {
+		key, ok := iter.Key().Interface().(string)
+		if !ok {
+			return nil, false
+		}
+		out[key] = iter.Value().Interface()
+	}
+	return out, true
+}
+
+func isYAMLNullOrEmptyScalar(value any) bool {
+	if value == nil {
+		return true
+	}
+	rawValue, ok := value.(string)
+	if !ok {
+		return false
+	}
+	trimmed := strings.TrimSpace(rawValue)
+	return trimmed == "" || strings.EqualFold(trimmed, "null") || trimmed == "~"
+}
+
+func managedPatternsWithInlineComment(content string, managedPatterns []string) map[string]bool {
+	result := make(map[string]bool, len(managedPatterns))
+	for _, line := range strings.Split(content, "\n") {
+		if !strings.Contains(line, "dependency-name:") || !strings.Contains(line, managedDependabotIgnoreComment) {
+			continue
+		}
+		for _, pattern := range managedPatterns {
+			if strings.Contains(line, pattern) {
+				result[pattern] = true
+			}
+		}
+	}
+	return result
+}
+
+func normalizeDependabotIgnoreEntries(content []byte, managedPatterns []string) []byte {
+	lines := strings.Split(string(content), "\n")
+	for i, line := range lines {
+		if !strings.Contains(line, "dependency-name:") {
+			continue
+		}
+
+		beforeComment, comment, hasComment := strings.Cut(line, "#")
+		parts := strings.SplitN(beforeComment, "dependency-name:", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		prefix := parts[0] + "dependency-name: "
+		rawDependencyName := strings.TrimSpace(parts[1])
+		quote := `"`
+		// Assume quote characters are balanced when present. If the scalar starts
+		// with a quote but does not end with the same quote, skip normalization.
+		if strings.HasPrefix(rawDependencyName, "'") {
+			if !strings.HasSuffix(rawDependencyName, "'") {
+				continue
+			}
+			quote = `'`
+		} else if strings.HasPrefix(rawDependencyName, `"`) && !strings.HasSuffix(rawDependencyName, `"`) {
+			continue
+		}
+		dependencyName := strings.Trim(rawDependencyName, `"'`)
+		if dependencyName == "" {
+			continue
+		}
+
+		line = prefix + quote + dependencyName + quote
+
+		managed := false
+		for _, pattern := range managedPatterns {
+			if dependencyName == pattern {
+				managed = true
+				break
+			}
+		}
+
+		if managed {
+			line += " # " + managedDependabotIgnoreComment
+		} else if hasComment {
+			line += " #" + strings.TrimSpace(comment)
+		}
+
+		lines[i] = line
+	}
+	return []byte(strings.Join(lines, "\n"))
 }
 
 // collectPipDependencies collects all pip dependencies from workflow data

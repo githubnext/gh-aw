@@ -453,6 +453,18 @@ func runPostProcessing(
 		}
 	}
 
+	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
+	if !config.NoEmit {
+		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
+			if err := compiler.ReconcileManagedDependabotIgnoresInRepo(gitRoot); err != nil {
+				if config.Strict {
+					return err
+				}
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
+			}
+		}
+	}
+
 	// Generate maintenance workflow if needed
 	// Only generate when compiling all workflows (not specific files)
 	// Skip when using custom --dir option or when compiling specific files
@@ -491,6 +503,16 @@ func runPostProcessingForDirectory(
 			if config.Strict {
 				return err
 			}
+		}
+	}
+
+	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
+	if !config.NoEmit {
+		if err := compiler.ReconcileManagedDependabotIgnoresInRepo(gitRoot); err != nil {
+			if config.Strict {
+				return err
+			}
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
 		}
 	}
 
