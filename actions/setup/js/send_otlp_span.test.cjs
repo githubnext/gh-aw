@@ -3870,7 +3870,7 @@ describe("sendJobConclusionSpan", () => {
       statSpy.mockRestore();
     });
 
-    it("includes gen_ai token breakdown attributes on the conclusion span when agent sub-span is emitted", async () => {
+    it("omits gen_ai token breakdown attributes from the conclusion span when agent sub-span is emitted", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -3889,11 +3889,11 @@ describe("sendJobConclusionSpan", () => {
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
       const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gen_ai.usage.input_tokens"]).toBe(48200);
-      expect(attrs["gen_ai.usage.output_tokens"]).toBe(1350);
-      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(41000);
-      expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(3100);
+      const keys = conclusionSpan.attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
     it("includes gen_ai token breakdown on conclusion span even when no agent sub-span is emitted", async () => {
@@ -3944,7 +3944,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
-    it("includes non-zero gen_ai token breakdown attributes on conclusion span when agent sub-span is emitted", async () => {
+    it("omits non-zero gen_ai token breakdown attributes from conclusion span when agent sub-span is emitted", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -3963,10 +3963,9 @@ describe("sendJobConclusionSpan", () => {
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
       const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
       const keys = conclusionSpan.attributes.map(a => a.key);
-      expect(attrs["gen_ai.usage.input_tokens"]).toBe(1000);
-      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(500);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
       expect(keys).not.toContain("gen_ai.usage.output_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });

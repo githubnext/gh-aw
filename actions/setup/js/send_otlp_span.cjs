@@ -1405,7 +1405,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   const endpoints = parseOTLPEndpoints();
   const conclusionSpanId = generateSpanId();
-  if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
+  const hasDedicatedAgentSpan = jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs;
+  if (hasDedicatedAgentSpan) {
     const agentSpanEvents = buildSpanEvents(agentEndMs);
 
     // Build OTel GenAI semantic convention attributes for the dedicated agent span.
@@ -1453,9 +1454,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  // Conclusion spans are the stable anchor for dashboard queries, so attach the
-  // token-usage attributes even when the dedicated agent span is also emitted.
-  attributes.push(...usageAttrs);
+  if (!hasDedicatedAgentSpan) {
+    attributes.push(...usageAttrs);
+  }
 
   const payload = buildOTLPPayload({
     traceId,
