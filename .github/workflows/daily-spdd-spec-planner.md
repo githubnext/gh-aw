@@ -37,21 +37,14 @@ tools:
 
 steps:
   - name: Copy OpenSPDD prompts
-    env:
-      GH_TOKEN: ${{ github.token }}
     run: |
       set -euo pipefail
+      OPENSPDD_REF="ac1e7c5f426572f9144a9f328de4b6a607ca9ba6"
+      OPENSPDD_PROMPTS_BASE="https://raw.githubusercontent.com/gszhangwei/open-spdd/${OPENSPDD_REF}/.cursor/commands"
       PROMPTS_DIR="${GITHUB_WORKSPACE}/.github/copilot-prompts"
       mkdir -p "${PROMPTS_DIR}"
-
-      TREE_JSON="$(gh api repos/gszhangwei/open-spdd/git/trees/main?recursive=1)"
       for PROMPT in spdd-analysis spdd-reasons-canvas spdd-generate spdd-sync; do
-        PROMPT_PATH="$(echo "${TREE_JSON}" | jq -r --arg p "${PROMPT}.md" '.tree[] | select(.type == "blob" and (.path | endswith($p))) | .path' | head -1)"
-        if [ -z "${PROMPT_PATH}" ] || [ "${PROMPT_PATH}" = "null" ]; then
-          echo "::error::Unable to locate ${PROMPT}.md in gszhangwei/open-spdd"
-          exit 1
-        fi
-        curl -fsSL "https://raw.githubusercontent.com/gszhangwei/open-spdd/main/${PROMPT_PATH}" -o "${PROMPTS_DIR}/${PROMPT}.md"
+        curl -fsSL "${OPENSPDD_PROMPTS_BASE}/${PROMPT}.md" -o "${PROMPTS_DIR}/${PROMPT}.md"
       done
 
 safe-outputs:
