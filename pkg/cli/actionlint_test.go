@@ -324,3 +324,44 @@ func TestGetActionlintDocsURL(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildActionlintIntegrationStatus(t *testing.T) {
+	tests := []struct {
+		name              string
+		includeShellcheck bool
+		includePyflakes   bool
+		expected          string
+	}{
+		{
+			name:              "both integrations enabled",
+			includeShellcheck: true,
+			includePyflakes:   true,
+			expected:          "with shellcheck/pyflakes",
+		},
+		{
+			name:              "only shellcheck enabled",
+			includeShellcheck: true,
+			includePyflakes:   false,
+			expected:          "without pyflakes",
+		},
+		{
+			name:              "only pyflakes enabled",
+			includeShellcheck: false,
+			includePyflakes:   true,
+			expected:          "without shellcheck",
+		},
+		{
+			name:              "both integrations disabled",
+			includeShellcheck: false,
+			includePyflakes:   false,
+			expected:          "without shellcheck/pyflakes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildActionlintIntegrationStatus(tt.includeShellcheck, tt.includePyflakes)
+			assert.Equal(t, tt.expected, result, "integration status should match")
+		})
+	}
+}

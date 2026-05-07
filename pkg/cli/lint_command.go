@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var defaultGhAwActionlintIgnorePatterns = []string{
+var defaultGHAWActionlintIgnorePatterns = []string{
 	`unknown permission scope "copilot-requests"`,
 	`property "workflow_(repository|sha|ref|file_path)" is not defined in object type`,
 }
@@ -48,7 +48,7 @@ Examples:
 			return runActionlintOnFilesWithOptions(lockFiles, verbose, true, actionlintRunOptions{
 				IncludeShellcheck: includeShellcheck,
 				IncludePyflakes:   includePyflakes,
-				IgnorePatterns:    defaultGhAwActionlintIgnorePatterns,
+				IgnorePatterns:    defaultGHAWActionlintIgnorePatterns,
 			})
 		},
 	}

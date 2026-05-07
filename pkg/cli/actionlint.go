@@ -28,6 +28,19 @@ type actionlintRunOptions struct {
 	IgnorePatterns    []string
 }
 
+func buildActionlintIntegrationStatus(includeShellcheck bool, includePyflakes bool) string {
+	switch {
+	case includeShellcheck && includePyflakes:
+		return "with shellcheck/pyflakes"
+	case includeShellcheck:
+		return "without pyflakes"
+	case includePyflakes:
+		return "without shellcheck"
+	default:
+		return "without shellcheck/pyflakes"
+	}
+}
+
 // getActionlintDocsURL returns the documentation URL for a given actionlint error kind
 // Error kinds map to documentation anchors at https://github.com/rhysd/actionlint/blob/main/docs/checks.md
 func getActionlintDocsURL(kind string) string {
@@ -263,14 +276,7 @@ func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bo
 	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
 
 	// Always show that actionlint is running (regular verbosity)
-	integrationStatus := "with shellcheck/pyflakes"
-	if !options.IncludeShellcheck && !options.IncludePyflakes {
-		integrationStatus = "without shellcheck/pyflakes"
-	} else if !options.IncludeShellcheck {
-		integrationStatus = "without shellcheck"
-	} else if !options.IncludePyflakes {
-		integrationStatus = "without pyflakes"
-	}
+	integrationStatus := buildActionlintIntegrationStatus(options.IncludeShellcheck, options.IncludePyflakes)
 	if len(lockFiles) == 1 {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running actionlint ("+integrationStatus+") on "+relPaths[0]))
 	} else {
