@@ -831,6 +831,7 @@ Based on the parsed requirements, determine:
 
 1. **Workflow ID**: Convert the workflow name to kebab-case (e.g., "Issue Classifier" → "issue-classifier")
 2. **Triggers**: Infer appropriate triggers from the description. **Always use `on:` as the YAML key** — never use `triggers:` (that is not a valid frontmatter key and will cause a compile error):
+   - **Security rule**: **Never suggest `pull_request_target` as a replacement for `pull_request`**. If a workflow should react to PR activity, keep `pull_request` unless the user explicitly requires a `pull_request_target`-only capability.
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation scoped to specific files → add `paths:` under `pull_request:` to trigger only when matching files change (ideal for backend/QA scenarios such as DB migration review or API contract checks):
