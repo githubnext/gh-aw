@@ -2751,7 +2751,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.error_count"]).toBe(2);
     expect(attrs["gh-aw.warning_count"]).toBe(3);
     expect(attrs["gh-aw.run.status"]).toBe("failure");
-    expect(attrs["gh-aw.tracker.id"]).toBe("42");
+    expect(attrs["gh-aw.tracker.id"]).toBe("copilot-token-optimizer");
   });
 
   it("emits gh-aw.otlp.export_errors on the conclusion job span", async () => {
