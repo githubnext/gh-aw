@@ -29,7 +29,6 @@ tools:
     toolsets: [default, repos, issues, pull_requests]
   cache-memory: true
   bash:
-    - "openspdd:*"
     - "find specs docs scratchpad -type f -name \"*.md\""
     - "cat specs/*.md"
     - "cat docs/src/content/docs/reference/*specification*.md"
@@ -37,11 +36,23 @@ tools:
     - "git log --oneline --since=\"14 days ago\" -- specs docs/src/content/docs/reference scratchpad"
 
 steps:
-  - name: Install OpenSPDD CLI
+  - name: Copy OpenSPDD prompts
+    env:
+      GH_TOKEN: ${{ github.token }}
     run: |
-      go install github.com/gszhangwei/open-spdd/cmd/openspdd@latest
-      echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      openspdd -v
+      set -euo pipefail
+      PROMPTS_DIR="${GITHUB_WORKSPACE}/.github/copilot-prompts"
+      mkdir -p "${PROMPTS_DIR}"
+
+      TREE_JSON="$(gh api repos/gszhangwei/open-spdd/git/trees/main?recursive=1)"
+      for PROMPT in spdd-analysis spdd-reasons-canvas spdd-generate spdd-sync; do
+        PROMPT_PATH="$(echo "${TREE_JSON}" | jq -r --arg p "${PROMPT}.md" '.tree[] | select(.type == "blob" and (.path | endswith($p))) | .path' | head -1)"
+        if [ -z "${PROMPT_PATH}" ] || [ "${PROMPT_PATH}" = "null" ]; then
+          echo "::error::Unable to locate ${PROMPT}.md in gszhangwei/open-spdd"
+          exit 1
+        fi
+        curl -fsSL "https://raw.githubusercontent.com/gszhangwei/open-spdd/main/${PROMPT_PATH}" -o "${PROMPTS_DIR}/${PROMPT}.md"
+      done
 
 safe-outputs:
   mentions: false
