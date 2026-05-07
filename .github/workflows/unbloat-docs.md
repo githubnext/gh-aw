@@ -172,9 +172,9 @@ pre-agent-steps:
   - name: Start documentation dev server
     run: |
       cd docs
-      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
+      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/preview.log 2>&1 &
       PID=$!
-      echo $PID > /tmp/server.pid
+      echo $PID > /tmp/gh-aw/server.pid
       echo "Dev server started (PID: $PID)"
 
   - name: Wait for documentation server readiness
@@ -182,7 +182,7 @@ pre-agent-steps:
       URL="http://localhost:4321/gh-aw/"
       STATUS=""
       echo "Readiness check target: $URL"
-      echo "Preview log: /tmp/preview.log"
+      echo "Preview log: /tmp/gh-aw/preview.log"
       for i in $(seq 1 45); do
         STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 5 "$URL" || true)
         [ "$STATUS" = "200" ] && echo "Server ready at $URL" && break
@@ -193,7 +193,7 @@ pre-agent-steps:
       if [ "$STATUS" != "200" ]; then
         echo "Dev server failed to start after 135 seconds:"
         echo "Final readiness status: $STATUS"
-        cat /tmp/preview.log || true
+        cat /tmp/gh-aw/preview.log || true
         exit 1
       fi
 
