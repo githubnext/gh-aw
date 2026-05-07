@@ -1053,7 +1053,7 @@ function getErrorMessage(errorEntry) {
     return "";
   }
 
-  const normalizedError = /** @type {{ type?: unknown, message?: unknown, error?: unknown }} */ (errorEntry);
+  const normalizedError = /** @type {{ type?: unknown, message?: unknown, error?: unknown }} */ errorEntry;
   const type = typeof normalizedError.type === "string" ? normalizedError.type.trim() : "";
   const message = typeof normalizedError.message === "string" ? normalizedError.message.trim() : typeof normalizedError.error === "string" ? normalizedError.error.trim() : "";
 
