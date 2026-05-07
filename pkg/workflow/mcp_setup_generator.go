@@ -235,21 +235,20 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		yaml.WriteString("        env:\n")
 		envKeys := make([]string, 0, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
 		envValues := make(map[string]string, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
+		addEnvValue := func(key, value string) {
+			if _, exists := envValues[key]; !exists {
+				envKeys = append(envKeys, key)
+			}
+			envValues[key] = value
+		}
 		for k, v := range configWorkflowInputs {
-			envKeys = append(envKeys, k)
-			envValues[k] = v
+			addEnvValue(k, v)
 		}
 		for k, v := range configContextVars {
-			if _, exists := envValues[k]; !exists {
-				envKeys = append(envKeys, k)
-			}
-			envValues[k] = v
+			addEnvValue(k, v)
 		}
 		for k, v := range configSecrets {
-			if _, exists := envValues[k]; !exists {
-				envKeys = append(envKeys, k)
-			}
-			envValues[k] = v
+			addEnvValue(k, v)
 		}
 		sort.Strings(envKeys)
 		for _, varName := range envKeys {

@@ -70,6 +70,7 @@ Test workflow
 	unquotedHeredocPattern := regexp.MustCompile(`cat > "\$\{RUNNER_TEMP\}/gh-aw/safeoutputs/config\.json" << GH_AW_SAFE_OUTPUTS_CONFIG_[0-9a-f]{16}_EOF`)
 	assert.True(t, unquotedHeredocPattern.MatchString(compiled),
 		"Safe outputs config heredoc should be unquoted when dynamic input expressions are present")
-	assert.NotContains(t, strings.ReplaceAll(compiled, `\"`, `"`), `"allowed_repos":["${{ inputs.target_repo }}"]`,
+	normalizedCompiled := strings.ReplaceAll(compiled, `\"`, `"`)
+	assert.NotContains(t, normalizedCompiled, `"allowed_repos":["${{ inputs.target_repo }}"]`,
 		"config.json payload should not keep unresolved workflow input expression")
 }
