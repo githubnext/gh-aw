@@ -48,7 +48,7 @@ const HANDLER_TYPE = "add_comment";
 function resolveEffectiveEventContext(rawContext) {
   let eventName = rawContext?.eventName || "";
   let payload = rawContext?.payload || {};
-  let workflowRepo = rawContext?.repo;
+  let workflowRepo;
 
   try {
     const invocation = resolveInvocationContext(rawContext);
@@ -63,6 +63,10 @@ function resolveEffectiveEventContext(rawContext) {
     }
   } catch {
     // Best-effort only; fall back to the raw context.
+  }
+
+  if (!workflowRepo) {
+    workflowRepo = rawContext?.repo;
   }
 
   // For workflow_call (and workflow_dispatch relay cases), aw_context can carry
