@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -82,7 +83,7 @@ func resolveLockFilesForLint(inputs []string, workflowDir string) ([]string, err
 	}
 
 	if len(lockFiles) == 0 {
-		return nil, fmt.Errorf("no .lock.yml files found to lint")
+		return nil, errors.New("no .lock.yml files found to lint")
 	}
 
 	slices.Sort(lockFiles)
