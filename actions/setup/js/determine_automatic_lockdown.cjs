@@ -78,7 +78,7 @@ async function determineAutomaticLockdown(github, context, core) {
       core.info("Automatic guard policy determination complete for private/internal repository");
     } else {
       core.info("Automatic guard policy determination complete for public repository");
-      core.warning("GitHub MCP guard policy automatically applied for public repository. " + "min-integrity='approved' and repos='all' ensure only approved-integrity content is accessible.");
+      core.info("GitHub MCP guard policy automatically applied for public repository. " + "min-integrity='approved' and repos='all' ensure only approved-integrity content is accessible.");
     }
 
     // Write resolved guard policy values to the step summary
