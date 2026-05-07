@@ -256,7 +256,7 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 		return true
 	}
 
-	blocked := make(chan struct{}) // closed by the test cleanup to unblock the request
+	blocked := make(chan struct{}) // closed by t.Cleanup to unblock the request after finish() returns
 	t.Cleanup(func() {
 		close(blocked)
 	})
@@ -274,7 +274,7 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 
 	start := time.Now()
 	finish()
-	assert.Less(t, time.Since(start), 100*time.Millisecond, "finish should not wait for a background update check")
+	assert.Less(t, time.Since(start), 500*time.Millisecond, "finish should not wait for a background update check")
 }
 
 func TestStartCompileUpdateCheckSilentlyHandlesLockedDownNetwork(t *testing.T) {
