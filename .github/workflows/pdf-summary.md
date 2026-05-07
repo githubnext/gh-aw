@@ -208,11 +208,10 @@ Remember: Your goal is to help users understand external resources in the contex
 
 ## Completion Signaling (Mandatory)
 
-Before finishing, you MUST call at least one safe-output tool:
+Before finishing, you MUST call a safe-output tool:
 
-1. Use `add-comment` to publish the summary on the triggering issue/PR.
-2. Use `create-discussion` to publish the full report.
-3. If no safe-output action can be taken (for example, no valid URLs found, no actionable output, or insufficient data), call `noop` and explain why.
+1. In the normal success path, call both `add-comment` (for the trigger thread) and `create-discussion` (for the full report).
+2. If no safe-output action can be taken (for example, no valid URLs found, no actionable output, or insufficient data), call `noop` and explain why.
 
 ```json
 {"noop": {"message": "No action needed: no valid resources were available to summarize"}}
