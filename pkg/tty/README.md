@@ -10,27 +10,12 @@ On WebAssembly targets (`js/wasm`) the package provides stub implementations tha
 
 ## Public API
 
-### `IsStdoutTerminal() bool`
+### Functions
 
-Returns `true` if `stdout` (`os.Stdout`) is connected to a terminal.
-
-```go
-import "github.com/github/gh-aw/pkg/tty"
-
-if tty.IsStdoutTerminal() {
-    // Safe to emit colored or animated output to stdout
-}
-```
-
-### `IsStderrTerminal() bool`
-
-Returns `true` if `stderr` (`os.Stderr`) is connected to a terminal.
-
-```go
-if tty.IsStderrTerminal() {
-    // Safe to emit colored or animated output to stderr
-}
-```
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `IsStdoutTerminal` | `func() bool` | Returns `true` if `stdout` (`os.Stdout`) is connected to a terminal |
+| `IsStderrTerminal` | `func() bool` | Returns `true` if `stderr` (`os.Stderr`) is connected to a terminal |
 
 ## Usage Examples
 
