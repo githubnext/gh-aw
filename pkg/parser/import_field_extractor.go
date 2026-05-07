@@ -63,6 +63,9 @@ type importAccumulator struct {
 	topLevelGitHubApp string // JSON-encoded GitHubAppConfig
 	// Checkout configs from all imported files (append in order; main workflow's checkouts take precedence)
 	checkouts []string // JSON-encoded checkout values, one per import
+	// First engine.mcp.tool-timeout / engine.mcp.session-timeout found across all imported files (first-wins strategy)
+	mergedEngineMCPToolTimeout    string // Go duration string (e.g. "10m", "30s")
+	mergedEngineMCPSessionTimeout string // Go duration string (e.g. "4h", "30m")
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -225,11 +228,57 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract engines from imported file
-	engineContent, err := extractFieldJSONFromMap(fm, "engine", "")
-	if err == nil && engineContent != "" {
+	// Extract engines from imported file.
+	// Engine configs with only `mcp` sub-keys (no `id` or `runtime`) are not counted
+	// as engine specifications — they only carry MCP gateway settings. This prevents
+	// "multiple engine fields" errors when a shared workflow declares engine.mcp.*
+	// without specifying an engine ID.
+	if engineVal, hasEngine := fm["engine"]; hasEngine {
 		log.Printf("Found engine config in import: %s", item.fullPath)
-		acc.engines = append(acc.engines, engineContent)
+
+		switch v := engineVal.(type) {
+		case string:
+			// String engine (e.g. "copilot") — always counts as an engine spec.
+			if engineJSON, merr := json.Marshal(v); merr == nil {
+				acc.engines = append(acc.engines, string(engineJSON))
+			}
+		case map[string]any:
+			// Object engine — extract engine.mcp.* settings first, then decide
+			// whether to add to engines based on whether an engine ID is present.
+			if mcpVal, hasMCP := v["mcp"]; hasMCP {
+				if mcpMap, ok := mcpVal.(map[string]any); ok {
+					// Extract tool-timeout (first-wins across all imports)
+					if acc.mergedEngineMCPToolTimeout == "" {
+						if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
+							acc.mergedEngineMCPToolTimeout = ttStr
+							log.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", item.fullPath, ttStr)
+						}
+					}
+					// Extract session-timeout (first-wins across all imports)
+					if acc.mergedEngineMCPSessionTimeout == "" {
+						if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
+							acc.mergedEngineMCPSessionTimeout = stStr
+							log.Printf("Extracted engine.mcp.session-timeout from import %s: %s", item.fullPath, stStr)
+						}
+					}
+				}
+			}
+			// Only add to engines list if this config specifies an actual engine.
+			// Configs with only `mcp` settings are purely MCP gateway configuration
+			// and must not trigger the "multiple engine fields" validation error.
+			_, hasMCP := v["mcp"]
+			isMCPOnly := hasMCP && len(v) == 1
+			if !isMCPOnly {
+				if engineJSON, merr := json.Marshal(v); merr == nil {
+					acc.engines = append(acc.engines, string(engineJSON))
+				}
+			}
+		default:
+			// Unexpected type — marshal and add to preserve existing behavior.
+			if engineJSON, merr := json.Marshal(engineVal); merr == nil {
+				acc.engines = append(acc.engines, string(engineJSON))
+			}
+		}
 	}
 
 	// Extract mcp-servers from imported file
@@ -506,45 +555,47 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 	log.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, labels=%d",
 		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.labels))
 	return &ImportsResult{
-		MergedTools:                 acc.toolsBuilder.String(),
-		MergedMCPServers:            acc.mcpServersBuilder.String(),
-		MergedEngines:               acc.engines,
-		MergedSafeOutputs:           acc.safeOutputs,
-		MergedMCPScripts:            acc.mcpScripts,
-		MergedMarkdown:              acc.markdownBuilder.String(),
-		ImportPaths:                 acc.importPaths,
-		MergedSteps:                 acc.stepsBuilder.String(),
-		CopilotSetupSteps:           acc.copilotSetupStepsBuilder.String(),
-		MergedPreSteps:              acc.preStepsBuilder.String(),
-		MergedPreAgentSteps:         acc.preAgentStepsBuilder.String(),
-		MergedRuntimes:              acc.runtimesBuilder.String(),
-		MergedRunInstallScripts:     acc.runInstallScripts,
-		MergedServices:              acc.servicesBuilder.String(),
-		MergedNetwork:               acc.networkBuilder.String(),
-		MergedPermissions:           acc.permissionsBuilder.String(),
-		MergedSecretMasking:         acc.secretMaskingBuilder.String(),
-		MergedBots:                  acc.bots,
-		MergedSkipRoles:             acc.skipRoles,
-		MergedSkipBots:              acc.skipBots,
-		MergedPostSteps:             acc.postStepsBuilder.String(),
-		MergedLabels:                acc.labels,
-		MergedCaches:                acc.caches,
-		MergedJobs:                  acc.jobsBuilder.String(),
-		MergedEnv:                   acc.envBuilder.String(),
-		MergedEnvSources:            acc.envSources,
-		MergedFeatures:              acc.features,
-		MergedModels:                acc.models,
-		MergedObservability:         mergeObservabilityConfigs(acc.observabilityConfigs),
-		ImportedFiles:               topologicalOrder,
-		AgentFile:                   acc.agentFile,
-		AgentImportSpec:             acc.agentImportSpec,
-		RepositoryImports:           acc.repositoryImports,
-		ImportInputs:                acc.importInputs,
-		MergedActivationGitHubToken: acc.activationGitHubToken,
-		MergedActivationGitHubApp:   acc.activationGitHubApp,
-		MergedTopLevelGitHubApp:     acc.topLevelGitHubApp,
-		MergedCheckout:              strings.Join(acc.checkouts, "\n"),
-		Warnings:                    acc.warnings,
+		MergedTools:                   acc.toolsBuilder.String(),
+		MergedMCPServers:              acc.mcpServersBuilder.String(),
+		MergedEngines:                 acc.engines,
+		MergedSafeOutputs:             acc.safeOutputs,
+		MergedMCPScripts:              acc.mcpScripts,
+		MergedMarkdown:                acc.markdownBuilder.String(),
+		ImportPaths:                   acc.importPaths,
+		MergedSteps:                   acc.stepsBuilder.String(),
+		CopilotSetupSteps:             acc.copilotSetupStepsBuilder.String(),
+		MergedPreSteps:                acc.preStepsBuilder.String(),
+		MergedPreAgentSteps:           acc.preAgentStepsBuilder.String(),
+		MergedRuntimes:                acc.runtimesBuilder.String(),
+		MergedRunInstallScripts:       acc.runInstallScripts,
+		MergedServices:                acc.servicesBuilder.String(),
+		MergedNetwork:                 acc.networkBuilder.String(),
+		MergedPermissions:             acc.permissionsBuilder.String(),
+		MergedSecretMasking:           acc.secretMaskingBuilder.String(),
+		MergedBots:                    acc.bots,
+		MergedSkipRoles:               acc.skipRoles,
+		MergedSkipBots:                acc.skipBots,
+		MergedPostSteps:               acc.postStepsBuilder.String(),
+		MergedLabels:                  acc.labels,
+		MergedCaches:                  acc.caches,
+		MergedJobs:                    acc.jobsBuilder.String(),
+		MergedEnv:                     acc.envBuilder.String(),
+		MergedEnvSources:              acc.envSources,
+		MergedFeatures:                acc.features,
+		MergedModels:                  acc.models,
+		MergedObservability:           mergeObservabilityConfigs(acc.observabilityConfigs),
+		ImportedFiles:                 topologicalOrder,
+		AgentFile:                     acc.agentFile,
+		AgentImportSpec:               acc.agentImportSpec,
+		RepositoryImports:             acc.repositoryImports,
+		ImportInputs:                  acc.importInputs,
+		MergedActivationGitHubToken:   acc.activationGitHubToken,
+		MergedActivationGitHubApp:     acc.activationGitHubApp,
+		MergedTopLevelGitHubApp:       acc.topLevelGitHubApp,
+		MergedCheckout:                strings.Join(acc.checkouts, "\n"),
+		MergedEngineMCPToolTimeout:    acc.mergedEngineMCPToolTimeout,
+		MergedEngineMCPSessionTimeout: acc.mergedEngineMCPSessionTimeout,
+		Warnings:                      acc.warnings,
 	}
 }
 

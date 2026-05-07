@@ -110,6 +110,8 @@ Each new sub-issue must include:
 
 ## Output Requirements
 
+**Report Formatting**: Use `###` or lower for all headers in the issue body. Wrap evidence/log excerpts and verbose tables in `<details><summary>Section Name</summary>` tags.
+
 ### Parent report issue structure
 
 Include these sections:

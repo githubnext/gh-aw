@@ -195,6 +195,25 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, "\n", "JSON output should not contain newlines (must be compact)")
 		assert.NotContains(t, jsonStr, "    ", "JSON output should not contain indentation")
 	})
+
+	t.Run("github actions expressions preserve && operators in allowDomains", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }}",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+
+		assert.Contains(t, jsonStr, "&&", "JSON output should preserve && in GitHub Actions expressions")
+		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
+	})
 }
 
 // TestBuildAWFConfigSchemaURL verifies that buildAWFConfigSchemaURL returns a release-pinned
@@ -414,6 +433,27 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	// The JSON content in the printf command should have the expected structure
 	assert.Contains(t, command, `"allowDomains"`, "config JSON should include allowDomains")
 	assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
+}
+
+func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:        "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }}",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	assert.Contains(t, command, "env.MCP_ENV == 'staging'", "expected full GitHub Actions expression to be preserved")
+	assert.Contains(t, command, "&&", "expected AWF config JSON in command to preserve &&")
+	assert.NotContains(t, command, "\\u0026", "expected AWF config JSON in command to not HTML-escape '&'")
 }
 
 // TestBuildAWFCommand_ConfigFileWithPathSetup verifies that the config file write command

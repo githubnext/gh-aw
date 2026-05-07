@@ -1061,3 +1061,351 @@ imports:
 		t.Error("Expected GitHub MCP prompt guidance (with safe outputs variant) when top-level mode is local")
 	}
 }
+
+// TestImportEngineMCPToolTimeout tests that engine.mcp.tool-timeout can be imported
+// from a shared workflow and is applied to the compiled workflow.
+func TestImportEngineMCPToolTimeout(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with engine.mcp.tool-timeout (no engine id)
+	sharedPath := filepath.Join(tempDir, "shared-mcp-timeout.md")
+	sharedContent := `---
+description: "Shared MCP timeout configuration"
+mcp-servers:
+  test-server:
+    url: http://127.0.0.1:8000/mcp
+    allowed:
+      - query
+engine:
+  mcp:
+    tool-timeout: "2m"
+tools:
+  timeout: 120
+  startup-timeout: 120
+---
+
+# Shared MCP Timeout Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-mcp-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported MCP timeout setting.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// The imported engine.mcp.tool-timeout: "2m" should appear as "toolTimeout": "2m"
+	// in the MCP gateway JSON config embedded in the lock file.
+	if !strings.Contains(workflowData, `"toolTimeout": "2m"`) {
+		t.Errorf("Expected lock file to contain toolTimeout 2m from imported shared workflow, got:\n%s", workflowData)
+	}
+}
+
+// TestImportEngineMCPToolTimeoutConsumerOverride tests that a consumer-specified
+// engine.mcp.tool-timeout takes precedence over the imported value.
+func TestImportEngineMCPToolTimeoutConsumerOverride(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Shared workflow declares a 2m tool-timeout
+	sharedPath := filepath.Join(tempDir, "shared-mcp-timeout.md")
+	sharedContent := `---
+description: "Shared MCP timeout configuration"
+engine:
+  mcp:
+    tool-timeout: "2m"
+---
+
+# Shared MCP Timeout Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Consumer explicitly overrides tool-timeout to 30s
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine:
+  id: copilot
+  mcp:
+    tool-timeout: "30s"
+imports:
+  - shared-mcp-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow with Consumer Override
+
+Consumer overrides the imported MCP timeout.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Consumer's 30s should win, not the imported 2m
+	if !strings.Contains(workflowData, `"toolTimeout": "30s"`) {
+		t.Errorf("Expected consumer override toolTimeout 30s to win, got:\n%s", workflowData)
+	}
+	if strings.Contains(workflowData, `"toolTimeout": "2m"`) {
+		t.Errorf("Expected imported toolTimeout 2m to be overridden by consumer 30s, got:\n%s", workflowData)
+	}
+}
+
+// TestImportEngineMCPToolTimeoutValidation tests that validation (10s–600s bounds)
+// applies to engine.mcp.tool-timeout values imported from shared workflows.
+func TestImportEngineMCPToolTimeoutValidation(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Shared workflow declares an invalid tool-timeout (below the 10s minimum)
+	sharedPath := filepath.Join(tempDir, "shared-invalid-timeout.md")
+	sharedContent := `---
+description: "Shared workflow with invalid timeout"
+engine:
+  mcp:
+    tool-timeout: "5s"
+---
+
+# Shared Workflow with Invalid Timeout
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-invalid-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Should fail because imported tool-timeout is invalid.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	err := compiler.CompileWorkflow(workflowPath)
+	if err == nil {
+		t.Fatal("Expected CompileWorkflow to fail due to invalid imported tool-timeout, but it succeeded")
+	}
+	if !strings.Contains(err.Error(), "tool-timeout") {
+		t.Errorf("Expected error to mention tool-timeout, got: %v", err)
+	}
+}
+
+// TestImportEngineMCPSessionTimeout tests that engine.mcp.session-timeout can be imported
+// from a shared workflow and is applied to the compiled workflow.
+func TestImportEngineMCPSessionTimeout(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with engine.mcp.session-timeout (no engine id)
+	sharedPath := filepath.Join(tempDir, "shared-session-timeout.md")
+	sharedContent := `---
+description: "Shared MCP session timeout configuration"
+engine:
+  mcp:
+    session-timeout: "2h"
+---
+
+# Shared MCP Session Timeout Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-session-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Uses imported MCP session timeout setting.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// The imported engine.mcp.session-timeout: "2h" should appear as "sessionTimeout": "2h"
+	// in the MCP gateway JSON config embedded in the lock file.
+	if !strings.Contains(workflowData, `"sessionTimeout": "2h"`) {
+		t.Errorf("Expected lock file to contain sessionTimeout 2h from imported shared workflow, got:\n%s", workflowData)
+	}
+}
+
+// TestImportEngineMCPSessionTimeoutConsumerOverride tests that a consumer-specified
+// engine.mcp.session-timeout takes precedence over the imported value.
+func TestImportEngineMCPSessionTimeoutConsumerOverride(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Shared workflow declares a 2h session-timeout
+	sharedPath := filepath.Join(tempDir, "shared-session-timeout.md")
+	sharedContent := `---
+description: "Shared MCP session timeout configuration"
+engine:
+  mcp:
+    session-timeout: "2h"
+---
+
+# Shared MCP Session Timeout Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Consumer explicitly overrides session-timeout to 30m
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine:
+  id: copilot
+  mcp:
+    session-timeout: "30m"
+imports:
+  - shared-session-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow with Consumer Override
+
+Consumer overrides the imported MCP session timeout.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// Consumer's 30m should win, not the imported 2h
+	if !strings.Contains(workflowData, `"sessionTimeout": "30m"`) {
+		t.Errorf("Expected consumer override sessionTimeout 30m to win, got:\n%s", workflowData)
+	}
+	if strings.Contains(workflowData, `"sessionTimeout": "2h"`) {
+		t.Errorf("Expected imported sessionTimeout 2h to be overridden by consumer 30m, got:\n%s", workflowData)
+	}
+}
+
+// TestImportEngineMCPSessionTimeoutValidation tests that validation (minimum 5m)
+// applies to engine.mcp.session-timeout values imported from shared workflows.
+func TestImportEngineMCPSessionTimeoutValidation(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Shared workflow declares an invalid session-timeout (below the 5m minimum)
+	sharedPath := filepath.Join(tempDir, "shared-invalid-session-timeout.md")
+	sharedContent := `---
+description: "Shared workflow with invalid session timeout"
+engine:
+  mcp:
+    session-timeout: "1m"
+---
+
+# Shared Workflow with Invalid Session Timeout
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-invalid-session-timeout.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+
+Should fail because imported session-timeout is invalid.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	err := compiler.CompileWorkflow(workflowPath)
+	if err == nil {
+		t.Fatal("Expected CompileWorkflow to fail due to invalid imported session-timeout, but it succeeded")
+	}
+	if !strings.Contains(err.Error(), "session-timeout") {
+		t.Errorf("Expected error to mention session-timeout, got: %v", err)
+	}
+}

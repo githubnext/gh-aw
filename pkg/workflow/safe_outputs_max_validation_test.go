@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -162,6 +163,50 @@ func TestValidateSafeOutputsMax(t *testing.T) {
 		require.Error(t, err, "config with one invalid max should return error")
 		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error should explain valid values")
 	})
+}
+
+// TestValidateSafeOutputsMaxFieldCoverage verifies that validateSafeOutputsMax detects
+// invalid max values for every field listed in safeOutputFieldMapping (except
+// DispatchRepository, which has a different map-of-tools structure and is validated
+// separately). This acts as a regression guard to ensure that when a new safe output
+// type is added to safeOutputFieldMapping the developer also adds a direct-access
+// check to validateSafeOutputsMax.
+func TestValidateSafeOutputsMaxFieldCoverage(t *testing.T) {
+	invalidMax := strPtr("0") // 0 is always an invalid max value
+
+	for fieldName, toolName := range safeOutputFieldMapping {
+		if fieldName == "DispatchRepository" {
+			// DispatchRepository uses a map-of-tools structure and is validated
+			// separately at the end of validateSafeOutputsMax.
+			continue
+		}
+
+		t.Run(fieldName, func(t *testing.T) {
+			cfg := &SafeOutputsConfig{}
+			val := reflect.ValueOf(cfg).Elem()
+			field := val.FieldByName(fieldName)
+			require.Truef(t, field.IsValid(),
+				"safeOutputFieldMapping references unknown struct field %q", fieldName)
+			require.Equalf(t, reflect.Ptr, field.Kind(),
+				"safeOutputFieldMapping field %q is expected to be a pointer type", fieldName)
+
+			// Create a zero-value instance of the field's element type and set Max to an invalid value.
+			elem := reflect.New(field.Type().Elem())
+			baseCfgField := elem.Elem().FieldByName("BaseSafeOutputConfig")
+			require.Truef(t, baseCfgField.IsValid(),
+				"field %q does not embed BaseSafeOutputConfig — add a direct check in validateSafeOutputsMax", fieldName)
+			maxField := baseCfgField.FieldByName("Max")
+			require.Truef(t, maxField.IsValid(), "BaseSafeOutputConfig.Max field not found for field %q", fieldName)
+			maxField.Set(reflect.ValueOf(invalidMax))
+			field.Set(elem)
+
+			err := validateSafeOutputsMax(cfg)
+			require.Errorf(t, err,
+				"validateSafeOutputsMax should detect invalid max for field %q (tool: %q); add a direct-access check", fieldName, toolName)
+			assert.Containsf(t, err.Error(), "max must be a positive integer or -1",
+				"error for field %q should explain valid values", fieldName)
+		})
+	}
 }
 
 func TestValidateSafeOutputsMaxIntegration(t *testing.T) {

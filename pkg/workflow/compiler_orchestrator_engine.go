@@ -264,6 +264,23 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		}
 	}
 
+	// Merge engine.mcp.* settings from imports (consumer-specified values take precedence).
+	// Shared workflows can declare engine.mcp.tool-timeout / engine.mcp.session-timeout to
+	// propagate MCP gateway timeout configuration to consumers without requiring consumers
+	// to also set these values explicitly.  If the main workflow already set a value, it
+	// wins (consumer override).
+	if engineConfig == nil {
+		engineConfig = &EngineConfig{ID: engineSetting}
+	}
+	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
+		engineConfig.MCPToolTimeout = importsResult.MergedEngineMCPToolTimeout
+		orchestratorEngineLog.Printf("Applied engine.mcp.tool-timeout from import: %s", engineConfig.MCPToolTimeout)
+	}
+	if engineConfig.MCPSessionTimeout == "" && importsResult.MergedEngineMCPSessionTimeout != "" {
+		engineConfig.MCPSessionTimeout = importsResult.MergedEngineMCPSessionTimeout
+		orchestratorEngineLog.Printf("Applied engine.mcp.session-timeout from import: %s", engineConfig.MCPSessionTimeout)
+	}
+
 	// Validate the engine setting and resolve the runtime adapter via the catalog.
 	// This performs exact catalog lookup, prefix fallback, and returns a formatted
 	// validation error for unknown engines — replacing the separate validateEngine

@@ -27,7 +27,7 @@ The YAML frontmatter supports these fields:
     - String format: `labels: "my-label"` (single label name)
     - Array format: `labels: [label-a, label-b]` (any matching label fires the workflow)
     - Unmatched label events show as Skipped (⊘) rather than Failed (❌)
-    - Use with `pull_request_target` triggers with `types: [labeled]` to respond only to specific labels
+    - Use with `pull_request` triggers with `types: [labeled]` to respond only to specific labels
   - **`skip-if-match:`** - Skip workflow execution when a GitHub search query returns results (string or object)
     - String format: `skip-if-match: "is:issue is:open label:bug"` (implies max=1)
     - Object format with threshold:
@@ -929,4 +929,3 @@ safe-outputs:
 - **Separation of Concerns**: Write operations are handled by dedicated jobs
 - **Permission Management**: Safe-outputs jobs automatically receive required permissions
 - **Audit Trail**: Clear separation between AI processing and GitHub API interactions
-

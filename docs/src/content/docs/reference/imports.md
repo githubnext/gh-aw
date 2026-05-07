@@ -365,6 +365,7 @@ Shared workflow files (without `on:` field) can define:
 - `env:` - Workflow-level environment variables
 - `github-app:` - GitHub App credentials for token minting (centralize shared app config)
 - `checkout:` - Checkout configuration for the agent job (centralize side-repo checkout setup)
+- `engine.mcp` (without engine identifier) - MCP gateway settings (`tool-timeout`, `session-timeout`) that consumers inherit; the engine itself is always inherited from the importing workflow
 
 Agent files (`.github/agents/*.md`) can additionally define:
 
@@ -388,6 +389,7 @@ Imports are processed using breadth-first traversal: direct imports first, then 
 | `services:` | All services merged; duplicate names fail compilation. |
 | `github-app:` | Main workflow's `github-app` takes precedence; first imported value fills in if main does not define one. |
 | `checkout:` | Imported checkout entries are appended after the main workflow's entries. For duplicate (repository, path) pairs, the main workflow's entry takes precedence: first-seen wins for `ref`, and auth is mutually exclusive — once `github-token` or `github-app` is set by the main workflow, an imported duplicate cannot add the other auth method. `checkout: false` in the main workflow disables all checkout including imported entries. |
+| `engine.mcp` | First-wins across imports. Shared files may define `engine:` with only `mcp.tool-timeout` and/or `mcp.session-timeout` (no engine identifier). The importing workflow's own engine setting always takes precedence; the first imported value fills in if the main workflow does not set a value. |
 | `steps:` | Imported steps prepended to main; concatenated in import order. |
 | `jobs:` | Not merged — define only in the main workflow. Use `safe-outputs.jobs` for importable jobs. |
 | `safe-outputs.jobs` | Names must be unique; duplicates fail. Order determined by `needs:` dependencies. |
@@ -475,6 +477,41 @@ permissions:
 
 Search the web for relevant information and summarize findings in the issue.
 ```
+
+### Importing MCP Gateway Settings
+
+Shared workflow files can export `engine.mcp.tool-timeout` and `engine.mcp.session-timeout` without specifying an engine identifier. The engine itself is always inherited from the importing workflow — the shared file only contributes the MCP gateway settings.
+
+```aw title="shared/mcp/slow-backend.md" wrap
+---
+description: MCP gateway settings for slow-backend MCP servers
+engine:
+  mcp:
+    tool-timeout: 5m     # Allow up to 5 minutes per tool call
+    session-timeout: 2h  # Keep MCP sessions alive for long-running workflows
+---
+```
+
+Import it into any workflow that calls a slow MCP server:
+
+```aw title="my-workflow.md" wrap
+---
+on: issues
+engine: copilot
+imports:
+  - shared/mcp/slow-backend.md
+  - shared/mcp/my-server.md
+permissions:
+  contents: read
+  issues: write
+---
+
+# My Workflow
+
+Call the slow MCP server without hitting tool-call timeouts.
+```
+
+The importing workflow's own `engine.mcp` settings take precedence. Among imports, the first-wins strategy applies: the first file in the import list that declares a timeout wins for that setting.
 
 ### Importing Top-level `jobs:`
 

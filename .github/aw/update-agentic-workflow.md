@@ -357,6 +357,7 @@ edit .github/workflows/<workflow-id>.md
 - Use `edit` tool to modify only the specific YAML fields
 - Preserve existing indentation and formatting
 - Don't rewrite sections that don't need changes
+- Never suggest replacing `pull_request` with `pull_request_target` unless the user explicitly asks for a `pull_request_target`-specific design
 - Recompilation REQUIRED after frontmatter changes
 
 **Example - Adding a Safe Output (Configuration Change)**:

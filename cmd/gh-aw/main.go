@@ -296,8 +296,8 @@ Examples:
 			return err
 		}
 
-		// Check for updates (non-blocking, runs once per day)
-		cli.CheckForUpdatesAsync(cmd.Context(), noCheckUpdate, verbose)
+		finishCompileUpdateCheck := cli.StartCompileUpdateCheck(cmd.Context(), noCheckUpdate, verbose)
+		defer finishCompileUpdateCheck()
 
 		// If --fix is specified, run fix --write first
 		if fix {
