@@ -39,12 +39,14 @@ steps:
   - name: Copy OpenSPDD prompts
     run: |
       set -euo pipefail
+      # Pinned to a known-good OpenSPDD revision to keep prompt inputs deterministic.
       OPENSPDD_REF="ac1e7c5f426572f9144a9f328de4b6a607ca9ba6"
       OPENSPDD_PROMPTS_BASE="https://raw.githubusercontent.com/gszhangwei/open-spdd/${OPENSPDD_REF}/.cursor/commands"
       PROMPTS_DIR="${GITHUB_WORKSPACE}/.github/copilot-prompts"
       mkdir -p "${PROMPTS_DIR}"
       for PROMPT in spdd-analysis spdd-reasons-canvas spdd-generate spdd-sync; do
         curl -fsSL "${OPENSPDD_PROMPTS_BASE}/${PROMPT}.md" -o "${PROMPTS_DIR}/${PROMPT}.md"
+        test -s "${PROMPTS_DIR}/${PROMPT}.md"
       done
 
 safe-outputs:
