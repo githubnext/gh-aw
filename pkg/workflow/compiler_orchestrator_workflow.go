@@ -289,6 +289,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Note: Git commands are automatically injected when safe-outputs needs them (see compiler_safe_outputs.go)
 	// No validation needed here - the compiler handles adding git to bash allowlist
 
+	// Merge import-safe on.* fields from imports before on-section processing.
+	if err := c.mergeImportedOnFields(result.Frontmatter, workflowData, engineSetup.importsResult); err != nil {
+		return nil, err
+	}
+
 	// Process on section configuration and apply filters
 	if err := c.processOnSectionAndFilters(result.Frontmatter, workflowData, cleanPath); err != nil {
 		return nil, err
@@ -452,6 +457,66 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 	workflowData.ExperimentsStorage = extractExperimentsStorageFromFrontmatter(frontmatter)
 
+	return nil
+}
+
+// mergeImportedOnFields copies import-safe on.* fields from imports into the main workflow frontmatter.
+// Top-level on.* fields in the main workflow always take precedence.
+func (c *Compiler) mergeImportedOnFields(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
+	if importsResult == nil {
+		return nil
+	}
+
+	onMap := ensureOnMap(frontmatter)
+	if onMap == nil {
+		return nil
+	}
+
+	if _, exists := onMap["skip-if-match"]; !exists && importsResult.MergedSkipIfMatch != "" {
+		var value any
+		if err := json.Unmarshal([]byte(importsResult.MergedSkipIfMatch), &value); err != nil {
+			return fmt.Errorf("failed to parse imported on.skip-if-match value: %w", err)
+		}
+		onMap["skip-if-match"] = value
+		if workflowData != nil && workflowData.ParsedFrontmatter != nil {
+			if workflowData.ParsedFrontmatter.On == nil {
+				workflowData.ParsedFrontmatter.On = make(map[string]any)
+			}
+			workflowData.ParsedFrontmatter.On["skip-if-match"] = value
+		}
+	}
+
+	if _, exists := onMap["skip-if-no-match"]; !exists && importsResult.MergedSkipIfNoMatch != "" {
+		var value any
+		if err := json.Unmarshal([]byte(importsResult.MergedSkipIfNoMatch), &value); err != nil {
+			return fmt.Errorf("failed to parse imported on.skip-if-no-match value: %w", err)
+		}
+		onMap["skip-if-no-match"] = value
+		if workflowData != nil && workflowData.ParsedFrontmatter != nil {
+			if workflowData.ParsedFrontmatter.On == nil {
+				workflowData.ParsedFrontmatter.On = make(map[string]any)
+			}
+			workflowData.ParsedFrontmatter.On["skip-if-no-match"] = value
+		}
+	}
+
+	return nil
+}
+
+func ensureOnMap(frontmatter map[string]any) map[string]any {
+	if frontmatter == nil {
+		return nil
+	}
+	onValue, exists := frontmatter["on"]
+	if !exists {
+		on := make(map[string]any)
+		frontmatter["on"] = on
+		return on
+	}
+	onMap, ok := onValue.(map[string]any)
+	if ok {
+		return onMap
+	}
 	return nil
 }
 
