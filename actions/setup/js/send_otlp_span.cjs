@@ -7,7 +7,6 @@ const { buildWorkflowCallId } = require("./aw_context.cjs");
 const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
 
 /**
@@ -1041,6 +1040,30 @@ function recordOTLPExportError() {
 }
 
 /**
+ * Normalize agent output errors into a single message string.
+ *
+ * @param {unknown} errorEntry
+ * @returns {string}
+ */
+function getErrorMessage(errorEntry) {
+  if (typeof errorEntry === "string") {
+    return errorEntry.slice(0, MAX_ATTR_VALUE_LENGTH);
+  }
+  if (!errorEntry || typeof errorEntry !== "object" || Array.isArray(errorEntry)) {
+    return "";
+  }
+
+  const normalizedError = /** @type {{ type?: unknown, message?: unknown, error?: unknown }} */ (errorEntry);
+  const type = typeof normalizedError.type === "string" ? normalizedError.type.trim() : "";
+  const message = typeof normalizedError.message === "string" ? normalizedError.message.trim() : typeof normalizedError.error === "string" ? normalizedError.error.trim() : "";
+
+  if (type && message) {
+    return `${type}:${message}`.slice(0, MAX_ATTR_VALUE_LENGTH);
+  }
+  return message.slice(0, MAX_ATTR_VALUE_LENGTH);
+}
+
+/**
  * @typedef {Object} AgentRuntimeMetrics
  * @property {number | undefined} turns
  * @property {number | undefined} estimatedCostUsd
@@ -1406,8 +1429,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const endpoints = parseOTLPEndpoints();
   const conclusionSpanId = generateSpanId();
   const hasDedicatedAgentSpan = jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs;
-  if (hasDedicatedAgentSpan) {
-    const agentSpanEvents = buildSpanEvents(agentEndMs);
+  if (hasDedicatedAgentSpan && typeof agentEndMs === "number") {
+    const agentSpanEndMs = agentEndMs;
+    const agentSpanEvents = buildSpanEvents(agentSpanEndMs);
 
     // Build OTel GenAI semantic convention attributes for the dedicated agent span.
     // These follow the OpenTelemetry GenAI specification and enable out-of-the-box
@@ -1438,7 +1462,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       parentSpanId: conclusionSpanId,
       spanName: jobName ? `gh-aw.${jobName}.agent` : "gh-aw.job.agent",
       startMs: agentStartMs,
-      endMs: agentEndMs,
+      endMs: agentSpanEndMs,
       serviceName,
       scopeVersion: version,
       attributes: agentAttributes,
