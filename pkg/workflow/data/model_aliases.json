@@ -14,7 +14,7 @@
     "reasoning": ["copilot/o1*", "copilot/o3*", "copilot/o4*", "openai/o1*", "openai/o3*", "openai/o4*"],
     "gemini-flash": ["copilot/gemini-*flash*", "google/gemini-*flash*"],
     "gemini-pro": ["copilot/gemini-*pro*", "google/gemini-*pro*"],
-    "deep-research": ["copilot/deep-research*", "google/deep-research*"],
+    "deep-research": ["copilot/deep-research*", "copilot/o3-deep-research*", "copilot/o4-mini-deep-research*", "google/deep-research*", "openai/o3-deep-research*", "openai/o4-mini-deep-research*"],
     "small": ["mini"],
     "mini": ["haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash"],
     "large": ["sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"],
