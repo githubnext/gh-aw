@@ -6,6 +6,12 @@ tools:
   bash:
     - "gh issue list *"
     - "jq *"
+    - "cat *"
+    - "grep *"
+    - "sort *"
+    - "head *"
+    - "wc *"
+    - "sed *"
     - "mkdir *"
     - "echo *"
 
@@ -45,8 +51,8 @@ Pre-fetched data is available at `/tmp/gh-aw/agent/community-data/`:
 
 ```bash
 # List all community-labeled issues
-cat /tmp/gh-aw/agent/community-data/community_issues.json \
-  | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt // "open"))"'
+jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt // "open"))"' \
+  /tmp/gh-aw/agent/community-data/community_issues.json
 ```
 
 Use the following **five-tier** approach to identify which community-labeled
@@ -64,8 +70,8 @@ is closed as `COMPLETED`.  This is the strongest possible attribution signal.
 
 ```bash
 # List all community issues closed as COMPLETED (direct contributions)
-cat /tmp/gh-aw/agent/community-data/community_issues.json \
-  | jq -r '.[] | select(.stateReason == "COMPLETED") | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt))"'
+jq -r '.[] | select(.stateReason == "COMPLETED") | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt))"' \
+  /tmp/gh-aw/agent/community-data/community_issues.json
 ```
 
 Record every matched issue as a **confirmed** attribution with type
@@ -129,8 +135,8 @@ make the final call.
 
 ```bash
 # Issues in the window that are NOT COMPLETED (Tier 0) and not matched by PR tiers
-cat /tmp/gh-aw/agent/community-data/community_issues_closed_in_window.json | \
-  jq '[.[] | select(.stateReason != "COMPLETED")] | length'
+jq '[.[] | select(.stateReason != "COMPLETED")] | length' \
+  /tmp/gh-aw/agent/community-data/community_issues_closed_in_window.json
 ```
 
 ### Output sections

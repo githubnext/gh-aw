@@ -32,10 +32,15 @@ tools:
     - "gh pr list *"
     - "gh issue list *"
     - "jq *"
+    - "grep *"
+    - "sort *"
     - "mkdir *"
     - "echo *"
     - "cp *"
     - "cat *"
+    - "head *"
+    - "wc *"
+    - "sed *"
     - "date *"
   edit:
 
@@ -249,16 +254,18 @@ and opens a PR for review.
 All data is in `/tmp/gh-aw/agent/community-data/`:
 
 ```bash
+# Use direct file invocations in restricted bash mode (avoid cat/sed/jq pipelines).
+
 # Tier 0+1+2 are already computed — start here:
-cat /tmp/gh-aw/agent/community-data/pre_attributed.json | \
-  jq -r '.[] | "- #\(.number) [Tier \(.tier)] \(.attribution_type) — \(.title) by @\(.author.login)"'
+jq -r '.[] | "- #\(.number) [Tier \(.tier)] \(.attribution_type) — \(.title) by @\(.author.login)"' \
+  /tmp/gh-aw/agent/community-data/pre_attributed.json
 
 # Issues still needing Tier 3 agent lookup (capped at 5 per run):
-cat /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json | \
-  jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt), stateReason: \(.stateReason // "null"))"'
+jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt), stateReason: \(.stateReason // "null"))"' \
+  /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json
 
 # View closing reference index
-cat /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json | jq
+jq '.' /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json
 
 # View current README (pre-fetched — read from README_current.md; only fall back to README.md if the pre-fetched copy is missing)
 head -80 /tmp/gh-aw/agent/community-data/README_current.md 2>/dev/null || head -80 README.md
