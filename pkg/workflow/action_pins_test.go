@@ -545,6 +545,11 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 				t.Errorf("getActionPinWithData(%s, %s) = %s, expected format 'repo@sha # version'",
 					tt.repo, tt.requestedVer, result)
 			}
+
+			if tt.shouldFallback && !strings.Contains(result, "(resolved:") {
+				t.Errorf("getActionPinWithData(%s, %s) = %s, expected fallback to include resolved-version metadata",
+					tt.repo, tt.requestedVer, result)
+			}
 		})
 	}
 }
