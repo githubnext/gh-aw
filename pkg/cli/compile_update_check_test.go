@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -22,9 +23,9 @@ import (
 )
 
 func TestShouldRunCompileUpdateCheck(t *testing.T) {
-	origGetCompileUpdateCheckFilePath := getCompileUpdateCheckFilePathFunc
+	origGetFilePath := getCompileUpdateCheckFilePathFunc
 	t.Cleanup(func() {
-		getCompileUpdateCheckFilePathFunc = origGetCompileUpdateCheckFilePath
+		getCompileUpdateCheckFilePathFunc = origGetFilePath
 	})
 
 	tmpDir := t.TempDir()
@@ -289,7 +290,7 @@ func newCompileUpdateCheckMethodServer(t *testing.T, latestVersion string, exist
 }
 
 func methodsForPath(methods map[string][]string, path string) []string {
-	return append([]string(nil), methods[path]...)
+	return slices.Clone(methods[path])
 }
 
 func methodsForPrefix(methods map[string][]string, prefix string) []string {
