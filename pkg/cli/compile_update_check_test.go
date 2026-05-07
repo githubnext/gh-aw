@@ -24,14 +24,19 @@ import (
 
 func TestShouldRunCompileUpdateCheck(t *testing.T) {
 	origGetFilePath := getCompileUpdateCheckFilePathFunc
+	origIsTerminal := compileUpdateCheckIsTerminalFunc
 	t.Cleanup(func() {
 		getCompileUpdateCheckFilePathFunc = origGetFilePath
+		compileUpdateCheckIsTerminalFunc = origIsTerminal
 	})
 
 	tmpDir := t.TempDir()
 	lastCheckFile := filepath.Join(tmpDir, compileUpdateCheckFileName)
 	getCompileUpdateCheckFilePathFunc = func() string {
 		return lastCheckFile
+	}
+	compileUpdateCheckIsTerminalFunc = func() bool {
+		return true
 	}
 
 	t.Setenv("CI", "")
@@ -53,6 +58,11 @@ func TestShouldRunCompileUpdateCheck(t *testing.T) {
 
 	t.Setenv(compileUpdateCheckDisableEnv, "")
 	assert.False(t, shouldRunCompileUpdateCheck(true), "check should be disabled by flag")
+
+	compileUpdateCheckIsTerminalFunc = func() bool {
+		return false
+	}
+	assert.False(t, shouldRunCompileUpdateCheck(false), "check should be disabled in non-interactive environments")
 }
 
 func TestRunCompileUpdateCheck(t *testing.T) {
@@ -226,6 +236,97 @@ func TestRunCompileUpdateCheckUsesHEADRequests(t *testing.T) {
 	for _, method := range probeMethods {
 		assert.Equal(t, http.MethodHead, method, "probe lookups should use HEAD")
 	}
+}
+
+func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
+	originalClientFactory := compileUpdateCheckHTTPClientFactory
+	originalGetFilePath := getCompileUpdateCheckFilePathFunc
+	originalIsTerminal := compileUpdateCheckIsTerminalFunc
+	defer func() {
+		compileUpdateCheckHTTPClientFactory = originalClientFactory
+		getCompileUpdateCheckFilePathFunc = originalGetFilePath
+		compileUpdateCheckIsTerminalFunc = originalIsTerminal
+	}()
+
+	tempDir := t.TempDir()
+	getCompileUpdateCheckFilePathFunc = func() string {
+		return filepath.Join(tempDir, compileUpdateCheckFileName)
+	}
+	compileUpdateCheckIsTerminalFunc = func() bool {
+		return true
+	}
+
+	blocked := make(chan struct{}) // closed by the test cleanup to unblock the request
+	t.Cleanup(func() {
+		close(blocked)
+	})
+
+	compileUpdateCheckHTTPClientFactory = func() *http.Client {
+		return &http.Client{
+			Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				<-blocked
+				return nil, context.DeadlineExceeded
+			}),
+		}
+	}
+
+	finish := StartCompileUpdateCheck(context.Background(), false, false)
+
+	start := time.Now()
+	finish()
+	assert.Less(t, time.Since(start), 100*time.Millisecond, "finish should not wait for a background update check")
+}
+
+func TestStartCompileUpdateCheckSilentlyHandlesLockedDownNetwork(t *testing.T) {
+	originalClientFactory := compileUpdateCheckHTTPClientFactory
+	originalGetFilePath := getCompileUpdateCheckFilePathFunc
+	originalIsTerminal := compileUpdateCheckIsTerminalFunc
+	defer func() {
+		compileUpdateCheckHTTPClientFactory = originalClientFactory
+		getCompileUpdateCheckFilePathFunc = originalGetFilePath
+		compileUpdateCheckIsTerminalFunc = originalIsTerminal
+	}()
+
+	tempDir := t.TempDir()
+	getCompileUpdateCheckFilePathFunc = func() string {
+		return filepath.Join(tempDir, compileUpdateCheckFileName)
+	}
+	compileUpdateCheckIsTerminalFunc = func() bool {
+		return true
+	}
+	compileUpdateCheckHTTPClientFactory = func() *http.Client {
+		return &http.Client{
+			Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				return nil, context.DeadlineExceeded
+			}),
+		}
+	}
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "pipe creation should succeed")
+	defer r.Close()
+	os.Stderr = w
+	defer func() {
+		os.Stderr = oldStderr
+	}()
+
+	finish := StartCompileUpdateCheck(context.Background(), false, false)
+	time.Sleep(10 * time.Millisecond)
+	finish()
+
+	require.NoError(t, w.Close(), "pipe writer should close cleanly")
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err, "pipe reader should capture stderr output")
+	assert.Empty(t, strings.TrimSpace(buf.String()), "locked-down network failures should not print user-facing output")
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 func newCompileUpdateCheckTestServer(t *testing.T, latestVersion string, existingTags map[string]bool) *httptest.Server {

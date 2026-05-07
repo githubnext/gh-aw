@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -35,6 +36,7 @@ var (
 	compileUpdateCheckHTTPClientFactory = func() *http.Client {
 		return &http.Client{Timeout: compileUpdateCheckTimeout}
 	}
+	compileUpdateCheckIsTerminalFunc  = tty.IsStderrTerminal
 	getCompileUpdateCheckFilePathFunc = getCompileUpdateCheckFilePathImpl
 )
 
@@ -116,6 +118,10 @@ func shouldRunCompileUpdateCheck(noCheckUpdate bool) bool {
 	}
 	if isRunningAsMCPServer() {
 		compileUpdateCheckLog.Print("Update check disabled in MCP server mode")
+		return false
+	}
+	if !compileUpdateCheckIsTerminalFunc() {
+		compileUpdateCheckLog.Print("Update check disabled when stderr is not a terminal")
 		return false
 	}
 
