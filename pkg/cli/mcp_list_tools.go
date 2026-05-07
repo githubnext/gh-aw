@@ -183,7 +183,7 @@ The workflow-id-or-file can be:
 - A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
 Examples:
-  gh aw mcp list-tools --server github                    # Find workflows with 'github' MCP server
+  gh aw mcp list-tools --server github                    # Search for workflows containing the 'github' MCP server
   gh aw mcp list-tools weekly-research --server github    # List tools for 'github' server in weekly-research.md
   gh aw mcp list-tools issue-triage --server safe-outputs # List tools for 'safe-outputs' server in issue-triage.md
   gh aw mcp list-tools test-workflow --server playwright -v  # Verbose output with tool descriptions
