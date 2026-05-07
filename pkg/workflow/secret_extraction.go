@@ -201,11 +201,13 @@ func ExtractEnvExpressionsFromValue(value string) map[string]string {
 var gitHubContextExprPattern = regexp.MustCompile(`\$\{\{\s*github\.([a-z][a-z0-9_.]*)\s*\}\}`)
 
 // workflowInputDotExprPattern matches simple ${{ inputs.NAME }} expressions.
-// NAME supports alphanumeric and underscore characters.
+// NAME must start with a letter or underscore, followed by alphanumeric
+// characters or underscores.
 var workflowInputDotExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}`)
 
 // workflowInputBracketExprPattern matches bracket-notation input expressions:
-// ${{ inputs['NAME'] }} and ${{ inputs["NAME"] }}. NAME may include dashes.
+// ${{ inputs['NAME'] }} and ${{ inputs["NAME"] }}. NAME must start with a
+// letter or underscore, followed by alphanumeric characters, underscores, or dashes.
 var workflowInputBracketExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\[\s*['"]([a-zA-Z_][a-zA-Z0-9_-]*)['"]\s*\]\s*\}\}`)
 
 // gitHubContextEnvVarMap maps common github.* context properties to their corresponding
