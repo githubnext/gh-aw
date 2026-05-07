@@ -280,7 +280,7 @@ func ExtractWorkflowInputExpressionsFromValue(value string) map[string]string {
 
 		inputName := match[1]
 		fullExpr := match[0]
-		envVar := normalizeInputNameToEnvVar(inputName)
+		envVar := formatInputNameAsEnvVar(inputName)
 		result[envVar] = fullExpr
 		secretLog.Printf("Extracted workflow input expression: %s -> %s", fullExpr, envVar)
 	}
@@ -288,7 +288,7 @@ func ExtractWorkflowInputExpressionsFromValue(value string) map[string]string {
 	return result
 }
 
-func normalizeInputNameToEnvVar(inputName string) string {
+func formatInputNameAsEnvVar(inputName string) string {
 	var b strings.Builder
 	b.Grow(len(inputName))
 	for _, r := range inputName {
