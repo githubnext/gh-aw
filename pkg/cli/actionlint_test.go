@@ -342,13 +342,13 @@ func TestBuildActionlintIntegrationStatus(t *testing.T) {
 			name:              "only shellcheck enabled",
 			includeShellcheck: true,
 			includePyflakes:   false,
-			expected:          "without pyflakes",
+			expected:          "with shellcheck only",
 		},
 		{
 			name:              "only pyflakes enabled",
 			includeShellcheck: false,
 			includePyflakes:   true,
-			expected:          "without shellcheck",
+			expected:          "with pyflakes only",
 		},
 		{
 			name:              "both integrations disabled",

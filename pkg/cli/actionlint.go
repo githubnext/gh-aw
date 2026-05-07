@@ -38,9 +38,9 @@ func buildActionlintIntegrationStatus(includeShellcheck bool, includePyflakes bo
 	case includeShellcheck && includePyflakes:
 		return "with shellcheck/pyflakes"
 	case includeShellcheck:
-		return "without pyflakes"
+		return "with shellcheck only"
 	case includePyflakes:
-		return "without shellcheck"
+		return "with pyflakes only"
 	default:
 		return "without shellcheck/pyflakes"
 	}
