@@ -120,12 +120,15 @@ func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
 //
 // Returns empty string if neither source is configured.
 func GetCopilotAPITarget(workflowData *WorkflowData) string {
+	awfHelpersLog.Print("Getting Copilot API target")
 	// Explicit engine.api-target takes precedence.
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
+		awfHelpersLog.Printf("Using explicit Copilot api-target: %s", workflowData.EngineConfig.APITarget)
 		return workflowData.EngineConfig.APITarget
 	}
 
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
+	awfHelpersLog.Print("No explicit api-target, deriving Copilot API target from GITHUB_COPILOT_BASE_URL")
 	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
 }
 
@@ -143,15 +146,19 @@ const DefaultGeminiAPITarget = "generativelanguage.googleapis.com"
 //
 // Returns empty string if the engine is not Gemini and no custom GEMINI_API_BASE_URL is configured.
 func GetGeminiAPITarget(workflowData *WorkflowData, engineName string) string {
+	awfHelpersLog.Printf("Getting Gemini API target for engine: %s", engineName)
 	// Check for custom GEMINI_API_BASE_URL in engine.env
 	if customTarget := extractAPITargetHost(workflowData, "GEMINI_API_BASE_URL"); customTarget != "" {
+		awfHelpersLog.Printf("Using custom Gemini API target from GEMINI_API_BASE_URL: %s", customTarget)
 		return customTarget
 	}
 
 	// Default to the standard Gemini API endpoint when engine is Gemini
 	if engineName == "gemini" {
+		awfHelpersLog.Printf("Using default Gemini API target: %s", DefaultGeminiAPITarget)
 		return DefaultGeminiAPITarget
 	}
 
+	awfHelpersLog.Print("No Gemini API target configured (engine is not gemini and no custom URL)")
 	return ""
 }
