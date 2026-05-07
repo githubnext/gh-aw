@@ -130,7 +130,8 @@ func TestShellEscapeArg(t *testing.T) {
 		{
 			name:     "JSON with $schema key and GitHub Actions expression escapes bare dollar",
 			input:    `{"$schema":"https://example.com","network":{"allowDomains":["${{ env.DOMAINS }}"]}}`,
-			expected: `"{\"\$schema\":\"https://example.com\",\"network\":{\"allowDomains\":[\"${{ env.DOMAINS }}\"]}}"`},
+			expected: `"{\"\$schema\":\"https://example.com\",\"network\":{\"allowDomains\":[\"${{ env.DOMAINS }}\"]}}"`,
+		},
 		{
 			name:     "GitHub Actions expression preceded by bare dollar sign escapes the bare dollar",
 			input:    "plain-$var,${{ env.DOMAINS }}",
