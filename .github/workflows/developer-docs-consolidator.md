@@ -16,9 +16,6 @@ permissions:
 engine: claude
 strict: true
 
-features:
-  inline-agents: true
-
 network:
   allowed:
     - defaults
@@ -58,6 +55,7 @@ imports:
       title-prefix: "[developer-docs] "
   - shared/mcp/serena-go.md
 ---
+
 # Developer Documentation Consolidator
 
 You are an AI documentation consistency agent that daily reviews markdown files in the `scratchpad/` directory, ensures they have a consistent technical tone, and produces a consolidated `developer.instructions.md` file.
