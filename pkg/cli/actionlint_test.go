@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -125,7 +126,7 @@ func TestGetActionlintVersion(t *testing.T) {
 	defer func() { actionlintVersion = original }()
 
 	actionlintVersion = "1.7.9"
-	version, err := getActionlintVersion()
+	version, err := getActionlintVersion(context.Background())
 	require.NoError(t, err, "should not error when version is cached")
 	assert.Equal(t, "1.7.9", version, "should return cached version")
 }

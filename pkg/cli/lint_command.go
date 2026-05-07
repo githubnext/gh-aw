@@ -49,7 +49,7 @@ Examples:
 
 			// Lint should fail on any actionlint error.
 			strictActionlint := true
-			return runActionlintOnFilesWithOptions(lockFiles, verbose, strictActionlint, actionlintRunOptions{
+			return runActionlintOnFilesWithOptions(cmd.Context(), lockFiles, verbose, strictActionlint, actionlintRunOptions{
 				IncludeShellcheck: includeShellcheck,
 				IncludePyflakes:   includePyflakes,
 				IgnorePatterns:    defaultGhAwActionlintIgnorePatterns,

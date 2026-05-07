@@ -168,21 +168,26 @@ func displayActionlintSummary() {
 	fmt.Fprintf(os.Stderr, "\n%s\n", separator)
 }
 
-// getActionlintVersion fetches and caches the actionlint version from Docker
-func getActionlintVersion() (string, error) {
+// getActionlintVersion fetches and caches the actionlint version from Docker.
+// The provided context allows caller-driven cancellation.
+func getActionlintVersion(ctx context.Context) (string, error) {
 	// Return cached version if already fetched
 	if actionlintVersion != "" {
 		return actionlintVersion, nil
 	}
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	actionlintLog.Print("Fetching actionlint version from Docker")
 
 	// Run docker command to get version with a 30 second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	versionCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(
-		ctx,
+		versionCtx,
 		"docker",
 		"run",
 		"--rm",
@@ -209,24 +214,28 @@ func getActionlintVersion() (string, error) {
 	return version, nil
 }
 
-// runActionlintOnFiles runs the actionlint linter on one or more .lock.yml files using Docker
-func runActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
-	return runActionlintOnFilesWithOptions(lockFiles, verbose, strict, actionlintRunOptions{
+// runActionlintOnFiles runs the actionlint linter on one or more .lock.yml files using Docker.
+// The provided context allows caller-driven cancellation.
+func runActionlintOnFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
+	return runActionlintOnFilesWithOptions(ctx, lockFiles, verbose, strict, actionlintRunOptions{
 		IncludeShellcheck: true,
 		IncludePyflakes:   true,
 	})
 }
 
-func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bool, options actionlintRunOptions) error {
+func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, verbose bool, strict bool, options actionlintRunOptions) error {
 	if len(lockFiles) == 0 {
 		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	actionlintLog.Printf("Running actionlint on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
 
 	// Display actionlint version on first use
 	if actionlintVersion == "" {
-		version, err := getActionlintVersion()
+		version, err := getActionlintVersion(ctx)
 		if err != nil {
 			// Log error but continue - version display is not critical
 			actionlintLog.Printf("Could not fetch actionlint version: %v", err)
@@ -255,7 +264,7 @@ func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bo
 	// docker run --rm -v "$(pwd)":/workdir -w /workdir rhysd/actionlint:latest -format '{{json .}}' <file1> <file2> ...
 	// Adjust timeout based on number of files (1 minute per file, minimum 5 minutes)
 	timeoutDuration := time.Duration(max(5, len(lockFiles))) * time.Minute
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
+	runCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
 	defer cancel()
 
 	// Build Docker command arguments
@@ -280,7 +289,7 @@ func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bo
 	}
 	dockerArgs = append(dockerArgs, relPaths...)
 
-	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
+	cmd := exec.CommandContext(runCtx, "docker", dockerArgs...)
 
 	// Always show that actionlint is running (regular verbosity)
 	integrationStatus := buildActionlintIntegrationStatus(options.IncludeShellcheck, options.IncludePyflakes)
@@ -306,7 +315,7 @@ func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bo
 	err = cmd.Run()
 
 	// Check for timeout
-	if ctx.Err() == context.DeadlineExceeded {
+	if runCtx.Err() == context.DeadlineExceeded {
 		fileList := "files"
 		if len(lockFiles) == 1 {
 			fileList = filepath.Base(lockFiles[0])
@@ -315,6 +324,9 @@ func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bo
 			actionlintStats.IntegrationErrors++
 		}
 		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue", int(timeoutDuration.Minutes()), fileList)
+	}
+	if runCtx.Err() == context.Canceled {
+		return fmt.Errorf("actionlint canceled: %w", runCtx.Err())
 	}
 
 	// Track workflows in statistics (count number of files validated)
