@@ -1054,7 +1054,7 @@ function recordOTLPExportError() {
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { warningCount: 0 };
+  const metrics = { turns: undefined, estimatedCostUsd: undefined, warningCount: 0 };
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
