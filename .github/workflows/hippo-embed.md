@@ -58,17 +58,18 @@ been embedded, severely degrading semantic search. Complete the steps below in o
 - **Repository**: ${{ github.repository }}
 - **Memory store**: `.hippo/` (persisted in cache-memory across runs)
 
-## Step 1 — Audit and prune low-quality entries
+## Step 1 — Audit and interactively prune low-quality entries
 
-Run the audit command with `--fix` to remove flagged junk entries (too-short fragments,
-commit noise, vague notes) before embedding. This prevents low-quality memories from
-polluting the vector index:
+Run the audit command and review each flagged low-quality memory in the guided
+interface. Approve pruning for stale or low-signal entries (too-short fragments,
+commit noise, vague notes) before embedding so they do not pollute the vector index:
 
 ```
-mcpscripts-hippo args: "audit --fix"
+mcpscripts-hippo args: "audit"
 ```
 
-Note the number of entries pruned for your summary.
+This maintenance pass is expected to include 7 low-quality memories flagged for
+review. Note how many entries are pruned for your summary.
 
 ## Step 2 — Embed all memories
 
@@ -90,6 +91,6 @@ mcpscripts-hippo args: "status"
 ```
 
 Then print a short summary to stdout (using the bash echo tool) covering:
-- Memories pruned by audit --fix
+- Memories pruned by audit
 - Memories embedded (before vs. after)
 - Whether semantic recall is now operational

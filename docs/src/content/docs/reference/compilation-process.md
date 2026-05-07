@@ -229,16 +229,16 @@ The repository is referenced via the `--actions-repo` flag default (`github/gh-a
 
 Dependabot scans all `.yml` files in `.github/workflows/` for action references and may open pull requests attempting to update `github/gh-aw-actions` to a newer SHA. **Do not merge these PRs.** The correct way to update `gh-aw-actions` pins is by running `gh aw compile` (or `gh aw update-actions`), which regenerates all action pins consistently across all compiled workflows from a single coordinated release.
 
-To suppress Dependabot PRs for `github/gh-aw-actions`, add an `ignore` entry in `.github/dependabot.yml`:
+If your repository already has a `github-actions` update block in `.github/dependabot.yml`, `gh aw compile` automatically ensures the compiler-managed ignore rule is present.
+
+If you are enabling Dependabot for `github-actions`, use a config like:
 
 ```yaml
 updates:
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: "/.github/workflows"
     ignore:
-      # ignore updates to gh-aw-actions, which only appears in auto-generated *.lock.yml
-      # files managed by 'gh aw compile' and should not be touched by dependabot
-      - dependency-name: "github/gh-aw-actions"
+      - dependency-name: "github/gh-aw-actions/**" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
 ```
 
 This tells Dependabot to skip version updates for `github/gh-aw-actions` while still monitoring all other GitHub Actions dependencies.

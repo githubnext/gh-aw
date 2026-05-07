@@ -229,20 +229,28 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("      - name: Generate Safe Outputs Config\n")
 	configSecrets := ExtractSecretsFromValue(safeOutputConfig)
 	configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
-	hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0
+	configWorkflowInputs := ExtractWorkflowInputExpressionsFromValue(safeOutputConfig)
+	hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0 || len(configWorkflowInputs) > 0
 	if hasEnvVars {
 		yaml.WriteString("        env:\n")
-		envKeys := make([]string, 0, len(configSecrets)+len(configContextVars))
-		envValues := make(map[string]string, len(configSecrets)+len(configContextVars))
+		envKeys := make([]string, 0, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
+		envValues := make(map[string]string, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
+		// addEnvValue deduplicates envKeys while allowing later sources to override
+		// the value in envValues for duplicate keys.
+		addEnvValue := func(key, value string) {
+			if _, exists := envValues[key]; !exists {
+				envKeys = append(envKeys, key)
+			}
+			envValues[key] = value
+		}
+		for k, v := range configWorkflowInputs {
+			addEnvValue(k, v)
+		}
 		for k, v := range configContextVars {
-			envKeys = append(envKeys, k)
-			envValues[k] = v
+			addEnvValue(k, v)
 		}
 		for k, v := range configSecrets {
-			if _, exists := envValues[k]; !exists {
-				envKeys = append(envKeys, k)
-			}
-			envValues[k] = v
+			addEnvValue(k, v)
 		}
 		sort.Strings(envKeys)
 		for _, varName := range envKeys {
@@ -266,6 +274,9 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 			}
 			for varName, ctxExpr := range configContextVars {
 				sanitizedConfig = strings.ReplaceAll(sanitizedConfig, ctxExpr, "${"+varName+"}")
+			}
+			for varName, inputExpr := range configWorkflowInputs {
+				sanitizedConfig = strings.ReplaceAll(sanitizedConfig, inputExpr, "${"+varName+"}")
 			}
 			yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << " + delimiter + "\n")
 			yaml.WriteString("          " + sanitizedConfig + "\n")
