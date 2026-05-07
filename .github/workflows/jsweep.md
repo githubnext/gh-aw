@@ -76,6 +76,10 @@ fi
 
 **State file format** (`/tmp/gh-aw/cache-memory/jsweep-state.json`): use an object with `cleaned_files` (`[{file, cleaned_at}]`), `last_run`, `last_file`, and `cache_hit_history` (`[{run_id, date, status}]`).
 
+```json
+{"cleaned_files":[{"file":"name.cjs","cleaned_at":"YYYY-MM-DD"}],"last_run":"YYYY-MM-DD","last_file":"name.cjs","cache_hit_history":[{"run_id":"123","date":"YYYY-MM-DD","status":"hit"}]}
+```
+
 **On cold start** (state file missing): initialize to an empty `cleaned_files` list and note this as a cold start. Do not call `missing_data` — a cold start is expected on first run; simply proceed with an empty history.
 
 **Selecting the next file:**
@@ -185,7 +189,7 @@ CLEANED_FILE="<basename>"
 CACHE_STATUS="<hit or miss>"
 
 export STATE_FILE TODAY RUN_ID CLEANED_FILE CACHE_STATUS
-python3 - <<'PYEOF'
+python3 - << 'PYEOF'
 import json, os
 s={"cleaned_files":[],"last_run":"","last_file":"","cache_hit_history":[]}
 try: s=json.load(open(os.environ["STATE_FILE"]))

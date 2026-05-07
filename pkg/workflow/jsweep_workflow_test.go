@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+const expectedBatchedValidationCommand = "npm run format:cjs && npm run lint:cjs && npm run typecheck && npm run test:js -- --no-file-parallelism"
+
 // TestJSweepWorkflowConfiguration validates that the jsweep workflow is properly configured
 // to process a single JavaScript file with TypeScript validation and prettier formatting.
 func TestJSweepWorkflowConfiguration(t *testing.T) {
@@ -184,8 +186,7 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 
 	// Test 15: Verify validation instructions are batched into one command
 	t.Run("BatchedValidationCommand", func(t *testing.T) {
-		expected := "npm run format:cjs && npm run lint:cjs && npm run typecheck && npm run test:js -- --no-file-parallelism"
-		if !strings.Contains(mdContent, expected) {
+		if !strings.Contains(mdContent, expectedBatchedValidationCommand) {
 			t.Error("jsweep workflow should batch validation commands into a single chained command")
 		}
 	})
