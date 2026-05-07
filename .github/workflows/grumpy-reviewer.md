@@ -1,11 +1,9 @@
 ---
-description: Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
+description: "⚠️ DEPRECATED: Use PR Code Quality Reviewer (pr-code-quality-reviewer) instead. Performs critical code review with a focus on edge cases, potential bugs, and code quality issues"
 on:
   slash_command:
     name: grumpy
     events: [pull_request_comment, pull_request_review_comment]
-  pull_request:
-    types: [ready_for_review]
 engine: codex
 permissions:
   contents: read
@@ -27,6 +25,8 @@ safe-outputs:
 timeout-minutes: 10
 
 ---
+
+> ⚠️ **Deprecated**: This agent is superseded by the [PR Code Quality Reviewer](pr-code-quality-reviewer.md), which consolidates code quality and nitpick reviews into a single pass. Use `/review` instead of `/grumpy` for new PRs. This agent is kept for backward compatibility but will be removed in a future release.
 
 # Grumpy Code Reviewer 🔥
 

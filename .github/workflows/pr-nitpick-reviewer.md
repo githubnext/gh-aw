@@ -1,5 +1,5 @@
 ---
-description: Provides detailed nitpicky code review focusing on style, best practices, and minor improvements
+description: "⚠️ DEPRECATED: Use PR Code Quality Reviewer (pr-code-quality-reviewer) instead. Provides detailed nitpicky code review focusing on style, best practices, and minor improvements"
 on:
   slash_command:
     name: nit
@@ -28,6 +28,8 @@ safe-outputs:
 timeout-minutes: 15
 
 ---
+
+> ⚠️ **Deprecated**: This agent is superseded by the [PR Code Quality Reviewer](pr-code-quality-reviewer.md), which consolidates code quality and nitpick reviews into a single pass. Use `/review` instead of `/nit` for new PRs. This agent is kept for backward compatibility but will be removed in a future release.
 
 # PR Nitpick Reviewer 🔍
 
