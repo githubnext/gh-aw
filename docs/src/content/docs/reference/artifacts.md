@@ -122,6 +122,8 @@ The unified `agent` artifact contains all agent job outputs.
 - Safe output data (`agent_output.json`)
 - GitHub API rate limit logs (`github_rate_limits.jsonl`)
 - Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`
+- `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters (only present when `observability.otlp` is configured)
+- `copilot-otel.jsonl` — OTLP spans emitted by Copilot CLI (only present when `observability.otlp` is configured)
 
 ## `activation`
 

@@ -105,14 +105,17 @@ Sanitization is applied to both the over-the-wire OTLP export and the local JSON
 
 ## Debugging without a live collector
 
-Every span is always appended as a sanitized JSON line to `/tmp/gh-aw/otel.jsonl`, even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. This file is included in the `firewall-audit-logs` artifact so you can inspect spans after the run:
+Every span emitted by `logSpan` is always appended as a sanitized JSON line to `/tmp/gh-aw/otel.jsonl`, even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. When OTLP is configured, Copilot CLI's own spans are written to `/tmp/gh-aw/copilot-otel.jsonl` and automatically forwarded to configured endpoints at the end of the run. Both files are included in the `agent` artifact when OTLP is enabled, so you can inspect spans after the run:
 
 ```bash
-# Download firewall/telemetry artifacts for a run
-gh aw logs <run-id> --artifacts firewall
+# Download agent artifacts for a run
+gh aw logs <run-id> --artifacts agent
 
 # Inspect spans emitted by your tool
 cat otel.jsonl | jq 'select(.resourceSpans[].scopeSpans[].spans[].name | startswith("my-tool"))'
+
+# Inspect Copilot CLI spans
+cat copilot-otel.jsonl | jq '.resourceSpans'
 ```
 
 ## Advanced: low-level API
