@@ -148,7 +148,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -319,7 +319,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				Uses: "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -371,7 +371,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
 		},
 	}
 
@@ -870,12 +870,9 @@ func TestGetActionPinWithData_ExactVersionResolution(t *testing.T) {
 				t.Errorf("Expected %q in result, got: %s", tt.expectedComment, result)
 			}
 
-			// Ensure we DON'T get a more precise version in the comment
-			if tt.requestedVer == "v4" && strings.Contains(result, "# v4.6.2") {
-				t.Errorf("Should not have replaced v4 with v4.6.2, got: %s", result)
-			}
-			if tt.requestedVer == "v5" && strings.Contains(result, "# v5.0.0") {
-				t.Errorf("Should not have replaced v5 with v5.0.0, got: %s", result)
+			// Exact cache hits should preserve the exact requested version without fallback metadata.
+			if strings.Contains(result, "(resolved:") {
+				t.Errorf("Did not expect resolved-version fallback metadata for exact cache hit, got: %s", result)
 			}
 		})
 	}
@@ -890,18 +887,21 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 		repo            string
 		requestedVer    string
 		expectedComment string
+		expectedSHA     string
 	}{
 		{
 			name:            "v8 falls back to v8.0.0 but comment shows v8",
 			repo:            "actions/github-script",
 			requestedVer:    "v8",
 			expectedComment: "# v8",
+			expectedSHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
 		},
 		{
 			name:            "v7 falls back to v7.0.1 but comment shows v7",
 			repo:            "actions/github-script",
 			requestedVer:    "v7",
 			expectedComment: "# v7",
+			expectedSHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 		},
 	}
 
@@ -921,14 +921,13 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 					tt.repo, tt.requestedVer, result, tt.expectedComment)
 			}
 
-			// Also verify it doesn't contain the pin's version
-			if tt.requestedVer == "v8" && strings.Contains(result, "# v8.0.0") {
-				t.Errorf("getActionPinWithData(%s, %s) = %s, should use requested version v8 in comment, not v8.0.0",
-					tt.repo, tt.requestedVer, result)
+			if !strings.Contains(result, tt.expectedSHA) {
+				t.Errorf("getActionPinWithData(%s, %s) = %s, expected SHA %s",
+					tt.repo, tt.requestedVer, result, tt.expectedSHA)
 			}
-			if tt.requestedVer == "v7" && strings.Contains(result, "# v7.0.1") {
-				t.Errorf("getActionPinWithData(%s, %s) = %s, should use requested version v7 in comment, not v7.0.1",
-					tt.repo, tt.requestedVer, result)
+
+			if tt.requestedVer == "v8" && !strings.Contains(result, "(resolved: v8.0.0)") {
+				t.Errorf("Expected v8 fallback comment to record resolved version v8.0.0, got: %s", result)
 			}
 		})
 	}
@@ -1167,7 +1166,7 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 				"uses": "actions/checkout@v6",
 			},
 			wantErr:      false,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
 		},
 		{
 			name: "valid step with run - should not pin",
