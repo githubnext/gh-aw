@@ -379,7 +379,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract on.github-token from imported file (first-wins: only set if not yet populated)
+	// Extract on.skip-if-match from imported file (first-wins: only set if not yet populated)
 	if acc.skipIfMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
 			acc.skipIfMatch = skipJSON

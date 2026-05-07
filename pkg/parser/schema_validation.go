@@ -14,6 +14,24 @@ var schemaValidationLog = logger.New("parser:schema_validation")
 // sharedWorkflowForbiddenFields is a map for O(1) lookup of forbidden fields in shared workflows
 var sharedWorkflowForbiddenFields = buildForbiddenFieldsMap()
 
+var sharedWorkflowAllowedOnFieldList = []string{
+	"skip-if-match",
+	"skip-if-no-match",
+	"skip-roles",
+	"skip-bots",
+	"github-token",
+	"github-app",
+}
+
+var sharedWorkflowAllowedOnFields = map[string]struct{}{
+	"skip-if-match":    {},
+	"skip-if-no-match": {},
+	"skip-roles":       {},
+	"skip-bots":        {},
+	"github-token":     {},
+	"github-app":       {},
+}
+
 // buildForbiddenFieldsMap converts the SharedWorkflowForbiddenFields slice to a map for efficient lookup
 func buildForbiddenFieldsMap() map[string]bool {
 	forbiddenMap := make(map[string]bool)
@@ -59,18 +77,9 @@ func validateSharedWorkflowOnField(onValue any) error {
 		return fmt.Errorf("field 'on' cannot be used in shared workflows (only import-safe on fields are allowed)")
 	}
 
-	allowedOnFields := map[string]struct{}{
-		"skip-if-match":    {},
-		"skip-if-no-match": {},
-		"skip-roles":       {},
-		"skip-bots":        {},
-		"github-token":     {},
-		"github-app":       {},
-	}
-
 	var disallowed []string
 	for key := range onMap {
-		if _, ok := allowedOnFields[key]; !ok {
+		if _, ok := sharedWorkflowAllowedOnFields[key]; !ok {
 			disallowed = append(disallowed, key)
 		}
 	}
@@ -78,7 +87,7 @@ func validateSharedWorkflowOnField(onValue any) error {
 	if len(disallowed) > 0 {
 		return fmt.Errorf(
 			"field 'on' in shared workflows can only include import-safe fields (%s); found unsupported keys: %s",
-			strings.Join([]string{"skip-if-match", "skip-if-no-match", "skip-roles", "skip-bots", "github-token", "github-app"}, ", "),
+			strings.Join(sharedWorkflowAllowedOnFieldList, ", "),
 			strings.Join(disallowed, ", "),
 		)
 	}
