@@ -158,7 +158,7 @@ done
 
 ## Step 3: AST-Assisted Structural Analysis
 
-For each changed test file, run structural checks using available tools. Run the Go and JavaScript analyzers in parallel when both languages are present.
+For each changed test file, run structural checks using available tools.
 
 ### 3a. Go — `Test*` functions
 
@@ -234,7 +234,6 @@ Calculate the test inflation ratio for each changed test file:
 
 ```bash
 # Count lines added to test files vs. production files
-cat /tmp/gh-aw/agent/diff-numstat.txt | grep -E "test|spec" || echo "no test stat"
 cat /tmp/gh-aw/agent/diff-numstat.txt
 ```
 
@@ -492,6 +491,8 @@ done
 Return:
 1. A markdown table with this exact header:
    `| Test Function | Assertions | Error Checks | Table-Driven Subtests | Forbidden Mock Calls |`
+   Example row:
+   `| TestCompile | 4 | 2 | 1 | 0 |`
 2. A `Missing Build Tags` section listing any `MISSING BUILD TAG: <file>` lines, or `None.`
 3. If no Go test functions are in the diff, return: `No Go test functions found in diff.`
 
@@ -518,5 +519,8 @@ END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors
 
 Return a markdown table with this exact header:
 `| Test Name | Assertions | Error Matchers | vi.* Mock Calls |`
+
+Example row:
+`| should_validate_input | 3 | 1 | 0 |`
 
 If no JavaScript test blocks are in the diff, return: `No JavaScript test blocks found in diff.`
