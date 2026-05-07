@@ -2339,28 +2339,6 @@ engine:
   options:
     {}
 
-# Format 5: MCP gateway configuration for shared workflows. Declares engine.mcp
-# settings (tool-timeout, session-timeout) that consumers inherit during import
-# without specifying an engine identifier. The engine is always inherited from the
-# importing workflow.
-engine:
-  # Engine-level MCP gateway configuration. Settings here apply to the MCP gateway
-  # used by this engine.
-  mcp:
-    # Session timeout for MCP gateway sessions as a Go duration string (e.g. "30m",
-    # "4h", "24h"). Must be at least 5m (no upper bound). Omitted or empty uses the
-    # effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT
-    # env var > built-in default 6h).
-    # (optional)
-    session-timeout: "example-value"
-
-    # Timeout for individual MCP tool calls as a Go duration string (e.g. "30s", "2m",
-    # "10m"). Must be between 10s and 600s inclusive. Omitted or empty uses the
-    # gateway built-in default (60s). Use a higher value for slow MCP backends such as
-    # full-text search over large indexes.
-    # (optional)
-    tool-timeout: "example-value"
-
 # MCP server definitions
 # (optional)
 mcp-servers:
@@ -4432,16 +4410,16 @@ safe-outputs:
     excluded-files: []
       # Array of strings
 
-    # Transport format for packaging changes. "bundle" (default) uses git bundle. "am"
-    # uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
+    # Transport format for packaging changes. "bundle" (default) uses git bundle.
+    # "am" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
     # workflows.
     # (optional)
     # Accepted formats:
 
     # Format 1: Transport format for packaging changes. "bundle" (default) uses git
-    # bundle, which preserves merge commit topology, per-commit authorship, and
-    # merge-resolution-only content. "am" uses git format-patch/git am.
-    patch-format: "am"
+    # bundle. "am" uses git format-patch/git am, while "bundle" preserves merge commit
+    # topology, per-commit authorship, and merge-resolution-only content.
+    patch-format: "bundle"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
     # runtime. Use in reusable workflow_call workflows to parameterise the transport
@@ -5645,16 +5623,16 @@ safe-outputs:
     excluded-files: []
       # Array of strings
 
-    # Transport format for packaging changes. "bundle" (default) uses git bundle. "am"
-    # uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
+    # Transport format for packaging changes. "bundle" (default) uses git bundle.
+    # "am" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
     # workflows.
     # (optional)
     # Accepted formats:
 
     # Format 1: Transport format for packaging changes. "bundle" (default) uses git
-    # bundle, which preserves merge commit topology, per-commit authorship, and
-    # merge-resolution-only content. "am" uses git format-patch/git am.
-    patch-format: "am"
+    # bundle. "am" uses git format-patch/git am, while "bundle" preserves merge commit
+    # topology, per-commit authorship, and merge-resolution-only content.
+    patch-format: "bundle"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
     # runtime. Use in reusable workflow_call workflows to parameterise the transport

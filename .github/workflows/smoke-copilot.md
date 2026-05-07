@@ -125,6 +125,8 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
 strict: false
+features:
+  inline-agents: true
 experiments:
   caveman: [yes, no]
 ---
@@ -212,3 +214,4 @@ model: small
 description: Summarizes the content of a file in a few concise sentences
 ---
 You are a file summarization assistant. When given a file path, read the file and return a brief summary (2–4 sentences) describing its purpose and key contents. Be concise and factual.
+

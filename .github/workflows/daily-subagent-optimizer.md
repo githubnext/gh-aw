@@ -42,6 +42,9 @@ safe-outputs:
 
 timeout-minutes: 30
 
+features:
+  inline-agents: true
+
 imports:
   - shared/reporting.md
 ---
