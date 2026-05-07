@@ -169,7 +169,9 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
+			d, err := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
+			require.NoError(t, err, "NewAnomalyDetector should succeed with valid thresholds")
+			require.NotNil(t, d, "NewAnomalyDetector should return a non-nil detector")
 
 			report := d.Analyze(tt.result, tt.isNew, tt.cluster)
 
@@ -189,6 +191,7 @@ func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
 		name          string
 		simThreshold  float64
 		rareThreshold int
+		wantErr       string
 	}{
 		{
 			name:          "zero thresholds are preserved",
@@ -196,20 +199,41 @@ func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
 			rareThreshold: 0,
 		},
 		{
-			name:          "negative thresholds are preserved",
+			name:          "negative similarity threshold is rejected",
 			simThreshold:  -0.1,
-			rareThreshold: -1,
+			rareThreshold: 1,
+			wantErr:       "simThreshold must be in [0,1]",
 		},
 		{
 			name:          "upper-bound similarity threshold is preserved",
 			simThreshold:  1.0,
 			rareThreshold: 5,
 		},
+		{
+			name:          "similarity threshold above one is rejected",
+			simThreshold:  1.1,
+			rareThreshold: 1,
+			wantErr:       "simThreshold must be in [0,1]",
+		},
+		{
+			name:          "negative rare cluster threshold is rejected",
+			simThreshold:  0.4,
+			rareThreshold: -1,
+			wantErr:       "rareClusterThreshold must be non-negative",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			detector := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
+			detector, err := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
+			if tt.wantErr != "" {
+				require.Error(t, err, "NewAnomalyDetector should reject invalid thresholds")
+				assert.Contains(t, err.Error(), tt.wantErr, "error should describe invalid threshold")
+				assert.Nil(t, detector, "NewAnomalyDetector should return nil detector on validation error")
+				return
+			}
+
+			require.NoError(t, err, "NewAnomalyDetector should succeed with valid thresholds")
 			require.NotNil(t, detector, "NewAnomalyDetector should return a non-nil detector")
 			assert.InDelta(t, tt.simThreshold, detector.threshold, 1e-12, "similarity threshold should be stored as provided")
 			assert.Equal(t, tt.rareThreshold, detector.rareThreshold, "rare cluster threshold should be stored as provided")

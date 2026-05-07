@@ -271,7 +271,8 @@ func TestSpec_PublicAPI_NewMasker(t *testing.T) {
 
 // TestSpec_PublicAPI_NewAnomalyDetector validates AnomalyDetector construction.
 func TestSpec_PublicAPI_NewAnomalyDetector(t *testing.T) {
-	detector := agentdrain.NewAnomalyDetector(0.4, 2)
+	detector, err := agentdrain.NewAnomalyDetector(0.4, 2)
+	require.NoError(t, err, "NewAnomalyDetector should not error with valid thresholds")
 	assert.NotNil(t, detector, "NewAnomalyDetector should return non-nil detector")
 }
 

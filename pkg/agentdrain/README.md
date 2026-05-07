@@ -164,7 +164,7 @@ err = coord.LoadWeightsJSON(data)
 Post-processes `MatchResult` values to produce an `AnomalyReport`.
 
 ```go
-detector := agentdrain.NewAnomalyDetector(cfg.SimThreshold, cfg.RareClusterThreshold)
+detector, err := agentdrain.NewAnomalyDetector(cfg.SimThreshold, cfg.RareClusterThreshold)
 report := detector.Analyze(result, isNew, cluster)
 ```
 

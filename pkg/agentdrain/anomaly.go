@@ -1,6 +1,7 @@
 package agentdrain
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -15,12 +16,18 @@ type AnomalyDetector struct {
 }
 
 // NewAnomalyDetector creates an AnomalyDetector with the given thresholds.
-func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) *AnomalyDetector {
+func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*AnomalyDetector, error) {
+	if simThreshold < 0 || simThreshold > 1 {
+		return nil, fmt.Errorf("agentdrain: NewAnomalyDetector: simThreshold must be in [0,1], got %g", simThreshold)
+	}
+	if rareClusterThreshold < 0 {
+		return nil, fmt.Errorf("agentdrain: NewAnomalyDetector: rareClusterThreshold must be non-negative, got %d", rareClusterThreshold)
+	}
 	anomalyLog.Printf("Creating AnomalyDetector: simThreshold=%.2f, rareClusterThreshold=%d", simThreshold, rareClusterThreshold)
 	return &AnomalyDetector{
 		threshold:     simThreshold,
 		rareThreshold: rareClusterThreshold,
-	}
+	}, nil
 }
 
 // Analyze produces an AnomalyReport for a match result.

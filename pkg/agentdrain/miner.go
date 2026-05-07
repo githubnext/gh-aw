@@ -149,7 +149,10 @@ func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, erro
 	cluster, _ = m.store.get(result.ClusterID)
 	m.mu.RUnlock()
 
-	detector := NewAnomalyDetector(m.cfg.SimThreshold, m.cfg.RareClusterThreshold)
+	detector, err := NewAnomalyDetector(m.cfg.SimThreshold, m.cfg.RareClusterThreshold)
+	if err != nil {
+		return nil, nil, fmt.Errorf("agentdrain: AnalyzeEvent: %w", err)
+	}
 	report := detector.Analyze(result, isNew, cluster)
 	return result, report, nil
 }
