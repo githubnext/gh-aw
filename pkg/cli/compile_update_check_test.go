@@ -242,13 +242,24 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 	originalClientFactory := compileUpdateCheckHTTPClientFactory
 	originalGetFilePath := getCompileUpdateCheckFilePathFunc
 	originalIsTerminal := compileUpdateCheckIsTerminalFunc
+	originalVersion := GetVersion()
+	originalRelease := workflow.IsRelease()
 	defer func() {
 		compileUpdateCheckHTTPClientFactory = originalClientFactory
 		getCompileUpdateCheckFilePathFunc = originalGetFilePath
 		compileUpdateCheckIsTerminalFunc = originalIsTerminal
+		SetVersionInfo(originalVersion)
+		workflow.SetIsRelease(originalRelease)
 	}()
 
 	tempDir := t.TempDir()
+	SetVersionInfo("v1.2.3")
+	workflow.SetIsRelease(true)
+	t.Setenv("CI", "")
+	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("GH_AW_MCP_SERVER", "")
+	t.Setenv(compileUpdateCheckDisableEnv, "")
 	getCompileUpdateCheckFilePathFunc = func() string {
 		return filepath.Join(tempDir, compileUpdateCheckFileName)
 	}
@@ -257,6 +268,7 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 	}
 
 	blocked := make(chan struct{}) // closed by t.Cleanup to unblock the request after finish() returns
+	started := make(chan struct{}, 1)
 	t.Cleanup(func() {
 		close(blocked)
 	})
@@ -264,6 +276,10 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 	compileUpdateCheckHTTPClientFactory = func() *http.Client {
 		return &http.Client{
 			Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				select {
+				case started <- struct{}{}:
+				default:
+				}
 				<-blocked
 				return nil, context.DeadlineExceeded
 			}),
@@ -271,32 +287,53 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 	}
 
 	finish := StartCompileUpdateCheck(context.Background(), false, false)
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("background update check did not start an HTTP request")
+	}
 
 	start := time.Now()
 	finish()
-	assert.Less(t, time.Since(start), 500*time.Millisecond, "finish should not wait for a background update check")
+	assert.Less(t, time.Since(start), 100*time.Millisecond, "finish should not wait for a background update check")
 }
 
 func TestStartCompileUpdateCheckSilentlyHandlesLockedDownNetwork(t *testing.T) {
 	originalClientFactory := compileUpdateCheckHTTPClientFactory
 	originalGetFilePath := getCompileUpdateCheckFilePathFunc
 	originalIsTerminal := compileUpdateCheckIsTerminalFunc
+	originalVersion := GetVersion()
+	originalRelease := workflow.IsRelease()
 	defer func() {
 		compileUpdateCheckHTTPClientFactory = originalClientFactory
 		getCompileUpdateCheckFilePathFunc = originalGetFilePath
 		compileUpdateCheckIsTerminalFunc = originalIsTerminal
+		SetVersionInfo(originalVersion)
+		workflow.SetIsRelease(originalRelease)
 	}()
 
 	tempDir := t.TempDir()
+	SetVersionInfo("v1.2.3")
+	workflow.SetIsRelease(true)
+	t.Setenv("CI", "")
+	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("GH_AW_MCP_SERVER", "")
+	t.Setenv(compileUpdateCheckDisableEnv, "")
 	getCompileUpdateCheckFilePathFunc = func() string {
 		return filepath.Join(tempDir, compileUpdateCheckFileName)
 	}
 	compileUpdateCheckIsTerminalFunc = func() bool {
 		return true
 	}
+	started := make(chan struct{}, 1)
 	compileUpdateCheckHTTPClientFactory = func() *http.Client {
 		return &http.Client{
 			Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				select {
+				case started <- struct{}{}:
+				default:
+				}
 				return nil, context.DeadlineExceeded
 			}),
 		}
@@ -312,7 +349,11 @@ func TestStartCompileUpdateCheckSilentlyHandlesLockedDownNetwork(t *testing.T) {
 	}()
 
 	finish := StartCompileUpdateCheck(context.Background(), false, false)
-	time.Sleep(10 * time.Millisecond)
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("background update check did not attempt its network request")
+	}
 	finish()
 
 	require.NoError(t, w.Close(), "pipe writer should close cleanly")
