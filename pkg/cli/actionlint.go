@@ -318,7 +318,7 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue", int(timeoutDuration.Minutes()), fileList)
 	}
 	if runCtx.Err() == context.Canceled {
-		return fmt.Errorf("actionlint was canceled before completion (for example by Ctrl+C or caller cancellation)")
+		return errors.New("actionlint was canceled before completion (for example by Ctrl+C or caller cancellation)")
 	}
 
 	// Track workflows in statistics (count number of files validated)

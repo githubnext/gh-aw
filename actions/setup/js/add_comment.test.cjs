@@ -2743,6 +2743,36 @@ describe("add_comment", () => {
         }
       }
     });
+
+    it("should build footer run URL from workflowRepo for repository_dispatch context", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.eventName = "repository_dispatch";
+      mockContext.repo = { owner: "target-owner", repo: "target-repo" };
+      mockContext.workflowRepo = { owner: "workflow-owner", repo: "workflow-repo" };
+      mockContext.payload = {
+        action: "issues",
+        client_payload: {
+          issue: { number: 8535 },
+          repository: { owner: { login: "target-owner" }, name: "target-repo" },
+        },
+      };
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedBody = params.body;
+        return { data: { id: 1, html_url: "https://github.com/target-owner/target-repo/issues/8535#issuecomment-1" } };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = { type: "add_comment", body: "Run URL repo test" };
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toContain("https://github.com/workflow-owner/workflow-repo/actions/runs/12345");
+      expect(capturedBody).not.toContain("https://github.com/target-owner/target-repo/actions/runs/12345");
+    });
   });
 
   describe("hide-older-comments behavior", () => {

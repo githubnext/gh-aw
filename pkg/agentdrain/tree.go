@@ -35,7 +35,7 @@ func (t *parseTree) addCluster(tokens []string, clusterID int, depth int, maxChi
 	if t.root[n] == nil {
 		t.root[n] = make(map[string]*treeNode)
 	}
-	key := t.firstKey(tokens, depth, paramToken)
+	key := t.computeTreeBucketKey(tokens, depth, paramToken)
 	leaf := t.root[n][key]
 	if leaf == nil {
 		leaf = newTreeNode()
@@ -53,7 +53,7 @@ func (t *parseTree) search(tokens []string, depth int, paramToken string) []int 
 		treeLog.Printf("Search: no clusters for token_count=%d", n)
 		return nil
 	}
-	key := t.firstKey(tokens, depth, paramToken)
+	key := t.computeTreeBucketKey(tokens, depth, paramToken)
 	leaf, ok := byCount[key]
 	if !ok {
 		// Also try the wildcard bucket.
@@ -69,9 +69,9 @@ func (t *parseTree) search(tokens []string, depth int, paramToken string) []int 
 	return out
 }
 
-// firstKey returns the routing key derived from the first meaningful token.
+// computeTreeBucketKey returns the routing key derived from the first meaningful token.
 // When depth == 1, all lines with the same length share a single bucket.
-func (t *parseTree) firstKey(tokens []string, depth int, paramToken string) string {
+func (t *parseTree) computeTreeBucketKey(tokens []string, depth int, paramToken string) string {
 	if depth <= 1 || len(tokens) == 0 {
 		return "*"
 	}

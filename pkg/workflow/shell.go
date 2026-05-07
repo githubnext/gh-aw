@@ -34,6 +34,13 @@ func shellEscapeArg(arg string) string {
 	if containsExpression(arg) {
 		shellLog.Print("Argument contains GitHub Actions expression, using double-quote wrapping")
 		escaped := strings.ReplaceAll(arg, `"`, `\"`)
+		// Escape bare $ signs (those not part of a ${{ }} expression) so that bash
+		// does not perform variable expansion inside the double-quoted string.
+		// For example, the JSON key "$schema" must become "\$schema" so bash writes
+		// the literal dollar sign rather than expanding the (unset) shell variable
+		// $schema to an empty string. ${{ … }} expressions are left untouched because
+		// GitHub Actions resolves them before the shell ever runs.
+		escaped = escapeBareShellDollarSigns(escaped)
 		return `"` + escaped + `"`
 	}
 
@@ -47,6 +54,38 @@ func shellEscapeArg(arg string) string {
 		return "'" + escaped + "'"
 	}
 	return arg
+}
+
+// escapeBareShellDollarSigns replaces every $ that is NOT the start of a ${{ }}
+// GitHub Actions expression with \$. This prevents bash from performing variable
+// expansion when the string is embedded inside a double-quoted shell argument.
+//
+// For example, the JSON key "$schema" would be mis-expanded by bash as the (usually
+// unset) variable $schema, producing an empty string. Writing \$schema instead causes
+// bash to treat the dollar sign as a literal character.
+//
+// ${{ }} expressions are intentionally left untouched: GitHub Actions resolves them
+// at the YAML evaluation layer, before the shell runs, so they must remain verbatim
+// in the script text. Any other $ — including $varname, ${varname}, and $0-$9
+// positional parameters — is escaped.
+func escapeBareShellDollarSigns(s string) string {
+	var result strings.Builder
+	result.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '$' {
+			result.WriteByte(s[i])
+			continue
+		}
+		// It is a $; check whether it opens a ${{ }} GitHub Actions expression.
+		if i+2 < len(s) && s[i+1] == '{' && s[i+2] == '{' {
+			// Start of ${{ }}: leave as-is so GitHub Actions can evaluate it.
+			result.WriteByte(s[i])
+		} else {
+			// Bare $: escape to \$ so bash treats it as a literal dollar sign.
+			result.WriteString(`\$`)
+		}
+	}
+	return result.String()
 }
 
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command

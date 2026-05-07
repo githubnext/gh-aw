@@ -67,7 +67,7 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
     expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("guard policy automatically applied"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("guard policy automatically applied"));
   });
 
   it("should not override min_integrity when already configured", async () => {

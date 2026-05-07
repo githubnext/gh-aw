@@ -456,6 +456,37 @@ func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testi
 	assert.NotContains(t, command, "\\u0026", "expected AWF config JSON in command to not HTML-escape '&'")
 }
 
+// TestBuildAWFCommand_SchemaKeyEscapedWhenExpressionPresent verifies that the $schema JSON
+// key is written as \$schema in the shell command when the AWF config JSON is double-quoted
+// (i.e. when AllowedDomains contains a GitHub Actions expression). Without the escaping,
+// bash expands $schema as a variable — which is always unset — producing an empty key that
+// causes AWF to reject the config with "config. is not supported".
+func TestBuildAWFCommand_SchemaKeyEscapedWhenExpressionPresent(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:    "copilot",
+		EngineCommand: "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:       "/tmp/gh-aw/agent-stdio.log",
+		// AllowedDomains contains a GitHub Actions expression, forcing double-quote
+		// shell wrapping for the config JSON. The $schema key must still be safe.
+		AllowedDomains: "${{ env.DOMAINS }}",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	// The config JSON is double-quoted because AllowedDomains contains ${{ }}.
+	// The $schema key must appear as \$schema so bash does not expand it.
+	assert.Contains(t, command, `\$schema`, "expected \\$schema (escaped) in double-quoted config JSON to prevent bash variable expansion")
+
+	// The GitHub Actions expression must remain unescaped for runner evaluation.
+	assert.Contains(t, command, "${{ env.DOMAINS }}", "expected GitHub Actions expression to be preserved unescaped")
+}
+
 // TestBuildAWFCommand_ConfigFileWithPathSetup verifies that the config file write command
 // is correctly integrated with the path setup section.
 func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
