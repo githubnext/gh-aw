@@ -16,11 +16,6 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
-  cli-proxy: true
-  agentic-workflows:
-  github:
-    mode: gh-proxy
-    toolsets: [pull_requests, actions, repos]
   bash:
     - "gh agent-task create *"
 safe-outputs:
@@ -35,6 +30,9 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [pull_requests, actions, repos]
   - shared/reporting.md
 features:
   copilot-requests: true
