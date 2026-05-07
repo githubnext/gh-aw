@@ -20,7 +20,7 @@ func TestNewLintCommand(t *testing.T) {
 	assert.Equal(t, "d", cmd.Flags().Lookup("dir").Shorthand, "--dir should have -d shorthand")
 	require.NotNil(t, cmd.Flags().Lookup("shellcheck"), "lint command should have a --shellcheck flag")
 	require.NotNil(t, cmd.Flags().Lookup("pyflakes"), "lint command should have a --pyflakes flag")
-	assert.Contains(t, defaultGHAWActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
 		"lint command should include built-in ignore for gh-aw permission extension")
 }
 

@@ -22,12 +22,17 @@ var actionlintLog = logger.New("cli:actionlint")
 // actionlintVersion caches the actionlint version to avoid repeated Docker calls
 var actionlintVersion string
 
+// actionlintRunOptions configures optional actionlint integrations and ignores.
 type actionlintRunOptions struct {
 	IncludeShellcheck bool
 	IncludePyflakes   bool
-	IgnorePatterns    []string
+	// IgnorePatterns contains regular expressions passed to actionlint via
+	// repeated -ignore flags to suppress known false positives.
+	IgnorePatterns []string
 }
 
+// buildActionlintIntegrationStatus returns a human-readable description of the
+// shellcheck/pyflakes integration state for actionlint execution messages.
 func buildActionlintIntegrationStatus(includeShellcheck bool, includePyflakes bool) string {
 	switch {
 	case includeShellcheck && includePyflakes:
