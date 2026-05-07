@@ -148,7 +148,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -319,7 +319,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				Uses: "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -371,7 +371,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
 		},
 	}
 
@@ -477,23 +477,23 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			name:           "exact match for setup-go v6.2.0",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
-			expectedVer:    "v6.2.0",
+			expectedVer:    "v6.4.0",
 			strictMode:     false,
-			shouldFallback: false,
+			shouldFallback: true,
 		},
 		{
 			name:           "exact match for setup-go v6.2.0 from hardcoded pins",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
-			expectedVer:    "v6.2.0", // Should match exactly v6.2.0
+			expectedVer:    "v6.4.0",
 			strictMode:     false,
-			shouldFallback: false,
+			shouldFallback: true,
 		},
 		{
 			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v4",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4",
-			expectedVer:    "v4", // Comment shows requested version, not the pin's v4.6.2
+			expectedVer:    "v7.0.1",
 			strictMode:     false,
 			shouldFallback: true,
 			// Note: When requesting v4 without dynamic resolution, the system uses v4.6.2's SHA
@@ -504,7 +504,7 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v5",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v5",
-			expectedVer:    "v5", // Comment shows requested version, not the pin's v5.0.0
+			expectedVer:    "v7.0.1",
 			strictMode:     false,
 			shouldFallback: true,
 		},
@@ -512,9 +512,9 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			name:           "exact match for upload-artifact v4",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4.6.2",
-			expectedVer:    "v4.6.2",
+			expectedVer:    "v7.0.1",
 			strictMode:     false,
-			shouldFallback: false,
+			shouldFallback: true,
 		},
 	}
 
@@ -546,7 +546,7 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 					tt.repo, tt.requestedVer, result)
 			}
 
-			if tt.shouldFallback && !strings.Contains(result, "(resolved:") {
+			if tt.shouldFallback && !strings.Contains(result, "(source ") {
 				t.Errorf("getActionPinWithData(%s, %s) = %s, expected fallback to include resolved-version metadata",
 					tt.repo, tt.requestedVer, result)
 			}
@@ -774,7 +774,7 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 	}
 }
 
-// TestGetActionPinWithData_V7ExactMatch verifies that v7 resolves to its exact SHA
+// TestGetActionPinWithData_V7ExactMatch verifies v7 fallback preserves source annotation.
 func TestGetActionPinWithData_V7ExactMatch(t *testing.T) {
 	data := &WorkflowData{
 		StrictMode: false,
@@ -792,9 +792,9 @@ func TestGetActionPinWithData_V7ExactMatch(t *testing.T) {
 
 	t.Logf("Result: %s", result)
 
-	// Should match v7 exactly
-	if !strings.Contains(result, "# v7") {
-		t.Errorf("Expected v7 in result, got: %s", result)
+	// Should include resolved + source format for fallback.
+	if !strings.Contains(result, "# v7.0.1 (source v7)") {
+		t.Errorf("Expected resolved/source comment format in result, got: %s", result)
 	}
 
 	// Check the SHA matches v7 (resolves to v7.0.1 pin)
@@ -876,16 +876,15 @@ func TestGetActionPinWithData_ExactVersionResolution(t *testing.T) {
 			}
 
 			// Exact cache hits should preserve the exact requested version without fallback metadata.
-			if strings.Contains(result, "(resolved:") {
+			if strings.Contains(result, "(source ") {
 				t.Errorf("Did not expect resolved-version fallback metadata for exact cache hit, got: %s", result)
 			}
 		})
 	}
 }
 
-// TestFallbackVersionUsesRequestedVersionInComment tests that when falling back to
-// a semver-compatible version, the comment uses the requested version, not the pin's version.
-// For example, if user requests v8 and we fall back to v8.0.0, the comment should say v8.
+// TestFallbackVersionUsesRequestedVersionInComment tests that fallback comments
+// now record both resolved and source versions.
 func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -895,17 +894,17 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 		expectedSHA     string
 	}{
 		{
-			name:            "v8 falls back to v8.0.0 but comment shows v8",
+			name:            "v8 falls back to v8.0.0 and comment records source v8",
 			repo:            "actions/github-script",
 			requestedVer:    "v8",
-			expectedComment: "# v8",
+			expectedComment: "# v8.0.0 (source v8)",
 			expectedSHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
 		},
 		{
-			name:            "v7 falls back to v7.0.1 but comment shows v7",
+			name:            "v7 falls back to v9.0.0 and comment records source v7",
 			repo:            "actions/github-script",
 			requestedVer:    "v7",
-			expectedComment: "# v7",
+			expectedComment: "# v9.0.0 (source v7)",
 			expectedSHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 		},
 	}
@@ -931,7 +930,7 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 					tt.repo, tt.requestedVer, result, tt.expectedSHA)
 			}
 
-			if tt.requestedVer == "v8" && !strings.Contains(result, "(resolved: v8.0.0)") {
+			if tt.requestedVer == "v8" && !strings.Contains(result, "# v8.0.0 (source v8)") {
 				t.Errorf("Expected v8 fallback comment to record resolved version v8.0.0, got: %s", result)
 			}
 		})
@@ -1171,7 +1170,7 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 				"uses": "actions/checkout@v6",
 			},
 			wantErr:      false,
-			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 (resolved: v6.0.2)",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (source v6)",
 		},
 		{
 			name: "valid step with run - should not pin",

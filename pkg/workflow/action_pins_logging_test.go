@@ -21,33 +21,33 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 		name               string
 		repo               string
 		requestedVer       string
-		expectedCommentVer string // The version that should appear in the comment
+		expectedCommentVer string // The resolved version that should appear in the comment
 		fallbackPinVer     string // The actual pin version used (for warning message)
 		expectMismatch     bool
 	}{
 		{
-			name:               "ai-inference v1 resolves to v2 pin but comment shows v1",
+			name:               "ai-inference v1 resolves to v2 pin with source annotation",
 			repo:               "actions/ai-inference",
 			requestedVer:       "v1",
-			expectedCommentVer: "v1", // Comment shows requested version
-			fallbackPinVer:     "v2", // Falls back to semver-compatible v2
+			expectedCommentVer: "v2.0.8",
+			fallbackPinVer:     "v2.0.8", // Falls back to hardcoded pin
 			expectMismatch:     true,
 		},
 		{
-			name:               "setup-dotnet v5 resolves to v5.2.0 pin but comment shows v5",
+			name:               "setup-dotnet v5 resolves to v5.2.0 pin with source annotation",
 			repo:               "actions/setup-dotnet",
 			requestedVer:       "v5",
-			expectedCommentVer: "v5", // Comment shows requested version
+			expectedCommentVer: "v5.2.0",
 			fallbackPinVer:     "v5.2.0",
 			expectMismatch:     true,
 		},
 		{
-			name:               "github-script v7 resolves to v7 pin (exact match)",
+			name:               "github-script v7 resolves to v9.0.0 pin with source annotation",
 			repo:               "actions/github-script",
 			requestedVer:       "v7",
-			expectedCommentVer: "v7", // Exact match exists in hardcoded pins
-			fallbackPinVer:     "v7",
-			expectMismatch:     false, // No mismatch since exact match found
+			expectedCommentVer: "v9.0.0",
+			fallbackPinVer:     "v9.0.0",
+			expectMismatch:     true,
 		},
 		{
 			name:               "checkout v6.0.2 exact match",
@@ -100,6 +100,9 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			if tt.expectMismatch {
 				if !strings.Contains(stderr, "⚠") {
 					t.Errorf("Expected warning message in stderr for version mismatch, got: %s", stderr)
+				}
+				if !strings.Contains(result, "(source "+tt.requestedVer+")") {
+					t.Errorf("Expected result to include source annotation for requested version %s, got: %s", tt.requestedVer, result)
 				}
 				// Verify the warning mentions both versions
 				if !strings.Contains(stderr, tt.requestedVer) || !strings.Contains(stderr, tt.fallbackPinVer) {

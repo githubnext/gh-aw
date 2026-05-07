@@ -225,7 +225,7 @@ func formatPinnedActionWithResolution(repo, sha, sourceVersion, resolvedVersion 
 		return FormatPinnedActionReference(repo, sha, sourceVersion)
 	}
 
-	return FormatPinnedActionReference(repo, sha, sourceVersion+" (resolved: "+resolvedVersion+")")
+	return FormatPinnedActionReference(repo, sha, resolvedVersion+" (source "+sourceVersion+")")
 }
 
 // FormatCacheKey generates a cache key for action resolution.
