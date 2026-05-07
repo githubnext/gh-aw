@@ -268,9 +268,11 @@ func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bo
 		"-format", "{{json .}}",
 	}
 	if !options.IncludeShellcheck {
+		// Empty value disables shellcheck integration in actionlint.
 		dockerArgs = append(dockerArgs, "-shellcheck=")
 	}
 	if !options.IncludePyflakes {
+		// Empty value disables pyflakes integration in actionlint.
 		dockerArgs = append(dockerArgs, "-pyflakes=")
 	}
 	for _, ignorePattern := range options.IgnorePatterns {
