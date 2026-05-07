@@ -186,7 +186,7 @@ mcp-scripts:
       // JavaScript implementation
     env:
       SECRET_NAME: "${{ secrets.SECRET_NAME }}"
-    timeout: 60
+    timeout: 30
 ```
 
 **JSON Schema**: [mcp-scripts-config.schema.json](/gh-aw/schemas/mcp-scripts-config.schema.json)
@@ -209,7 +209,7 @@ Each tool configuration MAY contain:
 | `py` | string | Conditional* | Python script implementation |
 | `go` | string | Conditional* | Go code implementation |
 | `env` | object | No | Environment variables (typically secrets) |
-| `timeout` | integer | No | Execution timeout in seconds (default: 60, applies to run/py/go only) |
+| `timeout` | integer | No | Execution timeout in seconds (default: 30, applies to run/py/go only) |
 | `dependencies` | array[string] | No | Package dependencies to install in execution environment (runtime-specific) |
 
 *Exactly ONE of `script`, `run`, `py`, or `go` MUST be provided per tool.
@@ -416,6 +416,14 @@ For JavaScript tools:
 - Return value is the tool result
 - Thrown errors indicate failure
 - Async functions are awaited
+
+### 5.6 Runtime Timeout Requirements
+
+Each runtime handler (`script`, `run`, `py`, and `go`) **MUST** enforce a configurable execution timeout and **MUST** terminate tool execution when the timeout is reached.
+
+Implementations **SHOULD** default this timeout to 30 seconds or less unless the workflow author explicitly configures a different value.
+
+When a timeout occurs, the server **MUST** return a JSON-RPC execution error (`-32603`) that explicitly identifies timeout termination.
 
 ---
 
