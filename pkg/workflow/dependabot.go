@@ -549,6 +549,8 @@ func isYAMLNullOrEmptyScalar(node *yamlv3.Node) bool {
 	if node == nil || node.Kind != yamlv3.ScalarNode {
 		return false
 	}
+	// YAML null may be represented as an explicit !!null tag, an empty scalar
+	// (`ignore:`), the canonical `null` token (case-insensitive), or `~`.
 	if node.Tag == "!!null" {
 		return true
 	}
