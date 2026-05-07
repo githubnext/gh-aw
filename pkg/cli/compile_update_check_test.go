@@ -267,7 +267,7 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 		return true
 	}
 
-	unblockRequest := make(chan struct{}) // closed by t.Cleanup to unblock the request after finish() returns
+	unblockRequest := make(chan struct{}) // closed by t.Cleanup after test completion to unblock any pending request
 	requestStarted := make(chan struct{}, 1)
 	t.Cleanup(func() {
 		close(unblockRequest)
