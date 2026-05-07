@@ -43,11 +43,12 @@ const HANDLER_TYPE = "add_comment";
  * 3) Apply aw_context fallback only for relayed pull_request_review_comment metadata
  *    (this intentionally overrides event name/payload identifiers when present)
  * @param {any} rawContext
- * @returns {{ eventName: string, payload: any }}
+ * @returns {{ eventName: string, payload: any, workflowRepo: { owner: string, repo: string } }}
  */
 function resolveEffectiveEventContext(rawContext) {
   let eventName = rawContext?.eventName || "";
   let payload = rawContext?.payload || {};
+  let workflowRepo = rawContext?.repo || { owner: "", repo: "" };
 
   try {
     const invocation = resolveInvocationContext(rawContext);
@@ -56,6 +57,9 @@ function resolveEffectiveEventContext(rawContext) {
     }
     if (invocation?.eventPayload && typeof invocation.eventPayload === "object") {
       payload = invocation.eventPayload;
+    }
+    if (invocation?.workflowRepo) {
+      workflowRepo = invocation.workflowRepo;
     }
   } catch {
     // Best-effort only; fall back to the raw context.
@@ -95,7 +99,7 @@ function resolveEffectiveEventContext(rawContext) {
     }
   }
 
-  return { eventName, payload };
+  return { eventName, payload, workflowRepo };
 }
 
 async function minimizeComment(github, nodeId, reason = "outdated") {
@@ -577,7 +581,7 @@ async function main(config = {}) {
     }
 
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-    const runUrl = buildWorkflowRunUrl(context, context.repo);
+    const runUrl = buildWorkflowRunUrl(context, effectiveEventContext.workflowRepo);
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
 
