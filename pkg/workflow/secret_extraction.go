@@ -289,19 +289,15 @@ func ExtractWorkflowInputExpressionsFromValue(value string) map[string]string {
 }
 
 func formatInputNameAsEnvVar(inputName string) string {
-	var b strings.Builder
-	b.Grow(len(inputName))
-	for _, r := range inputName {
+	normalized := strings.Map(func(r rune) rune {
 		switch {
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r - ('a' - 'A'))
-		case (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
-			b.WriteRune(r)
+		case (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			return r
 		default:
-			b.WriteRune('_')
+			return '_'
 		}
-	}
-	return "GH_AW_INPUT_" + b.String()
+	}, inputName)
+	return "GH_AW_INPUT_" + strings.ToUpper(normalized)
 }
 
 // ReplaceTemplateExpressionsWithEnvVars replaces all template expressions with environment variable references
