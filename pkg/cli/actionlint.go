@@ -263,7 +263,7 @@ func runActionlintOnFilesWithOptions(lockFiles []string, verbose bool, strict bo
 	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
 
 	// Always show that actionlint is running (regular verbosity)
-	integrationStatus := "with shellcheck & pyflakes"
+	integrationStatus := "with shellcheck/pyflakes"
 	if !options.IncludeShellcheck && !options.IncludePyflakes {
 		integrationStatus = "without shellcheck/pyflakes"
 	} else if !options.IncludeShellcheck {
