@@ -453,6 +453,16 @@ func runPostProcessing(
 		}
 	}
 
+	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
+	if !config.NoEmit {
+		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
+			dependabotPath := filepath.Join(gitRoot, ".github", "dependabot.yml")
+			if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil && config.Strict {
+				return err
+			}
+		}
+	}
+
 	// Generate maintenance workflow if needed
 	// Only generate when compiling all workflows (not specific files)
 	// Skip when using custom --dir option or when compiling specific files
@@ -491,6 +501,14 @@ func runPostProcessingForDirectory(
 			if config.Strict {
 				return err
 			}
+		}
+	}
+
+	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
+	if !config.NoEmit {
+		dependabotPath := filepath.Join(gitRoot, ".github", "dependabot.yml")
+		if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil && config.Strict {
+			return err
 		}
 	}
 

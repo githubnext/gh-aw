@@ -344,6 +344,91 @@ func TestGenerateDependabotConfig_PreserveExisting(t *testing.T) {
 	}
 }
 
+func TestReconcileManagedDependabotIgnores_NoDependabotFile(t *testing.T) {
+	compiler := NewCompiler()
+	tempDir := testutil.TempDir(t, "test-*")
+	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
+
+	err := compiler.ReconcileManagedDependabotIgnores(dependabotPath)
+	if err != nil {
+		t.Fatalf("expected no error when dependabot.yml is missing, got: %v", err)
+	}
+
+	if _, statErr := os.Stat(dependabotPath); !os.IsNotExist(statErr) {
+		t.Fatal("dependabot.yml should not be created when missing")
+	}
+}
+
+func TestReconcileManagedDependabotIgnores_NoGitHubActionsUpdate(t *testing.T) {
+	compiler := NewCompiler()
+	tempDir := testutil.TempDir(t, "test-*")
+	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
+
+	original := `version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/.github/workflows"
+    schedule:
+      interval: weekly
+`
+	if err := os.WriteFile(dependabotPath, []byte(original), 0644); err != nil {
+		t.Fatalf("failed to write test dependabot.yml: %v", err)
+	}
+
+	err := compiler.ReconcileManagedDependabotIgnores(dependabotPath)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	updated, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read updated dependabot.yml: %v", err)
+	}
+	if string(updated) != original {
+		t.Fatal("dependabot.yml should be unchanged when github-actions updates are absent")
+	}
+}
+
+func TestReconcileManagedDependabotIgnores_AddsManagedEntry(t *testing.T) {
+	compiler := NewCompiler()
+	tempDir := testutil.TempDir(t, "test-*")
+	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
+
+	original := `version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/.github/workflows"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "actions/checkout"
+`
+	if err := os.WriteFile(dependabotPath, []byte(original), 0644); err != nil {
+		t.Fatalf("failed to write test dependabot.yml: %v", err)
+	}
+
+	err := compiler.ReconcileManagedDependabotIgnores(dependabotPath)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	updated, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read updated dependabot.yml: %v", err)
+	}
+
+	updatedStr := string(updated)
+	if !strings.Contains(updatedStr, `dependency-name: "actions/checkout"`) {
+		t.Fatal("user-defined ignore entry should be preserved")
+	}
+	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions/**"`) {
+		t.Fatal("managed github/gh-aw-actions ignore entry should be added")
+	}
+	if !strings.Contains(updatedStr, managedDependabotIgnoreComment) {
+		t.Fatal("managed ignore entry should include the compiler-managed inline comment")
+	}
+}
+
 func TestGenerateDependabotManifests_NoDependencies(t *testing.T) {
 	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")

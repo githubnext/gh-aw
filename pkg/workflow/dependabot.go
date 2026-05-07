@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,9 +16,12 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 var dependabotLog = logger.New("workflow:dependabot")
+
+const managedDependabotIgnoreComment = "Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump."
 
 // PackageJSON represents the structure of a package.json file
 type PackageJSON struct {
@@ -409,6 +413,128 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 		c.fileTracker.TrackCreated(path)
 	}
 
+	return nil
+}
+
+// ReconcileManagedDependabotIgnores updates existing github-actions entries in .github/dependabot.yml
+// with compiler-managed ignore rules for compiler-emitted action refs.
+// This function is a no-op when dependabot.yml does not exist or has no github-actions update entries.
+func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read dependabot.yml: %w", err)
+	}
+
+	var root yamlv3.Node
+	if err := yamlv3.Unmarshal(original, &root); err != nil {
+		return fmt.Errorf("failed to parse dependabot.yml: %w", err)
+	}
+
+	if root.Kind != yamlv3.DocumentNode || len(root.Content) == 0 {
+		return nil
+	}
+	document := root.Content[0]
+	if document.Kind != yamlv3.MappingNode {
+		return nil
+	}
+
+	managedPatterns := []string{fmt.Sprintf("%s/**", c.effectiveActionsRepo())}
+	updatesNode := getYAMLMapValue(document, "updates")
+	if updatesNode == nil || updatesNode.Kind != yamlv3.SequenceNode {
+		return nil
+	}
+
+	changed := false
+	for _, updateNode := range updatesNode.Content {
+		if updateNode.Kind != yamlv3.MappingNode {
+			continue
+		}
+		ecosystemNode := getYAMLMapValue(updateNode, "package-ecosystem")
+		if ecosystemNode == nil || ecosystemNode.Kind != yamlv3.ScalarNode || ecosystemNode.Value != "github-actions" {
+			continue
+		}
+
+		ignoreNode := getYAMLMapValue(updateNode, "ignore")
+		if ignoreNode == nil {
+			ignoreNode = &yamlv3.Node{Kind: yamlv3.SequenceNode}
+			updateNode.Content = append(updateNode.Content, &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: "ignore"}, ignoreNode)
+			changed = true
+		}
+		if ignoreNode.Kind != yamlv3.SequenceNode {
+			continue
+		}
+
+		managedPresent := make(map[string]bool, len(managedPatterns))
+		for _, ignoreEntryNode := range ignoreNode.Content {
+			if ignoreEntryNode.Kind != yamlv3.MappingNode {
+				continue
+			}
+			dependencyNameNode := getYAMLMapValue(ignoreEntryNode, "dependency-name")
+			if dependencyNameNode == nil || dependencyNameNode.Kind != yamlv3.ScalarNode {
+				continue
+			}
+			for _, pattern := range managedPatterns {
+				if dependencyNameNode.Value == pattern {
+					managedPresent[pattern] = true
+					if dependencyNameNode.LineComment != managedDependabotIgnoreComment {
+						dependencyNameNode.LineComment = managedDependabotIgnoreComment
+						changed = true
+					}
+				}
+			}
+		}
+
+		for _, pattern := range managedPatterns {
+			if managedPresent[pattern] {
+				continue
+			}
+			ignoreNode.Content = append(ignoreNode.Content, &yamlv3.Node{
+				Kind: yamlv3.MappingNode,
+				Content: []*yamlv3.Node{
+					{Kind: yamlv3.ScalarNode, Value: "dependency-name"},
+					{
+						Kind:        yamlv3.ScalarNode,
+						Value:       pattern,
+						Style:       yamlv3.DoubleQuotedStyle,
+						LineComment: managedDependabotIgnoreComment,
+					},
+				},
+			})
+			changed = true
+		}
+	}
+
+	if !changed {
+		return nil
+	}
+
+	updated, err := yamlv3.Marshal(&root)
+	if err != nil {
+		return fmt.Errorf("failed to encode dependabot.yml: %w", err)
+	}
+
+	if bytes.Equal(original, updated) {
+		return nil
+	}
+	if err := os.WriteFile(path, updated, 0644); err != nil {
+		return fmt.Errorf("failed to write dependabot.yml: %w", err)
+	}
+	return nil
+}
+
+func getYAMLMapValue(mappingNode *yamlv3.Node, key string) *yamlv3.Node {
+	if mappingNode == nil || mappingNode.Kind != yamlv3.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(mappingNode.Content); i += 2 {
+		if mappingNode.Content[i].Value == key {
+			return mappingNode.Content[i+1]
+		}
+	}
 	return nil
 }
 
