@@ -176,10 +176,6 @@ func getActionlintVersion(ctx context.Context) (string, error) {
 		return actionlintVersion, nil
 	}
 
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	actionlintLog.Print("Fetching actionlint version from Docker")
 
 	// Run docker command to get version with a 30 second timeout
@@ -227,10 +223,6 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 	if len(lockFiles) == 0 {
 		return nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	actionlintLog.Printf("Running actionlint on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
 
 	// Display actionlint version on first use
