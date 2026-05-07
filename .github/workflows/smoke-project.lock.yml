@@ -1193,7 +1193,7 @@ jobs:
     permissions:
       contents: write
       discussions: write
-      issues: read
+      issues: write
       pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-smoke-project"
@@ -1604,7 +1604,7 @@ jobs:
     permissions:
       contents: write
       discussions: write
-      issues: read
+      issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
