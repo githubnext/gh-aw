@@ -51,16 +51,26 @@ The agent runs inside a Docker container. Binding to `0.0.0.0` ensures the serve
 Poll the server with curl until the `/gh-aw/` path returns HTTP 200:
 
 ```bash
+URL="http://localhost:4321/gh-aw/"
+STATUS=""
+echo "Readiness check target: $URL"
 for i in {1..45}; do
-  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
-  [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/!" && break
+  STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 5 "$URL" || true)
+  [ "$STATUS" = "200" ] && echo "Server ready at $URL" && break
+  if [ -z "$STATUS" ]; then STATUS="curl_error"; fi
   echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
 done
+if [ "$STATUS" != "200" ]; then
+  echo "Dev server failed to start after 135 seconds (final status: $STATUS)"
+  cat /tmp/preview.log || true
+  exit 1
+fi
 ```
 
 This will:
 - Attempt to connect up to 45 times (135 seconds total) to allow for Astro dev server startup
 - Check that `/gh-aw/` specifically returns HTTP 200 (not just that the port is open)
+- Avoid exiting early on transient curl connection failures (`|| true` keeps the loop running under `set -e`)
 - Wait 3 seconds between attempts
 - Exit successfully when the docs site is fully accessible
 

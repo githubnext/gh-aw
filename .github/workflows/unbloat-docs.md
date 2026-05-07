@@ -179,14 +179,20 @@ pre-agent-steps:
 
   - name: Wait for documentation server readiness
     run: |
+      URL="http://localhost:4321/gh-aw/"
       STATUS=""
+      echo "Readiness check target: $URL"
+      echo "Preview log: /tmp/preview.log"
       for i in $(seq 1 45); do
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/gh-aw/)
-        [ "$STATUS" = "200" ] && echo "Server ready at http://localhost:4321/gh-aw/" && break
-        echo "Waiting for server... ($i/45) (status: $STATUS)" && sleep 3
+        STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 5 "$URL" || true)
+        [ "$STATUS" = "200" ] && echo "Server ready at $URL" && break
+        if [ -z "$STATUS" ]; then STATUS="curl_error"; fi
+        echo "Waiting for server... ($i/45) (status: $STATUS)"
+        sleep 3
       done
       if [ "$STATUS" != "200" ]; then
         echo "Dev server failed to start after 135 seconds:"
+        echo "Final readiness status: $STATUS"
         cat /tmp/preview.log || true
         exit 1
       fi
