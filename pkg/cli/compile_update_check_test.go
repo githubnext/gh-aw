@@ -267,20 +267,20 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 		return true
 	}
 
-	blocked := make(chan struct{}) // closed by t.Cleanup to unblock the request after finish() returns
-	started := make(chan struct{}, 1)
+	unblockRequest := make(chan struct{}) // closed by t.Cleanup to unblock the request after finish() returns
+	requestStarted := make(chan struct{}, 1)
 	t.Cleanup(func() {
-		close(blocked)
+		close(unblockRequest)
 	})
 
 	compileUpdateCheckHTTPClientFactory = func() *http.Client {
 		return &http.Client{
 			Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 				select {
-				case started <- struct{}{}:
+				case requestStarted <- struct{}{}:
 				default:
 				}
-				<-blocked
+				<-unblockRequest
 				return nil, context.DeadlineExceeded
 			}),
 		}
@@ -288,7 +288,7 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 
 	finish := StartCompileUpdateCheck(context.Background(), false, false)
 	select {
-	case <-started:
+	case <-requestStarted:
 	case <-time.After(time.Second):
 		t.Fatal("background update check did not start an HTTP request")
 	}
@@ -326,12 +326,12 @@ func TestStartCompileUpdateCheckSilentlyHandlesLockedDownNetwork(t *testing.T) {
 	compileUpdateCheckIsTerminalFunc = func() bool {
 		return true
 	}
-	started := make(chan struct{}, 1)
+	requestStarted := make(chan struct{}, 1)
 	compileUpdateCheckHTTPClientFactory = func() *http.Client {
 		return &http.Client{
 			Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 				select {
-				case started <- struct{}{}:
+				case requestStarted <- struct{}{}:
 				default:
 				}
 				return nil, context.DeadlineExceeded
@@ -350,7 +350,7 @@ func TestStartCompileUpdateCheckSilentlyHandlesLockedDownNetwork(t *testing.T) {
 
 	finish := StartCompileUpdateCheck(context.Background(), false, false)
 	select {
-	case <-started:
+	case <-requestStarted:
 	case <-time.After(time.Second):
 		t.Fatal("background update check did not attempt its network request")
 	}
