@@ -217,12 +217,16 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	if safeOutputs.CreateProjects != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateProjects.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for create-project")
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-		permissions.Set(PermissionIssues, PermissionRead)
+		if current, exists := permissions.Get(PermissionIssues); !exists || current != PermissionWrite {
+			permissions.Set(PermissionIssues, PermissionRead)
+		}
 	}
 	if safeOutputs.UpdateProjects != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdateProjects.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for update-project")
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-		permissions.Set(PermissionIssues, PermissionRead)
+		if current, exists := permissions.Get(PermissionIssues); !exists || current != PermissionWrite {
+			permissions.Set(PermissionIssues, PermissionRead)
+		}
 	}
 	if safeOutputs.CreateProjectStatusUpdates != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateProjectStatusUpdates.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for create-project-status-update")

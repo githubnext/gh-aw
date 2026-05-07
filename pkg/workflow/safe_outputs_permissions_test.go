@@ -438,6 +438,29 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				PermissionIssues:           PermissionRead,
 			},
 		},
+		{
+			name: "update-project does not downgrade issues write required by comment and labels handlers",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Issues:               ptrBool(true),
+					PullRequests:         ptrBool(false),
+					Discussions:          ptrBool(false),
+				},
+				AddLabels: &AddLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("4")},
+				},
+				UpdateProjects: &UpdateProjectConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:         PermissionRead,
+				PermissionIssues:           PermissionWrite,
+				PermissionPullRequests:     PermissionWrite,
+				PermissionOrganizationProj: PermissionWrite,
+			},
+		},
 	}
 
 	for _, tt := range tests {

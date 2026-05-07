@@ -314,6 +314,62 @@ Test workflow
 		"Job-level permissions must be handler-computed (issues:write)")
 }
 
+// TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite is a regression test for
+// add-comment + add-labels + update-project where update-project must not downgrade issues
+// permission from write to read in the minted GitHub App token.
+func TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: my-org
+  add-comment:
+    max: 1
+    issues: true
+    pull-requests: false
+    discussions: false
+  add-labels:
+    max: 4
+    allowed: [routed]
+  update-project:
+    max: 1
+    project: https://github.com/orgs/my-org/projects/1
+---
+Test workflow
+`
+
+	tmpDir := t.TempDir()
+	testFile := tmpDir + "/test.md"
+	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0644), "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "GitHubApp should not be nil")
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"App token must preserve issues:write required by add-comment/add-labels when update-project is present")
+	assert.Contains(t, stepsStr, "permission-organization-projects: write",
+		"App token must include organization-projects:write for update-project")
+	assert.Contains(t, job.Permissions, "issues: write",
+		"Job-level permissions must preserve handler-computed issues:write")
+}
+
 // TestSafeOutputsAppTokenPermissionsOverride tests that safe-outputs.github-app.permissions:
 // overrides take effect in the minted token. Users can supply GitHub App-only scopes
 // (e.g. members: read) not expressible via standard safe-output handler declarations.
