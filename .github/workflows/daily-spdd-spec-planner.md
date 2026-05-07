@@ -29,11 +29,19 @@ tools:
     toolsets: [default, repos, issues, pull_requests]
   cache-memory: true
   bash:
+    - "openspdd:*"
     - "find specs docs scratchpad -type f -name \"*.md\""
     - "cat specs/*.md"
     - "cat docs/src/content/docs/reference/*specification*.md"
     - "cat scratchpad/*specification*.md"
     - "git log --oneline --since=\"14 days ago\" -- specs docs/src/content/docs/reference scratchpad"
+
+steps:
+  - name: Install OpenSPDD CLI
+    run: |
+      go install github.com/gszhangwei/open-spdd/cmd/openspdd@latest
+      echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      openspdd -v
 
 safe-outputs:
   mentions: false
