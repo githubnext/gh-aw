@@ -30,7 +30,7 @@ The frontmatter hash provides:
 ### Conformance Classes
 
 - **Basic Conformance**: An implementation MUST compute a deterministic SHA-256 hash from canonicalized frontmatter input and MUST produce the same output for identical input.
-- **Full Conformance**: An implementation SHALL satisfy Basic Conformance and SHALL implement cross-language consistency checks between Go and JavaScript implementations.
+- **Full Conformance**: An implementation MUST satisfy Basic Conformance and MUST implement cross-language consistency checks between Go and JavaScript implementations.
 
 ### Requirements Notation
 
