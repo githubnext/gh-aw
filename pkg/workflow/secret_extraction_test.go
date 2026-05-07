@@ -474,6 +474,13 @@ func TestExtractWorkflowInputExpressionsFromValue(t *testing.T) {
 			},
 		},
 		{
+			name:  "dot notation with dash remains supported",
+			value: `"repo":"${{ inputs.target-repo }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target-repo }}",
+			},
+		},
+		{
 			name:  "double-quote bracket notation",
 			value: `"base":"${{ inputs["base-branch"] }}"`,
 			expected: map[string]string{

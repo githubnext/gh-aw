@@ -202,8 +202,8 @@ var gitHubContextExprPattern = regexp.MustCompile(`\$\{\{\s*github\.([a-z][a-z0-
 
 // workflowInputDotExprPattern matches simple ${{ inputs.NAME }} expressions.
 // NAME must start with a letter or underscore, followed by alphanumeric
-// characters or underscores.
-var workflowInputDotExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}`)
+// characters, underscores, or dashes.
+var workflowInputDotExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_-]*)\s*\}\}`)
 
 // workflowInputBracketExprPattern matches bracket-notation input expressions:
 // ${{ inputs['NAME'] }} and ${{ inputs["NAME"] }}. NAME must start with a
