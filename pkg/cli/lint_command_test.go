@@ -30,9 +30,9 @@ func TestResolveLockFilesForLint(t *testing.T) {
 	lockB := filepath.Join(tempDir, "b.lock.yml")
 	nonLock := filepath.Join(tempDir, "workflow.md")
 
-	require.NoError(t, os.WriteFile(lockA, []byte("name: a"), 0o600), "should create lock file a")
-	require.NoError(t, os.WriteFile(lockB, []byte("name: b"), 0o600), "should create lock file b")
-	require.NoError(t, os.WriteFile(nonLock, []byte("---"), 0o600), "should create non-lock file")
+	require.NoError(t, os.WriteFile(lockA, []byte("name: a"), 0o644), "should create lock file a")
+	require.NoError(t, os.WriteFile(lockB, []byte("name: b"), 0o644), "should create lock file b")
+	require.NoError(t, os.WriteFile(nonLock, []byte("---"), 0o644), "should create non-lock file")
 
 	t.Run("defaults to scanning dir when no args", func(t *testing.T) {
 		files, err := resolveLockFilesForLint(nil, tempDir)

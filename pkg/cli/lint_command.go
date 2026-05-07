@@ -45,7 +45,9 @@ Examples:
 			initActionlintStats()
 			defer displayActionlintSummary()
 
-			return runActionlintOnFilesWithOptions(lockFiles, verbose, true, actionlintRunOptions{
+			// Lint should fail on any actionlint error.
+			strictActionlint := true
+			return runActionlintOnFilesWithOptions(lockFiles, verbose, strictActionlint, actionlintRunOptions{
 				IncludeShellcheck: includeShellcheck,
 				IncludePyflakes:   includePyflakes,
 				IgnorePatterns:    defaultGhAwActionlintIgnorePatterns,
