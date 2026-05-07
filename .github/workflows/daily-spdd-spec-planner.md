@@ -37,16 +37,18 @@ tools:
 
 steps:
   - name: Copy OpenSPDD prompts
+    env:
+      GH_TOKEN: ${{ github.token }}
     run: |
       set -euo pipefail
-      # Pinned to the open-spdd main revision current when this workflow update was authored,
-      # so prompt inputs remain deterministic across runs.
-      OPENSPDD_REF="ac1e7c5f426572f9144a9f328de4b6a607ca9ba6"
-      OPENSPDD_PROMPTS_BASE="https://raw.githubusercontent.com/gszhangwei/open-spdd/${OPENSPDD_REF}/.cursor/commands"
+      OPENSPDD_REF="$(gh api repos/gszhangwei/open-spdd/commits/main --jq .sha)"
       PROMPTS_DIR="${GITHUB_WORKSPACE}/.github/copilot-prompts"
       mkdir -p "${PROMPTS_DIR}"
       for PROMPT in spdd-analysis spdd-reasons-canvas spdd-generate spdd-sync; do
-        curl -fsSL "${OPENSPDD_PROMPTS_BASE}/${PROMPT}.md" -o "${PROMPTS_DIR}/${PROMPT}.md"
+        gh api \
+          -H "Accept: application/vnd.github.raw" \
+          "repos/gszhangwei/open-spdd/contents/.cursor/commands/${PROMPT}.md?ref=${OPENSPDD_REF}" \
+          > "${PROMPTS_DIR}/${PROMPT}.md"
         test -s "${PROMPTS_DIR}/${PROMPT}.md" || { echo "::error::Failed to download ${PROMPT}.md"; exit 1; }
       done
 
