@@ -552,6 +552,7 @@ func TestAuditDiffToolErrorEnvelopeHelperProcess(t *testing.T) {
 // sends progress notifications when a progress token is provided.
 func TestLogsToolEmitsProgressNotifications(t *testing.T) {
 	const fakeOutput = `{"file_path":"/tmp/gh-aw/aw-mcp/logs/runs.json"}`
+	const progressDelta = 0.001
 
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
@@ -568,16 +569,25 @@ func TestLogsToolEmitsProgressNotifications(t *testing.T) {
 	_, err = session.CallTool(context.Background(), params)
 	require.NoError(t, err, "logs tool should succeed")
 
-	notifications := getNotifications()
-	require.GreaterOrEqual(t, len(notifications), 2, "logs tool should emit at least 2 progress notifications")
+	var notifications []*mcp.ProgressNotificationParams
+	require.Eventually(t, func() bool {
+		notifications = getNotifications()
+		if len(notifications) < 2 {
+			return false
+		}
+		first := notifications[0]
+		last := notifications[len(notifications)-1]
+		return first.Progress >= -progressDelta && first.Progress <= progressDelta &&
+			last.Progress >= 100-progressDelta && last.Progress <= 100+progressDelta
+	}, time.Second, 10*time.Millisecond, "logs tool should emit start and completion progress notifications")
 
 	first := notifications[0]
-	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
+	assert.InDelta(t, float64(0), first.Progress, progressDelta, "first notification should have progress=0")
 	assert.InDelta(t, float64(100), first.Total, 0.001, "first notification should have total=100")
 	assert.NotEmpty(t, first.Message, "first notification should have a message")
 
 	last := notifications[len(notifications)-1]
-	assert.InDelta(t, float64(100), last.Progress, 0.001, "last notification should have progress=100")
+	assert.InDelta(t, float64(100), last.Progress, progressDelta, "last notification should have progress=100")
 	assert.InDelta(t, float64(100), last.Total, 0.001, "last notification should have total=100")
 	assert.NotEmpty(t, last.Message, "last notification should have a message")
 }
@@ -611,6 +621,7 @@ func TestLogsToolNoProgressWithoutToken(t *testing.T) {
 // sends progress notifications when a progress token is provided.
 func TestAuditToolEmitsProgressNotifications(t *testing.T) {
 	const fakeOutput = `{"overview":{"run_id":"1234567890"}}`
+	const progressDelta = 0.001
 
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
@@ -630,16 +641,25 @@ func TestAuditToolEmitsProgressNotifications(t *testing.T) {
 	_, err = session.CallTool(context.Background(), params)
 	require.NoError(t, err, "audit tool should succeed")
 
-	notifications := getNotifications()
-	require.GreaterOrEqual(t, len(notifications), 2, "audit tool should emit at least 2 progress notifications")
+	var notifications []*mcp.ProgressNotificationParams
+	require.Eventually(t, func() bool {
+		notifications = getNotifications()
+		if len(notifications) < 2 {
+			return false
+		}
+		first := notifications[0]
+		last := notifications[len(notifications)-1]
+		return first.Progress >= -progressDelta && first.Progress <= progressDelta &&
+			last.Progress >= 100-progressDelta && last.Progress <= 100+progressDelta
+	}, time.Second, 10*time.Millisecond, "audit tool should emit start and completion progress notifications")
 
 	first := notifications[0]
-	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
+	assert.InDelta(t, float64(0), first.Progress, progressDelta, "first notification should have progress=0")
 	assert.InDelta(t, float64(100), first.Total, 0.001, "first notification should have total=100")
 	assert.NotEmpty(t, first.Message, "first notification should have a message")
 
 	last := notifications[len(notifications)-1]
-	assert.InDelta(t, float64(100), last.Progress, 0.001, "last notification should have progress=100")
+	assert.InDelta(t, float64(100), last.Progress, progressDelta, "last notification should have progress=100")
 	assert.InDelta(t, float64(100), last.Total, 0.001, "last notification should have total=100")
 	assert.NotEmpty(t, last.Message, "last notification should have a message")
 }
@@ -648,6 +668,7 @@ func TestAuditToolEmitsProgressNotifications(t *testing.T) {
 // tool sends progress notifications when a progress token is provided.
 func TestAuditDiffToolEmitsProgressNotifications(t *testing.T) {
 	const fakeOutput = `[{"base_run_id":100,"compare_run_id":200}]`
+	const progressDelta = 0.001
 
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", fakeOutput)
@@ -678,17 +699,17 @@ func TestAuditDiffToolEmitsProgressNotifications(t *testing.T) {
 		}
 		first := notifications[0]
 		last := notifications[len(notifications)-1]
-		return first.Progress >= -0.001 && first.Progress <= 0.001 &&
-			last.Progress >= 99.999 && last.Progress <= 100.001
+		return first.Progress >= -progressDelta && first.Progress <= progressDelta &&
+			last.Progress >= 100-progressDelta && last.Progress <= 100+progressDelta
 	}, time.Second, 10*time.Millisecond, "audit-diff tool should emit start and completion progress notifications")
 
 	first := notifications[0]
-	assert.InDelta(t, float64(0), first.Progress, 0.001, "first notification should have progress=0")
+	assert.InDelta(t, float64(0), first.Progress, progressDelta, "first notification should have progress=0")
 	assert.InDelta(t, float64(100), first.Total, 0.001, "first notification should have total=100")
 	assert.NotEmpty(t, first.Message, "first notification should have a message")
 
 	last := notifications[len(notifications)-1]
-	assert.InDelta(t, float64(100), last.Progress, 0.001, "last notification should have progress=100")
+	assert.InDelta(t, float64(100), last.Progress, progressDelta, "last notification should have progress=100")
 	assert.InDelta(t, float64(100), last.Total, 0.001, "last notification should have total=100")
 	assert.NotEmpty(t, last.Message, "last notification should have a message")
 }
