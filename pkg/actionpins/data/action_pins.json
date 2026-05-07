@@ -38,11 +38,6 @@
       "version": "v5.0.5",
       "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
     },
-    "actions/cache/save@v4": {
-      "repo": "actions/cache/save",
-      "version": "v4",
-      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
-    },
     "actions/cache/save@v5.0.5": {
       "repo": "actions/cache/save",
       "version": "v5.0.5",
@@ -178,15 +173,10 @@
       "version": "v2.11.0",
       "sha": "cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553"
     },
-    "microsoft/apm-action@v1.5.0": {
+    "microsoft/apm-action@v1.6.0": {
       "repo": "microsoft/apm-action",
-      "version": "v1.5.0",
-      "sha": "4489b4be0069e2c8c4d44305c3d273fb9d50e647"
-    },
-    "microsoft/apm-action@v1.5.1": {
-      "repo": "microsoft/apm-action",
-      "version": "v1.5.1",
-      "sha": "f67b07a08b6be27a2dfdd3912aeda24af365db8e"
+      "version": "v1.6.0",
+      "sha": "275e67418e97c26025852c7e91730cf4c11baf30"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
