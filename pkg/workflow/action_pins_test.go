@@ -474,7 +474,7 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 		shouldFallback bool // Whether we expect to fall back to highest version
 	}{
 		{
-			name:           "exact match for setup-go v6.2.0",
+			name:           "fallback for setup-go v6.2.0 resolves to v6.4.0",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
 			expectedVer:    "v6.4.0",
@@ -482,7 +482,7 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			shouldFallback: true,
 		},
 		{
-			name:           "exact match for setup-go v6.2.0 from hardcoded pins",
+			name:           "fallback for setup-go v6.2.0 from hardcoded pins resolves to v6.4.0",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6.2.0",
 			expectedVer:    "v6.4.0",
@@ -509,7 +509,7 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			shouldFallback: true,
 		},
 		{
-			name:           "exact match for upload-artifact v4",
+			name:           "fallback for upload-artifact v4.6.2 resolves to v7.0.1",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4.6.2",
 			expectedVer:    "v7.0.1",
@@ -774,8 +774,8 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 	}
 }
 
-// TestGetActionPinWithData_V7ExactMatch verifies v7 fallback preserves source annotation.
-func TestGetActionPinWithData_V7ExactMatch(t *testing.T) {
+// TestGetActionPinWithData_V7Fallback verifies v7 fallback preserves source annotation.
+func TestGetActionPinWithData_V7Fallback(t *testing.T) {
 	data := &WorkflowData{
 		StrictMode: false,
 	}
