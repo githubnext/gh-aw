@@ -235,10 +235,8 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		yaml.WriteString("        env:\n")
 		envKeys := make([]string, 0, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
 		envValues := make(map[string]string, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
-		// addEnvValue keeps first-seen key ordering stable in envKeys while allowing
-		// later sources to override the value in envValues for duplicate keys.
-		// Example: if key K appears first in workflow inputs and later in secrets,
-		// K is emitted once in envKeys and its final value comes from secrets.
+		// addEnvValue deduplicates envKeys while allowing later sources to override
+		// the value in envValues for duplicate keys.
 		addEnvValue := func(key, value string) {
 			if _, exists := envValues[key]; !exists {
 				envKeys = append(envKeys, key)

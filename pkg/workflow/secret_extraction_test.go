@@ -466,11 +466,18 @@ func TestExtractWorkflowInputExpressionsFromValue(t *testing.T) {
 			},
 		},
 		{
-			name:  "multiple input expressions with dash and underscore",
-			value: `"repo":"${{ inputs.target-repo }}","base":"${{ inputs.base_branch }}"`,
+			name:  "multiple input expressions with bracket dash and underscore",
+			value: `"repo":"${{ inputs['target-repo'] }}","base":"${{ inputs.base_branch }}"`,
 			expected: map[string]string{
-				"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target-repo }}",
+				"GH_AW_INPUT_TARGET_REPO": "${{ inputs['target-repo'] }}",
 				"GH_AW_INPUT_BASE_BRANCH": "${{ inputs.base_branch }}",
+			},
+		},
+		{
+			name:  "double-quote bracket notation",
+			value: `"base":"${{ inputs["base-branch"] }}"`,
+			expected: map[string]string{
+				"GH_AW_INPUT_BASE_BRANCH": `${{ inputs["base-branch"] }}`,
 			},
 		},
 		{

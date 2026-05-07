@@ -200,9 +200,13 @@ func ExtractEnvExpressionsFromValue(value string) map[string]string {
 // accepted later if they are present in gitHubContextEnvVarMap.
 var gitHubContextExprPattern = regexp.MustCompile(`\$\{\{\s*github\.([a-z][a-z0-9_.]*)\s*\}\}`)
 
-// workflowInputExprPattern matches simple ${{ inputs.NAME }} expressions.
-// NAME may contain letters, numbers, underscores, and dashes.
-var workflowInputExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_-]*)\s*\}\}`)
+// workflowInputDotExprPattern matches simple ${{ inputs.NAME }} expressions.
+// NAME supports alphanumeric and underscore characters.
+var workflowInputDotExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}`)
+
+// workflowInputBracketExprPattern matches bracket-notation input expressions:
+// ${{ inputs['NAME'] }} and ${{ inputs["NAME"] }}. NAME may include dashes.
+var workflowInputBracketExprPattern = regexp.MustCompile(`\$\{\{\s*inputs\[\s*['"]([a-zA-Z_][a-zA-Z0-9_-]*)['"]\s*\]\s*\}\}`)
 
 // gitHubContextEnvVarMap maps common github.* context properties to their corresponding
 // GitHub Actions runner environment variables (always available on all runners).
@@ -262,22 +266,31 @@ func ExtractGitHubContextExpressionsFromValue(value string) map[string]string {
 	return result
 }
 
-// ExtractWorkflowInputExpressionsFromValue extracts all simple ${{ inputs.X }} expressions from a
+// ExtractWorkflowInputExpressionsFromValue extracts simple workflow input expressions from a
 // string value and maps them to deterministic environment variable names.
 // Returns a map of env var name -> full expression.
 //
 // Examples:
 //   - "${{ inputs.target_repo }}" -> {"GH_AW_INPUT_TARGET_REPO": "${{ inputs.target_repo }}"}
-//   - "${{ inputs.base-branch }}" -> {"GH_AW_INPUT_BASE_BRANCH": "${{ inputs.base-branch }}"}
+//   - "${{ inputs['base-branch'] }}" -> {"GH_AW_INPUT_BASE_BRANCH": "${{ inputs['base-branch'] }}"}
 func ExtractWorkflowInputExpressionsFromValue(value string) map[string]string {
 	result := make(map[string]string)
 
-	matches := workflowInputExprPattern.FindAllStringSubmatch(value, -1)
-	for _, match := range matches {
+	for _, match := range workflowInputDotExprPattern.FindAllStringSubmatch(value, -1) {
 		if len(match) < 2 {
 			continue
 		}
+		inputName := match[1]
+		fullExpr := match[0]
+		envVar := formatInputNameAsEnvVar(inputName)
+		result[envVar] = fullExpr
+		secretLog.Printf("Extracted workflow input expression: %s -> %s", fullExpr, envVar)
+	}
 
+	for _, match := range workflowInputBracketExprPattern.FindAllStringSubmatch(value, -1) {
+		if len(match) < 2 {
+			continue
+		}
 		inputName := match[1]
 		fullExpr := match[0]
 		envVar := formatInputNameAsEnvVar(inputName)
