@@ -33,7 +33,7 @@ timeout-minutes: 30
 imports:
   - shared/reporting.md
 steps:
-  - name: build-inventory
+  - name: Build Inventory
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |

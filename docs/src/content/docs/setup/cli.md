@@ -296,6 +296,21 @@ gh aw validate --engine copilot             # Override AI engine
 
 All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
 
+#### `lint`
+
+Lint existing `.lock.yml` workflow files from disk with actionlint only. This command does not recompile Markdown workflows, and skips `zizmor`/`poutine`.
+
+```bash wrap
+gh aw lint                                          # Lint all .github/workflows/*.lock.yml
+gh aw lint .github/workflows/foo.lock.yml           # Lint a specific lock file
+gh aw lint --dir .github/workflows                  # Lint all lock files in a directory
+gh aw lint --shellcheck --pyflakes                  # Enable actionlint script integrations
+```
+
+**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`
+
+By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
+
 ### Testing
 
 #### `trial`

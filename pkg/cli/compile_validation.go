@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -90,7 +91,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	// Run actionlint on the generated lock file if requested
 	// Note: For batch processing, use RunActionlintOnFiles instead
 	if runActionlintPerFile {
-		if err := runActionlintOnFiles([]string{lockFile}, verbose, strict); err != nil {
+		if err := runActionlintOnFiles(context.Background(), []string{lockFile}, verbose, strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}
@@ -158,7 +159,7 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	// Run actionlint on the generated lock file if requested
 	// Note: For batch processing, use RunActionlintOnFiles instead
 	if runActionlintPerFile {
-		if err := runActionlintOnFiles([]string{lockFile}, verbose, strict); err != nil {
+		if err := runActionlintOnFiles(context.Background(), []string{lockFile}, verbose, strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}

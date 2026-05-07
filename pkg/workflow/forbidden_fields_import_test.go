@@ -98,6 +98,11 @@ func TestAllowedFieldsImportSuccess(t *testing.T) {
 		"tools":       `tools: {bash: true}`,               // Simple nested object
 		"permissions": `permissions: read-all`,             // Simple string value
 		"labels":      `labels: ["automation", "testing"]`, // Array value
+		"on": `on:
+  skip-if-match: "is:issue is:open in:title \"[shared]\""
+  skip-if-no-match:
+    query: "is:issue is:open label:triage"
+    max: 1`,
 		"inputs": `inputs:
   test_input:
     description: "Test input"

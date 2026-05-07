@@ -4,7 +4,6 @@ description: Weekly analysis of the default Ubuntu Actions runner image and guid
 on:
   schedule: weekly
   workflow_dispatch:
-  skip-if-match: 'is:pr is:open in:title "[ubuntu-image]"'
 
 permissions:
   contents: read
@@ -15,6 +14,10 @@ permissions:
 tracker-id: ubuntu-image-analyzer
 engine: copilot
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[ubuntu-image]"
+      kind: "pr"
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[ubuntu-image] "

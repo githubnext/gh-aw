@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -125,7 +126,7 @@ func TestGetActionlintVersion(t *testing.T) {
 	defer func() { actionlintVersion = original }()
 
 	actionlintVersion = "1.7.9"
-	version, err := getActionlintVersion()
+	version, err := getActionlintVersion(context.Background())
 	require.NoError(t, err, "should not error when version is cached")
 	assert.Equal(t, "1.7.9", version, "should return cached version")
 }
@@ -321,6 +322,47 @@ func TestGetActionlintDocsURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getActionlintDocsURL(tt.kind)
 			assert.Equal(t, tt.expected, result, "docs URL should match expected for kind %q", tt.kind)
+		})
+	}
+}
+
+func TestBuildActionlintIntegrationStatus(t *testing.T) {
+	tests := []struct {
+		name              string
+		includeShellcheck bool
+		includePyflakes   bool
+		expected          string
+	}{
+		{
+			name:              "both integrations enabled",
+			includeShellcheck: true,
+			includePyflakes:   true,
+			expected:          "with shellcheck/pyflakes",
+		},
+		{
+			name:              "only shellcheck enabled",
+			includeShellcheck: true,
+			includePyflakes:   false,
+			expected:          "with shellcheck only",
+		},
+		{
+			name:              "only pyflakes enabled",
+			includeShellcheck: false,
+			includePyflakes:   true,
+			expected:          "with pyflakes only",
+		},
+		{
+			name:              "both integrations disabled",
+			includeShellcheck: false,
+			includePyflakes:   false,
+			expected:          "without shellcheck/pyflakes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildActionlintIntegrationStatus(tt.includeShellcheck, tt.includePyflakes)
+			assert.Equal(t, tt.expected, result, "integration status should match")
 		})
 	}
 }

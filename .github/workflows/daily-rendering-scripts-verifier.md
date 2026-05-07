@@ -4,7 +4,6 @@ description: Daily verification that the engine-specific log parser and renderin
 on:
   schedule: daily
   workflow_dispatch:
-  skip-if-match: 'is:pr is:open in:title "[rendering-scripts]"'
 
 permissions:
   contents: read
@@ -40,6 +39,10 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[rendering-scripts]"
+      kind: "pr"
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[rendering-scripts] "

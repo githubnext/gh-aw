@@ -3,13 +3,16 @@ description: Daily dead code assessment and removal — identifies unreachable G
 on:
   schedule: daily
   workflow_dispatch:
-  skip-if-match: 'is:pr is:open in:title "[dead-code] "'
 permissions:
   contents: read
   pull-requests: read
   issues: read
 engine: copilot
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[dead-code] "
+      kind: "pr"
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[dead-code] "

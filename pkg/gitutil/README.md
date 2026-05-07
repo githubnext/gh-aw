@@ -13,80 +13,17 @@ This package contains helpers for:
 
 ## Public API
 
-### Error Classification
+### Functions
 
-#### `IsRateLimitError(errMsg string) bool`
-
-Returns `true` when `errMsg` indicates a GitHub API rate-limit error. Matches any of: "api rate limit exceeded", "rate limit exceeded", or "secondary rate limit" (case-insensitive).
-
-```go
-if gitutil.IsRateLimitError(err.Error()) {
-    // Back off and retry
-}
-```
-
-#### `IsAuthError(errMsg string) bool`
-
-Returns `true` when `errMsg` indicates an authentication or authorization failure (`GH_TOKEN`, `GITHUB_TOKEN`, `unauthorized`, `forbidden`, SAML enforcement, etc.).
-
-```go
-if gitutil.IsAuthError(err.Error()) {
-    fmt.Fprintln(os.Stderr, "Check that GH_TOKEN is set correctly")
-}
-```
-
-### String Utilities
-
-#### `IsHexString(s string) bool`
-
-Returns `true` if `s` consists entirely of hexadecimal characters (`0–9`, `a–f`, `A–F`). Returns `false` for the empty string.
-
-```go
-if gitutil.IsHexString(sha) {
-    // Valid commit SHA
-}
-```
-
-#### `IsValidFullSHA(s string) bool`
-
-Returns `true` if `s` is a valid 40-character lowercase hexadecimal SHA (the standard Git commit SHA format). Use this for strict SHA validation when the full 40-character form is required.
-
-```go
-if gitutil.IsValidFullSHA(commitSHA) {
-    // Full 40-char commit SHA
-}
-```
-
-#### `ExtractBaseRepo(repoPath string) string`
-
-Extracts the `owner/repo` portion from an action path that may include a sub-folder.
-
-```go
-gitutil.ExtractBaseRepo("actions/checkout")                        // → "actions/checkout"
-gitutil.ExtractBaseRepo("github/codeql-action/upload-sarif")      // → "github/codeql-action"
-```
-
-### Repository Operations
-
-#### `FindGitRoot() (string, error)`
-
-Returns the absolute path of the root directory of the current Git repository by running `git rev-parse --show-toplevel`. Returns an error if the working directory is not inside a Git repository.
-
-```go
-root, err := gitutil.FindGitRoot()
-if err != nil {
-    return fmt.Errorf("not in a git repository: %w", err)
-}
-```
-
-#### `ReadFileFromHEADWithRoot(filePath, gitRoot string) (string, error)`
-
-Reads a file's content from the `HEAD` commit without touching the working tree. `gitRoot` must be the repository root (typically from `FindGitRoot`). The function rejects paths that escape the repository (i.e. paths containing `..` after resolution).
-
-```go
-root, _ := gitutil.FindGitRoot()
-content, err := gitutil.ReadFileFromHEADWithRoot("pkg/workflow/compiler.go", root)
-```
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `IsRateLimitError` | `func(errMsg string) bool` | Returns `true` when `errMsg` indicates a GitHub API rate-limit error (case-insensitive match against "api rate limit exceeded", "rate limit exceeded", or "secondary rate limit") |
+| `IsAuthError` | `func(errMsg string) bool` | Returns `true` when `errMsg` indicates an authentication or authorization failure (`GH_TOKEN`, `GITHUB_TOKEN`, `unauthorized`, `forbidden`, SAML enforcement, etc.) |
+| `IsHexString` | `func(s string) bool` | Returns `true` if `s` consists entirely of hexadecimal characters (`0–9`, `a–f`, `A–F`); returns `false` for the empty string |
+| `IsValidFullSHA` | `func(s string) bool` | Returns `true` if `s` is a valid 40-character lowercase hexadecimal SHA |
+| `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
+| `FindGitRoot` | `func() (string, error)` | Returns the absolute path of the root directory of the current Git repository by running `git rev-parse --show-toplevel` |
+| `ReadFileFromHEADWithRoot` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without touching the working tree; rejects paths that escape the repository |
 
 ## Usage Examples
 

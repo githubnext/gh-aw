@@ -512,6 +512,7 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 - `pkg/console` — terminal formatting
 - `pkg/logger` — debug logging
 - `pkg/actionpins` — action pin data and pin lookup helpers
+- `pkg/jsonutil` — compact JSON marshaling for AWF configuration serialization
 - `pkg/semverutil` — semantic version helpers
 - `pkg/typeutil` — safe type conversions
 - `pkg/tty` — terminal capability detection

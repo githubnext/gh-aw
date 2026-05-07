@@ -673,14 +673,23 @@ tools:
 
 ### Custom MCP Tools
 
+Stdio MCP servers must be Docker-based (use `container:` + `entrypoint:`). For Node/Python servers already installed on the runner, use HTTP transport instead:
+
 ```yaml
+# Stdio (Docker-based)
 mcp-servers:
   my-custom-tool:
-    command: "node"
-    args: ["path/to/mcp-server.js"]
+    container: "ghcr.io/my-org/my-tool:latest"
+    entrypoint: "my-tool"
     allowed:
       - custom_function_1
       - custom_function_2
+
+# HTTP (for Node/Python servers running on the runner)
+mcp-servers:
+  my-node-tool:
+    type: http
+    url: "http://localhost:8765/mcp"
 ```
 
 HTTP MCP servers are also supported with optional upstream authentication:

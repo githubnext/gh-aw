@@ -83,7 +83,7 @@ Paths are resolved within the `.github` folder. You can specify paths with or wi
 
 ## Shared Workflow Components
 
-Files without an `on` field are shared workflow components — validated but not compiled into GitHub Actions, only imported by other workflows. The compiler skips them with an informative message.
+Files without an `on` field are shared workflow components — validated but not compiled into GitHub Actions, only imported by other workflows. Shared components may also define import-safe `on` keys (`skip-if-match`, `skip-if-no-match`, `skip-roles`, `skip-bots`, `github-token`, `github-app`) for reuse through imports.
 
 ### Common bundles
 

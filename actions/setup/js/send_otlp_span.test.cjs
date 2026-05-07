@@ -160,6 +160,10 @@ describe("buildAttr", () => {
     expect(buildAttr("k", 42)).toEqual({ key: "k", value: { intValue: 42 } });
   });
 
+  it("returns doubleValue for non-integer numbers", () => {
+    expect(buildAttr("k", 1.25)).toEqual({ key: "k", value: { doubleValue: 1.25 } });
+  });
+
   it("returns boolValue for boolean input", () => {
     expect(buildAttr("k", true)).toEqual({ key: "k", value: { boolValue: true } });
     expect(buildAttr("k", false)).toEqual({ key: "k", value: { boolValue: false } });
@@ -726,6 +730,7 @@ describe("sendOTLPSpan", () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 400, statusText: "Bad Request" });
     vi.stubGlobal("fetch", mockFetch);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     // Should not throw
     await expect(sendOTLPSpan("https://traces.example.com", {}, { maxRetries: 1, baseDelayMs: 1 })).resolves.toBeUndefined();
@@ -735,7 +740,9 @@ describe("sendOTLPSpan", () => {
     expect(warnSpy).toHaveBeenCalledTimes(2);
     expect(warnSpy.mock.calls[0][0]).toContain("attempt 1/2 failed");
     expect(warnSpy.mock.calls[1][0]).toContain("failed after 2 attempts");
+    expect(writeSpy).toHaveBeenCalled();
 
+    writeSpy.mockRestore();
     warnSpy.mockRestore();
   });
 
@@ -757,12 +764,16 @@ describe("sendOTLPSpan", () => {
     const mockFetch = vi.fn().mockRejectedValue(new Error("network error"));
     vi.stubGlobal("fetch", mockFetch);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await expect(sendOTLPSpan("https://traces.example.com", {}, { maxRetries: 1, baseDelayMs: 1 })).resolves.toBeUndefined();
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(warnSpy.mock.calls[1][0]).toContain("error after 2 attempts");
+    expect(writeSpy).toHaveBeenCalled();
+    expect(writeSpy.mock.calls[0][0]).toBe("/tmp/gh-aw/otlp-export-errors.count");
 
+    writeSpy.mockRestore();
     warnSpy.mockRestore();
   });
 });
@@ -2100,6 +2111,7 @@ describe("sendJobConclusionSpan", () => {
     "GH_AW_AGENT_CONCLUSION",
     "GH_AW_DETECTION_CONCLUSION",
     "GH_AW_DETECTION_REASON",
+    "GH_AW_TRACKER_ID",
     "GH_AW_INFO_WORKFLOW_NAME",
     "GITHUB_WORKFLOW",
   ];
@@ -2695,6 +2707,73 @@ describe("sendJobConclusionSpan", () => {
     const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
     expect(etAttr).toBeDefined();
     expect(etAttr.value.intValue).toBe(5000);
+  });
+
+  it("emits dashboard metrics and aliases on the conclusion span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+    process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
+    process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+    process.env.GH_AW_TRACKER_ID = "copilot-token-optimizer";
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_120_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ context: { item_number: "42" } });
+      }
+      if (filePath === "/tmp/gh-aw/agent_output.json") {
+        return JSON.stringify({ errors: [{ message: "first" }, { message: "second" }] });
+      }
+      if (filePath === "/tmp/gh-aw/agent-stdio.log") {
+        return '[WARN] first warning\nnpm warn second warning\n{"type":"result","num_turns":7,"total_cost_usd":1.75}\n';
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
+
+    expect(attrs["gh-aw.effective_tokens"]).toBe(5000);
+    expect(attrs["gh-aw.estimated_cost_usd"]).toBe(1.75);
+    expect(attrs["gh-aw.action_minutes"]).toBeGreaterThan(0);
+    expect(attrs["gh-aw.turns"]).toBe(7);
+    expect(attrs["gh-aw.error_count"]).toBe(2);
+    expect(attrs["gh-aw.warning_count"]).toBe(3);
+    expect(attrs["gh-aw.run.status"]).toBe("failure");
+    expect(attrs["gh-aw.tracker.id"]).toBe("copilot-token-optimizer");
+  });
+
+  it("emits gh-aw.otlp.export_errors on the conclusion job span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/otlp-export-errors.count") {
+        return "3";
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+    expect(attrs["gh-aw.otlp.export_errors"]).toBe(3);
   });
 
   it("omits effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is absent", async () => {
@@ -3791,7 +3870,7 @@ describe("sendJobConclusionSpan", () => {
       statSpy.mockRestore();
     });
 
-    it("omits gen_ai token breakdown attributes from conclusion span when agent sub-span is emitted (token attrs go to agent span only)", async () => {
+    it("omits all gen_ai token breakdown attributes from the conclusion span when agent sub-span is emitted", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -3810,14 +3889,11 @@ describe("sendJobConclusionSpan", () => {
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
       const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-      const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
-      // Token-usage attributes must not appear on the conclusion span when an agent
-      // sub-span is emitted; they live exclusively on the agent span to prevent
-      // double-counting in backends that sum gen_ai.usage.* across all spans.
-      expect(conclusionKeys).not.toContain("gen_ai.usage.input_tokens");
-      expect(conclusionKeys).not.toContain("gen_ai.usage.output_tokens");
-      expect(conclusionKeys).not.toContain("gen_ai.usage.cache_read.input_tokens");
-      expect(conclusionKeys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
+      const keys = conclusionSpan.attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
     it("includes gen_ai token breakdown on conclusion span even when no agent sub-span is emitted", async () => {
@@ -3868,7 +3944,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
-    it("omits all gen_ai token breakdown attributes from conclusion span regardless of zero-values when agent sub-span is emitted", async () => {
+    it("omits non-zero gen_ai token breakdown attributes from conclusion span when agent sub-span is emitted", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -3888,10 +3964,9 @@ describe("sendJobConclusionSpan", () => {
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
       const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = conclusionSpan.attributes.map(a => a.key);
-      // No token-usage attributes on conclusion span when an agent sub-span is emitted.
       expect(keys).not.toContain("gen_ai.usage.input_tokens");
-      expect(keys).not.toContain("gen_ai.usage.output_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
   });

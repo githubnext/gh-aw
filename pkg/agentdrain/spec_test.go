@@ -271,7 +271,8 @@ func TestSpec_PublicAPI_NewMasker(t *testing.T) {
 
 // TestSpec_PublicAPI_NewAnomalyDetector validates AnomalyDetector construction.
 func TestSpec_PublicAPI_NewAnomalyDetector(t *testing.T) {
-	detector := agentdrain.NewAnomalyDetector(0.4, 2)
+	detector, err := agentdrain.NewAnomalyDetector(0.4, 2)
+	require.NoError(t, err, "NewAnomalyDetector should not error with valid thresholds")
 	assert.NotNil(t, detector, "NewAnomalyDetector should return non-nil detector")
 }
 
@@ -474,24 +475,6 @@ func TestSpec_PublicAPI_Coordinator_LoadDefaultWeights(t *testing.T) {
 
 	err = coord.LoadDefaultWeights()
 	require.NoError(t, err, "LoadDefaultWeights should not error (no-op when empty, loads otherwise)")
-}
-
-// TestSpec_PublicAPI_Miner_ClusterCount_SPEC_MISMATCH documents a spec-implementation gap.
-// SPEC_MISMATCH: The README shows miner.ClusterCount() as a method, but Miner only implements
-// Clusters() []Cluster. Use len(miner.Clusters()) as the equivalent.
-func TestSpec_PublicAPI_Miner_ClusterCount_SPEC_MISMATCH(t *testing.T) {
-	// SPEC_MISMATCH: ClusterCount() documented in README does not exist; use len(Clusters()).
-	cfg := agentdrain.DefaultConfig()
-	miner, err := agentdrain.NewMiner(cfg)
-	require.NoError(t, err)
-
-	assert.Empty(t, miner.Clusters(), "cluster count should be zero before training")
-
-	evt := agentdrain.AgentEvent{Stage: "plan", Fields: map[string]string{"step": "init"}}
-	_, err = miner.TrainEvent(evt)
-	require.NoError(t, err)
-
-	assert.Len(t, miner.Clusters(), 1, "cluster count should be 1 after training one unique event")
 }
 
 // TestSpec_PublicAPI_Miner_Train validates that Miner.Train processes a raw log line.

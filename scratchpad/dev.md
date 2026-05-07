@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 9.1
-**Last Updated**: 2026-05-06
+**Version**: 9.2
+**Last Updated**: 2026-05-07
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1815,6 +1815,34 @@ on:
   reaction: none         # Override default
 ```
 
+**`mcp-gateway.opentelemetry.headers` accepts string only** (PR #30800):
+
+The `mcp-gateway.opentelemetry.headers` field now accepts only a string value in `key=value` pairs separated by commas. The previous object format is no longer supported.
+
+```yaml
+# ❌ Old (invalid): object format
+mcp-gateway:
+  opentelemetry:
+    headers:
+      Authorization: "Bearer ${OTLP_TOKEN}"
+      X-Scope-OrgID: "my-tenant"
+
+# ✅ Correct: comma-separated key=value string
+mcp-gateway:
+  opentelemetry:
+    headers: "Authorization=Bearer ${OTLP_TOKEN},X-Scope-OrgID=my-tenant"
+```
+
+Migration: update any `mcp-gateway.opentelemetry.headers` object definitions to the string format.
+
+**`aw_context` caller metadata for `workflow_dispatch`** (PR #30800):
+
+Compiled `workflow_dispatch` workflows now automatically propagate `aw_context` caller metadata at trigger time. This enables dispatch traceability: the originating workflow, run ID, and actor are injected at trigger time and surfaced in `aw_info.json` of the dispatched workflow.
+
+**Activation artifact now includes `aw_info.json`** (PR #30800):
+
+The `activation` artifact now uploads `aw_info.json` alongside `prompt.txt`. This makes run info and workflow overview data available to prompt generation and logging earlier in the job lifecycle (previously only available after the agent job).
+
 **GHE Support** (`configure_gh_for_ghe.sh`):
 
 Workflows that call `gh` CLI commands on GitHub Enterprise Server domains should source `configure_gh_for_ghe.sh` before any `gh` calls. The script auto-detects the correct GHE host from environment variables (`GITHUB_SERVER_URL`, `GITHUB_ENTERPRISE_HOST`, `GITHUB_HOST`, or `GH_HOST`):
@@ -2932,6 +2960,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v9.2 (2026-05-07): Maintenance tone scan — fixed 1 tone issue: `workflow-refactoring-patterns.md` (4 fixes: removed gamified "+X points" scoring from Benefits headings). Documented 3 new features from PR #30800: (1) `mcp-gateway.opentelemetry.headers` now accepts string-only format (migration from object format); (2) `aw_context` caller metadata propagation for compiled `workflow_dispatch` workflows (dispatch traceability via `aw_info.json`); (3) activation artifact now includes `aw_info.json` alongside `prompt.txt`. Coverage: 63 spec files (no new files).
 - v9.1 (2026-05-06): Maintenance tone scan — 0 tone issues found across all 63 spec files. No new spec files since v9.0. Coverage: 63 spec files (no new files).
 - v9.0 (2026-05-04): Maintenance tone scan — fixed 1 tone issue: `serena-tools-quick-reference.md` (1 fix: "12.32 KB (2.89% of all data) - highly efficient"→"12.32 KB (2.89% of all data)"). Documented PR #30072 engine domain registry pattern: updated Engine Interface Architecture section ("Adding a new engine" note about `engineDefaultDomains` map in `domains.go`), updated `adding-new-engines.md` with new "Firewall Domain Registration" pattern (Phase 1 checklist item + full code example for `engineDefaultDomains` map and model-specific domain functions). Coverage: 64 spec files (no new files).
 - v8.5 (2026-05-03): Maintenance tone scan — fixed 3 tone issues in `oh-my-code.md`: "Power User Paradise" heading→"Configuration and Usage", "Team Automation Made Safe" heading→"Configuration and Usage", "Relentless execution until completion"→"Continues execution until all tasks complete". Coverage: 64 spec files (no new files).

@@ -7,7 +7,6 @@ const { buildWorkflowCallId } = require("./aw_context.cjs");
 const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
 
 /**
@@ -89,7 +88,13 @@ function buildAttr(key, value) {
     return { key, value: { boolValue: value } };
   }
   if (typeof value === "number") {
-    return { key, value: { intValue: value } };
+    if (Number.isFinite(value)) {
+      if (Number.isInteger(value)) {
+        return { key, value: { intValue: value } };
+      }
+      return { key, value: { doubleValue: value } };
+    }
+    return { key, value: { stringValue: String(value) } };
   }
   return { key, value: { stringValue: String(value) } };
 }
@@ -711,6 +716,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
         console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} failed: ${msg}, retrying…`);
       } else {
         console.warn(`OTLP export failed after ${maxRetries + 1} attempts: ${msg}`);
+        recordOTLPExportError();
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -718,6 +724,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
         console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} error: ${msg}, retrying…`);
       } else {
         console.warn(`OTLP export error after ${maxRetries + 1} attempts: ${msg}`);
+        recordOTLPExportError();
       }
     }
   }
@@ -963,6 +970,18 @@ function readJSONIfExists(filePath) {
 const GITHUB_RATE_LIMITS_JSONL_PATH = "/tmp/gh-aw/github_rate_limits.jsonl";
 
 /**
+ * Path to the persisted OTLP export error counter.
+ * @type {string}
+ */
+const OTLP_EXPORT_ERRORS_PATH = "/tmp/gh-aw/otlp-export-errors.count";
+
+/**
+ * Path to the agent stdio log file.
+ * @type {string}
+ */
+const AGENT_STDIO_LOG_PATH = "/tmp/gh-aw/agent-stdio.log";
+
+/**
  * @typedef {Object} RateLimitEntry
  * @property {string} [resource]   - GitHub rate-limit resource category (e.g. "core", "graphql")
  * @property {number} [limit]      - Total request quota for the window
@@ -989,6 +1008,120 @@ function readLastRateLimitEntry() {
   } catch {
     return null;
   }
+}
+
+/**
+ * Read the persisted OTLP export error count.
+ *
+ * @returns {number}
+ */
+function readOTLPExportErrorCount() {
+  try {
+    const raw = fs.readFileSync(OTLP_EXPORT_ERRORS_PATH, "utf8").trim();
+    const parsed = parseInt(raw, 10);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Persist one additional OTLP export failure.
+ *
+ * @returns {void}
+ */
+function recordOTLPExportError() {
+  try {
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+    fs.writeFileSync(OTLP_EXPORT_ERRORS_PATH, String(readOTLPExportErrorCount() + 1));
+  } catch {
+    // Export-health tracking is best-effort only.
+  }
+}
+
+/**
+ * Normalize agent output errors into a single message string.
+ *
+ * @param {unknown} errorEntry
+ * @returns {string}
+ */
+function getErrorMessage(errorEntry) {
+  if (typeof errorEntry === "string") {
+    return errorEntry.slice(0, MAX_ATTR_VALUE_LENGTH);
+  }
+  if (!errorEntry || typeof errorEntry !== "object" || Array.isArray(errorEntry)) {
+    return "";
+  }
+
+  const normalizedError = /** @type {Record<string, unknown>} */ errorEntry;
+  const rawType = normalizedError["type"];
+  const rawMessage = normalizedError["message"];
+  const rawError = normalizedError["error"];
+  const type = typeof rawType === "string" ? rawType.trim() : "";
+  const message = typeof rawMessage === "string" ? rawMessage.trim() : typeof rawError === "string" ? rawError.trim() : "";
+
+  if (type && message) {
+    return `${type}:${message}`.slice(0, MAX_ATTR_VALUE_LENGTH);
+  }
+  return message.slice(0, MAX_ATTR_VALUE_LENGTH);
+}
+
+/**
+ * @typedef {Object} AgentRuntimeMetrics
+ * @property {number | undefined} turns
+ * @property {number | undefined} estimatedCostUsd
+ * @property {number} warningCount
+ */
+
+/**
+ * Read turns, estimated cost, and warning volume from agent-stdio.log.
+ *
+ * @returns {AgentRuntimeMetrics}
+ */
+function readAgentRuntimeMetrics() {
+  /** @type {AgentRuntimeMetrics} */
+  const metrics = { turns: undefined, estimatedCostUsd: undefined, warningCount: 0 };
+
+  try {
+    const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
+    const lines = content.split("\n");
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        continue;
+      }
+
+      if (/^(?:\[WARN\]|npm warn\b)/i.test(line)) {
+        metrics.warningCount += 1;
+      }
+
+      const jsonStart = line.indexOf("{");
+      if (jsonStart < 0) {
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(line.slice(jsonStart));
+        if (!parsed || parsed.type !== "result") {
+          continue;
+        }
+
+        if (typeof parsed.num_turns === "number" && parsed.num_turns >= 0) {
+          metrics.turns = parsed.num_turns;
+        }
+        if (typeof parsed.total_cost_usd === "number" && Number.isFinite(parsed.total_cost_usd) && parsed.total_cost_usd >= 0) {
+          metrics.estimatedCostUsd = parsed.total_cost_usd;
+        }
+      } catch {
+        // Ignore non-JSON and truncated log lines.
+      }
+    }
+  } catch {
+    return metrics;
+  }
+
+  return metrics;
 }
 
 // ---------------------------------------------------------------------------
@@ -1047,6 +1180,7 @@ function readLastRateLimitEntry() {
  */
 async function sendJobConclusionSpan(spanName, options = {}) {
   const startMs = options.startMs ?? nowMs();
+  const endMs = nowMs();
 
   // Read workflow metadata from aw_info.json (written by the agent job setup step).
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
@@ -1087,6 +1221,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
+  const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -1107,6 +1242,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // when threat detection is enabled in the compiled workflow.
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+  const runtimeMetrics = readAgentRuntimeMetrics();
 
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
   const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
@@ -1126,16 +1262,31 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
   const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errorMessages = outputErrors.map(getErrorMessage).filter(Boolean).slice(0, 5);
+  const warningCount = runtimeMetrics.warningCount + (detectionConclusion === "warning" ? 1 : 0);
+  const workflowRunConclusion = (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
+
+  let runStatus = "success";
+  const rawRunStatus = agentConclusion || workflowRunConclusion;
+  if (rawRunStatus === "cancelled") {
+    runStatus = "cancelled";
+  } else if (rawRunStatus === "failure" || rawRunStatus === "timed_out") {
+    runStatus = "failure";
+  }
 
   if (isAgentFailure && errorMessages.length > 0) {
     statusMessage = `agent ${agentConclusion}: ${errorMessages[0]}`.slice(0, 256);
   }
 
   const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.attempt", runAttempt), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+  attributes.push(buildAttr("gh-aw.run.status", runStatus));
+  attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
+  attributes.push(buildAttr("gh-aw.warning_count", warningCount));
+  attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
   if (model) attributes.push(buildAttr("gen_ai.request.model", model));
+  if (trackerId) attributes.push(buildAttr("gh-aw.tracker.id", trackerId));
   if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
   // Deployment state: prefer the env var (set from github.event.deployment_status.state
   // in the compiled workflow), fall back to aw_info.deployment_state or aw_context propagation.
@@ -1144,8 +1295,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (deploymentStateConclusion) {
     attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateConclusion));
   }
-  // Workflow run conclusion: from aw_info or aw_context propagation.
-  const workflowRunConclusion = (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
   if (workflowRunConclusion) {
     attributes.push(buildAttr("gh-aw.workflow_run.conclusion", workflowRunConclusion));
   }
@@ -1158,6 +1307,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
+  if (typeof runtimeMetrics.turns === "number") {
+    attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
+  }
+  if (typeof runtimeMetrics.estimatedCostUsd === "number") {
+    attributes.push(buildAttr("gh-aw.estimated_cost_usd", runtimeMetrics.estimatedCostUsd));
+  }
 
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
@@ -1167,6 +1322,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (detectionReason) {
     attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
+  }
+  if (spanName === "gh-aw.conclusion.conclusion") {
+    attributes.push(buildAttr("gh-aw.otlp.export_errors", readOTLPExportErrorCount()));
   }
   if (errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
@@ -1235,7 +1393,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       });
   };
 
-  const spanEvents = buildSpanEvents(nowMs());
+  const spanEvents = buildSpanEvents(endMs);
 
   const agentStartMs = options.startMs;
   let agentEndMs = null;
@@ -1273,10 +1431,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   const endpoints = parseOTLPEndpoints();
   const conclusionSpanId = generateSpanId();
-  let agentSpanEmitted = false;
-  if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
-    agentSpanEmitted = true;
-    const agentSpanEvents = buildSpanEvents(agentEndMs);
+  const hasDedicatedAgentSpan = jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs;
+  if (hasDedicatedAgentSpan && typeof agentEndMs === "number") {
+    const agentSpanEndMs = agentEndMs;
+    const agentSpanEvents = buildSpanEvents(agentSpanEndMs);
 
     // Build OTel GenAI semantic convention attributes for the dedicated agent span.
     // These follow the OpenTelemetry GenAI specification and enable out-of-the-box
@@ -1307,7 +1465,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       parentSpanId: conclusionSpanId,
       spanName: jobName ? `gh-aw.${jobName}.agent` : "gh-aw.job.agent",
       startMs: agentStartMs,
-      endMs: agentEndMs,
+      endMs: agentSpanEndMs,
       serviceName,
       scopeVersion: version,
       attributes: agentAttributes,
@@ -1323,9 +1481,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  // When no agent span was emitted, attach token-usage attributes to the conclusion span
-  // so a single query remains sufficient for observability (no join required).
-  if (!agentSpanEmitted) {
+  if (!hasDedicatedAgentSpan) {
     attributes.push(...usageAttrs);
   }
 
@@ -1335,7 +1491,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     ...(parentSpanId ? { parentSpanId } : {}),
     spanName,
     startMs,
-    endMs: nowMs(),
+    endMs,
     serviceName,
     scopeVersion: version,
     attributes,

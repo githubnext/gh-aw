@@ -525,6 +525,12 @@ actionlint: build
 	@echo "Validating workflows with actionlint..."
 	./$(BINARY_NAME) compile --actionlint
 
+# Run lock-file-only lint using gh aw lint
+.PHONY: lint-lock
+lint-lock: build
+	@echo "Linting committed lock files with gh aw lint..."
+	./$(BINARY_NAME) lint
+
 # Format code
 .PHONY: fmt
 fmt: fmt-go fmt-cjs fmt-json
@@ -758,6 +764,11 @@ agent-finish: deps-dev fmt lint build build-wasm test-all fix recompile dependab
 agent-report-progress: build fmt test-unit
 	@echo "Pre-PR validation passed. Safe to call report_progress."
 
+# Extended pre-PR gate with lock-file-only linting.
+.PHONY: agent-report-progress-lint
+agent-report-progress-lint: agent-report-progress lint-lock
+	@echo "Pre-PR validation + lock-file lint passed. Safe to call report_progress."
+
 # Help target
 .PHONY: help
 help:
@@ -813,6 +824,7 @@ help:
 	@echo "  security-gosec   - Run gosec Go security scanner"
 	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
 	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
+	@echo "  lint-lock        - Run lock-file-only lint with gh aw lint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/actionpins/data and pkg/workflow/data (runs automatically during build)"
@@ -832,5 +844,6 @@ help:
 
 	@echo "  agent-finish            - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
 	@echo "  agent-report-progress   - Lightweight pre-PR gate: build + fmt + test-unit (<30s)"
+	@echo "  agent-report-progress-lint - Pre-PR gate + gh aw lint lock-file check"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"

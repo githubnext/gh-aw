@@ -22,14 +22,62 @@ package workflow
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 )
 
 var modelAliasValidationLog = newValidationLogger("model_alias")
+
+// ─── Known-parameter validation ───────────────────────────────────────────────
+
+// ValidateEffortParam validates the "effort" parameter value (V-MAF-002).
+// Allowed values: low, medium, high.
+func ValidateEffortParam(value string) error {
+	switch value {
+	case "low", "medium", "high":
+		return nil
+	default:
+		return fmt.Errorf("model parameter 'effort': value %q is not valid; allowed values are: low, medium, high (V-MAF-002)", value)
+	}
+}
+
+// ValidateTemperatureParam validates the "temperature" parameter value (V-MAF-003).
+// Must be a finite decimal float in [0.0, 2.0].
+func ValidateTemperatureParam(value string) error {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return fmt.Errorf("model parameter 'temperature': value %q cannot be parsed as a decimal float (V-MAF-003)", value)
+	}
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return fmt.Errorf("model parameter 'temperature': value %q is not a finite number (V-MAF-003)", value)
+	}
+	if f < 0.0 || f > 2.0 {
+		return fmt.Errorf("model parameter 'temperature': value %q is out of range; must be in [0.0, 2.0] (V-MAF-003)", value)
+	}
+	return nil
+}
+
+// ValidateKnownParams validates the known parameters in a parsed identifier.
+// Unknown parameters are tolerated (V-MAF-011 emits a warning, not an error).
+// Returns an error if a known parameter has an invalid value.
+func ValidateKnownParams(params map[string]string) error {
+	if v, ok := params[modelParamEffort]; ok {
+		if err := ValidateEffortParam(v); err != nil {
+			return err
+		}
+	}
+	if v, ok := params[modelParamTemperature]; ok {
+		if err := ValidateTemperatureParam(v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // validateModelAliasMap is the main entry point for compile-time model-alias validation.
 // It validates:

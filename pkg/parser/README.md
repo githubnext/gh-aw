@@ -256,6 +256,7 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 - `pkg/constants` — shared parser constants and default values
 - `pkg/fileutil` — file existence and path helper utilities
 - `pkg/gitutil` — Git remote and host detection helpers
+- `pkg/jsonutil` — compact JSON marshaling for frontmatter hash computation
 - `pkg/types` — `BaseMCPServerConfig`
 - `pkg/typeutil` — safe type conversion helpers for dynamic frontmatter
 - `pkg/logger` — debug logging

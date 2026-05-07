@@ -765,6 +765,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	projectCmd := cli.NewProjectCommand()
 	checksCmd := cli.NewChecksCommand()
 	validateCmd := cli.NewValidateCommand(validateEngine)
+	lintCmd := cli.NewLintCommand()
 	domainsCmd := cli.NewDomainsCommand()
 	experimentsCmd := cli.NewExperimentsCommand()
 
@@ -782,6 +783,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Development Commands
 	compileCmd.GroupID = "development"
 	validateCmd.GroupID = "development"
+	lintCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
 	fixCmd.GroupID = "development"
 	domainsCmd.GroupID = "development"
@@ -836,6 +838,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(secretsCmd)
 	rootCmd.AddCommand(fixCmd)
 	rootCmd.AddCommand(validateCmd)
+	rootCmd.AddCommand(lintCmd)
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(hashCmd)
 	rootCmd.AddCommand(projectCmd)

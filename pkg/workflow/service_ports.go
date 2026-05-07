@@ -151,12 +151,14 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 //
 // Returns container port numbers and any warnings.
 func parsePortSpec(spec any) ([]int, []string) {
+	servicePortsLog.Printf("Parsing port spec: %v (type %T)", spec, spec)
 	var portStr string
 	switch v := spec.(type) {
 	case int:
 		if v < minPort || v > maxPort {
 			return nil, []string{fmt.Sprintf("port %d is outside valid range %d-%d", v, minPort, maxPort)}
 		}
+		servicePortsLog.Printf("Parsed integer port spec: %d", v)
 		return []int{v}, nil
 	case uint64:
 		// goccy/go-yaml decodes unquoted integers as uint64
@@ -200,9 +202,11 @@ func parsePortSpec(spec any) ([]int, []string) {
 	}
 
 	if protocol == "udp" {
+		servicePortsLog.Printf("Skipping UDP port %q: AWF only supports TCP", portStr)
 		return nil, []string{fmt.Sprintf("UDP port %q skipped; AWF only supports TCP", portStr)}
 	}
 	if protocol != "tcp" {
+		servicePortsLog.Printf("Skipping unsupported protocol %q for port %q", protocol, portStr)
 		return nil, []string{fmt.Sprintf("unsupported protocol %q for port %q; AWF only supports TCP", protocol, portStr)}
 	}
 
@@ -239,6 +243,7 @@ func parsePortSpec(spec any) ([]int, []string) {
 		for p := start; p <= end; p++ {
 			ports = append(ports, p)
 		}
+		servicePortsLog.Printf("Parsed port range %q: %d ports (%d-%d)", containerPart, count, start, end)
 		return ports, nil
 	}
 

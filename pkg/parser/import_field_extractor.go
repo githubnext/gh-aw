@@ -48,6 +48,8 @@ type importAccumulator struct {
 	skipRolesSet             map[string]bool
 	skipBots                 []string
 	skipBotsSet              map[string]bool
+	skipIfMatch              string
+	skipIfNoMatch            string
 	caches                   []string
 	features                 []map[string]any
 	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
@@ -377,6 +379,22 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract on.skip-if-match from imported file (first-wins: only set if not yet populated)
+	if acc.skipIfMatch == "" {
+		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
+			acc.skipIfMatch = skipJSON
+			log.Printf("Extracted on.skip-if-match from import: %s", item.fullPath)
+		}
+	}
+
+	// Extract on.skip-if-no-match from imported file (first-wins: only set if not yet populated)
+	if acc.skipIfNoMatch == "" {
+		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-no-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
+			acc.skipIfNoMatch = skipJSON
+			log.Printf("Extracted on.skip-if-no-match from import: %s", item.fullPath)
+		}
+	}
+
 	// Extract on.github-token from imported file (first-wins: only set if not yet populated)
 	if acc.activationGitHubToken == "" {
 		if tokenJSON, tokenErr := extractOnSectionAnyFieldFromMap(fm, "github-token"); tokenErr == nil && tokenJSON != "" && tokenJSON != "null" {
@@ -575,6 +593,8 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedBots:                    acc.bots,
 		MergedSkipRoles:               acc.skipRoles,
 		MergedSkipBots:                acc.skipBots,
+		MergedSkipIfMatch:             acc.skipIfMatch,
+		MergedSkipIfNoMatch:           acc.skipIfNoMatch,
 		MergedPostSteps:               acc.postStepsBuilder.String(),
 		MergedLabels:                  acc.labels,
 		MergedCaches:                  acc.caches,

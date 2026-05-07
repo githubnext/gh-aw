@@ -44,7 +44,7 @@ safe-outputs:
           options: ["smoke", "integration", "e2e"]
       output: "Environment test completed successfully"
       steps:
-        - name: Display test Config
+        - name: Display Test Config
           run: |
             if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
               ENVIRONMENT=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "test_environment") | .environment')

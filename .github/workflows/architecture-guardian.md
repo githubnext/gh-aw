@@ -4,13 +4,15 @@ description: Daily analysis of commits from the last 24 hours to detect code str
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
-  skip-if-match: 'is:issue is:open in:title "[architecture-guardian]"'
 permissions:
   contents: read
   actions: read
 engine: copilot
 tracker-id: architecture-guardian
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[architecture-guardian]"
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[architecture-guardian] "

@@ -4,7 +4,6 @@ description: Daily expert that analyzes one test file and creates an issue with 
 on:
   schedule: daily
   workflow_dispatch:
-  skip-if-match: 'is:issue is:open in:title "[testify-expert]"'
 
 permissions:
   contents: read
@@ -15,6 +14,9 @@ tracker-id: daily-testify-uber-super-expert
 engine: copilot
 
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[testify-expert]"
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[testify-expert] "

@@ -1,0 +1,62 @@
+//go:build !integration
+
+package cli
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestNewLintCommand(t *testing.T) {
+	cmd := NewLintCommand()
+
+	require.NotNil(t, cmd, "NewLintCommand should return a non-nil command")
+	assert.Equal(t, "lint", cmd.Name(), "Command name should be 'lint'")
+	require.NotNil(t, cmd.Flags().Lookup("dir"), "lint command should have a --dir flag")
+	assert.Equal(t, "d", cmd.Flags().Lookup("dir").Shorthand, "--dir should have -d shorthand")
+	require.NotNil(t, cmd.Flags().Lookup("shellcheck"), "lint command should have a --shellcheck flag")
+	require.NotNil(t, cmd.Flags().Lookup("pyflakes"), "lint command should have a --pyflakes flag")
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
+		"lint command should include built-in ignore for gh-aw permission extension")
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `property "workflow_(repository|sha|ref|file_path)" is not defined in object type`,
+		"lint command should include built-in ignore for gh-aw workflow context extensions")
+}
+
+func TestResolveLockFilesForLint(t *testing.T) {
+	tempDir := t.TempDir()
+	lockA := filepath.Join(tempDir, "a.lock.yml")
+	lockB := filepath.Join(tempDir, "b.lock.yml")
+	nonLock := filepath.Join(tempDir, "workflow.md")
+
+	require.NoError(t, os.WriteFile(lockA, []byte("name: a"), 0o644), "should create lock file a")
+	require.NoError(t, os.WriteFile(lockB, []byte("name: b"), 0o644), "should create lock file b")
+	require.NoError(t, os.WriteFile(nonLock, []byte("---"), 0o644), "should create non-lock file")
+
+	t.Run("defaults to scanning dir when no args", func(t *testing.T) {
+		files, err := resolveLockFilesForLint(nil, tempDir)
+		require.NoError(t, err, "should resolve lock files from default dir")
+		assert.Equal(t, []string{lockA, lockB}, files, "should return sorted .lock.yml files only")
+	})
+
+	t.Run("accepts explicit lock file path", func(t *testing.T) {
+		files, err := resolveLockFilesForLint([]string{lockB}, tempDir)
+		require.NoError(t, err, "should accept explicit lock file")
+		assert.Equal(t, []string{lockB}, files, "should include explicit lock file")
+	})
+
+	t.Run("accepts explicit directory path", func(t *testing.T) {
+		files, err := resolveLockFilesForLint([]string{tempDir}, tempDir)
+		require.NoError(t, err, "should accept explicit directory")
+		assert.Equal(t, []string{lockA, lockB}, files, "should expand directory to lock files")
+	})
+
+	t.Run("rejects non lock file path", func(t *testing.T) {
+		_, err := resolveLockFilesForLint([]string{nonLock}, tempDir)
+		require.Error(t, err, "should reject non-lock file path")
+		assert.Contains(t, err.Error(), "is not a .lock.yml file or directory", "error should explain allowed path types")
+	})
+}

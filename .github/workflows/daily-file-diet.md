@@ -5,7 +5,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "daily around 13:00 on weekdays"  # ~Weekdays at 1 PM UTC (scattered)
-  skip-if-match: 'is:issue is:open in:title "[file-diet]"'
 
 permissions:
   contents: read
@@ -18,6 +17,9 @@ engine:
   agent: "developer.instructions"
 
 imports:
+  - uses: shared/skip-if-issue-open.md
+    with:
+      title-prefix: "[file-diet]"
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[file-diet] "
