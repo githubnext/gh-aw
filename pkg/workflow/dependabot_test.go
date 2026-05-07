@@ -360,7 +360,7 @@ func TestReconcileManagedDependabotIgnores_NoDependabotFile(t *testing.T) {
 }
 
 func TestDependabotConfigPath(t *testing.T) {
-	root := "/tmp/example-repo"
+	root := "/path/to/repo"
 	expected := filepath.Join(root, ".github", "dependabot.yml")
 	if actual := DependabotConfigPath(root); actual != expected {
 		t.Fatalf("expected dependabot path %q, got %q", expected, actual)

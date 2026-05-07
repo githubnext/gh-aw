@@ -448,6 +448,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 	managedPatterns := []string{fmt.Sprintf("%s/**", c.effectiveActionsRepo())}
 	changed := false
 	originalStr := string(original)
+	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
 
 	for i, updateAny := range updates {
 		updateMap, ok := dependabotToStringAnyMap(updateAny)
@@ -486,7 +487,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 			for _, pattern := range managedPatterns {
 				if dependencyName == pattern {
 					managedPresent[pattern] = true
-					if !hasManagedIgnoreComment(originalStr, pattern) {
+					if !managedPatternsWithComment[pattern] {
 						changed = true
 					}
 				}
@@ -593,22 +594,25 @@ func isYAMLNullOrEmptyScalar(value any) bool {
 	return trimmed == "" || strings.EqualFold(trimmed, "null") || trimmed == "~"
 }
 
-func hasManagedIgnoreComment(content string, pattern string) bool {
+func managedPatternsWithInlineComment(content string, managedPatterns []string) map[string]bool {
+	result := make(map[string]bool, len(managedPatterns))
 	for _, line := range strings.Split(content, "\n") {
-		if strings.Contains(line, "dependency-name:") &&
-			strings.Contains(line, pattern) &&
-			strings.Contains(line, managedDependabotIgnoreComment) {
-			return true
+		if !strings.Contains(line, "dependency-name:") || !strings.Contains(line, managedDependabotIgnoreComment) {
+			continue
+		}
+		for _, pattern := range managedPatterns {
+			if strings.Contains(line, pattern) {
+				result[pattern] = true
+			}
 		}
 	}
-	return false
+	return result
 }
 
 func normalizeDependabotIgnoreEntries(content []byte, managedPatterns []string) []byte {
 	lines := strings.Split(string(content), "\n")
 	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if !strings.Contains(trimmed, "dependency-name:") {
+		if !strings.Contains(line, "dependency-name:") {
 			continue
 		}
 
