@@ -3870,7 +3870,7 @@ describe("sendJobConclusionSpan", () => {
       statSpy.mockRestore();
     });
 
-    it("omits gen_ai token breakdown attributes from the conclusion span when agent sub-span is emitted", async () => {
+    it("omits all gen_ai token breakdown attributes from the conclusion span when agent sub-span is emitted", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
