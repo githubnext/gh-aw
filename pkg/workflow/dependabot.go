@@ -551,7 +551,10 @@ func dependabotToAnySlice(value any) ([]any, bool) {
 	if rv.Kind() != reflect.Slice {
 		return nil, false
 	}
-	dependabotLog.Printf("Normalizing typed slice %T to []any via reflection", value)
+	dependabotLog.Printf(
+		"Normalizing typed slice %T to []any via reflection (goccy/go-yaml may return typed slices depending on YAML structure)",
+		value,
+	)
 
 	out := make([]any, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
@@ -574,7 +577,10 @@ func dependabotToStringAnyMap(value any) (map[string]any, bool) {
 	if rv.Kind() != reflect.Map {
 		return nil, false
 	}
-	dependabotLog.Printf("Normalizing typed map %T to map[string]any via reflection", value)
+	dependabotLog.Printf(
+		"Normalizing typed map %T to map[string]any via reflection (goccy/go-yaml may return typed maps in dynamic sections)",
+		value,
+	)
 
 	out := make(map[string]any, rv.Len())
 	iter := rv.MapRange()
@@ -631,8 +637,15 @@ func normalizeDependabotIgnoreEntries(content []byte, managedPatterns []string) 
 		prefix := parts[0] + "dependency-name: "
 		rawDependencyName := strings.TrimSpace(parts[1])
 		quote := `"`
-		if strings.HasPrefix(rawDependencyName, "'") && strings.HasSuffix(rawDependencyName, "'") {
+		// Assume quote characters are balanced when present. If the scalar starts
+		// with a quote but does not end with the same quote, skip normalization.
+		if strings.HasPrefix(rawDependencyName, "'") {
+			if !strings.HasSuffix(rawDependencyName, "'") {
+				continue
+			}
 			quote = `'`
+		} else if strings.HasPrefix(rawDependencyName, `"`) && !strings.HasSuffix(rawDependencyName, `"`) {
+			continue
 		}
 		dependencyName := strings.Trim(rawDependencyName, `"'`)
 		if dependencyName == "" {
