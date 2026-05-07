@@ -464,6 +464,13 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 			updateNode.Content = append(updateNode.Content, &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: "ignore"}, ignoreNode)
 			changed = true
 		}
+		if isYAMLNullOrEmptyScalar(ignoreNode) {
+			ignoreNode.Kind = yamlv3.SequenceNode
+			ignoreNode.Tag = "!!seq"
+			ignoreNode.Value = ""
+			ignoreNode.Content = nil
+			changed = true
+		}
 		if ignoreNode.Kind != yamlv3.SequenceNode {
 			continue
 		}
@@ -536,6 +543,17 @@ func getYAMLMapValue(mappingNode *yamlv3.Node, key string) *yamlv3.Node {
 		}
 	}
 	return nil
+}
+
+func isYAMLNullOrEmptyScalar(node *yamlv3.Node) bool {
+	if node == nil || node.Kind != yamlv3.ScalarNode {
+		return false
+	}
+	if node.Tag == "!!null" {
+		return true
+	}
+	value := strings.TrimSpace(node.Value)
+	return value == "" || strings.EqualFold(value, "null") || value == "~"
 }
 
 // collectPipDependencies collects all pip dependencies from workflow data

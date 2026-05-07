@@ -457,8 +457,11 @@ func runPostProcessing(
 	if !config.NoEmit {
 		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 			dependabotPath := filepath.Join(gitRoot, ".github", "dependabot.yml")
-			if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil && config.Strict {
-				return err
+			if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil {
+				if config.Strict {
+					return err
+				}
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
 			}
 		}
 	}
@@ -507,8 +510,11 @@ func runPostProcessingForDirectory(
 	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
 	if !config.NoEmit {
 		dependabotPath := filepath.Join(gitRoot, ".github", "dependabot.yml")
-		if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil && config.Strict {
-			return err
+		if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil {
+			if config.Strict {
+				return err
+			}
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
 		}
 	}
 
