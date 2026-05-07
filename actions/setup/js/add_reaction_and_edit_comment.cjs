@@ -25,7 +25,7 @@ const EVENT_TYPE_DESCRIPTIONS = {
 };
 
 /** Valid GitHub reaction types */
-const VALID_REACTIONS = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
+const VALID_REACTIONS = Object.freeze(["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"]);
 
 /**
  * Resolve the reaction and comment API endpoints for a given event.
