@@ -305,9 +305,12 @@ func (c *Compiler) validateEngineAuthDefinition(config *EngineConfig) error {
 }
 
 // isModelOnlyEngineJSON reports whether engineJSON represents an engine object that
-// contains only a model preference (no 'id' or 'runtime' field). Such configs express
-// a preference for a model category (e.g. "small") without selecting a specific engine,
+// contains only preference settings (no 'id' or 'runtime' field). Such configs express
+// a preference (e.g., model size or MCP timeouts) without selecting a specific engine,
 // and must not be counted as engine specifications in conflict detection.
+// Only objects whose keys are exclusively from {"model", "mcp"} (with at least one)
+// are considered preference-only; other objects (including empty objects or objects
+// with unknown keys) fall through to normal validation.
 func isModelOnlyEngineJSON(engineJSON string) bool {
 	var obj map[string]any
 	if err := json.Unmarshal([]byte(engineJSON), &obj); err != nil {
@@ -315,7 +318,20 @@ func isModelOnlyEngineJSON(engineJSON string) bool {
 	}
 	_, hasID := obj["id"]
 	_, hasRuntime := obj["runtime"]
-	return !hasID && !hasRuntime
+	if hasID || hasRuntime {
+		return false
+	}
+	// Require at least one known preference key; reject empty objects or unknown keys.
+	hasPreference := false
+	for k := range obj {
+		switch k {
+		case "model", "mcp":
+			hasPreference = true
+		default:
+			return false // Unknown key — not a preference-only object
+		}
+	}
+	return hasPreference
 }
 
 // validateSingleEngineSpecification validates that only one engine field exists across all files
@@ -331,10 +347,12 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		allEngines = append(allEngines, mainEngineSetting)
 	}
 
-	// Add included engines — skip model-only configs (objects with no 'id' or 'runtime').
-	// These express a model preference without selecting an engine and must not be counted
-	// as engine specifications (avoids spurious "multiple engine fields" errors when a
-	// shared workflow only declares engine.model without engine.id).
+	// Add included engines — skip preference-only configs (objects with only 'model'/'mcp'
+	// keys and no 'id' or 'runtime'). These express a model or MCP preference without
+	// selecting an engine and must not be counted as engine specifications (avoids spurious
+	// "multiple engine fields" errors when a shared workflow only declares engine.model
+	// without engine.id). Objects with unknown keys or empty objects are not skipped
+	// and will continue through normal validation.
 	for _, engineJSON := range includedEnginesJSON {
 		if engineJSON == "" {
 			continue

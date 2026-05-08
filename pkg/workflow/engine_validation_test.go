@@ -117,6 +117,27 @@ func TestValidateSingleEngineSpecification(t *testing.T) {
 			expectError:         false,
 		},
 		{
+			// An empty object {} has no id/runtime but also no known preference keys;
+			// it must NOT be silently skipped — it should be treated as an engine spec
+			// and trigger a validation error (missing id field).
+			name:                "empty object is not a preference-only engine and triggers error",
+			mainEngineSetting:   "",
+			includedEnginesJSON: []string{`{}`},
+			expectedEngine:      "",
+			expectError:         true,
+			errorMsg:            "invalid engine configuration",
+		},
+		{
+			// An object with an unknown key has no id/runtime but must NOT be silently
+			// skipped — it should pass through to normal validation.
+			name:                "object with unknown key is not a preference-only engine and triggers error",
+			mainEngineSetting:   "",
+			includedEnginesJSON: []string{`{"foo": 1}`},
+			expectedEngine:      "",
+			expectError:         true,
+			errorMsg:            "invalid engine configuration",
+		},
+		{
 			name:                "included engine with non-string id",
 			mainEngineSetting:   "",
 			includedEnginesJSON: []string{`{"id": 123}`},
