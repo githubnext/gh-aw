@@ -199,11 +199,12 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
 
 /**
  * Normalize and validate issue fields payload for create_issue.
+ * Ensures fields are objects with a non-empty name and string/number value.
  * @param {any} fields
  * @returns {Array<{name: string, value: string|number}>}
  */
 function normalizeIssueFields(fields) {
-  if (fields === undefined || fields === null) {
+  if (fields == null) {
     return [];
   }
   if (!Array.isArray(fields)) {
@@ -220,13 +221,12 @@ function normalizeIssueFields(fields) {
       throw new Error(`${ERR_VALIDATION}: create_issue 'fields[${index}].name' must be a non-empty string`);
     }
 
-    const hasValue = Object.prototype.hasOwnProperty.call(field, "value");
-    if (!hasValue) {
+    if (!Object.prototype.hasOwnProperty.call(field, "value")) {
       throw new Error(`${ERR_VALIDATION}: create_issue 'fields[${index}]' is missing required 'value'`);
     }
 
     const value = field.value;
-    if (typeof value !== "string" && typeof value !== "number") {
+    if ((typeof value !== "string" && typeof value !== "number") || (typeof value === "number" && !Number.isFinite(value))) {
       throw new Error(`${ERR_VALIDATION}: create_issue 'fields[${index}].value' for "${name}" must be a string or number`);
     }
 
@@ -236,6 +236,7 @@ function normalizeIssueFields(fields) {
 
 /**
  * Resolve issue node ID from issue number.
+ * Queries GraphQL for the issue node ID required by field mutations.
  * @param {Object} githubClient
  * @param {string} owner
  * @param {string} repo
@@ -263,6 +264,7 @@ async function resolveIssueNodeId(githubClient, owner, repo, issueNumber) {
 
 /**
  * Fetch issue field metadata from repository.
+ * Returns configured field definitions including types, options, and iterations.
  * @param {Object} githubClient
  * @param {string} owner
  * @param {string} repo
@@ -312,6 +314,7 @@ async function fetchIssueFields(githubClient, owner, repo) {
 
 /**
  * Build GraphQL setIssueFieldValue mutation input from named field values.
+ * Maps safe-output field names/values to typed GraphQL mutation payloads.
  * @param {Array<{name: string, value: string|number}>} requestedFields
  * @param {Array<any>} availableFields
  * @returns {Array<any>}
@@ -328,7 +331,7 @@ function buildIssueFieldMutationInput(requestedFields, availableFields) {
     const dataType = typeof matchedField.dataType === "string" ? matchedField.dataType.toUpperCase() : "TEXT";
 
     if (dataType === "NUMBER") {
-      const numberValue = typeof field.value === "number" ? field.value : Number.parseFloat(String(field.value));
+      const numberValue = Number(field.value);
       if (!Number.isFinite(numberValue)) {
         throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" requires a numeric value`);
       }
@@ -367,6 +370,7 @@ function buildIssueFieldMutationInput(requestedFields, availableFields) {
 
 /**
  * Apply issue field values to a newly-created issue.
+ * Resolves metadata and sends the setIssueFieldValue GraphQL mutation.
  * @param {{githubClient: Object, owner: string, repo: string, issueNumber: number, fields: Array<{name: string, value: string|number}>}} params
  * @returns {Promise<void>}
  */
@@ -389,8 +393,8 @@ async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields
     }`,
     {
       input: {
-        issueId: issueId,
-        issueFields: issueFields,
+        issueId,
+        issueFields,
       },
     }
   );
