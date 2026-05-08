@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveClaudePromptFileArgs, stripPromptFileArgs, isMaxTurnsExit, isNoDeferredMarkerError } = require("./claude_harness.cjs");
+const { resolveClaudePromptFileArgs, stripPromptFileArgs, isRateLimitError, isMaxTurnsExit, isNoDeferredMarkerError } = require("./claude_harness.cjs");
 
 describe("claude_harness.cjs", () => {
   describe("resolveClaudePromptFileArgs", () => {
@@ -105,6 +105,20 @@ describe("claude_harness.cjs", () => {
 
     it("returns false for a successful result output", () => {
       expect(isMaxTurnsExit('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
+    });
+  });
+
+  describe("isRateLimitError", () => {
+    it("returns true for stream-json api_error_status 429", () => {
+      expect(isRateLimitError('{"type":"result","subtype":"success","is_error":true,"api_error_status":429}')).toBe(true);
+    });
+
+    it("returns true for stream-json request rejected 429 message", () => {
+      expect(isRateLimitError("API Error: Request rejected (429) · This request would exceed your account's rate limit.")).toBe(true);
+    });
+
+    it("returns false for non-rate-limit output", () => {
+      expect(isRateLimitError('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
     });
   });
 
