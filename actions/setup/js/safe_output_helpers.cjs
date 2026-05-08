@@ -73,7 +73,7 @@ function resolveTarget(params) {
 
   // Check context type
   const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
-  const isIssueCommentOnPR = context.eventName === "issue_comment" && context.payload?.issue?.pull_request;
+  const isIssueCommentOnPR = context.eventName === "issue_comment" && Boolean(context.payload?.issue?.pull_request);
   const isIssueContext = context.eventName === "issues" || (context.eventName === "issue_comment" && !isIssueCommentOnPR);
   const isPRContext = prEventNames.has(context.eventName) || isIssueCommentOnPR;
 
