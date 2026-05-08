@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -445,7 +446,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 		return nil
 	}
 
-	managedPatterns := []string{fmt.Sprintf("%s/**", c.effectiveActionsRepo())}
+	managedPatterns := []string{c.effectiveActionsRepo() + "/**"}
 	changed := false
 	originalStr := string(original)
 	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
@@ -557,7 +558,8 @@ func dependabotToAnySlice(value any) ([]any, bool) {
 	)
 
 	out := make([]any, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
+	length := rv.Len()
+	for i := range length {
 		out[i] = rv.Index(i).Interface()
 	}
 	return out, true
@@ -608,7 +610,7 @@ func isYAMLNullOrEmptyScalar(value any) bool {
 
 func managedPatternsWithInlineComment(content string, managedPatterns []string) map[string]bool {
 	result := make(map[string]bool, len(managedPatterns))
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		if !strings.Contains(line, "dependency-name:") || !strings.Contains(line, managedDependabotIgnoreComment) {
 			continue
 		}
@@ -654,13 +656,7 @@ func normalizeDependabotIgnoreEntries(content []byte, managedPatterns []string) 
 
 		line = prefix + quote + dependencyName + quote
 
-		managed := false
-		for _, pattern := range managedPatterns {
-			if dependencyName == pattern {
-				managed = true
-				break
-			}
-		}
+		managed := slices.Contains(managedPatterns, dependencyName)
 
 		if managed {
 			line += " # " + managedDependabotIgnoreComment
