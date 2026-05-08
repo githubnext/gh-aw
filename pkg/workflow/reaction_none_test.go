@@ -351,7 +351,7 @@ Test workflow triggered by issue template with "eyes" reaction.
 	}
 
 	// Verify that lock issue step is present (due to lock-for-agent: true)
-	if !strings.Contains(compiled, "Lock issue for agent workflow") {
+	if !strings.Contains(compiled, "Lock issue for agentic workflow") {
 		t.Error("Activation job should have lock issue step when lock-for-agent is enabled")
 	}
 

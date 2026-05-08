@@ -32,9 +32,9 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
-| `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*` |
-| `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*` |
-| `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
+| `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
+| `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*`, `gemini/gemini-*pro*` |
+| `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
 
 ### Meta-Aliases
 
@@ -122,7 +122,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.4-mini` | 6 |
 | `gpt-5.4-nano` | 0.05 |
 | `gpt-5.4-pro` | 2 |
-| `gpt-5.5` | 1 |
+| `gpt-5.5` | 7.5 |
 | `gpt-5.5-pro` | 2 |
 
 ### OpenAI Reasoning

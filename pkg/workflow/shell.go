@@ -71,7 +71,7 @@ func shellEscapeArg(arg string) string {
 func escapeBareShellDollarSigns(s string) string {
 	var result strings.Builder
 	result.Grow(len(s))
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] != '$' {
 			result.WriteByte(s[i])
 			continue
