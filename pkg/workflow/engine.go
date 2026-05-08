@@ -109,6 +109,9 @@ func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
 	return e.MaxEffectiveTokens
 }
 
+// parseMaxEffectiveTokensValue parses max-effective-tokens from either integer
+// or numeric-string frontmatter values. It returns 0 when the value is missing
+// or invalid.
 func parseMaxEffectiveTokensValue(raw any) int64 {
 	if val, ok := typeutil.ParseIntValue(raw); ok {
 		return int64(val)

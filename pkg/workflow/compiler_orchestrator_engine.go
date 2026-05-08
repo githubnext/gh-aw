@@ -36,6 +36,10 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
+	maxEffectiveTokens := int64(0)
+	if engineConfig != nil {
+		maxEffectiveTokens = engineConfig.MaxEffectiveTokens
+	}
 
 	// Validate and register inline engine definitions (engine.runtime sub-object).
 	// Must happen before catalog resolution so the inline definition is visible to Resolve().
@@ -272,7 +276,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
-	if maxEffectiveTokens := parseMaxEffectiveTokensValue(result.Frontmatter["max-effective-tokens"]); maxEffectiveTokens > 0 {
+	if maxEffectiveTokens > 0 {
 		engineConfig.MaxEffectiveTokens = maxEffectiveTokens
 	}
 	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
