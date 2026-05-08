@@ -69,6 +69,13 @@ const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests/i;
 // condition — --continue cannot recover it because no deferred tool marker was written.
 const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 
+// Pattern to detect a "no deferred tool marker" error from Claude Code.
+// This occurs when --continue is attempted but the session either was never deferred,
+// the deferred marker is stale (tool already ran), or it falls outside the tail-scan
+// window.  Retrying with --continue will always produce the same instant failure, so
+// this is a deterministic terminal condition that must not be retried.
+const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
+
 /**
  * Emit a timestamped diagnostic log line to stderr.
  * All driver messages are prefixed with "[claude-harness]" so they are easy to
@@ -108,6 +115,19 @@ function isRateLimitError(output) {
  */
 function isMaxTurnsExit(output) {
   return MAX_TURNS_EXIT_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a "no deferred tool marker" error.
+ * This occurs when Claude Code is invoked with --continue but the session was never
+ * deferred, the deferred marker is stale (tool already ran), or it falls outside the
+ * tail-scan window.  Each retry with --continue will instantly produce the same error,
+ * so this is a deterministic terminal condition that must not be retried.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isNoDeferredMarkerError(output) {
+  return NO_DEFERRED_MARKER_PATTERN.test(output);
 }
 
 /**
@@ -262,12 +282,14 @@ async function main() {
     const isOverloaded = isOverloadedError(result.output);
     const isRateLimit = isRateLimitError(result.output);
     const isMaxTurns = isMaxTurnsExit(result.output);
+    const isNoDeferredMarker = isNoDeferredMarkerError(result.output);
     log(
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
         ` isOverloadedError=${isOverloaded}` +
         ` isRateLimitError=${isRateLimit}` +
         ` isMaxTurnsExit=${isMaxTurns}` +
+        ` isNoDeferredMarkerError=${isNoDeferredMarker}` +
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
     );
@@ -278,6 +300,15 @@ async function main() {
     // tool marker found", wasting time and masking the real exit reason.
     if (isMaxTurns) {
       log(`attempt ${attempt + 1}: max_turns exit — not retriable via --continue`);
+      break;
+    }
+
+    // "No deferred tool marker found" is a deterministic terminal condition: the session
+    // was never deferred, the marker is stale (tool already ran), or it falls outside the
+    // tail-scan window.  Retrying with --continue always produces the same instant failure,
+    // so we stop immediately to avoid wasting retry budget and masking the real cause.
+    if (isNoDeferredMarker) {
+      log(`attempt ${attempt + 1}: no deferred tool marker — not retriable via --continue`);
       break;
     }
 
@@ -311,6 +342,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveClaudePromptFileArgs,
     stripPromptFileArgs,
     isMaxTurnsExit,
+    isNoDeferredMarkerError,
   };
 }
 

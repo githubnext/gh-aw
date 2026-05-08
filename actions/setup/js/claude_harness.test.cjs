@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveClaudePromptFileArgs, stripPromptFileArgs, isMaxTurnsExit } = require("./claude_harness.cjs");
+const { resolveClaudePromptFileArgs, stripPromptFileArgs, isMaxTurnsExit, isNoDeferredMarkerError } = require("./claude_harness.cjs");
 
 describe("claude_harness.cjs", () => {
   describe("resolveClaudePromptFileArgs", () => {
@@ -105,6 +105,41 @@ describe("claude_harness.cjs", () => {
 
     it("returns false for a successful result output", () => {
       expect(isMaxTurnsExit('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
+    });
+  });
+
+  describe("isNoDeferredMarkerError", () => {
+    it("returns true for the canonical no-deferred-marker error message", () => {
+      const output =
+        "Error: No deferred tool marker found in the resumed session. " +
+        "Either the session was not deferred, the marker is stale (tool already ran), " +
+        "or it exceeds the tail-scan window. Provide a prompt to continue the conversation.";
+      expect(isNoDeferredMarkerError(output)).toBe(true);
+    });
+
+    it("returns true for mixed-case variant", () => {
+      expect(isNoDeferredMarkerError("no deferred tool marker found")).toBe(true);
+    });
+
+    it("returns true when the error appears inside a larger log block", () => {
+      const output = "[claude-harness] 2026-05-07T05:00:00.000Z attempt 1 failed: exitCode=1\n" + "Error: No deferred tool marker found in the resumed session.\n" + "[claude-harness] done: exitCode=1";
+      expect(isNoDeferredMarkerError(output)).toBe(true);
+    });
+
+    it("returns false for an overloaded_error output", () => {
+      expect(isNoDeferredMarkerError('{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}')).toBe(false);
+    });
+
+    it("returns false for a max_turns exit output", () => {
+      expect(isNoDeferredMarkerError('{"type":"result","subtype":"error_max_turns","is_error":true}')).toBe(false);
+    });
+
+    it("returns false for an empty string", () => {
+      expect(isNoDeferredMarkerError("")).toBe(false);
+    });
+
+    it("returns false for a successful result output", () => {
+      expect(isNoDeferredMarkerError('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
     });
   });
 });
