@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -50,7 +51,11 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
 			}
 			if len(config.AllowedFields) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Only these issue fields are allowed: %s.", formatStringList(config.AllowedFields)))
+				if slices.Contains(config.AllowedFields, "*") {
+					constraints = append(constraints, "Any issue field is allowed.")
+				} else {
+					constraints = append(constraints, fmt.Sprintf("Only these issue fields are allowed: %s.", formatStringList(config.AllowedFields)))
+				}
 			}
 			if len(config.Assignees) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Assignees %s will be automatically assigned.", formatStringList(config.Assignees)))
