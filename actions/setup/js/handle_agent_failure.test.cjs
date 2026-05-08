@@ -1792,6 +1792,63 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("parseMaxEffectiveTokensFromAuditLog", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+
+    let tmpDir;
+    let parseMaxEffectiveTokensFromAuditLog;
+
+    beforeEach(() => {
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+      global.github = {};
+      global.context = { repo: { owner: "owner", repo: "repo" } };
+      vi.resetModules();
+      ({ parseMaxEffectiveTokensFromAuditLog } = require("./handle_agent_failure.cjs"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-max-et-"));
+    });
+
+    afterEach(() => {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when file does not exist", () => {
+      const result = parseMaxEffectiveTokensFromAuditLog(path.join(tmpDir, "missing.jsonl"));
+      expect(result).toBe("");
+    });
+
+    it("parses max_effective_tokens from audit log entries", () => {
+      const jsonlPath = path.join(tmpDir, "log.jsonl");
+      fs.writeFileSync(jsonlPath, [JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, max_effective_tokens: 12345 }), JSON.stringify({ _schema: "audit/v0.26.0", ts: 2, max_effective_tokens: 23456 })].join("\n"));
+      const result = parseMaxEffectiveTokensFromAuditLog(jsonlPath);
+      expect(result).toBe("23456");
+    });
+
+    it("parses nested camelCase maxEffectiveTokens values", () => {
+      const jsonlPath = path.join(tmpDir, "log.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, awf: { budget: { maxEffectiveTokens: "9999" } } }));
+      const result = parseMaxEffectiveTokensFromAuditLog(jsonlPath);
+      expect(result).toBe("9999");
+    });
+
+    it("uses derived default path and prefers log.jsonl", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(path.join(auditDir, "audit.jsonl"), JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, max_effective_tokens: 1111 }));
+      fs.writeFileSync(path.join(auditDir, "log.jsonl"), JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, max_effective_tokens: 2222 }));
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      const result = parseMaxEffectiveTokensFromAuditLog();
+      expect(result).toBe("2222");
+    });
+  });
+
   describe("buildCredentialAuthErrorContext", () => {
     const fs = require("fs");
     const os = require("os");

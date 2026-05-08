@@ -927,6 +927,7 @@ const FIREWALL_AUTH_PROVIDER_HOSTS = /** @type {Array<{provider: string, pattern
   { provider: "Anthropic Claude", pattern: /^api\.anthropic\.com/i, credential: "`ANTHROPIC_API_KEY`" },
   { provider: "Google Gemini", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`GEMINI_API_KEY`" },
 ];
+const MAX_EFFECTIVE_TOKENS_FIELDS = new Set(["max_effective_tokens", "maxEffectiveTokens"]);
 
 /**
  * Build the list of registered provider entries from the GH_AW_ENGINE_API_HOSTS and
@@ -961,6 +962,102 @@ function buildRegisteredProviderEntries() {
 }
 
 /**
+ * Resolve the AWF firewall audit log path.
+ * Newer runs write `log.jsonl`; older runs use `audit.jsonl`.
+ *
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {string}
+ */
+function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
+  if (auditJsonlPathOverride) return auditJsonlPathOverride;
+
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const candidateBases = [];
+  if (agentOutputFile) {
+    candidateBases.push(path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit"));
+  }
+  candidateBases.push("/tmp/gh-aw/sandbox/firewall/audit");
+
+  for (const base of candidateBases) {
+    const logPath = path.join(base, "log.jsonl");
+    if (fs.existsSync(logPath)) return logPath;
+    const auditPath = path.join(base, "audit.jsonl");
+    if (fs.existsSync(auditPath)) return auditPath;
+  }
+
+  // Default to the latest expected location/name.
+  return path.join(candidateBases[0] || "/tmp/gh-aw/sandbox/firewall/audit", "log.jsonl");
+}
+
+/**
+ * Parse max effective tokens from a single AWF audit log entry object.
+ * Accepts both snake_case and camelCase field names.
+ *
+ * @param {unknown} entry
+ * @returns {string}
+ */
+function parseMaxEffectiveTokensFromAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return "";
+
+  /** @type {unknown[]} */
+  const stack = [entry];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+    for (const [key, value] of Object.entries(node)) {
+      if (MAX_EFFECTIVE_TOKENS_FIELDS.has(key)) {
+        if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+          return String(Math.trunc(value));
+        }
+        if (typeof value === "string" && /^\d+$/.test(value) && Number.parseInt(value, 10) > 0) {
+          return value;
+        }
+      }
+      if (value && typeof value === "object") {
+        stack.push(value);
+      }
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Parse max effective tokens from AWF firewall audit JSONL.
+ *
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {string}
+ */
+function parseMaxEffectiveTokensFromAuditLog(auditJsonlPathOverride) {
+  try {
+    const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
+    if (!fs.existsSync(auditJsonlPath)) return "";
+
+    const content = fs.readFileSync(auditJsonlPath, "utf8");
+    if (!content.trim()) return "";
+    if (!/(?:max_effective_tokens|maxEffectiveTokens)/.test(content)) return "";
+
+    let parsedMaxEffectiveTokens = "";
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed[0] !== "{") continue;
+
+      try {
+        const entry = JSON.parse(trimmed);
+        const value = parseMaxEffectiveTokensFromAuditEntry(entry);
+        if (value) parsedMaxEffectiveTokens = value;
+      } catch {
+        // ignore malformed lines
+      }
+    }
+
+    return parsedMaxEffectiveTokens;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Parse the firewall audit.jsonl for authentication rejection entries.
  *
  * Performance strategy for large JSONL files (three-pass approach):
@@ -977,11 +1074,12 @@ function buildRegisteredProviderEntries() {
  */
 function parseFirewallAuthErrors(auditJsonlPath) {
   try {
-    if (!fs.existsSync(auditJsonlPath)) {
+    const resolvedPath = resolveFirewallAuditLogPath(auditJsonlPath);
+    if (!fs.existsSync(resolvedPath)) {
       return [];
     }
 
-    const content = fs.readFileSync(auditJsonlPath, "utf8");
+    const content = fs.readFileSync(resolvedPath, "utf8");
     if (!content.trim()) {
       return [];
     }
@@ -1062,9 +1160,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
  * @returns {string} Formatted context string, or empty string if no auth errors
  */
 function buildCredentialAuthErrorContext(auditJsonlPathOverride) {
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const defaultAuditPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit", "audit.jsonl") : "/tmp/gh-aw/sandbox/firewall/audit/audit.jsonl";
-  const auditJsonlPath = auditJsonlPathOverride || defaultAuditPath;
+  const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
 
   const authErrors = parseFirewallAuthErrors(auditJsonlPath);
 
@@ -1314,7 +1410,7 @@ async function main() {
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const effectiveTokens = process.env.GH_AW_EFFECTIVE_TOKENS || "";
-    const maxEffectiveTokens = process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
+    const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
     const effectiveTokensRateLimitError = process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
@@ -2028,6 +2124,7 @@ module.exports = {
   buildMissingToolContext,
   buildCredentialAuthErrorContext,
   parseFirewallAuthErrors,
+  parseMaxEffectiveTokensFromAuditLog,
   getActionFailureIssueExpiresHours,
   hasAgentTerminalReasonCompleted,
 };
