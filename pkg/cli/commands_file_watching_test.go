@@ -468,10 +468,12 @@ func TestCompileSingleFile(t *testing.T) {
 		_, err = io.Copy(&buf, r)
 		require.NoError(t, err, "Failed to read stderr output")
 
+		strippedOutput := stringutil.StripANSI(buf.String())
+
 		assert.True(t, result, "Expected compilation to be attempted")
-		assert.Contains(t, buf.String(), console.FormatErrorMessage(""), "Expected compile errors to use formatted stderr output")
-		assert.Contains(t, buf.String(), "invalid.md", "Expected stderr output to identify the failing workflow")
-		assert.Contains(t, buf.String(), "unexpected ':'", "Expected stderr output to include the compiler error details")
+		assert.Contains(t, strippedOutput, "✗", "Expected compile errors to include the formatted error marker")
+		assert.Contains(t, strippedOutput, "invalid.md", "Expected stderr output to identify the failing workflow")
+		assert.Contains(t, strippedOutput, "unexpected ':'", "Expected stderr output to include the compiler error details")
 	})
 
 	t.Run("compile single file with checkExists true and file exists", func(t *testing.T) {
