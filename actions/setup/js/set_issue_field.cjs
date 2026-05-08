@@ -10,6 +10,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { parseAllowedIssueFields, validateAllowedIssueFieldName } = require("./allowed_issue_fields.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /** @type {string} Safe output type handled by this module */
@@ -205,6 +206,7 @@ async function setIssueFieldValue(githubClient, issueNodeId, fieldUpdate) {
  */
 async function main(config = {}) {
   const maxCount = config.max || 5;
+  const allowedIssueFields = parseAllowedIssueFields(config.allowed_fields);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
@@ -213,6 +215,9 @@ async function main(config = {}) {
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
+  if (allowedIssueFields.length > 0 && !allowedIssueFields.includes("*")) {
+    core.info(`Allowed issue fields: ${allowedIssueFields.join(", ")}`);
   }
 
   let processedCount = 0;
@@ -365,6 +370,9 @@ async function main(config = {}) {
         core.error(error);
         return { success: false, error };
       }
+
+      const resolvedFieldName = resolvedField?.name || fieldName;
+      validateAllowedIssueFieldName(resolvedFieldName, allowedIssueFields);
 
       const fieldUpdateResult = buildFieldUpdatePayload(resolvedField, value);
       if (!fieldUpdateResult.success) {

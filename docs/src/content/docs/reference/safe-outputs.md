@@ -446,6 +446,7 @@ safe-outputs:
   set-issue-field:                        # null enables with defaults
     max: 5                                # max operations (default: 5)
     target: "triggering"                  # "triggering" (default), "*", or issue number
+    allowed-fields: [Priority, Iteration] # restrict issue fields this workflow may set
     target-repo: "owner/repo"             # cross-repository
     allowed-repos: ["owner/repo1"]        # additional allowed repositories
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }}

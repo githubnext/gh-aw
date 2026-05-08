@@ -846,6 +846,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.SetIssueField
 		config := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddStringSlice("allowed_fields", c.AllowedFields).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).

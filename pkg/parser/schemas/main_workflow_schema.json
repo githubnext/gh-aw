@@ -7775,6 +7775,13 @@
                   "type": "string",
                   "description": "Target for issue field updates: 'triggering' (default), '*' (any issue), or explicit issue number"
                 },
+                "allowed-fields": {
+                  "type": "array",
+                  "description": "Optional list of issue field names that can be modified by set-issue-field. If omitted or empty, any issue field may be set. Use ['*'] to explicitly allow all.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository issue field updates. Takes precedence over trial target repo settings."

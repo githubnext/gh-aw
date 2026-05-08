@@ -271,7 +271,7 @@ A safe output capability for setting or clearing the GitHub issue type on existi
 
 ### Set Issue Field (`set-issue-field:`)
 
-A safe output capability for setting one issue field value on existing issues. The agent calls `set_issue_field` with `value` and either `field_name` (for discovery by field label) or `field_node_id` (to skip discovery). Unknown field names return actionable errors listing available fields and suggesting explicit IDs. Supports cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-field:` in `safe-outputs`.
+A safe output capability for setting one issue field value on existing issues. The agent calls `set_issue_field` with `value` and either `field_name` (for discovery by field label) or `field_node_id` (to skip discovery). Unknown field names return actionable errors listing available fields and suggesting explicit IDs. Supports optional `allowed-fields` restrictions (including `["*"]` wildcard) and cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-field:` in `safe-outputs`.
 
 ### Parameterized Safe-Output Fields
 

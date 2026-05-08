@@ -207,4 +207,37 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(result.error).toContain("not found");
     expect(result.error).toContain("Available fields");
   });
+
+  it("should enforce configured allowed-fields list", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const restrictedHandler = await main({
+      allowed_fields: ["Status"],
+    });
+
+    const result = await restrictedHandler({
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Customer Impact",
+      value: "High",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('issue field "Customer Impact" is not in the allowed-fields list: Status');
+  });
+
+  it("should allow any field when allowed-fields includes wildcard", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const unrestrictedHandler = await main({
+      allowed_fields: ["*"],
+    });
+
+    const result = await unrestrictedHandler({
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Customer Impact",
+      value: "High",
+    });
+
+    expect(result.success).toBe(true);
+  });
 });
