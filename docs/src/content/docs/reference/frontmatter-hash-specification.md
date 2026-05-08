@@ -223,6 +223,8 @@ The current Go implementation (`pkg/parser/frontmatter_hash.go`) uses a **text-b
 
 **Sync status** (verified 2026-05-06): The Go implementation is consistent with the JavaScript implementation in `actions/setup/js/` for the text-based approach. Both produce identical hashes for the same input. The field-selection model in Section 2 documents the _logical_ intent; the text-based implementation is the authoritative runtime behavior until a future revision aligns them.
 
+**Resolution** (2026-05-08): The project officially adopts the **text-based approach** as the authoritative runtime behavior (option b). Section 2 ("Field Selection") documents the intended logical model for future alignment, but is non-normative until a dedicated migration milestone is scheduled. No immediate changes to the Go or JavaScript implementations are required. A future v2.0.0 revision of this specification MAY align both implementations to the field-selection model if selective field exclusion becomes a concrete requirement; that revision MUST include updated cross-language test vectors and a migration guide. Until then, implementations MUST continue to use the text-based approach and MUST NOT selectively exclude fields from the hash input.
+
 - Use `crypto/sha256` for hashing (`crypto/sha256.Sum256`)
 - Use `hex.EncodeToString()` for hexadecimal encoding
 
@@ -289,6 +291,29 @@ The Go and JavaScript implementations must produce byte-for-byte identical canon
 Very large frontmatter payloads can cause excessive memory use and hash-computation latency during compilation and runtime verification. This can degrade CI reliability and increase stale-lock false positives due to timeout or resource pressure.
 
 **Mitigation**: Implementations SHOULD enforce a maximum cumulative frontmatter input size and MUST fail deterministically with a descriptive error when the limit is exceeded. A limit of 1 MiB for the combined normalized frontmatter input is RECOMMENDED unless repository-specific requirements justify a higher bound.
+
+---
+
+## Sync Notes
+
+This section maps the frontmatter hash specification to the source files that implement it. Use this mapping to verify that specification changes are reflected in both implementations.
+
+| Component | File(s) |
+|-----------|---------|
+| Go hash computation | `pkg/parser/frontmatter_hash.go` (`computeFrontmatterHashTextBased`, `computeFrontmatterHashTextBasedWithReader`) |
+| JavaScript hash computation | `actions/setup/js/frontmatter_hash.cjs` |
+| Cross-language test | `pkg/parser/frontmatter_hash_cross_language_test.go` |
+| Text normalization | `pkg/parser/frontmatter_hash.go` (`normalizeFrontmatterText`) |
+| Import processing | `pkg/parser/frontmatter_hash.go` (`processImportsTextBased`) |
+
+**After any change to the hash algorithm:**
+1. Update the Go implementation in `pkg/parser/frontmatter_hash.go`
+2. Update the JavaScript implementation in `actions/setup/js/frontmatter_hash.cjs`
+3. Run the cross-language test: `go test ./pkg/parser/ -run TestFrontmatterHash`
+4. Run `make recompile` to regenerate all lock files with fresh hashes
+5. Verify cross-language consistency for the test cases listed in Section 5
+
+**Runtime behavior**: text-based approach is authoritative (see Implementation Notes § Resolution).
 
 ---
 

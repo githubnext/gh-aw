@@ -28,7 +28,7 @@ imports:
     with:
       branch-name: "memory/audit-workflows"
       description: "Historical audit data and patterns"
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
 
 
   - shared/observability-otlp.md

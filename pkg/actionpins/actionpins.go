@@ -259,6 +259,17 @@ func isValidFullSHA(s string) bool {
 	return gitutil.IsValidFullSHA(s)
 }
 
+// findVersionBySHA returns the version string for a given SHA in the embedded pins
+// for the specified repo. Returns "" if no matching pin is found.
+func findVersionBySHA(repo, sha string) string {
+	for _, pin := range GetActionPinsByRepo(repo) {
+		if pin.SHA == sha {
+			return pin.Version
+		}
+	}
+	return ""
+}
+
 // findCompatiblePin returns the first pin whose version is semver-compatible with
 // the requested version, or ActionPin{}, false if no compatible pin is found.
 func findCompatiblePin(pins []ActionPin, version string) (ActionPin, bool) {
@@ -307,7 +318,8 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 		sha, err := ctx.Resolver.ResolveSHA(cmp.Or(ctx.Ctx, context.Background()), actionRepo, version)
 		if err == nil && sha != "" {
 			log.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
-			result := FormatPinnedActionReference(actionRepo, sha, version)
+			resolvedVersion := findVersionBySHA(actionRepo, sha)
+			result := formatPinnedActionWithResolution(actionRepo, sha, version, resolvedVersion)
 			log.Printf("Returning pinned reference: %s", result)
 			return result, nil
 		}

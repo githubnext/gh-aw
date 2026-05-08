@@ -17,7 +17,7 @@ engine:
   id: claude
   max-turns: 100
 imports:
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/mcp/serena-go.md
   - shared/reporting.md
   - shared/observability-otlp.md

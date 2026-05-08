@@ -29,7 +29,7 @@ imports:
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[stale-repo-identifier] "
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
 
   - shared/observability-otlp.md
 network:

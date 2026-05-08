@@ -41,7 +41,7 @@ tools:
   edit:
 imports:
   - shared/changeset-format.md
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
 
 
   - shared/observability-otlp.md

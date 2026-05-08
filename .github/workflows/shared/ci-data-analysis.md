@@ -12,7 +12,7 @@
 # - Collect performance metrics
 
 imports:
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
 
 tools:
   cache-memory: true
