@@ -297,13 +297,14 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
  *   refName?: string,
  *   headRef?: string,
  *   sha?: string,
+ *   job?: string,
  *   workflowRef?: string,
  *   staged: boolean,
  *   runAttempt?: string,
  * }} ctx
  * @returns {Array<{key: string, value: object}>}
  */
-function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", workflowRef = "", staged, runAttempt = "1" }) {
+function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", job = "", workflowRef = "", staged, runAttempt = "1" }) {
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId), buildAttr("github.run_attempt", runAttempt)];
   if (repository && runId && repository.includes("/")) {
     const [owner, repo] = repository.split("/");
@@ -323,6 +324,9 @@ function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "
   }
   if (sha) {
     resourceAttributes.push(buildAttr("github.sha", sha));
+  }
+  if (job) {
+    resourceAttributes.push(buildAttr("github.job", job));
   }
   if (workflowRef) {
     resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
@@ -873,6 +877,7 @@ async function sendJobSetupSpan(options = {}) {
   const refName = process.env.GITHUB_REF_NAME || "";
   const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
+  const job = process.env.GITHUB_JOB || "";
   const workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "";
 
   const attributes = [
@@ -914,7 +919,7 @@ async function sendJobSetupSpan(options = {}) {
   attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
-  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged, runAttempt });
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, job, workflowRef, staged, runAttempt });
 
   const payload = buildOTLPPayload({
     traceId,
@@ -1232,6 +1237,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const refName = process.env.GITHUB_REF_NAME || "";
   const headRef = process.env.GITHUB_HEAD_REF || "";
   const sha = process.env.GITHUB_SHA || "";
+  const job = process.env.GITHUB_JOB || "";
   const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
@@ -1365,7 +1371,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
-  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, workflowRef, staged, runAttempt });
+  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, job, workflowRef, staged, runAttempt });
   // OpenTelemetry semantic convention for exceptions.  Each event has
   // name="exception" with "exception.type" and "exception.message" attributes,
   // making individual errors queryable and classifiable in backends like

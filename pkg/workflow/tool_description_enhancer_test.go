@@ -33,3 +33,30 @@ func TestEnhanceToolDescriptionCreateIssueAllowedFieldsList(t *testing.T) {
 		t.Fatalf("expected restrictive fields message in description, got: %s", description)
 	}
 }
+
+func TestEnhanceToolDescriptionSetIssueFieldAllowedFieldsWildcard(t *testing.T) {
+	description := enhanceToolDescription("set_issue_field", "Set one issue field.", &SafeOutputsConfig{
+		SetIssueField: &SetIssueFieldConfig{
+			AllowedFields: []string{"*"},
+		},
+	})
+
+	if !strings.Contains(description, "Any issue field is allowed.") {
+		t.Fatalf("expected wildcard message in description, got: %s", description)
+	}
+	if strings.Contains(description, "Only these issue fields are allowed") {
+		t.Fatalf("did not expect restrictive fields message for wildcard, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionSetIssueFieldAllowedFieldsList(t *testing.T) {
+	description := enhanceToolDescription("set_issue_field", "Set one issue field.", &SafeOutputsConfig{
+		SetIssueField: &SetIssueFieldConfig{
+			AllowedFields: []string{"Priority", "Iteration"},
+		},
+	})
+
+	if !strings.Contains(description, "Only these issue fields are allowed: [\"Priority\" \"Iteration\"].") {
+		t.Fatalf("expected restrictive fields message in description, got: %s", description)
+	}
+}

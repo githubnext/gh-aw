@@ -101,6 +101,7 @@ describe("otlp.cjs", () => {
       GITHUB_REF_NAME: process.env.GITHUB_REF_NAME,
       GITHUB_HEAD_REF: process.env.GITHUB_HEAD_REF,
       GITHUB_SHA: process.env.GITHUB_SHA,
+      GITHUB_JOB: process.env.GITHUB_JOB,
       GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
       GH_AW_CURRENT_WORKFLOW_REF: process.env.GH_AW_CURRENT_WORKFLOW_REF,
       GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
@@ -413,6 +414,14 @@ describe("otlp.cjs", () => {
       await otlp.logSpan("my-scanner", {});
 
       expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ sha: "abc123def456" }));
+    });
+
+    it("passes GITHUB_JOB to buildGitHubActionsResourceAttributes when set", async () => {
+      process.env.GITHUB_JOB = "agent";
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ job: "agent" }));
     });
   });
 

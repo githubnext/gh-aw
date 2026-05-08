@@ -398,6 +398,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.HideComment != nil
 	case "set-issue-type":
 		return config.SetIssueType != nil
+	case "set-issue-field":
+		return config.SetIssueField != nil
 	case "dispatch-workflow":
 		return config.DispatchWorkflow != nil
 	case "call-workflow":
@@ -551,6 +553,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.SetIssueType == nil && importedConfig.SetIssueType != nil {
 		result.SetIssueType = importedConfig.SetIssueType
+	}
+	if result.SetIssueField == nil && importedConfig.SetIssueField != nil {
+		result.SetIssueField = importedConfig.SetIssueField
 	}
 	if result.DispatchWorkflow == nil && importedConfig.DispatchWorkflow != nil {
 		result.DispatchWorkflow = importedConfig.DispatchWorkflow

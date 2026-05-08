@@ -117,6 +117,7 @@ async function logSpan(toolName, attributes = {}, options = {}) {
       refName: process.env.GITHUB_REF_NAME || "",
       headRef: process.env.GITHUB_HEAD_REF || "",
       sha: process.env.GITHUB_SHA || "",
+      job: process.env.GITHUB_JOB || "",
       workflowRef: process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "",
       staged,
     });

@@ -196,6 +196,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 		data.SafeOutputs.MarkPullRequestAsReadyForReview != nil ||
 		data.SafeOutputs.HideComment != nil ||
 		data.SafeOutputs.SetIssueType != nil ||
+		data.SafeOutputs.SetIssueField != nil ||
 		data.SafeOutputs.DispatchWorkflow != nil ||
 		data.SafeOutputs.CallWorkflow != nil ||
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||

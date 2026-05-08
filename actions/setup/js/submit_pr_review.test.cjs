@@ -418,6 +418,61 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
     delete global.context;
   });
 
+  it("should set review context from issue_comment on a PR for body-only reviews", async () => {
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              number: 42,
+              head: { sha: "issue-comment-pr-sha" },
+            },
+          }),
+        },
+      },
+      graphql: vi.fn().mockResolvedValue({}),
+    };
+
+    global.context = {
+      eventName: "issue_comment",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        issue: {
+          number: 42,
+          pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/42" },
+        },
+      },
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({ max: 1, _prReviewBuffer: localBuffer });
+
+    const result = await localHandler(
+      {
+        type: "submit_pull_request_review",
+        body: "Looks good overall.",
+        event: "COMMENT",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(localBuffer.hasReviewMetadata()).toBe(true);
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.repo).toBe("test-owner/test-repo");
+    expect(ctx.pullRequestNumber).toBe(42);
+    expect(global.github.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      pull_number: 42,
+    });
+
+    delete global.context;
+    delete global.github;
+  });
+
   it("should set review context from target config when explicit PR number (e.g. workflow_dispatch)", async () => {
     const fetchedPR = {
       number: 99,

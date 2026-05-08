@@ -24,6 +24,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { parseAllowedIssueFields, validateAllowedIssueFields } = require("./allowed_issue_fields.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
@@ -232,51 +233,6 @@ function normalizeIssueFields(fields) {
 
     return { name, value };
   });
-}
-
-/**
- * Parse allowed issue field names from config.
- * @param {string[]|string|undefined} value
- * @returns {string[]}
- */
-function parseAllowedIssueFields(value) {
-  if (value == null || value === "") {
-    return [];
-  }
-  const raw = Array.isArray(value) ? value : String(value).split(",");
-  const uniqueFields = new Set();
-  for (const item of raw) {
-    const normalized = String(item).trim();
-    if (normalized) {
-      uniqueFields.add(normalized);
-    }
-  }
-  return [...uniqueFields];
-}
-
-/**
- * Validate requested issue fields against configured allowed-fields.
- * @param {Array<{name: string, value: string|number}>} issueFields
- * @param {string[]} allowedFields
- * @returns {void}
- */
-function validateAllowedIssueFields(issueFields, allowedFields) {
-  if (!Array.isArray(issueFields) || issueFields.length === 0) {
-    return;
-  }
-  if (!Array.isArray(allowedFields) || allowedFields.length === 0 || allowedFields.includes("*")) {
-    return;
-  }
-
-  // We intentionally normalize to lowercase for comparisons because issue field names
-  // come from user-provided config/output and repository metadata, and should match
-  // even when case differs (e.g., "priority" vs "Priority").
-  const allowedFieldSet = new Set(allowedFields.map(field => field.toLowerCase()));
-  for (const field of issueFields) {
-    if (!allowedFieldSet.has(field.name.toLowerCase())) {
-      throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" is not in the allowed-fields list: ${allowedFields.join(", ")}`);
-    }
-  }
 }
 
 /**

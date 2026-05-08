@@ -272,6 +272,24 @@ describe("safe_output_helpers", () => {
         expect(result.contextType).toBe("pull request");
       });
 
+      it("should resolve issue_comment on PR context for PR-only handlers", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          context: {
+            eventName: "issue_comment",
+            payload: {
+              issue: {
+                number: 246,
+                pull_request: { url: "https://api.github.com/repos/o/r/pulls/246" },
+              },
+            },
+          },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(246);
+        expect(result.contextType).toBe("pull request");
+      });
+
       it("should fail when triggering and not in PR context", () => {
         const result = helpers.resolveTarget({
           ...baseParams,

@@ -307,6 +307,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.SetIssueType = setIssueTypeConfig
 			}
 
+			// Handle set-issue-field
+			setIssueFieldConfig := c.parseSetIssueFieldConfig(outputMap)
+			if setIssueFieldConfig != nil {
+				config.SetIssueField = setIssueFieldConfig
+			}
+
 			// Handle dispatch-workflow
 			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
 			if dispatchWorkflowConfig != nil {

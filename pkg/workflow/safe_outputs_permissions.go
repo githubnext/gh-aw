@@ -264,6 +264,10 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		safeOutputsPermissionsLog.Print("Adding permissions for set-issue-type")
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
+	if safeOutputs.SetIssueField != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.SetIssueField.Staged) {
+		safeOutputsPermissionsLog.Print("Adding permissions for set-issue-field")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
 	if safeOutputs.AddReviewer != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AddReviewer.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for add-reviewer")
 		permissions.Merge(NewPermissionsContentsReadPRWrite())

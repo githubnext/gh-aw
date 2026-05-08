@@ -127,6 +127,17 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":         {Type: "string", MaxLength: 256},                                 // Optional: target repository in format "owner/repo"
 		},
 	},
+	"set_issue_field": {
+		DefaultMax:       5,
+		CustomValidation: "requiresOneOf:field_name,field_node_id",
+		Fields: map[string]FieldValidation{
+			"issue_number":  {IssueOrPRNumber: true},
+			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128},
+			"field_node_id": {Type: "string", MaxLength: 256},
+			"value":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"repo":          {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
 	"assign_to_agent": {
 		DefaultMax:       1,
 		CustomValidation: "requiresOneOf:issue_number,pull_number",

@@ -273,6 +273,10 @@ A mandatory safe output signal that agents emit when a task cannot be completed 
 
 A safe output capability for setting or clearing the GitHub issue type on existing issues. The agent calls `set_issue_type` to assign a named type (e.g., `Bug`, `Feature`) to an issue. An `allowed` list restricts which types the agent may set; omitting it permits any type. Passing an empty string clears the current type. Supports cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-type:` in `safe-outputs`.
 
+### Set Issue Field (`set-issue-field:`)
+
+A safe output capability for setting one issue field value on existing issues. The agent calls `set_issue_field` with `value` and either `field_name` (for discovery by field label) or `field_node_id` (to skip discovery). Unknown field names return actionable errors listing available fields and suggesting explicit IDs. Supports optional `allowed-fields` restrictions (including `["*"]` wildcard) and cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-field:` in `safe-outputs`.
+
 ### Parameterized Safe-Output Fields
 
 A pattern for `workflow_call` reuse where safe-output policy and list fields accept GitHub Actions expression strings (e.g., `${{ inputs.protected-files-policy }}`) in addition to literal values. At compile time the compiler detects the `${{...}}` form and passes it through unchanged; GitHub Actions evaluates the expression at runtime before the handler executes. Enum-valued policy fields such as `protected-files` and `patch-format` validate literal values at compile time but defer expression-based values to runtime (failing closed on unrecognized input). List-valued fields such as `labels`, `allowed-repos`, and `allowed-base-branches` accept either a YAML array or a single expression string. This enables a single reusable workflow to serve callers with different constraint configurations without duplicating files. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#parameterizing-policy-fields-in-reusable-workflows).

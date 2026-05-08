@@ -1074,6 +1074,7 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_REF_NAME",
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
+    "GITHUB_JOB",
     "GITHUB_WORKFLOW_REF",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_STAGED",
@@ -1537,6 +1538,20 @@ describe("sendJobSetupSpan", () => {
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     const resourceKeys = resourceAttrs.map(a => a.key);
     expect(resourceKeys).not.toContain("github.workflow_ref");
+  });
+
+  it("includes github.job as resource attribute when GITHUB_JOB is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_JOB = "agent";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.job", value: { stringValue: "agent" } });
   });
 
   it("includes github.actions.run_url as resource attribute when repository and run_id are set", async () => {
@@ -2106,6 +2121,7 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_REF_NAME",
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
+    "GITHUB_JOB",
     "GITHUB_WORKFLOW_REF",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
@@ -3997,6 +4013,20 @@ describe("sendJobConclusionSpan", () => {
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     const resourceKeys = resourceAttrs.map(a => a.key);
     expect(resourceKeys).not.toContain("github.workflow_ref");
+  });
+
+  it("includes github.job as resource attribute when GITHUB_JOB is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_JOB = "conclusion";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.job", value: { stringValue: "conclusion" } });
   });
 
   describe("staged / deployment.environment", () => {
