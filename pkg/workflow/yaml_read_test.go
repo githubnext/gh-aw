@@ -36,10 +36,14 @@ func TestReadWorkflowYAML(t *testing.T) {
 
 		cwd, err := os.Getwd()
 		require.NoError(t, err, "Should get current working directory")
+		changedDir := false
 		t.Cleanup(func() {
-			require.NoError(t, os.Chdir(cwd), "Should restore working directory")
+			if changedDir {
+				require.NoError(t, os.Chdir(cwd), "Should restore working directory")
+			}
 		})
 		require.NoError(t, os.Chdir(tmpDir), "Should change working directory for relative path test")
+		changedDir = true
 
 		workflow, err := readWorkflowYAML("workflow.yml")
 		require.NoError(t, err, "Relative path should resolve and parse successfully")
