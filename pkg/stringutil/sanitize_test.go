@@ -668,3 +668,45 @@ func BenchmarkSanitizeForFilename(b *testing.B) {
 		SanitizeForFilename(slug)
 	}
 }
+
+func TestSanitizeName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		opts     *SanitizeOptions
+		expected string
+	}{
+		{
+			name:     "nil options remove special chars",
+			input:    "My Workflow@123",
+			opts:     nil,
+			expected: "my-workflow123",
+		},
+		{
+			name:  "preserve dot and underscore",
+			input: "My.Workflow_Name",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.', '_'},
+			},
+			expected: "my.workflow_name",
+		},
+		{
+			name:  "trim and default when empty",
+			input: "@@@",
+			opts: &SanitizeOptions{
+				TrimHyphens:  true,
+				DefaultValue: "default-name",
+			},
+			expected: "default-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeName(tt.input, tt.opts)
+			if result != tt.expected {
+				t.Errorf("SanitizeName(%q) = %q; want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

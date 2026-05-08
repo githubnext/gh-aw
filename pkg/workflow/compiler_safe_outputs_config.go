@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // ========================================
@@ -69,8 +70,8 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 				excludeFiles := extractStringSliceFromConfig(handlerConfig, "_protected_files_exclude")
 				delete(handlerConfig, "_protected_files_exclude")
 
-				handlerConfig["protected_files"] = excludeFromSlice(fullManifestFiles, excludeFiles...)
-				filteredPrefixes := excludeFromSlice(fullPathPrefixes, excludeFiles...)
+				handlerConfig["protected_files"] = sliceutil.Exclude(fullManifestFiles, excludeFiles...)
+				filteredPrefixes := sliceutil.Exclude(fullPathPrefixes, excludeFiles...)
 				if len(filteredPrefixes) > 0 {
 					handlerConfig["protected_path_prefixes"] = filteredPrefixes
 				} else {

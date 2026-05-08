@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var importsLog = logger.New("workflow:imports")
@@ -247,7 +248,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 					if handlerCfg, ok := config[key].(map[string]any); ok {
 						if pf, ok := handlerCfg["protected-files"].(map[string]any); ok {
 							if excludeFiles := parseStringSliceAny(pf["exclude"], importsLog); len(excludeFiles) > 0 {
-								accumulatedExclude[key] = mergeUnique(accumulatedExclude[key], excludeFiles...)
+								accumulatedExclude[key] = sliceutil.MergeUnique(accumulatedExclude[key], excludeFiles...)
 								importsLog.Printf("Saved protected-files exclude from overridden import %s: %v", key, excludeFiles)
 							}
 						}
@@ -294,7 +295,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 	if len(accumulatedExclude) > 0 {
 		if result.CreatePullRequests != nil {
 			if excludeFiles, ok := accumulatedExclude["create-pull-request"]; ok && len(excludeFiles) > 0 {
-				result.CreatePullRequests.ProtectedFilesExclude = mergeUnique(
+				result.CreatePullRequests.ProtectedFilesExclude = sliceutil.MergeUnique(
 					result.CreatePullRequests.ProtectedFilesExclude,
 					excludeFiles...,
 				)
@@ -303,7 +304,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		}
 		if result.PushToPullRequestBranch != nil {
 			if excludeFiles, ok := accumulatedExclude["push-to-pull-request-branch"]; ok && len(excludeFiles) > 0 {
-				result.PushToPullRequestBranch.ProtectedFilesExclude = mergeUnique(
+				result.PushToPullRequestBranch.ProtectedFilesExclude = sliceutil.MergeUnique(
 					result.PushToPullRequestBranch.ProtectedFilesExclude,
 					excludeFiles...,
 				)
@@ -461,7 +462,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	} else if result.CreatePullRequests != nil && importedConfig.CreatePullRequests != nil {
 		// Merge protected-files exclude lists as a set so that imports can extend exclusions
 		// without replacing the top-level configuration entirely.
-		result.CreatePullRequests.ProtectedFilesExclude = mergeUnique(
+		result.CreatePullRequests.ProtectedFilesExclude = sliceutil.MergeUnique(
 			result.CreatePullRequests.ProtectedFilesExclude,
 			importedConfig.CreatePullRequests.ProtectedFilesExclude...,
 		)
@@ -516,7 +517,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	} else if result.PushToPullRequestBranch != nil && importedConfig.PushToPullRequestBranch != nil {
 		// Merge protected-files exclude lists as a set so that imports can extend exclusions
 		// without replacing the top-level configuration entirely.
-		result.PushToPullRequestBranch.ProtectedFilesExclude = mergeUnique(
+		result.PushToPullRequestBranch.ProtectedFilesExclude = sliceutil.MergeUnique(
 			result.PushToPullRequestBranch.ProtectedFilesExclude,
 			importedConfig.PushToPullRequestBranch.ProtectedFilesExclude...,
 		)
@@ -612,7 +613,7 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		result.RunsOn = importedConfig.RunsOn
 	}
 	if len(importedConfig.Needs) > 0 {
-		result.Needs = mergeUnique(result.Needs, importedConfig.Needs...)
+		result.Needs = sliceutil.MergeUnique(result.Needs, importedConfig.Needs...)
 	}
 
 	// Merge Messages configuration at field level (main workflow entries override imported entries)

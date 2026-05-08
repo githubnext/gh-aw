@@ -297,3 +297,64 @@ func TestAny_StopsEarly(t *testing.T) {
 	})
 	assert.Equal(t, 2, callCount, "Any should stop evaluating after first match")
 }
+
+func TestMergeUnique(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     []string
+		extra    []string
+		expected []string
+	}{
+		{
+			name:     "deduplicates base and extra preserving first seen order",
+			base:     []string{"a", "b", "a"},
+			extra:    []string{"b", "c", "a", "d"},
+			expected: []string{"a", "b", "c", "d"},
+		},
+		{
+			name:     "nil base with extra values",
+			base:     nil,
+			extra:    []string{"x", "x", "y"},
+			expected: []string{"x", "y"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MergeUnique(tt.base, tt.extra...)
+			assert.Equal(t, tt.expected, result, "MergeUnique should return deduplicated merged slice")
+		})
+	}
+}
+
+func TestExclude(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     []string
+		exclude  []string
+		expected []string
+	}{
+		{
+			name:     "excludes matching values while preserving order",
+			base:     []string{"a", "b", "c", "b"},
+			exclude:  []string{"b"},
+			expected: []string{"a", "c"},
+		},
+		{
+			name:     "no excludes returns cloned slice",
+			base:     []string{"a", "b"},
+			exclude:  nil,
+			expected: []string{"a", "b"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Exclude(tt.base, tt.exclude...)
+			assert.Equal(t, tt.expected, result, "Exclude should remove excluded elements")
+			if len(tt.exclude) == 0 && len(tt.base) > 0 {
+				assert.NotSame(t, &tt.base[0], &result[0], "Exclude should always return a fresh slice copy")
+			}
+		})
+	}
+}

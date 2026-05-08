@@ -142,19 +142,9 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 // Returns a map of input definitions that can be used to generate MCP tool schemas
 func extractWorkflowDispatchInputs(workflowPath string) (map[string]any, error) {
 	dispatchWorkflowValidationLog.Printf("Extracting workflow_dispatch inputs from: %s", workflowPath)
-	cleanPath := filepath.Clean(workflowPath)
-	if !filepath.IsAbs(cleanPath) {
-		return nil, fmt.Errorf("workflow path must be absolute: %s", workflowPath)
-	}
-
-	workflowContent, err := os.ReadFile(cleanPath) // #nosec G304 -- Path is sanitized above
+	workflow, err := readWorkflowYAML(workflowPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read workflow file %s: %w", workflowPath, err)
-	}
-
-	var workflow map[string]any
-	if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
-		return nil, fmt.Errorf("failed to parse workflow file %s: %w", workflowPath, err)
+		return nil, err
 	}
 
 	onSection, hasOn := workflow["on"]

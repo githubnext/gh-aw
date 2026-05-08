@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -45,8 +46,8 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 			if _, hasProtectedFiles := handlerCfg["protected_files"]; hasProtectedFiles {
 				fullManifestFiles := getAllManifestFiles(engineManifestFiles...)
 				fullPathPrefixes := getProtectedPathPrefixes(engineManifestPathPrefixes...)
-				handlerCfg["protected_files"] = excludeFromSlice(fullManifestFiles, excludeFiles...)
-				filteredPrefixes := excludeFromSlice(fullPathPrefixes, excludeFiles...)
+				handlerCfg["protected_files"] = sliceutil.Exclude(fullManifestFiles, excludeFiles...)
+				filteredPrefixes := sliceutil.Exclude(fullPathPrefixes, excludeFiles...)
 				if len(filteredPrefixes) > 0 {
 					handlerCfg["protected_path_prefixes"] = filteredPrefixes
 				} else {

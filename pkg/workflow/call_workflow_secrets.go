@@ -2,12 +2,9 @@ package workflow
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/goccy/go-yaml"
 )
 
 var callWorkflowSecretsLog = logger.New("workflow:call_workflow_secrets")
@@ -45,17 +42,9 @@ func extractCallWorkflowSecrets(workflowName, markdownPath string) ([]string, er
 // extractSecretsFromWorkflowFile parses a .lock.yml or .yml workflow file and returns
 // the secret names declared in its on.workflow_call.secrets section.
 func extractSecretsFromWorkflowFile(filePath string) ([]string, error) {
-	cleanPath := filepath.Clean(filePath)
-	// filePath originates from findWorkflowFile(), which validates all paths via
-	// isPathWithinDir() to prevent directory traversal before returning them.
-	content, err := os.ReadFile(cleanPath) // #nosec G304 -- path pre-validated by findWorkflowFile() via isPathWithinDir()
+	workflow, err := readWorkflowYAML(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read workflow file %s: %w", filePath, err)
-	}
-
-	var workflow map[string]any
-	if err := yaml.Unmarshal(content, &workflow); err != nil {
-		return nil, fmt.Errorf("failed to parse workflow file %s: %w", filePath, err)
+		return nil, err
 	}
 
 	secrets := extractWorkflowCallSecretsFromParsed(workflow)

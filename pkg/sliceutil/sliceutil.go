@@ -72,3 +72,45 @@ func Deduplicate[T comparable](slice []T) []T {
 	}
 	return result
 }
+
+// MergeUnique returns a deduplicated slice that starts with base and appends any
+// items from extra that are not already present in base. Order is preserved.
+func MergeUnique[T comparable](base []T, extra ...T) []T {
+	seen := make(map[T]struct{}, len(base)+len(extra))
+	result := make([]T, 0, len(base)+len(extra))
+	for _, item := range base {
+		if _, exists := seen[item]; !exists {
+			seen[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	for _, item := range extra {
+		if _, exists := seen[item]; !exists {
+			seen[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+// Exclude returns a new slice containing the items from base that do not appear
+// in the exclude set. Order of remaining items is preserved.
+// Always returns a fresh slice (never aliases base) even when no items are removed.
+func Exclude[T comparable](base []T, exclude ...T) []T {
+	if len(exclude) == 0 {
+		return append([]T(nil), base...)
+	}
+
+	excluded := make(map[T]struct{}, len(exclude))
+	for _, item := range exclude {
+		excluded[item] = struct{}{}
+	}
+
+	result := make([]T, 0, len(base))
+	for _, item := range base {
+		if _, isExcluded := excluded[item]; !isExcluded {
+			result = append(result, item)
+		}
+	}
+	return result
+}
