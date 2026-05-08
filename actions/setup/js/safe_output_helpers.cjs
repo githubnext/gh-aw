@@ -72,9 +72,10 @@ function resolveTarget(params) {
   const { targetConfig, item, context, itemType, supportsPR = false, supportsIssue = false } = params;
 
   // Check context type
+  const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
   const isIssueCommentOnPR = context.eventName === "issue_comment" && context.payload?.issue?.pull_request;
   const isIssueContext = context.eventName === "issues" || (context.eventName === "issue_comment" && !isIssueCommentOnPR);
-  const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_target" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment" || isIssueCommentOnPR;
+  const isPRContext = prEventNames.has(context.eventName) || isIssueCommentOnPR;
 
   // Default target is "triggering"
   const target = targetConfig || "triggering";
@@ -207,7 +208,7 @@ function resolveTarget(params) {
       if (context.payload.pull_request) {
         itemNumber = context.payload.pull_request.number;
         contextType = "pull request";
-      } else if (isIssueCommentOnPR && context.payload.issue) {
+      } else if (isIssueCommentOnPR) {
         itemNumber = context.payload.issue.number;
         contextType = "pull request";
       } else {
