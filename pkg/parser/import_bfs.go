@@ -184,7 +184,9 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		processedOrder = append(processedOrder, item.importPath)
 
 		// Check if this is a custom agent file (any markdown file under .github/agents)
-		isAgentFile := strings.Contains(item.fullPath, "/.github/agents/") && strings.HasSuffix(strings.ToLower(item.fullPath), ".md")
+		// Normalize to forward slashes for cross-platform compatibility (Windows uses backslashes)
+		fullPathSlash := filepath.ToSlash(item.fullPath)
+		isAgentFile := strings.Contains(fullPathSlash, "/.github/agents/") && strings.HasSuffix(strings.ToLower(fullPathSlash), ".md")
 		if isAgentFile {
 			if acc.agentFile != "" {
 				// Multiple agent files found - error
@@ -194,12 +196,12 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			// Extract relative path from repository root (from .github/ onwards)
 			// This ensures the path works at runtime with $GITHUB_WORKSPACE
 			var importRelPath string
-			if idx := strings.Index(item.fullPath, "/.github/"); idx >= 0 {
-				acc.agentFile = item.fullPath[idx+1:] // +1 to skip the leading slash
+			if idx := strings.Index(fullPathSlash, "/.github/"); idx >= 0 {
+				acc.agentFile = fullPathSlash[idx+1:] // +1 to skip the leading slash
 				importRelPath = acc.agentFile
 			} else {
-				acc.agentFile = item.fullPath
-				importRelPath = item.fullPath
+				acc.agentFile = fullPathSlash
+				importRelPath = fullPathSlash
 			}
 			log.Printf("Found agent file: %s (resolved to: %s)", item.fullPath, acc.agentFile)
 
