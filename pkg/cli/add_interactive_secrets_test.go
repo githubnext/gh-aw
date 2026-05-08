@@ -185,11 +185,11 @@ func TestAddInteractiveConfig_selectAIEngineAndKey_engineOverrideFormatsInfoMess
 	r, w, err := os.Pipe()
 	require.NoError(t, err, "Failed to create stderr pipe")
 	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
 
 	err = config.selectAIEngineAndKey()
 
 	w.Close()
-	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
 	_, copyErr := io.Copy(&buf, r)

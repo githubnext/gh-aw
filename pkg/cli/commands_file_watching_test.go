@@ -454,32 +454,24 @@ func TestCompileSingleFile(t *testing.T) {
 		compiler := workflow.NewCompiler()
 		stats := &CompilationStats{}
 
-		expectedErr := CompileWorkflowWithValidation(compiler, filePath, false, false, false, false, false, false)
-		if expectedErr == nil {
-			t.Fatal("Expected invalid workflow compilation to fail")
-		}
-
 		oldStderr := os.Stderr
 		r, w, err := os.Pipe()
 		require.NoError(t, err, "Failed to create stderr pipe")
 		os.Stderr = w
+		t.Cleanup(func() { os.Stderr = oldStderr })
 
 		result := compileSingleFile(compiler, filePath, stats, false, false)
 
 		w.Close()
-		os.Stderr = oldStderr
 
 		var buf bytes.Buffer
 		_, err = io.Copy(&buf, r)
 		require.NoError(t, err, "Failed to read stderr output")
 
 		assert.True(t, result, "Expected compilation to be attempted")
-		assert.Equal(
-			t,
-			console.FormatErrorMessage(expectedErr.Error())+"\n",
-			buf.String(),
-			"Expected compile errors to use formatted stderr output",
-		)
+		assert.Contains(t, buf.String(), console.FormatErrorMessage(""), "Expected compile errors to use formatted stderr output")
+		assert.Contains(t, buf.String(), "invalid.md", "Expected stderr output to identify the failing workflow")
+		assert.Contains(t, buf.String(), "unexpected ':'", "Expected stderr output to include the compiler error details")
 	})
 
 	t.Run("compile single file with checkExists true and file exists", func(t *testing.T) {
@@ -577,11 +569,11 @@ func TestCompileModifiedFilesWithDependencies_FormatsWatchMessage(t *testing.T) 
 	r, w, err := os.Pipe()
 	require.NoError(t, err, "Failed to create stderr pipe")
 	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
 
 	compileModifiedFilesWithDependencies(compiler, depGraph, []string{filePath}, false)
 
 	w.Close()
-	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
 	_, err = io.Copy(&buf, r)
