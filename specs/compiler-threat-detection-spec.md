@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.0  
+**Version**: 1.0.1  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -24,7 +24,7 @@ This specification is the source of truth for detection rule coverage, implement
 
 This is a Candidate Recommendation specification. It may be revised based on operational evidence, threat-model updates, and conformance results.
 
-**Publication Date**: May 6, 2026  
+**Publication Date**: May 8, 2026  
 **Governance**: This specification is maintained by the gh-aw maintainers and governed by gh-aw security review processes.
 
 ## Table of Contents
@@ -113,6 +113,12 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-003 Unsafe Tool Scope Expansion**: Detect wildcard or overbroad tool permissions that violate policy.
 - **CTR-004 Sandbox Bypass Configuration**: Detect generated configurations that disable required sandboxing.
 - **CTR-005 Unsafe Output Route**: Detect direct unsafe write paths that bypass safe-output controls.
+- **CTR-006 Template Injection**: Detect GitHub Actions expressions used directly in `run:` shell commands where user-controlled data flows into shell execution context without environment variable indirection.
+- **CTR-007 Markdown Content Security**: Detect dangerous or malicious content patterns in externally-sourced markdown workflow files, including unicode abuse, hidden content, obfuscated links, HTML abuse, embedded scripts, and social engineering.
+- **CTR-008 Pull Request Target Safety**: Detect unsafe use of the `pull_request_target` trigger, which runs workflows with write permissions and secret access; enforce checkout restrictions to prevent pwn-request attacks.
+- **CTR-009 Shell Expansion in Safe-Outputs**: Detect dangerous bash expansion patterns (`${var@op}`, `${!var}`, `$(...)`, backtick substitution) in safe-outputs `run:` scripts that would be blocked by the safe-outputs security harness at runtime.
+- **CTR-010 Expression Safety Allowlist**: Enforce an allowlist of approved GitHub Actions expressions; reject unauthorized or multi-line expressions that could enable injection or exfiltration.
+- **CTR-011 Network Firewall Configuration**: Validate network firewall configuration dependencies and domain patterns; reject configurations that declare firewall rules without required prerequisites (e.g., `allow-urls` without `ssl-bump`).
 
 ### 4.2 Compiler Response Requirements
 
@@ -181,6 +187,12 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
 | CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go` | `pkg/workflow/*sandbox*_test.go` |
 | CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go` | `pkg/workflow/*safe_outputs*_test.go` |
+| CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go` | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go` |
+| CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go` |
+| CTR-008 Pull Request Target Safety | `pkg/workflow/pull_request_target_validation.go` | `pkg/workflow/pull_request_target_validation_test.go` |
+| CTR-009 Shell Expansion in Safe-Outputs | `pkg/workflow/safe_outputs_steps_shell_expansion_validation.go` | `pkg/workflow/safe_outputs_steps_shell_expansion_validation_test.go` |
+| CTR-010 Expression Safety Allowlist | `pkg/workflow/expression_safety_validation.go` | `pkg/workflow/expression_extraction_test.go` |
+| CTR-011 Network Firewall Configuration | `pkg/workflow/network_firewall_validation.go`, `pkg/workflow/firewall_validation.go` | `pkg/workflow/network_firewall_validation_test.go` |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
@@ -210,6 +222,17 @@ Test updates SHOULD be included whenever rules are added or modified.
 ---
 
 ## 9. Change Log
+
+### 1.0.1 (2026-05-08)
+
+- Extended CTR rule catalog from 5 to 11 rules to reflect existing compiler coverage
+- Added CTR-006 Template Injection (template injection detection in shell run: steps)
+- Added CTR-007 Markdown Content Security (unicode abuse, hidden content, HTML abuse, social engineering)
+- Added CTR-008 Pull Request Target Safety (pwn-request prevention for pull_request_target trigger)
+- Added CTR-009 Shell Expansion in Safe-Outputs (dangerous bash expansion detection at compile time)
+- Added CTR-010 Expression Safety Allowlist (approved expression enforcement, multi-line rejection)
+- Added CTR-011 Network Firewall Configuration (firewall dependency and domain pattern validation)
+- Updated Section 6.1 baseline rule mapping table with concrete file references for CTR-006 through CTR-011
 
 ### 1.0.0 (2026-05-06)
 

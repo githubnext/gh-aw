@@ -55,8 +55,15 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ## 🌍 Community Contributions
 
+We appreciate contributions from our community. The following issues were reported or identified by community members and have been resolved or are under active development:
+
 <details>
-<summary>Thank you to the community members whose issue reports were resolved in this project! This list is updated automatically and reflects all attributed contributions.</summary>
+<summary>Attributed Community Issues (467 authors, 467 total)</summary>
+
+### @3d-gussai
+
+- [#30897: `gh aw compile` pins `actions/github-script@v8` to the v9 SHA when dynamic resolution fails](https://github.com/github/gh-aw/issues/30897) _(direct issue)_
+- [#30872: add_comment.cjs: invocation.workflowRepo resolved but discarded when building footer run URL](https://github.com/github/gh-aw/issues/30872) _(direct issue)_
 
 ### @aaronspindler
 
@@ -972,6 +979,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #27741 _(direct issue)_
 
+
 </details>
 
 ### ⚠️ Attribution Candidates Need Review
@@ -982,7 +990,7 @@ The following community issues were closed during this period but could not be a
 - **@askpaisa** for create_pull_request returns patch file instead of creating PR when multiple PRs exist ([#28389](https://github.com/github/gh-aw/issues/28389)) — closed 2026-04-25, no confirmed PR linkage found
 - **@viktoriyabogdanova** for [aw-failures] Workflow timing out at 40min — MCP get_file_contents 37–71s per call, LLM turns 4–10min ([#27556](https://github.com/github/gh-aw/issues/27556)) — closed 2026-04-22, no confirmed PR linkage found
 - **@Ray961123** for Question: Why do some GitHub Actions steps intermittently have no logs (data-log-url) after completion? ([#26175](https://github.com/github/gh-aw/issues/26175)) — closed 2026-04-19, no confirmed PR linkage found
-- **@Henry-Shan** for Add agentic workflow: Proactive Dependency Auto-Remediation for Dependabot PRs ([#23268](https://github.com/github/gh-aw/issues/23268)) — closed 2026-03-28, no confirmed PR linkage found
+- **@samuelkahessay** for Feature request: force-rerun semantic for workflow_dispatch against the same bound issue ([#22585](https://github.com/github/gh-aw/issues/22585)) — closed 2026-04-23, no confirmed PR linkage found
 
 ## Share Feedback
 
