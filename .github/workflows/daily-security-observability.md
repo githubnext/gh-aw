@@ -46,12 +46,6 @@ steps:
       fi
 
 tools:
-  cli-proxy: true
-  agentic-workflows:
-  github:
-    mode: gh-proxy
-    toolsets:
-      - all
   bash:
     - "*"
   edit:
@@ -64,6 +58,9 @@ safe-outputs:
 timeout-minutes: 60
 
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [all]
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[security-observability] "

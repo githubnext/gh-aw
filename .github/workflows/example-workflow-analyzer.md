@@ -9,14 +9,11 @@ permissions:
   pull-requests: read
   actions: read
 engine: claude
-tools:
-  cli-proxy: true
-  agentic-workflows:
-  github:
-    mode: gh-proxy
-    toolsets: [default, actions]
 timeout-minutes: 10
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, actions]
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[workflow-analysis] "

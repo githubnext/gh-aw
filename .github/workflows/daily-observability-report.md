@@ -11,13 +11,12 @@ engine: codex
 strict: true
 tracker-id: daily-observability-report
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default, discussions, actions]
   agentic-workflows: true
 timeout-minutes: 45
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, discussions, actions]
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[observability] "

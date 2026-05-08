@@ -12,13 +12,6 @@ engine: claude
 network:
   allowed: [defaults, go]
 tools:
-  cli-proxy: true
-  agentic-workflows:
-  github:
-    mode: gh-proxy
-    toolsets:
-      - default
-      - actions
   cache-memory: true
   timeout: 600
 safe-outputs:
@@ -31,6 +24,9 @@ safe-outputs:
 timeout-minutes: 45
 strict: true
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, actions]
   - shared/reporting.md
 steps:
   - name: Build gh-aw from source

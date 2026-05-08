@@ -35,6 +35,26 @@ tools:
     - "cat scratchpad/*specification*.md"
     - "git log --oneline --since=\"14 days ago\" -- specs docs/src/content/docs/reference scratchpad"
 
+steps:
+  - name: Copy OpenSPDD prompts
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      set -euo pipefail
+      # Resolve the latest OpenSPDD main ref each run via authenticated GitHub API.
+      # This intentionally tracks upstream prompt updates while avoiding unauthenticated rate limits.
+      OPENSPDD_REF="$(gh api repos/gszhangwei/open-spdd/commits/main --jq .sha)"
+      test -n "${OPENSPDD_REF}" || { echo "::error::Failed to resolve OpenSPDD main ref"; exit 1; }
+      PROMPTS_DIR="${GITHUB_WORKSPACE}/.github/copilot-prompts"
+      mkdir -p "${PROMPTS_DIR}"
+      for PROMPT in spdd-analysis spdd-reasons-canvas spdd-generate spdd-sync; do
+        gh api \
+          -H "Accept: application/vnd.github.raw" \
+          "repos/gszhangwei/open-spdd/contents/.cursor/commands/${PROMPT}.md?ref=${OPENSPDD_REF}" \
+          > "${PROMPTS_DIR}/${PROMPT}.md"
+        test -s "${PROMPTS_DIR}/${PROMPT}.md" || { echo "::error::Failed to download ${PROMPT}.md"; exit 1; }
+      done
+
 safe-outputs:
   mentions: false
   allowed-github-references: []

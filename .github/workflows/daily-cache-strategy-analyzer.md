@@ -14,12 +14,7 @@ tracker-id: daily-cache-strategy-analyzer
 engine: codex
 strict: true
 tools:
-  cli-proxy: true
-  agentic-workflows:
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default, actions]
 safe-outputs:
   create-issue:
     expires: 7d
@@ -35,6 +30,9 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 60
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, actions]
   - shared/reporting.md
   - shared/noop-reminder.md
   - shared/otel.md

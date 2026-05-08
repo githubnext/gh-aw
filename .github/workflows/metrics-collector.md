@@ -8,12 +8,11 @@ permissions:
   discussions: read
   actions: read
 engine: copilot
+imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default]
 tools:
-  cli-proxy: true
-  agentic-workflows:
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "metrics/**"
