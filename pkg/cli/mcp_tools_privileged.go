@@ -86,7 +86,7 @@ The continuation field includes all necessary parameters (before_run_id, etc.) t
 from where the previous request stopped due to timeout.`,
 		InputSchema: logsSchema,
 		Icons: []mcp.Icon{
-			{Source: "📜"},
+			{Source: "📝"},
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Check actor permissions first
@@ -463,7 +463,7 @@ then produces a diff showing:
 Returns JSON describing the differences between the base run and each comparison run.`,
 		InputSchema: schema,
 		Icons: []mcp.Icon{
-			{Source: "🔍"},
+			{Source: "🔎"},
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditDiffArgs) (*mcp.CallToolResult, any, error) {
 		if err := checkActorPermission(ctx, actor, validateActor, "audit-diff"); err != nil {

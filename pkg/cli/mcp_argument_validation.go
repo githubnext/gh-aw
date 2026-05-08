@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -74,7 +75,10 @@ func argumentValidationMiddleware(toolParams map[string]toolParamEntry) mcp.Midd
 
 			// Determine the tool name from the request so we can look up valid params.
 			toolName := extractMCPToolName(req)
-			validParams := toolParams[toolName]
+			validParams, ok := toolParams[toolName]
+			if !ok {
+				return nil, newMCPError(jsonrpc.CodeMethodNotFound, fmt.Sprintf("unknown MCP tool: %q", toolName), nil)
+			}
 
 			mcpArgValidationLog.Printf("Intercepted unknown param error: tool=%s, unknown_params=%v", toolName, unknownParams)
 

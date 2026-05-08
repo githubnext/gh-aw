@@ -12,6 +12,9 @@ import (
 // execCmdFunc is the type for the command execution function passed to tool registrations.
 type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 
+// MCP tool handlers in this package return (*mcp.CallToolResult, any, error).
+// The second return value is a reserved SDK extension slot and must be nil for now.
+
 // createMCPServer creates and configures the MCP server with all tools
 func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string) *mcp.Server {
 	// Helper function to execute command with proper path

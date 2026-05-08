@@ -124,7 +124,7 @@ Returns JSON array with validation results for each workflow:
 - compiled_file: Path to the generated .lock.yml file`,
 		InputSchema: compileSchema,
 		Icons: []mcp.Icon{
-			{Source: "🔨"},
+			{Source: "📋"},
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
@@ -300,7 +300,7 @@ Returns formatted text output showing:
 - Secret availability status (if GitHub token is available)
 - Detailed tool information when tool parameter is specified`,
 		Icons: []mcp.Icon{
-			{Source: "🔎"},
+			{Source: "🔬"},
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting

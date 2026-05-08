@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -272,6 +273,31 @@ func TestArgumentValidationMiddleware_PassesThroughSuccessResults(t *testing.T) 
 	toolResult, ok := result.(*mcp.CallToolResult)
 	require.True(t, ok)
 	assert.False(t, toolResult.IsError)
+}
+
+// TestArgumentValidationMiddleware_UnknownToolReturnsMethodNotFound verifies
+// that an unregistered tool name is reported as method-not-found.
+func TestArgumentValidationMiddleware_UnknownToolReturnsMethodNotFound(t *testing.T) {
+	toolParams := map[string]toolParamEntry{
+		"compile": {"workflows"},
+	}
+	middleware := argumentValidationMiddleware(toolParams)
+
+	rawErr := `validating "arguments": validating root: unexpected additional properties ["workflow-name"]`
+	handler := middleware(func(_ context.Context, _ string, _ mcp.Request) (mcp.Result, error) {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{&mcp.TextContent{Text: rawErr}},
+		}, nil
+	})
+
+	result, err := handler(context.Background(), "tools/call", fakeToolCallRequest("not-a-real-tool"))
+	assert.Nil(t, result, "unknown tool should not return a result payload")
+	require.Error(t, err, "unknown tool should return a JSON-RPC error")
+
+	var rpcErr *jsonrpc.Error
+	require.ErrorAs(t, err, &rpcErr, "error should be a JSON-RPC error")
+	assert.Equal(t, int64(jsonrpc.CodeMethodNotFound), rpcErr.Code, "unknown tool should use method-not-found code")
 }
 
 // TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods verifies
