@@ -1311,7 +1311,7 @@
         },
         "value": {
           "type": "string",
-          "description": "Field value to set. For single-select fields, this must match an existing option name. For date fields, use YYYY-MM-DD."
+          "description": "Field value to set. For single-select fields, this must match an existing option name (e.g., \"P1\" or \"High\"). For date fields, use format: YYYY-MM-DD (for example, 2026-05-08)."
         },
         "secrecy": {
           "type": "string",
