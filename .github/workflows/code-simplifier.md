@@ -23,6 +23,7 @@ imports:
       labels: [refactoring, code-quality, automation]
       reviewers: [copilot]
 
+  - shared/observability-otlp.md
 network:
   allowed:
     - go
@@ -34,6 +35,7 @@ tools:
 
 timeout-minutes: 30
 strict: true
+
 ---
 
 <!-- This prompt will be imported in the agentic workflow .github/workflows/code-simplifier.md at runtime. -->

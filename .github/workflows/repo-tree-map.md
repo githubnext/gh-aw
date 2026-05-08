@@ -28,6 +28,8 @@ timeout-minutes: 5
 imports:
   - shared/reporting.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # Repository Tree Map Generator

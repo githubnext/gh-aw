@@ -28,6 +28,7 @@ imports:
     with:
       title-prefix: "[Schema Consistency] "
       expires: 1d
+  - shared/observability-otlp.md
 pre-agent-steps:
   - name: Precompute schema analysis data
     run: |
@@ -130,6 +131,7 @@ pre-agent-steps:
           in_used_not_schema: (.field_gaps.in_used_not_schema | length)
         }
       }' /tmp/gh-aw/agent/schema-diff.json
+
 ---
 # Schema Consistency Checker
 

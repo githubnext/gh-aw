@@ -12,6 +12,7 @@ engine: copilot
 imports:
   - uses: shared/pr-review-base.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
 safe-outputs:
@@ -26,6 +27,7 @@ safe-outputs:
     run-success: "🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅"
     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
+
 
 ---
 

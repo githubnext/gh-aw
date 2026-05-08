@@ -76,6 +76,8 @@ imports:
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # DeepReport - Intelligence Gathering Agent

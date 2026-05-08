@@ -377,6 +377,8 @@ safe-outputs:
 
 imports:
   - shared/otel.md
+
+  - shared/observability-otlp.md
 ---
 
 # Daily Model Inventory Checker

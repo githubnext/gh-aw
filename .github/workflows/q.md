@@ -16,6 +16,7 @@ permissions:
 engine: copilot
 imports:
   - shared/mcp/serena-go.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   agentic-workflows:
@@ -48,6 +49,7 @@ safe-outputs:
     run-failure: "🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days..."
 timeout-minutes: 30
 strict: true
+
 
 ---
 

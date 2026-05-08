@@ -19,6 +19,7 @@ imports:
       expires: "2d"
       labels: [architecture, automated-analysis, cookie]
       assignees: [copilot]
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   bash:
@@ -125,6 +126,7 @@ steps:
 
       FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
       echo "✅ Pre-computed metrics for $FILE_COUNT file(s) → /tmp/gh-aw/agent/arch-metrics.json"
+
 ---
 # Architecture Guardian
 

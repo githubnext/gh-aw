@@ -24,6 +24,8 @@ safe-outputs:
   upload-asset:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
+imports:
+  - shared/observability-otlp.md
 tools:
   agentic-workflows:
   bash:
@@ -80,6 +82,7 @@ timeout-minutes: 25
 features:
   copilot-requests: true
 source: githubnext/agentic-ops/workflows/copilot-token-audit.md@c780d8324935fe1fb30fce545832c10a8f904039
+
 ---
 
 # Daily Copilot Token Usage Audit

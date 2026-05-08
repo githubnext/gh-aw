@@ -28,6 +28,7 @@ imports:
       expires: 1d
   - shared/mcp/serena-go.md
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   repo-memory:
@@ -53,6 +54,7 @@ safe-outputs:
     max: 3
     labels: [sergo, cookie]
     expires: 7d
+
 ---
 # Sergo 🔬 - The Serena Go Expert
 

@@ -19,6 +19,7 @@ imports:
       title-prefix: "[refactoring-cadence] "
       expires: "14d"
       labels: [refactoring, ai-generated]
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -39,6 +40,7 @@ network:
 timeout-minutes: 20
 features:
   copilot-requests: true
+
 ---
 # Refactoring Cadence
 

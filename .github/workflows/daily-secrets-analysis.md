@@ -22,8 +22,10 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily secrets] "
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

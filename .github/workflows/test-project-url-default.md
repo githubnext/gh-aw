@@ -4,6 +4,8 @@ engine: copilot
 on:
   workflow_dispatch:
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
 safe-outputs:
@@ -13,6 +15,7 @@ safe-outputs:
   create-project-status-update:
     max: 1
     project: "https://github.com/orgs/<ORG>/projects/<NUMBER>"
+
 ---
 
 # Test Explicit Project URL Requirement

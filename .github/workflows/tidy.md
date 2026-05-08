@@ -31,6 +31,8 @@ timeout-minutes: 10
 network:
   allowed: ["defaults", "go"]
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -63,6 +65,7 @@ steps:
   - name: Install development dependencies
     run: make deps-dev
 strict: true
+
 ---
 
 # Code Tidying Agent

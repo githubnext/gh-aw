@@ -10,6 +10,8 @@ permissions:
   pull-requests: read
   actions: read
 engine: copilot
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   bash:
@@ -53,6 +55,7 @@ steps:
       # Exclude all .yml files in .github/workflows/
       .github/workflows/*.yml
       EOF
+
 
 ---
 

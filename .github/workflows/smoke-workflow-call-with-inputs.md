@@ -25,6 +25,8 @@ strict: true
 network:
   allowed:
     - defaults
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   bash:
@@ -34,6 +36,7 @@ safe-outputs:
   allowed-domains: [default-safe-outputs]
   noop:
 timeout-minutes: 5
+
 ---
 
 # Smoke Test: Workflow Call with Inputs

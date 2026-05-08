@@ -12,6 +12,7 @@ engine: copilot
 strict: true
 imports:
   - shared/mcp/brave.md
+  - shared/observability-otlp.md
 safe-outputs:
   add-comment:
     max: 1
@@ -27,6 +28,7 @@ features:
 
 tools:
   cli-proxy: true
+
 ---
 
 # Brave Web Search Agent

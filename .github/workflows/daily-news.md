@@ -297,8 +297,10 @@ imports:
       title-prefix: "[daily-news] "
       expires: 3d
   - shared/trends.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

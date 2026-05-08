@@ -23,6 +23,7 @@ imports:
       title-prefix: "[ubuntu-image] "
       expires: "2d"
       labels: [documentation, automation, infrastructure]
+  - shared/observability-otlp.md
 strict: true
 
 network:
@@ -42,6 +43,7 @@ tools:
     - "git"
 
 timeout-minutes: 30
+
 
 ---
 

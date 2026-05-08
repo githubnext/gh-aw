@@ -16,6 +16,7 @@ imports:
     with:
       min-integrity: approved
   - shared/reporting.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
 safe-outputs:
@@ -29,6 +30,7 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed the code quality review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."
 timeout-minutes: 15
+
 ---
 
 # PR Code Quality Reviewer 🔎

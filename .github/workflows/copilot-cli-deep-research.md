@@ -48,8 +48,10 @@ timeout-minutes: 20
 strict: true
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 # Copilot CLI Deep Research Agent

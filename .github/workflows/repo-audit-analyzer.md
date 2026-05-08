@@ -33,6 +33,8 @@ imports:
     with:
       title-prefix: "[repo-audit] "
       expires: 1d
+
+  - shared/observability-otlp.md
 ---
 # Repository Audit & Agentic Workflow Opportunity Analyzer
 

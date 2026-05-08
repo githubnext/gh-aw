@@ -23,6 +23,7 @@ imports:
       title-prefix: "[experiments] "
       expires: 3d
 
+  - shared/observability-otlp.md
 safe-outputs:
   upload-asset:
     max: 10
@@ -39,6 +40,7 @@ timeout-minutes: 30
 
 features:
   copilot-requests: true
+
 ---
 
 # Daily Experiment Report

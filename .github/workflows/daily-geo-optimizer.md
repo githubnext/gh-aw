@@ -102,6 +102,8 @@ imports:
     with:
       title-prefix: "[geo-optimizer] "
       expires: 3d
+
+  - shared/observability-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

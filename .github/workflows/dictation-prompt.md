@@ -18,6 +18,7 @@ network: defaults
 imports:
   - shared/reporting.md
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   edit:
@@ -38,6 +39,7 @@ safe-outputs:
 timeout-minutes: 10
 features:
   copilot-requests: true
+
 ---
 
 # Dictation Prompt Generator

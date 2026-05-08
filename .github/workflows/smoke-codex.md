@@ -25,6 +25,7 @@ imports:
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
   - shared/trufflehog.md
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -76,6 +77,7 @@ timeout-minutes: 15
 checkout:
   - fetch-depth: 2
     current: true
+
 ---
 
 # Smoke Test: Codex Engine Validation

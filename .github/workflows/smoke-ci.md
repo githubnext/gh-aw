@@ -30,6 +30,8 @@ engine:
     "$memory_file"; done; else printf "%b\n" "$HAIKU" >
     /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci:
     push event - no PR context, no action needed"; fi'
+imports:
+  - shared/observability-otlp.md
 tools:
   cache-memory: true
   comment-memory: true
@@ -66,6 +68,7 @@ safe-outputs:
   threat-detection: false
 timeout-minutes: 5
 strict: true
+
 ---
 
 For all events, call the tools in this exact order:

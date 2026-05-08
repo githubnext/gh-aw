@@ -27,6 +27,8 @@ safe-outputs:
     max: 1
 imports:
   - shared/reporting.md
+
+  - shared/observability-otlp.md
 ---
 
 # Workflow Normalizer

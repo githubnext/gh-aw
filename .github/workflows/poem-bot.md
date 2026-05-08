@@ -35,6 +35,7 @@ imports:
   - shared/reporting.md
 
 # Deny all network access
+  - shared/observability-otlp.md
 network: {}
 
 # Tools configuration
@@ -148,6 +149,7 @@ safe-outputs:
 # Global timeout
 timeout-minutes: 10
 strict: true
+
 
 ---
 

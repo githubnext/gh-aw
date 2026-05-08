@@ -13,6 +13,8 @@ network:
   allowed:
     - defaults
     - github
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   bash: ["*"]
@@ -30,6 +32,7 @@ timeout-minutes: 30
 checkout:
   - fetch-depth: 1
     current: true
+
 ---
 
 # Schema Feature Coverage Checker

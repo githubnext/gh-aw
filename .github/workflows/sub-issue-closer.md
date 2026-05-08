@@ -12,6 +12,8 @@ strict: true
 network:
   allowed:
     - defaults
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -27,6 +29,7 @@ safe-outputs:
     target: "*"
     max: 20
 timeout-minutes: 15
+
 ---
 
 # Sub-Issue Closer 🔒

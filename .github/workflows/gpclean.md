@@ -42,6 +42,7 @@ imports:
   - shared/reporting.md
 
 # Pre-download SBOM to get accurate dependency information
+  - shared/observability-otlp.md
 steps:
   - name: Download SBOM from GitHub Dependency Graph API
     env:
@@ -65,6 +66,7 @@ steps:
         PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/sbom.json 2>/dev/null || echo "unknown")
         echo "📊 SBOM contains ${PACKAGE_COUNT} packages"
       fi
+
 ---
 
 # GPL Dependency Cleaner (gpclean)

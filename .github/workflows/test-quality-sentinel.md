@@ -72,9 +72,11 @@ safe-outputs:
 timeout-minutes: 15
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
   inline-agents: true
+
 ---
 
 # Test Quality Sentinel 🧪

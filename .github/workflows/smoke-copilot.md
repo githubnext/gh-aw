@@ -25,6 +25,7 @@ imports:
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -129,6 +130,7 @@ features:
   inline-agents: true
 experiments:
   caveman: [yes, no]
+
 ---
 
 # Smoke Test: Copilot Engine Validation

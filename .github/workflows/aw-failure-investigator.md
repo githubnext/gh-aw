@@ -32,6 +32,8 @@ imports:
     with:
       toolsets: [default, actions]
   - shared/reporting.md
+
+  - shared/observability-otlp.md
 ---
 
 # [aw] Failure Investigator (6h)

@@ -9,6 +9,8 @@ permissions:
   actions: read
   deployments: read
 engine: copilot
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -22,6 +24,7 @@ safe-outputs:
     close-older-issues: true
   noop:
 timeout-minutes: 10
+
 ---
 
 # Deployment Incident Monitor

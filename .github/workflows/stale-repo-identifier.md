@@ -31,6 +31,7 @@ imports:
       title-prefix: "[stale-repo-identifier] "
   - shared/jqschema.md
 
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -100,6 +101,7 @@ steps:
       echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
       echo "Stale repositories data saved"
       echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
+
 ---
 
 # Stale Repository Identifier 🔍

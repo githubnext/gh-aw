@@ -28,6 +28,8 @@ imports:
       expires: 3d
   - shared/jqschema.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # GitHub API Consumption Report Agent

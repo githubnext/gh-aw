@@ -18,6 +18,7 @@ engine:
 strict: true
 imports:
   - shared/mcp/serena-go.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -39,6 +40,7 @@ safe-outputs:
 timeout-minutes: 10
 features:
   copilot-requests: true
+
 ---
 
 # Archie - Mermaid Diagram Generator

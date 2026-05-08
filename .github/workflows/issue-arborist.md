@@ -17,6 +17,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/jqschema.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -87,6 +88,7 @@ experiments:
     analysis_type: mann_whitney
     tags: [prompt-engineering, daily-workflow, issue-management]
     issue: 30015
+
 
 ---
 

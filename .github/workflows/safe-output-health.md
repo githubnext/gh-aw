@@ -20,6 +20,8 @@ imports:
       expires: 1d
   - shared/aw-logs-24h-fetch.md
   - shared/jqschema.md
+
+  - shared/observability-otlp.md
 ---
 # Safe Output Health Monitor
 

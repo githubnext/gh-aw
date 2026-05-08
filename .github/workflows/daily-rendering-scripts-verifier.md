@@ -50,6 +50,8 @@ imports:
     with:
       title-prefix: "[rendering-scripts] "
       expires: 3d
+
+  - shared/observability-otlp.md
 ---
 
 # Daily Rendering Scripts Verifier

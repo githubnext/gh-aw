@@ -22,10 +22,13 @@ safe-outputs:
     expires: 7d
     title-prefix: "[Daily Report] "
 
+imports:
+  - shared/observability-otlp.md
 tools:
   github:
     mode: gh-proxy
   cli-proxy: true
+
 ---
 
 <!--

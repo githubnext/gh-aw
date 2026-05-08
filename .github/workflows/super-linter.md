@@ -19,6 +19,7 @@ name: Super Linter Report
 timeout-minutes: 15
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 jobs:
   super_linter:
     runs-on: ubuntu-latest
@@ -90,6 +91,7 @@ tools:
   edit:
   bash:
     - "*"
+
 ---
 
 # Super Linter Analysis Report

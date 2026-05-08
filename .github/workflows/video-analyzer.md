@@ -18,6 +18,7 @@ engine: copilot
 imports:
   - shared/ffmpeg.md
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   bash: true
@@ -31,6 +32,7 @@ safe-outputs:
 
 timeout-minutes: 15
 strict: true
+
 ---
 
 # Video Analysis Agent

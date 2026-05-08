@@ -29,6 +29,8 @@ imports:
       title-prefix: "[safe-outputs-conformance] "
       expires: 1d
 
+
+  - shared/observability-otlp.md
 ---
 
 # Daily Safe Outputs Conformance Checker

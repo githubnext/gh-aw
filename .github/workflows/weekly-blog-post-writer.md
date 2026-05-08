@@ -39,6 +39,7 @@ tools:
 imports:
   - shared/github-guard-policy.md
 
+  - shared/observability-otlp.md
 safe-outputs:
   create-pull-request:
     expires: 7d
@@ -46,6 +47,7 @@ safe-outputs:
     labels: [blog]
     reviewers: [copilot]
     draft: false
+
 ---
 
 # Weekly Blog Post Writer

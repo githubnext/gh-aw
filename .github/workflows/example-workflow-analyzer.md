@@ -19,6 +19,8 @@ imports:
       title-prefix: "[workflow-analysis] "
       expires: 1d
 
+
+  - shared/observability-otlp.md
 ---
 # Weekly Workflow Analysis
 

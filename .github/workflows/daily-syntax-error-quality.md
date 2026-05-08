@@ -51,8 +51,10 @@ imports:
     with:
       title-prefix: "[syntax-error-quality] "
       expires: 3d
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

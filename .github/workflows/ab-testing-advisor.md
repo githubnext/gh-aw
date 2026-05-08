@@ -26,6 +26,8 @@ network:
   allowed:
     - defaults
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   cache-memory: true
@@ -71,6 +73,7 @@ safe-outputs:
 
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -45,6 +45,8 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # Organization Health Report

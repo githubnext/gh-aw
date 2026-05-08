@@ -30,6 +30,7 @@ imports:
       expires: "2d"
       labels: [breaking-change, automated-analysis, cookie]
       assignees: [copilot]
+  - shared/observability-otlp.md
 safe-outputs:
   messages:
     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
@@ -40,6 +41,7 @@ safe-outputs:
 timeout-minutes: 10
 features:
   copilot-requests: true
+
 ---
 
 # Breaking Change Checker

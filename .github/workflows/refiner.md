@@ -11,6 +11,7 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -32,6 +33,7 @@ timeout-minutes: 30
 concurrency:
   group: "refiner-${{ github.event.pull_request.number }}"
   cancel-in-progress: true
+
 
 ---
 

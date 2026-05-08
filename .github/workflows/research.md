@@ -26,6 +26,7 @@ imports:
   - shared/mcp/tavily.md
   - shared/reporting.md
 
+  - shared/observability-otlp.md
 safe-outputs:
   create-discussion:
     expires: 1d
@@ -36,6 +37,7 @@ timeout-minutes: 10
 strict: true
 tools:
   cli-proxy: true
+
 ---
 
 # Basic Research Agent

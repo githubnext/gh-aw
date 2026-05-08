@@ -66,6 +66,8 @@ imports:
       title-prefix: "[security-observability] "
   - shared/python-dataviz.md
 
+
+  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

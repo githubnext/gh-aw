@@ -11,6 +11,8 @@ permissions:
   # Note: PR write operations handled via safe-outputs
 engine: copilot
 strict: true
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -35,6 +37,7 @@ safe-outputs:
 timeout-minutes: 30
 features:
   copilot-requests: true
+
 ---
 
 # Stale PR Cleanup Agent 🧹

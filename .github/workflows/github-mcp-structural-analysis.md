@@ -29,6 +29,8 @@ imports:
       expires: 1d
   - shared/python-dataviz.md
 
+
+  - shared/observability-otlp.md
 ---
 # GitHub MCP Structural Analysis
 

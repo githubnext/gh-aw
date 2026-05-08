@@ -32,6 +32,8 @@ timeout-minutes: 30
 imports:
   - shared/reporting.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # Commit Changes Analyzer

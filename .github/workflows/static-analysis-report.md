@@ -28,6 +28,7 @@ imports:
     with:
       toolsets: [default, actions]
   - shared/reporting.md
+  - shared/observability-otlp.md
 steps:
   - name: Build gh-aw from source
     run: |
@@ -81,6 +82,7 @@ steps:
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"
+
 ---
 
 # Static Analysis Report

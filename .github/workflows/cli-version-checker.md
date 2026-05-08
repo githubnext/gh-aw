@@ -14,6 +14,7 @@ network:
 imports:
   - shared/jqschema.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   web-fetch:
@@ -28,6 +29,7 @@ safe-outputs:
     labels: [automation, dependencies, cookie]
     close-older-issues: true
 timeout-minutes: 45
+
 ---
 
 # CLI Version Checker

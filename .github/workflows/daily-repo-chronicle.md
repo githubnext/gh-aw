@@ -46,8 +46,10 @@ imports:
       title-prefix: "[repo-chronicle] "
       expires: 3d
   - shared/trends.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

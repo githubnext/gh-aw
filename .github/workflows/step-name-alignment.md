@@ -27,6 +27,8 @@ safe-outputs:
     title-prefix: "[step-names] "
     labels: [maintenance, step-naming, cookie]
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   cache-memory: true
@@ -40,6 +42,7 @@ tools:
     - "git log --since='24 hours ago' --oneline --name-only -- '.github/workflows/*.lock.yml'"
 
 timeout-minutes: 30
+
 
 ---
 

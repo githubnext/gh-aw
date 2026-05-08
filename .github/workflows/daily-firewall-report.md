@@ -37,6 +37,8 @@ imports:
     with:
       title-prefix: "[daily-firewall-report] "
 
+
+  - shared/observability-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

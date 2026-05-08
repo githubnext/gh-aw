@@ -13,6 +13,8 @@ safe-outputs:
 imports:
   - shared/reporting.md
 
+
+  - shared/observability-otlp.md
 ---
 # Dependabot Burner
 

@@ -19,6 +19,7 @@ imports:
       expires: "3d"
       labels: [chore, dead-code]
       reviewers: [copilot]
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -38,6 +39,7 @@ features:
 steps:
   - name: Install deadcode analyzer
     run: go install golang.org/x/tools/cmd/deadcode@latest
+
 ---
 
 # Dead Code Removal Agent

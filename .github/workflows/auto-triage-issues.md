@@ -23,6 +23,7 @@ network:
 imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -55,6 +56,7 @@ safe-outputs:
 timeout-minutes: 15
 features:
   copilot-requests: true
+
 ---
 
 # Auto-Triage Issues Agent 🏷️

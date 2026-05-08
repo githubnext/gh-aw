@@ -34,8 +34,10 @@ imports:
     with:
       toolsets: [pull_requests, actions, repos]
   - shared/reporting.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 # Dev Hawk - Development Workflow Monitor

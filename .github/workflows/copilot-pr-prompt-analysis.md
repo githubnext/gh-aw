@@ -34,6 +34,7 @@ imports:
       description: "Historical prompt pattern analysis"
   - shared/copilot-pr-analysis-base.md
 
+  - shared/observability-otlp.md
 timeout-minutes: 15
 
 features:
@@ -41,6 +42,7 @@ features:
 
 tools:
   cli-proxy: true
+
 ---
 # Copilot PR Prompt Pattern Analysis
 

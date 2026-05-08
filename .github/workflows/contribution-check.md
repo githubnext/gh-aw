@@ -16,6 +16,8 @@ engine:
   id: copilot
   agent: contribution-checker
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -94,6 +96,7 @@ steps:
         echo "# No CONTRIBUTING.md found" > "$GITHUB_WORKSPACE/contributing-guidelines.md"
         echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
       fi
+
 
 ---
 

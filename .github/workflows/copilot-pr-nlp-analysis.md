@@ -37,6 +37,7 @@ imports:
   - shared/python-nlp.md
   - shared/reporting.md
 
+  - shared/observability-otlp.md
 steps:
   - name: Fetch PR comments for detailed analysis
     env:
@@ -67,6 +68,7 @@ features:
 
 tools:
   cli-proxy: true
+
 ---
 # Copilot PR Conversation NLP Analysis
 

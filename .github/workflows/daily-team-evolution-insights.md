@@ -29,6 +29,8 @@ imports:
     with:
       title-prefix: "[daily-team-evolution] "
       expires: 1d
+
+  - shared/observability-otlp.md
 ---
 # Daily Team Evolution Insights
 

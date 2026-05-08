@@ -27,6 +27,7 @@ imports:
   - ../agents/technical-doc-writer.agent.md
   - shared/mcp/serena-go.md
 
+  - shared/observability-otlp.md
 safe-outputs:
   create-pull-request:
     expires: 2d
@@ -81,6 +82,7 @@ steps:
       echo "Recent commits: $(wc -l < /tmp/gh-aw/agent/recent-commits.txt)"
       echo "Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)"
       echo "$SCOPE" > /tmp/gh-aw/agent/scan-scope.txt
+
 
 ---
 

@@ -11,6 +11,7 @@ permissions:
 engine: codex
 imports:
   - shared/go-source-analysis.md
+  - shared/observability-otlp.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -24,6 +25,7 @@ strict: true
 
 tools:
   cli-proxy: true
+
 
 ---
 

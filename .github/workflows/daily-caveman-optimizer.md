@@ -46,6 +46,8 @@ timeout-minutes: 30
 
 imports:
   - shared/otel.md
+
+  - shared/observability-otlp.md
 ---
 
 # Daily Caveman Optimizer 🪨

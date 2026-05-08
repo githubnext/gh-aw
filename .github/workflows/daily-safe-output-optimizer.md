@@ -33,8 +33,10 @@ imports:
     with:
       title-prefix: "[safe-output-optimizer] "
       expires: 3d
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
+
 ---
 
 # Safe Output Tool Optimizer

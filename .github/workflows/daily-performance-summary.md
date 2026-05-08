@@ -28,6 +28,8 @@ imports:
       title-prefix: "[daily performance] "
   - shared/github-queries-mcp-script.md
 
+
+  - shared/observability-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

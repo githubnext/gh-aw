@@ -41,8 +41,10 @@ steps:
 imports:
   - shared/hippo-memory.md
 
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

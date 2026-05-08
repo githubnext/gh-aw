@@ -11,6 +11,7 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
+  - shared/observability-otlp.md
 pre-agent-steps:
   - name: Upgrade gh CLI
     run: |
@@ -59,6 +60,7 @@ safe-outputs:
     run-success: "🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅"
     run-failure: "🧠 [{workflow_name}]({run_url}) {status} during the skills-based review."
 timeout-minutes: 15
+
 
 ---
 

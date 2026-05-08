@@ -31,6 +31,8 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-tools-report] "
+
+  - shared/observability-otlp.md
 ---
 # GitHub MCP Remote Server Tools Report Generator
 

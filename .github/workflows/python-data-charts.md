@@ -14,6 +14,7 @@ tools:
   edit:
 imports:
   - shared/charts-with-trending.md
+  - shared/observability-otlp.md
 safe-outputs:
   upload-artifact:
     max-uploads: 3
@@ -24,6 +25,7 @@ safe-outputs:
     category: "artifacts"
     max: 1
 timeout-minutes: 15
+
 
 ---
 

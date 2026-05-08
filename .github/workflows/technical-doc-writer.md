@@ -27,6 +27,7 @@ imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
 
+  - shared/observability-otlp.md
 safe-outputs:
   add-comment:
     max: 1
@@ -75,6 +76,7 @@ tools:
   bash: true
 
 timeout-minutes: 10
+
 
 ---
 

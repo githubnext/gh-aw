@@ -18,6 +18,7 @@ imports:
     with:
       toolsets: [default, actions, repos]
   - shared/reporting.md
+  - shared/observability-otlp.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -33,6 +34,7 @@ timeout-minutes: 30
 features:
   copilot-requests: true
   inline-agents: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

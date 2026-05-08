@@ -9,6 +9,9 @@ on:
         required: true
 permissions:
   contents: read
+
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Instructions for Test Workflow

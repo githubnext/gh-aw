@@ -11,6 +11,8 @@ engine: copilot
 runtimes:
   node:
     version: "20"
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -35,6 +37,7 @@ network:
     - go
 timeout-minutes: 20
 strict: true
+
 
 ---
 

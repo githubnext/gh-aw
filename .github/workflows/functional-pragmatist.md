@@ -22,6 +22,7 @@ network:
 imports:
   - shared/reporting.md
 
+  - shared/observability-otlp.md
 safe-outputs:
   create-pull-request:
     title-prefix: "[fp-enhancer] "
@@ -39,6 +40,7 @@ tools:
 
 timeout-minutes: 45
 strict: true
+
 
 ---
 

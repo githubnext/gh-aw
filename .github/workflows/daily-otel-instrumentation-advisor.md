@@ -35,6 +35,8 @@ imports:
     with:
       title-prefix: "[otel-advisor] "
       expires: 3d
+
+  - shared/observability-otlp.md
 ---
 
 # Daily OTel Instrumentation Advisor

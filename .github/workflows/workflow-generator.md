@@ -17,6 +17,7 @@ engine:
   agent: agentic-workflows
 imports:
   - shared/github-guard-policy.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -32,6 +33,7 @@ safe-outputs:
     target: "triggering"  # Auto-resolves from github.event.issue.number
     allowed: [copilot]    # Only allow copilot agent
 timeout-minutes: 5
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

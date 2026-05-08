@@ -7,11 +7,14 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
     toolsets: [repos, issues, pull_requests]
 strict: false
+
 ---
 
 # Example: Properly Provisioned Permissions

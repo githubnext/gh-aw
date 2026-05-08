@@ -22,6 +22,7 @@ imports:
       labels: [spdd, specifications, planning, automation]
       assignees: [copilot]
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -63,6 +64,7 @@ safe-outputs:
 timeout-minutes: 20
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

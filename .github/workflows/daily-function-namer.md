@@ -21,6 +21,7 @@ imports:
       expires: 3d
   - shared/mcp/serena-go.md
 
+  - shared/observability-otlp.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -39,6 +40,7 @@ tools:
 
 timeout-minutes: 30
 strict: true
+
 ---
 
 # Daily Go Function Namer

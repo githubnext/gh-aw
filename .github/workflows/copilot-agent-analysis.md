@@ -32,10 +32,12 @@ imports:
       description: "Historical agent performance metrics"
   - shared/copilot-pr-analysis-base.md
 
+  - shared/observability-otlp.md
 timeout-minutes: 15
 
 tools:
   cli-proxy: true
+
 
 ---
 # Copilot Agent PR Analysis

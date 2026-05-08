@@ -60,6 +60,7 @@ imports:
       branch-name: "memory/delight"
       description: "Track delight findings and historical patterns"
 
+  - shared/observability-otlp.md
 pre-agent-steps:
   - name: Sample files and load memory
     run: |
@@ -76,6 +77,7 @@ pre-agent-steps:
 
 features:
   copilot-requests: true
+
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

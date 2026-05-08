@@ -20,6 +20,7 @@ imports:
       expires: 1d
   - shared/mcp/serena-go.md
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -38,6 +39,7 @@ tools:
 
 timeout-minutes: 20
 strict: true
+
 ---
 # Typist - Go Type Consistency Analysis
 

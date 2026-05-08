@@ -20,6 +20,8 @@ network:
     - ashleywolf.github.io
     - mossaka.github.io
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   playwright:
@@ -39,6 +41,7 @@ safe-outputs:
     labels: [documentation, automation]
     reviewers: [copilot]
     expires: 7d
+
 ---
 
 # Weekly Editors Health Check

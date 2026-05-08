@@ -18,9 +18,12 @@ safe-outputs:
     expires: 2d
     labels: [test]
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   cache-memory: true
+
 ---
 
 # Test Create PR Error Handling

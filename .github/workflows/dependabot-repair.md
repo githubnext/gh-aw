@@ -6,6 +6,8 @@ on:
 
 permissions: read-all
 
+imports:
+  - shared/observability-otlp.md
 tools:
   github:
     toolsets: [default]
@@ -28,6 +30,7 @@ safe-outputs:
   noop:
     max: 1
 source: githubnext/dependabot-campaign/.github/workflows/dependabot-repair.md@ff91842c074b23270d3a0e26a7206a251232a374
+
 ---
 
 # Dependabot Local Repair

@@ -40,6 +40,8 @@ imports:
     with:
       title-prefix: "[grafana-otel-advisor] "
       expires: 3d
+
+  - shared/observability-otlp.md
 ---
 
 # Daily Grafana OTel Instrumentation Advisor

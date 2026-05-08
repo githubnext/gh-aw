@@ -37,6 +37,7 @@ imports:
       expires: 1d
   - shared/docs-server-lifecycle.md
   - shared/keep-it-short.md
+  - shared/observability-otlp.md
 pre-agent-steps:
   - name: Install docs dependencies
     run: |
@@ -77,6 +78,7 @@ pre-agent-steps:
       echo "Server URL: http://localhost:4321/gh-aw/"
 features:
   copilot-requests: true
+
 ---
 
 # Documentation Noob Testing

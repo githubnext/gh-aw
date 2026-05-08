@@ -31,6 +31,7 @@ imports:
   - shared/mcp/markitdown.md
   - shared/reporting.md
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   cache-memory: true
@@ -49,6 +50,7 @@ safe-outputs:
 
 timeout-minutes: 15
 strict: true
+
 ---
 
 # Resource Summarizer Agent

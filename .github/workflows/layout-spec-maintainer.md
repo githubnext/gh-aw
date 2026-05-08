@@ -40,6 +40,8 @@ safe-outputs:
     labels: [documentation, automation]
     draft: false
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -56,6 +58,7 @@ tools:
     - "cat scratchpad/layout.md"
 
 timeout-minutes: 20
+
 
 ---
 

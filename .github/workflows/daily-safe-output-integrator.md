@@ -50,8 +50,10 @@ imports:
       title-prefix: "[safe-output-integrator] "
       expires: 3d
 
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

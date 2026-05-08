@@ -9,6 +9,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   edit:
@@ -34,6 +36,7 @@ safe-outputs:
     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
 features:
   copilot-requests: true
+
 ---
 
 # Workflow Craft Agent

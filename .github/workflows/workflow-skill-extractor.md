@@ -41,6 +41,7 @@ safe-outputs:
 
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 steps:
   - name: Build workflow index
     uses: actions/github-script@v9
@@ -101,6 +102,7 @@ steps:
         fs.mkdirSync('/tmp/gh-aw/agent', { recursive: true });
         fs.writeFileSync('/tmp/gh-aw/agent/workflow-index.json', JSON.stringify(index, null, 2) + '\n', 'utf8');
         core.info(`Indexed ${index.length} workflows`);
+
 ---
 
 # Workflow Skill Extractor

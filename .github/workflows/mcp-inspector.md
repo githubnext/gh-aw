@@ -41,12 +41,14 @@ imports:
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/mcp/serena-go.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   agentic-workflows:
   edit:
   bash: true
   cache-memory: true
+
 
 ---
 # MCP Inspector Agent

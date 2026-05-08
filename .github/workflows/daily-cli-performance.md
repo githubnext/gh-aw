@@ -61,6 +61,7 @@ imports:
       title-prefix: "[daily-cli-performance] "
       expires: 3d
   - shared/go-make.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
@@ -68,6 +69,7 @@ jobs:
   pre-activation:
     outputs:
       has_changes: ${{ steps.changes.outputs.has_changes }}
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

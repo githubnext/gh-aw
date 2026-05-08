@@ -24,6 +24,8 @@ network:
   allowed:
     - defaults
     - github
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   cache-memory:
@@ -48,6 +50,7 @@ safe-outputs:
     allowed-reasons: [spam]
   threat-detection: false
 checkout: false
+
 
 ---
 

@@ -9,6 +9,8 @@ permissions:
   pull-requests: read
   issues: read
   actions: read
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -826,6 +828,7 @@ safe-outputs:
   threat-detection: false
 timeout-minutes: 10
 strict: true
+
 
 ---
 

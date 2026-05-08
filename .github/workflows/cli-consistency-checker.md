@@ -13,6 +13,8 @@ engine: copilot
 strict: false
 network:
   allowed: [defaults, node, "api.github.com", "proxy.golang.org", "sum.golang.org"]
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   edit:
@@ -28,6 +30,7 @@ safe-outputs:
 timeout-minutes: 20
 features:
   copilot-requests: true
+
 ---
 
 # CLI Consistency Checker

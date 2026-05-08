@@ -47,6 +47,7 @@ imports:
   - shared/docs-server-lifecycle.md
 
 # Network access for documentation best practices research
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -227,6 +228,7 @@ steps:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: npm run build
+
 ---
 
 # Documentation Unbloat Workflow

@@ -24,6 +24,7 @@ imports:
     with:
       languages: ["go", "typescript"]
 
+  - shared/observability-otlp.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -55,6 +56,7 @@ timeout-minutes: 45
 strict: true
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

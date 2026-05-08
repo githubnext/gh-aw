@@ -24,6 +24,8 @@ imports:
       title-prefix: "[auth-test] "
       expires: 1d
 
+
+  - shared/observability-otlp.md
 ---
 # GitHub Remote MCP Authentication Test
 

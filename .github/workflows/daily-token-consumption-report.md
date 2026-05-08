@@ -27,6 +27,8 @@ imports:
     with:
       title-prefix: "[token-consumption] "
       expires: 1d
+
+  - shared/observability-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

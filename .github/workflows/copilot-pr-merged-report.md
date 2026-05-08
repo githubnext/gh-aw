@@ -34,9 +34,11 @@ imports:
   - shared/gh.md
   - shared/copilot-pr-analysis-base.md
 
+  - shared/observability-otlp.md
 timeout-minutes: 10
 features:
   copilot-requests: true
+
 ---
 # Daily Copilot PR Merged Report
 

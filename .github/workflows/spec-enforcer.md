@@ -25,6 +25,7 @@ strict: true
 imports:
   - shared/reporting.md
 
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -67,6 +68,7 @@ safe-outputs:
     draft: false
 
 timeout-minutes: 30
+
 ---
 
 # Package Specification Enforcer

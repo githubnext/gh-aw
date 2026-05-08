@@ -14,6 +14,8 @@ permissions:
   contents: read
   pull-requests: read
 engine: copilot
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   playwright:
@@ -70,6 +72,7 @@ steps:
       done
       echo "Dev server did not become ready in time" >&2
       exit 1
+
 ---
 
 # Visual Regression Checker

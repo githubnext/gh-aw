@@ -17,6 +17,7 @@ imports:
       title-prefix: "[daily-compiler-quality] "
       expires: 1d
   - shared/go-source-analysis.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -42,6 +43,7 @@ timeout-minutes: 30
 strict: true
 features:
   copilot-requests: true
+
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

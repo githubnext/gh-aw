@@ -31,6 +31,7 @@ imports:
   - shared/copilot-pr-data-fetch.md
   - shared/python-nlp.md
 
+  - shared/observability-otlp.md
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}
     name: Cache prompt clustering data
@@ -100,6 +101,7 @@ steps:
       find /tmp/gh-aw/workflow-logs -maxdepth 1 -ls
 
 timeout-minutes: 20
+
 ---
 # Copilot Agent Prompt Clustering Analysis
 

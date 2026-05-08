@@ -28,6 +28,8 @@ timeout-minutes: 15
 imports:
   - uses: shared/pr-review-base.md
   - shared/security-analysis-base.md
+
+  - shared/observability-otlp.md
 ---
 
 # Security Review Agent 🔒

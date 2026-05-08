@@ -52,8 +52,10 @@ imports:
   - shared/reporting.md
   - shared/otel.md
 
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

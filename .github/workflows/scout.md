@@ -31,6 +31,7 @@ imports:
   - shared/mcp/deepwiki.md
   - shared/mcp/markitdown.md
   - shared/jqschema.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   edit:
@@ -51,6 +52,7 @@ safe-outputs:
     run-failure: "🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party..."
 timeout-minutes: 20
 strict: true
+
 ---
 
 # Scout Deep Research Agent

@@ -32,6 +32,8 @@ safe-outputs:
     labels: [security, campaign-tracker, cookie]
     group: true
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -40,6 +42,7 @@ tools:
   repo-memory:
     branch-name: memory/campaigns
     file-glob: "security-compliance-*/**"
+
 
 ---
 

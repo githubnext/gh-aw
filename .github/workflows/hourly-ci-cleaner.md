@@ -117,6 +117,8 @@ timeout-minutes: 45
 imports:
   - ../agents/ci-cleaner.agent.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # CI Cleaner

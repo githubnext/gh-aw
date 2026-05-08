@@ -21,6 +21,7 @@ imports:
       title-prefix: "[compiler-threat-spec] "
       expires: 3d
 
+  - shared/observability-otlp.md
 safe-outputs:
   create-pull-request:
     title-prefix: "[compiler-threat-spec] "
@@ -43,6 +44,7 @@ tools:
     - "go test -v ./pkg/workflow/..."
 
 timeout-minutes: 30
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -11,6 +11,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -28,6 +30,7 @@ safe-outputs:
   close-discussion:
     required-category: "Ideas"
 timeout-minutes: 10
+
 
 ---
 

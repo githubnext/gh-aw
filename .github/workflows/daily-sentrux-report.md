@@ -12,6 +12,7 @@ imports:
       title-prefix: "[daily-sentrux] "
       expires: "3d"
   - shared/mcp/sentrux.md
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -25,6 +26,7 @@ tools:
     file-glob: ["*.json", "*.jsonl"]
     max-file-size: 51200
 engine: copilot
+
 ---
 
 # Daily Sentrux Codebase Quality Report

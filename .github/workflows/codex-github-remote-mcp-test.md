@@ -6,6 +6,8 @@ permissions:
   contents: read
   issues: read
 engine: codex
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -13,6 +15,7 @@ tools:
     toolsets: [repos, issues]
 timeout-minutes: 5
 strict: true
+
 
 ---
 

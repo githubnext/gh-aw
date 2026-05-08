@@ -25,6 +25,7 @@ sandbox:
 imports:
   - shared/github-guard-policy.md
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   edit:
@@ -47,6 +48,7 @@ safe-outputs:
     auto-merge: false
 
 timeout-minutes: 30
+
 ---
 
 # Weekly Safe Outputs Specification Review

@@ -28,6 +28,8 @@ safe-outputs:
       - .github/aw/**
     protected-files: allowed
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   cache-memory: true
@@ -42,6 +44,7 @@ tools:
     - "ls .github/aw/"
 
 timeout-minutes: 20
+
 ---
 
 # Instructions Janitor

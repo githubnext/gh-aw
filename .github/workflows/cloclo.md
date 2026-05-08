@@ -20,6 +20,7 @@ imports:
   - shared/jqschema.md
   - shared/mcp/serena-go.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   agentic-workflows:
@@ -45,6 +46,7 @@ safe-outputs:
     run-success: "🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟"
     run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. Check the [run logs]({run_url}) for details."
 timeout-minutes: 20
+
 
 ---
 

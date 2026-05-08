@@ -27,6 +27,8 @@ timeout-minutes: 180
 imports:
   - shared/reporting.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # Agent Persona Explorer

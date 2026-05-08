@@ -35,6 +35,8 @@ imports:
       title-prefix: "[Weekly Summary] "
       expires: 1d
   - shared/trends.md
+
+  - shared/observability-otlp.md
 ---
 # Weekly Issue Summary
 

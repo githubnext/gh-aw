@@ -57,6 +57,8 @@ imports:
     with:
       title-prefix: "[developer-docs] "
   - shared/mcp/serena-go.md
+
+  - shared/observability-otlp.md
 ---
 # Developer Documentation Consolidator
 

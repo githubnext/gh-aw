@@ -30,6 +30,7 @@ imports:
   - shared/go-make.md
   - shared/github-mcp-app.md
   - shared/mcp/serena-go.md
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -117,6 +118,7 @@ safe-outputs:
           core.info(`[FICTITIOUS SLACK] → ${targetChannel}: ${text}`);
           return { success: true, channel: targetChannel, message: text };
 timeout-minutes: 10
+
 ---
 
 # Smoke Test: Claude Engine Validation.

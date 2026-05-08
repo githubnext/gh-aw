@@ -30,6 +30,8 @@ imports:
       description: "Historical audit data and patterns"
   - shared/jqschema.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # Agentic Workflow Audit Agent

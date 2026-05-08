@@ -18,6 +18,7 @@ strict: true
 imports:
   - shared/gh.md
   - shared/reporting-otlp.md
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -48,6 +49,7 @@ safe-outputs:
       run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨"
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges..."
 timeout-minutes: 10
+
 ---
 
 # Smoke Test: Gemini Engine Validation

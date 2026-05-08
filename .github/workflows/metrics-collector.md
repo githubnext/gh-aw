@@ -12,6 +12,7 @@ imports:
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default]
+  - shared/observability-otlp.md
 tools:
   repo-memory:
     branch-name: memory/meta-orchestrators
@@ -19,6 +20,7 @@ tools:
 timeout-minutes: 15
 safe-outputs:
   noop:
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

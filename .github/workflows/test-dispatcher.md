@@ -4,11 +4,14 @@ on:
 permissions:
   contents: read
   issues: read
+imports:
+  - shared/observability-otlp.md
 safe-outputs:
   dispatch-workflow:
     workflows:
       - test-workflow
     max: 1
+
 ---
 
 # Test Dispatcher Workflow

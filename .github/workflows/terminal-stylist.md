@@ -21,6 +21,7 @@ imports:
       expires: 1d
   - shared/mcp/serena-go.md
 
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -29,6 +30,7 @@ tools:
   edit:
   bash:
     - "*"
+
 
 ---
 # Terminal Stylist - Console Output Analysis

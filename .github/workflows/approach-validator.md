@@ -24,6 +24,7 @@ engine: claude
 imports:
   - shared/safe-output-upload-artifact.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -49,6 +50,7 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed the approach validation. Review the report and react with ✅ or ❌."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during approach validation."
 timeout-minutes: 30
+
 ---
 
 # Approach Validator 🔬

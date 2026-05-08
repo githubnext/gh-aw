@@ -39,8 +39,10 @@ imports:
       title-prefix: "[claude-code-user-docs-review] "
       expires: 1d
 
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
+
 ---
 # Claude Code User Documentation Review
 

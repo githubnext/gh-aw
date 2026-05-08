@@ -43,6 +43,8 @@ tools:
 imports:
   - shared/reporting.md
 
+
+  - shared/observability-otlp.md
 ---
 # Dependabot Dependency Checker
 

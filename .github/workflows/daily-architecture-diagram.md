@@ -37,10 +37,12 @@ imports:
       title-prefix: "[architecture-diagram] "
       expires: 3d
 
+  - shared/observability-otlp.md
 timeout-minutes: 20
 strict: true
 features:
   copilot-requests: true
+
 ---
 
 # Architecture Diagram Generator

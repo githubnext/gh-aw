@@ -17,11 +17,14 @@ network:
   
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   web-fetch:
 
 timeout-minutes: 5
+
 ---
 
 # Firewall Test Agent

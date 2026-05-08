@@ -26,6 +26,7 @@ imports:
       assignees: [copilot]
   - shared/go-source-analysis.md
 
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -73,6 +74,7 @@ timeout-minutes: 25
 features:
   copilot-requests: true
   inline-agents: true
+
 ---
 
 # Package Specification Librarian

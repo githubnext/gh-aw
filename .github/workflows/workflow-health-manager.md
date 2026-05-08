@@ -32,6 +32,7 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 steps:
   - name: Build Inventory
     env:
@@ -60,6 +61,7 @@ pre-agent-steps:
         echo '[]' > /tmp/gh-aw/agent/failing-workflows.json
       fi
       echo "Metrics loaded: $(jq 'length' /tmp/gh-aw/agent/failing-workflows.json) failing workflows (<80% success)"
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

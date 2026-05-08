@@ -22,6 +22,8 @@ network:
     - defaults
     - node
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   bash:
@@ -71,6 +73,7 @@ jobs:
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
             echo "No npm updates available in docs folder, skipping agent job"
           fi
+
 ---
 
 # Update Astro

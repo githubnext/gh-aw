@@ -39,6 +39,8 @@ safe-outputs:
     title-prefix: "[Firewall Escape] "
     max: 1
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   github:
@@ -85,6 +87,7 @@ jobs:
             });
 features:
   copilot-requests: true
+
 ---
 
 # The Great Escapi

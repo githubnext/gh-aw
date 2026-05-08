@@ -43,6 +43,8 @@ imports:
   - shared/changeset-format.md
   - shared/jqschema.md
 
+
+  - shared/observability-otlp.md
 ---
 
 # Changeset Generator

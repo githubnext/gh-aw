@@ -18,6 +18,7 @@ imports:
   - shared/reporting.md
   - shared/go-source-analysis.md
 
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -150,6 +151,7 @@ safe-outputs:
 timeout-minutes: 30
 features:
   copilot-requests: true
+
 ---
 
 # Package Specification Extractor

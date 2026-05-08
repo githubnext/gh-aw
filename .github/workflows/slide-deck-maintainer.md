@@ -27,6 +27,7 @@ imports:
     with:
       title-prefix: "[slides] "
       expires: "1d"
+  - shared/observability-otlp.md
 timeout-minutes: 45
 tools:
   cli-proxy: true
@@ -67,6 +68,7 @@ steps:
     run: |
       cd docs
       npm ci
+
 ---
 
 # Slide Deck Maintenance Agent

@@ -15,6 +15,7 @@ engine: claude
 imports:
   - shared/go-source-analysis.md
 
+  - shared/observability-otlp.md
 safe-outputs:
   close-issue:
     required-title-prefix: "[refactor] "
@@ -35,6 +36,7 @@ tools:
 
 timeout-minutes: 20
 strict: true
+
 ---
 
 # Semantic Function Clustering and Refactoring

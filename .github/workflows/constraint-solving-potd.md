@@ -10,6 +10,8 @@ engine:
   id: copilot
   bare: true
 
+imports:
+  - shared/observability-otlp.md
 tools:
   cli-proxy: true
   cache-memory: true
@@ -24,6 +26,7 @@ safe-outputs:
     labels: [constraint-solving, problem-of-the-day]
     close-older-discussions: true
     expires: 7d
+
 ---
 
 # Constraint Solving — Problem of the Day
