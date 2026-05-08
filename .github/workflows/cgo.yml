@@ -1718,6 +1718,7 @@ jobs:
           const failedJobs = Object.entries(needs)
             .filter(([, job]) => job.result === 'failure')
             .map(([name]) => name);
+          const hasFuzzFailure = failedJobs.some(name => name === 'fuzz' || name.startsWith('fuzz-'));
 
           if (failedJobs.length === 0) {
             core.info('No jobs failed. Nothing to do.');
@@ -1734,13 +1735,18 @@ jobs:
             state: 'open',
           });
 
-          if (existingIssues.data.length > 0) {
+          if (existingIssues.data.length > 0 && !hasFuzzFailure) {
             core.info(`Existing CGO failure issue #${existingIssues.data[0].number} is still open. Skipping.`);
             return;
           }
 
           // Ensure required labels exist, creating them if missing
-          for (const [label, color] of [['cookie', 'e4e669'], ['cgo-failure', 'b60205']]) {
+          const requiredLabels = [['cookie', 'e4e669'], ['cgo-failure', 'b60205']];
+          if (hasFuzzFailure) {
+            requiredLabels.push(['cgo-fuzz-failure', 'd93f0b']);
+          }
+
+          for (const [label, color] of requiredLabels) {
             try {
               await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name: label });
             } catch (e) {
@@ -1782,6 +1788,7 @@ jobs:
             `## CGO Workflow Failure`,
             ``,
             `Workflow run [#${context.runNumber}](${runUrl}) on the \`main\` branch completed with failed jobs.`,
+            hasFuzzFailure ? `Detected failure in the \`fuzz\` job matrix. A dedicated fuzz failure label was applied so this run is tracked.` : ``,
             ``,
             `| Field | Value |`,
             `| --- | --- |`,
@@ -1800,12 +1807,19 @@ jobs:
             `> ${expirationLine}`,
           ].join('\n');
 
+          const issueLabels = ['cookie', 'cgo-failure'];
+          if (hasFuzzFailure) {
+            issueLabels.push('cgo-fuzz-failure');
+          }
+
           const issue = await github.rest.issues.create({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            title: `[CGO] Workflow failure on main - Run #${context.runNumber}`,
+            title: hasFuzzFailure
+              ? `[CGO][FUZZ] Workflow failure on main - Run #${context.runNumber}`
+              : `[CGO] Workflow failure on main - Run #${context.runNumber}`,
             body,
-            labels: ['cookie', 'cgo-failure'],
+            labels: issueLabels,
           });
 
           core.info(`Created issue #${issue.data.number}: ${issue.data.html_url}`);
