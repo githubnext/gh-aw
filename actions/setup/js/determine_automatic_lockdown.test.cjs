@@ -204,6 +204,7 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.info).toHaveBeenCalledWith("Repository visibility: public");
     expect(mockCore.info).toHaveBeenCalledWith("Repository is private: false");
     expect(mockCore.info).toHaveBeenCalledWith("Automatic guard policy determination complete for public repository");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("guard policy automatically applied"));
   });
 
   it("should write resolved guard policy values to step summary for public repository", async () => {
