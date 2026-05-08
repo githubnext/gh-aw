@@ -66,7 +66,7 @@ function validateInputs(branch, owner, repo, repository) {
   }
 
   if (!REPOSITORY_PART_PATTERN.test(owner) || !REPOSITORY_PART_PATTERN.test(repo)) {
-    return { valid: false, error: "GITHUB_REPOSITORY is not set" };
+    return { valid: false, error: "GITHUB_REPOSITORY contains invalid characters" };
   }
 
   return { valid: true };
