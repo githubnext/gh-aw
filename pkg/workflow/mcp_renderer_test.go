@@ -696,6 +696,12 @@ func TestRenderJSONMCPConfig_ToolTimeout(t *testing.T) {
 			expected:    30,
 			wantField:   true,
 		},
+		{
+			name:        "rounds fractional toolTimeout to nearest second",
+			toolTimeout: "90500ms",
+			expected:    91,
+			wantField:   true,
+		},
 	}
 
 	for _, tt := range tests {
