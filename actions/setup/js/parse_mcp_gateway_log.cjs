@@ -22,6 +22,10 @@ const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
 const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
 const MAX_RPC_MESSAGE_LABEL_LENGTH = 80;
 const TOP_LEVEL_RPC_IGNORED_KEYS = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
+// ET/rate-limit indicators seen in gateway/runtime logs, e.g.:
+// - "effective_tokens limit exceeded"
+// - "rate limit ... effective tokens"
+// - "429 too many requests ... ET budget"
 const ET_RATE_LIMIT_PATTERNS = [
   /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,

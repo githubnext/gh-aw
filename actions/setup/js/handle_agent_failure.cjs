@@ -854,7 +854,7 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
   const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${maxEffectiveTokens}\`` : "";
   const runLine = runUrl ? `\n- Run: ${runUrl}` : "";
 
-  return `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.${usageLine}${budgetLine}${runLine}\n\nPrefer ET budget controls for diagnosis instead of run-count heuristics.\n`;
+  return `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.${usageLine}${budgetLine}${runLine}\n\nPrefer ET budget controls for diagnosis instead of run-count heuristics. You can tune this limit with \`engine.max-effective-tokens\` in workflow frontmatter.\n`;
 }
 
 /**
