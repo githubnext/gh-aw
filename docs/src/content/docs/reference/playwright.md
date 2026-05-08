@@ -79,7 +79,7 @@ tools:
     version: "0.1.11"  # @playwright/cli npm package version (default)
 ```
 
-**Default** (CLI mode): `0.1.11`
+**Default** (CLI mode): `0.1.13`
 
 **MCP mode** (deprecated) — pins the Playwright browser Docker image version:
 
