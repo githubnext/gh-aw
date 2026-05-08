@@ -159,6 +159,18 @@ func TestRuntimeImportExpressionValidation(t *testing.T) {
 			description: "secrets.TOKEN in OR right side must be blocked",
 		},
 		{
+			name:        "unsafe comparison with secrets on right",
+			expression:  "github.actor == secrets.TOKEN",
+			expectSafe:  false,
+			description: "secrets.TOKEN on comparison RHS must be blocked",
+		},
+		{
+			name:        "malformed comparison with trailing unsafe content",
+			expression:  "github.actor == 'value' |\x0f secrets.TOKEN",
+			expectSafe:  false,
+			description: "Malformed comparisons must not pass via partial comparison matching",
+		},
+		{
 			name:        "unsafe compound with secrets",
 			expression:  "secrets.TOKEN == 'x' && github.actor || github.repository",
 			expectSafe:  false,

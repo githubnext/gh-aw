@@ -3,6 +3,7 @@
 package actionpins_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -269,6 +270,62 @@ func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
 	assert.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
 	assert.Contains(t, result, latestPin.SHA, "resolved reference should contain the pin SHA")
 }
+
+// testSHAResolver is a fake SHAResolver used in tests.
+type testSHAResolver struct {
+	sha string
+	err error
+}
+
+func (r *testSHAResolver) ResolveSHA(_ context.Context, _, _ string) (string, error) {
+	return r.sha, r.err
+}
+
+// TestSpec_DynamicResolution_VersionCommentConsistency validates that when dynamic resolution
+// succeeds and the returned SHA matches an embedded pin, the version comment includes both
+// the resolved version and the source version — consistent with the embedded-fallback path.
+func TestSpec_DynamicResolution_VersionCommentConsistency(t *testing.T) {
+	known := "actions/checkout"
+	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
+	require.True(t, ok, "prerequisite: known repo must be in embedded data")
+
+	t.Run("shows resolved version and source version when SHA matches embedded pin", func(t *testing.T) {
+		// Simulate dynamic resolution returning the same SHA as the embedded pin,
+		// but requested with a shorter version tag (e.g. "v4" instead of "v4.1.2").
+		sourceVersion := "v4"
+		ctx := &actionpins.PinContext{
+			Resolver: &testSHAResolver{sha: latestPin.SHA},
+			Warnings: make(map[string]bool),
+		}
+		result, err := actionpins.ResolveActionPin(known, sourceVersion, ctx)
+		require.NoError(t, err)
+		assert.Contains(t, result, latestPin.SHA, "result should contain the resolved SHA")
+		assert.Contains(t, result, latestPin.Version, "result should contain the resolved version")
+		assert.Contains(t, result, sourceVersion, "result should contain the source version")
+	})
+
+	t.Run("shows only source version when SHA is not in embedded pins", func(t *testing.T) {
+		unknownSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		sourceVersion := "v4"
+		ctx := &actionpins.PinContext{
+			Resolver: &testSHAResolver{sha: unknownSHA},
+			Warnings: make(map[string]bool),
+		}
+		result, err := actionpins.ResolveActionPin(known, sourceVersion, ctx)
+		require.NoError(t, err)
+		assert.Contains(t, result, unknownSHA, "result should contain the resolved SHA")
+		assert.Contains(t, result, sourceVersion, "result should contain the source version")
+	})
+
+	t.Run("skips version comment when version is already a SHA", func(t *testing.T) {
+		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+		result, err := actionpins.ResolveActionPin(known, latestPin.SHA, ctx)
+		require.NoError(t, err)
+		assert.Contains(t, result, latestPin.SHA, "result should contain the SHA")
+		// Resolver is not called for SHA inputs; only version comment content matters
+	})
+}
+
 
 // TestSpec_PublicAPI_GetActionPins_SPEC_MISMATCH documents a spec-implementation gap.
 // SPEC_MISMATCH: The README specifies GetActionPins() []ActionPin ("Returns all loaded pins")
