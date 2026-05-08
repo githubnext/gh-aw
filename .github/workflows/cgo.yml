@@ -1740,6 +1740,23 @@ jobs:
             return;
           }
 
+          if (hasFuzzFailure) {
+            const existingFuzzIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'cgo-fuzz-failure',
+              state: 'open',
+            });
+
+            const existingFuzzIssueForRun = existingFuzzIssues.data.find(issue =>
+              issue.title.includes(`Run #${context.runNumber}`),
+            );
+            if (existingFuzzIssueForRun) {
+              core.info(`Fuzz failure issue #${existingFuzzIssueForRun.number} already exists for run #${context.runNumber}. Skipping.`);
+              return;
+            }
+          }
+
           // Ensure required labels exist, creating them if missing
           const requiredLabels = [['cookie', 'e4e669'], ['cgo-failure', 'b60205']];
           if (hasFuzzFailure) {
@@ -1788,7 +1805,6 @@ jobs:
             `## CGO Workflow Failure`,
             ``,
             `Workflow run [#${context.runNumber}](${runUrl}) on the \`main\` branch completed with failed jobs.`,
-            hasFuzzFailure ? `Detected failure in the \`fuzz\` job matrix. A dedicated fuzz failure label was applied so this run is tracked.` : ``,
             ``,
             `| Field | Value |`,
             `| --- | --- |`,
@@ -1805,7 +1821,18 @@ jobs:
             ``,
             `> This issue expires at ${expiresAt}. Please investigate the failed jobs above and close once resolved.`,
             `> ${expirationLine}`,
-          ].join('\n');
+          ];
+
+          if (hasFuzzFailure) {
+            body.splice(
+              4,
+              0,
+              `Detected failure in the \`fuzz\` job matrix. A dedicated fuzz failure label was applied so this run is tracked.`,
+              ``,
+            );
+          }
+
+          const issueBody = body.join('\n');
 
           const issueLabels = ['cookie', 'cgo-failure'];
           if (hasFuzzFailure) {
@@ -1818,7 +1845,7 @@ jobs:
             title: hasFuzzFailure
               ? `[CGO][FUZZ] Workflow failure on main - Run #${context.runNumber}`
               : `[CGO] Workflow failure on main - Run #${context.runNumber}`,
-            body,
+            body: issueBody,
             labels: issueLabels,
           });
 
