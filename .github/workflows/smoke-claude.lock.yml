@@ -961,7 +961,7 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@2.1.133
       - name: Install Playwright CLI
-        run: npm install -g @playwright/cli@0.1.11
+        run: npm install -g @playwright/cli@0.1.13
       - name: Install Playwright CLI skills
         run: playwright-cli install --skills
       - name: Determine automatic lockdown mode for GitHub MCP Server
