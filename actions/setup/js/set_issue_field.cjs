@@ -346,10 +346,6 @@ async function main(config = {}) {
         resolvedField = resolvedFieldByName;
       }
 
-      if (!resolvedField && resolvedFieldByName) {
-        resolvedField = resolvedFieldByName;
-      }
-
       if (fieldNodeId && !resolvedField) {
         const availableFieldsSummary = availableFields.map(field => `${field.name} (${field.id})`).join(", ");
         const error = `Issue field ID ${JSON.stringify(fieldNodeId)} not found. Available fields: ${availableFieldsSummary}. Use a valid field_node_id or provide field_name.`;
@@ -357,7 +353,8 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
-      if (fieldNodeId && fieldName && resolvedFieldByName && resolvedField && resolvedFieldByName.id !== resolvedField.id) {
+      const hasConflictingFieldIdentifiers = Boolean(fieldNodeId && fieldName && resolvedFieldByName && resolvedField && resolvedFieldByName.id !== resolvedField.id);
+      if (hasConflictingFieldIdentifiers) {
         const error = `field_name ${JSON.stringify(fieldName)} resolves to ${JSON.stringify(resolvedFieldByName.id)}, but field_node_id was ${JSON.stringify(fieldNodeId)}. Provide only one identifier or make them match.`;
         core.error(error);
         return { success: false, error };
