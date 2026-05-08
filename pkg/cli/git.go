@@ -18,8 +18,8 @@ import (
 var gitLog = logger.New("cli:git")
 
 func isGitRepo() bool {
-	cmd := exec.Command("git", "rev-parse", "--git-dir")
-	return cmd.Run() == nil
+	_, err := gitutil.FindGitRoot()
+	return err == nil
 }
 
 // findGitRootForPath finds the root directory of the git repository containing the specified path
@@ -41,13 +41,11 @@ func findGitRootForPath(path string) (string, error) {
 	// Use the directory containing the file
 	dir := filepath.Dir(absPath)
 
-	// Run git command in the file's directory
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
+	// Find git root using filesystem traversal from the file's directory
+	gitRoot, err := gitutil.FindGitRootFrom(dir)
 	if err != nil {
 		return "", fmt.Errorf("failed to get repository root for path %s: %w", path, err)
 	}
-	gitRoot := strings.TrimSpace(string(output))
 	gitLog.Printf("Found git root for path: %s", gitRoot)
 	return gitRoot, nil
 }

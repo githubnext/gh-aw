@@ -270,8 +270,9 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 // FindGitRoot as described in the package README.md.
 //
 // Specification: Returns the absolute path of the root directory of the current
-// Git repository by running `git rev-parse --show-toplevel`. Returns an error
-// if the working directory is not inside a Git repository.
+// Git repository using pure Go filesystem traversal (looks for .git in the
+// current directory and its parents). Returns an error if the working directory
+// is not inside a Git repository.
 func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 	t.Run("returns non-empty absolute path when in git repository", func(t *testing.T) {
 		root, err := FindGitRoot()

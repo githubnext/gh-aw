@@ -3,6 +3,7 @@
 package gitutil
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -290,6 +291,43 @@ func TestFindGitRoot(t *testing.T) {
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should succeed when running inside a git repository")
 		assert.NotEmpty(t, gitRoot, "FindGitRoot should return a non-empty path")
+	})
+}
+
+func TestFindGitRootFrom(t *testing.T) {
+	t.Run("returns git root from the repository root itself", func(t *testing.T) {
+		gitRoot, err := FindGitRoot()
+		require.NoError(t, err, "must be inside a git repository")
+
+		root, err := FindGitRootFrom(gitRoot)
+		require.NoError(t, err, "FindGitRootFrom should succeed when starting from the git root")
+		assert.Equal(t, gitRoot, root, "FindGitRootFrom from git root should return git root")
+	})
+
+	t.Run("returns git root from a subdirectory", func(t *testing.T) {
+		gitRoot, err := FindGitRoot()
+		require.NoError(t, err, "must be inside a git repository")
+
+		// Use a known subdirectory within the repo
+		subDir := filepath.Join(gitRoot, "pkg")
+		if _, statErr := os.Stat(subDir); os.IsNotExist(statErr) {
+			t.Skip("pkg/ subdirectory not found, skipping subdirectory test")
+		}
+
+		root, err := FindGitRootFrom(subDir)
+		require.NoError(t, err, "FindGitRootFrom should succeed from a subdirectory")
+		assert.Equal(t, gitRoot, root, "FindGitRootFrom from subdirectory should return the git root")
+	})
+
+	t.Run("returns error when starting outside any git repository", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a nested directory that is definitely not a git repo
+		nonRepoDir := filepath.Join(tmpDir, "not-a-git-repo", "subdir")
+		require.NoError(t, os.MkdirAll(nonRepoDir, 0755), "should create nested temp dir")
+
+		_, err := FindGitRootFrom(nonRepoDir)
+		require.Error(t, err, "FindGitRootFrom should return error outside a git repository")
+		assert.Contains(t, err.Error(), "not in a git repository", "error should mention not in git repository")
 	})
 }
 

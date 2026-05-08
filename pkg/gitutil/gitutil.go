@@ -1,7 +1,9 @@
 package gitutil
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -75,18 +77,45 @@ func ExtractBaseRepo(repoPath string) string {
 }
 
 // FindGitRoot finds the root directory of the git repository.
-// Returns an error if not in a git repository or if the git command fails.
+// Uses pure Go filesystem traversal to avoid requiring the git executable,
+// which can fail when the binary runs under Rosetta 2 on macOS ARM64 or in
+// environments where git is not on PATH.
+// Returns an error if not in a git repository.
 func FindGitRoot() (string, error) {
 	log.Print("Finding git root directory")
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
+
+	dir, err := os.Getwd()
 	if err != nil {
-		log.Printf("Failed to find git root: %v", err)
+		log.Printf("Failed to get current directory: %v", err)
 		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
 	}
-	gitRoot := strings.TrimSpace(string(output))
-	log.Printf("Found git root: %s", gitRoot)
-	return gitRoot, nil
+
+	root, err := FindGitRootFrom(dir)
+	if err != nil {
+		log.Printf("Failed to find git root: %v", err)
+		return "", err
+	}
+
+	log.Printf("Found git root: %s", root)
+	return root, nil
+}
+
+// FindGitRootFrom finds the root directory of the git repository starting from
+// the given directory. It traverses upward until it finds a .git entry (file or
+// directory) or reaches the filesystem root.
+// Returns an error if not in a git repository.
+func FindGitRootFrom(startDir string) (string, error) {
+	dir := startDir
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", errors.New("not in a git repository")
+		}
+		dir = parent
+	}
 }
 
 // ReadFileFromHEADWithRoot is like ReadFileFromHEAD but accepts a pre-computed git
