@@ -88,6 +88,12 @@ Generate a daily NLP-based analysis report of Copilot-created PRs merged within 
 - **Python Environment**: NumPy, Pandas, Matplotlib, Seaborn, SciPy, NLTK, scikit-learn, TextBlob, WordCloud
 - **Output Directory**: `/tmp/gh-aw/python/charts/`
 
+### Runtime Constraint (Required)
+
+- Python analysis dependencies are already installed by pre-agent workflow steps.
+- **Do NOT run any `pip install` commands in agent turns.**
+- Run Python scripts with `/tmp/gh-aw/venv/bin/python3` to use the preinstalled environment.
+
 ## Task Overview
 
 ### Phase 1: Load and Parse PR Conversation Data
