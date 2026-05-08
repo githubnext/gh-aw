@@ -121,7 +121,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -130,8 +130,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: "gpt-5-mini"
-          GH_AW_INFO_VERSION: "1.0.40"
-          GH_AW_INFO_AGENT_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_AGENT_VERSION: "1.0.43"
           GH_AW_INFO_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -382,7 +382,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -453,7 +453,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.40
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.43
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1043,7 +1043,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1186,7 +1186,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1271,7 +1271,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.40
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.43
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1379,7 +1379,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1428,7 +1428,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5-mini"
-      GH_AW_ENGINE_VERSION: "1.0.40"
+      GH_AW_ENGINE_VERSION: "1.0.43"
       GH_AW_WORKFLOW_ID: "auto-triage-issues"
       GH_AW_WORKFLOW_NAME: "Auto-Triage Issues"
     outputs:
@@ -1456,7 +1456,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
