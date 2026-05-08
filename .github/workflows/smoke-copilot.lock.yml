@@ -859,6 +859,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "fields": {
+                    "type": "array"
+                  },
                   "labels": {
                     "type": "array",
                     "itemType": "string",
