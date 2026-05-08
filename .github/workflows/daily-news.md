@@ -291,7 +291,7 @@ imports:
       branch-name: "memory/daily-news"
       description: "Historical news digest data"
   - shared/mcp/tavily.md
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-news] "

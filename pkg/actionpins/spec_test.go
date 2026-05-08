@@ -326,7 +326,6 @@ func TestSpec_DynamicResolution_VersionCommentConsistency(t *testing.T) {
 	})
 }
 
-
 // TestSpec_PublicAPI_GetActionPins_SPEC_MISMATCH documents a spec-implementation gap.
 // SPEC_MISMATCH: The README specifies GetActionPins() []ActionPin ("Returns all loaded pins")
 // but this function is not implemented. Only GetActionPinsByRepo(repo string) is available.

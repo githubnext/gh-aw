@@ -116,7 +116,7 @@ Import this component in your workflow:
 ```yaml
 imports:
   - shared/copilot-pr-data-fetch.md
-  - shared/jqschema.md  # Required for schema generation
+  - ../skills/jqschema/SKILL.md  # Required for schema generation
 ```
 
 Then access the pre-fetched data in your workflow prompt:
@@ -135,7 +135,7 @@ jq '[.[].number]' /tmp/gh-aw/pr-data/copilot-prs.json
 
 ### Requirements
 
-- Requires `jqschema.md` to be imported for schema generation
+- Requires the `jqschema` skill to be imported for schema generation
 - Uses `gh pr list` with the `--search "head:copilot/"` pattern for reliable Copilot PR detection
 - Cross-platform date calculation (works on both GNU and BSD date commands)
 - Cache-memory tool is automatically configured for data persistence

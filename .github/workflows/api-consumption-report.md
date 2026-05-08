@@ -26,7 +26,7 @@ imports:
     with:
       title-prefix: "[api-consumption] "
       expires: 3d
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
 
 
   - shared/observability-otlp.md

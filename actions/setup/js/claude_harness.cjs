@@ -61,7 +61,11 @@ const MAX_DELAY_MS = 60000;
 const OVERLOADED_ERROR_PATTERN = /overloaded_error|"overloaded"/i;
 
 // Pattern to detect Anthropic rate-limit errors (HTTP 429).
-const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests/i;
+// Claude CLI may surface this as:
+//   - transport-style text (e.g. "429 Too Many Requests")
+//   - embedded stream-json result fields (e.g. "api_error_status":429)
+//   - human-readable message text ("rate limit")
+const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
@@ -341,6 +345,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     resolveClaudePromptFileArgs,
     stripPromptFileArgs,
+    isRateLimitError,
     isMaxTurnsExit,
     isNoDeferredMarkerError,
   };

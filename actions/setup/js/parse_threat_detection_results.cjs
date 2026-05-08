@@ -263,6 +263,8 @@ async function main() {
   const logPath = path.join(threatDetectionDir, DETECTION_LOG_FILENAME);
   const runDetection = process.env.RUN_DETECTION;
   const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== "false";
+  const detectionExecutionOutcome = process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME || "";
+  const detectionExecutionFailed = detectionExecutionOutcome === "failure";
   const isWarnMode = continueOnError;
 
   /**
@@ -273,8 +275,9 @@ async function main() {
    * @param {string} message - Human-readable error message
    */
   function setDetectionFailure(reason, message) {
+    const mustFail = detectionExecutionFailed && (reason === "agent_failure" || reason === "parse_error");
     core.setOutput("reason", reason);
-    if (isWarnMode) {
+    if (isWarnMode && !mustFail) {
       core.warning(`⚠️ ${message}`);
       core.setOutput("conclusion", "warning");
       core.setOutput("success", "false");
@@ -309,6 +312,7 @@ async function main() {
     core.info("════════════════════════════════════════════════════════");
     core.info(`📋 RUN_DETECTION env: ${JSON.stringify(runDetection)}`);
     core.info(`📋 continue-on-error: ${continueOnError}`);
+    core.info(`📋 detection execution outcome: ${JSON.stringify(detectionExecutionOutcome)}`);
     core.info(`📁 Threat detection directory: ${threatDetectionDir}`);
     core.info(`📄 Detection log path: ${logPath}`);
 

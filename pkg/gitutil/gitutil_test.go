@@ -3,6 +3,7 @@
 package gitutil
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -290,6 +291,90 @@ func TestFindGitRoot(t *testing.T) {
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should succeed when running inside a git repository")
 		assert.NotEmpty(t, gitRoot, "FindGitRoot should return a non-empty path")
+	})
+}
+
+func TestFindGitRootFrom(t *testing.T) {
+	t.Run("returns git root from the repository root itself", func(t *testing.T) {
+		gitRoot, err := FindGitRoot()
+		require.NoError(t, err, "must be inside a git repository")
+
+		root, err := FindGitRootFrom(gitRoot)
+		require.NoError(t, err, "FindGitRootFrom should succeed when starting from the git root")
+		assert.Equal(t, gitRoot, root, "FindGitRootFrom from git root should return git root")
+	})
+
+	t.Run("returns git root from a subdirectory", func(t *testing.T) {
+		gitRoot, err := FindGitRoot()
+		require.NoError(t, err, "must be inside a git repository")
+
+		// Create a temporary subdirectory inside the repo to avoid depending on
+		// specific repo layout (e.g. pkg/ may not exist in all test environments).
+		subDir, mkdirErr := os.MkdirTemp(gitRoot, "test-subdir-*")
+		require.NoError(t, mkdirErr, "should create temp subdir inside git repo")
+		defer os.RemoveAll(subDir)
+
+		root, err := FindGitRootFrom(subDir)
+		require.NoError(t, err, "FindGitRootFrom should succeed from a subdirectory")
+		assert.Equal(t, gitRoot, root, "FindGitRootFrom from subdirectory should return the git root")
+	})
+
+	t.Run("returns error when starting outside any git repository", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a nested directory that is definitely not a git repo
+		nonRepoDir := filepath.Join(tmpDir, "not-a-git-repo", "subdir")
+		require.NoError(t, os.MkdirAll(nonRepoDir, 0755), "should create nested temp dir")
+
+		_, err := FindGitRootFrom(nonRepoDir)
+		require.Error(t, err, "FindGitRootFrom should return error outside a git repository")
+		assert.Contains(t, err.Error(), "not in a git repository", "error should mention not in git repository")
+	})
+
+	t.Run("returns git root when .git is a worktree marker file", func(t *testing.T) {
+		// Simulate a git worktree: the repo root has a .git *file* (not dir)
+		// whose content begins with "gitdir: /some/path"
+		tmpDir := t.TempDir()
+		repoRoot := filepath.Join(tmpDir, "worktree-repo")
+		require.NoError(t, os.MkdirAll(repoRoot, 0755))
+
+		// Write a valid worktree .git file
+		gitFile := filepath.Join(repoRoot, ".git")
+		require.NoError(t, os.WriteFile(gitFile, []byte("gitdir: /tmp/real-repo/.git/worktrees/myworktree\n"), 0644))
+
+		// Start from the root itself
+		root, err := FindGitRootFrom(repoRoot)
+		require.NoError(t, err, "FindGitRootFrom should detect a worktree .git file")
+		assert.Equal(t, repoRoot, root)
+
+		// Start from a subdirectory inside the worktree
+		subDir := filepath.Join(repoRoot, "pkg", "sub")
+		require.NoError(t, os.MkdirAll(subDir, 0755))
+		root, err = FindGitRootFrom(subDir)
+		require.NoError(t, err, "FindGitRootFrom should detect worktree root from a subdirectory")
+		assert.Equal(t, repoRoot, root)
+	})
+
+	t.Run("ignores non-worktree .git files without gitdir prefix", func(t *testing.T) {
+		// A plain file named .git that does NOT start with "gitdir:" should not
+		// be treated as a valid repo root.
+		tmpDir := t.TempDir()
+		repoRoot := filepath.Join(tmpDir, "fake-git-file")
+		require.NoError(t, os.MkdirAll(repoRoot, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(repoRoot, ".git"), []byte("not a valid git file\n"), 0644))
+
+		_, err := FindGitRootFrom(repoRoot)
+		require.Error(t, err, "FindGitRootFrom should not accept a .git file without gitdir: prefix")
+		assert.Contains(t, err.Error(), "not in a git repository")
+	})
+
+	t.Run("handles relative path input", func(t *testing.T) {
+		// "." should resolve to os.Getwd(). Skip gracefully if the working
+		// directory is not inside a git repository (e.g. some CI containers).
+		root, err := FindGitRootFrom(".")
+		if err != nil {
+			t.Skipf("skipping: working directory is not inside a git repository (%v)", err)
+		}
+		assert.NotEmpty(t, root)
 	})
 }
 

@@ -444,6 +444,7 @@ describe("main", () => {
     // Reset environment variables
     delete process.env.RUN_DETECTION;
     delete process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR;
+    delete process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME;
     // Re-import to get fresh module with mocks
     mod = await import("./parse_threat_detection_results.cjs");
   });
@@ -498,6 +499,18 @@ describe("main", () => {
 
     it("should fail when detection log file does not exist (continue-on-error false)", async () => {
       process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "false";
+      mockExistsSync.mockReturnValue(false);
+
+      await mod.main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
+    });
+
+    it("should fail when detection execution failed even in warn mode", async () => {
+      process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME = "failure";
       mockExistsSync.mockReturnValue(false);
 
       await mod.main();
