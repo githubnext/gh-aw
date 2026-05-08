@@ -51,6 +51,7 @@ type ImportsResult struct {
 	MergedObservability           string                // Merged observability config (JSON) from all imports as an endpoint array (deduped by URL)
 	MergedEngineMCPToolTimeout    string                // First engine.mcp.tool-timeout found across all imports (Go duration string, e.g. "10m")
 	MergedEngineMCPSessionTimeout string                // First engine.mcp.session-timeout found across all imports (Go duration string, e.g. "4h")
+	MergedEngineModel             string                // First engine.model found in imports that have no engine.id (model preference without engine selection)
 	ImportedFiles                 []string              // List of imported file paths (for manifest)
 	AgentFile                     string                // Path to custom agent file (if imported)
 	AgentImportSpec               string                // Original import specification for agent file (e.g., "owner/repo/path@ref")

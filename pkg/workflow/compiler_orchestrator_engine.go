@@ -280,6 +280,12 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		engineConfig.MCPSessionTimeout = importsResult.MergedEngineMCPSessionTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.session-timeout from import: %s", engineConfig.MCPSessionTimeout)
 	}
+	// Apply model preference from imports that declare engine.model without engine.id.
+	// The consuming workflow's own model setting takes precedence (first-wins).
+	if engineConfig.Model == "" && importsResult.MergedEngineModel != "" {
+		engineConfig.Model = importsResult.MergedEngineModel
+		orchestratorEngineLog.Printf("Applied engine.model preference from import: %s", engineConfig.Model)
+	}
 
 	// Validate the engine setting and resolve the runtime adapter via the catalog.
 	// This performs exact catalog lookup, prefix fallback, and returns a formatted

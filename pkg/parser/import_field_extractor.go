@@ -68,6 +68,9 @@ type importAccumulator struct {
 	// First engine.mcp.tool-timeout / engine.mcp.session-timeout found across all imported files (first-wins strategy)
 	mergedEngineMCPToolTimeout    string // Go duration string (e.g. "10m", "30s")
 	mergedEngineMCPSessionTimeout string // Go duration string (e.g. "4h", "30m")
+	// First engine.model found in imports that have no engine.id (first-wins strategy).
+	// These express a model preference without selecting a specific engine.
+	mergedEngineModel string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -265,14 +268,25 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 					}
 				}
 			}
-			// Only add to engines list if this config specifies an actual engine.
-			// Configs with only `mcp` settings are purely MCP gateway configuration
+			// Only add to engines list if this config specifies an actual engine
+			// (i.e. it carries an 'id' or 'runtime' field). Configs with only
+			// 'model' or 'mcp' settings are preferences, not engine selections,
 			// and must not trigger the "multiple engine fields" validation error.
-			_, hasMCP := v["mcp"]
-			isMCPOnly := hasMCP && len(v) == 1
-			if !isMCPOnly {
+			_, hasID := v["id"]
+			_, hasRuntime := v["runtime"]
+			if hasID || hasRuntime {
 				if engineJSON, merr := json.Marshal(v); merr == nil {
 					acc.engines = append(acc.engines, string(engineJSON))
+				}
+			} else {
+				// No engine ID or runtime — this is a model/MCP-only preference.
+				// Extract the model hint (first-wins) so it can be applied to the
+				// resolved engine after all imports are processed.
+				if modelStr, ok := v["model"].(string); ok && modelStr != "" {
+					if acc.mergedEngineModel == "" {
+						acc.mergedEngineModel = modelStr
+						log.Printf("Extracted engine.model preference from import %s: %s", item.fullPath, modelStr)
+					}
 				}
 			}
 		default:
@@ -615,6 +629,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedCheckout:                strings.Join(acc.checkouts, "\n"),
 		MergedEngineMCPToolTimeout:    acc.mergedEngineMCPToolTimeout,
 		MergedEngineMCPSessionTimeout: acc.mergedEngineMCPSessionTimeout,
+		MergedEngineModel:             acc.mergedEngineModel,
 		Warnings:                      acc.warnings,
 	}
 }

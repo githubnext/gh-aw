@@ -246,3 +246,80 @@ This is a test workflow with imported MCP server.
 		t.Error("Expected tavily to be configured as HTTP MCP server")
 	}
 }
+
+// TestCompileWorkflowWithModelOnlyEngine verifies that a workflow declaring
+// engine.model without engine.id compiles successfully. This allows workflow
+// authors to express a model-size preference (e.g. "small") without committing
+// to a specific engine, letting the runtime select the appropriate engine.
+func TestCompileWorkflowWithModelOnlyEngine(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine:
+  model: small
+---
+
+# Test Workflow
+
+This workflow expresses a model-size preference without specifying an engine id.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed for engine.model without engine.id: %v", err)
+	}
+}
+
+// TestCompileWorkflowWithImportedModelOnlyEngine verifies that a workflow importing
+// a shared file that declares engine.model (without engine.id) compiles successfully.
+// This is the primary use case: gh aw add / gh aw add-wizard add shared workflows that
+// only express a model preference, not a specific engine selection.
+func TestCompileWorkflowWithImportedModelOnlyEngine(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Shared workflow that only declares a model preference (no engine.id)
+	sharedPath := filepath.Join(tempDir, "shared-workflow.md")
+	sharedContent := `---
+on: push
+engine:
+  model: small
+---
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+imports:
+  - shared-workflow.md
+---
+
+# Test Workflow
+
+This workflow imports a shared file that declares a model preference.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed when imported shared workflow has engine.model without engine.id: %v", err)
+	}
+}

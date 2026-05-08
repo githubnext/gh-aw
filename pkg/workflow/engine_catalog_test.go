@@ -97,7 +97,7 @@ func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 func TestEngineCatalogMatchesSchema(t *testing.T) {
 	variants := engineSchemaOneOfVariants(t)
 
-	require.Len(t, variants, 5, "engine_config oneOf should have exactly 5 variants: string, object-with-id, object-with-runtime, engine-definition, mcp-only")
+	require.Len(t, variants, 6, "engine_config oneOf should have exactly 6 variants: string, object-with-id, object-with-runtime, engine-definition, mcp-only, model-only")
 
 	// Variant 0: plain string (no enum — allows built-ins and custom named catalog entries)
 	assert.Equal(t, "string", variants[0]["type"],
@@ -145,4 +145,16 @@ func TestEngineCatalogMatchesSchema(t *testing.T) {
 		"mcp-only variant should have an 'mcp' property")
 	assert.NotContains(t, props4, "id",
 		"mcp-only variant must NOT have an 'id' property")
+
+	// Variant 5: model-only form — expresses a model preference without specifying an engine id
+	assert.Equal(t, "object", variants[5]["type"],
+		"sixth variant should be type object (model-only preference)")
+	props5, ok := variants[5]["properties"].(map[string]any)
+	require.True(t, ok, "sixth variant should have properties")
+	assert.Contains(t, props5, "model",
+		"model-only variant should have a 'model' property")
+	assert.NotContains(t, props5, "id",
+		"model-only variant must NOT have an 'id' property")
+	assert.NotContains(t, props5, "runtime",
+		"model-only variant must NOT have a 'runtime' property")
 }

@@ -304,25 +304,53 @@ func (c *Compiler) validateEngineAuthDefinition(config *EngineConfig) error {
 	return nil
 }
 
+// isModelOnlyEngineJSON reports whether engineJSON represents an engine object that
+// contains only a model preference (no 'id' or 'runtime' field). Such configs express
+// a preference for a model category (e.g. "small") without selecting a specific engine,
+// and must not be counted as engine specifications in conflict detection.
+func isModelOnlyEngineJSON(engineJSON string) bool {
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(engineJSON), &obj); err != nil {
+		return false // Not a JSON object; let normal validation handle it
+	}
+	_, hasID := obj["id"]
+	_, hasRuntime := obj["runtime"]
+	return !hasID && !hasRuntime
+}
+
 // validateSingleEngineSpecification validates that only one engine field exists across all files
 func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, includedEnginesJSON []string) (string, error) {
 	var allEngines []string
+	// firstIncludedRealEngine holds the raw JSON of the first non-model-only engine spec
+	// from included files. It is used below to extract the engine ID when the single
+	// engine specification originates from an included file rather than the main workflow.
+	var firstIncludedRealEngine string
 
 	// Add main engine if specified
 	if mainEngineSetting != "" {
 		allEngines = append(allEngines, mainEngineSetting)
 	}
 
-	// Add included engines
+	// Add included engines — skip model-only configs (objects with no 'id' or 'runtime').
+	// These express a model preference without selecting an engine and must not be counted
+	// as engine specifications (avoids spurious "multiple engine fields" errors when a
+	// shared workflow only declares engine.model without engine.id).
 	for _, engineJSON := range includedEnginesJSON {
-		if engineJSON != "" {
-			allEngines = append(allEngines, engineJSON)
+		if engineJSON == "" {
+			continue
+		}
+		if isModelOnlyEngineJSON(engineJSON) {
+			continue
+		}
+		allEngines = append(allEngines, engineJSON)
+		if firstIncludedRealEngine == "" {
+			firstIncludedRealEngine = engineJSON
 		}
 	}
 
-	// Check count
+	// Check count (only counting real engine specifications)
 	if len(allEngines) == 0 {
-		return "", nil // No engine specified anywhere, will use default
+		return "", nil // No engine specification found anywhere; will use default
 	}
 
 	if len(allEngines) > 1 {
@@ -334,9 +362,9 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		return mainEngineSetting, nil
 	}
 
-	// Must be from included file
+	// Must be from included file - parse the first real included engine specification
 	var firstEngine any
-	if err := json.Unmarshal([]byte(includedEnginesJSON[0]), &firstEngine); err != nil {
+	if err := json.Unmarshal([]byte(firstIncludedRealEngine), &firstEngine); err != nil {
 		return "", fmt.Errorf("failed to parse included engine configuration: %w. Expected string or object format.\n\nExample (string):\nengine: copilot\n\nExample (object):\nengine:\n  id: copilot\n  model: gpt-4\n\nSee: %s", err, constants.DocsEnginesURL)
 	}
 

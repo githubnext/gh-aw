@@ -87,12 +87,34 @@ func TestValidateSingleEngineSpecification(t *testing.T) {
 			errorMsg:            "failed to parse",
 		},
 		{
-			name:                "included engine with invalid object format (no id)",
+			// Model preference (no id) is valid — returns "" so the compiler uses the default
+			// engine. The model value flows through separately; see TestCompileWorkflowWithModelOnlyEngine.
+			name:                "included engine with model-only (no id) is a preference, not a spec",
 			mainEngineSetting:   "",
 			includedEnginesJSON: []string{`{"model": "gpt-4"}`},
 			expectedEngine:      "",
-			expectError:         true,
-			errorMsg:            "invalid engine configuration",
+			expectError:         false,
+		},
+		{
+			name:                "included engine with model size hint 'small' is allowed without id",
+			mainEngineSetting:   "",
+			includedEnginesJSON: []string{`{"model": "small"}`},
+			expectedEngine:      "",
+			expectError:         false,
+		},
+		{
+			name:                "model-only included engine does not conflict with main engine",
+			mainEngineSetting:   "copilot",
+			includedEnginesJSON: []string{`{"model": "small"}`},
+			expectedEngine:      "copilot",
+			expectError:         false,
+		},
+		{
+			name:                "model-only included engine does not conflict with real included engine",
+			mainEngineSetting:   "",
+			includedEnginesJSON: []string{`{"id": "copilot"}`, `{"model": "small"}`},
+			expectedEngine:      "copilot",
+			expectError:         false,
 		},
 		{
 			name:                "included engine with non-string id",
@@ -187,10 +209,10 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 	})
 
 	t.Run("invalid configuration error includes format examples", func(t *testing.T) {
-		_, err := compiler.validateSingleEngineSpecification("", []string{`{"model": "gpt-4"}`})
+		_, err := compiler.validateSingleEngineSpecification("", []string{`{"id": 123}`})
 
 		if err == nil {
-			t.Fatal("Expected validation to fail for configuration without id")
+			t.Fatal("Expected validation to fail for configuration with non-string id")
 		}
 
 		errorMsg := err.Error()
