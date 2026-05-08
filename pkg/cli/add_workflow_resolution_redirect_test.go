@@ -56,9 +56,9 @@ func TestResolveAddWorkflowSpecAndContent(t *testing.T) {
 		fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
 			switch spec.String() {
 			case "owner/repo/workflows/a.md@main":
-				return &FetchedWorkflow{Content: []byte("---\nredirect: owner/repo/workflows/b.md@main\n---\n"), IsLocal: false}, nil
+				return &FetchedWorkflow{Content: []byte("---\nredirect: owner/repo/workflows/b.md@main\n---\n"), IsLocal: false, SourcePath: "workflows/a.md"}, nil
 			case "owner/repo/workflows/b.md@main":
-				return &FetchedWorkflow{Content: []byte("---\nredirect: owner/repo/workflows/a.md@main\n---\n"), IsLocal: false}, nil
+				return &FetchedWorkflow{Content: []byte("---\nredirect: owner/repo/workflows/a.md@main\n---\n"), IsLocal: false, SourcePath: "workflows/b.md"}, nil
 			default:
 				return nil, fmt.Errorf("unexpected fetch spec %s", spec.String())
 			}
