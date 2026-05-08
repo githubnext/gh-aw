@@ -282,6 +282,52 @@ describe("create_issue", () => {
       expect(result.error).toContain('invalid option "Low" for issue field "Priority"');
       expect(result.error).toContain("Available options: High");
     });
+
+    it("should enforce configured allowed-fields list", async () => {
+      const handler = await main({
+        allowed_fields: ["Priority", "Iteration"],
+      });
+      const result = await handler({
+        title: "Issue with disallowed field",
+        body: "Body",
+        fields: [{ name: "Customer Impact", value: "High" }],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('issue field "Customer Impact" is not in the allowed-fields list: Priority, Iteration');
+    });
+
+    it("should allow any field when allowed-fields includes wildcard", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issueFields: {
+              nodes: [{ id: "FIELD_IMPACT", name: "Customer Impact", dataType: "TEXT" }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          setIssueFieldValue: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        });
+
+      const handler = await main({
+        allowed_fields: ["*"],
+      });
+      const result = await handler({
+        title: "Issue with wildcard fields",
+        body: "Body",
+        fields: [{ name: "Customer Impact", value: "High" }],
+      });
+
+      expect(result.success).toBe(true);
+    });
   });
 
   describe("assignees handling", () => {

@@ -27,6 +27,7 @@ safe-outputs:
   create-issue:
     max: 1
     labels: [test-label]
+    allowed-fields: [Priority, Iteration]
     title-prefix: "[Test] "
     assignees: [user1, user2]
 ---
@@ -111,6 +112,15 @@ Create an issue with title "Test" and body "Test body".
 	// Verify title_prefix is present
 	if titlePrefix, ok := createIssueConfig["title_prefix"].(string); !ok || titlePrefix != "[Test] " {
 		t.Errorf("Expected title_prefix='[Test] ' in create_issue config, got: %v", createIssueConfig["title_prefix"])
+	}
+
+	// Verify allowed_fields are present
+	allowedFields, ok := createIssueConfig["allowed_fields"].([]any)
+	if !ok {
+		t.Fatal("Expected allowed_fields array in create_issue config")
+	}
+	if len(allowedFields) != 2 || allowedFields[0] != "Priority" || allowedFields[1] != "Iteration" {
+		t.Errorf("Expected allowed_fields=[Priority, Iteration] in create_issue config, got: %v", allowedFields)
 	}
 
 	// Verify assignees are present (this is the main test)

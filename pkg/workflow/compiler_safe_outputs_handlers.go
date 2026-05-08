@@ -12,6 +12,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
+			AddStringSlice("allowed_fields", c.AllowedFields).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfPositive("expires", c.Expires).
 			AddStringSlice("labels", c.Labels).

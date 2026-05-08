@@ -235,6 +235,44 @@ function normalizeIssueFields(fields) {
 }
 
 /**
+ * Parse allowed issue field names from config.
+ * @param {string[]|string|undefined} value
+ * @returns {string[]}
+ */
+function parseAllowedIssueFields(value) {
+  if (!value) {
+    return [];
+  }
+  const raw = Array.isArray(value) ? value : String(value).split(",");
+  return raw
+    .map(item => String(item).trim())
+    .filter(Boolean)
+    .filter((item, index, arr) => arr.indexOf(item) === index);
+}
+
+/**
+ * Validate requested issue fields against configured allowed-fields.
+ * @param {Array<{name: string, value: string|number}>} issueFields
+ * @param {string[]} allowedFields
+ * @returns {void}
+ */
+function validateAllowedIssueFields(issueFields, allowedFields) {
+  if (!Array.isArray(issueFields) || issueFields.length === 0) {
+    return;
+  }
+  if (!Array.isArray(allowedFields) || allowedFields.length === 0 || allowedFields.includes("*")) {
+    return;
+  }
+
+  const allowedFieldSet = new Set(allowedFields.map(field => field.toLowerCase()));
+  for (const field of issueFields) {
+    if (!allowedFieldSet.has(field.name.toLowerCase())) {
+      throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" is not in the allowed-fields list: ${allowedFields.join(", ")}`);
+    }
+  }
+}
+
+/**
  * Resolve issue node ID from issue number.
  * Queries GraphQL for the issue node ID required by field mutations.
  * @param {Object} githubClient
@@ -408,6 +446,7 @@ async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields
 async function main(config = {}) {
   // Extract configuration
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(Boolean) : [];
+  const allowedIssueFields = parseAllowedIssueFields(config.allowed_fields);
   const envAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(assignee => String(assignee).trim()).filter(Boolean) : [];
   const titlePrefix = config.title_prefix ?? "";
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
@@ -448,6 +487,9 @@ async function main(config = {}) {
   }
   if (envAssignees.length > 0) {
     core.info(`Default assignees: ${envAssignees.join(", ")}`);
+  }
+  if (allowedIssueFields.length > 0 && !allowedIssueFields.includes("*")) {
+    core.info(`Allowed issue fields: ${allowedIssueFields.join(", ")}`);
   }
   if (titlePrefix) {
     core.info(`Title prefix: ${titlePrefix}`);
@@ -590,6 +632,7 @@ async function main(config = {}) {
     let issueFields;
     try {
       issueFields = normalizeIssueFields(message.fields);
+      validateAllowedIssueFields(issueFields, allowedIssueFields);
     } catch (error) {
       return { success: false, error: getErrorMessage(error) };
     }

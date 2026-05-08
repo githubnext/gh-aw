@@ -98,6 +98,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[ai] "            # prefix for titles
     labels: [automation, agentic]    # labels to attach
+    allowed-fields: [Priority, Iteration] # restrict issue fields this workflow may set
     assignees: [user1, copilot]      # assignees (use 'copilot' for bot)
     max: 5                           # max issues (default: 1)
     expires: 7                       # auto-close after 7 days (or false to disable)

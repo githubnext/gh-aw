@@ -49,6 +49,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if len(config.AllowedLabels) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatLabelList(config.AllowedLabels)))
 			}
+			if len(config.AllowedFields) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these issue fields are allowed: %s.", formatLabelList(config.AllowedFields)))
+			}
 			if len(config.Assignees) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Assignees %s will be automatically assigned.", formatLabelList(config.Assignees)))
 			}
