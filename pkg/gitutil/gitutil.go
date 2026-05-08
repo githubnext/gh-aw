@@ -87,7 +87,7 @@ func FindGitRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		log.Printf("Failed to get current directory: %v", err)
-		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
+		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
 	root, err := FindGitRootFrom(dir)

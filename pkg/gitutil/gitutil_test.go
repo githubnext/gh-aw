@@ -308,11 +308,11 @@ func TestFindGitRootFrom(t *testing.T) {
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "must be inside a git repository")
 
-		// Use a known subdirectory within the repo
-		subDir := filepath.Join(gitRoot, "pkg")
-		if _, statErr := os.Stat(subDir); os.IsNotExist(statErr) {
-			t.Skip("pkg/ subdirectory not found, skipping subdirectory test")
-		}
+		// Create a temporary subdirectory inside the repo to avoid depending on
+		// specific repo layout (e.g. pkg/ may not exist in all test environments).
+		subDir, mkdirErr := os.MkdirTemp(gitRoot, "test-subdir-*")
+		require.NoError(t, mkdirErr, "should create temp subdir inside git repo")
+		defer os.RemoveAll(subDir)
 
 		root, err := FindGitRootFrom(subDir)
 		require.NoError(t, err, "FindGitRootFrom should succeed from a subdirectory")
