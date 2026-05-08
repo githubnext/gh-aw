@@ -151,6 +151,9 @@ type AWFAPIProxyConfig struct {
 	// Maps to: --enable-api-proxy
 	Enabled bool `json:"enabled"`
 
+	// MaxEffectiveTokens is the explicit ET budget enforced by the API proxy.
+	MaxEffectiveTokens int64 `json:"maxEffectiveTokens,omitempty"`
+
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
@@ -240,7 +243,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── API proxy section ─────────────────────────────────────────────────────
 	apiProxy := &AWFAPIProxyConfig{
-		Enabled: true,
+		Enabled:            true,
+		MaxEffectiveTokens: constants.DefaultMaxEffectiveTokens,
+	}
+	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
+		apiProxy.MaxEffectiveTokens = config.WorkflowData.EngineConfig.GetMaxEffectiveTokens()
 	}
 
 	targets := map[string]*AWFAPITargetConfig{}

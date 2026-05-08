@@ -129,6 +129,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", MaxTurns: "5"},
 		},
 		{
+			name: "object format - with max-effective-tokens",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":                   "claude",
+					"max-effective-tokens": 10000000,
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 10000000},
+		},
+		{
 			name: "object format - complete with max-turns",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -269,6 +280,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.MaxTurns != test.expectedConfig.MaxTurns {
 					t.Errorf("Expected config.MaxTurns '%s', got '%s'", test.expectedConfig.MaxTurns, config.MaxTurns)
+				}
+
+				if config.MaxEffectiveTokens != test.expectedConfig.MaxEffectiveTokens {
+					t.Errorf("Expected config.MaxEffectiveTokens '%d', got '%d'", test.expectedConfig.MaxEffectiveTokens, config.MaxEffectiveTokens)
 				}
 
 				if config.UserAgent != test.expectedConfig.UserAgent {

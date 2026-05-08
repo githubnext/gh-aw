@@ -228,6 +228,9 @@ const DefaultToolTimeout = 60 * time.Second
 // DefaultMCPStartupTimeout is the default timeout for MCP server startup
 const DefaultMCPStartupTimeout = 120 * time.Second
 
+// DefaultMaxEffectiveTokens is the default ET budget enforced by the AWF API proxy.
+const DefaultMaxEffectiveTokens int64 = 10000000
+
 // MCPSessionTimeoutMin is the minimum allowed value for engine.mcp.session-timeout (5 minutes).
 const MCPSessionTimeoutMin = 5 * time.Minute
 

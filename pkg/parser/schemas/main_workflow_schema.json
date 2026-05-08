@@ -10035,6 +10035,21 @@
               "minimum": 1,
               "description": "Maximum number of continuations for multi-run autopilot mode. Default is 1 (single run, no autopilot). Values greater than 1 enable --autopilot mode for the copilot engine with --max-autopilot-continues set to this value. Note: Only supported by the copilot engine."
             },
+            "max-effective-tokens": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement."
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+$",
+                  "description": "Maximum effective-token (ET) budget as a numeric string."
+                }
+              ],
+              "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 10000000 when omitted."
+            },
             "concurrency": {
               "oneOf": [
                 {

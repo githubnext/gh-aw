@@ -51,6 +51,11 @@
           "type": "boolean",
           "description": "Enable the API proxy sidecar container."
         },
+        "maxEffectiveTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum effective-token (ET) budget enforced by the API proxy."
+        },
         "enableOpenCode": {
           "type": "boolean",
           "description": "Enable the OpenCode API proxy endpoint (port 10004)."

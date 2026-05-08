@@ -22,6 +22,11 @@ const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
 const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
 const MAX_RPC_MESSAGE_LABEL_LENGTH = 80;
 const TOP_LEVEL_RPC_IGNORED_KEYS = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
+const ET_RATE_LIMIT_PATTERNS = [
+  /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
+  /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
+  /\b429\b.*(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?)/i,
+];
 
 /**
  * Formats milliseconds as a human-readable duration string.
@@ -199,6 +204,26 @@ function writeStepSummaryWithTokenUsage(coreObj) {
     }
   }
   coreObj.summary.write();
+}
+
+/**
+ * Detects ET-budget/rate-limit failures from gateway-related logs.
+ * @param {string[]} contents
+ * @returns {boolean}
+ */
+function hasEffectiveTokensRateLimitError(contents) {
+  const joined = contents.filter(Boolean).join("\n");
+  if (!joined) return false;
+  return ET_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(joined));
+}
+
+/**
+ * Exports effective_tokens_rate_limit_error output.
+ * @param {typeof import('@actions/core')} coreObj
+ * @param {boolean} value
+ */
+function setEffectiveTokensRateLimitOutput(coreObj, value) {
+  coreObj.setOutput("effective_tokens_rate_limit_error", value ? "true" : "false");
 }
 
 /**
@@ -618,6 +643,7 @@ async function main() {
     const gatewayMdPath = "/tmp/gh-aw/mcp-logs/gateway.md";
     const gatewayLogPath = "/tmp/gh-aw/mcp-logs/gateway.log";
     const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
+    let effectiveTokensRateLimitError = false;
 
     // Parse DIFC_FILTERED events from gateway.jsonl (preferred) or rpc-messages.jsonl (fallback).
     // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
@@ -627,6 +653,7 @@ async function main() {
       const jsonlContent = fs.readFileSync(gatewayJsonlPath, "utf8");
       core.info(`Found gateway.jsonl (${jsonlContent.length} bytes)`);
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([jsonlContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
       }
@@ -634,6 +661,7 @@ async function main() {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
       core.info(`Found rpc-messages.jsonl (${rpcMessagesContent.length} bytes)`);
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
+      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([rpcMessagesContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
@@ -646,6 +674,7 @@ async function main() {
       const gatewayMdContent = fs.readFileSync(gatewayMdPath, "utf8");
       if (gatewayMdContent && gatewayMdContent.trim().length > 0) {
         core.info(`Found gateway.md (${gatewayMdContent.length} bytes)`);
+        effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([gatewayMdContent]);
 
         // Write the markdown directly to the step summary
         core.summary.addRaw(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
@@ -656,6 +685,7 @@ async function main() {
           core.summary.addRaw(difcSummary);
         }
 
+        setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
         writeStepSummaryWithTokenUsage(core);
         return;
       }
@@ -679,6 +709,7 @@ async function main() {
       } else {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
       }
+      setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
       writeStepSummaryWithTokenUsage(core);
       return;
     }
@@ -691,6 +722,7 @@ async function main() {
     if (fs.existsSync(gatewayLogPath)) {
       gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
       core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
+      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([gatewayLogContent]);
     } else {
       core.info(`No gateway.log found at: ${gatewayLogPath}`);
     }
@@ -699,6 +731,7 @@ async function main() {
     if (fs.existsSync(stderrLogPath)) {
       stderrLogContent = fs.readFileSync(stderrLogPath, "utf8");
       core.info(`Found stderr.log (${stderrLogContent.length} bytes)`);
+      effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([stderrLogContent]);
     } else {
       core.info(`No stderr.log found at: ${stderrLogPath}`);
     }
@@ -706,6 +739,7 @@ async function main() {
     // If no legacy log content and no DIFC events, check if token usage is available
     if ((!gatewayLogContent || gatewayLogContent.trim().length === 0) && (!stderrLogContent || stderrLogContent.trim().length === 0) && difcFilteredEvents.length === 0) {
       core.info("MCP gateway log files are empty or missing");
+      setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
       writeStepSummaryWithTokenUsage(core);
       return;
     }
@@ -724,6 +758,7 @@ async function main() {
     if (fullSummary.length > 0) {
       core.summary.addRaw(fullSummary);
     }
+    setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
     writeStepSummaryWithTokenUsage(core);
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
@@ -848,6 +883,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseTokenUsageJsonl,
     generateTokenUsageSummary,
     formatDurationMs,
+    hasEffectiveTokensRateLimitError,
   };
 }
 

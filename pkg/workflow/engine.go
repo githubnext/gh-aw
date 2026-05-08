@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/types"
@@ -15,21 +16,22 @@ var engineLog = logger.New("workflow:engine")
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID               string
-	Version          string
-	Model            string
-	MaxTurns         string
-	MaxContinuations int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
-	Concurrency      string // Agent job-level concurrency configuration (YAML format)
-	UserAgent        string
-	Command          string // Custom executable path (when set, skip installation steps)
-	HarnessScript    string // Custom Node.js harness script filename (replaces engine default harness script when supported)
-	Env              map[string]string
-	Config           string
-	Args             []string
-	Agent            string // Agent identifier for copilot --agent flag (copilot engine only)
-	APITarget        string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
-	Bare             bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
+	ID                 string
+	Version            string
+	Model              string
+	MaxTurns           string
+	MaxContinuations   int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
+	MaxEffectiveTokens int64  // Maximum allowed effective tokens (ET) budget for AWF apiProxy firewall enforcement
+	Concurrency        string // Agent job-level concurrency configuration (YAML format)
+	UserAgent          string
+	Command            string // Custom executable path (when set, skip installation steps)
+	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
+	Env                map[string]string
+	Config             string
+	Args               []string
+	Agent              string // Agent identifier for copilot --agent flag (copilot engine only)
+	APITarget          string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
+	Bare               bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
 	// TokenWeights provides custom model cost data for effective token computation.
 	// When set, overrides or extends the built-in model_multipliers.json values.
 	TokenWeights *types.TokenWeights
@@ -97,6 +99,14 @@ type NetworkPermissions struct {
 type EngineNetworkConfig struct {
 	Engine  *EngineConfig
 	Network *NetworkPermissions
+}
+
+// GetMaxEffectiveTokens returns the configured engine ET budget, falling back to the default.
+func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
+	if e == nil || e.MaxEffectiveTokens <= 0 {
+		return constants.DefaultMaxEffectiveTokens
+	}
+	return e.MaxEffectiveTokens
 }
 
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
@@ -210,6 +220,17 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				} else if maxContStr, ok := maxCont.(string); ok {
 					if parsed, err := strconv.Atoi(maxContStr); err == nil {
 						config.MaxContinuations = parsed
+					}
+				}
+			}
+
+			// Extract optional 'max-effective-tokens' field
+			if maxET, hasMaxET := engineObj["max-effective-tokens"]; hasMaxET {
+				if val, ok := typeutil.ParseIntValue(maxET); ok {
+					config.MaxEffectiveTokens = int64(val)
+				} else if maxETStr, ok := maxET.(string); ok {
+					if parsed, err := strconv.ParseInt(maxETStr, 10, 64); err == nil {
+						config.MaxEffectiveTokens = parsed
 					}
 				}
 			}

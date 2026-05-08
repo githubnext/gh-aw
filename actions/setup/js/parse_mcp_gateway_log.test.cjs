@@ -14,6 +14,7 @@ const {
   parseTokenUsageJsonl,
   generateTokenUsageSummary,
   formatDurationMs,
+  hasEffectiveTokensRateLimitError,
 } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
@@ -1200,6 +1201,23 @@ not-json
       const m1ET = summary.byModel["m1"].effectiveTokens;
       const m2ET = summary.byModel["m2"].effectiveTokens;
       expect(summary.totalEffectiveTokens).toBe(m1ET + m2ET);
+    });
+  });
+
+  describe("hasEffectiveTokensRateLimitError", () => {
+    test("detects explicit ET budget exhaustion message", () => {
+      const hasError = hasEffectiveTokensRateLimitError(["effective_tokens limit exceeded for this run"]);
+      expect(hasError).toBe(true);
+    });
+
+    test("detects HTTP 429 rate-limit text tied to ET", () => {
+      const hasError = hasEffectiveTokensRateLimitError(["429 too many requests while enforcing ET budget"]);
+      expect(hasError).toBe(true);
+    });
+
+    test("returns false for unrelated logs", () => {
+      const hasError = hasEffectiveTokensRateLimitError(["gateway started", "request succeeded"]);
+      expect(hasError).toBe(false);
     });
   });
 });

@@ -838,6 +838,26 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
+ * Build a context string when ET budget exhaustion/rate-limit is detected from gateway logs.
+ * @param {boolean} hasEffectiveTokensRateLimitError
+ * @param {string} effectiveTokens
+ * @param {string} maxEffectiveTokens
+ * @param {string} runUrl
+ * @returns {string}
+ */
+function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl) {
+  if (!hasEffectiveTokensRateLimitError) {
+    return "";
+  }
+
+  const usageLine = effectiveTokens ? `\n- Effective tokens used: \`${effectiveTokens}\`` : "";
+  const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${maxEffectiveTokens}\`` : "";
+  const runLine = runUrl ? `\n- Run: ${runUrl}` : "";
+
+  return `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.${usageLine}${budgetLine}${runLine}\n\nPrefer ET budget controls for diagnosis instead of run-count heuristics.\n`;
+}
+
+/**
  * Build a context string when a GitHub App token minting step failed.
  * @param {boolean} hasAppTokenMintingFailed - Whether any GitHub App token minting step failed
  * @returns {string} Formatted context string, or empty string if no error
@@ -1293,6 +1313,9 @@ async function main() {
     const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
+    const effectiveTokens = process.env.GH_AW_EFFECTIVE_TOKENS || "";
+    const maxEffectiveTokens = process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
+    const effectiveTokensRateLimitError = process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
@@ -1351,6 +1374,9 @@ async function main() {
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
     core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
+    core.info(`Effective tokens: ${effectiveTokens || "(none)"}`);
+    core.info(`Configured max effective tokens: ${maxEffectiveTokens || "(none)"}`);
+    core.info(`Effective tokens rate-limit error: ${effectiveTokensRateLimitError}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
@@ -1509,6 +1535,7 @@ async function main() {
       !hasStaleLockFileFailed &&
       !hasReportIncomplete &&
       !hasCacheMissMisconfiguration &&
+      !effectiveTokensRateLimitError &&
       !hasMissingTool &&
       !hasMissingData
     ) {
@@ -1703,6 +1730,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -1748,6 +1776,7 @@ async function main() {
           inference_access_error_context: inferenceAccessErrorContext,
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
+          effective_tokens_rate_limit_error_context: effectiveTokensRateLimitErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -1872,6 +1901,7 @@ async function main() {
 
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
+        const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -1918,6 +1948,7 @@ async function main() {
           inference_access_error_context: inferenceAccessErrorContext,
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
+          effective_tokens_rate_limit_error_context: effectiveTokensRateLimitErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,

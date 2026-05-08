@@ -250,6 +250,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.%s.outputs.checkout_pr_success }}\n", mainJobName))
 	}
 
+	// Pass ET usage and ET rate-limit detection outputs from the agent job.
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.effective_tokens }}\n", mainJobName))
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.effective_tokens_rate_limit_error }}\n", mainJobName))
+
 	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
 	// These are set by the detect-copilot-errors step in the agent job and cover:
 	//   - inference_access_error: token lacks inference access
@@ -379,6 +383,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if timeoutValue != "" {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
 	}
+
+	// Pass configured ET budget so failure reporting can attribute ET budget exhaustion accurately.
+	maxEffectiveTokens := constants.DefaultMaxEffectiveTokens
+	if data.EngineConfig != nil {
+		maxEffectiveTokens = data.EngineConfig.GetMaxEffectiveTokens()
+	}
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MAX_EFFECTIVE_TOKENS: %q\n", strconv.FormatInt(maxEffectiveTokens, 10)))
 
 	// Pass cache-memory availability flag so the failure handler can detect cache-miss
 	// misconfigurations: a cache_miss reported by the agent despite cache-memory being available

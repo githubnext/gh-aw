@@ -45,6 +45,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		// apiProxy section with enabled: true
 		assert.Contains(t, jsonStr, `"apiProxy"`, "should include apiProxy section")
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy should be enabled")
+		assert.Contains(t, jsonStr, `"maxEffectiveTokens":10000000`, "apiProxy should include default ET budget")
 
 		// container.imageTag
 		assert.Contains(t, jsonStr, `"imageTag"`, "should include imageTag")
@@ -93,6 +94,26 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"targets"`, "should include targets in apiProxy")
 		assert.Contains(t, jsonStr, `"openai"`, "should include openai target")
 		assert.Contains(t, jsonStr, "my-proxy.internal.example.com", "should include the openai host")
+	})
+
+	t.Run("engine max-effective-tokens overrides default apiProxy budget", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:                 "copilot",
+					MaxEffectiveTokens: 424242,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should use configured ET budget")
 	})
 
 	t.Run("anthropic API target is included in apiProxy targets", func(t *testing.T) {
