@@ -3,14 +3,17 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -439,6 +442,46 @@ func TestCompileSingleFile(t *testing.T) {
 		}
 	})
 
+	t.Run("compile single file formats errors for stderr", func(t *testing.T) {
+		tempDir := testutil.TempDir(t, "test-*")
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0755)
+
+		filePath := filepath.Join(workflowsDir, "invalid.md")
+		content := "---\nmalformed: yaml: content:\n  - missing\n    proper: structure\n---\n# Invalid\n"
+		os.WriteFile(filePath, []byte(content), 0644)
+
+		compiler := workflow.NewCompiler()
+		stats := &CompilationStats{}
+
+		expectedErr := CompileWorkflowWithValidation(compiler, filePath, false, false, false, false, false, false)
+		if expectedErr == nil {
+			t.Fatal("Expected invalid workflow compilation to fail")
+		}
+
+		oldStderr := os.Stderr
+		r, w, err := os.Pipe()
+		require.NoError(t, err, "Failed to create stderr pipe")
+		os.Stderr = w
+
+		result := compileSingleFile(compiler, filePath, stats, false, false)
+
+		w.Close()
+		os.Stderr = oldStderr
+
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, r)
+		require.NoError(t, err, "Failed to read stderr output")
+
+		assert.True(t, result, "Expected compilation to be attempted")
+		assert.Equal(
+			t,
+			console.FormatErrorMessage(expectedErr.Error())+"\n",
+			buf.String(),
+			"Expected compile errors to use formatted stderr output",
+		)
+	})
+
 	t.Run("compile single file with checkExists true and file exists", func(t *testing.T) {
 		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
@@ -515,4 +558,39 @@ func TestCompileSingleFile(t *testing.T) {
 			t.Errorf("Expected no errors, got %d", stats.Errors)
 		}
 	})
+}
+
+func TestCompileModifiedFilesWithDependencies_FormatsWatchMessage(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, ".github/workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
+
+	filePath := filepath.Join(workflowsDir, "test.md")
+	content := "---\non: push\nengine: claude\n---\n# Test\n\nTest workflow content"
+	require.NoError(t, os.WriteFile(filePath, []byte(content), 0644), "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	depGraph := NewDependencyGraph(workflowsDir)
+	require.NoError(t, depGraph.BuildGraph(compiler), "Failed to build dependency graph")
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "Failed to create stderr pipe")
+	os.Stderr = w
+
+	compileModifiedFilesWithDependencies(compiler, depGraph, []string{filePath}, false)
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err, "Failed to read stderr output")
+
+	assert.Contains(
+		t,
+		buf.String(),
+		console.FormatProgressMessage("Watching for file changes"),
+		"Expected watch mode to use formatted progress output",
+	)
 }
