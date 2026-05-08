@@ -23,6 +23,7 @@ const fs = require("fs");
 const path = require("path");
 
 const MAX_STATE_FILE_BYTES = 102400;
+// Keep this allowlist aligned with normalize_branch_name.cjs valid characters.
 const BRANCH_NAME_PATTERN = /^[A-Za-z0-9._/-]+$/;
 
 /**

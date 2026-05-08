@@ -132,13 +132,38 @@ describe("load_experiment_state_from_repo", () => {
   });
 
   describe("validateInputs", () => {
-    it("rejects invalid branch names", () => {
-      const result = validateInputs("experiments/my workflow", "owner", "repo");
+    it("validates branch, owner, and repo values", () => {
+      const cases = [
+        {
+          name: "accepts valid inputs",
+          args: ["experiments/my-workflow", "owner", "repo"],
+          expected: { valid: true },
+        },
+        {
+          name: "rejects empty branch",
+          args: ["", "owner", "repo"],
+          expected: { valid: false, error: "GH_AW_EXPERIMENT_BRANCH is not set" },
+        },
+        {
+          name: "rejects branch names with invalid characters",
+          args: ["experiments/my workflow", "owner", "repo"],
+          expected: { valid: false, error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters" },
+        },
+        {
+          name: "rejects missing owner",
+          args: ["experiments/my-workflow", "", "repo"],
+          expected: { valid: false, error: "GITHUB_REPOSITORY is not set" },
+        },
+        {
+          name: "rejects missing repo",
+          args: ["experiments/my-workflow", "owner", ""],
+          expected: { valid: false, error: "GITHUB_REPOSITORY is not set" },
+        },
+      ];
 
-      expect(result).toEqual({
-        valid: false,
-        error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters",
-      });
+      for (const testCase of cases) {
+        expect(validateInputs(...testCase.args), testCase.name).toEqual(testCase.expected);
+      }
     });
   });
 
