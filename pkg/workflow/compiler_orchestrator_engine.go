@@ -38,9 +38,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
 	// Preserve the top-level ET budget before string-form engine handling may
 	// intentionally clear engineConfig while converting "engine: <id>" into an import.
-	maxEffectiveTokens := int64(0)
+	preservedMaxEffectiveTokens := int64(0)
 	if engineConfig != nil {
-		maxEffectiveTokens = engineConfig.MaxEffectiveTokens
+		preservedMaxEffectiveTokens = engineConfig.MaxEffectiveTokens
 	}
 
 	// Validate and register inline engine definitions (engine.runtime sub-object).
@@ -278,8 +278,8 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
-	if maxEffectiveTokens > 0 {
-		engineConfig.MaxEffectiveTokens = maxEffectiveTokens
+	if preservedMaxEffectiveTokens > 0 {
+		engineConfig.MaxEffectiveTokens = preservedMaxEffectiveTokens
 	}
 	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
 		engineConfig.MCPToolTimeout = importsResult.MergedEngineMCPToolTimeout
