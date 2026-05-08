@@ -106,14 +106,16 @@ var yamlNullPattern = regexp.MustCompile(`:\s*null\s*$`)
 // unquoteYAMLKeyCache caches compiled regexes for UnquoteYAMLKey by key name
 var unquoteYAMLKeyCache sync.Map
 
-// readWorkflowYAML reads and parses an absolute path YAML workflow file.
+// readWorkflowYAML reads and parses a trusted absolute path YAML workflow file.
+// The caller is responsible for repository-boundary validation (for example via
+// findWorkflowFile/isPathWithinDir) before passing workflowPath.
 func readWorkflowYAML(workflowPath string) (map[string]any, error) {
 	cleanPath := filepath.Clean(workflowPath)
 	if !filepath.IsAbs(cleanPath) {
 		return nil, fmt.Errorf("workflow path must be absolute: %s", workflowPath)
 	}
 
-	content, err := os.ReadFile(cleanPath) // #nosec G304 -- Path is sanitized above
+	content, err := os.ReadFile(cleanPath) // #nosec G304 -- Caller provides trusted path, and path is normalized/absolute-checked above
 	if err != nil {
 		return nil, fmt.Errorf("failed to read workflow file %s: %w", workflowPath, err)
 	}
