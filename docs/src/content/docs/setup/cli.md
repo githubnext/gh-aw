@@ -146,7 +146,7 @@ gh aw init --create-pull-request        # Initialize and open a pull request
 
 #### `add-wizard`
 
-Add a workflow with interactive guided setup. Checks requirements, adds the markdown file, and generates the compiled YAML. Prompts for missing API keys and secrets.
+Add a workflow with interactive guided setup. Checks requirements, adds the markdown file, and generates the compiled YAML. Prompts for missing API keys and secrets. For remote workflows, this command follows frontmatter [`redirect`](/gh-aw/reference/frontmatter/#redirect-redirect) declarations before installation.
 
 ```bash wrap
 gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
@@ -158,7 +158,7 @@ gh aw add-wizard githubnext/agentics/ci-doctor --skip-secret  # Skip secret prom
 
 #### `add`
 
-Add workflows from The Agentics collection or other repositories to `.github/workflows`.
+Add workflows from The Agentics collection or other repositories to `.github/workflows`. For remote workflows, this command follows frontmatter [`redirect`](/gh-aw/reference/frontmatter/#redirect-redirect) declarations before installation.
 
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow

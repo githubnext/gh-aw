@@ -34,10 +34,10 @@ description: "Description of the workflow"
 # (optional)
 source: "example-value"
 
-# Optional workflow location redirect for updates. Format: workflow spec or GitHub
+# Optional workflow location redirect for add/add-wizard/update. Format: workflow spec or GitHub
 # URL (e.g., owner/repo/path@ref or
-# https://github.com/owner/repo/blob/main/path.md). When present, update follows
-# this location and rewrites source.
+# https://github.com/owner/repo/blob/main/path.md). When present, remote add/add-wizard/update
+# follows this location and writes/rewrites source.
 # (optional)
 redirect: "example-value"
 

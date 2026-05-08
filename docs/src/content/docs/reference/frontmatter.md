@@ -64,7 +64,7 @@ source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 
 ### Redirect (`redirect:`)
 
-Specifies a new canonical location when a workflow has been moved or renamed. When `gh aw update` encounters a workflow with a `redirect` field, it follows the redirect chain to the resolved location, rewrites the local `source` field to point to the new location, and emits a warning for each redirect hop. Redirect loops are detected and reported as errors.
+Specifies a new canonical location when a workflow has been moved or renamed. `gh aw add`, `gh aw add-wizard`, and `gh aw update` follow redirect chains to the resolved location for remote workflows. During add/update flows, the local `source` field is written (or rewritten) to the resolved location, and redirect loops are detected and reported as errors.
 
 ```yaml wrap
 redirect: "githubnext/agentics/workflows/new-workflow-name.md@main"
