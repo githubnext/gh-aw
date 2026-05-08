@@ -327,10 +327,13 @@ describe("runtime_import", () => {
         expect(isSafeExpression("github.event.inputs.enforce_all == 'true'")).toBe(!0);
         expect(isSafeExpression("github.actor == 'octocat'")).toBe(!0);
         expect(isSafeExpression("inputs.mode != 'dry-run'")).toBe(!0);
+        expect(isSafeExpression("github.actor == github.repository")).toBe(!0);
       });
       it("should reject comparison expressions with unsafe properties", () => {
         expect(isSafeExpression("secrets.TOKEN == 'value'")).toBe(!1);
         expect(isSafeExpression("vars.SECRET == 'value'")).toBe(!1);
+        expect(isSafeExpression("github.actor == secrets.TOKEN")).toBe(!1);
+        expect(isSafeExpression("github.actor == 'value' |\u000f secrets.TOKEN")).toBe(!1);
       });
       it("should allow AND compound expressions without literals", () => {
         expect(isSafeExpression("github.actor && github.repository")).toBe(!0);

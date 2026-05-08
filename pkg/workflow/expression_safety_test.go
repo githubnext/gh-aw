@@ -232,6 +232,12 @@ func TestValidateExpressionSafetyEdgeCases(t *testing.T) {
 			description: "Expressions with functions should be unauthorized unless the base expression is allowed",
 		},
 		{
+			name:        "malformed_comparison_with_trailing_unsafe_content",
+			content:     "Bad: ${{ github.actor == 'value' |\x0f secrets.TOKEN }}",
+			expectError: true,
+			description: "Malformed comparisons must not pass via partial comparison matching",
+		},
+		{
 			name:        "multiline_expression",
 			content:     "Multi:\n${{ github.workflow\n}}",
 			expectError: true,
