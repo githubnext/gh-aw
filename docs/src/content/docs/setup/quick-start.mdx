@@ -74,9 +74,9 @@ This will take you through an interactive process to:
 
 > [!NOTE]
 > **Setting up `COPILOT_GITHUB_TOKEN`?**
-> 1. [Create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication&user_copilot_requests=read) under your user account.
+> 1. [Create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) under your user account.
 > 2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
-> 3. Add it as a repository secret with `gh secret set COPILOT_GITHUB_TOKEN --body "<your-github-pat>"` from your repository root, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
+> 3. Add it as a repository secret with `gh secret set COPILOT_GITHUB_TOKEN --body 'YOUR_TOKEN_HERE'` from your repository root, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
 >
 
 > [!TIP]
