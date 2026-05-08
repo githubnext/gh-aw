@@ -30,6 +30,7 @@ Before installing, ensure you have:
 - **GitHub Repository** - A repository where you have write access
 - **GitHub Actions** enabled - Check in [Settings → Actions](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)
 - **GitHub CLI** (`gh`) v2.0.0+ - [Install here](https://cli.github.com). Check version: `gh --version`
+- **Logged in to GitHub CLI** - Verify with `gh auth status` and run `gh auth login --scopes repo,workflow` if needed
 - **Operating System**: Linux, macOS, or Windows with WSL
 
 ### Step 1 - Install the extension
@@ -68,8 +69,15 @@ This will take you through an interactive process to:
 1. **Check prerequisites** - Verify repository permissions.
 2. **Select an AI Engine** - Choose between Copilot, Claude, Codex, or Gemini.
 3. **Set up the required secret** - [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) (a separate GitHub token with Copilot access — distinct from the default `GITHUB_TOKEN`), [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key), or [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key). See [Authentication](/gh-aw/reference/auth/) for setup instructions.
-4. **Add the workflow** - Adds the workflow file (`.md`) and its compiled lock file (`.lock.yml`) to `.github/workflows/`.
+4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
+
+> [!NOTE]
+> **Setting up `COPILOT_GITHUB_TOKEN`?**
+> 1. [Create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) under your user account.
+> 2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
+> 3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#copilot_github_token) for more detail.
+>
 
 > [!TIP]
 > **Having trouble?** Check your [repository secrets](/gh-aw/reference/auth/), see the [FAQ](/gh-aw/reference/faq/) and [Common Issues](/gh-aw/troubleshooting/common-issues/).
@@ -99,7 +107,9 @@ With GitHub Agentic Workflows, you are in control! Your repository automation is
 To customize it now:
 
 > [!NOTE]
-> Each workflow file has two parts. The **frontmatter** (the configuration block between the `---` markers at the top) controls when the workflow runs, which AI engine powers it, and what tools it can access — changes here require recompiling (step 3). The **body** below contains your natural language task description and instructions — changes here take effect immediately on the next run.
+> Workflows have two files: the `.md` file you edit and a generated `.lock.yml` file that GitHub Actions runs. `gh aw compile` regenerates the `.lock.yml` file from your markdown whenever you change the workflow configuration.
+>
+> Within the `.md` file, the **frontmatter** (the configuration block between the `---` markers at the top) controls when the workflow runs, which AI engine powers it, and what tools it can access — changes here require recompiling. The **body** below contains your natural language task description and instructions — changes here take effect immediately on the next run.
 
 1. Open the workflow markdown file located at `.github/workflows/daily-repo-status.md` in your repository.
 

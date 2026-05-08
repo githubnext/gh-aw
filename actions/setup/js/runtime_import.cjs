@@ -352,16 +352,11 @@ function isSafeExpression(expr) {
   // This check only runs for expressions that have no top-level || or && operators (since those
   // cases are fully handled above), preventing a partially-validated compound expression from
   // sneaking through via the comparison path.
-  // Extract each property access on the left side of a comparison operator and verify it is in
-  // the allowed list.  This mirrors the Go comparisonExtractionRegex logic.
-  const compExtractRegex = /([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<=?|>=?)\s*/g;
-  const comparisonProps = [];
-  let compMatch;
-  while ((compMatch = compExtractRegex.exec(trimmed)) !== null) {
-    comparisonProps.push(compMatch[1].trim());
-  }
-  if (comparisonProps.length > 0 && comparisonProps.every(prop => isSafeExpression(prop))) {
-    return true;
+  const comparisonMatch = trimmed.match(/^(.+?)\s*(?:==|!=|<=?|>=?)\s*(.+)$/);
+  if (comparisonMatch) {
+    const leftExpr = comparisonMatch[1].trim();
+    const rightExpr = comparisonMatch[2].trim();
+    return leftExpr.length > 0 && rightExpr.length > 0 && isSafeExpression(leftExpr) && isSafeExpression(rightExpr);
   }
 
   return false;

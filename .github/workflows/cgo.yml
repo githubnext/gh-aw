@@ -1024,10 +1024,15 @@ jobs:
         run_fuzz_test() {
           local fuzz_name=$1
           local package=$2
+          local tags_arg=""
           local output_file="fuzz-results/${fuzz_name}.txt"
+
+          if [ "${fuzz_name}" = "FuzzSanitizeOutput" ] || [ "${fuzz_name}" = "FuzzSanitizeIncomingText" ]; then
+            tags_arg="-tags=integration"
+          fi
           
           echo "Running ${fuzz_name}..."
-          if go test -run='^$' -fuzz="^${fuzz_name}$" -fuzztime=10s "${package}" 2>&1 | tee "${output_file}"; then
+          if go test -run='^$' -fuzz="^${fuzz_name}$" -fuzztime=10s ${tags_arg:+"${tags_arg}"} "${package}" 2>&1 | tee "${output_file}"; then
             echo "✅ ${fuzz_name} completed successfully"
             return 0
           else

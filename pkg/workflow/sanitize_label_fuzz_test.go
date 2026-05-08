@@ -188,6 +188,10 @@ type sanitizeLabelContentTestResult struct {
 	Error     *string `json:"error"`
 }
 
+func isWordChar(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
 // runSanitizeLabelContentTest runs the JavaScript sanitize_label_content test harness
 func runSanitizeLabelContentTest(text string) (*sanitizeLabelContentTestResult, error) {
 	// Prepare input JSON
