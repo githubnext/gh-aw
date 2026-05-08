@@ -25,6 +25,8 @@ const path = require("path");
 const MAX_STATE_FILE_BYTES = 102400;
 // Keep this allowlist aligned with actions/setup/js/normalize_branch_name.cjs valid characters.
 const BRANCH_NAME_PATTERN = /^[A-Za-z0-9._/-]+$/;
+const REPOSITORY_PART_PATTERN = /^[A-Za-z0-9_.-]+$/;
+const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 /**
  * Returns true when decoded state content exceeds allowed byte length.
@@ -43,9 +45,10 @@ function checkLimit(content, maxBytes) {
  * @param {string} branch
  * @param {string} owner
  * @param {string} repo
+ * @param {string} repository
  * @returns {{valid: boolean, error?: string}}
  */
-function validateInputs(branch, owner, repo) {
+function validateInputs(branch, owner, repo, repository) {
   if (!branch) {
     return { valid: false, error: "GH_AW_EXPERIMENT_BRANCH is not set" };
   }
@@ -58,7 +61,11 @@ function validateInputs(branch, owner, repo) {
     return { valid: false, error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters" };
   }
 
-  if (!owner || !repo) {
+  if (!REPOSITORY_PATTERN.test(repository)) {
+    return { valid: false, error: "GITHUB_REPOSITORY is not set or invalid" };
+  }
+
+  if (!REPOSITORY_PART_PATTERN.test(owner) || !REPOSITORY_PART_PATTERN.test(repo)) {
     return { valid: false, error: "GITHUB_REPOSITORY is not set" };
   }
 
@@ -106,9 +113,10 @@ async function main() {
   const stateFile = process.env.GH_AW_EXPERIMENT_STATE_FILE || "/tmp/gh-aw/experiments/state.json";
   const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
   const branch = process.env.GH_AW_EXPERIMENT_BRANCH || "";
-  const [owner, repo] = (process.env.GITHUB_REPOSITORY || "/").split("/");
+  const repository = process.env.GITHUB_REPOSITORY || "";
+  const [owner, repo] = repository.split("/");
 
-  const validationResult = validateInputs(branch, owner, repo);
+  const validationResult = validateInputs(branch, owner, repo, repository);
   if (!validationResult.valid) {
     core.warning(`${validationResult.error} – starting with empty experiment state`);
     fs.mkdirSync(stateDir, { recursive: true });
