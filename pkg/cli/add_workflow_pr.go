@@ -70,10 +70,7 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 	}
 
 	// Create file tracker for rollback capability
-	tracker, err := NewFileTracker()
-	if err != nil {
-		return 0, "", fmt.Errorf("failed to create file tracker: %w", err)
-	}
+	tracker := NewFileTracker()
 
 	// Ensure we switch back to original branch on exit
 	defer func() {

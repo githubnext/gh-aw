@@ -399,10 +399,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
 		t.Fatalf("Failed to write source file: %v", err)
 	}
 
-	tracker, err := NewFileTracker()
-	if err != nil {
-		t.Fatalf("Failed to create file tracker: %v", err)
-	}
+	tracker := NewFileTracker()
 
 	// Test 1: New file should be tracked as created
 	deps := []IncludeDependency{
@@ -413,7 +410,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
 		},
 	}
 
-	err = copyIncludeDependenciesFromPackageWithForce(deps, targetDir, false, false, tracker)
+	err := copyIncludeDependenciesFromPackageWithForce(deps, targetDir, false, false, tracker)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -425,10 +422,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
 	}
 
 	// Test 2: Modified file should be tracked as modified
-	tracker2, err := NewFileTracker()
-	if err != nil {
-		t.Fatalf("Failed to create file tracker: %v", err)
-	}
+	tracker2 := NewFileTracker()
 	// Update source content
 	if err := os.WriteFile(sourceFile, []byte("New Content"), 0644); err != nil {
 		t.Fatalf("Failed to update source file: %v", err)
