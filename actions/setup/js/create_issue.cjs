@@ -244,10 +244,7 @@ function parseAllowedIssueFields(value) {
     return [];
   }
   const raw = Array.isArray(value) ? value : String(value).split(",");
-  return raw
-    .map(item => String(item).trim())
-    .filter(Boolean)
-    .filter((item, index, arr) => arr.indexOf(item) === index);
+  return [...new Set(raw.map(item => String(item).trim()).filter(Boolean))];
 }
 
 /**
@@ -264,6 +261,9 @@ function validateAllowedIssueFields(issueFields, allowedFields) {
     return;
   }
 
+  // We intentionally normalize to lowercase for comparisons because issue field names
+  // come from user-provided config/output and repository metadata, and should match
+  // even when case differs (e.g., "priority" vs "Priority").
   const allowedFieldSet = new Set(allowedFields.map(field => field.toLowerCase()));
   for (const field of issueFields) {
     if (!allowedFieldSet.has(field.name.toLowerCase())) {
