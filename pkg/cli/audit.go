@@ -449,38 +449,56 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 
 	// Fetch detailed job information including durations
 	jobDetails, err := fetchJobDetails(run.DatabaseID, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
+	if err != nil {
+		auditLog.Printf("fetchJobDetails failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
+		}
 	}
 
 	// Extract missing tools
 	missingTools, err := extractMissingToolsFromRun(runOutputDir, run, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools: %v", err)))
+	if err != nil {
+		auditLog.Printf("extractMissingToolsFromRun failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools: %v", err)))
+		}
 	}
 
 	// Extract missing data
 	missingData, err := extractMissingDataFromRun(runOutputDir, run, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data: %v", err)))
+	if err != nil {
+		auditLog.Printf("extractMissingDataFromRun failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing data: %v", err)))
+		}
 	}
 
 	// Extract noops
 	noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose)
-	if noopErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops: %v", noopErr)))
+	if noopErr != nil {
+		auditLog.Printf("extractNoopsFromRun failed: %v", noopErr)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops: %v", noopErr)))
+		}
 	}
 
 	// Extract MCP failures
 	mcpFailures, err := extractMCPFailuresFromRun(runOutputDir, run, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures: %v", err)))
+	if err != nil {
+		auditLog.Printf("extractMCPFailuresFromRun failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures: %v", err)))
+		}
 	}
 
 	// Analyze access logs if available
 	accessAnalysis, err := analyzeAccessLogs(runOutputDir, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
+	if err != nil {
+		auditLog.Printf("analyzeAccessLogs failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
+		}
 	}
 
 	// Analyze firewall/gateway data only when the agent artifact was downloaded.
@@ -496,8 +514,11 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	var tokenUsageSummary *TokenUsageSummary
 	if hasFirewallArtifact {
 		firewallAnalysis, err = analyzeFirewallLogs(runOutputDir, verbose)
-		if err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
+		if err != nil {
+			auditLog.Printf("analyzeFirewallLogs failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
+			}
 		}
 
 		// Supplement firewall analysis with blocked domains extracted directly from
@@ -513,39 +534,57 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 
 		// Analyze firewall policy artifacts if available (policy-manifest.json + audit.jsonl)
 		policyAnalysis, err = analyzeFirewallPolicy(runOutputDir, verbose)
-		if err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall policy: %v", err)))
+		if err != nil {
+			auditLog.Printf("analyzeFirewallPolicy failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall policy: %v", err)))
+			}
 		}
 
 		// Extract MCP tool usage data from gateway logs
 		mcpToolUsage, err = extractMCPToolUsageData(runOutputDir, verbose)
-		if err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage: %v", err)))
+		if err != nil {
+			auditLog.Printf("extractMCPToolUsageData failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage: %v", err)))
+			}
 		}
 
 		// Analyze token usage from firewall proxy logs
 		tokenUsageSummary, err = analyzeTokenUsage(runOutputDir, verbose)
-		if err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
+		if err != nil {
+			auditLog.Printf("analyzeTokenUsage failed: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
+			}
 		}
 	}
 
 	// Analyze redacted domains if available
 	redactedDomainsAnalysis, err := analyzeRedactedDomains(runOutputDir, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains: %v", err)))
+	if err != nil {
+		auditLog.Printf("analyzeRedactedDomains failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains: %v", err)))
+		}
 	}
 
 	// Analyze GitHub API rate limit consumption from github_rate_limits.jsonl
 	rateLimitUsage, err := analyzeGitHubRateLimits(runOutputDir, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage: %v", err)))
+	if err != nil {
+		auditLog.Printf("analyzeGitHubRateLimits failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage: %v", err)))
+		}
 	}
 
 	// List all artifacts
 	artifacts, err := listArtifacts(runOutputDir)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts: %v", err)))
+	if err != nil {
+		auditLog.Printf("listArtifacts failed: %v", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts: %v", err)))
+		}
 	}
 
 	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
