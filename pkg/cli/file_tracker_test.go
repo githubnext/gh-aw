@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -34,10 +35,7 @@ func TestFileTracker_CreationAndTracking(t *testing.T) {
 	}
 
 	// Create file tracker
-	tracker, err := NewFileTracker()
-	if err != nil {
-		t.Fatalf("Failed to create file tracker: %v", err)
-	}
+	tracker := NewFileTracker()
 
 	// Create test files
 	testFile1 := filepath.Join(tempDir, "test1.md")
@@ -106,10 +104,7 @@ func TestFileTracker_ModifiedFiles(t *testing.T) {
 	}
 
 	// Create file tracker
-	tracker, err := NewFileTracker()
-	if err != nil {
-		t.Fatalf("Failed to create file tracker: %v", err)
-	}
+	tracker := NewFileTracker()
 
 	// Create existing file
 	testFile := filepath.Join(tempDir, "existing.md")
@@ -211,10 +206,7 @@ func TestFileTracker_RollbackAllFiles(t *testing.T) {
 	}
 
 	// Create file tracker
-	tracker, err := NewFileTracker()
-	if err != nil {
-		t.Fatalf("Failed to create file tracker: %v", err)
-	}
+	tracker := NewFileTracker()
 
 	// Create an existing file
 	existingFile := filepath.Join(tempDir, "existing.md")
@@ -301,10 +293,7 @@ This uses reaction.
 	}
 
 	// Create file tracker
-	tracker, err := NewFileTracker()
-	if err != nil {
-		t.Fatalf("Failed to create file tracker: %v", err)
-	}
+	tracker := NewFileTracker()
 
 	// Compile the workflow with tracking
 	if err := compileWorkflowWithTracking(workflowFileWithReaction, false, false, "", tracker); err != nil {
@@ -343,10 +332,7 @@ This does NOT use ai-reaction.
 	}
 
 	// Create new file tracker for second test
-	tracker2, err := NewFileTracker()
-	if err != nil {
-		t.Fatalf("Failed to create file tracker: %v", err)
-	}
+	tracker2 := NewFileTracker()
 
 	// Remove the existing reaction action to test it's not created again
 	// (Note: Since reaction is now inline, this removal step is no longer needed)
@@ -358,4 +344,36 @@ This does NOT use ai-reaction.
 
 	// Note: Since reaction feature now uses inline GitHub Scripts instead of separate action files,
 	// we don't expect any reaction action files to be created or tracked
+}
+
+func TestFileTracker_StageAllFiles_NonGitRepo(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "file-tracker-non-git")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	oldWd, _ := os.Getwd()
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	testFile := filepath.Join(tempDir, "test.md")
+	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	tracker := NewFileTracker()
+	tracker.TrackCreated(testFile)
+
+	err = tracker.StageAllFiles(false)
+	if err == nil {
+		t.Fatal("Expected staging in non-git directory to fail")
+	}
+	if !strings.Contains(err.Error(), "file tracker requires being in a git repository") {
+		t.Fatalf("Expected non-git error message, got: %v", err)
+	}
 }

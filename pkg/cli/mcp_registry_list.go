@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -11,7 +12,7 @@ import (
 var mcpRegistryListLog = logger.New("cli:mcp_registry_list")
 
 // listAvailableServers shows a list of available MCP servers from the registry
-func listAvailableServers(registryURL string, verbose bool) error {
+func listAvailableServers(ctx context.Context, registryURL string, verbose bool) error {
 	mcpRegistryListLog.Printf("Listing available MCP servers: registry_url=%s", registryURL)
 	// Create registry client
 	registryClient := NewMCPRegistryClient(registryURL)
@@ -21,7 +22,7 @@ func listAvailableServers(registryURL string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching available MCP servers from registry: "+registryClient.registryURL))
 	}
 
-	servers, err := registryClient.SearchServers("")
+	servers, err := registryClient.SearchServers(ctx, "")
 	if err != nil {
 		mcpRegistryListLog.Printf("Failed to fetch MCP servers: %v", err)
 		return fmt.Errorf("failed to fetch MCP servers: %w", err)

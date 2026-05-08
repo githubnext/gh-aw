@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,8 +53,8 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 }
 
 // createRegistryRequest creates an HTTP request with appropriate headers for the MCP registry
-func (c *MCPRegistryClient) createRegistryRequest(method, url string) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, nil)
+func (c *MCPRegistryClient) createRegistryRequest(ctx context.Context, method, url string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -66,14 +67,14 @@ func (c *MCPRegistryClient) createRegistryRequest(method, url string) (*http.Req
 }
 
 // SearchServers searches for MCP servers in the registry by fetching all servers and filtering locally
-func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForProcessing, error) {
+func (c *MCPRegistryClient) SearchServers(ctx context.Context, query string) ([]MCPRegistryServerForProcessing, error) {
 	mcpRegistryLog.Printf("Searching MCP servers: query=%q", query)
 
 	// Always use servers endpoint for listing all servers
 	searchURL := c.registryURL + "/servers"
 
 	// Create HTTP request with proper headers
-	req, err := c.createRegistryRequest("GET", searchURL)
+	req, err := c.createRegistryRequest(ctx, "GET", searchURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create registry request: %w", err)
 	}

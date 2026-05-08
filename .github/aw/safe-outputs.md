@@ -948,7 +948,7 @@ Fields that influence permission computation (`add-comment.discussions`, `create
 - `github-app:` - GitHub App credentials for minting installation access tokens (object)
   - When configured, generates a token from the app and uses it for all safe output operations (alternative to `github-token`)
   - Fields:
-    - `app-id:` - GitHub App ID (required, e.g., `${{ vars.APP_ID }}`)
+    - `client-id:` - GitHub App client ID (required, e.g., `${{ vars.APP_ID }}`). Use `app-id:` for legacy compatibility.
     - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
     - `owner:` - Optional App installation owner (defaults to current repository owner)
     - `repositories:` - Optional list of repositories to grant access to
@@ -957,7 +957,7 @@ Fields that influence permission computation (`add-comment.discussions`, `create
     ```yaml
     safe-outputs:
       github-app:
-        app-id: ${{ vars.APP_ID }}
+        client-id: ${{ vars.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
       create-issue:
     ```
