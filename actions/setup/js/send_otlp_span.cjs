@@ -1329,9 +1329,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (detectionReason) {
     attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
   }
-  if (spanName === "gh-aw.conclusion.conclusion") {
-    attributes.push(buildAttr("gh-aw.otlp.export_errors", readOTLPExportErrorCount()));
-  }
+  attributes.push(buildAttr("gh-aw.otlp.export_errors", readOTLPExportErrorCount()));
   if (errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
