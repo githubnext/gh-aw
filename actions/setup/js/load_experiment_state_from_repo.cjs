@@ -25,7 +25,6 @@ const path = require("path");
 const MAX_STATE_FILE_BYTES = 102400;
 // Keep this allowlist aligned with actions/setup/js/normalize_branch_name.cjs valid characters.
 const BRANCH_NAME_PATTERN = /^[A-Za-z0-9._/-]+$/;
-const REPOSITORY_PART_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 /**
@@ -63,10 +62,6 @@ function validateInputs(branch, owner, repo, repository) {
 
   if (!REPOSITORY_PATTERN.test(repository)) {
     return { valid: false, error: "GITHUB_REPOSITORY is not set or invalid" };
-  }
-
-  if (!REPOSITORY_PART_PATTERN.test(owner) || !REPOSITORY_PART_PATTERN.test(repo)) {
-    return { valid: false, error: "GITHUB_REPOSITORY contains invalid characters" };
   }
 
   return { valid: true };

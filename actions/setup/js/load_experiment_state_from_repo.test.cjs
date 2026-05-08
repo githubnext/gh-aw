@@ -173,11 +173,6 @@ describe("load_experiment_state_from_repo", () => {
         args: ["experiments/my-workflow", "ow ner", "repo", "ow ner/repo"],
         expected: { valid: false, error: "GITHUB_REPOSITORY is not set or invalid" },
       },
-      {
-        name: "rejects owner/repo values with invalid characters",
-        args: ["experiments/my-workflow", "ow ner", "repo", "owner/repo"],
-        expected: { valid: false, error: "GITHUB_REPOSITORY contains invalid characters" },
-      },
     ];
 
     for (const testCase of cases) {
