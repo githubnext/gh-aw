@@ -54,6 +54,10 @@ function validateInputs(branch, owner, repo) {
     return { valid: false, error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters" };
   }
 
+  if (branch.includes("..")) {
+    return { valid: false, error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters" };
+  }
+
   if (!owner || !repo) {
     return { valid: false, error: "GITHUB_REPOSITORY is not set" };
   }

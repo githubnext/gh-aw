@@ -149,6 +149,11 @@ describe("load_experiment_state_from_repo", () => {
         expected: { valid: false, error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters" },
       },
       {
+        name: "rejects branch names with path traversal patterns",
+        args: ["experiments/../../etc/passwd", "owner", "repo"],
+        expected: { valid: false, error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters" },
+      },
+      {
         name: "rejects missing owner",
         args: ["experiments/my-workflow", "", "repo"],
         expected: { valid: false, error: "GITHUB_REPOSITORY is not set" },
