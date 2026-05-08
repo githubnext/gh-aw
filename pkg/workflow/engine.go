@@ -116,13 +116,14 @@ func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
 // invalid); explicit zero is not a valid user value because schema validation
 // enforces minimum 1 before this parser path runs.
 func parseMaxEffectiveTokensValue(raw any) int64 {
-	if val, ok := typeutil.ParseIntValue(raw); ok {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
 		return int64(val)
 	}
 	if rawStr, ok := raw.(string); ok {
-		if parsed, err := strconv.ParseInt(rawStr, 10, 64); err == nil {
+		if parsed, err := strconv.ParseInt(rawStr, 10, 64); err == nil && parsed > 0 {
 			return parsed
 		}
+		engineLog.Printf("Ignoring invalid max-effective-tokens value: %q", rawStr)
 	}
 	return 0
 }
