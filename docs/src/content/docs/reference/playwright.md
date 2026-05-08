@@ -76,7 +76,7 @@ The `version` field controls different things depending on the mode:
 tools:
   playwright:
     mode: cli
-    version: "0.1.11"  # @playwright/cli npm package version (default)
+    version: "0.1.13"  # @playwright/cli npm package version (default)
 ```
 
 **Default** (CLI mode): `0.1.13`
