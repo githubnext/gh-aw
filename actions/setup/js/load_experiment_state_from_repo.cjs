@@ -23,6 +23,7 @@ const fs = require("fs");
 const path = require("path");
 
 const MAX_STATE_FILE_BYTES = 102400;
+const BRANCH_NAME_PATTERN = /^[A-Za-z0-9._/-]+$/;
 
 /**
  * Returns true when decoded state content exceeds allowed byte length.
@@ -33,6 +34,30 @@ const MAX_STATE_FILE_BYTES = 102400;
  */
 function checkLimit(content, maxBytes) {
   return content.length > maxBytes;
+}
+
+/**
+ * Validate required input values before any API calls.
+ *
+ * @param {string} branch
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {{valid: boolean, error?: string}}
+ */
+function validateInputs(branch, owner, repo) {
+  if (!branch) {
+    return { valid: false, error: "GH_AW_EXPERIMENT_BRANCH is not set" };
+  }
+
+  if (!BRANCH_NAME_PATTERN.test(branch)) {
+    return { valid: false, error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters" };
+  }
+
+  if (!owner || !repo) {
+    return { valid: false, error: "GITHUB_REPOSITORY is not set" };
+  }
+
+  return { valid: true };
 }
 
 /**
@@ -76,16 +101,11 @@ async function main() {
   const stateFile = process.env.GH_AW_EXPERIMENT_STATE_FILE || "/tmp/gh-aw/experiments/state.json";
   const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
   const branch = process.env.GH_AW_EXPERIMENT_BRANCH || "";
-
-  if (!branch) {
-    core.warning("GH_AW_EXPERIMENT_BRANCH is not set – starting with empty experiment state");
-    fs.mkdirSync(stateDir, { recursive: true });
-    return;
-  }
-
   const [owner, repo] = (process.env.GITHUB_REPOSITORY || "/").split("/");
-  if (!owner || !repo) {
-    core.warning("GITHUB_REPOSITORY is not set – starting with empty experiment state");
+
+  const validationResult = validateInputs(branch, owner, repo);
+  if (!validationResult.valid) {
+    core.warning(`${validationResult.error} – starting with empty experiment state`);
     fs.mkdirSync(stateDir, { recursive: true });
     return;
   }
@@ -133,4 +153,4 @@ async function main() {
   core.info(`Experiment state written to ${stateFile}`);
 }
 
-module.exports = { main, fetchFileFromBranch };
+module.exports = { main, fetchFileFromBranch, validateInputs };

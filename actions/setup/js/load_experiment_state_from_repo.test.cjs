@@ -16,7 +16,7 @@ const mockGetOctokit = vi.fn();
 global.core = mockCore;
 global.getOctokit = mockGetOctokit;
 
-const { fetchFileFromBranch, main } = await import("./load_experiment_state_from_repo.cjs");
+const { fetchFileFromBranch, main, validateInputs } = await import("./load_experiment_state_from_repo.cjs");
 const ENV_KEYS = ["GH_AW_EXPERIMENT_STATE_FILE", "GH_AW_EXPERIMENT_STATE_DIR", "GH_AW_EXPERIMENT_BRANCH", "GITHUB_REPOSITORY"];
 const MAX_STATE_FILE_BYTES = 102400;
 
@@ -131,7 +131,47 @@ describe("load_experiment_state_from_repo", () => {
     });
   });
 
+  describe("validateInputs", () => {
+    it("rejects invalid branch names", () => {
+      const result = validateInputs("experiments/my workflow", "owner", "repo");
+
+      expect(result).toEqual({
+        valid: false,
+        error: "GH_AW_EXPERIMENT_BRANCH contains invalid characters",
+      });
+    });
+  });
+
   describe("main", () => {
+    it("skips fetch when branch name is invalid", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-state-"));
+      try {
+        const stateFile = path.join(tmpDir, "state.json");
+        const getContent = vi.fn();
+
+        process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+        process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+        process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/my workflow";
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+
+        global.github = {
+          rest: {
+            repos: {
+              getContent,
+            },
+          },
+        };
+
+        await main();
+
+        expect(getContent).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("contains invalid characters"));
+        expect(fs.existsSync(stateFile)).toBe(false);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it("skips oversized state files", async () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-state-"));
       try {
