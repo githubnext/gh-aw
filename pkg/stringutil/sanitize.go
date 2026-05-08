@@ -2,12 +2,15 @@ package stringutil
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var sanitizeLog = logger.New("stringutil:sanitize")
+
+var multipleHyphens = regexp.MustCompile(`-+`)
 
 // Regex patterns for detecting potential secret key names
 var (
@@ -45,6 +48,100 @@ var (
 		"TIMEOUT_MINUTES":   {},
 	}
 )
+
+// SanitizeOptions configures the behavior of the SanitizeName function.
+type SanitizeOptions struct {
+	// PreserveSpecialChars is a list of special characters to preserve during sanitization.
+	// Common characters include '.', '_'. If nil or empty, only alphanumeric and hyphens are preserved.
+	PreserveSpecialChars []rune
+
+	// TrimHyphens controls whether leading and trailing hyphens are removed from the result.
+	// When true, hyphens at the start and end of the sanitized name are trimmed.
+	TrimHyphens bool
+
+	// DefaultValue is returned when the sanitized name is empty after all transformations.
+	// If empty string, no default is applied.
+	DefaultValue string
+}
+
+// SanitizeName sanitizes a string for use as an identifier, file name, or similar context.
+// It provides configurable behavior through the SanitizeOptions parameter.
+func SanitizeName(name string, opts *SanitizeOptions) string {
+	if sanitizeLog.Enabled() {
+		preserveCount := 0
+		trimHyphens := false
+		if opts != nil {
+			preserveCount = len(opts.PreserveSpecialChars)
+			trimHyphens = opts.TrimHyphens
+		}
+		sanitizeLog.Printf("Sanitizing name: input=%q, preserve_chars=%d, trim_hyphens=%t",
+			name, preserveCount, trimHyphens)
+	}
+
+	// Handle nil options
+	if opts == nil {
+		opts = &SanitizeOptions{}
+	}
+
+	// Convert to lowercase
+	result := strings.ToLower(name)
+
+	// Replace common separators with hyphens
+	result = strings.ReplaceAll(result, ":", "-")
+	result = strings.ReplaceAll(result, "\\", "-")
+	result = strings.ReplaceAll(result, "/", "-")
+	result = strings.ReplaceAll(result, " ", "-")
+
+	// Check if underscores should be preserved
+	preserveUnderscore := slices.Contains(opts.PreserveSpecialChars, '_')
+
+	// Replace underscores with hyphens if not preserved
+	if !preserveUnderscore {
+		result = strings.ReplaceAll(result, "_", "-")
+	}
+
+	// Build character preservation pattern based on options
+	var preserveChars strings.Builder
+	preserveChars.WriteString("a-z0-9-") // Always preserve alphanumeric and hyphens
+	if len(opts.PreserveSpecialChars) > 0 {
+		for _, char := range opts.PreserveSpecialChars {
+			// Escape special regex characters
+			switch char {
+			case '.', '_':
+				preserveChars.WriteRune(char)
+			}
+		}
+	}
+
+	// Create pattern for characters to remove/replace
+	pattern := regexp.MustCompile(`[^` + preserveChars.String() + `]+`)
+
+	// Replace unwanted characters with hyphens or empty based on context
+	if len(opts.PreserveSpecialChars) > 0 {
+		// Replace with hyphens (SanitizeWorkflowName behavior)
+		result = pattern.ReplaceAllString(result, "-")
+	} else {
+		// Remove completely (SanitizeIdentifier behavior)
+		result = pattern.ReplaceAllString(result, "")
+	}
+
+	// Consolidate multiple consecutive hyphens into a single hyphen
+	result = multipleHyphens.ReplaceAllString(result, "-")
+
+	// Optionally trim leading/trailing hyphens
+	if opts.TrimHyphens {
+		result = strings.Trim(result, "-")
+	}
+
+	// Return default value if result is empty
+	if result == "" && opts.DefaultValue != "" {
+		sanitizeLog.Printf("Sanitized name is empty, using default: %q", opts.DefaultValue)
+		return opts.DefaultValue
+	}
+
+	sanitizeLog.Printf("Sanitized name result: %q", result)
+	return result
+}
 
 // SanitizeErrorMessage removes potential secret key names from error messages to prevent
 // information disclosure via logs. This prevents exposing details about an organization's

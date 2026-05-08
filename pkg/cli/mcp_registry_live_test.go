@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ func TestMCPRegistryClient_LiveSearchServers(t *testing.T) {
 
 	// Test 1: Search for all servers (empty query)
 	t.Run("search_all_servers", func(t *testing.T) {
-		servers, err := client.SearchServers("")
+		servers, err := client.SearchServers(context.Background(), "")
 		if err != nil {
 			// Check if it's a network/firewall issue
 			if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
@@ -56,7 +57,7 @@ func TestMCPRegistryClient_LiveSearchServers(t *testing.T) {
 	// Test 2: Search for specific servers by query
 	t.Run("search_with_query", func(t *testing.T) {
 		// Search for GitHub-related servers
-		servers, err := client.SearchServers("github")
+		servers, err := client.SearchServers(context.Background(), "github")
 		if err != nil {
 			if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
 				strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") {
@@ -83,7 +84,7 @@ func TestMCPRegistryClient_LiveSearchServers(t *testing.T) {
 
 	// Test 3: Verify different transport types are supported
 	t.Run("verify_transport_types", func(t *testing.T) {
-		servers, err := client.SearchServers("")
+		servers, err := client.SearchServers(context.Background(), "")
 		if err != nil {
 			if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
 				strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") {
@@ -112,7 +113,7 @@ func TestMCPRegistryClient_LiveResponseStructure(t *testing.T) {
 	// Create client with default production registry URL
 	client := NewMCPRegistryClient(string(constants.DefaultMCPRegistryURL))
 
-	servers, err := client.SearchServers("")
+	servers, err := client.SearchServers(context.Background(), "")
 	if err != nil {
 		if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
 			strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") ||

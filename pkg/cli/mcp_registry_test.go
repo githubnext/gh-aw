@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -74,7 +75,7 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 	client := NewMCPRegistryClient(testServer.URL)
 
 	// Test search
-	servers, err := client.SearchServers("notion")
+	servers, err := client.SearchServers(context.Background(), "notion")
 	if err != nil {
 		t.Fatalf("SearchServers failed: %v", err)
 	}

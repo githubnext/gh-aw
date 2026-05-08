@@ -42,10 +42,11 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 
 	if hasType {
 		// Explicit type provided - validate it's a string
-		if _, ok := mcpType.(string); !ok {
+		var ok bool
+		typeStr, ok = mcpType.(string)
+		if !ok {
 			return fmt.Errorf("tool '%s' mcp configuration 'type' must be a string, got %T. Valid types per MCP Gateway Specification: stdio, http. Note: 'local' is accepted for backward compatibility and treated as 'stdio'.\n\nExample:\ntools:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"\n\nSee: %s", toolName, mcpType, toolName, constants.DocsToolsURL)
 		}
-		typeStr = mcpType.(string)
 		mcpPropertyValidationLog.Printf("Tool %s: explicit MCP type=%s", toolName, typeStr)
 	} else {
 		// Infer type from presence of fields

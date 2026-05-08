@@ -82,6 +82,25 @@
           "items": {
             "type": "string"
           }
+        },
+        "fields": {
+          "type": "array",
+          "description": "Optional issue fields to set after creating the issue",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Issue field name"
+              },
+              "value": {
+                "oneOf": [{ "type": "string" }, { "type": "number" }],
+                "description": "Issue field value"
+              }
+            },
+            "required": ["name", "value"],
+            "additionalProperties": false
+          }
         }
       },
       "required": ["type", "title", "body"],

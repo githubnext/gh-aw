@@ -3,6 +3,7 @@ package workflow
 import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var runtimeDefLog = logger.New("workflow:runtime_definitions")
@@ -205,7 +206,7 @@ func getAllManifestFiles(extra ...string) []string {
 		files = append(files, runtime.ManifestFiles...)
 	}
 	files = append(files, securityConfigFiles...)
-	return mergeUnique(files, extra...)
+	return sliceutil.MergeUnique(files, extra...)
 }
 
 // getProtectedPathPrefixes returns non-dot path prefixes (relative to repo root)
@@ -223,7 +224,7 @@ func getProtectedPathPrefixes(extra ...string) []string {
 			nonDot = append(nonDot, p)
 		}
 	}
-	return mergeUnique(nil, nonDot...)
+	return sliceutil.MergeUnique([]string(nil), nonDot...)
 }
 
 // getDotFolderExcludes returns the subset of excludeFiles that are top-level
@@ -237,46 +238,6 @@ func getDotFolderExcludes(excludeFiles []string) []string {
 		// them (e.g. ".agents/" is valid; "./" is not).
 		if len(f) > 2 && f[0] == '.' && f[len(f)-1] == '/' {
 			result = append(result, f)
-		}
-	}
-	return result
-}
-
-// excludeFromSlice returns a new slice containing the items from base
-// that do not appear in the exclude set. Order of remaining items is preserved.
-// Always returns a fresh slice (never aliases base) even when no items are removed.
-func excludeFromSlice(base []string, exclude ...string) []string {
-	if len(exclude) == 0 {
-		return append([]string(nil), base...)
-	}
-	excluded := make(map[string]bool, len(exclude))
-	for _, v := range exclude {
-		excluded[v] = true
-	}
-	result := make([]string, 0, len(base))
-	for _, v := range base {
-		if !excluded[v] {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
-// mergeUnique returns a deduplicated slice that starts with base and appends any
-// items from extra that are not already present in base.  Order is preserved.
-func mergeUnique(base []string, extra ...string) []string {
-	seen := make(map[string]bool, len(base)+len(extra))
-	result := make([]string, 0, len(base)+len(extra))
-	for _, v := range base {
-		if !seen[v] {
-			seen[v] = true
-			result = append(result, v)
-		}
-	}
-	for _, v := range extra {
-		if !seen[v] {
-			seen[v] = true
-			result = append(result, v)
 		}
 	}
 	return result

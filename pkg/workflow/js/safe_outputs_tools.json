@@ -24,6 +24,31 @@
           },
           "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository."
         },
+        "fields": {
+          "type": "array",
+          "description": "Optional issue fields to set after creating the issue (e.g., Priority, Iteration, Start Date).",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "value"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Issue field name exactly as configured in the repository (e.g., \"Priority\", \"Iteration\")."
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "description": "Field value. Use string for text, single-select, iteration, and date (YYYY-MM-DD) fields; use number for numeric fields."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
         "parent": {
           "type": [
             "number",

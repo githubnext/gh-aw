@@ -88,12 +88,11 @@ Describes anomalies detected for a log line.
 
 ```go
 type AnomalyReport struct {
-    IsNewTemplate     bool    // Line created a new cluster
-    LowSimilarity     bool    // Best match score was below SimThreshold
-    RareCluster       bool    // Matched cluster has been seen ≤ RareClusterThreshold times
-    NewClusterCreated bool    // This event produced a brand-new cluster
-    AnomalyScore      float64 // Weighted composite score in [0, 1]
-    Reason            string  // Human-readable anomaly description
+    IsNewTemplate bool    // Line produced a brand-new log cluster
+    LowSimilarity bool    // Best match score was below SimThreshold
+    RareCluster   bool    // Matched cluster has been seen ≤ RareClusterThreshold times
+    AnomalyScore  float64 // Weighted composite score in [0, 1]
+    Reason        string  // Human-readable anomaly description
 }
 ```
 

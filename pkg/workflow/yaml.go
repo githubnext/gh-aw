@@ -85,6 +85,8 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -103,6 +105,29 @@ var yamlNullPattern = regexp.MustCompile(`:\s*null\s*$`)
 
 // unquoteYAMLKeyCache caches compiled regexes for UnquoteYAMLKey by key name
 var unquoteYAMLKeyCache sync.Map
+
+// readWorkflowYAML reads and parses a trusted workflow YAML file path.
+// The caller is responsible for repository-boundary validation (for example via
+// findWorkflowFile/isPathWithinDir) before passing workflowPath.
+func readWorkflowYAML(workflowPath string) (map[string]any, error) {
+	cleanPath := filepath.Clean(workflowPath)
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve workflow path %s: %w", workflowPath, err)
+	}
+
+	content, err := os.ReadFile(absPath) // #nosec G304 -- Caller provides trusted path, and path is normalized/absolute-resolved above
+	if err != nil {
+		return nil, fmt.Errorf("failed to read workflow file %s: %w", workflowPath, err)
+	}
+
+	var workflow map[string]any
+	if err := yaml.Unmarshal(content, &workflow); err != nil {
+		return nil, fmt.Errorf("failed to parse workflow file %s: %w", workflowPath, err)
+	}
+
+	return workflow, nil
+}
 
 // UnquoteYAMLKey removes quotes from a YAML key at the start of a line.
 //

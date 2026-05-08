@@ -36,8 +36,7 @@ func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*Anomal
 //   - cluster is the cluster that was matched or created.
 func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport {
 	report := &AnomalyReport{
-		IsNewTemplate:     isNew,
-		NewClusterCreated: isNew,
+		IsNewTemplate: isNew,
 		// LowSimilarity is mutually exclusive with IsNewTemplate: brand-new templates are
 		// already classified as anomalies, so we only evaluate similarity for existing ones.
 		LowSimilarity: !isNew && result.Similarity < d.threshold,

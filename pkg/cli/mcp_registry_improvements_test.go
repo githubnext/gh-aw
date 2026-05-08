@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -62,7 +63,7 @@ func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
 			client := NewMCPRegistryClient(server.URL)
 
 			// Test SearchServers
-			_, err := client.SearchServers("")
+			_, err := client.SearchServers(context.Background(), "")
 			if err == nil {
 				t.Fatalf("Expected error for status %d, got nil", tc.statusCode)
 			}
@@ -160,7 +161,7 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 				}
 			} else {
 				// For custom registry, actually call the API
-				_, err := client.SearchServers("")
+				_, err := client.SearchServers(context.Background(), "")
 				hasError := err != nil
 
 				if hasError != tc.expectError {

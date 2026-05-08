@@ -18,14 +18,13 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 		isNew             bool
 		cluster           *Cluster
 		wantIsNewTemplate bool
-		wantNewCluster    bool
 		wantLowSimilarity bool
 		wantRareCluster   bool
 		wantScore         float64
 		wantReason        string
 	}{
 		{
-			// isNew=true → both IsNewTemplate and NewClusterCreated; size=1 ≤ rareThreshold=2 → RareCluster.
+			// isNew=true → IsNewTemplate; size=1 ≤ rareThreshold=2 → RareCluster.
 			// score = (1.0 + 0.3) / 2.0 = 0.65
 			name:              "new template creates cluster and is also rare",
 			simThreshold:      0.4,
@@ -34,7 +33,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             true,
 			cluster:           &Cluster{ID: 1, Template: []string{"stage=plan"}, Size: 1},
 			wantIsNewTemplate: true,
-			wantNewCluster:    true,
 			wantLowSimilarity: false,
 			wantRareCluster:   true,
 			wantScore:         0.65,
@@ -50,7 +48,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             false,
 			cluster:           &Cluster{ID: 1, Template: []string{"a", "b", "c"}, Size: 5},
 			wantIsNewTemplate: false,
-			wantNewCluster:    false,
 			wantLowSimilarity: true,
 			wantRareCluster:   false,
 			wantScore:         0.35,
@@ -66,7 +63,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             false,
 			cluster:           &Cluster{ID: 1, Template: []string{"a"}, Size: 1},
 			wantIsNewTemplate: false,
-			wantNewCluster:    false,
 			wantLowSimilarity: false,
 			wantRareCluster:   true,
 			wantScore:         0.15,
@@ -81,7 +77,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             false,
 			cluster:           &Cluster{ID: 1, Template: []string{"a", "b"}, Size: 100},
 			wantIsNewTemplate: false,
-			wantNewCluster:    false,
 			wantLowSimilarity: false,
 			wantRareCluster:   false,
 			wantScore:         0.0,
@@ -96,7 +91,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             false,
 			cluster:           &Cluster{ID: 1, Template: []string{"a"}, Size: 5},
 			wantIsNewTemplate: false,
-			wantNewCluster:    false,
 			wantLowSimilarity: false,
 			wantRareCluster:   false,
 			wantScore:         0.0,
@@ -112,7 +106,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             false,
 			cluster:           &Cluster{ID: 1, Template: []string{"a"}, Size: 5},
 			wantIsNewTemplate: false,
-			wantNewCluster:    false,
 			wantLowSimilarity: true,
 			wantRareCluster:   false,
 			wantScore:         0.35,
@@ -128,7 +121,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             false,
 			cluster:           &Cluster{ID: 1, Template: []string{"a"}, Size: 1},
 			wantIsNewTemplate: false,
-			wantNewCluster:    false,
 			wantLowSimilarity: true,
 			wantRareCluster:   true,
 			wantScore:         0.5,
@@ -143,7 +135,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             false,
 			cluster:           nil,
 			wantIsNewTemplate: false,
-			wantNewCluster:    false,
 			wantLowSimilarity: false,
 			wantRareCluster:   false,
 			wantScore:         0.0,
@@ -159,7 +150,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			isNew:             true,
 			cluster:           &Cluster{ID: 1, Template: []string{"a"}, Size: 5},
 			wantIsNewTemplate: true,
-			wantNewCluster:    true,
 			wantLowSimilarity: false,
 			wantRareCluster:   true,
 			wantScore:         0.65,
@@ -177,7 +167,6 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 
 			require.NotNil(t, report, "Analyze should always return a non-nil report")
 			assert.Equal(t, tt.wantIsNewTemplate, report.IsNewTemplate, "IsNewTemplate mismatch")
-			assert.Equal(t, tt.wantNewCluster, report.NewClusterCreated, "NewClusterCreated mismatch")
 			assert.Equal(t, tt.wantLowSimilarity, report.LowSimilarity, "LowSimilarity mismatch")
 			assert.Equal(t, tt.wantRareCluster, report.RareCluster, "RareCluster mismatch")
 			assert.InDelta(t, tt.wantScore, report.AnomalyScore, 1e-9, "AnomalyScore mismatch")
@@ -342,28 +331,24 @@ func TestAnalyzeEvent(t *testing.T) {
 		name             string
 		event            AgentEvent
 		wantIsNew        bool
-		wantNewCluster   bool
 		errorDescription string
 	}{
 		{
 			name:             "first occurrence is flagged as new template",
 			event:            evtPlan,
 			wantIsNew:        true,
-			wantNewCluster:   true,
 			errorDescription: "first event",
 		},
 		{
 			name:             "second identical occurrence is not flagged as new",
 			event:            evtPlan,
 			wantIsNew:        false,
-			wantNewCluster:   false,
 			errorDescription: "second identical event",
 		},
 		{
 			name:             "distinct event creates its own new template",
 			event:            evtFinish,
 			wantIsNew:        true,
-			wantNewCluster:   true,
 			errorDescription: "distinct event",
 		},
 	}
@@ -375,7 +360,6 @@ func TestAnalyzeEvent(t *testing.T) {
 			require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
 			require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
 			assert.Equal(t, tt.wantIsNew, report.IsNewTemplate, "IsNewTemplate mismatch")
-			assert.Equal(t, tt.wantNewCluster, report.NewClusterCreated, "NewClusterCreated mismatch")
 		})
 	}
 }

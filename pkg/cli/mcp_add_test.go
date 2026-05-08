@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -117,7 +118,7 @@ This is a test workflow.
 	defer registryServer.Close()
 
 	// Test adding MCP tool
-	err = AddMCPTool("test-workflow", "notion", registryServer.URL, "", "", false)
+	err = AddMCPTool(context.Background(), "test-workflow", "notion", registryServer.URL, "", "", false)
 	if err != nil {
 		t.Fatalf("AddMCPTool failed: %v", err)
 	}
@@ -204,7 +205,7 @@ func TestAddMCPTool_WorkflowNotFound(t *testing.T) {
 	defer registryServer.Close()
 
 	// Test with nonexistent workflow
-	err = AddMCPTool("nonexistent-workflow", "notion", registryServer.URL, "", "", false)
+	err = AddMCPTool(context.Background(), "nonexistent-workflow", "notion", registryServer.URL, "", "", false)
 	if err == nil {
 		t.Fatal("Expected error for nonexistent workflow, got nil")
 	}
@@ -311,7 +312,7 @@ This is a test workflow.
 	defer registryServer.Close()
 
 	// Test adding tool that already exists (search for the full server name)
-	err = AddMCPTool("test-workflow", "io.github.makenotion/notion-mcp-server", registryServer.URL, "", "", false)
+	err = AddMCPTool(context.Background(), "test-workflow", "io.github.makenotion/notion-mcp-server", registryServer.URL, "", "", false)
 	if err == nil {
 		t.Fatal("Expected error for existing tool, got nil")
 	}
@@ -414,7 +415,7 @@ This is a test workflow.
 
 	// Test adding tool with custom ID
 	customToolID := "my-notion"
-	err = AddMCPTool("test-workflow", "notion", registryServer.URL, "", customToolID, false)
+	err = AddMCPTool(context.Background(), "test-workflow", "notion", registryServer.URL, "", customToolID, false)
 	if err != nil {
 		t.Fatalf("AddMCPTool failed: %v", err)
 	}
@@ -565,7 +566,7 @@ func TestListAvailableServers(t *testing.T) {
 	defer testServer.Close()
 
 	// Test listing servers
-	err := listAvailableServers(testServer.URL, false)
+	err := listAvailableServers(context.Background(), testServer.URL, false)
 	if err != nil {
 		t.Errorf("listAvailableServers failed: %v", err)
 	}

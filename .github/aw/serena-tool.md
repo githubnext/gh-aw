@@ -22,17 +22,21 @@ Serena is a **language service protocol (LSP) MCP server** for semantic code ana
 
 ## Configuration
 
-Add to workflow frontmatter:
+Import the shared Serena workflow via the `imports:` field — `tools.serena` has been removed:
 
 ```yaml
-tools:
-  serena: ["go"]  # Specify language(s): go, typescript, python, ruby, rust, java, cpp, csharp
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go"]  # Specify language(s): go, typescript, python, ruby, rust, java, cpp, csharp
 ```
 
 Multi-language repositories:
 ```yaml
-tools:
-  serena: ["go", "typescript"]  # First language is default fallback
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go", "typescript"]  # First language is default fallback
 ```
 
 ## Available Serena Tools
@@ -78,8 +82,11 @@ tools:
 **Best practice**: Use bash for discovery, Serena for analysis
 
 ```yaml
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go"]
 tools:
-  serena: ["go"]
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go'"
     - "cat go.mod"
@@ -97,9 +104,11 @@ tools:
 Track analysis state across runs:
 
 ```yaml
-tools:
-  serena: ["go"]
-  cache-memory: true  # Store analysis history
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go"]
+cache-memory: true  # Store analysis history
 ```
 
 Load cache → Analyze new/changed files → Save results → Avoid redundant work

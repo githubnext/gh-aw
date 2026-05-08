@@ -4821,6 +4821,13 @@
                     "type": "string"
                   }
                 },
+                "allowed-fields": {
+                  "type": "array",
+                  "description": "Optional list of issue field names that can be modified by create-issue field updates. If omitted or empty, any issue field may be set. Use ['*'] to explicitly allow all.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "assignees": {
                   "oneOf": [
                     {

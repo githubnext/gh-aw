@@ -425,7 +425,7 @@ func TestSpec_Types_MatchResult(t *testing.T) {
 }
 
 // TestSpec_Types_AnomalyReport validates the documented AnomalyReport type structure.
-// Spec: IsNewTemplate, LowSimilarity, RareCluster, NewClusterCreated, AnomalyScore in [0,1], Reason.
+// Spec: IsNewTemplate, LowSimilarity, RareCluster, AnomalyScore in [0,1], Reason.
 func TestSpec_Types_AnomalyReport(t *testing.T) {
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
@@ -439,7 +439,6 @@ func TestSpec_Types_AnomalyReport(t *testing.T) {
 	_ = report.IsNewTemplate
 	_ = report.LowSimilarity
 	_ = report.RareCluster
-	_ = report.NewClusterCreated
 	_ = report.Reason
 	assert.GreaterOrEqual(t, report.AnomalyScore, 0.0, "AnomalyReport.AnomalyScore should be in documented range [0, 1]")
 	assert.LessOrEqual(t, report.AnomalyScore, 1.0, "AnomalyReport.AnomalyScore should be in documented range [0, 1]")

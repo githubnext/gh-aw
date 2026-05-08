@@ -240,14 +240,7 @@ func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows,
 func addWorkflows(workflows []*ResolvedWorkflow, opts AddOptions) error {
 	addLog.Printf("Adding %d workflow(s) to repository", len(workflows))
 	// Create file tracker for all operations
-	tracker, err := NewFileTracker()
-	if err != nil {
-		// If we can't create a tracker (e.g., not in git repo), fall back to non-tracking behavior
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not create file tracker: %v", err)))
-		}
-		tracker = nil
-	}
+	tracker := NewFileTracker()
 	return addWorkflowsWithTracking(workflows, tracker, opts)
 }
 

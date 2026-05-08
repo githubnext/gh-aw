@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -18,7 +19,7 @@ import (
 var mcpAddLog = logger.New("cli:mcp_add")
 
 // AddMCPTool adds an MCP tool to an agentic workflow
-func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error {
+func AddMCPTool(ctx context.Context, workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error {
 	mcpAddLog.Printf("Adding MCP tool: serverID=%s, registryURL=%s, transport=%s", mcpServerID, registryURL, transportType)
 
 	// Resolve the workflow file path
@@ -42,7 +43,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	mcpAddLog.Printf("Searching MCP registry for server: %s", mcpServerID)
-	servers, err := registryClient.SearchServers(mcpServerID)
+	servers, err := registryClient.SearchServers(ctx, mcpServerID)
 	if err != nil {
 		mcpAddLog.Printf("MCP registry search failed: %v", err)
 		return fmt.Errorf("failed to search MCP registry: %w", err)
@@ -342,7 +343,7 @@ The command will:
 				if registryURL == "" {
 					registryURL = string(constants.DefaultMCPRegistryURL)
 				}
-				return listAvailableServers(registryURL, verbose)
+				return listAvailableServers(cmd.Context(), registryURL, verbose)
 			}
 
 			// If only workflow ID/file is provided, show error (need both workflow and server)
@@ -354,7 +355,7 @@ The command will:
 			workflowFile := args[0]
 			mcpServerID := args[1]
 
-			return AddMCPTool(workflowFile, mcpServerID, registryURL, transportType, customToolID, verbose)
+			return AddMCPTool(cmd.Context(), workflowFile, mcpServerID, registryURL, transportType, customToolID, verbose)
 		},
 	}
 

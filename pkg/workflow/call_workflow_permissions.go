@@ -3,11 +3,9 @@ package workflow
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/goccy/go-yaml"
 )
 
 var callWorkflowPermissionsLog = logger.New("workflow:call_workflow_permissions")
@@ -85,17 +83,9 @@ func extractCallWorkflowPermissions(workflowName, markdownPath string) (*Permiss
 // extractPermissionsFromYAMLFile reads a .lock.yml or .yml workflow file, parses it,
 // and returns the merged permissions from all its jobs.
 func extractPermissionsFromYAMLFile(filePath string) (*Permissions, error) {
-	cleanPath := filepath.Clean(filePath)
-	// filePath originates from findWorkflowFile(), which validates all paths via
-	// isPathWithinDir() to prevent directory traversal before returning them.
-	content, err := os.ReadFile(cleanPath) // #nosec G304 -- path pre-validated by findWorkflowFile() via isPathWithinDir()
+	workflow, err := readWorkflowYAML(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read workflow file %s: %w", filePath, err)
-	}
-
-	var workflow map[string]any
-	if err := yaml.Unmarshal(content, &workflow); err != nil {
-		return nil, fmt.Errorf("failed to parse workflow file %s: %w", filePath, err)
+		return nil, err
 	}
 
 	perms := extractJobPermissionsFromParsedWorkflow(workflow)
