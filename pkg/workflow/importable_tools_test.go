@@ -1121,10 +1121,10 @@ Uses imported MCP timeout setting.
 
 	workflowData := string(lockFileContent)
 
-	// The imported engine.mcp.tool-timeout: "2m" should appear as "toolTimeout": "2m"
+	// The imported engine.mcp.tool-timeout: "2m" should be converted to gateway seconds.
 	// in the MCP gateway JSON config embedded in the lock file.
-	if !strings.Contains(workflowData, `"toolTimeout": "2m"`) {
-		t.Errorf("Expected lock file to contain toolTimeout 2m from imported shared workflow, got:\n%s", workflowData)
+	if !strings.Contains(workflowData, `"toolTimeout": 120`) {
+		t.Errorf("Expected lock file to contain toolTimeout 120 seconds from imported shared workflow, got:\n%s", workflowData)
 	}
 }
 
@@ -1183,11 +1183,11 @@ Consumer overrides the imported MCP timeout.
 
 	workflowData := string(lockFileContent)
 
-	// Consumer's 30s should win, not the imported 2m
-	if !strings.Contains(workflowData, `"toolTimeout": "30s"`) {
-		t.Errorf("Expected consumer override toolTimeout 30s to win, got:\n%s", workflowData)
+	// Consumer's 30s should win, not the imported 2m, and should be converted to seconds.
+	if !strings.Contains(workflowData, `"toolTimeout": 30`) {
+		t.Errorf("Expected consumer override toolTimeout 30 seconds to win, got:\n%s", workflowData)
 	}
-	if strings.Contains(workflowData, `"toolTimeout": "2m"`) {
+	if strings.Contains(workflowData, `"toolTimeout": 120`) {
 		t.Errorf("Expected imported toolTimeout 2m to be overridden by consumer 30s, got:\n%s", workflowData)
 	}
 }

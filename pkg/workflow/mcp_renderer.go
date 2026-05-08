@@ -48,6 +48,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -192,7 +193,11 @@ func RenderJSONMCPConfig(
 			fmt.Fprintf(&configBuilder, ",\n              \"sessionTimeout\": %q", options.GatewayConfig.SessionTimeout)
 		}
 		if options.GatewayConfig.ToolTimeout != "" {
-			fmt.Fprintf(&configBuilder, ",\n              \"toolTimeout\": %q", options.GatewayConfig.ToolTimeout)
+			toolTimeout, err := time.ParseDuration(options.GatewayConfig.ToolTimeout)
+			if err != nil {
+				return fmt.Errorf("failed to parse engine.mcp.tool-timeout %q for gateway.toolTimeout: %w", options.GatewayConfig.ToolTimeout, err)
+			}
+			fmt.Fprintf(&configBuilder, ",\n              \"toolTimeout\": %d", int(toolTimeout/time.Second))
 		}
 		// When OTLP tracing is configured, add the opentelemetry section directly to the
 		// gateway config. The endpoint is passed via the OTEL_EXPORTER_OTLP_ENDPOINT env var

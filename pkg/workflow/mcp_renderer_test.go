@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -675,11 +676,13 @@ func TestRenderJSONMCPConfig_ToolTimeout(t *testing.T) {
 	tests := []struct {
 		name        string
 		toolTimeout string
+		expected    int
 		wantField   bool
 	}{
 		{
 			name:        "includes toolTimeout when set",
 			toolTimeout: "2m",
+			expected:    120,
 			wantField:   true,
 		},
 		{
@@ -690,6 +693,7 @@ func TestRenderJSONMCPConfig_ToolTimeout(t *testing.T) {
 		{
 			name:        "includes toolTimeout 30s",
 			toolTimeout: "30s",
+			expected:    30,
 			wantField:   true,
 		},
 	}
@@ -731,7 +735,7 @@ func TestRenderJSONMCPConfig_ToolTimeout(t *testing.T) {
 			}
 
 			if tt.wantField && tt.toolTimeout != "" {
-				expected := `"toolTimeout": "` + tt.toolTimeout + `"`
+				expected := fmt.Sprintf(`"toolTimeout": %d`, tt.expected)
 				if !strings.Contains(result, expected) {
 					t.Errorf("expected %q in output\noutput:\n%s", expected, result)
 				}
