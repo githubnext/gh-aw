@@ -360,7 +360,7 @@ async function main(config = {}) {
 
       const hasConflictingFieldIdentifiers = Boolean(fieldNodeId && fieldName && resolvedFieldByName && resolvedField && resolvedFieldByName.id !== resolvedField.id);
       if (hasConflictingFieldIdentifiers) {
-        const error = `field_name ${JSON.stringify(fieldName)} resolves to ${JSON.stringify(resolvedFieldByName.id)}, but field_node_id was ${JSON.stringify(fieldNodeId)}. Provide only one identifier or make them match.`;
+        const error = `field_name ${JSON.stringify(fieldName)} resolves to ${JSON.stringify(resolvedFieldByName?.id)}, but field_node_id was ${JSON.stringify(fieldNodeId)}. Provide only one identifier or make them match.`;
         core.error(error);
         return { success: false, error };
       }
