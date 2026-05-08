@@ -119,7 +119,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.126"
+          GH_AW_INFO_VERSION: "2.1.133"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -128,8 +128,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || 'auto' }}
-          GH_AW_INFO_VERSION: "2.1.126"
-          GH_AW_INFO_AGENT_VERSION: "2.1.126"
+          GH_AW_INFO_VERSION: "2.1.133"
+          GH_AW_INFO_AGENT_VERSION: "2.1.133"
           GH_AW_INFO_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -378,7 +378,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.126"
+          GH_AW_INFO_VERSION: "2.1.133"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -439,7 +439,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.41
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.126
+        run: npm install -g @anthropic-ai/claude-code@2.1.133
       - name: Install Playwright CLI
         run: npm install -g @playwright/cli@0.1.11
       - name: Install Playwright CLI skills
@@ -1141,7 +1141,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.126"
+          GH_AW_INFO_VERSION: "2.1.133"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1285,7 +1285,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.126"
+          GH_AW_INFO_VERSION: "2.1.133"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1372,7 +1372,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.41
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.126
+        run: npm install -g @anthropic-ai/claude-code@2.1.133
       - name: Execute Claude Code CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
@@ -1511,7 +1511,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.126"
+          GH_AW_INFO_VERSION: "2.1.133"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
