@@ -1032,7 +1032,7 @@ jobs:
           fi
           
           echo "Running ${fuzz_name}..."
-          if go test -run='^$' -fuzz="^${fuzz_name}$" -fuzztime=10s ${tags_arg:+${tags_arg}} "${package}" 2>&1 | tee "${output_file}"; then
+          if go test -run='^$' -fuzz="^${fuzz_name}$" -fuzztime=10s ${tags_arg:+"${tags_arg}"} "${package}" 2>&1 | tee "${output_file}"; then
             echo "✅ ${fuzz_name} completed successfully"
             return 0
           else
