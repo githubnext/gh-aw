@@ -56,14 +56,12 @@ type MatchResult struct {
 
 // AnomalyReport describes anomalies detected for a log line.
 type AnomalyReport struct {
-	// IsNewTemplate is true when the log line created a new cluster.
+	// IsNewTemplate is true when the log line produced a brand-new log cluster.
 	IsNewTemplate bool
 	// LowSimilarity is true when the best match score was below the configured threshold.
 	LowSimilarity bool
 	// RareCluster is true when the matched cluster has been seen fewer times than the rare threshold.
 	RareCluster bool
-	// NewClusterCreated is true when this event produced a brand-new cluster.
-	NewClusterCreated bool
 	// AnomalyScore is a weighted composite score in the range [0, 1].
 	AnomalyScore float64
 	// Reason is a human-readable description of all anomalies that were detected.
