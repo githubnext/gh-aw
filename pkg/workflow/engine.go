@@ -110,8 +110,11 @@ func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
 }
 
 // parseMaxEffectiveTokensValue parses max-effective-tokens from either integer
-// or numeric-string frontmatter values. It returns 0 when the value is missing
-// or invalid.
+// or numeric-string frontmatter values.
+//
+// A return value of 0 is a sentinel that means "not configured" (missing or
+// invalid); explicit zero is not a valid user value because schema validation
+// enforces minimum 1.
 func parseMaxEffectiveTokensValue(raw any) int64 {
 	if val, ok := typeutil.ParseIntValue(raw); ok {
 		return int64(val)

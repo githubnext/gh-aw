@@ -36,6 +36,8 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
+	// Preserve the top-level ET budget before string-form engine handling may
+	// intentionally clear engineConfig while converting "engine: <id>" into an import.
 	maxEffectiveTokens := int64(0)
 	if engineConfig != nil {
 		maxEffectiveTokens = engineConfig.MaxEffectiveTokens
