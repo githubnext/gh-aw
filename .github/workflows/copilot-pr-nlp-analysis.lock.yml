@@ -444,7 +444,10 @@ jobs:
       - name: Setup Python NLP environment
         run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\n# Create a virtual environment for proper package isolation (avoids --break-system-packages)\nif [ ! -d /tmp/gh-aw/venv ]; then\n  python3 -m venv /tmp/gh-aw/venv\nfi\necho \"/tmp/gh-aw/venv/bin\" >> \"$GITHUB_PATH\"\n/tmp/gh-aw/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK corpora\n/tmp/gh-aw/venv/bin/python3 -c \"\nimport nltk\nfor corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:\n    nltk.download(corpus, quiet=True)\nprint('NLTK corpora ready')\n\"\n\n/tmp/gh-aw/venv/bin/python3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__}')\"\n"
       - name: Setup jq utilities directory
-        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh\n"
+        run: |
+          mkdir -p /tmp/gh-aw
+          cp "$GITHUB_WORKSPACE/.github/skills/jqschema/jqschema.sh" /tmp/gh-aw/jqschema.sh
+          chmod +x /tmp/gh-aw/jqschema.sh
       - name: Install gh CLI
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
