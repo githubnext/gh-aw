@@ -53,6 +53,9 @@ safe-outputs:
       close-older-issues: true
       close-older-key: "smoke-codex"
       labels: [automation, testing]
+    set-issue-field:
+      max: 1
+      allowed-fields: ["*"]
     add-labels:
       allowed: [smoke-codex]
     remove-labels:
@@ -99,16 +102,24 @@ checkout:
 7. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
 8. **Comment Memory Testing**: Append an original 3-line haiku to the comment-memory markdown file(s) in `/tmp/gh-aw/comment-memory/*.md` without removing existing content.
 9. **Cache Memory Testing**:
-   - Check if `/tmp/gh-aw/cache-memory/smoke-codex-history.json` exists; if it does, read it and note the previous run's results (run ID, timestamp, status)
-   - Write current run results to `/tmp/gh-aw/cache-memory/smoke-codex-history.json` with content: `{"run_id": "${{ github.run_id }}", "timestamp": "<current UTC timestamp in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ>", "status": "PASS or FAIL", "tests_passed": <count>, "tests_failed": <count>}` (create the parent directory if it doesn't exist)
-   - Use bash to verify the file was written successfully (use `cat` to read it back)
+    - Check if `/tmp/gh-aw/cache-memory/smoke-codex-history.json` exists; if it does, read it and note the previous run's results (run ID, timestamp, status)
+    - Write current run results to `/tmp/gh-aw/cache-memory/smoke-codex-history.json` with content: `{"run_id": "${{ github.run_id }}", "timestamp": "<current UTC timestamp in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ>", "status": "PASS or FAIL", "tests_passed": <count>, "tests_failed": <count>}` (create the parent directory if it doesn't exist)
+    - Use bash to verify the file was written successfully (use `cat` to read it back)
+10. **Set Issue Field Testing**:
+    - After creating the smoke-test issue, use `set_issue_field` exactly once on that new issue
+    - Discover available issue fields and choose one compatible field/value pair:
+      - text field → short text value
+      - number field → numeric value
+      - date field → `YYYY-MM-DD`
+      - single-select field → an existing option name
+    - If no editable issue fields are available, report this test as skipped with reason
 
 ## Output
 
 **ALWAYS create an issue** with a summary of the smoke test run:
 - Title: "Smoke Test: Codex - ${{ github.run_id }}"
 - Body should include:
-  - Test results (✅ or ❌ for each test, including test #9 Cache Memory)
+  - Test results (✅ or ❌ for each test, including test #9 Cache Memory and test #10 Set Issue Field)
   - Overall status: PASS or FAIL
   - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - Timestamp
