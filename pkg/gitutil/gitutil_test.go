@@ -329,6 +329,53 @@ func TestFindGitRootFrom(t *testing.T) {
 		require.Error(t, err, "FindGitRootFrom should return error outside a git repository")
 		assert.Contains(t, err.Error(), "not in a git repository", "error should mention not in git repository")
 	})
+
+	t.Run("returns git root when .git is a worktree marker file", func(t *testing.T) {
+		// Simulate a git worktree: the repo root has a .git *file* (not dir)
+		// whose content begins with "gitdir: /some/path"
+		tmpDir := t.TempDir()
+		repoRoot := filepath.Join(tmpDir, "worktree-repo")
+		require.NoError(t, os.MkdirAll(repoRoot, 0755))
+
+		// Write a valid worktree .git file
+		gitFile := filepath.Join(repoRoot, ".git")
+		require.NoError(t, os.WriteFile(gitFile, []byte("gitdir: /tmp/real-repo/.git/worktrees/myworktree\n"), 0644))
+
+		// Start from the root itself
+		root, err := FindGitRootFrom(repoRoot)
+		require.NoError(t, err, "FindGitRootFrom should detect a worktree .git file")
+		assert.Equal(t, repoRoot, root)
+
+		// Start from a subdirectory inside the worktree
+		subDir := filepath.Join(repoRoot, "pkg", "sub")
+		require.NoError(t, os.MkdirAll(subDir, 0755))
+		root, err = FindGitRootFrom(subDir)
+		require.NoError(t, err, "FindGitRootFrom should detect worktree root from a subdirectory")
+		assert.Equal(t, repoRoot, root)
+	})
+
+	t.Run("ignores non-worktree .git files without gitdir prefix", func(t *testing.T) {
+		// A plain file named .git that does NOT start with "gitdir:" should not
+		// be treated as a valid repo root.
+		tmpDir := t.TempDir()
+		repoRoot := filepath.Join(tmpDir, "fake-git-file")
+		require.NoError(t, os.MkdirAll(repoRoot, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(repoRoot, ".git"), []byte("not a valid git file\n"), 0644))
+
+		_, err := FindGitRootFrom(repoRoot)
+		require.Error(t, err, "FindGitRootFrom should not accept a .git file without gitdir: prefix")
+		assert.Contains(t, err.Error(), "not in a git repository")
+	})
+
+	t.Run("handles relative path input", func(t *testing.T) {
+		// "." should resolve to os.Getwd(). Skip gracefully if the working
+		// directory is not inside a git repository (e.g. some CI containers).
+		root, err := FindGitRootFrom(".")
+		if err != nil {
+			t.Skipf("skipping: working directory is not inside a git repository (%v)", err)
+		}
+		assert.NotEmpty(t, root)
+	})
 }
 
 func TestReadFileFromHEADWithRoot(t *testing.T) {

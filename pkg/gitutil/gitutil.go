@@ -105,10 +105,33 @@ func FindGitRoot() (string, error) {
 // directory) or reaches the filesystem root.
 // Returns an error if not in a git repository.
 func FindGitRootFrom(startDir string) (string, error) {
-	dir := startDir
+	dir, err := filepath.Abs(startDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path for %q: %w", startDir, err)
+	}
+	dir = filepath.Clean(dir)
 	for {
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-			return dir, nil
+		gitPath := filepath.Join(dir, ".git")
+		info, err := os.Stat(gitPath)
+		if err == nil {
+			// .git exists — accept if it's a directory (normal repo) or a
+			// regular file (worktree / git-submodule pointer).
+			if info.IsDir() {
+				return dir, nil
+			}
+			// Worktree marker: must be a regular file beginning with "gitdir:"
+			if info.Mode().IsRegular() {
+				data, readErr := os.ReadFile(gitPath)
+				if readErr != nil {
+					return "", fmt.Errorf("failed to read .git file at %q: %w", gitPath, readErr)
+				}
+				if strings.HasPrefix(strings.TrimSpace(string(data)), "gitdir:") {
+					return dir, nil
+				}
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			// Unexpected error (e.g. permission denied) — surface it.
+			return "", fmt.Errorf("failed to stat %q: %w", gitPath, err)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
