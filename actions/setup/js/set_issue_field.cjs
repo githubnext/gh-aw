@@ -318,31 +318,49 @@ async function main(config = {}) {
       /** @type {{id: string, name: string, __typename?: string, options?: Array<{id: string, name: string}>}|null} */
       let resolvedField = null;
 
-      if (fieldName || !fieldNodeId) {
-        const availableFields = await fetchIssueFields(githubClient, owner, repo);
+      const availableFields = await fetchIssueFields(githubClient, owner, repo);
 
-        if (availableFields.length === 0 && !fieldNodeId) {
-          const error = "No issue fields were discovered for this repository. Verify issue fields are enabled, or provide field_node_id to skip field discovery.";
+      if (availableFields.length === 0) {
+        const error = "No issue fields were discovered for this repository. Verify issue fields are enabled and visible to this token.";
+        core.error(error);
+        return { success: false, error };
+      }
+
+      let resolvedFieldByName = null;
+      if (fieldName) {
+        resolvedFieldByName = availableFields.find(field => field.name.toLowerCase() === fieldName.toLowerCase()) || null;
+        if (!resolvedFieldByName) {
+          const availableNames = availableFields.map(field => field.name).join(", ");
+          const error = `Issue field ${JSON.stringify(fieldName)} not found. Available fields: ${availableNames}. Use a listed field_name or provide field_node_id to bypass discovery.`;
           core.error(error);
           return { success: false, error };
         }
+      }
 
-        if (fieldName) {
-          resolvedField = availableFields.find(field => field.name.toLowerCase() === fieldName.toLowerCase()) || null;
+      if (fieldNodeId) {
+        resolvedField = availableFields.find(field => field.id === fieldNodeId) || null;
+      }
 
-          if (!resolvedField) {
-            const availableNames = availableFields.map(field => field.name).join(", ");
-            const error = `Issue field ${JSON.stringify(fieldName)} not found. Available fields: ${availableNames}. Use a listed field_name or provide field_node_id to bypass discovery.`;
-            core.error(error);
-            return { success: false, error };
-          }
+      if (!fieldNodeId && resolvedFieldByName) {
+        fieldNodeId = resolvedFieldByName.id;
+        resolvedField = resolvedFieldByName;
+      }
 
-          if (!fieldNodeId) {
-            fieldNodeId = resolvedField.id;
-          }
-        } else if (fieldNodeId) {
-          resolvedField = availableFields.find(field => field.id === fieldNodeId) || null;
-        }
+      if (!resolvedField && resolvedFieldByName) {
+        resolvedField = resolvedFieldByName;
+      }
+
+      if (fieldNodeId && !resolvedField) {
+        const availableFieldsSummary = availableFields.map(field => `${field.name} (${field.id})`).join(", ");
+        const error = `Issue field ID ${JSON.stringify(fieldNodeId)} not found. Available fields: ${availableFieldsSummary}. Use a valid field_node_id or provide field_name.`;
+        core.error(error);
+        return { success: false, error };
+      }
+
+      if (fieldNodeId && fieldName && resolvedFieldByName && resolvedField && resolvedFieldByName.id !== resolvedField.id) {
+        const error = `field_name ${JSON.stringify(fieldName)} resolves to ${JSON.stringify(resolvedFieldByName.id)}, but field_node_id was ${JSON.stringify(fieldNodeId)}. Provide only one identifier or make them match.`;
+        core.error(error);
+        return { success: false, error };
       }
 
       if (!fieldNodeId) {

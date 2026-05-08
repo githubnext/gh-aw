@@ -127,7 +127,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"set_issue_field": {
-		DefaultMax: 5,
+		DefaultMax:       5,
+		CustomValidation: "requiresOneOf:field_name,field_node_id",
 		Fields: map[string]FieldValidation{
 			"issue_number":  {IssueOrPRNumber: true},
 			"field_name":    {Type: "string", Sanitize: true, MaxLength: 128},

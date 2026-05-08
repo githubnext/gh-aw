@@ -47,6 +47,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
   const issueNodeId = "I_kwDOABCD123456";
   const textFieldId = "IF_kwDO_text";
   const statusFieldId = "IF_kwDO_status";
+  const effortFieldId = "IF_kwDO_direct";
 
   const mockIssueFieldsQuery = {
     repository: {
@@ -62,6 +63,7 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
               { id: "IFOPT_closed", name: "Closed" },
             ],
           },
+          { id: effortFieldId, name: "Effort", __typename: "IssueFieldNumber" },
         ],
       },
       owner: {
@@ -170,24 +172,39 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
     expect(result.error).toContain("Available options");
   });
 
-  it("should use field_node_id without discovery", async () => {
+  it("should resolve field type when field_node_id is provided", async () => {
     const message = {
       type: "set_issue_field",
       issue_number: 42,
-      field_node_id: "IF_kwDO_direct",
-      value: "Direct Value",
+      field_node_id: effortFieldId,
+      value: "3.5",
     };
 
     const result = await handler(message, {});
 
     expect(result.success).toBe(true);
-    expect(result.field_node_id).toBe("IF_kwDO_direct");
-    expect(mockGraphql).not.toHaveBeenCalledWith(expect.stringContaining("repository(owner"), expect.anything());
+    expect(result.field_node_id).toBe(effortFieldId);
+    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("repository(owner"), expect.anything());
     expect(mockGraphql).toHaveBeenCalledWith(
       expect.stringContaining("setIssueFieldValue"),
       expect.objectContaining({
-        issueFields: [expect.objectContaining({ fieldId: "IF_kwDO_direct", textValue: "Direct Value" })],
+        issueFields: [expect.objectContaining({ fieldId: effortFieldId, numberValue: 3.5 })],
       })
     );
+  });
+
+  it("should error when provided field_node_id is unknown", async () => {
+    const message = {
+      type: "set_issue_field",
+      issue_number: 42,
+      field_node_id: "IF_kwDO_missing",
+      value: "3.5",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not found");
+    expect(result.error).toContain("Available fields");
   });
 });
