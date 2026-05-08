@@ -320,7 +320,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 			BuildEventTypeEquals("issues"),
 			BuildEventTypeEquals("issue_comment"),
 		)
-		ctx.steps = append(ctx.steps, "      - name: Lock issue for agent workflow\n")
+		ctx.steps = append(ctx.steps, "      - name: Lock issue for agentic workflow\n")
 		ctx.steps = append(ctx.steps, "        id: lock-issue\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        if: %s\n", RenderCondition(lockCondition)))
 		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
