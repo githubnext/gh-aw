@@ -635,7 +635,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.41
       - name: Install Playwright CLI
-        run: npm install -g @playwright/cli@0.1.11
+        run: npm install -g @playwright/cli@0.1.13
       - name: Install Playwright CLI skills
         run: playwright-cli install --skills
       - name: Parse integrity filter lists
