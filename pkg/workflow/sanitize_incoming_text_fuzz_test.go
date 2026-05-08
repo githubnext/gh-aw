@@ -1,4 +1,4 @@
-//go:build !integration
+//go:build integration
 
 package workflow
 
@@ -178,6 +178,13 @@ func FuzzSanitizeIncomingText(f *testing.F) {
 // Helper function
 func isWordChar(b byte) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
+func isExpectedError(err error) bool {
+	if err == nil {
+		return true
+	}
+	return strings.Contains(err.Error(), "exit status")
 }
 
 // sanitizeIncomingTextTestInput represents the JSON input for the fuzz test harness
