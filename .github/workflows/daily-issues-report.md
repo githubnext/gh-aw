@@ -42,7 +42,7 @@ imports:
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily issues] "
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/issues-data-fetch.md
   - shared/python-dataviz.md
   - shared/python-nlp.md

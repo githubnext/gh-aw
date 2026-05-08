@@ -15,7 +15,7 @@ network:
     - github
 imports:
   - shared/github-guard-policy.md
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/observability-otlp.md
 tools:
