@@ -318,12 +318,12 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 
 | Requirement | Test ID | Level | Status |
 |---|---|---|---|
-| Per-invocation base weighted tokens | T-ET-001–004 | 1 | Required |
-| Per-invocation ET computation | T-ET-002 | 1 | Required |
-| Multi-invocation aggregation | T-ET-010–012 | 2 | Required |
-| Execution graph node schema | T-ET-020–022 | 2 | Required |
-| Summary reporting | T-ET-030–031 | 3 | Required |
-| Custom weight disclosure | T-ET-004 | 1 | Required |
+| Per-invocation base weighted tokens | T-ET-001–004 | 1 | Implemented |
+| Per-invocation ET computation | T-ET-002 | 1 | Implemented |
+| Multi-invocation aggregation | T-ET-010–012 | 2 | Implemented |
+| Execution graph node schema | T-ET-020–022 | 2 | Implemented |
+| Summary reporting | T-ET-030–031 | 3 | Implemented |
+| Custom weight disclosure | T-ET-004 | 1 | Implemented |
 | Versioning of weights/multipliers | — | 3 | Recommended |
 | Partial visibility flagging | — | 2 | Recommended |
 
@@ -478,6 +478,8 @@ This file is embedded at compile time into the `gh-aw` binary using a Go `//go:e
 
 **R-REG-008**: When adding support for a new model, maintainers MUST register the model in `pkg/cli/data/model_multipliers.json` with a concrete numeric multiplier before release. If calibration is incomplete, the model MUST be omitted from the registry and the implementation fallback behavior in R-REG-005 applies.
 
+**R-REG-009**: When a model is scheduled for removal from the registry, it MUST remain in `pkg/cli/data/model_multipliers.json` with a `deprecated` marker in a comment or companion metadata field for at least one minor version before it is deleted. Implementations SHOULD emit a warning when a `deprecated` model is encountered at runtime, advising callers to migrate to a supported model. A model entry MUST NOT be silently removed between consecutive minor versions; removal without the one-version deprecation notice is a breaking change and MUST be accompanied by a major version bump of the registry `version` field.
+
 ### Registry Versioning
 
 The `version` field in `model_multipliers.json` corresponds to the registry schema version, not the gh-aw binary version. Implementations SHOULD include the registry version in all ET summary reports to enable historical reconstruction.
@@ -492,8 +494,9 @@ To keep specification and implementation synchronized:
 
 1. Update this specification's registry requirements when adding, removing, or re-scaling model multipliers.
 2. Update `pkg/cli/data/model_multipliers.json` in the same change.
-3. Verify loading and fallback behavior in `pkg/cli/effective_tokens_test.go` (`TestModelMultipliersJSONEmbedded`, `TestResolveEffectiveWeightsDefault`, and inventory checks).
-4. Run `make build` so the embedded registry is rebuilt into the `gh-aw` binary.
+3. When deprecating a model, add a `deprecated` comment alongside the entry and keep it in the registry for at least one minor version before removal (R-REG-009). Update the registry `version` field on removal.
+4. Verify loading and fallback behavior in `pkg/cli/effective_tokens_test.go` (`TestModelMultipliersJSONEmbedded`, `TestResolveEffectiveWeightsDefault`, and inventory checks).
+5. Run `make build` so the embedded registry is rebuilt into the `gh-aw` binary.
 
 Conforming releases SHOULD include a test assertion for newly added model multipliers to ensure implementation-registry parity.
 
@@ -516,8 +519,10 @@ Conforming releases SHOULD include a test assertion for newly added model multip
 
 ### Version 0.3.0 (Draft)
 
-- **Added**: Model Multiplier Registry section with normative requirements R-REG-001 through R-REG-006
+- **Added**: Model Multiplier Registry section with normative requirements R-REG-001 through R-REG-009
+- **Added**: R-REG-009: model deprecation/sunset lifecycle norm (models must carry a `deprecated` marker for one minor version before removal)
 - **Added**: Compliance test skeleton file `pkg/cli/effective_tokens_compliance_test.go` with Go test stubs for T-ET-001..T-ET-031
+- **Updated**: Compliance checklist §10.2 status column from "Required" to "Implemented" for all test IDs T-ET-001–T-ET-031 (all tests now implemented and passing)
 - **Audit (Appendix C — Security)**: Verified Appendix C requirements against `pkg/cli/effective_tokens.go` and `pkg/cli/data/model_multipliers.json`. Findings:
   - _Sensitive usage patterns_ (Appendix C §1): Per-invocation token data is not exposed directly by the CLI; only aggregate `TotalEffectiveTokens` is surfaced in the audit output. Access control is delegated to GitHub repository permissions. **No gaps found.**
   - _Aggregate vs. detailed data separation_ (Appendix C §2): The `TokenUsageSummary.ByModel` map contains per-model breakdowns but is only logged at DEBUG level, not included in default CLI output. **No gaps found.**
