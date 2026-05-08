@@ -240,11 +240,18 @@ function normalizeIssueFields(fields) {
  * @returns {string[]}
  */
 function parseAllowedIssueFields(value) {
-  if (!value) {
+  if (value == null || value === "") {
     return [];
   }
   const raw = Array.isArray(value) ? value : String(value).split(",");
-  return [...new Set(raw.map(item => String(item).trim()).filter(Boolean))];
+  const uniqueFields = new Set();
+  for (const item of raw) {
+    const normalized = String(item).trim();
+    if (normalized) {
+      uniqueFields.add(normalized);
+    }
+  }
+  return [...uniqueFields];
 }
 
 /**
