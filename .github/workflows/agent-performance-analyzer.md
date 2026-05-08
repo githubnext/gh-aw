@@ -9,16 +9,14 @@ permissions:
   actions: read
 engine: copilot
 tools:
-  cli-proxy: true
-  agentic-workflows:
-  github:
-    mode: gh-proxy
-    toolsets: [default, actions, repos]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "**"
     max-file-size: 102400  # 100KB
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, actions, repos]
   - shared/reporting.md
 safe-outputs:
   create-issue:

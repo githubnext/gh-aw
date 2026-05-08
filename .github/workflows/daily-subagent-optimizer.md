@@ -22,12 +22,7 @@ network:
     - github
 
 tools:
-  cli-proxy: true
-  agentic-workflows:
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default, repos, actions]
   bash:
     - "*"
 
@@ -46,6 +41,9 @@ features:
   inline-agents: true
 
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, repos, actions]
   - shared/reporting.md
 ---
 

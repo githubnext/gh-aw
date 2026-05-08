@@ -12,11 +12,6 @@ permissions:
 tracker-id: aw-failure-investigator
 engine: claude
 tools:
-  cli-proxy: true
-  agentic-workflows:
-  github:
-    mode: gh-proxy
-    toolsets: [default, actions]
   bash: ["*"]
 safe-outputs:
   create-issue:
@@ -33,6 +28,9 @@ safe-outputs:
   noop:
 timeout-minutes: 60
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, actions]
   - shared/reporting.md
 ---
 

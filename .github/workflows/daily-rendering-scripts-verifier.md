@@ -16,8 +16,6 @@ engine: claude
 strict: true
 
 tools:
-  cli-proxy: true
-  agentic-workflows:
   cache-memory: true
   bash:
     - "ls*"
@@ -32,13 +30,12 @@ tools:
     - "tail*"
     - "wc*"
   edit:
-  github:
-    mode: gh-proxy
-    toolsets: [default, repos, pull_requests]
-
 timeout-minutes: 30
 
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, repos, pull_requests]
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[rendering-scripts]"

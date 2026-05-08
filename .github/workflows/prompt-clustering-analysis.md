@@ -20,6 +20,9 @@ network:
     - python
 
 imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [repos, pull_requests]
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[prompt-clustering] "
@@ -36,12 +39,7 @@ cache:
       prompt-clustering-cache-
 
 tools:
-  cli-proxy: true
-  agentic-workflows:
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [repos, pull_requests]
   bash: ["*"]
 
 steps:
