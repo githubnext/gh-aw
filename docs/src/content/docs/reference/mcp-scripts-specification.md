@@ -1382,6 +1382,50 @@ sandbox with the following constraints:
   tool's `env:` field. No other environment variables from the runner are forwarded into
   the Go sandbox.
 
+### Norms Audit (2026-05-08)
+
+The following is an audit of normative coverage for tool execution ordering, retry semantics,
+and error propagation — three areas that implementations commonly need explicit guidance on.
+
+#### Tool Execution Ordering
+
+**Status: Explicitly specified — no gap.**
+
+Section 5.1 specifies stateless, session-independent invocation. Each tool call is
+independent with no defined ordering dependency across calls. The MCP protocol layer handles
+queueing. No additional ordering norm is required.
+
+#### Retry Semantics
+
+**Status: Not specified — gap confirmed.**
+
+The specification does not define retry behavior for transient failures (e.g., container
+startup failures, intermittent network errors for shell tools with network access, or
+Node.js process crashes). The current behavior is implementation-defined.
+
+_Recommendation for a future revision_: Add a normative subsection (e.g., §5.7 Retry
+Semantics) specifying: (a) tools MUST NOT be automatically retried by the MCP server
+without explicit caller instruction; (b) transient container startup failures SHOULD surface
+as a `-32603` execution error so the caller (agent) may decide whether to retry; (c)
+idempotency of tool invocations is the caller's responsibility.
+
+#### Error Propagation
+
+**Status: Partially specified — minor gap.**
+
+Section 5.3 specifies JSON-RPC error codes for missing tool (`-32601`), invalid parameters
+(`-32602`), and execution/internal errors (`-32603`). Timeout errors are covered in §5.6
+(code `-32603`). However, the specification does not distinguish between:
+
+- **Recoverable errors**: transient failures where the caller might retry (e.g., timeout,
+  container startup failure)
+- **Non-recoverable errors**: permanent failures where retry would not help (e.g., syntax
+  error in tool script, missing dependency)
+
+_Recommendation for a future revision_: Extend §5.3 to include a `recoverable` boolean in
+the error `data` field, allowing agents to make informed retry decisions without parsing
+error messages.
+
 ---
 
 ## References
