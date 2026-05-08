@@ -122,15 +122,15 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.128.0"
+          GH_AW_INFO_VERSION: "0.129.0"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || 'auto' }}
-          GH_AW_INFO_VERSION: "0.128.0"
-          GH_AW_INFO_AGENT_VERSION: "0.128.0"
+          GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_AGENT_VERSION: "0.129.0"
           GH_AW_INFO_WORKFLOW_NAME: "AI Moderator"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -402,7 +402,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.128.0"
+          GH_AW_INFO_VERSION: "0.129.0"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -453,7 +453,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.128.0
+        run: npm install --ignore-scripts -g @openai/codex@0.129.0
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.41
       - name: Parse integrity filter lists
@@ -1045,7 +1045,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.128.0"
+          GH_AW_INFO_VERSION: "0.129.0"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1162,7 +1162,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.128.0"
+          GH_AW_INFO_VERSION: "0.129.0"
       - name: Check user rate limit
         id: check_rate_limit
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1249,7 +1249,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.128.0"
+          GH_AW_INFO_VERSION: "0.129.0"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1327,7 +1327,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.128.0"
+          GH_AW_INFO_VERSION: "0.129.0"
       - name: Unlock issue after agentic workflow
         id: unlock-issue
         if: (github.event_name == 'issues' || github.event_name == 'issue_comment') && needs.activation.outputs.issue_locked == 'true'

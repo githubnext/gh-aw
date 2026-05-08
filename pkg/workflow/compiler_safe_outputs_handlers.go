@@ -839,4 +839,23 @@ var handlerRegistry = map[string]handlerBuilder{
 		}
 		return config
 	},
+	"set_issue_field": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.SetIssueField == nil {
+			return nil
+		}
+		c := cfg.SetIssueField
+		config := newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddStringSlice("allowed_fields", c.AllowedFields).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+		if len(config) == 0 {
+			return make(map[string]any)
+		}
+		return config
+	},
 }

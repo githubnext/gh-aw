@@ -60,6 +60,15 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			expectedPerms:    []string{"contents: read", "issues: write", "discussions: write"},
 		},
 		{
+			name: "set issue field only",
+			safeOutputs: &SafeOutputsConfig{
+				SetIssueField: &SetIssueFieldConfig{},
+			},
+			expectedJobName:  "safe_outputs",
+			checkPermissions: true,
+			expectedPerms:    []string{"contents: read", "issues: write"},
+		},
+		{
 			name: "create pull requests with patch",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{

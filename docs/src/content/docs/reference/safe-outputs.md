@@ -55,6 +55,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) - Assign users to issues (max: 1)
 - [**Unassign from User**](#unassign-from-user-unassign-from-user) (`unassign-from-user`) - Remove user assignments from issues or PRs (max: 1)
 - [**Set Issue Type**](#set-issue-type-set-issue-type) (`set-issue-type`) - Set or clear the type of GitHub issues (max: 5)
+- [**Set Issue Field**](#set-issue-field-set-issue-field) (`set-issue-field`) - Set one issue field value by name/value (max: 5)
 
 ### Projects, Releases & Assets
 
@@ -435,6 +436,23 @@ safe-outputs:
 ```
 
 Agent calls `set_issue_type` with `issue_type` (the type name) and optionally `issue_number`. Omitting `issue_number` targets the triggering issue.
+
+### Set Issue Field (`set-issue-field:`)
+
+Sets one issue field value by field name and value, without needing the broader `update-issue` tool path.
+
+```yaml wrap
+safe-outputs:
+  set-issue-field:                        # null enables with defaults
+    max: 5                                # max operations (default: 5)
+    target: "triggering"                  # "triggering" (default), "*", or issue number
+    allowed-fields: [Priority, Iteration] # restrict issue fields this workflow may set
+    target-repo: "owner/repo"             # cross-repository
+    allowed-repos: ["owner/repo1"]        # additional allowed repositories
+    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }}
+```
+
+Agent calls `set_issue_field` with `value`, and either `field_name` (preferred) or `field_node_id`. It can also pass `issue_number`; if omitted, the triggering issue is targeted.
 
 ### Project Creation (`create-project:`)
 

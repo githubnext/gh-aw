@@ -237,6 +237,10 @@ A field on `submit-pull-request-review:` safe outputs that restricts which PR re
 
 A field on `submit-pull-request-review:` safe outputs that dismisses older `REQUEST_CHANGES` reviews from the same workflow after posting a replacement review. When `supersede-older-reviews: true` is set, the safe-output handler fetches recent reviews, identifies prior `REQUEST_CHANGES` reviews submitted by the same workflow call, and dismisses them before the new review takes effect. This is best-effort behavior — dismissal failures do not block the new review. Useful when a workflow is configured with `allowed-events: [REQUEST_CHANGES]` and repeated runs would otherwise accumulate blocking reviews. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#submit-pr-review-submit-pull-request-review).
 
+### Allowed Fields (`create-issue:`)
+
+A configuration field on `create-issue:` safe outputs that restricts which GitHub Project custom fields the agent may set when creating issues. Accepts an array of field names (e.g., `[Priority, Iteration]`). When set, the safe-outputs handler rejects any attempt to populate a field not in the list. When omitted, all project fields are permitted. Example: `allowed-fields: [Priority, Iteration]`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-creation-create-issue).
+
 ### Allowed Files
 
 An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branch` safe outputs. When `allowed-files:` is set to a list of glob patterns, **only** files matching those patterns may be modified — every other file (including normal source files) is refused. This is a restriction, not an exception: listing `.github/workflows/*` does not additionally allow normal source files; it blocks them. Runs independently from [Protected Files](#protected-files): both checks must pass. To modify a protected file, it must both match `allowed-files` and have `protected-files: allowed`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#restricting-changes-to-specific-files-with-allowed-files).
@@ -268,6 +272,10 @@ A mandatory safe output signal that agents emit when a task cannot be completed 
 ### Set Issue Type (`set-issue-type:`)
 
 A safe output capability for setting or clearing the GitHub issue type on existing issues. The agent calls `set_issue_type` to assign a named type (e.g., `Bug`, `Feature`) to an issue. An `allowed` list restricts which types the agent may set; omitting it permits any type. Passing an empty string clears the current type. Supports cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-type:` in `safe-outputs`.
+
+### Set Issue Field (`set-issue-field:`)
+
+A safe output capability for setting one issue field value on existing issues. The agent calls `set_issue_field` with `value` and either `field_name` (for discovery by field label) or `field_node_id` (to skip discovery). Unknown field names return actionable errors listing available fields and suggesting explicit IDs. Supports optional `allowed-fields` restrictions (including `["*"]` wildcard) and cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-field:` in `safe-outputs`.
 
 ### Parameterized Safe-Output Fields
 
@@ -538,6 +546,10 @@ A security linter for GitHub Actions workflows that detects supply-chain vulnera
 ### Validation
 
 Checking workflow files for errors, security issues, and best practices. Occurs during compilation and can be enhanced with strict mode and security scanners.
+
+### `gh aw lint`
+
+A CLI command that runs actionlint on existing `.lock.yml` workflow files without recompiling the source Markdown. Unlike `gh aw compile --actionlint`, it reads lock files directly from disk, skipping `zizmor` and `poutine`. Supports `--shellcheck` and `--pyflakes` flags to enable script integrations for shell and Python analysis. Useful for fast local feedback after manual lock-file edits. See [CLI Reference](/gh-aw/setup/cli/).
 
 ### zizmor
 

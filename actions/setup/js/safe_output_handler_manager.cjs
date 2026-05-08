@@ -57,6 +57,7 @@ const HANDLER_MAP = {
   mark_pull_request_as_ready_for_review: "./mark_pull_request_as_ready_for_review.cjs",
   hide_comment: "./hide_comment.cjs",
   set_issue_type: "./set_issue_type.cjs",
+  set_issue_field: "./set_issue_field.cjs",
   add_reviewer: "./add_reviewer.cjs",
   assign_milestone: "./assign_milestone.cjs",
   assign_to_user: "./assign_to_user.cjs",

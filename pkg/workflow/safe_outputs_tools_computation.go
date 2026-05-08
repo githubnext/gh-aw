@@ -119,6 +119,9 @@ func computeEnabledToolNames(data *WorkflowData) map[string]bool {
 	if data.SafeOutputs.SetIssueType != nil {
 		enabledTools["set_issue_type"] = true
 	}
+	if data.SafeOutputs.SetIssueField != nil {
+		enabledTools["set_issue_field"] = true
+	}
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true
 	}

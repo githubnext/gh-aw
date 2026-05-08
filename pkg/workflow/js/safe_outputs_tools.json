@@ -1286,6 +1286,46 @@
     }
   },
   {
+    "name": "set_issue_field",
+    "description": "Set a single GitHub issue field by name and value. Use field_name for discovery by field label (for example, \"Priority\"), or provide field_node_id to skip discovery. Supports text, number, date (YYYY-MM-DD), and single-select fields (value must match an option name).",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "issue_number": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "Issue number to set the field on. If omitted, targets the issue that triggered this workflow."
+        },
+        "field_name": {
+          "type": "string",
+          "description": "Issue field name to set (e.g., \"Priority\", \"Severity\", \"Customer Impact\")."
+        },
+        "field_node_id": {
+          "type": "string",
+          "description": "Optional GraphQL node ID of the issue field. Provide this to skip field-name discovery and set a field directly."
+        },
+        "value": {
+          "type": "string",
+          "description": "Field value to set. For single-select fields, this must match an existing option name. For date fields, use YYYY-MM-DD."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_project",
     "description": "Manage GitHub Projects: add issues/pull requests/draft issues, update item fields (status, priority, effort, dates), manage custom fields, and create project views. Use this to organize work by adding items to projects, updating field values, creating custom fields up-front, and setting up project views (table, board, roadmap).\n\nThree modes: (1) Add or update project items with custom field values; (2) Create project fields; (3) Create project views. This is the primary tool for ProjectOps automation - add items to projects, set custom fields for tracking, and organize project boards.",
     "inputSchema": {

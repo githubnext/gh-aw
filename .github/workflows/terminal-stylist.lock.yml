@@ -118,7 +118,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Terminal Stylist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/terminal-stylist.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -127,8 +127,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
-          GH_AW_INFO_VERSION: "1.0.40"
-          GH_AW_INFO_AGENT_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_AGENT_VERSION: "1.0.43"
           GH_AW_INFO_WORKFLOW_NAME: "Terminal Stylist"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -404,7 +404,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Terminal Stylist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/terminal-stylist.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -453,7 +453,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.40
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.43
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1029,7 +1029,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Terminal Stylist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/terminal-stylist.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1172,7 +1172,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Terminal Stylist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/terminal-stylist.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1257,7 +1257,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.40
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.43
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1357,7 +1357,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_ENGINE_VERSION: "1.0.40"
+      GH_AW_ENGINE_VERSION: "1.0.43"
       GH_AW_WORKFLOW_ID: "terminal-stylist"
       GH_AW_WORKFLOW_NAME: "Terminal Stylist"
     outputs:
@@ -1385,7 +1385,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Terminal Stylist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/terminal-stylist.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.40"
+          GH_AW_INFO_VERSION: "1.0.43"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

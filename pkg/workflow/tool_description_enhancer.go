@@ -23,6 +23,17 @@ func formatStringList(items []string) string {
 	return "[" + strings.Join(quoted, " ") + "]"
 }
 
+func appendAllowedIssueFieldsConstraint(constraints *[]string, allowedFields []string) {
+	if len(allowedFields) == 0 {
+		return
+	}
+	if slices.Contains(allowedFields, "*") {
+		*constraints = append(*constraints, "Any issue field is allowed.")
+		return
+	}
+	*constraints = append(*constraints, fmt.Sprintf("Only these issue fields are allowed: %s.", formatStringList(allowedFields)))
+}
+
 // enhanceToolDescription adds configuration-specific constraints to tool descriptions
 // This provides agents with context about limits and restrictions configured in the workflow
 func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeOutputsConfig) string {
@@ -50,18 +61,23 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if len(config.AllowedLabels) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
 			}
-			if len(config.AllowedFields) > 0 {
-				if slices.Contains(config.AllowedFields, "*") {
-					constraints = append(constraints, "Any issue field is allowed.")
-				} else {
-					constraints = append(constraints, fmt.Sprintf("Only these issue fields are allowed: %s.", formatStringList(config.AllowedFields)))
-				}
-			}
+			appendAllowedIssueFieldsConstraint(&constraints, config.AllowedFields)
 			if len(config.Assignees) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Assignees %s will be automatically assigned.", formatStringList(config.Assignees)))
 			}
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Issues will be created in repository %q.", config.TargetRepoSlug))
+			}
+		}
+
+	case "set_issue_field":
+		if config := safeOutputs.SetIssueField; config != nil {
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d issue field update(s) can be made.", templatableIntValue(config.Max)))
+			}
+			appendAllowedIssueFieldsConstraint(&constraints, config.AllowedFields)
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Issue fields will be updated in repository %q.", config.TargetRepoSlug))
 			}
 		}
 
