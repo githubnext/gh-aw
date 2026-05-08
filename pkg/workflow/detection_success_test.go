@@ -70,6 +70,9 @@ Create an issue.
 	if !strings.Contains(detectionSection, "GH_AW_DETECTION_CONTINUE_ON_ERROR:") {
 		t.Error("Detection conclusion step missing GH_AW_DETECTION_CONTINUE_ON_ERROR env var")
 	}
+	if !strings.Contains(detectionSection, "DETECTION_AGENTIC_EXECUTION_OUTCOME: ${{ steps.detection_agentic_execution.outcome }}") {
+		t.Error("Detection conclusion step missing DETECTION_AGENTIC_EXECUTION_OUTCOME env var")
+	}
 
 	// Check that the combined parse-and-conclude step has ID detection_conclusion
 	if !strings.Contains(detectionSection, "id: detection_conclusion") {
