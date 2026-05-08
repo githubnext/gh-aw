@@ -58,8 +58,8 @@ Test workflow with lock-for-agent enabled.
 
 	// Check for lock-specific content in generated YAML
 	expectedStrings := []string{
-		"Lock issue for agent workflow",
-		"Unlock issue after agent workflow",
+		"Lock issue for agentic workflow",
+		"Unlock issue after agentic workflow",
 		"lock-issue.cjs",   // Check for require() call to lock-issue script
 		"unlock-issue.cjs", // Check for require() call to unlock-issue script
 	}
@@ -72,13 +72,13 @@ Test workflow with lock-for-agent enabled.
 
 	// Verify lock step is in activation job
 	activationJobSection := extractJobSection(yamlContent, "activation")
-	if !strings.Contains(activationJobSection, "Lock issue for agent workflow") {
+	if !strings.Contains(activationJobSection, "Lock issue for agentic workflow") {
 		t.Error("Activation job should contain the lock step")
 	}
 
 	// Verify dedicated unlock job exists and has always() condition
 	unlockJobSection := extractJobSection(yamlContent, "unlock")
-	if !strings.Contains(unlockJobSection, "Unlock issue after agent workflow") {
+	if !strings.Contains(unlockJobSection, "Unlock issue after agentic workflow") {
 		t.Error("Unlock job should contain the unlock step")
 	}
 
@@ -133,11 +133,11 @@ Test workflow with lock-for-agent but no reaction.
 	}
 
 	// Lock and unlock steps should still be present
-	if !strings.Contains(yamlContent, "Lock issue for agent workflow") {
+	if !strings.Contains(yamlContent, "Lock issue for agentic workflow") {
 		t.Error("Generated YAML should contain lock step even without reaction")
 	}
 
-	if !strings.Contains(yamlContent, "Unlock issue after agent workflow") {
+	if !strings.Contains(yamlContent, "Unlock issue after agentic workflow") {
 		t.Error("Generated YAML should contain unlock step even without reaction")
 	}
 
@@ -204,11 +204,11 @@ Test workflow without lock-for-agent.
 	}
 
 	// Lock and unlock steps should not be present
-	if strings.Contains(yamlContent, "Lock issue for agent workflow") {
+	if strings.Contains(yamlContent, "Lock issue for agentic workflow") {
 		t.Error("Generated YAML should not contain lock step when lock-for-agent is disabled")
 	}
 
-	if strings.Contains(yamlContent, "Unlock issue after agent workflow") {
+	if strings.Contains(yamlContent, "Unlock issue after agentic workflow") {
 		t.Error("Generated YAML should not contain unlock step when lock-for-agent is disabled")
 	}
 
@@ -269,11 +269,11 @@ Test workflow without lock-for-agent and without reaction.
 	}
 
 	// Lock and unlock steps should not be present
-	if strings.Contains(yamlContent, "Lock issue for agent workflow") {
+	if strings.Contains(yamlContent, "Lock issue for agentic workflow") {
 		t.Error("Generated YAML should not contain lock step when lock-for-agent is disabled")
 	}
 
-	if strings.Contains(yamlContent, "Unlock issue after agent workflow") {
+	if strings.Contains(yamlContent, "Unlock issue after agentic workflow") {
 		t.Error("Generated YAML should not contain unlock step when lock-for-agent is disabled")
 	}
 
@@ -324,7 +324,7 @@ Test that lock-for-agent on issues doesn't break PR workflows.
 	}
 
 	// Lock steps should not be present for PR event (no lock-for-agent in on.pull_request)
-	if strings.Contains(yamlContent, "Lock issue for agent workflow") {
+	if strings.Contains(yamlContent, "Lock issue for agentic workflow") {
 		t.Error("Generated YAML should not contain lock step for pull_request event")
 	}
 }
@@ -376,8 +376,8 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 
 	// Check for lock-specific content in generated YAML
 	expectedStrings := []string{
-		"Lock issue for agent workflow",
-		"Unlock issue after agent workflow",
+		"Lock issue for agentic workflow",
+		"Unlock issue after agentic workflow",
 		"lock-issue.cjs",   // Check for require() call to lock-issue script
 		"unlock-issue.cjs", // Check for require() call to unlock-issue script
 	}
@@ -390,7 +390,7 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 
 	// Verify lock step is in activation job
 	activationJobSection := extractJobSection(yamlContent, "activation")
-	if !strings.Contains(activationJobSection, "Lock issue for agent workflow") {
+	if !strings.Contains(activationJobSection, "Lock issue for agentic workflow") {
 		t.Error("Activation job should contain the lock step")
 	}
 
@@ -401,7 +401,7 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 
 	// Verify dedicated unlock job exists
 	unlockJobSection := extractJobSection(yamlContent, "unlock")
-	if !strings.Contains(unlockJobSection, "Unlock issue after agent workflow") {
+	if !strings.Contains(unlockJobSection, "Unlock issue after agentic workflow") {
 		t.Error("Unlock job should contain the unlock step")
 	}
 
@@ -544,8 +544,8 @@ Test that safe_outputs job depends on unlock job.
 
 	// Check for lock and unlock steps in the workflow
 	expectedStrings := []string{
-		"Lock issue for agent workflow",                  // In activation job
-		"Unlock issue after agent workflow",              // In dedicated unlock job
+		"Lock issue for agentic workflow",                // In activation job
+		"Unlock issue after agentic workflow",            // In dedicated unlock job
 		"needs.activation.outputs.issue_locked == 'true", // Condition check
 		"unlock-issue.cjs",                               // Script reference
 	}
@@ -558,13 +558,13 @@ Test that safe_outputs job depends on unlock job.
 
 	// Verify lock step is in activation job
 	activationJobSection := extractJobSection(yamlContent, "activation")
-	if !strings.Contains(activationJobSection, "Lock issue for agent workflow") {
+	if !strings.Contains(activationJobSection, "Lock issue for agentic workflow") {
 		t.Error("Activation job should contain the lock step")
 	}
 
 	// Verify dedicated unlock job exists with always() condition
 	unlockJobSection := extractJobSection(yamlContent, "unlock")
-	if !strings.Contains(unlockJobSection, "Unlock issue after agent workflow") {
+	if !strings.Contains(unlockJobSection, "Unlock issue after agentic workflow") {
 		t.Error("Unlock job should contain the unlock step")
 	}
 

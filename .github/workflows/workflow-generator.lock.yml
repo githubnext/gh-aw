@@ -194,7 +194,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/compute_text.cjs');
             await main();
-      - name: Lock issue for agent workflow
+      - name: Lock issue for agentic workflow
         id: lock-issue
         if: github.event_name == 'issues' || github.event_name == 'issue_comment'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1517,7 +1517,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Workflow Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow-generator.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.40"
-      - name: Unlock issue after agent workflow
+      - name: Unlock issue after agentic workflow
         id: unlock-issue
         if: (github.event_name == 'issues' || github.event_name == 'issue_comment') && needs.activation.outputs.issue_locked == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
