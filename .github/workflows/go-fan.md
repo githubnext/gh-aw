@@ -23,10 +23,11 @@ network:
     - go
 
 imports:
-  - uses: shared/daily-audit-base.md
+  - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[go-fan] "
       expires: 1d
+      labels: [automation, cookie]
   - shared/go-source-analysis.md
 
 tools:
@@ -68,7 +69,7 @@ Each day, you will:
 5. Research the module's GitHub repository for usage patterns and recent features
 6. Analyze how this project uses the module
 7. Identify potential improvements or better usage patterns
-8. Save a summary under `scratchpad/mods/` and create a discussion with your findings
+8. Save a summary under `scratchpad/mods/` and create an issue with your findings
 
 ## Step 1: Load Round-Robin State from Cache
 
@@ -253,9 +254,9 @@ Save your progress to **`/tmp/gh-aw/cache-memory/state.json`**:
 
 This allows the round-robin to cycle through all dependencies while maintaining preference for recently updated ones.
 
-## Step 8: Create Discussion
+## Step 8: Create Issue
 
-Create a discussion summarizing your findings:
+Create an issue summarizing your findings:
 
 **Title Format**: `Go Module Review: <module-name>`
 
@@ -332,9 +333,9 @@ Use Serena for:
 
 Your output MUST include:
 1. A module summary saved to `scratchpad/mods/<module>.md`
-2. A discussion with your complete analysis and recommendations
+2. An issue with your complete analysis and recommendations
 
-If you cannot find any improvements, still create a discussion noting the module is well-utilized and document your analysis in `scratchpad/mods/`.
+If you cannot find any improvements, still create an issue noting the module is well-utilized and document your analysis in `scratchpad/mods/`.
 
 Begin your analysis! Pick the next module and start your deep review.
 
