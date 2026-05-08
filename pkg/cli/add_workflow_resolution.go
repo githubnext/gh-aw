@@ -15,6 +15,7 @@ import (
 )
 
 var resolutionLog = logger.New("cli:add_workflow_resolution")
+var fetchWorkflowFromSourceWithContextFn = FetchWorkflowFromSourceWithContext
 
 // ResolvedWorkflow contains metadata about a workflow that has been resolved and is ready to add
 type ResolvedWorkflow struct {
@@ -117,8 +118,8 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 	hasWorkflowDispatch := false
 
 	for _, spec := range parsedSpecs {
-		// Fetch workflow content - FetchWorkflowFromSource handles both local and remote
-		fetched, err := FetchWorkflowFromSourceWithContext(ctx, spec, verbose)
+		// Fetch workflow content (including redirect resolution for remote workflows)
+		resolvedSpec, fetched, err := resolveAddWorkflowSpecAndContent(ctx, spec, verbose)
 		if err != nil {
 			return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
 		}
@@ -145,7 +146,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			spec.String(), engine, workflowHasDispatch, len(fetched.Content))
 
 		resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
-			Spec:                spec,
+			Spec:                resolvedSpec,
 			Content:             fetched.Content,
 			SourceInfo:          fetched,
 			Description:         description,
@@ -163,6 +164,64 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		HasWildcard:         hasWildcard,
 		HasWorkflowDispatch: hasWorkflowDispatch,
 	}, nil
+}
+
+func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *WorkflowSpec, verbose bool) (*WorkflowSpec, *FetchedWorkflow, error) {
+	currentSpec := *initialSpec
+	visited := make(map[string]struct{})
+
+	for range maxRedirectDepth {
+		// Fetch workflow content - handles both local and remote.
+		fetched, err := fetchWorkflowFromSourceWithContextFn(ctx, &currentSpec, verbose)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Redirects only apply to remote workflows.
+		if fetched.IsLocal {
+			return &currentSpec, fetched, nil
+		}
+
+		currentRef := currentSpec.Version
+		if currentRef == "" {
+			currentRef = "main"
+		}
+		locationKey := fmt.Sprintf("%s/%s@%s", currentSpec.RepoSlug, currentSpec.WorkflowPath, currentRef)
+		if _, exists := visited[locationKey]; exists {
+			return nil, nil, fmt.Errorf("redirect loop detected at %s", locationKey)
+		}
+		visited[locationKey] = struct{}{}
+
+		redirect, err := extractRedirectFromContent(string(fetched.Content))
+		if err != nil {
+			return nil, nil, err
+		}
+		if redirect == "" {
+			return &currentSpec, fetched, nil
+		}
+
+		redirectedSource, err := normalizeRedirectToSourceSpec(redirect)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid redirect %q in %s: %w", redirect, locationKey, err)
+		}
+
+		nextSpec := &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug: redirectedSource.Repo,
+				Version:  redirectedSource.Ref,
+			},
+			WorkflowPath: redirectedSource.Path,
+			WorkflowName: normalizeWorkflowID(redirectedSource.Path),
+			Host:         currentSpec.Host,
+		}
+		resolutionLog.Printf("Following redirect for add: from=%s to=%s", locationKey, nextSpec.String())
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow redirect: %s -> %s", locationKey, nextSpec.String())))
+		}
+		currentSpec = *nextSpec
+	}
+
+	return nil, nil, fmt.Errorf("redirect chain exceeded maximum depth (%d) for workflow '%s'", maxRedirectDepth, initialSpec.String())
 }
 
 // expandLocalWildcardWorkflows expands wildcard workflow specifications for local workflows only.
