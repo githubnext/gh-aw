@@ -1056,9 +1056,9 @@ describe("runtime_import", () => {
           expect(isSafeExpression("vars.MY_VAR")).toBe(false);
         });
 
-        it("should handle whitespace", () => {
+        it("should handle surrounding spaces but reject line terminators", () => {
           expect(isSafeExpression("  github.actor  ")).toBe(true);
-          expect(isSafeExpression("\ngithub.repository\n")).toBe(true);
+          expect(isSafeExpression("\ngithub.repository\n")).toBe(false);
         });
       });
 

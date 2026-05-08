@@ -146,6 +146,17 @@ const ALLOWED_EXPRESSIONS = [
 function isSafeExpression(expr) {
   const trimmed = expr.trim();
 
+  // Expressions containing line terminators are never safe.
+  // A newline inside an expression can split the operator regex matching and
+  // cause compound expressions like "safe == 'x' &\n 'payload' || 'default'"
+  // to appear safe via the comparison extractor even though the full expression
+  // is not.  Cover all JavaScript line terminator characters: LF, CR, LS (U+2028),
+  // and PS (U+2029).  Check the original `expr` (before trimming) so that
+  // leading/trailing line terminators like "\ngithub.repository\n" are also caught.
+  if (/[\n\r\u2028\u2029]/.test(expr)) {
+    return false;
+  }
+
   // Block dangerous JavaScript built-in property names
   const DANGEROUS_PROPS = [
     "constructor",
