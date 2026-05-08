@@ -1,0 +1,2 @@
+go test fuzz v1
+string("github.event.inputs.enforce_all == 'github.etrue' &\n 'full-sweep (enforce_all)' || 'round-robin'")
