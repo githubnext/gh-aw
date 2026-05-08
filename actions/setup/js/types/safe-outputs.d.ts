@@ -34,6 +34,13 @@ interface CreateIssueItem extends BaseSafeOutputItem {
   body: string;
   /** Optional labels to add to the issue */
   labels?: string[];
+  /** Optional issue fields to set after creating the issue */
+  fields?: Array<{
+    /** Issue field display name */
+    name: string;
+    /** Field value (string for text/single-select/iteration/date, number for numeric fields) */
+    value: string | number;
+  }>;
   /** Optional parent issue number or temporary_id to link as sub-issue */
   parent?: number | string;
   /** Optional temporary identifier for this issue that can be referenced by other issues */

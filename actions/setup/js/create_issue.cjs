@@ -27,6 +27,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
+const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Create a dedicated GitHub client for copilot assignment operations.
@@ -194,6 +195,205 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
   body = `${body}${footerWithExpiration}`;
 
   return { title, body };
+}
+
+/**
+ * Normalize and validate issue fields payload for create_issue.
+ * @param {any} fields
+ * @returns {Array<{name: string, value: string|number}>}
+ */
+function normalizeIssueFields(fields) {
+  if (fields === undefined || fields === null) {
+    return [];
+  }
+  if (!Array.isArray(fields)) {
+    throw new Error(`${ERR_VALIDATION}: create_issue 'fields' must be an array of objects`);
+  }
+
+  return fields.map((field, index) => {
+    if (!field || typeof field !== "object" || Array.isArray(field)) {
+      throw new Error(`${ERR_VALIDATION}: create_issue 'fields[${index}]' must be an object with 'name' and 'value'`);
+    }
+
+    const name = typeof field.name === "string" ? field.name.trim() : "";
+    if (!name) {
+      throw new Error(`${ERR_VALIDATION}: create_issue 'fields[${index}].name' must be a non-empty string`);
+    }
+
+    const hasValue = Object.prototype.hasOwnProperty.call(field, "value");
+    if (!hasValue) {
+      throw new Error(`${ERR_VALIDATION}: create_issue 'fields[${index}]' is missing required 'value'`);
+    }
+
+    const value = field.value;
+    if (typeof value !== "string" && typeof value !== "number") {
+      throw new Error(`${ERR_VALIDATION}: create_issue 'fields[${index}].value' for "${name}" must be a string or number`);
+    }
+
+    return { name, value };
+  });
+}
+
+/**
+ * Resolve issue node ID from issue number.
+ * @param {Object} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @param {number} issueNumber
+ * @returns {Promise<string>}
+ */
+async function resolveIssueNodeId(githubClient, owner, repo, issueNumber) {
+  const result = await githubClient.graphql(
+    `query($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }`,
+    { owner, repo, issueNumber }
+  );
+
+  const issueId = result?.repository?.issue?.id;
+  if (!issueId) {
+    throw new Error(`${ERR_VALIDATION}: could not resolve node ID for issue #${issueNumber}`);
+  }
+  return issueId;
+}
+
+/**
+ * Fetch issue field metadata from repository.
+ * @param {Object} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<Array<any>>}
+ */
+async function fetchIssueFields(githubClient, owner, repo) {
+  const result = await githubClient.graphql(
+    `query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        issueFields(first: 100) {
+          nodes {
+            __typename
+            ... on IssueField {
+              id
+              name
+              dataType
+            }
+            ... on IssueFieldSingleSelect {
+              id
+              name
+              dataType
+              options {
+                id
+                name
+              }
+            }
+            ... on IssueFieldIteration {
+              id
+              name
+              dataType
+              configuration {
+                iterations {
+                  id
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
+    { owner, repo }
+  );
+
+  return Array.isArray(result?.repository?.issueFields?.nodes) ? result.repository.issueFields.nodes.filter(Boolean) : [];
+}
+
+/**
+ * Build GraphQL setIssueFieldValue mutation input from named field values.
+ * @param {Array<{name: string, value: string|number}>} requestedFields
+ * @param {Array<any>} availableFields
+ * @returns {Array<any>}
+ */
+function buildIssueFieldMutationInput(requestedFields, availableFields) {
+  const availableNames = availableFields.map(field => field?.name).filter(Boolean);
+
+  return requestedFields.map(field => {
+    const matchedField = availableFields.find(available => typeof available?.name === "string" && available.name.toLowerCase() === field.name.toLowerCase());
+    if (!matchedField) {
+      throw new Error(`${ERR_VALIDATION}: unknown issue field "${field.name}". Available fields: ${availableNames.join(", ") || "(none)"}`);
+    }
+
+    const dataType = typeof matchedField.dataType === "string" ? matchedField.dataType.toUpperCase() : "TEXT";
+
+    if (dataType === "NUMBER") {
+      const numberValue = typeof field.value === "number" ? field.value : Number.parseFloat(String(field.value));
+      if (!Number.isFinite(numberValue)) {
+        throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" requires a numeric value`);
+      }
+      return { fieldId: matchedField.id, numberValue };
+    }
+
+    if (dataType === "DATE") {
+      if (typeof field.value !== "string" || !ISSUE_FIELD_DATE_PATTERN.test(field.value)) {
+        throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" requires a date value in YYYY-MM-DD format`);
+      }
+      return { fieldId: matchedField.id, dateValue: field.value };
+    }
+
+    if (dataType === "SINGLE_SELECT") {
+      const options = Array.isArray(matchedField.options) ? matchedField.options : [];
+      const selectedOption = options.find(option => typeof option?.name === "string" && option.name.toLowerCase() === String(field.value).toLowerCase());
+      if (!selectedOption) {
+        throw new Error(`${ERR_VALIDATION}: invalid option "${field.value}" for issue field "${field.name}". Available options: ${options.map(option => option.name).join(", ") || "(none)"}`);
+      }
+      return { fieldId: matchedField.id, singleSelectOptionId: selectedOption.id };
+    }
+
+    if (dataType === "ITERATION") {
+      const iterations = matchedField?.configuration?.iterations;
+      const availableIterations = Array.isArray(iterations) ? iterations : [];
+      const selectedIteration = availableIterations.find(iteration => typeof iteration?.title === "string" && iteration.title.toLowerCase() === String(field.value).toLowerCase());
+      if (!selectedIteration) {
+        throw new Error(`${ERR_VALIDATION}: invalid iteration "${field.value}" for issue field "${field.name}". Available iterations: ${availableIterations.map(iteration => iteration.title).join(", ") || "(none)"}`);
+      }
+      return { fieldId: matchedField.id, singleSelectOptionId: selectedIteration.id };
+    }
+
+    return { fieldId: matchedField.id, textValue: String(field.value) };
+  });
+}
+
+/**
+ * Apply issue field values to a newly-created issue.
+ * @param {{githubClient: Object, owner: string, repo: string, issueNumber: number, fields: Array<{name: string, value: string|number}>}} params
+ * @returns {Promise<void>}
+ */
+async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields }) {
+  if (!Array.isArray(fields) || fields.length === 0) {
+    return;
+  }
+
+  const issueId = await resolveIssueNodeId(githubClient, owner, repo, issueNumber);
+  const availableFields = await fetchIssueFields(githubClient, owner, repo);
+  const issueFields = buildIssueFieldMutationInput(fields, availableFields);
+
+  await githubClient.graphql(
+    `mutation($input: SetIssueFieldValueInput!) {
+      setIssueFieldValue(input: $input) {
+        issue {
+          id
+        }
+      }
+    }`,
+    {
+      input: {
+        issueId: issueId,
+        issueFields: issueFields,
+      },
+    }
+  );
 }
 
 /**
@@ -383,6 +583,13 @@ async function main(config = {}) {
       .filter(Boolean)
       .filter((assignee, index, arr) => arr.indexOf(assignee) === index);
 
+    let issueFields;
+    try {
+      issueFields = normalizeIssueFields(message.fields);
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error) };
+    }
+
     // Check if copilot is in the assignees list
     const hasCopilot = assignees.includes("copilot");
 
@@ -562,6 +769,9 @@ async function main(config = {}) {
     if (assignees.length > 0) {
       core.info(`Assignees: ${assignees.join(", ")}`);
     }
+    if (issueFields.length > 0) {
+      core.info(`Issue fields: ${issueFields.map(field => field.name).join(", ")}`);
+    }
     core.info(`Body length: ${body.length}`);
 
     // If in staged mode, preview the issue without creating it
@@ -576,6 +786,7 @@ async function main(config = {}) {
           title,
           labels,
           assignees,
+          fields: issueFields,
           bodyLength: body.length,
           temporaryId,
         },
@@ -599,6 +810,26 @@ async function main(config = {}) {
 
       core.info(`Created issue ${qualifiedItemRepo}#${issue.number}: ${issue.html_url}`);
       createdIssues.push({ ...issue, _repo: qualifiedItemRepo });
+
+      if (issueFields.length > 0) {
+        try {
+          await applyIssueFields({
+            githubClient,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issueNumber: issue.number,
+            fields: issueFields,
+          });
+          core.info(`Applied ${issueFields.length} issue field(s) to ${qualifiedItemRepo}#${issue.number}`);
+        } catch (error) {
+          const fieldError = getErrorMessage(error);
+          core.error(`✗ Failed to apply issue fields on ${qualifiedItemRepo}#${issue.number}: ${fieldError}`);
+          return {
+            success: false,
+            error: `Issue ${qualifiedItemRepo}#${issue.number} was created, but issue fields could not be applied: ${fieldError}`,
+          };
+        }
+      }
 
       // Store the mapping of temporary_id -> {repo, number}
       // temporaryId is guaranteed to be non-null because we checked tempIdResult.error above

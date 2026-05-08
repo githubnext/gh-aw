@@ -1989,6 +1989,17 @@ This section provides complete normative definitions for all safe output types. 
       "title": {"type": "string", "description": "Issue title"},
       "body": {"type": "string", "description": "Issue description in Markdown"},
       "labels": {"type": "array", "items": {"type": "string"}},
+      "fields": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "value"],
+          "properties": {
+            "name": {"type": "string"},
+            "value": {"type": ["string", "number"]}
+          }
+        }
+      },
       "parent": {"type": ["number", "string"], "description": "Parent issue for sub-issues"},
       "temporary_id": {
         "type": "string",
@@ -2007,7 +2018,8 @@ This section provides complete normative definitions for all safe output types. 
 2. **Temporary ID Resolution**: References to `#aw_<id>` in bodies replaced with actual numbers post-creation.
 3. **Parent Linking**: When `parent` specified, tasklist entry added to parent issue.
 4. **Label Validation**: Labels must exist in repository; non-existent labels cause failure.
-5. **Cross-Repository**: When `target-repo` configured, created in that repository (must be in `allowed-repos`).
+5. **Issue Field Validation**: Field names/values must match configured repository issue fields; invalid values return actionable errors.
+6. **Cross-Repository**: When `target-repo` configured, created in that repository (must be in `allowed-repos`).
 
 **Configuration Parameters**:
 
