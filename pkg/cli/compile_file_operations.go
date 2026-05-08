@@ -69,9 +69,8 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 	}
 
 	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
-		// Always show compilation errors on new line
-		// Note: Don't wrap in FormatErrorMessage as the error is already formatted by console.FormatError
-		fmt.Fprintln(os.Stderr, err.Error())
+		// Always show compilation errors on a new line using standard CLI error styling.
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		stats.Errors++
 		stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 	} else {
@@ -171,7 +170,7 @@ func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph 
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, "Watching for file changes")
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Watching for file changes"))
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))))
 	}

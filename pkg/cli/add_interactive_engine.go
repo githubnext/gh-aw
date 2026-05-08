@@ -74,7 +74,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 
 	// If engine is already overridden, skip selection
 	if c.EngineOverride != "" {
-		fmt.Fprintf(os.Stderr, "Using coding agent: %s\n", c.EngineOverride)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using coding agent: %s", c.EngineOverride)))
 		return c.configureEngineAPISecret(c.EngineOverride)
 	}
 

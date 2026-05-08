@@ -3,9 +3,13 @@
 package cli
 
 import (
+	"bytes"
+	"context"
+	"io"
 	"os"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -167,6 +171,37 @@ func TestAddInteractiveConfig_configureEngineAPISecret_skipSecret(t *testing.T) 
 			require.NoError(t, err, "configureEngineAPISecret should succeed when SkipSecret is true")
 		})
 	}
+}
+
+func TestAddInteractiveConfig_selectAIEngineAndKey_engineOverrideFormatsInfoMessage(t *testing.T) {
+	config := &AddInteractiveConfig{
+		Ctx:            context.Background(),
+		EngineOverride: "copilot",
+		SkipSecret:     true,
+		RepoOverride:   "owner/repo",
+	}
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "Failed to create stderr pipe")
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
+	err = config.selectAIEngineAndKey()
+
+	w.Close()
+
+	var buf bytes.Buffer
+	_, copyErr := io.Copy(&buf, r)
+	require.NoError(t, copyErr, "Failed to read stderr output")
+	require.NoError(t, err, "selectAIEngineAndKey should succeed with an explicit engine override")
+
+	assert.Contains(
+		t,
+		buf.String(),
+		console.FormatInfoMessage("Using coding agent: copilot"),
+		"Expected engine override path to use formatted info output",
+	)
 }
 
 func TestParseSecretNames(t *testing.T) {
