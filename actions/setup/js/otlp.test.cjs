@@ -414,6 +414,14 @@ describe("otlp.cjs", () => {
 
       expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ sha: "abc123def456" }));
     });
+
+    it("passes GITHUB_JOB to buildGitHubActionsResourceAttributes when set", async () => {
+      process.env.GITHUB_JOB = "agent";
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ job: "agent" }));
+    });
   });
 
   // ---------------------------------------------------------------------------
