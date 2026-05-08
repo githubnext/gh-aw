@@ -272,6 +272,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
+	if maxEffectiveTokens := parseMaxEffectiveTokensValue(result.Frontmatter["max-effective-tokens"]); maxEffectiveTokens > 0 {
+		engineConfig.MaxEffectiveTokens = maxEffectiveTokens
+	}
 	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
 		engineConfig.MCPToolTimeout = importsResult.MergedEngineMCPToolTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.tool-timeout from import: %s", engineConfig.MCPToolTimeout)

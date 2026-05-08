@@ -109,15 +109,32 @@ func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
 	return e.MaxEffectiveTokens
 }
 
+func parseMaxEffectiveTokensValue(raw any) int64 {
+	if val, ok := typeutil.ParseIntValue(raw); ok {
+		return int64(val)
+	}
+	if rawStr, ok := raw.(string); ok {
+		if parsed, err := strconv.ParseInt(rawStr, 10, 64); err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
+
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
 func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
+	topLevelMaxEffectiveTokens := parseMaxEffectiveTokensValue(frontmatter["max-effective-tokens"])
+
 	if engine, exists := frontmatter["engine"]; exists {
 		engineLog.Print("Extracting engine configuration from frontmatter")
 
 		// Handle string format (backwards compatibility)
 		if engineStr, ok := engine.(string); ok {
 			engineLog.Printf("Found engine in string format: %s", engineStr)
-			return engineStr, &EngineConfig{ID: engineStr}
+			return engineStr, &EngineConfig{
+				ID:                 engineStr,
+				MaxEffectiveTokens: topLevelMaxEffectiveTokens,
+			}
 		}
 
 		// Handle object format
@@ -180,6 +197,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						engineLog.Printf("Extracted bare mode (inline): %v", config.Bare)
 					}
 				}
+				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
 				return config.ID, config
@@ -220,17 +238,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				} else if maxContStr, ok := maxCont.(string); ok {
 					if parsed, err := strconv.Atoi(maxContStr); err == nil {
 						config.MaxContinuations = parsed
-					}
-				}
-			}
-
-			// Extract optional 'max-effective-tokens' field
-			if maxET, hasMaxET := engineObj["max-effective-tokens"]; hasMaxET {
-				if val, ok := typeutil.ParseIntValue(maxET); ok {
-					config.MaxEffectiveTokens = int64(val)
-				} else if maxETStr, ok := maxET.(string); ok {
-					if parsed, err := strconv.ParseInt(maxETStr, 10, 64); err == nil {
-						config.MaxEffectiveTokens = parsed
 					}
 				}
 			}
@@ -392,9 +399,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			}
 
 			// Return the ID as the engineSetting for backwards compatibility
+			config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)
 			return config.ID, config
 		}
+	}
+
+	if topLevelMaxEffectiveTokens > 0 {
+		return "", &EngineConfig{MaxEffectiveTokens: topLevelMaxEffectiveTokens}
 	}
 
 	// No engine specified

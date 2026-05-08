@@ -96,7 +96,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "my-proxy.internal.example.com", "should include the openai host")
 	})
 
-	t.Run("engine max-effective-tokens overrides default apiProxy budget", func(t *testing.T) {
+	t.Run("configured max-effective-tokens overrides default apiProxy budget", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
