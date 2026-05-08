@@ -28,11 +28,26 @@ func TestReadWorkflowYAML(t *testing.T) {
 		assert.True(t, hasWorkflowCall, "Parsed workflow should include workflow_call trigger")
 	})
 
-	t.Run("rejects relative path", func(t *testing.T) {
+	t.Run("reads relative path by resolving to absolute path", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		workflowPath := filepath.Join(tmpDir, "workflow.yml")
+		content := "on:\n  workflow_dispatch: {}\n"
+		require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0644), "Should write workflow file")
+
+		cwd, err := os.Getwd()
+		require.NoError(t, err, "Should get current working directory")
+		t.Cleanup(func() {
+			require.NoError(t, os.Chdir(cwd), "Should restore working directory")
+		})
+		require.NoError(t, os.Chdir(tmpDir), "Should change working directory for relative path test")
+
 		workflow, err := readWorkflowYAML("workflow.yml")
-		assert.Nil(t, workflow, "Relative paths should not return workflow data")
-		require.Error(t, err, "Relative paths should return an error")
-		assert.Equal(t, "workflow path must be absolute: workflow.yml", err.Error(), "Should return path validation error")
+		require.NoError(t, err, "Relative path should resolve and parse successfully")
+		require.NotNil(t, workflow, "Relative paths should return workflow data")
+		onSection, ok := workflow["on"].(map[string]any)
+		require.True(t, ok, "Parsed workflow should contain on map")
+		_, hasWorkflowDispatch := onSection["workflow_dispatch"]
+		assert.True(t, hasWorkflowDispatch, "Parsed workflow should include workflow_dispatch trigger")
 	})
 
 	t.Run("returns parse error for invalid yaml", func(t *testing.T) {
