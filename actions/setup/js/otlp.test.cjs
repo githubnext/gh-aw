@@ -101,6 +101,7 @@ describe("otlp.cjs", () => {
       GITHUB_REF_NAME: process.env.GITHUB_REF_NAME,
       GITHUB_HEAD_REF: process.env.GITHUB_HEAD_REF,
       GITHUB_SHA: process.env.GITHUB_SHA,
+      GITHUB_JOB: process.env.GITHUB_JOB,
       GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
       GH_AW_CURRENT_WORKFLOW_REF: process.env.GH_AW_CURRENT_WORKFLOW_REF,
       GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
