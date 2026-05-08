@@ -224,6 +224,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	if config.SetIssueField != nil {
+		if err := checkMaxField("set_issue_field", config.SetIssueField.Max); err != nil {
+			return err
+		}
+	}
 	if config.SubmitPullRequestReview != nil {
 		if err := checkMaxField("submit_pull_request_review", config.SubmitPullRequestReview.Max); err != nil {
 			return err

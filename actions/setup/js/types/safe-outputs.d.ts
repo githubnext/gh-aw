@@ -318,6 +318,21 @@ interface SetIssueTypeItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for setting a custom issue field value
+ */
+interface SetIssueFieldItem extends BaseSafeOutputItem {
+  type: "set_issue_field";
+  /** Issue field name to set (e.g., "Priority", "Severity"). */
+  field_name?: string;
+  /** Optional issue field GraphQL node ID to skip name-based discovery. */
+  field_node_id?: string;
+  /** Field value to set. For single-select fields, provide the option name. */
+  value: string;
+  /** Issue number (optional - uses triggering issue if not provided) */
+  issue_number?: number | string;
+}
+
+/**
  * JSONL item for assigning a GitHub Copilot coding agent to an issue or project item
  */
 interface AssignToAgentItem extends BaseSafeOutputItem {
@@ -448,6 +463,7 @@ type SafeOutputItem =
   | UploadAssetItem
   | AssignMilestoneItem
   | SetIssueTypeItem
+  | SetIssueFieldItem
   | AssignToAgentItem
   | UpdateReleaseItem
   | NoOpItem
@@ -491,6 +507,7 @@ export {
   UploadAssetItem,
   AssignMilestoneItem,
   SetIssueTypeItem,
+  SetIssueFieldItem,
   AssignToAgentItem,
   UpdateReleaseItem,
   NoOpItem,

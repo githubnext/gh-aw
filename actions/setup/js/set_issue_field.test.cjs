@@ -1,0 +1,193 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+const mockCore = {
+  debug: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+  summary: {
+    addRaw: vi.fn().mockReturnThis(),
+    write: vi.fn().mockResolvedValue(),
+  },
+};
+
+const mockContext = {
+  repo: {
+    owner: "test-owner",
+    repo: "test-repo",
+  },
+  eventName: "issues",
+  payload: {
+    issue: {
+      number: 123,
+    },
+  },
+};
+
+const mockGraphql = vi.fn();
+
+const mockGithub = {
+  rest: {
+    issues: {
+      get: vi.fn(),
+    },
+  },
+  graphql: mockGraphql,
+};
+
+global.core = mockCore;
+global.context = mockContext;
+global.github = mockGithub;
+
+describe("set_issue_field (Handler Factory Architecture)", () => {
+  let handler;
+
+  const issueNodeId = "I_kwDOABCD123456";
+  const textFieldId = "IF_kwDO_text";
+  const statusFieldId = "IF_kwDO_status";
+
+  const mockIssueFieldsQuery = {
+    repository: {
+      issueFields: {
+        nodes: [
+          { id: textFieldId, name: "Customer Impact", __typename: "IssueFieldText" },
+          {
+            id: statusFieldId,
+            name: "Status",
+            __typename: "IssueFieldSingleSelect",
+            options: [
+              { id: "IFOPT_open", name: "Open" },
+              { id: "IFOPT_closed", name: "Closed" },
+            ],
+          },
+        ],
+      },
+      owner: {
+        __typename: "Organization",
+        issueFields: {
+          nodes: [],
+        },
+      },
+    },
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    mockGithub.rest.issues.get.mockResolvedValue({ data: { node_id: issueNodeId } });
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("issueFields")) {
+        return Promise.resolve(mockIssueFieldsQuery);
+      }
+      if (query.includes("setIssueFieldValue")) {
+        return Promise.resolve({ setIssueFieldValue: { issue: { id: issueNodeId } } });
+      }
+      return Promise.resolve({});
+    });
+
+    const { main } = require("./set_issue_field.cjs");
+    handler = await main({ max: 5 });
+  });
+
+  it("should return a function from main()", async () => {
+    const { main } = require("./set_issue_field.cjs");
+    const result = await main({});
+    expect(typeof result).toBe("function");
+  });
+
+  it("should set issue text field successfully", async () => {
+    const message = {
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Customer Impact",
+      value: "High",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.issue_number).toBe(42);
+    expect(result.field_name).toBe("Customer Impact");
+    expect(result.field_node_id).toBe(textFieldId);
+    expect(mockGraphql).toHaveBeenCalledWith(
+      expect.stringContaining("setIssueFieldValue"),
+      expect.objectContaining({
+        issueId: issueNodeId,
+        issueFields: [expect.objectContaining({ fieldId: textFieldId, textValue: "High" })],
+      })
+    );
+  });
+
+  it("should set single-select field by option name", async () => {
+    const message = {
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Status",
+      value: "Closed",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(mockGraphql).toHaveBeenCalledWith(
+      expect.stringContaining("setIssueFieldValue"),
+      expect.objectContaining({
+        issueFields: [expect.objectContaining({ fieldId: statusFieldId, singleSelectOptionId: "IFOPT_closed" })],
+      })
+    );
+  });
+
+  it("should error with actionable message for unknown field name", async () => {
+    const message = {
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Unknown Field",
+      value: "foo",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not found");
+    expect(result.error).toContain("Available fields");
+    expect(result.error).toContain("field_node_id");
+  });
+
+  it("should error with actionable message for invalid single-select value", async () => {
+    const message = {
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Status",
+      value: "Invalid",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Invalid value");
+    expect(result.error).toContain("Available options");
+  });
+
+  it("should use field_node_id without discovery", async () => {
+    const message = {
+      type: "set_issue_field",
+      issue_number: 42,
+      field_node_id: "IF_kwDO_direct",
+      value: "Direct Value",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.field_node_id).toBe("IF_kwDO_direct");
+    expect(mockGraphql).not.toHaveBeenCalledWith(expect.stringContaining("repository(owner"), expect.anything());
+    expect(mockGraphql).toHaveBeenCalledWith(
+      expect.stringContaining("setIssueFieldValue"),
+      expect.objectContaining({
+        issueFields: [expect.objectContaining({ fieldId: "IF_kwDO_direct", textValue: "Direct Value" })],
+      })
+    );
+  });
+});

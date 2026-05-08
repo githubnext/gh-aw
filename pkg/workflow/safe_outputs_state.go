@@ -65,6 +65,7 @@ var safeOutputFieldMapping = map[string]string{
 	"MissingTool":                     "missing_tool",
 	"MissingData":                     "missing_data",
 	"SetIssueType":                    "set_issue_type",
+	"SetIssueField":                   "set_issue_field",
 	"NoOp":                            "noop",
 	"MarkPullRequestAsReadyForReview": "mark_pull_request_as_ready_for_review",
 }
@@ -129,6 +130,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingTool != nil ||
 		safeOutputs.MissingData != nil ||
 		safeOutputs.SetIssueType != nil ||
+		safeOutputs.SetIssueField != nil ||
 		safeOutputs.NoOp != nil // 43rd field
 }
 
@@ -190,7 +192,8 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.DispatchWorkflow != nil ||
 		safeOutputs.DispatchRepository != nil ||
 		safeOutputs.CallWorkflow != nil ||
-		safeOutputs.SetIssueType != nil // 40th non-builtin field
+		safeOutputs.SetIssueType != nil ||
+		safeOutputs.SetIssueField != nil // non-builtin safe output field
 }
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
