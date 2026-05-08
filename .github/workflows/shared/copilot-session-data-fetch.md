@@ -1,16 +1,16 @@
 ---
-# This shared component depends on jqschema.md being imported first.
+# This shared component depends on the jqschema skill being imported first.
 #
 # NOTE: Due to BFS import ordering, transitive imports are not guaranteed to have their
 # steps executed before the parent import's steps. To ensure correct execution order,
-# import jqschema.md directly in your workflow BEFORE importing this file:
+# import the jqschema skill directly in your workflow BEFORE importing this file:
 #
 #   imports:
-#     - shared/jqschema.md  # Must come first
+#     - ../skills/jqschema/SKILL.md  # Must come first
 #     - shared/copilot-session-data-fetch.md
 #
 imports:
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
 
 tools:
   cache-memory:
@@ -214,7 +214,7 @@ imports:
   - shared/copilot-session-data-fetch.md
 ```
 
-**Note**: This component automatically imports `jqschema.md` as a dependency. The compiler handles the transitive closure of imports, ensuring all required utilities are set up in the correct order.
+**Note**: This component automatically imports the `jqschema` skill as a dependency. The compiler handles the transitive closure of imports, ensuring all required utilities are set up in the correct order.
 
 Then access the pre-fetched data in your workflow prompt:
 
@@ -238,7 +238,7 @@ cat /tmp/gh-aw/session-data/logs/123-conversation.txt
 
 ### Requirements
 
-- Automatically imports `jqschema.md` for schema generation (via transitive import closure)
+- Automatically imports the `jqschema` skill for schema generation (via transitive import closure)
 - Uses GitHub Actions API to fetch workflow runs from `copilot/*` branches
 - **Uses `gh agent-task view --log` to fetch conversation transcripts** (requires gh CLI v2.80.0+)
 - Cross-platform date calculation (works on both GNU and BSD date commands)

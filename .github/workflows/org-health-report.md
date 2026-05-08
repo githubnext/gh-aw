@@ -42,7 +42,7 @@ network:
 imports:
   - shared/github-guard-policy.md
   - shared/python-dataviz.md
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/reporting.md
 
 

@@ -38,7 +38,7 @@ safe-outputs:
     title-prefix: "[copilot-opt] "
     close-older-issues: true
 imports:
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md
   - shared/reporting.md

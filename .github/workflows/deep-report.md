@@ -71,7 +71,7 @@ imports:
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [all]
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/discussions-data-fetch.md
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md

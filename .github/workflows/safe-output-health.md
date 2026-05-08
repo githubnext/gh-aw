@@ -19,7 +19,7 @@ imports:
       title-prefix: "[safe-output-health] "
       expires: 1d
   - shared/aw-logs-24h-fetch.md
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
 
   - shared/observability-otlp.md
 ---

@@ -12,7 +12,7 @@ engine: claude
 network: 
    allowed: [defaults, node, go, "api.github.com", "ghcr.io"]
 imports:
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/observability-otlp.md
 tools:

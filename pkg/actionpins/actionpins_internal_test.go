@@ -61,6 +61,70 @@ func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 	})
 }
 
+func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T) {
+	tests := []struct {
+		name            string
+		repo            string
+		sha             string
+		sourceVersion   string
+		resolvedVersion string
+		expected        string
+	}{
+		{
+			name:            "shows only source version when resolvedVersion is empty",
+			repo:            "actions/checkout",
+			sha:             "abc123",
+			sourceVersion:   "v4",
+			resolvedVersion: "",
+			expected:        "actions/checkout@abc123 # v4",
+		},
+		{
+			name:            "shows only version when source equals resolved",
+			repo:            "actions/checkout",
+			sha:             "abc123",
+			sourceVersion:   "v4.1.2",
+			resolvedVersion: "v4.1.2",
+			expected:        "actions/checkout@abc123 # v4.1.2",
+		},
+		{
+			name:            "shows both versions when source differs from resolved",
+			repo:            "actions/checkout",
+			sha:             "abc123",
+			sourceVersion:   "v4",
+			resolvedVersion: "v4.1.2",
+			expected:        "actions/checkout@abc123 # v4.1.2 (source v4)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatPinnedActionWithResolution(tt.repo, tt.sha, tt.sourceVersion, tt.resolvedVersion)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestFindVersionBySHA_ReturnsVersionForKnownSHA(t *testing.T) {
+	t.Run("returns version for a known SHA in embedded data", func(t *testing.T) {
+		pins := GetActionPinsByRepo("actions/checkout")
+		require.NotEmpty(t, pins, "prerequisite: embedded pins must exist for actions/checkout")
+
+		knownPin := pins[0]
+		version := findVersionBySHA("actions/checkout", knownPin.SHA)
+		assert.Equal(t, knownPin.Version, version, "should return the version for a known SHA")
+	})
+
+	t.Run("returns empty string for unknown SHA", func(t *testing.T) {
+		version := findVersionBySHA("actions/checkout", "0000000000000000000000000000000000000000")
+		assert.Empty(t, version, "should return empty string for unknown SHA")
+	})
+
+	t.Run("returns empty string for unknown repo", func(t *testing.T) {
+		version := findVersionBySHA("does-not-exist/unknown", "abc123")
+		assert.Empty(t, version, "should return empty string for unknown repo")
+	})
+}
+
 func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 	pin, ok := GetContainerPin("node:lts-alpine")
 	require.True(t, ok, "Expected embedded container pin for node:lts-alpine")

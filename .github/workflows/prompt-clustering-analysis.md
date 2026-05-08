@@ -27,7 +27,7 @@ imports:
     with:
       title-prefix: "[prompt-clustering] "
       expires: 1d
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/copilot-pr-data-fetch.md
   - shared/python-nlp.md
 

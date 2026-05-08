@@ -112,7 +112,7 @@ This shared component fetches issues from the last 7 days, with intelligent cach
 
 ### Requirements
 
-- Requires `jqschema.md` to be imported for schema generation
+- Requires the `jqschema` skill to be imported for schema generation
 - Uses `gh issue list` with `--search "updated:>=[DATE]"` to get recent activity
 - Cross-platform date calculation (works on both GNU and BSD date commands)
 - Cache-memory tool is automatically configured for data persistence

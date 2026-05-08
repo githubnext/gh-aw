@@ -28,7 +28,7 @@ imports:
       title-prefix: "[safeoutputs]"
   - shared/aw-logs-24h-fetch.md
   - shared/activation-app.md
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[safe-output-optimizer] "

@@ -54,7 +54,7 @@ imports:
     with:
       branch-name: "memory/discussion-task-miner"
       description: "Track processed discussions and extracted tasks"
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/reporting.md
 
   - shared/observability-otlp.md

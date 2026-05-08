@@ -30,7 +30,7 @@ imports:
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
   - shared/mcp/markitdown.md
-  - shared/jqschema.md
+  - ../skills/jqschema/SKILL.md
   - shared/observability-otlp.md
 tools:
   cli-proxy: true

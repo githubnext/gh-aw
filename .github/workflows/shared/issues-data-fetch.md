@@ -109,7 +109,7 @@ This shared component fetches up to 1000 issues from the repository, with intell
 
 ### Requirements
 
-- Requires `jqschema.md` to be imported for schema generation
+- Requires the `jqschema` skill to be imported for schema generation
 - Uses `gh issue list` with `--state all` to get both open and closed issues
 - Cache-memory tool is automatically configured for data persistence
 -->
