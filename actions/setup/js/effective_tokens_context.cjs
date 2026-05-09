@@ -33,6 +33,9 @@ function parsePositiveIntegerString(value) {
 }
 
 /**
+ * Compare two positive-integer strings using BigInt.
+ * Returns false when either value is missing or cannot be parsed as an integer.
+ *
  * @param {string} left
  * @param {string} right
  * @returns {boolean}
@@ -50,6 +53,11 @@ function isPositiveIntegerStringGreaterThanOrEqual(left, right) {
 }
 
 /**
+ * Decide whether an ET rate-limit signal should be surfaced as budget exhaustion.
+ * A missing signal always means "no". When the signal is present but one of the
+ * token counts is unavailable, keep reporting the condition; otherwise require the
+ * effective-token count to meet or exceed the configured max.
+ *
  * @param {boolean} hasRateLimitSignal
  * @param {string} effectiveTokens
  * @param {string} maxEffectiveTokens
