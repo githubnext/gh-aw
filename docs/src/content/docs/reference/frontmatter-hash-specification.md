@@ -356,17 +356,17 @@ algorithm and **MUST NOT** selectively exclude frontmatter fields from hash inpu
 
 The following vectors are normative for the current authoritative text-based algorithm.
 
-Validation status: Each vector hash is verified to match in both implementations via
-`go test -v -run TestHashConsistency_GoAndJavaScript ./pkg/parser/`, which executes the Go
-implementation (`pkg/parser/frontmatter_hash.go`) and the JavaScript implementation
-(`actions/setup/js/frontmatter_hash.cjs`) for the same input.
+Validation status: Each vector hash is verified to match in both implementations via automated
+cross-language tests in CI.
 
 ### FH-TV-001
 
 Expected hash: `4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46`
 
 This vector represents an intentionally empty frontmatter block (`---` followed immediately by
-`---`) rather than a file with no frontmatter delimiter.
+`---`) rather than a file with no frontmatter delimiter. These are treated as different input
+forms for conformance testing and MUST be validated independently; this vector defines only the
+explicit-empty-block form.
 
 ```yaml
 ---

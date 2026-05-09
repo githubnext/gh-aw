@@ -442,6 +442,8 @@ When a timeout occurs, the server **MUST** return a JSON-RPC execution error (`-
 ### 5.7 Retry Policy
 
 Retry behavior is caller-controlled and uses the `data.recoverable` signal from §5.3.
+In this section, **retry budget** means the maximum number of total attempts (initial attempt
+plus retries) permitted for a single invocation.
 
 1. MCP Scripts servers **MUST NOT** automatically retry failed tool invocations.
 2. A caller **MUST** treat `data.recoverable: false` from §5.3 as terminal for that invocation
