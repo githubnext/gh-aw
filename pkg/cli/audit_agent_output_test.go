@@ -10,7 +10,19 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func hasFindingByCategory(findings []Finding, category string) bool {
+	for _, finding := range findings {
+		if finding.Category == category {
+			return true
+		}
+	}
+
+	return false
+}
 
 // TestKeyFindingsGeneration verifies key findings are generated correctly
 func TestKeyFindingsGeneration(t *testing.T) {
@@ -100,51 +112,34 @@ func TestKeyFindingsGeneration(t *testing.T) {
 
 			findings := generateFindings(processedRun, tt.metrics, tt.errors)
 
-			if len(findings) < tt.expectedCount {
-				t.Errorf("Expected at least %d findings, got %d", tt.expectedCount, len(findings))
-			}
+			assert.GreaterOrEqual(t, len(findings), tt.expectedCount,
+				"Expected at least %d findings for scenario %q, got %d", tt.expectedCount, tt.name, len(findings))
 
 			// Verify expected categories
 			if tt.hasFailure {
-				found := false
+				var failureFinding *Finding
 				for _, finding := range findings {
 					if finding.Category == "error" && strings.Contains(finding.Title, "Failed") {
-						found = true
-						if finding.Severity != "critical" {
-							t.Errorf("Expected critical severity for failure, got %s", finding.Severity)
-						}
+						failureFinding = &finding
 						break
 					}
 				}
-				if !found {
-					t.Error("Expected failure finding but didn't find one")
-				}
+				require.NotNil(t, failureFinding,
+					"Expected an error finding with 'Failed' in title for scenario %q", tt.name)
+				assert.Equal(t, "critical", failureFinding.Severity,
+					"Expected critical severity for failure finding in scenario %q", tt.name)
 			}
 
 			if tt.hasCost {
-				found := false
-				for _, finding := range findings {
-					if finding.Category == "cost" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected cost finding but didn't find one")
-				}
+				assert.Condition(t, func() bool {
+					return hasFindingByCategory(findings, "cost")
+				}, "Expected at least one cost finding for scenario %q", tt.name)
 			}
 
 			if tt.hasTooling {
-				found := false
-				for _, finding := range findings {
-					if finding.Category == "tooling" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected tooling finding but didn't find one")
-				}
+				assert.Condition(t, func() bool {
+					return hasFindingByCategory(findings, "tooling")
+				}, "Expected at least one tooling finding for scenario %q", tt.name)
 			}
 		})
 	}
@@ -221,34 +216,29 @@ func TestRecommendationsGeneration(t *testing.T) {
 
 			recommendations := generateRecommendations(processedRun, tt.metrics, tt.findings)
 
-			if len(recommendations) < tt.expectedMinCount {
-				t.Errorf("Expected at least %d recommendations, got %d", tt.expectedMinCount, len(recommendations))
-			}
+			assert.GreaterOrEqual(t, len(recommendations), tt.expectedMinCount,
+				"Expected at least %d recommendations for scenario %q, got %d",
+				tt.expectedMinCount, tt.name, len(recommendations))
 
 			if tt.hasHighPriority {
-				found := false
-				for _, rec := range recommendations {
-					if rec.Priority == "high" {
-						found = true
-						break
+				assert.Condition(t, func() bool {
+					for _, rec := range recommendations {
+						if rec.Priority == "high" {
+							return true
+						}
 					}
-				}
-				if !found {
-					t.Error("Expected high priority recommendation but didn't find one")
-				}
+					return false
+				}, "Expected at least one high priority recommendation for scenario %q", tt.name)
 			}
 
 			// Verify all recommendations have required fields
 			for _, rec := range recommendations {
-				if rec.Action == "" {
-					t.Error("Recommendation missing action")
-				}
-				if rec.Reason == "" {
-					t.Error("Recommendation missing reason")
-				}
-				if rec.Priority == "" {
-					t.Error("Recommendation missing priority")
-				}
+				assert.NotEmpty(t, rec.Action,
+					"Recommendation action should be set for scenario %q", tt.name)
+				assert.NotEmpty(t, rec.Reason,
+					"Recommendation reason should be set for scenario %q", tt.name)
+				assert.NotEmpty(t, rec.Priority,
+					"Recommendation priority should be set for scenario %q", tt.name)
 			}
 		})
 	}
@@ -323,32 +313,26 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 
 			pm := generatePerformanceMetrics(processedRun, tt.metrics, tt.toolUsage)
 
-			if pm == nil {
-				t.Fatal("Expected performance metrics but got nil")
-			}
+			require.NotNil(t, pm, "Expected performance metrics to be generated for scenario %q", tt.name)
 
 			if tt.expectedCostEfficiency != "" {
-				if pm.CostEfficiency != tt.expectedCostEfficiency {
-					t.Errorf("Expected cost efficiency '%s', got '%s'", tt.expectedCostEfficiency, pm.CostEfficiency)
-				}
+				assert.Equal(t, tt.expectedCostEfficiency, pm.CostEfficiency,
+					"Expected cost efficiency to match for scenario %q", tt.name)
 			}
 
 			if tt.expectTokensPerMin {
-				if pm.TokensPerMinute <= 0 {
-					t.Error("Expected positive tokens per minute")
-				}
+				assert.Positive(t, pm.TokensPerMinute,
+					"Expected positive tokens per minute for scenario %q", tt.name)
 			}
 
 			if tt.expectMostUsedTool {
-				if pm.MostUsedTool == "" {
-					t.Error("Expected most used tool to be set")
-				}
+				assert.NotEmpty(t, pm.MostUsedTool,
+					"Expected most used tool to be populated for scenario %q", tt.name)
 			}
 
 			if tt.expectNetworkRequests {
-				if pm.NetworkRequests <= 0 {
-					t.Error("Expected network requests count")
-				}
+				assert.Positive(t, pm.NetworkRequests,
+					"Expected network request count to be positive for scenario %q", tt.name)
 			}
 		})
 	}
@@ -401,9 +385,7 @@ func TestAuditDataJSONStructure(t *testing.T) {
 
 	// Marshal to JSON
 	jsonBytes, err := json.MarshalIndent(auditData, "", "  ")
-	if err != nil {
-		t.Fatalf("Failed to marshal audit data to JSON: %v", err)
-	}
+	require.NoError(t, err, "Failed to marshal audit data to JSON")
 
 	jsonStr := string(jsonBytes)
 
@@ -424,46 +406,27 @@ func TestAuditDataJSONStructure(t *testing.T) {
 	}
 
 	for _, field := range expectedFields {
-		if !strings.Contains(jsonStr, fmt.Sprintf(`"%s"`, field)) {
-			t.Errorf("JSON output missing expected field: %s", field)
-		}
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"%s"`, field),
+			"JSON output should include expected field %q", field)
 	}
 
 	// Verify key findings structure
-	if !strings.Contains(jsonStr, `"category"`) {
-		t.Error("Key findings missing category field")
-	}
-	if !strings.Contains(jsonStr, `"severity"`) {
-		t.Error("Key findings missing severity field")
-	}
+	assert.Contains(t, jsonStr, `"category"`, "Key findings should include category field")
+	assert.Contains(t, jsonStr, `"severity"`, "Key findings should include severity field")
 
 	// Verify recommendations structure
-	if !strings.Contains(jsonStr, `"priority"`) {
-		t.Error("Recommendations missing priority field")
-	}
-	if !strings.Contains(jsonStr, `"action"`) {
-		t.Error("Recommendations missing action field")
-	}
+	assert.Contains(t, jsonStr, `"priority"`, "Recommendations should include priority field")
+	assert.Contains(t, jsonStr, `"action"`, "Recommendations should include action field")
 
 	// Verify performance metrics structure
-	if !strings.Contains(jsonStr, `"cost_efficiency"`) {
-		t.Error("Performance metrics missing cost_efficiency field")
-	}
+	assert.Contains(t, jsonStr, `"cost_efficiency"`, "Performance metrics should include cost_efficiency field")
 
 	// Parse back to verify structure
 	var parsed AuditData
-	if err := json.Unmarshal(jsonBytes, &parsed); err != nil {
-		t.Fatalf("Failed to parse JSON back to AuditData: %v", err)
-	}
+	require.NoError(t, json.Unmarshal(jsonBytes, &parsed), "Failed to parse JSON back to AuditData")
 
 	// Verify parsed data has expected content
-	if len(parsed.KeyFindings) == 0 {
-		t.Error("Expected key findings but got none")
-	}
-	if len(parsed.Recommendations) == 0 {
-		t.Error("Expected recommendations but got none")
-	}
-	if parsed.PerformanceMetrics == nil {
-		t.Error("Expected performance metrics but got nil")
-	}
+	assert.NotEmpty(t, parsed.KeyFindings, "Expected key findings to be present after JSON round-trip")
+	assert.NotEmpty(t, parsed.Recommendations, "Expected recommendations to be present after JSON round-trip")
+	assert.NotNil(t, parsed.PerformanceMetrics, "Expected performance metrics to be present after JSON round-trip")
 }
