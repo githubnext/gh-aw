@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -45,7 +46,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		// apiProxy section with enabled: true
 		assert.Contains(t, jsonStr, `"apiProxy"`, "should include apiProxy section")
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy should be enabled")
-		assert.NotContains(t, jsonStr, `"maxEffectiveTokens"`, "apiProxy should not emit maxEffectiveTokens until supported")
+		assert.Contains(t, jsonStr, `"maxEffectiveTokens":`+strconv.FormatInt(constants.DefaultMaxEffectiveTokens, 10), "apiProxy should emit default maxEffectiveTokens")
 
 		// container.imageTag
 		assert.Contains(t, jsonStr, `"imageTag"`, "should include imageTag")
@@ -96,7 +97,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "my-proxy.internal.example.com", "should include the openai host")
 	})
 
-	t.Run("configured max-effective-tokens is not emitted in apiProxy config", func(t *testing.T) {
+	t.Run("configured max-effective-tokens is emitted in apiProxy config", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -113,7 +114,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.NotContains(t, jsonStr, `"maxEffectiveTokens"`, "apiProxy should not emit maxEffectiveTokens until supported")
+		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should emit configured maxEffectiveTokens")
 	})
 
 	t.Run("anthropic API target is included in apiProxy targets", func(t *testing.T) {
