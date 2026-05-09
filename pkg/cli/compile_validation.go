@@ -33,8 +33,12 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	// Uses SetRepositorySlugIfUnlocked so that an explicit --schedule-seed flag is never overridden.
 	fileRepoSlug := getRepositorySlugFromRemoteForPath(filePath)
 	if fileRepoSlug != "" {
-		compiler.SetRepositorySlugIfUnlocked(fileRepoSlug)
-		compileValidationLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+		if compiler.IsRepositorySlugLocked() {
+			compileValidationLog.Printf("Repository slug from file remote (%s) ignored: overridden via --schedule-seed (%s)", fileRepoSlug, compiler.GetRepositorySlug())
+		} else {
+			compiler.SetRepositorySlugIfUnlocked(fileRepoSlug)
+			compileValidationLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+		}
 	}
 
 	// Compile the workflow first

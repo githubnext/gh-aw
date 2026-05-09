@@ -35,8 +35,8 @@ func TestSetupRepositoryContext_ValidScheduleSeedLocksSlug(t *testing.T) {
 }
 
 // TestSetupRepositoryContext_InvalidScheduleSeedDoesNotLock verifies that an
-// invalid --schedule-seed value is silently ignored and the slug is NOT locked,
-// allowing per-file git-remote detection to set the slug later.
+// invalid --schedule-seed value triggers a warning and falls back to git remote
+// detection; the slug is NOT locked so per-file detection can still set it.
 func TestSetupRepositoryContext_InvalidScheduleSeedDoesNotLock(t *testing.T) {
 	compiler := workflow.NewCompiler()
 	config := CompileConfig{

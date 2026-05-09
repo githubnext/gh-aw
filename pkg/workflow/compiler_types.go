@@ -296,7 +296,7 @@ func (c *Compiler) IsRepositorySlugLocked() bool {
 // should call so that an explicit --schedule-seed flag is never overridden.
 func (c *Compiler) SetRepositorySlugIfUnlocked(slug string) {
 	if !c.repositorySlugLocked {
-		c.repositorySlug = slug
+		c.SetRepositorySlug(slug)
 	}
 }
 
