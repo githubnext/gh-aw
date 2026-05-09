@@ -159,6 +159,39 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 		assert.Equal(t, 1, count, "playwright-cli:* should appear exactly once")
 	})
 
+	t.Run("github gh-proxy mode adds gh:* to restricted bash", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{
+				"bash": []any{"echo"},
+				"github": map[string]any{
+					"mode": "gh-proxy",
+				},
+			},
+		}
+		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
+		require.NotNil(t, result, "result should not be nil")
+		bash, ok := result["bash"].([]any)
+		require.True(t, ok, "bash should be a []any")
+		assert.Contains(t, bash, "gh:*", "gh:* should be auto-added in gh-proxy mode")
+		assert.Contains(t, bash, "echo", "original command should be preserved")
+	})
+
+	t.Run("github local mode does not add gh:* to restricted bash", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{
+				"bash": []any{"echo"},
+				"github": map[string]any{
+					"mode": "local",
+				},
+			},
+		}
+		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
+		require.NotNil(t, result, "result should not be nil")
+		bash, ok := result["bash"].([]any)
+		require.True(t, ok, "bash should be a []any")
+		assert.NotContains(t, bash, "gh:*", "gh:* should not be auto-added outside gh-proxy mode")
+	})
+
 	t.Run("nil workflowData returns nil", func(t *testing.T) {
 		result := withMountedCLIShellCommandsInRestrictedBash(nil)
 		assert.Nil(t, result, "nil input should return nil")

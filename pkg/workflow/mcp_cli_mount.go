@@ -176,10 +176,12 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 		return workflowData.Tools
 	}
 
+	hasRestrictedBash := hasBashRestrictedAllowlist(workflowData.Tools)
 	servers := getMountedCLIServerNamesIfBashRestricted(workflowData, workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts)
-	needsPlaywrightCLI := isPlaywrightCLIMode(workflowData.Tools) && hasBashRestrictedAllowlist(workflowData.Tools)
+	needsPlaywrightCLI := isPlaywrightCLIMode(workflowData.Tools) && hasRestrictedBash
+	needsGitHubCLI := isGitHubCLIModeEnabled(workflowData) && hasRestrictedBash
 
-	if len(servers) == 0 && !needsPlaywrightCLI {
+	if len(servers) == 0 && !needsPlaywrightCLI && !needsGitHubCLI {
 		return workflowData.Tools
 	}
 
@@ -220,6 +222,19 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 			return ok && s == playwrightCLICommand
 		}) {
 			augmentedBash = append(augmentedBash, playwrightCLICommand)
+		}
+	}
+
+	// When GitHub CLI mode is enabled (tools.github.mode: gh-proxy), GitHub access
+	// happens through the pre-authenticated gh binary. Ensure restricted bash
+	// allowlists can invoke it.
+	if needsGitHubCLI {
+		const ghCLICommand = "gh:*"
+		if !slices.ContainsFunc(augmentedBash, func(v any) bool {
+			s, ok := v.(string)
+			return ok && s == ghCLICommand
+		}) {
+			augmentedBash = append(augmentedBash, ghCLICommand)
 		}
 	}
 
