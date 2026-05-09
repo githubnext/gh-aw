@@ -15,7 +15,7 @@ function makeHarnessTempDir(name) {
   return fs.mkdtempSync(path.join(agentTempDir, name));
 }
 
-function runHarnessWithStub({ stubScript, prompt = "fix the bug" }) {
+function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = [] }) {
   const tempDir = makeHarnessTempDir("claude-harness-");
   const stubPath = path.join(tempDir, "stub.cjs");
   const promptPath = path.join(tempDir, "prompt.txt");
@@ -23,7 +23,7 @@ function runHarnessWithStub({ stubScript, prompt = "fix the bug" }) {
   fs.writeFileSync(stubPath, stubScript, "utf8");
   fs.writeFileSync(promptPath, prompt, "utf8");
 
-  const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
+  const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", ...extraArgs, "--prompt-file", promptPath], {
     cwd: path.dirname(require.resolve("./claude_harness.cjs")),
     env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath },
     encoding: "utf8",
@@ -250,6 +250,41 @@ process.exit(0);
       expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true, false]);
       expect(calls[2].args).toContain("fix the bug");
       expect(result.stderr).toContain("failure_reason=harness_retry_path_invalid");
+    }, 50000);
+
+    it("strips user-supplied --continue on fresh retry after invalid continue-path detection", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+if (priorCalls === 0) {
+  process.stdout.write("partial execution before retry\\n");
+  process.exit(1);
+}
+
+if (priorCalls === 1) {
+  if (args.filter(arg => arg === "--continue").length !== 1) {
+    process.stderr.write("expected exactly one --continue on first retry\\n");
+    process.exit(9);
+  }
+  process.stderr.write("Error: No deferred tool marker found in the resumed session.\\n");
+  process.exit(1);
+}
+
+if (args.includes("--continue")) {
+  process.stderr.write("fresh retry unexpectedly used --continue\\n");
+  process.exit(9);
+}
+process.stdout.write("fresh retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript, extraArgs: ["--continue"] });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([true, true, false]);
     }, 50000);
 
     it("uses a fresh retry after signal-style termination instead of --continue", () => {

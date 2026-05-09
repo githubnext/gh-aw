@@ -77,7 +77,7 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // This occurs when --continue is attempted but the session either was never deferred,
 // the deferred marker is stale (tool already ran), or it falls outside the tail-scan
 // window.  Retrying with --continue will always produce the same instant failure, so
-// this is a deterministic terminal condition that must not be retried.
+// this path must not be retried via --continue (fall back to a fresh run if budget remains).
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
 const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
 
@@ -127,7 +127,7 @@ function isMaxTurnsExit(output) {
  * This occurs when Claude Code is invoked with --continue but the session was never
  * deferred, the deferred marker is stale (tool already ran), or it falls outside the
  * tail-scan window.  Each retry with --continue will instantly produce the same error,
- * so this is a deterministic terminal condition that must not be retried.
+ * so this should not be retried via --continue (fall back to fresh run retries).
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
  */
@@ -244,6 +244,17 @@ function stripPromptFileArgs(args) {
 }
 
 /**
+ * Strip any user-supplied --continue flags from args.
+ * The harness decides when --continue should be used on retries.
+ *
+ * @param {string[]} args
+ * @returns {string[]}
+ */
+function stripContinueArgs(args) {
+  return args.filter(arg => arg !== "--continue");
+}
+
+/**
  * Main entry point: run claude with retry logic for transient API failures.
  */
 async function main() {
@@ -266,8 +277,9 @@ async function main() {
     log(`fatal: ${e.message}`);
     process.exit(1);
   }
+  const freshRetryArgs = stripContinueArgs(initialArgs);
   // Args without --prompt-file, used as the base for --continue retries.
-  const continueBaseArgs = stripPromptFileArgs(args);
+  const continueBaseArgs = stripContinueArgs(stripPromptFileArgs(args));
 
   // Detect whether the original args included --prompt-file so we know whether
   // initialArgs carries prompt text as its last positional arg.
@@ -277,6 +289,7 @@ async function main() {
   // initialArgs is the resolved prompt content. Replace it with a placeholder so that
   // task instructions are never written to stderr or captured in agent logs.
   const safeInitialArgs = hadPromptFile && initialArgs.length > 0 ? [...initialArgs.slice(0, -1), "<prompt omitted>"] : initialArgs;
+  const safeFreshRetryArgs = hadPromptFile && freshRetryArgs.length > 0 ? [...freshRetryArgs.slice(0, -1), "<prompt omitted>"] : freshRetryArgs;
 
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
@@ -296,11 +309,11 @@ async function main() {
     if (attempt > 0 && useContinueOnRetry) {
       currentArgs = [...continueBaseArgs, "--continue"];
     } else {
-      currentArgs = initialArgs;
+      currentArgs = attempt === 0 ? initialArgs : freshRetryArgs;
     }
 
     // Use redacted args for logging when the run carries the prompt text.
-    const logArgs = attempt === 0 || !useContinueOnRetry ? safeInitialArgs : currentArgs;
+    const logArgs = attempt === 0 ? safeInitialArgs : useContinueOnRetry ? currentArgs : safeFreshRetryArgs;
 
     if (attempt > 0) {
       const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
