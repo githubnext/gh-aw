@@ -17,39 +17,23 @@ When the workflow runs, the markdown body is loaded at runtime — you can edit 
 
 ### Phase 1: Parsing and Validation
 
-The compilation process reads the markdown file and:
+The compiler extracts the YAML frontmatter, validates it against the workflow schema, validates expression safety (only allow-listed GitHub Actions expressions), and resolves imports.
 
-- Extracts YAML frontmatter
-- Parses workflow configuration
-- Validates against the workflow schema
-- **Resolves imports** using breadth-first search (BFS) traversal
-- **Merges configurations** from imported files according to field-specific rules
-- Validates expression safety (only allowed GitHub Actions expressions)
+#### Import Resolution
 
-#### Import Resolution Algorithm
+Imports are resolved with a deterministic breadth-first traversal: starting from `imports:` in the main workflow, each file is loaded, its configurations are extracted, and any nested imports are appended to the queue. Visited files are tracked to detect cycles.
 
-Import processing follows a deterministic BFS algorithm:
+| Field | Merge strategy |
+|-------|----------------|
+| Tools | Deep merge; arrays concatenated and deduplicated |
+| MCP servers | Imported servers override main-workflow servers with the same name |
+| Network | Union of allowed domains, deduplicated and sorted |
+| Permissions | Validation only — main must satisfy imported requirements |
+| Safe outputs | Main workflow overrides imported configurations per type |
+| Runtimes | Main workflow versions override imported versions |
 
-1. **Queue initialization**: Parse main workflow's `imports:` field and add entries to queue
-2. **Iterative processing**: For each import in queue:
-   - Resolve path (local file or remote repository reference)
-   - Load and parse import file
-   - Extract mergeable configurations (tools, mcp-servers, network, etc.)
-   - Add import's own imports to end of queue (nested imports)
-   - Track visited files to detect circular imports
-3. **Configuration accumulation**: Collect all configurations by field type
-4. **Merge execution**: Apply field-specific merge strategies
-5. **Validation**: Check for conflicts and permission requirements
+Processing order follows BFS:
 
-**Merge strategies**:
-- **Tools**: Deep merge with array concatenation and deduplication
-- **MCP servers**: Imported servers override main workflow servers with same name
-- **Network**: Union of allowed domains, deduplicated and sorted
-- **Permissions**: Validation only - main must satisfy imported requirements
-- **Safe outputs**: Main workflow overrides imported configurations per type
-- **Runtimes**: Main workflow versions override imported versions
-
-**Example processing order**:
 ```
 Main Workflow
 ├── import-a.md          → Processed 1st
@@ -85,33 +69,11 @@ The compilation process generates specialized jobs based on workflow configurati
 
 ### Agent Job Steps
 
-The agent job orchestrates AI execution through these phases:
-
-1. Repository checkout and runtime setup (Node.js, Python, Go)
-2. Cache restoration for persistent memory
-3. MCP server container initialization
-4. Prompt generation from markdown content
-5. Engine execution (Copilot, Claude, or Codex)
-6. Output upload as GitHub Actions artifact
-7. Cache persistence for next run
-
-Environment variables include `GH_AW_PROMPT` (prompt file), `GH_AW_SAFE_OUTPUTS` (output JSON), and `GITHUB_TOKEN`.
+The agent job runs: repository checkout and runtime setup (Node.js, Python, Go) → cache restoration → MCP container initialization → prompt generation from the markdown body → engine execution (Copilot, Claude, or Codex) → output upload as a GitHub Actions artifact → cache persistence. Key environment variables: `GH_AW_PROMPT` (prompt file), `GH_AW_SAFE_OUTPUTS` (output JSON), `GITHUB_TOKEN`.
 
 ### Safe Output Jobs
 
-Each safe output type (create issue, add comment, create PR, etc.) follows a consistent pattern: download agent artifact, parse JSON output, execute GitHub API operations with appropriate permissions, and link to related items.
-
-Common safe output jobs:
-- **create_issue** / **create_discussion** - Create GitHub items with labels and prefixes
-- **add_comment** - Comment on issues/PRs with links to created items
-- **create_pull_request** - Apply git patches, create branch, open PR
-- **create_pr_review_comment** - Add line-specific code review comments
-- **create_code_scanning_alert** - Submit SARIF security findings
-- **add_labels** / **assign_milestone** - Manage issue metadata
-- **update_issue** / **update_release** - Modify existing items
-- **push_to_pr_branch** / **upload_assets** - Handle file operations
-- **update_project** - Sync with project boards
-- **missing_tool** / **noop** - Report issues or log status
+Every safe output job follows the same pattern: download the agent artifact, parse its JSON, execute the corresponding GitHub API operation with the right permissions, and link to related items. Available types include `create_issue`, `create_discussion`, `add_comment`, `create_pull_request`, `create_pr_review_comment`, `create_code_scanning_alert`, `add_labels`, `assign_milestone`, `update_issue`, `update_release`, `push_to_pr_branch`, `upload_assets`, `update_project`, `missing_tool`, and `noop`.
 
 ### Custom Jobs
 
@@ -163,75 +125,45 @@ flowchart TD
     activation --> conclusion
 ```
 
-These three jobs form a **sequential security pipeline** and cannot be combined into a single job for the following reasons.
-
-### 1. Security Architecture: Trust Boundaries
-
-The system enforces [Plan-Level Trust](/gh-aw/introduction/architecture/) — separating AI reasoning (read-only) from write operations. The **detection** job runs its own AI engine as a security gate: `success == 'true'` is the explicit condition controlling whether `safe_outputs` executes at all. If combined, a compromised agent's output could bypass detection.
-
-### 2. Job-Level Permissions Are Immutable
-
-In GitHub Actions, permissions are declared per-job and cannot change during execution:
+These three jobs form a **sequential security pipeline** rooted in [Plan-Level Trust](/gh-aw/introduction/architecture/) — AI reasoning (read-only) is separated from write operations. They cannot be merged because GitHub Actions permissions are per-job and immutable for the duration of a job:
 
 | Job | Key Permissions | Rationale |
 |-----|----------------|-----------|
-| **detection** | `contents: read` (minimal) | Runs AI analysis — must NOT have write access |
+| **detection** | `contents: read` | Runs AI analysis — must not have write access |
 | **safe_outputs** | `contents: write`, `issues: write`, `pull-requests: write` | Executes GitHub API write operations |
 | **conclusion** | `issues: write`, `pull-requests: write`, `discussions: write` | Updates comments, handles failures |
 
-If detection and safe_outputs were combined, the combined job would hold **write permissions during threat detection**, violating least privilege. A compromised detection step could exploit those write permissions.
+A combined job would hold write permissions while running threat detection, defeating least privilege and letting a compromised agent bypass the gate. Job-level isolation also enables:
 
-### 3. Job-Level Gating Provides Hard Isolation
-
-The `safe_outputs` job condition (`needs.detection.outputs.success == 'true'`) ensures the runner **never starts** if detection fails — write-permission code never loads. Step-level `if` conditions within a single job provide weaker isolation.
-
-### 4. The Conclusion Job Requires `always()` Semantics
-
-The `conclusion` job uses `always()` to handle upstream failures: agent errors, no-op logging, error status updates, and missing tool reporting. As a separate job it inspects upstream results via `needs.agent.result`; merging it with safe_outputs would block these steps when writes fail.
-
-### 5. Different Runners and Resource Requirements
-
-Detection requires `ubuntu-latest` for AI execution; safe_outputs and conclusion use the lightweight `ubuntu-slim`. Merging detection with safe_outputs would force `ubuntu-latest` for the entire pipeline.
-
-### 6. Concurrency Group Isolation
-
-The `detection` job shares a **concurrency group** (`gh-aw-copilot-${{ github.workflow }}`) with the agent job, serializing AI engine execution. The `safe_outputs` job intentionally does **not** have this group — it can run concurrently with other workflow instances' detection phases.
-
-### 7. Artifact-Based Security Handoff
-
-Data flows via GitHub Actions artifacts: agent writes `agent_output.json` → detection analyzes it and outputs `success` → safe_outputs downloads it only if approved. This prevents the output tampering possible with a shared filesystem in a single job.
+- **Hard gating.** The `safe_outputs` job condition `needs.detection.outputs.success == 'true'` prevents the runner from starting at all if detection fails. Step-level `if` checks within one job are weaker.
+- **`always()` semantics for `conclusion`.** It inspects upstream results via `needs.agent.result` to log errors and report missing tools even when writes fail.
+- **Right-sized runners.** Detection needs `ubuntu-latest` for AI execution; safe_outputs and conclusion use the lightweight `ubuntu-slim`.
+- **Concurrency isolation.** Detection shares a concurrency group with the agent job to serialize AI execution; safe_outputs intentionally does not, so it can run alongside other workflows' detection phases.
+- **Artifact-based handoff.** The agent writes `agent_output.json`; detection emits `success`; safe_outputs only downloads the artifact if approved. A shared filesystem in a single job would allow output tampering between phases.
 
 ## Action Pinning
 
-All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v6`) to prevent supply chain attacks. Tags can be moved to malicious commits, but SHA commits are immutable. The resolution order mirrors Phase 4: cache (`.github/aw/actions-lock.json`) → GitHub API → embedded pins.
+All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v6`) to defend against supply chain attacks — tags can be moved, SHAs cannot. Resolution order is cache (`.github/aw/actions-lock.json`) → GitHub API → embedded pins.
 
 ### The actions-lock.json Cache
 
-`.github/aw/actions-lock.json` stores resolved `action@version` → SHA mappings so that compilation produces consistent results regardless of the token available. Resolving a version tag to a SHA requires querying the GitHub API, which can fail when the token has limited permissions — notably when compiling via GitHub Copilot Coding Agent (CCA), which uses a restricted token that may not have access to external repositories.
+`.github/aw/actions-lock.json` caches resolved `action@version` → SHA mappings so compilation produces consistent results regardless of the available token. Resolving a tag to a SHA requires GitHub API access, which fails under restricted tokens — notably the GitHub Copilot Coding Agent (CCA) token. With the cache, CCA and similar restricted environments reuse SHAs from a prior compile run with a broader-scope token.
 
-By caching SHA resolutions from a prior compilation (done with a user PAT or a GitHub Actions token with broader scope), subsequent compilations reuse those SHAs without making API calls. Without the cache, compilation is unstable: it succeeds with a permissive token but fails when token access is restricted.
-
-**Commit `actions-lock.json` to version control.** This ensures all contributors and automated tools, including CCA, use the same immutable pins. Refresh it periodically with `gh aw update-actions`, or delete it and recompile with an appropriate token to force full re-resolution.
+**Commit `actions-lock.json` to version control** so every contributor and automated tool uses the same immutable pins. Refresh with `gh aw update-actions`, or delete and recompile with a permissive token to force full re-resolution.
 
 ## The gh-aw-actions Repository
 
-`github/gh-aw-actions` is the GitHub Actions repository containing all reusable actions that power compiled agentic workflows. When `gh aw compile` generates a `.lock.yml`, every action step references `github/gh-aw-actions` using a ref (typically a commit SHA, but may be a stable version tag such as `v0` when SHA resolution is unavailable):
+`github/gh-aw-actions` contains the reusable actions that power compiled workflows. Every action step in a generated `.lock.yml` references it (usually by commit SHA, occasionally by a stable tag like `v0` when SHA resolution is unavailable):
 
 ```yaml
 uses: github/gh-aw-actions/setup@abc1234...
 ```
 
-These references are generated entirely by the compiler and should never be edited manually in `.lock.yml` files. To update action refs to a newer `gh-aw-actions` release, run `gh aw compile` or `gh aw update-actions`.
-
-The repository is referenced via the `--actions-repo` flag default (`github/gh-aw-actions`) when `--action-mode action` is set during compilation. See [Compilation Commands](#compilation-commands) for how to compile against a fork or specific tag during development.
+Never edit these references by hand — run `gh aw compile` or `gh aw update-actions` to regenerate them. Use `--actions-repo` (with `--action-mode action`) to compile against a fork or specific tag during development; see [Compilation Commands](#compilation-commands).
 
 ### Dependabot and gh-aw-actions
 
-Dependabot scans all `.yml` files in `.github/workflows/` for action references and may open pull requests attempting to update `github/gh-aw-actions` to a newer SHA. **Do not merge these PRs.** The correct way to update `gh-aw-actions` pins is by running `gh aw compile` (or `gh aw update-actions`), which regenerates all action pins consistently across all compiled workflows from a single coordinated release.
-
-If your repository already has a `github-actions` update block in `.github/dependabot.yml`, `gh aw compile` automatically ensures the compiler-managed ignore rule is present.
-
-If you are enabling Dependabot for `github-actions`, use a config like:
+Dependabot may open PRs to bump `github/gh-aw-actions` to a newer SHA. **Do not merge them** — pin updates must come from `gh aw compile`, which coordinates pins across all compiled workflows from a single release. `gh aw compile` automatically inserts an ignore rule when a `github-actions` update block exists in `.github/dependabot.yml`. When enabling Dependabot from scratch, use:
 
 ```yaml
 updates:
@@ -240,8 +172,6 @@ updates:
     ignore:
       - dependency-name: "github/gh-aw-actions/**" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
 ```
-
-This tells Dependabot to skip version updates for `github/gh-aw-actions` while still monitoring all other GitHub Actions dependencies.
 
 ## Artifacts Created
 
@@ -275,27 +205,16 @@ firewall-audit-logs/
 
 ## MCP Server Integration
 
-Model Context Protocol (MCP) servers provide tools to AI agents. Compilation generates `mcp-config.json` from workflow configuration.
-
-**Local MCP servers** run in Docker containers with auto-generated Dockerfiles. Secrets inject via environment variables, and engines connect via stdio.
-
-**HTTP MCP servers** require no containers. Engines connect directly with configured headers and authentication.
-
-**Tool filtering** via `allowed:` restricts agent access to specific MCP tools. Environment variables inject through Dockerfiles (local) or config references (HTTP).
-
-**Agent job integration**: MCP containers start after runtime setup → Engine executes with tool access → Containers stop after completion.
+Model Context Protocol (MCP) servers provide tools to AI agents. Compilation emits `mcp-config.json` from the workflow's tool configuration. Local servers run in Docker containers with auto-generated Dockerfiles and connect via stdio; HTTP servers connect directly with configured headers and authentication. `allowed:` restricts which tools the agent sees, and secrets inject through Dockerfile env vars (local) or config references (HTTP). At runtime, MCP containers start after runtime setup, the engine executes with tool access, then containers stop.
 
 ## Pre-Activation Job
 
-Pre-activation enforces security and operational policies before expensive AI execution. It validates permissions, deadlines, and conditions, setting `activated=false` to skip downstream jobs when checks fail.
+Pre-activation runs gating checks sequentially before any AI execution. Any failure sets `activated=false`, skipping downstream jobs and saving costs:
 
-**Validation types**:
-- **Role checks** (`roles:`): Verify actor has required permissions (admin, maintainer, write)
-- **Stop-after** (`on.stop-after:`): Honor time-limited workflows (e.g., `+30d`, `2024-12-31`)
-- **Skip-if-match** (`skip-if-match:`): Prevent duplicates by searching for existing items matching criteria
-- **Command position** (`on.slash_command:`): Ensure command appears in first 3 lines to avoid accidental triggers
-
-Pre-activation runs checks sequentially. Any failure sets `activated=false`, preventing AI execution and saving costs.
+- **Role checks** (`roles:`) — actor has admin/maintainer/write permission
+- **Stop-after** (`on.stop-after:`) — workflow has not passed its deadline (e.g., `+30d`, `2024-12-31`)
+- **Skip-if-match** (`skip-if-match:`) — no existing item matches the dedup criteria
+- **Command position** (`on.slash_command:`) — slash command appears in the first 3 lines
 
 ## Compilation Commands
 
@@ -325,35 +244,17 @@ Pre-activation runs checks sequentially. Any failure sets `activated=false`, pre
 
 ## Debugging Compilation
 
-**Enable verbose logging**: `DEBUG=workflow:* gh aw compile my-workflow --verbose` shows job creation, action pin resolutions, tool configurations, and MCP setups.
+Run `DEBUG=workflow:* gh aw compile my-workflow --verbose` to trace job creation, action pin resolution, tool configuration, and MCP setup. Inspect generated `.lock.yml` files for header comments, the Mermaid dependency graph, job structure, SHA pins, and MCP config. Common fixes: circular dependencies → review `needs:` clauses; missing action pin → add to `action_pins.json` or enable dynamic resolution; invalid MCP config → verify `command`, `args`, `env`.
 
-**Inspect `.lock.yml` files**: Check header comments (imports, dependencies, prompt), job dependency graphs (Mermaid diagrams), job structure (steps, environment, permissions), action SHA pinning, and MCP configurations.
+## Performance
 
-**Common issues**: Circular deps → review `needs:` clauses; Missing action pin → add to `action_pins.json` or enable dynamic resolution; Invalid MCP config → verify `command`, `args`, `env`.
-
-## Performance Optimization
-
-**Compilation speed**: Simple workflows compile in ~100ms, complex workflows with imports in ~500ms, and workflows with dynamic action resolution in ~2s. Optimize by using action cache (`.github/aw/actions-lock.json`), minimizing import depth, and pre-compiling shared workflows.
-
-**Runtime performance**: Safe output jobs without dependencies run in parallel. Enable `cache:` for dependencies, use `cache-memory:` for persistent agent memory, and cache action resolutions for faster compilation.
+Simple workflows compile in ~100ms; workflows with imports in ~500ms; workflows that resolve action SHAs dynamically in ~2s. To keep compilation fast, commit `.github/aw/actions-lock.json` and minimize import depth. At runtime, safe output jobs without cross-dependencies run in parallel; enable `cache:` and `cache-memory:` for further speedups.
 
 ## Advanced Topics
 
-**Custom engine integration**: Create engines that return GitHub Actions steps, provide environment variables, and configure tool access. Register with the framework for workflow availability.
-
-**Schema extension**: Add frontmatter fields by updating the workflow schema, rebuilding (`make build`), adding parser handling, and updating documentation.
-
-**Workflow manifest resolution**: Compilation tracks imported files in lock file headers for dependency tracking, update detection, and audit trails.
-
-## Best Practices
-
-**Security**: Always use action pinning (never floating tags), enable threat detection (`safe-outputs.threat-detection:`), limit tool access with `allowed:`, review generated `.lock.yml` files, and run security scanners (`--actionlint --zizmor --poutine`).
-
-**Maintainability**: Use imports for shared configuration, document complex workflows with `description:`, compile frequently during development, version control lock files and action pins (`.github/aw/actions-lock.json`).
-
-**Performance**: Enable caching (`cache:` and `cache-memory:`), minimize imports to essentials, optimize tool configurations with restricted `allowed:` lists, use safe-jobs for custom logic.
-
-**Debugging**: Enable verbose logging (`--verbose`), check job dependency graphs in headers, inspect artifacts and firewall logs (`gh aw logs`), validate without file generation (`--no-emit`).
+- **Custom engines**: implement an engine that returns GitHub Actions steps and tool access, then register it with the framework.
+- **Schema extension**: add frontmatter fields by updating the workflow schema, rebuilding (`make build`), and wiring up parser handling.
+- **Workflow manifest**: imported files are tracked in lock file headers for update detection and audit trails.
 
 ## Related Documentation
 
