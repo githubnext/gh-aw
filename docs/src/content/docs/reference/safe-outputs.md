@@ -115,6 +115,27 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for compre
 > [!TIP]
 > Use `footer: false` to omit the AI-generated footer while preserving workflow-id markers for searchability. See [Footer Control](/gh-aw/reference/footers/) for details.
 
+#### `create_issue` tool field schema (`fields`)
+
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `fields` | `array<object>` | No | Optional issue field updates to apply immediately after issue creation. | `[{"name":"Priority","value":"P1"}]` |
+| `fields[].name` | `string` | Yes (when item exists) | Issue field display name. Match the repository field label (case-insensitive matching is supported). | `"Priority"` |
+| `fields[].value` | `string \| number` | Yes (when item exists) | Field value. Use a number for numeric fields; otherwise use a string (single select, iteration title, date `YYYY-MM-DD`, text). | `"Sprint 42"` |
+
+```json
+{
+  "type": "create_issue",
+  "title": "Triage: flaky parser test",
+  "body": "Intermittent failure detected in CI.",
+  "fields": [
+    { "name": "Priority", "value": "High" },
+    { "name": "Iteration", "value": "Sprint 42" },
+    { "name": "Story Points", "value": 3 }
+  ]
+}
+```
+
 #### Auto-Expiration
 
 The `expires` field auto-closes issues after a time period. Supports day-string format (`7d`, `2w`, `1m`, `1y`, `2h`) or `false` to disable expiration. Integer values (e.g., `expires: 7`) are also accepted as shorthand for days and can be migrated to string format with `gh aw fix --write`. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
@@ -366,7 +387,7 @@ When `auto_create: true` is set, any milestone from the `allowed` list that does
 
 ### Issue Updates (`update-issue:`)
 
-Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `title-prefix` to restrict updates to issues whose titles start with a specific prefix.
+Updates issue status, title, body, and optional issue fields. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `title-prefix` to restrict updates to issues whose titles start with a specific prefix.
 
 ```yaml wrap
 safe-outputs:
@@ -395,6 +416,26 @@ When using `target: "*"`, the agent must provide `issue_number` or `item_number`
 - `replace-island`: Updates a specific section marked with HTML comments
 
 Agent output format: `{"type": "update_issue", "issue_number": 123, "operation": "append", "body": "..."}`. The `operation` field is optional (defaults to `append`).
+
+#### `update_issue` tool field schema (`fields`)
+
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `fields` | `array<object>` | No | Optional issue field updates to apply as part of the issue update operation. | `[{"name":"Priority","value":"P1"}]` |
+| `fields[].name` | `string` | Yes (when item exists) | Issue field display name to set. | `"Priority"` |
+| `fields[].value` | `string \| number` | Yes (when item exists) | Field value. Use number for numeric fields; string for select/iteration/date/text values. | `"In Progress"` |
+
+```json
+{
+  "type": "update_issue",
+  "issue_number": 123,
+  "status": "open",
+  "fields": [
+    { "name": "Priority", "value": "High" },
+    { "name": "Iteration", "value": "Sprint 42" }
+  ]
+}
+```
 
 ### Pull Request Updates (`update-pull-request:`)
 
@@ -453,6 +494,105 @@ safe-outputs:
 ```
 
 Agent calls `set_issue_field` with `value`, and either `field_name` (preferred) or `field_node_id`. It can also pass `issue_number`; if omitted, the triggering issue is targeted.
+
+#### `set_issue_field` tool schema
+
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `value` | `string` | Yes | Field value to set. For date fields use `YYYY-MM-DD`; for single-select use an existing option label. | `"High"` |
+| `field_name` | `string` | Conditional* | Field display name used for automatic discovery. | `"Priority"` |
+| `field_node_id` | `string` | Conditional* | GraphQL node ID of the field, used to skip name discovery. | `"PVTF_lADO..."` |
+| `issue_number` | `number \| string` | No | Issue number to update. If omitted, uses the triggering issue. | `123` |
+| `repo` | `string` | No | Optional `owner/repo` override when cross-repository updates are enabled. | `"owner/repo"` |
+
+\* Provide **at least one** of `field_name` or `field_node_id`.
+
+```json
+{
+  "type": "set_issue_field",
+  "issue_number": 123,
+  "field_name": "Priority",
+  "value": "High"
+}
+```
+
+#### Issue field discovery mechanism
+
+When `field_name` is provided, the handler discovers available issue fields for the target repository and resolves the matching field automatically.
+
+1. Agent calls `set_issue_field` with `field_name`.
+2. Handler fetches available issue fields and resolves the field by label.
+3. If the field is unknown, the error includes available field names and guidance to use `field_node_id`.
+
+```json
+{
+  "type": "set_issue_field",
+  "field_name": "Urgency",
+  "value": "P0"
+}
+```
+
+Example actionable error:
+
+```text
+Issue field "Urgency" not found. Available fields: Priority, Iteration, Story Points.
+Use a listed field_name or provide field_node_id to bypass discovery.
+```
+
+Retrying with explicit ID:
+
+```json
+{
+  "type": "set_issue_field",
+  "field_node_id": "PVTF_lADOExampleFieldId",
+  "value": "P0"
+}
+```
+
+#### End-to-end triage workflow example (discovery + field updates)
+
+```yaml wrap
+---
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+safe-outputs:
+  create-issue:
+    title-prefix: "[triage] "
+    labels: [triage]
+    allowed-fields: [Priority, Iteration, Story Points]
+  update-issue:
+    target: triggering
+    status:
+    body:
+  set-issue-field:
+    target: triggering
+    allowed-fields: [Priority, Iteration]
+---
+```
+
+```json
+[
+  {
+    "type": "update_issue",
+    "body": "Initial triage complete. Escalating for review.",
+    "operation": "append",
+    "fields": [
+      { "name": "Priority", "value": "High" }
+    ]
+  },
+  {
+    "type": "set_issue_field",
+    "field_name": "Iteration",
+    "value": "Sprint 42"
+  }
+]
+```
 
 ### Project Creation (`create-project:`)
 
