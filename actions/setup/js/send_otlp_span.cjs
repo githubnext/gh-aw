@@ -1251,7 +1251,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const runtimeMetrics = readAgentRuntimeMetrics();
 
   // Mark the span as an error when the agent job failed, timed out, or was cancelled.
-  const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
+  const isAgentTimedOut = agentConclusion === "timed_out";
+  const isAgentFailure = agentConclusion === "failure" || isAgentTimedOut;
   const isAgentCancelled = agentConclusion === "cancelled";
   const isAgentNonOK = isAgentFailure || isAgentCancelled;
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
@@ -1266,7 +1267,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Always read agent_output.json so output metrics are available on all outcomes.
   const rawAgentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json");
   const agentOutput = rawAgentOutput || {};
-  const isAgentOutputMissing = rawAgentOutput === null;
+  // readJSONIfExists returns null when the file is absent OR unreadable (e.g. partial/corrupt write).
+  const hasNoReadableAgentOutput = rawAgentOutput === null;
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
   const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errorMessages = outputErrors.map(getErrorMessage).filter(Boolean).slice(0, 5);
@@ -1377,9 +1379,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // making individual errors queryable and classifiable in backends like
   // Grafana Tempo, Honeycomb, and Datadog.
   const buildSpanEvents = eventTimeMs => {
+    const shouldEmitSyntheticException = hasNoReadableAgentOutput && (isAgentTimedOut || isAgentCancelled);
     if (outputErrors.length === 0) {
-      if (isAgentOutputMissing && (agentConclusion === "timed_out" || isAgentCancelled)) {
-        const exceptionType = agentConclusion === "timed_out" ? "gh-aw.AgentTimedOut" : "gh-aw.AgentCancelled";
+      if (shouldEmitSyntheticException) {
+        const exceptionType = isAgentTimedOut ? "gh-aw.AgentTimedOut" : "gh-aw.AgentCancelled";
         const exceptionMessage = (statusMessage || `agent ${agentConclusion}`).slice(0, MAX_ATTR_VALUE_LENGTH);
         return [{ timeUnixNano: toNanoString(eventTimeMs), name: "exception", attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)] }];
       }
