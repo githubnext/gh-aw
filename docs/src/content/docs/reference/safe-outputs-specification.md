@@ -1612,6 +1612,7 @@ upload-asset:
 create-discussion:
   category: "General"            # Discussion category (name/slug/ID)
   title-prefix: "[Report] "      # Prepend to titles
+  min-body-length: 200           # Optional minimum report body length
   labels: [report, automated]    # Auto-apply labels
   allowed-labels: [...]          # Agent label restrictions
 ```
@@ -2654,11 +2655,14 @@ This section provides complete definitions for all remaining safe output types. 
 3. **Footer Injection**: Appends attribution footer to the discussion body when configured.
 4. **Cross-Repository**: When `target-repo` is configured, creates in that repository (must be in `allowed-repos`).
 5. **Temporary ID Support**: Supports `temporary_id` field for referencing before creation.
+6. **Body Length Guard**: When `min-body-length` is configured, discussion creation is rejected if the body is shorter than the configured minimum.
 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
 - `category`: Default discussion category
+- `title-prefix`: Prepend to titles
+- `min-body-length`: Minimum required body length (characters, before footer/metadata)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
 - `footer`: Footer override
