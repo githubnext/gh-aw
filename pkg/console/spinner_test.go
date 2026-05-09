@@ -3,9 +3,12 @@
 package console
 
 import (
+	"io"
 	"os"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestNewSpinner(t *testing.T) {
@@ -198,6 +201,58 @@ func TestSpinnerStopWithoutStart(t *testing.T) {
 	// Stop without start should not panic
 	spinner.Stop()
 	spinner.StopWithMessage("Message")
+}
+
+type panicInitModel struct{}
+
+func (panicInitModel) Init() tea.Cmd {
+	panic("spinner test panic")
+}
+
+func (m panicInitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	return m, nil
+}
+
+func (panicInitModel) View() tea.View { return tea.View{} }
+
+func TestSpinnerStartRecoversFromProgramPanic(t *testing.T) {
+	newPanicProgram := func() *tea.Program {
+		return tea.NewProgram(
+			panicInitModel{},
+			tea.WithOutput(io.Discard),
+			tea.WithoutRenderer(),
+			tea.WithInput(nil),
+		)
+	}
+
+	spinner := &SpinnerWrapper{
+		enabled: true,
+		program: newPanicProgram(),
+	}
+
+	spinner.Start()
+	waitForSpinnerStopped(t, spinner)
+
+	spinner.program = newPanicProgram()
+	spinner.Start()
+	waitForSpinnerStopped(t, spinner)
+}
+
+func waitForSpinnerStopped(t *testing.T, spinner *SpinnerWrapper) {
+	t.Helper()
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		spinner.mu.Lock()
+		running := spinner.running
+		spinner.mu.Unlock()
+		if !running {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	t.Fatal("spinner did not reset running state after panic")
 }
 
 // TestSpinnerStopBeforeStartRaceCondition tests that calling Stop immediately
