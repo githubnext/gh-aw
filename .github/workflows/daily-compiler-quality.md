@@ -328,7 +328,7 @@ Generate a comprehensive discussion report with findings.
 1. Emit **exactly one** `create_discussion` safe-output item.
 2. Do **not** emit placeholder or draft bodies (for example: `test`, `.`, `todo`, or similar short placeholders).
 3. Only emit `create_discussion` after the final report body is complete and fully rendered.
-4. Ensure the final discussion body is substantive and comfortably above 200 characters before submitting the output.
+4. The workflow enforces a **minimum 200-character body length**, so very short outputs (placeholder or otherwise) will fail safe-outputs.
 
 ### Discussion Title
 

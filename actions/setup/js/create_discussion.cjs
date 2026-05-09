@@ -491,11 +491,12 @@ async function main(config = {}) {
     let title = item.title ? item.title.trim() : "";
     let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, qualifiedItemRepo);
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+    const preSanitizeBodyLength = processedBody.trim().length;
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
     processedBody = sanitizeContent(processedBody);
-    if (minBodyLength > 0 && processedBody.trim().length < minBodyLength) {
-      const error = `Discussion body length ${processedBody.trim().length} is below configured minimum ${minBodyLength}`;
+    if (minBodyLength > 0 && preSanitizeBodyLength < minBodyLength) {
+      const error = `Discussion body length ${preSanitizeBodyLength} is below configured minimum ${minBodyLength}`;
       core.error(error);
       return {
         success: false,
