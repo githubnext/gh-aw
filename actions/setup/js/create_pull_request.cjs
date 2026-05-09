@@ -227,10 +227,12 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
         const message = getErrorMessage(error).toLowerCase();
         const isAssigneeError = status === 422 && (message.includes("assignee") || message.includes("assignees") || message.includes("unprocessable"));
         if (isAssigneeError && payload.assignees && payload.assignees.length > 0) {
+          const removedAssignees = payload.assignees.join(", ");
           core.warning(`Fallback issue creation failed due to assignee error, retrying without assignees: ${getErrorMessage(error)}`);
           // Mutate payload in-place so that any subsequent withRetry attempts also
           // omit assignees and do not re-trigger the same 422 path.
           delete payload.assignees;
+          payload.body = `${payload.body}\n\n> [!NOTE]\n> Assignees (${removedAssignees}) could not be set on this issue due to an API error.`;
           return await githubClient.rest.issues.create(payload);
         }
         throw error;

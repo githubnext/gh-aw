@@ -2288,4 +2288,32 @@ describe("create_pull_request - rate-limit retry", () => {
       vi.useRealTimers();
     }
   });
+
+  it("should append a note to the fallback issue body when assignees are removed due to 422 error", async () => {
+    // PR creation fails with a non-rate-limit error to trigger fallback immediately
+    global.github.rest.pulls.create.mockRejectedValue(new Error("Some PR creation error"));
+
+    const assigneeError = Object.assign(new Error("Validation Failed: assignees are invalid"), {
+      status: 422,
+      response: { status: 422 },
+    });
+    // First call fails with assignee 422, second succeeds
+    global.github.rest.issues.create.mockRejectedValueOnce(assigneeError).mockResolvedValue({ data: { number: 77, html_url: "https://github.com/test/issues/77" } });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, assignees: ["user1", "user2"] });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(77);
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(2);
+    // Second call (without assignees) should have a note in the body
+    const secondCall = global.github.rest.issues.create.mock.calls[1][0];
+    expect(secondCall.assignees).toBeUndefined();
+    expect(secondCall.body).toContain("user1");
+    expect(secondCall.body).toContain("user2");
+    expect(secondCall.body).toContain("could not be set");
+  });
 });
