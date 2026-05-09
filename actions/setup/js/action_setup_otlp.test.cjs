@@ -61,6 +61,8 @@ describe("action_setup_otlp.cjs", () => {
       "INPUT_TRACE-ID": process.env["INPUT_TRACE-ID"],
       INPUT_JOB_NAME: process.env.INPUT_JOB_NAME,
       "INPUT_JOB-NAME": process.env["INPUT_JOB-NAME"],
+      INPUT_PARENT_SPAN_ID: process.env.INPUT_PARENT_SPAN_ID,
+      "INPUT_PARENT-SPAN-ID": process.env["INPUT_PARENT-SPAN-ID"],
     };
 
     delete process.env.GH_AW_OTLP_ENDPOINTS;
@@ -69,6 +71,8 @@ describe("action_setup_otlp.cjs", () => {
     delete process.env["INPUT_TRACE-ID"];
     delete process.env.INPUT_JOB_NAME;
     delete process.env["INPUT_JOB-NAME"];
+    delete process.env.INPUT_PARENT_SPAN_ID;
+    delete process.env["INPUT_PARENT-SPAN-ID"];
     process.env.GITHUB_OUTPUT = outputFile;
     process.env.GITHUB_ENV = envFile;
   });

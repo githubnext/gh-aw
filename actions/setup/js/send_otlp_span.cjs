@@ -789,7 +789,7 @@ function isValidSpanId(id) {
  * is configured) to the configured OTLP endpoint.
  *
  * This is designed to be called from `actions/setup/index.js` immediately after
- * the setup script completes.  It always returns `{ traceId, spanId }` so callers
+ * the setup script completes.  It always returns `{ traceId, spanId, parentSpanId }` so callers
  * can expose the trace ID as an action output and write both values to `$GITHUB_ENV`
  * for downstream step correlation — even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not
  * set (no span is sent in that case).

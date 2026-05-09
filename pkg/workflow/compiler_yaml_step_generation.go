@@ -113,7 +113,7 @@ func (c *Compiler) generateRestoreActionsSetupStep() string {
 //   - destination: The destination path where files should be copied (e.g., SetupActionDestination)
 //   - enableArtifactClient: Whether to install @actions/artifact so upload_artifact.cjs can upload via REST API directly
 //   - traceID: Optional OTLP trace ID expression for cross-job span correlation (e.g., "${{ needs.activation.outputs.setup-trace-id }}"). Empty string means a new trace ID is generated.
-//   - parentSpanID: Optional OTLP parent span ID expression for setup-span nesting (e.g., setupParentSpanNeedsExpr("activation")). Empty string means setup span is emitted as root.
+//   - parentSpanID: Optional OTLP parent span ID expression for setup-span nesting (e.g., setupParentSpanNeedsExpr(constants.ActivationJobName)). Empty string means setup span is emitted as root.
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
 func buildSetupWorkflowRefExpr(data *WorkflowData) string {
