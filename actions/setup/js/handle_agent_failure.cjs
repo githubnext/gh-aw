@@ -935,10 +935,11 @@ const EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "re
 // - "effective_tokens limit exceeded"
 // - "rate limit ... effective tokens"
 // - "429 too many requests ... ET budget"
+// Keep these patterns permissive because providers vary wording across error payloads.
 const EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS = [
   /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
-  /\b429\b.*(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?)/i,
+  /\b429\b[\s\S]{0,120}(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?|et budget)/i,
 ];
 
 /**
@@ -953,6 +954,14 @@ function parsePositiveIntegerString(value) {
     return value;
   }
   return "";
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isTrueLike(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
 }
 
 /**
@@ -1070,7 +1079,7 @@ function parseEffectiveTokensErrorInfoFromAuditEntry(entry) {
       }
 
       if (EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS.has(key)) {
-        if (value === true || value === "true" || value === 1 || value === "1") {
+        if (isTrueLike(value)) {
           rateLimitError = true;
         }
       }
@@ -1151,6 +1160,7 @@ function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
         const parsed = parseEffectiveTokensErrorInfoFromAuditEntry(entry);
         // AWF audit logs are append-only JSONL; later entries represent newer state.
         if (parsed.effectiveTokens) parsedEffectiveTokens = parsed.effectiveTokens;
+        // Sticky OR: any detected ET rate-limit signal is enough to report this failure mode.
         if (parsed.rateLimitError) hasRateLimitError = true;
       } catch {
         // ignore malformed lines
