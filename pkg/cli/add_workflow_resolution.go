@@ -197,6 +197,12 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 			return nil, nil, err
 		}
 		if redirect == "" {
+			// Preserve the original WorkflowName from the user's request so that
+			// the local file is always named after what was requested, even when
+			// one or more redirects were followed to reach the final content.
+			// (WorkflowPath reflects the redirect target and is used for fetching
+			// imports and writing the source frontmatter field.)
+			currentSpec.WorkflowName = initialSpec.WorkflowName
 			return &currentSpec, fetched, nil
 		}
 
