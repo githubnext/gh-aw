@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Missing Messages Helper
  *

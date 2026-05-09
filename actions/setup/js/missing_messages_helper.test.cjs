@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeEach } from "vitest";
 
 describe("missing_messages_helper.cjs", () => {
@@ -7,6 +8,14 @@ describe("missing_messages_helper.cjs", () => {
     helper = await import("./missing_messages_helper.cjs");
     // Reset state between tests
     helper.setCollectedMissings(null);
+  });
+
+  describe("source metadata", () => {
+    it("should keep TypeScript checking enabled", () => {
+      const source = readFileSync(new URL("./missing_messages_helper.cjs", import.meta.url), "utf8");
+
+      expect(source.split(/\r?\n/, 1)[0]).toBe("// @ts-check");
+    });
   });
 
   describe("setCollectedMissings and getCollectedMissings", () => {
@@ -114,6 +123,69 @@ describe("missing_messages_helper.cjs", () => {
       expect(result).not.toContain("Missing Tools");
       expect(result).toContain("Missing Data");
       expect(result).toContain("config");
+    });
+
+    it("should handle noopMessages", () => {
+      const { setCollectedMissings, getMissingInfoSections } = helper;
+      const missings = {
+        missingTools: [],
+        missingData: [],
+        noopMessages: [{ message: "No action needed" }],
+        reportIncomplete: [],
+      };
+
+      setCollectedMissings(missings);
+      const result = getMissingInfoSections();
+
+      expect(result).toContain("No action needed");
+    });
+
+    it("should handle reportIncomplete messages", () => {
+      const { setCollectedMissings, getMissingInfoSections } = helper;
+      const missings = {
+        missingTools: [],
+        missingData: [],
+        reportIncomplete: [{ reason: "Task not finished" }],
+      };
+
+      setCollectedMissings(missings);
+      const result = getMissingInfoSections();
+
+      expect(result).toContain("Task not finished");
+    });
+
+    it("should handle all fields simultaneously", () => {
+      const { setCollectedMissings, getMissingInfoSections } = helper;
+      const missings = {
+        missingTools: [{ tool: "docker", reason: "Containers needed" }],
+        missingData: [{ data_type: "token", reason: "Auth required" }],
+        noopMessages: [{ message: "Skipped step" }],
+        reportIncomplete: [{ reason: "Partial completion" }],
+      };
+
+      setCollectedMissings(missings);
+      const result = getMissingInfoSections();
+
+      expect(result).toContain("Missing Tools");
+      expect(result).toContain("Missing Data");
+      expect(result).toContain("No-Op Messages");
+      expect(result).toContain("Incomplete Signals");
+      expect(result).toContain("docker");
+      expect(result).toContain("token");
+      expect(result).toContain("Skipped step");
+      expect(result).toContain("Partial completion");
+    });
+
+    it("should reflect updates after setCollectedMissings is called again", () => {
+      const { setCollectedMissings, getMissingInfoSections } = helper;
+
+      setCollectedMissings({ missingTools: [{ tool: "npm", reason: "Build tool" }], missingData: [] });
+      const first = getMissingInfoSections();
+      expect(first).toContain("npm");
+
+      setCollectedMissings({ missingTools: [], missingData: [] });
+      const second = getMissingInfoSections();
+      expect(second).toBe("");
     });
   });
 });
