@@ -27,7 +27,7 @@ safe-outputs:
     labels: [cookie]
   create-discussion:
     expires: 1d
-    max: 2
+    max: 1
   add-comment:
     max: 10
 timeout-minutes: 30
@@ -347,7 +347,7 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 
 13. **Create improvement issues:**
     - For critical agent issues: Create detailed improvement issue
-    - For systemic problems: Create architectural discussion
+    - For systemic problems: Create architectural issue
     - Link all issues to the performance report
 
 ## Output Format
