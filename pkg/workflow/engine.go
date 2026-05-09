@@ -544,7 +544,8 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 }
 
 // applyEngineAuthEnv populates config.Env with AWF_AUTH_* environment variables
-// derived from config.Auth. Existing config.Env values take precedence.
+// derived from config.Auth. Existing config.Env values take precedence so users
+// can explicitly override auth-derived values via engine.env.
 func applyEngineAuthEnv(config *EngineConfig) {
 	if config == nil || config.Auth == nil {
 		return
