@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { spawnSync } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
 import os from "os";
@@ -6,6 +7,36 @@ import path from "path";
 
 const require = createRequire(import.meta.url);
 const { resolveClaudePromptFileArgs, stripPromptFileArgs, isRateLimitError, isMaxTurnsExit, isNoDeferredMarkerError, isSignalTerminationExitCode, shouldRetryWithContinue } = require("./claude_harness.cjs");
+
+const agentTempDir = "/tmp/gh-aw/agent";
+
+function makeHarnessTempDir(name) {
+  fs.mkdirSync(agentTempDir, { recursive: true });
+  return fs.mkdtempSync(path.join(agentTempDir, name));
+}
+
+function runHarnessWithStub({ stubScript, prompt = "fix the bug" }) {
+  const tempDir = makeHarnessTempDir("claude-harness-");
+  const stubPath = path.join(tempDir, "stub.cjs");
+  const promptPath = path.join(tempDir, "prompt.txt");
+  const callsPath = path.join(tempDir, "calls.jsonl");
+  fs.writeFileSync(stubPath, stubScript, "utf8");
+  fs.writeFileSync(promptPath, prompt, "utf8");
+
+  const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
+    cwd: path.dirname(require.resolve("./claude_harness.cjs")),
+    env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath },
+    encoding: "utf8",
+    timeout: 45000,
+  });
+  const calls = fs
+    .readFileSync(callsPath, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map(line => JSON.parse(line));
+  return { result, calls };
+}
 
 describe("claude_harness.cjs", () => {
   describe("resolveClaudePromptFileArgs", () => {
@@ -170,17 +201,84 @@ describe("claude_harness.cjs", () => {
   });
 
   describe("shouldRetryWithContinue", () => {
-    it("does not use --continue for signal-style termination exitCode=143", () => {
-      const result = shouldRetryWithContinue({
-        attempt: 0,
-        maxRetries: 3,
-        exitCode: 143,
-        hasOutput: true,
-        isNoDeferredMarker: false,
-        continueDisabledPermanently: false,
-      });
-      expect(result).toBe(false);
+    it("does not use --continue for signal-style termination exit codes", () => {
+      for (const exitCode of [137, 143]) {
+        const result = shouldRetryWithContinue({
+          attempt: 0,
+          maxRetries: 3,
+          exitCode,
+          hasOutput: true,
+          isNoDeferredMarker: false,
+          continueDisabledPermanently: false,
+        });
+        expect(result).toBe(false);
+      }
     });
+
+    it("uses a fresh retry after a --continue attempt hits no-deferred-marker", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+if (priorCalls === 0) {
+  process.stdout.write("partial execution before retry\\n");
+  process.exit(1);
+}
+
+if (priorCalls === 1) {
+  if (!args.includes("--continue")) {
+    process.stderr.write("expected --continue on first retry\\n");
+    process.exit(9);
+  }
+  process.stderr.write("Error: No deferred tool marker found in the resumed session.\\n");
+  process.exit(1);
+}
+
+if (args.includes("--continue")) {
+  process.stderr.write("fresh retry unexpectedly used --continue\\n");
+  process.exit(9);
+}
+process.stdout.write("fresh retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true, false]);
+      expect(calls[2].args).toContain("fix the bug");
+      expect(result.stderr).toContain("failure_reason=harness_retry_path_invalid");
+    }, 50000);
+
+    it("uses a fresh retry after signal-style termination instead of --continue", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+if (priorCalls === 0) {
+  process.stdout.write("partial execution before SIGTERM-style exit\\n");
+  process.exit(143);
+}
+
+if (args.includes("--continue")) {
+  process.stderr.write("signal retry unexpectedly used --continue\\n");
+  process.exit(9);
+}
+process.stdout.write("fresh retry after signal exit succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
+      expect(calls[1].args).toContain("fix the bug");
+      expect(result.stderr).toContain("failure_reason=cancelled_or_timed_out");
+    }, 30000);
 
     it("returns true for normal partial-execution retry", () => {
       const result = shouldRetryWithContinue({
