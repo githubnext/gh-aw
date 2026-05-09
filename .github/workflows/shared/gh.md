@@ -1,40 +1,27 @@
 ---
-mcp-scripts:
-  gh:
-    description: "Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
-    inputs:
-      args:
-        type: string
-        description: "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'"
-        required: true
-    env:
-      GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_DEBUG: "1"
-    run: |
-      echo "gh $INPUT_ARGS"
-      echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
-      GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
+tools:
+  github:
+    mode: gh-proxy
 ---
 
-**IMPORTANT**: Always use the `mcpscripts-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `mcpscripts-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+**IMPORTANT**: The `gh` CLI is pre-authenticated. Always use `gh` commands directly for GitHub operations (listing issues, pull requests, reading repository contents, etc.). No GitHub MCP server is available; `gh` is your only way to interact with GitHub.
 
 **Correct**:
 ```
-Use the mcpscripts-gh tool with args: "pr list --limit 5"
-Use the mcpscripts-gh tool with args: "issue view 123"
+Run: gh pr list --limit 5
+Run: gh issue view 123
+Run: gh api repos/{owner}/{repo}
 ```
 
 **Incorrect**:
 ```
-Use the gh mcp-script tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use mcpscripts-gh)
-Run: gh pr list --limit 5  ❌ (No authentication in bash)
-Execute bash: gh issue view 123  ❌ (No authentication in bash)
+Use the mcpscripts-gh tool  ❌ (Tool no longer available - use gh CLI directly)
 ```
 
 <!--
-## mcpscripts-gh Tool
+## gh-proxy Mode
 
-A mcp-script tool that wraps the GitHub CLI (`gh`) with proper authentication.
+This shared workflow enables `tools.github.mode: gh-proxy`, which provides a pre-authenticated `gh` CLI binary for all GitHub interactions.
 
 ### Usage
 
@@ -43,20 +30,7 @@ imports:
   - shared/gh.md
 ```
 
-### Invocation
-
-The tool is accessible as `mcpscripts-gh` (or `mcpscripts_gh` after normalization). Provide gh CLI arguments via the `args` parameter:
-
-```
-mcpscripts-gh with args: "pr list --limit 5"
-mcpscripts-gh with args: "issue view 123"
-mcpscripts-gh with args: "api repos/{owner}/{repo}"
-mcpscripts-gh with args: "pr view 456 --json title,body,author"
-```
-
-The tool executes: `gh <args>`
-
 ### Authentication
 
-Uses `GH_TOKEN` from `github.token` which has permissions based on the workflow's `permissions` configuration.
+The `gh` binary is pre-authenticated using `GITHUB_TOKEN` with permissions based on the workflow's `permissions` configuration.
 -->
