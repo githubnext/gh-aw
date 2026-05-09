@@ -11,6 +11,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
+const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState } = require("./effective_tokens_context.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -977,11 +978,12 @@ function buildRegisteredProviderEntries() {
  */
 function parseFirewallAuthErrors(auditJsonlPath) {
   try {
-    if (!fs.existsSync(auditJsonlPath)) {
+    const resolvedPath = resolveFirewallAuditLogPath(auditJsonlPath);
+    if (!fs.existsSync(resolvedPath)) {
       return [];
     }
 
-    const content = fs.readFileSync(auditJsonlPath, "utf8");
+    const content = fs.readFileSync(resolvedPath, "utf8");
     if (!content.trim()) {
       return [];
     }
@@ -1062,9 +1064,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
  * @returns {string} Formatted context string, or empty string if no auth errors
  */
 function buildCredentialAuthErrorContext(auditJsonlPathOverride) {
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const defaultAuditPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit", "audit.jsonl") : "/tmp/gh-aw/sandbox/firewall/audit/audit.jsonl";
-  const auditJsonlPath = auditJsonlPathOverride || defaultAuditPath;
+  const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
 
   const authErrors = parseFirewallAuthErrors(auditJsonlPath);
 
@@ -1313,9 +1313,7 @@ async function main() {
     const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
-    const effectiveTokens = process.env.GH_AW_EFFECTIVE_TOKENS || "";
-    const maxEffectiveTokens = process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
-    const effectiveTokensRateLimitError = process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
+    const { effectiveTokens, maxEffectiveTokens, effectiveTokensRateLimitError } = resolveEffectiveTokensFailureState();
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
@@ -2028,6 +2026,8 @@ module.exports = {
   buildMissingToolContext,
   buildCredentialAuthErrorContext,
   parseFirewallAuthErrors,
+  parseMaxEffectiveTokensFromAuditLog,
+  parseEffectiveTokensErrorInfoFromAuditLog,
   getActionFailureIssueExpiresHours,
   hasAgentTerminalReasonCompleted,
 };

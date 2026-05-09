@@ -1792,6 +1792,93 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("parseMaxEffectiveTokensFromAuditLog", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+
+    let tmpDir;
+    let parseMaxEffectiveTokensFromAuditLog;
+    let parseEffectiveTokensErrorInfoFromAuditLog;
+
+    beforeEach(() => {
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+      global.github = {};
+      global.context = { repo: { owner: "owner", repo: "repo" } };
+      vi.resetModules();
+      ({ parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog } = require("./handle_agent_failure.cjs"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-max-et-"));
+    });
+
+    afterEach(() => {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when file does not exist", () => {
+      const result = parseMaxEffectiveTokensFromAuditLog(path.join(tmpDir, "missing.jsonl"));
+      expect(result).toBe("");
+    });
+
+    it("parses max_effective_tokens from audit log entries", () => {
+      const jsonlPath = path.join(tmpDir, "log.jsonl");
+      fs.writeFileSync(jsonlPath, [JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, max_effective_tokens: 12345 }), JSON.stringify({ _schema: "audit/v0.26.0", ts: 2, max_effective_tokens: 23456 })].join("\n"));
+      const result = parseMaxEffectiveTokensFromAuditLog(jsonlPath);
+      expect(result).toBe("23456");
+    });
+
+    it("parses nested camelCase maxEffectiveTokens values", () => {
+      const jsonlPath = path.join(tmpDir, "log.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, awf: { budget: { maxEffectiveTokens: "9999" } } }));
+      const result = parseMaxEffectiveTokensFromAuditLog(jsonlPath);
+      expect(result).toBe("9999");
+    });
+
+    it("uses derived default path and prefers log.jsonl", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(path.join(auditDir, "audit.jsonl"), JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, max_effective_tokens: 1111 }));
+      fs.writeFileSync(path.join(auditDir, "log.jsonl"), JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, max_effective_tokens: 2222 }));
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      const result = parseMaxEffectiveTokensFromAuditLog();
+      expect(result).toBe("2222");
+    });
+
+    it("parses effective token rate-limit metadata from audit log entries", () => {
+      const jsonlPath = path.join(tmpDir, "log.jsonl");
+      fs.writeFileSync(
+        jsonlPath,
+        [
+          JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, effective_tokens: 4321, effective_tokens_rate_limit_error: false }),
+          JSON.stringify({ _schema: "audit/v0.26.0", ts: 2, effective_tokens: 5432, effective_tokens_rate_limit_error: true }),
+        ].join("\n")
+      );
+      const result = parseEffectiveTokensErrorInfoFromAuditLog(jsonlPath);
+      expect(result).toEqual({ effectiveTokens: "5432", rateLimitError: true });
+    });
+
+    it("parses nested camelCase effective token metadata from default log.jsonl", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(path.join(auditDir, "log.jsonl"), JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, awf: { budget: { effectiveTokens: "7777" }, errors: { effectiveTokensRateLimitError: "true" } } }));
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      const result = parseEffectiveTokensErrorInfoFromAuditLog();
+      expect(result).toEqual({ effectiveTokens: "7777", rateLimitError: true });
+    });
+
+    it("detects effective token rate-limit errors from text fields", () => {
+      const jsonlPath = path.join(tmpDir, "log.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, details: "429 too many requests: effective tokens budget exceeded" }));
+      const result = parseEffectiveTokensErrorInfoFromAuditLog(jsonlPath);
+      expect(result).toEqual({ effectiveTokens: "", rateLimitError: true });
+    });
+  });
+
   describe("buildCredentialAuthErrorContext", () => {
     const fs = require("fs");
     const os = require("os");
