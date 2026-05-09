@@ -79,6 +79,7 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // window.  Retrying with --continue will always produce the same instant failure, so
 // this is a deterministic terminal condition that must not be retried.
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
+const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -132,6 +133,41 @@ function isMaxTurnsExit(output) {
  */
 function isNoDeferredMarkerError(output) {
   return NO_DEFERRED_MARKER_PATTERN.test(output);
+}
+
+/**
+ * Determines whether the exit code corresponds to signal-style termination
+ * (SIGKILL=137 / SIGTERM=143), typically from timeout/cancellation.
+ * @param {number} exitCode
+ * @returns {boolean}
+ */
+function isSignalTerminationExitCode(exitCode) {
+  return SIGNAL_TERMINATION_EXIT_CODES.has(exitCode);
+}
+
+/**
+ * Decide whether the next retry should use --continue.
+ * @param {{
+ *   attempt: number,
+ *   maxRetries: number,
+ *   exitCode: number,
+ *   hasOutput: boolean,
+ *   isNoDeferredMarker: boolean,
+ *   continueDisabledPermanently: boolean
+ * }} input
+ * @returns {boolean}
+ */
+function shouldRetryWithContinue({ attempt, maxRetries, exitCode, hasOutput, isNoDeferredMarker, continueDisabledPermanently }) {
+  if (attempt >= maxRetries || !hasOutput || continueDisabledPermanently) {
+    return false;
+  }
+  if (isSignalTerminationExitCode(exitCode)) {
+    return false;
+  }
+  if (isNoDeferredMarker) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -249,6 +285,7 @@ async function main() {
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
   let useContinueOnRetry = false;
+  let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -309,19 +346,43 @@ async function main() {
 
     // "No deferred tool marker found" is a deterministic terminal condition: the session
     // was never deferred, the marker is stale (tool already ran), or it falls outside the
-    // tail-scan window.  Retrying with --continue always produces the same instant failure,
-    // so we stop immediately to avoid wasting retry budget and masking the real cause.
+    // tail-scan window. If this happens on a --continue attempt, restart fresh and disable
+    // --continue permanently so we do not re-enter the same invalid retry path.
     if (isNoDeferredMarker) {
-      log(`attempt ${attempt + 1}: no deferred tool marker — not retriable via --continue`);
+      if (attempt < MAX_RETRIES && result.hasOutput) {
+        useContinueOnRetry = false;
+        continueDisabledPermanently = true;
+        log(`attempt ${attempt + 1}: no deferred tool marker on --continue — retrying as fresh run` + ` (failure_reason=harness_retry_path_invalid, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+        continue;
+      }
+      log(`attempt ${attempt + 1}: no deferred tool marker — not retriable via --continue (failure_reason=harness_retry_path_invalid)`);
       break;
+    }
+
+    // SIGTERM/SIGKILL-style exits are usually job cancellation/timeouts. Do not retry with
+    // --continue because there is typically no deferred marker in session state.
+    if (attempt < MAX_RETRIES && result.hasOutput && isSignalTerminationExitCode(result.exitCode)) {
+      useContinueOnRetry = false;
+      continueDisabledPermanently = true;
+      log(`attempt ${attempt + 1}: signal-style termination exitCode=${result.exitCode}` + ` — retrying as fresh run (failure_reason=cancelled_or_timed_out, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      continue;
     }
 
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
     if (attempt < MAX_RETRIES && result.hasOutput) {
+      const retryWithContinue = shouldRetryWithContinue({
+        attempt,
+        maxRetries: MAX_RETRIES,
+        exitCode: result.exitCode,
+        hasOutput: result.hasOutput,
+        isNoDeferredMarker,
+        continueDisabledPermanently,
+      });
       const reason = isOverloaded ? "overloaded_error (transient)" : isRateLimit ? "rate_limit_error (transient)" : "partial execution";
-      useContinueOnRetry = true;
-      log(`attempt ${attempt + 1}: ${reason} — will retry with --continue (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      useContinueOnRetry = retryWithContinue;
+      const retryMode = retryWithContinue ? "--continue" : "fresh run (--continue disabled permanently)";
+      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
 
@@ -348,6 +409,8 @@ if (typeof module !== "undefined" && module.exports) {
     isRateLimitError,
     isMaxTurnsExit,
     isNoDeferredMarkerError,
+    isSignalTerminationExitCode,
+    shouldRetryWithContinue,
   };
 }
 

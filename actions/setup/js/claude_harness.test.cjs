@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveClaudePromptFileArgs, stripPromptFileArgs, isRateLimitError, isMaxTurnsExit, isNoDeferredMarkerError } = require("./claude_harness.cjs");
+const { resolveClaudePromptFileArgs, stripPromptFileArgs, isRateLimitError, isMaxTurnsExit, isNoDeferredMarkerError, isSignalTerminationExitCode, shouldRetryWithContinue } = require("./claude_harness.cjs");
 
 describe("claude_harness.cjs", () => {
   describe("resolveClaudePromptFileArgs", () => {
@@ -154,6 +154,44 @@ describe("claude_harness.cjs", () => {
 
     it("returns false for a successful result output", () => {
       expect(isNoDeferredMarkerError('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
+    });
+  });
+
+  describe("isSignalTerminationExitCode", () => {
+    it("returns true for SIGKILL/SIGTERM-style exit codes", () => {
+      expect(isSignalTerminationExitCode(137)).toBe(true);
+      expect(isSignalTerminationExitCode(143)).toBe(true);
+    });
+
+    it("returns false for non-signal exit codes", () => {
+      expect(isSignalTerminationExitCode(1)).toBe(false);
+      expect(isSignalTerminationExitCode(2)).toBe(false);
+    });
+  });
+
+  describe("shouldRetryWithContinue", () => {
+    it("does not use --continue for exitCode=143 when deferred marker is absent", () => {
+      const result = shouldRetryWithContinue({
+        attempt: 0,
+        maxRetries: 3,
+        exitCode: 143,
+        hasOutput: true,
+        isNoDeferredMarker: false,
+        continueDisabledPermanently: false,
+      });
+      expect(result).toBe(false);
+    });
+
+    it("returns true for normal partial-execution retry", () => {
+      const result = shouldRetryWithContinue({
+        attempt: 0,
+        maxRetries: 3,
+        exitCode: 1,
+        hasOutput: true,
+        isNoDeferredMarker: false,
+        continueDisabledPermanently: false,
+      });
+      expect(result).toBe(true);
     });
   });
 });
