@@ -181,6 +181,9 @@ func TestGetNpmBinPathSetup(t *testing.T) {
 	if !strings.Contains(pathSetup, "-name bin") {
 		t.Errorf("PATH setup should search for bin directories, got: %s", pathSetup)
 	}
+	if !strings.Contains(pathSetup, "-maxdepth 5") {
+		t.Errorf("PATH setup should search deep enough for setup-node toolcache bins, got: %s", pathSetup)
+	}
 
 	// Should preserve existing PATH
 	if !strings.Contains(pathSetup, "$PATH") {
@@ -221,7 +224,7 @@ func TestGetNpmBinPathSetup_GorootOrdering(t *testing.T) {
 
 	// Simulate the PATH setup with GOROOT pointing to the newer version
 	shellCmd := fmt.Sprintf(
-		`export GOROOT=%q; export PATH="$(find %q -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; go version`,
+		`export GOROOT=%q; export PATH="$(find %q -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; go version`,
 		filepath.Join(tmpDir, "go", "1.25.0", "x64"),
 		tmpDir,
 	)
@@ -249,7 +252,7 @@ func TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain(t *testing.T) {
 	//   GetNpmBinPathSetup() && INSTRUCTION="..." && codex exec ...
 	// When GOROOT is empty, [ -n "$GOROOT" ] is false. Without || true,
 	// the && chain short-circuits and INSTRUCTION is never set.
-	shellCmd := `unset GOROOT; export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && echo "chain-continued"`
+	shellCmd := `unset GOROOT; export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && echo "chain-continued"`
 
 	cmd := exec.Command("bash", "-c", shellCmd)
 	output, err := cmd.Output()
