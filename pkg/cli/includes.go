@@ -273,6 +273,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 
 		// Cycle/duplicate prevention: use the fully-resolved remote path as the key.
 		if seen[remoteFilePath] {
+			remoteWorkflowLog.Printf("Skipping already-seen import: %s", remoteFilePath)
 			continue
 		}
 		seen[remoteFilePath] = true
@@ -331,6 +332,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		// Download from the source repository
 		importContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
 		if err != nil {
+			remoteWorkflowLog.Printf("Failed to download import %s from %s/%s@%s: %v", remoteFilePath, owner, repo, ref, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch import %s: %v", remoteFilePath, err)))
 			}
@@ -487,6 +489,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 //     verbose is true but do not stop the overall operation.
 //   - Dispatch-workflow and resource errors are fatal and are returned to the caller.
 func fetchAllRemoteDependencies(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	remoteWorkflowLog.Printf("Fetching all remote dependencies: spec=%s, targetDir=%s, force=%v", spec.String(), targetDir, force)
 	// Fetch and save @include directive dependencies (best-effort: errors are not fatal).
 	if err := fetchAndSaveRemoteIncludes(content, spec, targetDir, verbose, force, tracker); err != nil {
 		if verbose {

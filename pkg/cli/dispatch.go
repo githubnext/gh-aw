@@ -76,6 +76,7 @@ type fileDownloadFn func(owner, repo, path, ref string) ([]byte, error)
 // An optional downloader function may be provided as the last argument to override the default
 // parser.DownloadFileFromGitHub implementation (used in tests to avoid real network calls).
 func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, downloaders ...fileDownloadFn) error {
+	remoteWorkflowLog.Printf("Fetching remote dispatch workflows: repo=%s, targetDir=%s, force=%v", spec.RepoSlug, targetDir, force)
 	downloader := fileDownloadFn(parser.DownloadFileFromGitHub)
 	if len(downloaders) > 0 && downloaders[0] != nil {
 		downloader = downloaders[0]
@@ -105,6 +106,8 @@ func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, sp
 	if len(workflowNames) == 0 {
 		return nil
 	}
+
+	remoteWorkflowLog.Printf("Found %d dispatch workflow(s) to fetch from %s@%s", len(workflowNames), spec.RepoSlug, ref)
 
 	// workflowBaseDir is the directory of the source workflow in the remote repo
 	// (e.g. ".github/workflows"). Dispatch-workflow names are resolved relative to it.
@@ -169,6 +172,7 @@ func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, sp
 		// (the dispatch-workflow validator accepts either .md or .yml files locally).
 		workflowContent, err := downloader(owner, repo, remoteFilePath, ref)
 		if err != nil {
+			remoteWorkflowLog.Printf(".md fetch failed for dispatch workflow %s, trying .yml fallback", workflowName)
 			// .md not found — try .yml fallback (e.g. plain GitHub Actions workflow)
 			ymlRemotePath := path.Clean(strings.TrimSuffix(remoteFilePath, ".md") + ".yml")
 			ymlLocalPath := filepath.Join(targetDir, filepath.Clean(workflowName+".yml"))
@@ -263,6 +267,7 @@ func fetchAndSaveRemoteDispatchWorkflows(ctx context.Context, content string, sp
 // Parse failures are logged at debug level so they can be investigated when needed.
 // Source conflicts are reported as warnings (not errors) because the main file is already written.
 func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) {
+	remoteWorkflowLog.Printf("Fetching import-derived dispatch workflows from parsed file: %s, repo=%s", destFile, spec.RepoSlug)
 	if spec.RepoSlug == "" {
 		return
 	}
@@ -303,6 +308,8 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *Workflow
 	if len(filtered) == 0 {
 		return
 	}
+
+	remoteWorkflowLog.Printf("Processing %d import-derived dispatch workflow(s) (filtered from %d)", len(filtered), len(workflowNames))
 
 	workflowBaseDir := getParentDir(spec.WorkflowPath)
 

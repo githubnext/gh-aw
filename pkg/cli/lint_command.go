@@ -9,8 +9,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
+
+var lintCommandLog = logger.New("cli:lint_command")
 
 var defaultGhAwActionlintIgnorePatterns = []string{
 	// gh-aw extends GitHub Actions permissions with copilot-requests.
@@ -40,10 +43,15 @@ Examples:
 			includePyflakes, _ := cmd.Flags().GetBool("pyflakes")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
+			lintCommandLog.Printf("Executing lint: dir=%s, shellcheck=%v, pyflakes=%v, args=%d", workflowDir, includeShellcheck, includePyflakes, len(args))
+
 			lockFiles, err := resolveLockFilesForLint(args, workflowDir)
 			if err != nil {
+				lintCommandLog.Printf("Failed to resolve lock files: %v", err)
 				return err
 			}
+
+			lintCommandLog.Printf("Resolved %d lock file(s) for linting", len(lockFiles))
 
 			initActionlintStats()
 			defer displayActionlintSummary()
@@ -108,6 +116,7 @@ func expandLintCandidate(candidate string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan %q for .lock.yml files: %w", candidate, err)
 		}
+		lintCommandLog.Printf("Expanded directory %s to %d .lock.yml file(s)", candidate, len(lockFiles))
 		return lockFiles, nil
 	}
 

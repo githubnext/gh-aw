@@ -110,6 +110,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 
 			// Try to load cached summary first
 			if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
+				logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
 				// Valid cached summary exists, use it directly
 				result := DownloadResult{
 					Run:                     summary.Run,
@@ -150,6 +151,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					runOwner, runRepo, runHost = c.Owner, c.Repo, c.Host
 				}
 			}
+			logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, runOwner, runRepo)
 			err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, verbose, runOwner, runRepo, runHost, artifactFilter)
 
 			result := DownloadResult{
@@ -160,6 +162,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 			if err != nil {
 				// Check if this is a "no artifacts" case
 				if errors.Is(err, ErrNoArtifacts) {
+					logsOrchestratorLog.Printf("No artifacts available for run %d (conclusion=%s)", run.DatabaseID, run.Conclusion)
 					// For runs with important conclusions (timed_out, failure, cancelled),
 					// still process them even without artifacts to show the failure in reports
 					if isFailureConclusion(run.Conclusion) {
@@ -431,6 +434,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Completed parallel processing: %d successful, %d total", successCount, len(results))))
 	}
 
+	logsOrchestratorLog.Printf("Concurrent download complete: total=%d, results=%d", len(actualRuns), len(results))
 	return results
 }
 
