@@ -784,7 +784,7 @@ jobs:
           
           export GH_AW_ENGINE="pi"
           export GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'
-          echo 'GH_AW_MCP_CLI_SERVERS=["safeoutputs"]' >> "$GITHUB_ENV"
+          echo GH_AW_MCP_CLI_SERVERS='["safeoutputs"]' >> "$GITHUB_ENV"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')
