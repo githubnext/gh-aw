@@ -278,8 +278,23 @@ jobs:
             --prerelease \
             --latest=false
           
-          # Get release ID
-          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
+          # Get release ID (retry to handle eventual consistency)
+          MAX_ATTEMPTS=5
+          RELEASE_ID=""
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId' 2>/dev/null || true)
+            if [ -n "$RELEASE_ID" ]; then
+              break
+            fi
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              echo "Release ID not available yet (attempt $attempt/$MAX_ATTEMPTS); retrying..."
+              sleep 2
+            fi
+          done
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Error: Failed to resolve release ID for $RELEASE_TAG after $MAX_ATTEMPTS attempts"
+            exit 1
+          fi
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           echo "✓ Release created: $RELEASE_TAG"
           echo "✓ Release ID: $RELEASE_ID"
