@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.1  
+**Version**: 1.0.2  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -24,7 +24,7 @@ This specification is the source of truth for detection rule coverage, implement
 
 This is a Candidate Recommendation specification. It may be revised based on operational evidence, threat-model updates, and conformance results.
 
-**Publication Date**: May 8, 2026  
+**Publication Date**: May 9, 2026  
 **Governance**: This specification is maintained by the gh-aw maintainers and governed by gh-aw security review processes.
 
 ## Table of Contents
@@ -118,7 +118,8 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-008 Pull Request Target Safety**: Detect unsafe use of the `pull_request_target` trigger, which runs workflows with write permissions and secret access; enforce checkout restrictions to prevent pwn-request attacks.
 - **CTR-009 Shell Expansion in Safe-Outputs**: Detect dangerous bash expansion patterns (`${var@op}`, `${!var}`, `$(...)`, backtick substitution) in safe-outputs `run:` scripts that would be blocked by the safe-outputs security harness at runtime.
 - **CTR-010 Expression Safety Allowlist**: Enforce an allowlist of approved GitHub Actions expressions; reject unauthorized or multi-line expressions that could enable injection or exfiltration.
-- **CTR-011 Network Firewall Configuration**: Validate network firewall configuration dependencies and domain patterns; reject configurations that declare firewall rules without required prerequisites (e.g., `allow-urls` without `ssl-bump`).
+- **CTR-011 Network Firewall Configuration**: Validate network firewall configuration dependencies and domain patterns; reject configurations that declare firewall rules without required prerequisites (e.g., `allow-urls` without `ssl-bump`); reject wildcard `*` domains in strict mode.
+- **CTR-012 Safe-Outputs Wildcard Push Scope**: Detect misconfiguration patterns when `safe-outputs.push-to-pull-request-branch: target: "*"` is used; warn when no wildcard fetch pattern is present in checkout (suppressed for public repos) and when no access constraints (`title-prefix` or `labels`) are configured.
 
 ### 4.2 Compiler Response Requirements
 
@@ -182,17 +183,18 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 
 | Rule ID | Primary Implementation Areas | Test Coverage Targets |
 |---------|-------------------------------|-----------------------|
-| CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go` | `pkg/workflow/*permissions*_test.go`, `pkg/workflow/*dangerous_permissions*_test.go` |
+| CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go`, `pkg/workflow/github_app_permissions_validation.go` | `pkg/workflow/*permissions*_test.go`, `pkg/workflow/*dangerous_permissions*_test.go` |
 | CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*action*_test.go`, `pkg/workflow/*strict_mode*_test.go` |
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
 | CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go` | `pkg/workflow/*sandbox*_test.go` |
 | CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go` | `pkg/workflow/*safe_outputs*_test.go` |
-| CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go` | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go` |
+| CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go`, `pkg/workflow/heredoc_validation.go` | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go` |
 | CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go` |
 | CTR-008 Pull Request Target Safety | `pkg/workflow/pull_request_target_validation.go` | `pkg/workflow/pull_request_target_validation_test.go` |
 | CTR-009 Shell Expansion in Safe-Outputs | `pkg/workflow/safe_outputs_steps_shell_expansion_validation.go` | `pkg/workflow/safe_outputs_steps_shell_expansion_validation_test.go` |
-| CTR-010 Expression Safety Allowlist | `pkg/workflow/expression_safety_validation.go` | `pkg/workflow/expression_extraction_test.go` |
-| CTR-011 Network Firewall Configuration | `pkg/workflow/network_firewall_validation.go`, `pkg/workflow/firewall_validation.go` | `pkg/workflow/network_firewall_validation_test.go` |
+| CTR-010 Expression Safety Allowlist | `pkg/workflow/expression_safety_validation.go`, `pkg/workflow/expression_syntax_validation.go` | `pkg/workflow/expression_extraction_test.go` |
+| CTR-011 Network Firewall Configuration | `pkg/workflow/network_firewall_validation.go`, `pkg/workflow/firewall_validation.go`, `pkg/workflow/strict_mode_network_validation.go` | `pkg/workflow/network_firewall_validation_test.go` |
+| CTR-012 Safe-Outputs Wildcard Push Scope | `pkg/workflow/push_to_pull_request_branch_validation.go` | `pkg/workflow/push_to_pull_request_branch_test.go`, `pkg/workflow/push_to_pull_request_branch_warning_test.go` |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
@@ -222,6 +224,15 @@ Test updates SHOULD be included whenever rules are added or modified.
 ---
 
 ## 9. Change Log
+
+### 1.0.2 (2026-05-09)
+
+- Added CTR-012 Safe-Outputs Wildcard Push Scope (unconstrained write scope detection in safe-outputs push-to-pull-request-branch subsystem)
+- Extended CTR-001 mapping with `github_app_permissions_validation.go` (GitHub App-only permission scope enforcement)
+- Extended CTR-006 mapping with `heredoc_validation.go` (heredoc delimiter injection defense)
+- Extended CTR-010 mapping with `expression_syntax_validation.go` (structural expression syntax validation)
+- Extended CTR-011 rule description and mapping with `strict_mode_network_validation.go` (wildcard domain rejection in strict mode)
+- Updated Section 6.1 baseline rule mapping table for CTR-001, CTR-006, CTR-010, CTR-011, and CTR-012
 
 ### 1.0.1 (2026-05-08)
 
