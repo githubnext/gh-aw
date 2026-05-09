@@ -57,12 +57,19 @@ async function run() {
   } else {
     console.log("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
   }
+  const inputParentSpanId = getActionInput("PARENT_SPAN_ID").toLowerCase();
+  if (inputParentSpanId) {
+    console.log(`[otlp] INPUT_PARENT_SPAN_ID=${inputParentSpanId} (will parent setup span)`);
+  }
 
   // Normalize to the canonical underscore form so sendJobSetupSpan (which
   // reads process.env.INPUT_JOB_NAME) always finds the value.
   const inputJobName = getActionInput("JOB_NAME");
   if (inputJobName) {
     process.env.INPUT_JOB_NAME = inputJobName;
+  }
+  if (inputParentSpanId) {
+    process.env.INPUT_PARENT_SPAN_ID = inputParentSpanId;
   }
 
   if (!endpoints) {
@@ -71,7 +78,11 @@ async function run() {
     console.log(`[otlp] sending setup span to configured endpoints`);
   }
 
-  const { traceId, spanId } = await sendJobSetupSpan({ startMs, traceId: inputTraceId || undefined });
+  const { traceId, spanId } = await sendJobSetupSpan({
+    startMs,
+    traceId: inputTraceId || undefined,
+    parentSpanId: inputParentSpanId || undefined,
+  });
 
   console.log(`[otlp] resolved trace-id=${traceId}`);
 
@@ -85,6 +96,10 @@ async function run() {
   if (isValidTraceId(traceId) && process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
     console.log(`[otlp] trace-id=${traceId} written to GITHUB_OUTPUT`);
+  }
+  if (isValidSpanId(spanId) && process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `span-id=${spanId}\n`);
+    console.log(`[otlp] span-id=${spanId} written to GITHUB_OUTPUT`);
   }
 
   // Always propagate trace/span context to subsequent steps in this job so

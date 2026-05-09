@@ -41,7 +41,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Pre-activation job doesn't need project support (no safe outputs processed here)
 	// Pre-activation generates the root trace ID; activation will reuse it via setup-trace-id output
-	steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, "")...)
+	steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, "", "")...)
 
 	// Determine permissions for pre-activation job
 	var perms *Permissions
@@ -384,6 +384,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	outputs := map[string]string{
 		"activated":      activatedExpression,
 		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
+		"setup-span-id":  "${{ steps.setup.outputs.span-id }}",
 	}
 
 	// Always declare matched_command output so actionlint can resolve the type.

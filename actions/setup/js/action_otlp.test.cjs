@@ -31,6 +31,7 @@ describe("action_setup_otlp run()", () => {
     delete process.env.GITHUB_ENV;
     delete process.env.SETUP_START_MS;
     delete process.env.INPUT_TRACE_ID;
+    delete process.env.INPUT_PARENT_SPAN_ID;
   });
 
   afterEach(() => {
@@ -52,6 +53,7 @@ describe("action_setup_otlp run()", () => {
 
       const contents = fs.readFileSync(tmpOut, "utf8");
       expect(contents).toMatch(/^trace-id=[0-9a-f]{32}$/m);
+      expect(contents).toMatch(/^span-id=[0-9a-f]{16}$/m);
       expect(contents).toMatch(/^GITHUB_AW_OTEL_TRACE_ID=[0-9a-f]{32}$/m);
     } finally {
       fs.rmSync(tmpOut, { force: true });
@@ -118,6 +120,7 @@ describe("action_setup_otlp run()", () => {
 
       const contents = fs.readFileSync(tmpOut, "utf8");
       expect(contents).toMatch(/^trace-id=[0-9a-f]{32}$/m);
+      expect(contents).toMatch(/^span-id=[0-9a-f]{16}$/m);
       expect(contents).toMatch(/^GITHUB_AW_OTEL_TRACE_ID=[0-9a-f]{32}$/m);
       expect(contents).toMatch(/^GITHUB_AW_OTEL_PARENT_SPAN_ID=[0-9a-f]{16}$/m);
 
@@ -139,6 +142,7 @@ describe("action_setup_otlp run()", () => {
       const contents = fs.readFileSync(tmpOut, "utf8");
       // A generated 32-char hex trace-id must always be written.
       expect(contents).toMatch(/^trace-id=[0-9a-f]{32}$/m);
+      expect(contents).toMatch(/^span-id=[0-9a-f]{16}$/m);
       expect(contents).toMatch(/^GITHUB_AW_OTEL_TRACE_ID=[0-9a-f]{32}$/m);
     } finally {
       fs.rmSync(tmpOut, { force: true });
@@ -150,6 +154,32 @@ describe("action_setup_otlp run()", () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     await expect(runSetup()).resolves.toBeUndefined();
     fetchSpy.mockRestore();
+  });
+
+  it("uses INPUT_PARENT_SPAN_ID as setup span parent when provided", async () => {
+    const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_parent_span_${Date.now()}.txt`);
+    const parentSpanId = "abcdef1234567890";
+    try {
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
+      process.env.INPUT_PARENT_SPAN_ID = parentSpanId;
+      process.env.GITHUB_OUTPUT = tmpOut;
+      process.env.GITHUB_ENV = tmpOut;
+
+      let capturedBody;
+      const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+        capturedBody = opts?.body;
+        return Promise.resolve(new Response(null, { status: 200 }));
+      });
+
+      await runSetup();
+
+      const payload = JSON.parse(capturedBody);
+      const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
+      expect(span?.parentSpanId).toBe(parentSpanId);
+      fetchSpy.mockRestore();
+    } finally {
+      fs.rmSync(tmpOut, { force: true });
+    }
   });
 
   it("uses job name from INPUT_JOB-NAME (hyphen form) in setup span when INPUT_JOB_NAME is not set", async () => {

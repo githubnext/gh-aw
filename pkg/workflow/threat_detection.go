@@ -886,7 +886,8 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 		// Detection job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		detectionTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, detectionTraceID)...)
+		detectionParentSpanID := fmt.Sprintf("${{ needs.%s.outputs.setup-span-id }}", constants.ActivationJobName)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, detectionTraceID, detectionParentSpanID)...)
 	}
 
 	// Download agent output artifact to access output files (prompt.txt, agent_output.json, patches).

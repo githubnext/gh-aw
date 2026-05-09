@@ -123,7 +123,7 @@ func TestGenerateSetupStepIncludesVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewCompiler()
-			lines := c.generateSetupStep(tt.data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "")
+			lines := c.generateSetupStep(tt.data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", "")
 			combined := strings.Join(lines, "")
 
 			if tt.noVersionLine {
@@ -138,5 +138,18 @@ func TestGenerateSetupStepIncludesVersion(t *testing.T) {
 				t.Errorf("expected setup step to contain %q, got:\n%s", expectedLine, combined)
 			}
 		})
+	}
+}
+
+func TestGenerateSetupStepIncludesParentSpanID(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{Name: "my-workflow"}
+	parentExpr := "${{ needs.activation.outputs.setup-span-id }}"
+
+	lines := c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", parentExpr)
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "parent-span-id: "+parentExpr) {
+		t.Fatalf("expected setup step to include parent-span-id input, got:\n%s", combined)
 	}
 }

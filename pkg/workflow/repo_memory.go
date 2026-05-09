@@ -621,7 +621,8 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		// Repo memory job doesn't need project support
 		// Repo memory job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		repoMemoryTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, repoMemoryTraceID)...)
+		repoMemoryParentSpanID := fmt.Sprintf("${{ needs.%s.outputs.setup-span-id }}", constants.ActivationJobName)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, repoMemoryTraceID, repoMemoryParentSpanID)...)
 	}
 
 	// Add checkout step to configure git (without checking out files)

@@ -75,11 +75,14 @@ func (c *Compiler) newActivationJobBuildContext(
 
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(data)...)
 	activationSetupTraceID := ""
+	activationSetupParentSpanID := ""
 	if preActivationJobCreated {
 		activationSetupTraceID = fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.PreActivationJobName)
+		activationSetupParentSpanID = fmt.Sprintf("${{ needs.%s.outputs.setup-span-id }}", constants.PreActivationJobName)
 	}
-	ctx.steps = append(ctx.steps, c.generateSetupStep(ctx.data, setupActionRef, SetupActionDestination, false, activationSetupTraceID)...)
+	ctx.steps = append(ctx.steps, c.generateSetupStep(ctx.data, setupActionRef, SetupActionDestination, false, activationSetupTraceID, activationSetupParentSpanID)...)
 	ctx.outputs["setup-trace-id"] = "${{ steps.setup.outputs.trace-id }}"
+	ctx.outputs["setup-span-id"] = "${{ steps.setup.outputs.span-id }}"
 
 	if isOTLPHeadersPresent(data) {
 		ctx.steps = append(ctx.steps, generateOTLPHeadersMaskStep())

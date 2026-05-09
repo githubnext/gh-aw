@@ -18,12 +18,18 @@ inputs:
     description: 'OTLP trace ID (32-character hexadecimal string) to reuse for cross-job span correlation. Pass the trace-id output of the activation job setup step to correlate all job spans under the same trace. When omitted a new trace ID is generated.'
     required: false
     default: ''
+  parent-span-id:
+    description: 'OTLP parent span ID (16-character hexadecimal string) for the setup span. Pass the setup-span-id output of the upstream setup step so job setup spans form a single tree.'
+    required: false
+    default: ''
 
 outputs:
   files_copied:
     description: 'Number of files copied'
   trace-id:
     description: 'The OTLP trace ID used for the gh-aw.<job-name>.setup span. Pass this to subsequent job setup steps via the trace-id input to correlate all job spans under a single trace.'
+  span-id:
+    description: 'The OTLP span ID used for the gh-aw.<job-name>.setup span. Pass this to subsequent job setup steps via the parent-span-id input so setup spans are properly parented.'
 
 runs:
   using: 'node24'

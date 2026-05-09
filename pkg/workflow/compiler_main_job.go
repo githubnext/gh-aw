@@ -36,7 +36,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Main job doesn't need project support (no safe outputs processed here)
 		// Pass activation's trace ID so all agent spans share the same OTLP trace
 		agentTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, agentTraceID)...)
+		agentParentSpanID := fmt.Sprintf("${{ needs.%s.outputs.setup-span-id }}", constants.ActivationJobName)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, agentTraceID, agentParentSpanID)...)
 	}
 
 	// Set runtime paths that depend on RUNNER_TEMP via $GITHUB_ENV.
@@ -208,6 +209,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		"effective_tokens_rate_limit_error": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens_rate_limit_error || 'false' }}", constants.ParseMCPGatewayStepID),
 		// setup-trace-id propagates the shared OTLP trace ID to downstream jobs (detection, safe_outputs, cache, etc.)
 		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
+		// setup-span-id propagates the setup span parent so downstream setup spans form one tree.
+		"setup-span-id": "${{ steps.setup.outputs.span-id }}",
 	}
 
 	// Note: secret_verification_result is now an output of the activation job (not the agent job).
