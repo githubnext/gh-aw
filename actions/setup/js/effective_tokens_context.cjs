@@ -7,6 +7,11 @@ const MAX_EFFECTIVE_TOKENS_FIELDS = new Set(["max_effective_tokens", "maxEffecti
 const EFFECTIVE_TOKENS_FIELDS = new Set(["effective_tokens", "effectiveTokens"]);
 const EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS = new Set(["effective_tokens_rate_limit_error", "effectiveTokensRateLimitError"]);
 const EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail"]);
+// Effective-token rate-limit indicators seen in runtime/audit payload text, e.g.:
+// - "effective_tokens limit exceeded"
+// - "rate limit ... effective tokens"
+// - "429 too many requests ... ET budget"
+// Keep these patterns permissive because providers vary wording across error payloads.
 const EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS = [
   /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
@@ -59,10 +64,14 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
     if (fs.existsSync(auditPath)) return auditPath;
   }
 
+  // Default to the latest expected location/name.
   return path.join(candidateBases[0] || "/tmp/gh-aw/sandbox/firewall/audit", "log.jsonl");
 }
 
 /**
+ * Parse max effective tokens from a single AWF audit log entry object.
+ * Accepts both snake_case and camelCase field names.
+ *
  * @param {unknown} entry
  * @returns {string}
  */
@@ -89,6 +98,9 @@ function parseMaxEffectiveTokensFromAuditEntry(entry) {
 }
 
 /**
+ * Parse effective token error metadata from a single AWF audit log entry object.
+ * Accepts both snake_case and camelCase field names.
+ *
  * @param {unknown} entry
  * @returns {{effectiveTokens: string, rateLimitError: boolean}}
  */
@@ -110,8 +122,10 @@ function parseEffectiveTokensErrorInfoFromAuditEntry(entry) {
         if (parsed) effectiveTokens = parsed;
       }
 
-      if (EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS.has(key) && isTrueLike(value)) {
-        rateLimitError = true;
+      if (EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS.has(key)) {
+        if (isTrueLike(value)) {
+          rateLimitError = true;
+        }
       }
 
       if (EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS.has(key) && typeof value === "string") {
@@ -188,7 +202,9 @@ function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
       try {
         const entry = JSON.parse(trimmed);
         const parsed = parseEffectiveTokensErrorInfoFromAuditEntry(entry);
+        // AWF audit logs are append-only JSONL; later entries represent newer state.
         if (parsed.effectiveTokens) parsedEffectiveTokens = parsed.effectiveTokens;
+        // Sticky OR: any detected ET rate-limit signal is enough to report this failure mode.
         if (parsed.rateLimitError) hasRateLimitError = true;
       } catch {
         // ignore malformed lines
