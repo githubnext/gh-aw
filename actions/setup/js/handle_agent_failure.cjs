@@ -12,6 +12,7 @@ const { formatMissingData, formatMissingTools } = require("./missing_info_format
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState } = require("./effective_tokens_context.cjs");
+const { formatET } = require("./effective_tokens.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -851,8 +852,15 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
     return "";
   }
 
-  const usageLine = effectiveTokens ? `\n- Effective tokens used: \`${effectiveTokens}\`` : "";
-  const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${maxEffectiveTokens}\`` : "";
+  const formatEffectiveTokensForMessage = value => {
+    const parsed = Number.parseInt(value || "", 10);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return formatET(parsed);
+    }
+    return value;
+  };
+  const usageLine = effectiveTokens ? `\n- Effective tokens used: \`${formatEffectiveTokensForMessage(effectiveTokens)}\`` : "";
+  const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${formatEffectiveTokensForMessage(maxEffectiveTokens)}\`` : "";
   const runLine = runUrl ? `\n- Run: ${runUrl}` : "";
 
   return `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.${usageLine}${budgetLine}${runLine}\n\nPrefer ET budget controls for diagnosis instead of run-count heuristics. You can tune this limit with \`max-effective-tokens\` in workflow frontmatter.\n`;
@@ -2025,6 +2033,7 @@ module.exports = {
   buildMissingDataContext,
   buildMissingToolContext,
   buildCredentialAuthErrorContext,
+  buildEffectiveTokensRateLimitErrorContext,
   parseFirewallAuthErrors,
   parseMaxEffectiveTokensFromAuditLog,
   parseEffectiveTokensErrorInfoFromAuditLog,
