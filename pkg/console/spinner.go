@@ -142,12 +142,15 @@ func (s *SpinnerWrapper) Start() {
 			defer func() {
 				if r := recover(); r != nil {
 					spinnerLog.Printf("Panic in spinner program (recovered): %v", r)
+					s.mu.Lock()
+					s.running = false
+					s.mu.Unlock()
 				}
-				s.mu.Lock()
-				s.running = false
-				s.mu.Unlock()
 			}()
 			_, _ = s.program.Run()
+			s.mu.Lock()
+			s.running = false
+			s.mu.Unlock()
 		}()
 	}
 }
