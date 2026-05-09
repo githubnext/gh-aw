@@ -37,6 +37,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
@@ -162,11 +163,11 @@ func validateEngineAuthPermissions(workflowData *WorkflowData, workflowPermissio
 	}
 
 	if workflowPermissions == nil {
-		return fmt.Errorf("engine.auth.type: github-oidc requires permissions.id-token: write")
+		return errors.New("engine.auth.type: github-oidc requires permissions.id-token: write")
 	}
 
 	if level, exists := workflowPermissions.Get(PermissionIdToken); !exists || level != PermissionWrite {
-		return fmt.Errorf("engine.auth.type: github-oidc requires permissions.id-token: write")
+		return errors.New("engine.auth.type: github-oidc requires permissions.id-token: write")
 	}
 
 	return nil
