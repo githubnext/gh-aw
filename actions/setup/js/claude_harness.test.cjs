@@ -170,7 +170,7 @@ describe("claude_harness.cjs", () => {
   });
 
   describe("shouldRetryWithContinue", () => {
-    it("does not use --continue for exitCode=143 when deferred marker is absent", () => {
+    it("does not use --continue for signal-style termination exitCode=143", () => {
       const result = shouldRetryWithContinue({
         attempt: 0,
         maxRetries: 3,

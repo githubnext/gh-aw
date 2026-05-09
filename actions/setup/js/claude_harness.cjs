@@ -352,7 +352,7 @@ async function main() {
       if (attempt < MAX_RETRIES && result.hasOutput) {
         useContinueOnRetry = false;
         continueDisabledPermanently = true;
-        log(`attempt ${attempt + 1}: no deferred tool marker on --continue — retrying as fresh run` + ` (failure_reason=harness_retry_path_invalid, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+        log(`attempt ${attempt + 1}: no deferred tool marker on --continue — retrying as fresh run (failure_reason=harness_retry_path_invalid, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
         continue;
       }
       log(`attempt ${attempt + 1}: no deferred tool marker — not retriable via --continue (failure_reason=harness_retry_path_invalid)`);
@@ -364,7 +364,7 @@ async function main() {
     if (attempt < MAX_RETRIES && result.hasOutput && isSignalTerminationExitCode(result.exitCode)) {
       useContinueOnRetry = false;
       continueDisabledPermanently = true;
-      log(`attempt ${attempt + 1}: signal-style termination exitCode=${result.exitCode}` + ` — retrying as fresh run (failure_reason=cancelled_or_timed_out, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      log(`attempt ${attempt + 1}: signal-style termination exitCode=${result.exitCode} — retrying as fresh run (failure_reason=cancelled_or_timed_out, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
 
