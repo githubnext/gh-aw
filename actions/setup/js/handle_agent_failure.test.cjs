@@ -1879,6 +1879,48 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("buildEffectiveTokensRateLimitErrorContext", () => {
+    let buildEffectiveTokensRateLimitErrorContext;
+
+    beforeEach(() => {
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+      global.github = {};
+      global.context = { repo: { owner: "owner", repo: "repo" } };
+      vi.resetModules();
+      ({ buildEffectiveTokensRateLimitErrorContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+    });
+
+    it("formats effective token values in friendly compact form", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "2500000", "https://example.com/run/1");
+      expect(result).toContain("Effective tokens used: `10M`");
+      expect(result).toContain("Configured ET budget: `2.5M`");
+    });
+
+    it("returns empty string when rate-limit error is not set", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(false, "10000000", "2500000", "https://example.com/run/1");
+      expect(result).toBe("");
+    });
+
+    it("falls back to raw values when effective token values are not numeric", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "unknown", "n/a", "https://example.com/run/1");
+      expect(result).toContain("Effective tokens used: `unknown`");
+      expect(result).toContain("Configured ET budget: `n/a`");
+    });
+
+    it("omits optional lines when values are missing", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "", "", "");
+      expect(result).not.toContain("Effective tokens used:");
+      expect(result).not.toContain("Configured ET budget:");
+      expect(result).not.toContain("- Run:");
+    });
+  });
+
   describe("buildCredentialAuthErrorContext", () => {
     const fs = require("fs");
     const os = require("os");
