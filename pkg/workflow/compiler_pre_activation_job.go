@@ -382,9 +382,10 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
 
 	outputs := map[string]string{
-		"activated":      activatedExpression,
-		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
-		"setup-span-id":  "${{ steps.setup.outputs.span-id }}",
+		"activated":            activatedExpression,
+		"setup-trace-id":       "${{ steps.setup.outputs.trace-id }}",
+		"setup-span-id":        "${{ steps.setup.outputs.span-id }}",
+		"setup-parent-span-id": "${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}",
 	}
 
 	// Always declare matched_command output so actionlint can resolve the type.

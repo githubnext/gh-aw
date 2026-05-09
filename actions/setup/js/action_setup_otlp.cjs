@@ -78,7 +78,7 @@ async function run() {
     console.log(`[otlp] sending setup span to configured endpoints`);
   }
 
-  const { traceId, spanId } = await sendJobSetupSpan({
+  const { traceId, spanId, parentSpanId } = await sendJobSetupSpan({
     startMs,
     traceId: inputTraceId || undefined,
     parentSpanId: inputParentSpanId || undefined,
@@ -100,6 +100,10 @@ async function run() {
   if (isValidSpanId(spanId) && process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT, `span-id=${spanId}\n`);
     console.log(`[otlp] span-id=${spanId} written to GITHUB_OUTPUT`);
+  }
+  if (isValidSpanId(parentSpanId) && process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `parent-span-id=${parentSpanId}\n`);
+    console.log(`[otlp] parent-span-id=${parentSpanId} written to GITHUB_OUTPUT`);
   }
 
   // Always propagate trace/span context to subsequent steps in this job so

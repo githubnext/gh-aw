@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -112,7 +113,7 @@ func (c *Compiler) generateRestoreActionsSetupStep() string {
 //   - destination: The destination path where files should be copied (e.g., SetupActionDestination)
 //   - enableArtifactClient: Whether to install @actions/artifact so upload_artifact.cjs can upload via REST API directly
 //   - traceID: Optional OTLP trace ID expression for cross-job span correlation (e.g., "${{ needs.activation.outputs.setup-trace-id }}"). Empty string means a new trace ID is generated.
-//   - parentSpanID: Optional OTLP parent span ID expression for setup-span nesting (e.g., "${{ needs.activation.outputs.setup-span-id }}"). Empty string means setup span is emitted as root.
+//   - parentSpanID: Optional OTLP parent span ID expression for setup-span nesting (e.g., setupParentSpanNeedsExpr("activation")). Empty string means setup span is emitted as root.
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
 func buildSetupWorkflowRefExpr(data *WorkflowData) string {
@@ -120,6 +121,10 @@ func buildSetupWorkflowRefExpr(data *WorkflowData) string {
 		return "${{ github.repository }}/.github/workflows/unknown.lock.yml@${{ github.ref }}"
 	}
 	return fmt.Sprintf("${{ github.repository }}/.github/workflows/%s.lock.yml@${{ github.ref }}", data.WorkflowID)
+}
+
+func setupParentSpanNeedsExpr(upstreamJob constants.JobName) string {
+	return fmt.Sprintf("${{ needs.%s.outputs.setup-parent-span-id || needs.%s.outputs.setup-span-id }}", upstreamJob, upstreamJob)
 }
 
 func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string) []string {

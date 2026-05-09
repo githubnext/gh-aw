@@ -36,7 +36,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Main job doesn't need project support (no safe outputs processed here)
 		// Pass activation's trace ID so all agent spans share the same OTLP trace
 		agentTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		agentParentSpanID := fmt.Sprintf("${{ needs.%s.outputs.setup-span-id }}", constants.ActivationJobName)
+		agentParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
 		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, agentTraceID, agentParentSpanID)...)
 	}
 
@@ -211,6 +211,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
 		// setup-span-id propagates the setup span parent so downstream setup spans form one tree.
 		"setup-span-id": "${{ steps.setup.outputs.span-id }}",
+		// setup-parent-span-id propagates the global setup parent span ID across jobs.
+		"setup-parent-span-id": "${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}",
 	}
 
 	// Note: secret_verification_result is now an output of the activation job (not the agent job).

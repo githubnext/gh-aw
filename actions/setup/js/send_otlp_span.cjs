@@ -818,7 +818,7 @@ function isValidSpanId(id) {
  *   (and specific comment) that triggered the workflow
  *
  * @param {SendJobSetupSpanOptions} [options]
- * @returns {Promise<{ traceId: string, spanId: string }>} The trace and span IDs used.
+ * @returns {Promise<{ traceId: string, spanId: string, parentSpanId: string }>} The trace/span IDs used and resolved parent span ID.
  */
 async function sendJobSetupSpan(options = {}) {
   // Resolve the trace ID before the early-return so it is always available as
@@ -948,12 +948,12 @@ async function sendJobSetupSpan(options = {}) {
 
   const endpoints = parseOTLPEndpoints();
   if (endpoints.length === 0) {
-    return { traceId, spanId };
+    return { traceId, spanId, parentSpanId };
   }
 
   // Pass skipJSONL: true so sendOTLPToAllEndpoints/sendOTLPSpan don't double-write the mirror.
   await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
-  return { traceId, spanId };
+  return { traceId, spanId, parentSpanId };
 }
 
 // ---------------------------------------------------------------------------
