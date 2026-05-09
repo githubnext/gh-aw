@@ -59,7 +59,8 @@ type EngineConfig struct {
 	Extensions []string
 }
 
-// EngineAuthConfig represents engine.auth frontmatter settings used by AWF API proxy sidecar auth.
+// EngineAuthConfig represents engine.auth frontmatter settings that map to
+// AWF_AUTH_* environment variables consumed by the AWF API proxy sidecar.
 type EngineAuthConfig struct {
 	Type          string
 	Audience      string
@@ -542,7 +543,8 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 	return auth
 }
 
-// applyEngineAuthEnv maps engine.auth fields to AWF_AUTH_* environment variables.
+// applyEngineAuthEnv populates config.Env with AWF_AUTH_* environment variables
+// derived from config.Auth.
 func applyEngineAuthEnv(config *EngineConfig) {
 	if config == nil || config.Auth == nil {
 		return
