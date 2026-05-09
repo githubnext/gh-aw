@@ -34,6 +34,8 @@ imports:
   - shared/reporting.md
 
   - shared/observability-otlp.md
+features:
+  inline-agents: true
 ---
 
 # [aw] Failure Investigator (6h)
@@ -57,33 +59,15 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 
 ### 1) Fetch and review existing issue context
 
-Find open issues with `agentic-workflows` label using GitHub issues search (equivalent to the URL query above). Focus on issues created/updated in the lookback window and unresolved recurring themes.
-
-Capture:
-- Existing failure clusters already tracked
-- Gaps where recurring failures are not yet tracked
-- Potential duplicates to avoid
+Use the `issue-context-fetcher` agent to retrieve open `agentic-workflows` issues grouped into clusters, gaps, and potential duplicates. Use the returned JSON when correlating failures.
 
 ### 2) Collect workflow runs and isolate failures (last 6h)
 
-Use `agentic-workflows` MCP `logs` with a 6-hour window (for example `start_date: "-6h"`) and enough count to cover all recent runs.
-
-Build a failure dataset including:
-- run id, workflow, engine, status/conclusion
-- timestamps and durations
-- repeated failure signatures
-- affected tools / MCP / firewall / auth / timeout dimensions
+Use the `failure-dataset-builder` agent to fetch logs for the last 6 hours and return clustered failure rows with representative + comparator run IDs.
 
 ### 3) Deep-dive each failure cluster with `audit`
 
-For each meaningful cluster (not every single run if many are equivalent), call `agentic-workflows` MCP `audit` on representative failed runs and at least one successful comparator run when available.
-
-Extract evidence:
-- root-cause signals
-- dominant error messages
-- tool failure patterns
-- token/cost/runtime anomalies
-- infra vs workflow-definition vs prompt/tooling failure classification
+Use the `cluster-evidence-extractor` agent, passing the clusters from step 2, to retrieve per-cluster evidence (dominant error, tool-failure pattern, anomalies, failure class).
 
 ### 4) Compare behavior with `audit-diff`
 
@@ -140,4 +124,51 @@ Include these sections:
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```
+
+## agent: `issue-context-fetcher`
+---
+description: Fetches open agentic-workflows issues and groups them into clusters, gaps, and duplicate candidates
+model: small
+---
+Find open issues labeled `agentic-workflows` for `${{ github.repository }}`.
+Group findings into existing tracked clusters, tracking gaps, and potential duplicates.
+
+Return only JSON:
+```json
+{
+  "clusters": [{"name":"", "issue_numbers":[]}],
+  "gaps": [{"failure_signature":"", "reason":""}],
+  "potential_duplicates": [{"issue_numbers":[], "reason":""}]
+}
+```
+
+## agent: `failure-dataset-builder`
+---
+description: Fetches the last 6h workflow logs and builds clustered failure rows with representative and comparator run IDs
+model: small
+---
+Use `agentic-workflows` MCP `logs` for the last 6 hours (for example `start_date: "-6h"`), including enough runs to cover the window.
+Cluster failures by signature and include representative and comparator run IDs.
+
+Return only JSON:
+```json
+{
+  "failure_rows": [{"cluster_id":"", "workflow":"", "engine":"", "failure_signature":"", "representative_failed_run_id":"", "comparator_success_run_id":"", "run_ids":[]}]
+}
+```
+
+## agent: `cluster-evidence-extractor`
+---
+description: Extracts per-cluster audit evidence including dominant errors, tool patterns, anomalies, and failure class
+model: small
+---
+Given failure clusters from step 2, call `agentic-workflows` MCP `audit` for each cluster's representative failed run and a successful comparator when available.
+Extract dominant error, tool-failure pattern, anomalies, and failure class.
+
+Return only JSON:
+```json
+{
+  "cluster_evidence": [{"cluster_id":"", "dominant_error":"", "tool_failure_pattern":"", "anomalies":[],"failure_class":"","evidence_run_ids":[]}]
+}
 ```
