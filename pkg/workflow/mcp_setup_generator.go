@@ -607,8 +607,9 @@ func writeMCPGatewayExports(yaml *strings.Builder, tools map[string]any, engine 
 	if cliServers := getMCPCLIExcludeFromAgentConfig(workflowData); len(cliServers) > 0 {
 		cliServersJSON, err := json.Marshal(cliServers)
 		if err == nil {
-			yaml.WriteString("          export GH_AW_MCP_CLI_SERVERS='" + string(cliServersJSON) + "'\n")
-			yaml.WriteString("          echo 'GH_AW_MCP_CLI_SERVERS=" + string(cliServersJSON) + "' >> \"$GITHUB_ENV\"\n")
+			escapedCLIServersJSON := shellEscapeArg(string(cliServersJSON))
+			yaml.WriteString("          export GH_AW_MCP_CLI_SERVERS=" + escapedCLIServersJSON + "\n")
+			yaml.WriteString("          echo GH_AW_MCP_CLI_SERVERS=" + escapedCLIServersJSON + " >> \"$GITHUB_ENV\"\n")
 		}
 	}
 	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
