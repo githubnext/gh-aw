@@ -131,15 +131,13 @@ func TestKeyFindingsGeneration(t *testing.T) {
 			}
 
 			if tt.hasCost {
-				assert.Condition(t, func() bool {
-					return hasFindingByCategory(findings, "cost")
-				}, "Expected at least one cost finding for scenario %q", tt.name)
+				assert.True(t, hasFindingByCategory(findings, "cost"),
+					"Expected at least one cost finding for scenario %q", tt.name)
 			}
 
 			if tt.hasTooling {
-				assert.Condition(t, func() bool {
-					return hasFindingByCategory(findings, "tooling")
-				}, "Expected at least one tooling finding for scenario %q", tt.name)
+				assert.True(t, hasFindingByCategory(findings, "tooling"),
+					"Expected at least one tooling finding for scenario %q", tt.name)
 			}
 		})
 	}
