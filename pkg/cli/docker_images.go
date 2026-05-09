@@ -146,6 +146,15 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 
 	// Start the download in a goroutine with retry logic
 	go func() {
+		defer func() {
+			pullState.mu.Lock()
+			delete(pullState.downloading, image)
+			pullState.mu.Unlock()
+			if r := recover(); r != nil {
+				dockerImagesLog.Printf("Panic in docker image download for %s (recovered): %v", image, r)
+			}
+		}()
+
 		dockerImagesLog.Printf("Starting download of image %s", image)
 
 		// Retry configuration
@@ -159,9 +168,6 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 			// Check if context was cancelled
 			if ctx.Err() != nil {
 				dockerImagesLog.Printf("Download of image %s cancelled: %v", image, ctx.Err())
-				pullState.mu.Lock()
-				delete(pullState.downloading, image)
-				pullState.mu.Unlock()
 				return
 			}
 
@@ -173,9 +179,6 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 			if err == nil {
 				// Success
 				dockerImagesLog.Printf("Successfully downloaded image %s", image)
-				pullState.mu.Lock()
-				delete(pullState.downloading, image)
-				pullState.mu.Unlock()
 				return
 			}
 
@@ -193,9 +196,6 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 				case <-ctx.Done():
 					// Context cancelled during sleep
 					dockerImagesLog.Printf("Download of image %s cancelled during retry wait: %v", image, ctx.Err())
-					pullState.mu.Lock()
-					delete(pullState.downloading, image)
-					pullState.mu.Unlock()
 					return
 				}
 
@@ -205,10 +205,6 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 
 		// All attempts failed
 		dockerImagesLog.Printf("Failed to download image %s after %d attempts: %v\nOutput: %s", image, maxAttempts, lastErr, string(lastOutput))
-
-		pullState.mu.Lock()
-		delete(pullState.downloading, image)
-		pullState.mu.Unlock()
 	}()
 
 	return true
