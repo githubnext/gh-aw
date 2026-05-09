@@ -359,18 +359,10 @@ async function main() {
       break;
     }
 
-    // SIGTERM/SIGKILL-style exits are usually job cancellation/timeouts. Do not retry with
-    // --continue because there is typically no deferred marker in session state.
-    if (attempt < MAX_RETRIES && result.hasOutput && isSignalTerminationExitCode(result.exitCode)) {
-      useContinueOnRetry = false;
-      continueDisabledPermanently = true;
-      log(`attempt ${attempt + 1}: signal-style termination exitCode=${result.exitCode} — retrying as fresh run (failure_reason=cancelled_or_timed_out, --continue disabled permanently, attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
-      continue;
-    }
-
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
     if (attempt < MAX_RETRIES && result.hasOutput) {
+      const isSignalTermination = isSignalTerminationExitCode(result.exitCode);
       const retryWithContinue = shouldRetryWithContinue({
         attempt,
         maxRetries: MAX_RETRIES,
@@ -379,7 +371,16 @@ async function main() {
         isNoDeferredMarker,
         continueDisabledPermanently,
       });
-      const reason = isOverloaded ? "overloaded_error (transient)" : isRateLimit ? "rate_limit_error (transient)" : "partial execution";
+      if (isSignalTermination) {
+        continueDisabledPermanently = true;
+      }
+      const reason = isSignalTermination
+        ? `signal-style termination exitCode=${result.exitCode} (failure_reason=cancelled_or_timed_out)`
+        : isOverloaded
+          ? "overloaded_error (transient)"
+          : isRateLimit
+            ? "rate_limit_error (transient)"
+            : "partial execution";
       useContinueOnRetry = retryWithContinue;
       const retryMode = retryWithContinue ? "--continue" : "fresh run (--continue disabled permanently)";
       log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);

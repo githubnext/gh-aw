@@ -193,5 +193,17 @@ describe("claude_harness.cjs", () => {
       });
       expect(result).toBe(true);
     });
+
+    it("returns false when no-deferred-marker error is present", () => {
+      const result = shouldRetryWithContinue({
+        attempt: 0,
+        maxRetries: 3,
+        exitCode: 1,
+        hasOutput: true,
+        isNoDeferredMarker: true,
+        continueDisabledPermanently: false,
+      });
+      expect(result).toBe(false);
+    });
   });
 });
