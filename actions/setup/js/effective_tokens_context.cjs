@@ -33,14 +33,14 @@ function parsePositiveIntegerString(value) {
 }
 
 /**
- * Compare two positive-integer strings using BigInt.
+ * Compare two integer strings using BigInt.
  * Returns false when either value is missing or cannot be parsed as an integer.
  *
  * @param {string} left
  * @param {string} right
  * @returns {boolean}
  */
-function isPositiveIntegerStringGreaterThanOrEqual(left, right) {
+function isIntegerStringGreaterThanOrEqual(left, right) {
   if (!left || !right) {
     return false;
   }
@@ -69,10 +69,12 @@ function shouldReportEffectiveTokensRateLimitError(hasRateLimitSignal, effective
   }
 
   if (!effectiveTokens || !maxEffectiveTokens) {
+    // Conservative fallback: when a rate-limit signal exists but the numeric budget
+    // values are unavailable, keep surfacing the ET failure instead of suppressing it.
     return true;
   }
 
-  return isPositiveIntegerStringGreaterThanOrEqual(effectiveTokens, maxEffectiveTokens);
+  return isIntegerStringGreaterThanOrEqual(effectiveTokens, maxEffectiveTokens);
 }
 
 /**
