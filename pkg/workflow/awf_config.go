@@ -244,13 +244,8 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	// ── API proxy section ─────────────────────────────────────────────────────
-	maxEffectiveTokens := constants.DefaultMaxEffectiveTokens
-	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
-		maxEffectiveTokens = config.WorkflowData.EngineConfig.GetMaxEffectiveTokens()
-	}
 	apiProxy := &AWFAPIProxyConfig{
-		Enabled:            true,
-		MaxEffectiveTokens: maxEffectiveTokens,
+		Enabled: true,
 	}
 
 	targets := map[string]*AWFAPITargetConfig{}
