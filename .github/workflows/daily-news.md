@@ -19,6 +19,26 @@ engine:
   bare: true
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
+experiments:
+  prompt_style:
+    variants: [detailed, concise]
+    description: "Tests whether a concise directive produces equivalent discussion quality to the current verbose 5-phase prompt"
+    hypothesis: "H0: no change in output quality. H1: concise prompt reduces token usage by ≥20% with no significant drop in output completeness score"
+    metric: effective_token_count
+    secondary_metrics: [output_length_chars, run_duration_ms, chart_generated]
+    guardrail_metrics:
+      - name: discussion_creation_success_rate
+        threshold: ">=0.90"
+      - name: chart_upload_success_rate
+        threshold: ">=0.80"
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-05-12"
+    analysis_type: mann_whitney
+    tags: [prompt-engineering, cost-efficiency, daily-workflows]
+    notify:
+      issue: 31190
+    issue: 31190
 runs-on: aw-gpu-runner-T4
 
 runtimes:
@@ -338,6 +358,14 @@ Write an upbeat, friendly, motivating summary of recent activity in the repo.
 - Cache processed trend data for faster chart generation
 - Store analysis results that can inform future reports
 
+{{#if experiments.prompt_style == "concise"}}
+## 📊 Trend Charts Requirement
+
+Generate exactly **2 trend charts** (issues/PRs activity and commit activity) using data from
+`/tmp/gh-aw/daily-news-data/`. Use Python (pandas + matplotlib/seaborn) to process the JSON
+files, produce PNGs at 300 DPI, upload them via `upload asset`, and embed them in the
+discussion under a `### 📈 Trend Analysis` section with a 2-3 sentence interpretation each.
+{{else}}
 ## 📊 Trend Charts Requirement
 
 **IMPORTANT**: Generate exactly 2 trend charts that showcase key metrics of the project. These charts should visualize trends over time to give the team insights into project health and activity patterns.
@@ -468,9 +496,17 @@ If insufficient data is available (less than 7 days):
 - Generate the charts with available data
 - Add a note in the analysis mentioning the limited data range
 - Consider using a bar chart instead of line chart for very sparse data
+{{/if}}
 
 ---
 
+{{#if experiments.prompt_style == "concise"}}
+Read from the pre-downloaded files in `/tmp/gh-aw/daily-news-data/` (`issues.json`,
+`pull_requests.json`, `commits.json`, `discussions.json`, `releases.json`, `changesets.txt`).
+Write an upbeat, emoji-accented digest covering: top issues and PRs, notable commits,
+community engagement, productivity suggestions, and a closing haiku.
+Create a GitHub discussion titled "Daily Status - <today's date>".
+{{else}}
 **Data Sources** - Use the pre-downloaded files in `/tmp/gh-aw/daily-news-data/`:
 - Include some or all of the following from the JSON files:
   * Recent issues activity (from `issues.json`)
@@ -504,5 +540,6 @@ If insufficient data is available (less than 7 days):
 Create a new GitHub discussion with a title containing today's date (e.g., "Daily Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
 
 Only a new discussion should be created, do not close or update any existing discussions.
+{{/if}}
 
 {{#runtime-import shared/noop-reminder.md}}
