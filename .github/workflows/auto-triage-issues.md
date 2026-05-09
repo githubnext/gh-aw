@@ -53,6 +53,7 @@ safe-outputs:
     category: "audits"
     close-older-discussions: true
     max: 1
+  noop:
 timeout-minutes: 15
 features:
   copilot-requests: true
@@ -97,9 +98,13 @@ When running on schedule:
 When triggered manually as a backfill pass:
 
 1. **Fetch ALL open issues without any labels** using GitHub tools — do not limit to a fixed count
-2. **Process up to 10 unlabeled issues** in this run (respecting safe-output limits); if more exist, note the remainder in the report
-3. **Apply labels** to each issue based on classification rules below, using title/body heuristics and existing triage rules
-4. **Create a summary report** as a discussion listing every issue processed, the labels applied, and how many unlabeled issues (if any) still remain for the next pass
+2. **If there are no unlabeled issues**, call `noop` with "No unlabeled issues found during manual backfill — no action needed" and stop. Do not create a discussion.
+
+When unlabeled issues exist:
+
+3. **Process up to 10 unlabeled issues** in this run (respecting safe-output limits); if more exist, note the remainder in the report
+4. **Apply labels** to each issue based on classification rules below, using title/body heuristics and existing triage rules
+5. **Create a summary report** as a discussion listing every issue processed, the labels applied, and how many unlabeled issues (if any) still remain for the next pass
 
 ## Classification Rules
 
@@ -286,6 +291,16 @@ When running on schedule, create a discussion report following these formatting 
 - **Respect limits** - Maximum 10 label operations per run (safe-output limit)
 - **Learn from patterns** - Over time, notice which types of issues are frequently unlabeled
 - **Human override** - Maintainers can change labels; this is automation assistance, not replacement
+
+## Mandatory Completion Rule
+
+**Before finishing, check whether you called any safe-output tool in this run.** If you did NOT call `add_labels` or `create_discussion`, you MUST call `noop`. Every run MUST end with at least one safe-output call — failing to do so causes the workflow to fail with a safe-output compliance error.
+
+Situations that require a `noop` call:
+- No unlabeled issues were found (all trigger types)
+- The triggering issue already had appropriate labels
+- All issues analyzed were already labeled or had been processed
+- You were uncertain and chose not to label rather than guess incorrectly
 
 ## Success Metrics
 

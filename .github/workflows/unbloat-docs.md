@@ -172,6 +172,11 @@ pre-agent-steps:
 
   - name: Start documentation dev server
     run: |
+      # Skip if pre-flight check failed — no need to start the server
+      if [ "$(jq -r '.pass' /tmp/gh-aw/agent/preflight.json 2>/dev/null)" != "true" ]; then
+        echo "Pre-flight check failed, skipping server startup"
+        exit 0
+      fi
       mkdir -p /tmp/gh-aw
       cd docs
       nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/preview.log 2>&1 &
@@ -181,6 +186,11 @@ pre-agent-steps:
 
   - name: Wait for documentation server readiness
     run: |
+      # Skip if pre-flight check failed — server was not started
+      if [ "$(jq -r '.pass' /tmp/gh-aw/agent/preflight.json 2>/dev/null)" != "true" ]; then
+        echo "Pre-flight check failed, skipping server readiness check"
+        exit 0
+      fi
       URL="http://localhost:4321/gh-aw/"
       STATUS=""
       echo "Readiness check target: $URL"
@@ -201,6 +211,11 @@ pre-agent-steps:
 
   - name: Write Playwright base URL
     run: |
+      # Skip if pre-flight check failed — server was not started
+      if [ "$(jq -r '.pass' /tmp/gh-aw/agent/preflight.json 2>/dev/null)" != "true" ]; then
+        echo "Pre-flight check failed, skipping Playwright base URL setup"
+        exit 0
+      fi
       mkdir -p /tmp/gh-aw/agent
       echo "http://localhost:4321/gh-aw/" > /tmp/gh-aw/agent/playwright-base-url.txt
       echo "Playwright base URL: http://localhost:4321/gh-aw/"
@@ -237,7 +252,7 @@ You are a technical documentation editor focused on **clarity and conciseness**.
 
 ## 0. Pre-flight Validation
 
-Read `/tmp/gh-aw/agent/preflight.json`. If `"pass"` is `false`, call `noop` with the `"reason"` value and stop.
+Read `/tmp/gh-aw/agent/preflight.json`. If `"pass"` is `false`, **immediately** call `noop` with the `"reason"` value and stop — do not read any other files beyond `preflight.json`, do not proceed with any further steps. This is mandatory: failing to call `noop` when preflight fails causes a safe-output compliance error.
 Only proceed if `"pass"` is `true`.
 
 The list of candidate files is already available at `/tmp/gh-aw/agent/candidate-files.txt` (one path per line).
