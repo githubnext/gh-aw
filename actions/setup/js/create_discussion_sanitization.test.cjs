@@ -169,4 +169,21 @@ describe("create_discussion body sanitization", () => {
     // System-generated footer marker must still be present
     expect(body).toContain("gh-aw-workflow-id");
   });
+
+  it("should fail when body is below configured minimum length", async () => {
+    const handler = await createDiscussionMain({ max: 5, category: "general", min_body_length: 200 });
+    const result = await handler(
+      {
+        title: "Too short",
+        body: "test",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("below configured minimum 200");
+
+    const createMutationCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("createDiscussion"));
+    expect(createMutationCall).toBeUndefined();
+  });
 });

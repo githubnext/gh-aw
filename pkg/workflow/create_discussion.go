@@ -15,6 +15,7 @@ type CreateDiscussionsConfig struct {
 	BaseSafeOutputConfig  `yaml:",inline"`
 	TitlePrefix           string   `yaml:"title-prefix,omitempty"`
 	Category              string   `yaml:"category,omitempty"`                // Discussion category ID or name
+	MinBodyLength         int      `yaml:"min-body-length,omitempty"`         // Minimum required discussion body length before footer/markers
 	Labels                []string `yaml:"labels,omitempty"`                  // Labels to attach to discussions and match when closing older ones
 	AllowedLabels         []string `yaml:"allowed-labels,omitempty"`          // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions

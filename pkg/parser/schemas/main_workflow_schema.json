@@ -5422,6 +5422,11 @@
                   "description": "Optional discussion category. Can be a category ID (string or numeric value), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs. Numeric values are automatically converted to strings at runtime.",
                   "examples": ["General", "audits", 123456789]
                 },
+                "min-body-length": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Minimum required length of the discussion body content (before footer/metadata) in characters. If a create_discussion message body is shorter than this value, the safe-outputs job fails."
+                },
                 "labels": {
                   "type": "array",
                   "items": {

@@ -39,6 +39,15 @@ tools:
     - "mv /tmp/gh-aw/cache-memory/"
     - "echo"
     - "bc"
+safe-outputs:
+  create-discussion:
+    category: "audits"
+    title-prefix: "[daily-compiler-quality] "
+    expires: 1d
+    close-older-discussions: true
+    fallback-to-issue: true
+    max: 1
+    min-body-length: 200
 timeout-minutes: 30
 strict: true
 features:
@@ -313,6 +322,13 @@ Compare current analysis with previous analyses:
 ## Phase 5: Create Discussion Report
 
 Generate a comprehensive discussion report with findings.
+
+### Output Contract (Required)
+
+1. Emit **exactly one** `create_discussion` safe-output item.
+2. Do **not** emit placeholder or draft bodies (for example: `test`, `.`, `todo`, or similar short placeholders).
+3. Only emit `create_discussion` after the final report body is complete and fully rendered.
+4. Ensure the final discussion body is substantive and comfortably above 200 characters before submitting the output.
 
 ### Discussion Title
 

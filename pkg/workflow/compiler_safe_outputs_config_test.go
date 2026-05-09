@@ -1138,6 +1138,17 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			checkKey:   "draft",
 			expected:   true, // AddTemplatableBool converts "true" string to JSON boolean
 		},
+		{
+			name: "create discussion minimum body length",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{
+					MinBodyLength: 200,
+				},
+			},
+			checkField: "create_discussion",
+			checkKey:   "min_body_length",
+			expected:   float64(200),
+		},
 	}
 
 	for _, tt := range tests {

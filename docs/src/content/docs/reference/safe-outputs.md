@@ -1013,6 +1013,7 @@ safe-outputs:
   create-discussion:
     title-prefix: "[ai] "        # prefix for titles
     category: "announcements"    # category slug, name, or ID (use lowercase)
+    min-body-length: 200         # optional minimum body length guard (fails safe-outputs job if shorter)
     expires: 3                   # auto-close after 3 days (or false to disable)
     max: 3                       # max discussions (default: 1)
     target-repo: "owner/repo"    # cross-repository
@@ -1020,6 +1021,8 @@ safe-outputs:
     fallback-to-issue: true      # fallback to issue creation on permission errors (default: true)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+Use `min-body-length` when you want a hard floor for report quality (for example, to prevent accidental placeholder bodies like `test` from being posted).
 
 #### Fallback to Issue Creation
 

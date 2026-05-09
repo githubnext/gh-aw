@@ -295,12 +295,16 @@ async function main(config = {}) {
   const configCategory = config.category || "";
   const maxCount = config.max || 10;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
+  const minBodyLength = config.min_body_length ? parseInt(String(config.min_body_length), 10) : 0;
   const fallbackToIssue = config.fallback_to_issue !== false; // Default to true
   const closeOlderDiscussionsEnabled = parseBoolTemplatable(config.close_older_discussions, false);
   const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
   const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
   if (rawCloseOlderKey && !closeOlderKey) {
     throw new Error(`${ERR_VALIDATION}: close-older-key "${rawCloseOlderKey}" is invalid: it must contain at least one alphanumeric character after normalization`);
+  }
+  if (isNaN(minBodyLength) || minBodyLength < 0) {
+    throw new Error(`${ERR_VALIDATION}: min_body_length must be a non-negative integer (got: ${config.min_body_length})`);
   }
   const includeFooter = parseBoolTemplatable(config.footer, true);
 
@@ -321,6 +325,9 @@ async function main(config = {}) {
         .filter(l => l.length > 0);
 
   core.info(`Create discussion configuration: max=${maxCount}`);
+  if (minBodyLength > 0) {
+    core.info(`Minimum discussion body length guard enabled: ${minBodyLength}`);
+  }
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
@@ -487,6 +494,14 @@ async function main(config = {}) {
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
     processedBody = sanitizeContent(processedBody);
+    if (minBodyLength > 0 && processedBody.trim().length < minBodyLength) {
+      const error = `Discussion body length ${processedBody.trim().length} is below configured minimum ${minBodyLength}`;
+      core.error(error);
+      return {
+        success: false,
+        error,
+      };
+    }
 
     if (!title) {
       title = item.body || "Discussion";

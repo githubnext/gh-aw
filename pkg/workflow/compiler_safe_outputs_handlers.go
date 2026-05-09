@@ -69,6 +69,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("category", c.Category).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
+			AddIfPositive("min_body_length", c.MinBodyLength).
 			AddStringSlice("labels", c.Labels).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
