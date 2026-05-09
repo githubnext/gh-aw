@@ -10,7 +10,7 @@ permissions:
   pull-requests: read
 engine:
   id: claude
-  max-turns: 60
+  max-turns: 120
 tools:
   edit:
   bash: ["*"]
@@ -285,17 +285,29 @@ Here are proven strategies you can use or build upon:
 2. Example: `grep -r "type.*string" pkg/parser/schemas/ | grep engine`
 3. Cross-reference with parser implementation
 
+## Turn Budget
+
+You have a maximum turn budget. **Spend turns wisely**:
+
+- **Batch multiple bash checks into a single command** using `&&`, `||`, or heredocs — one tool call is always better than two.
+- **Stop investigating once you have enough findings** for the report. Depth on 3–5 real issues is better than breadth over 20 superficial checks.
+- **Prioritize field_gaps** from the pre-computed data — they are high-signal and require no additional discovery turns.
+- **Do NOT iterate through every schema field one-by-one** — use bulk grep/jq queries that scan all fields in a single pass.
+- **Skip a category** if you have already found 3+ findings from other categories — you do not need to cover every area every run.
+
 ## Implementation Steps
 
-### Step 0: Read Pre-Computed Data (Start Here)
+### Step 0: Read Pre-Computed Data + Strategies in One Pass (Start Here)
 
-Before doing anything else, read the schema diff that was computed before your session began:
+Before doing anything else, read both the schema diff and the strategy cache in a single command:
 
 ```bash
-cat /tmp/gh-aw/agent/schema-diff.json
+echo "=== SCHEMA DIFF ===" && cat /tmp/gh-aw/agent/schema-diff.json && \
+echo "=== STRATEGIES ===" && \
+([ -f /tmp/gh-aw/cache-memory/strategies.json ] && cat /tmp/gh-aw/cache-memory/strategies.json || echo "No strategies cached yet")
 ```
 
-This file contains:
+The schema diff contains:
 - `schema_fields`: All top-level field names in the main JSON schema
 - `parser_yaml_fields`: All yaml-tagged struct fields in `pkg/parser/*.go`
 - `workflow_yaml_fields`: All yaml-tagged struct fields in `pkg/workflow/*.go`
@@ -308,17 +320,9 @@ This file contains:
 
 **Use this pre-computed data as your primary starting point.** Do NOT re-run the field enumeration commands from scratch — instead, refine and supplement the pre-computed data with targeted follow-up queries (e.g., checking a specific file for a specific field).
 
-### Step 1: Load Previous Strategies
-```bash
-# Check if strategies file exists
-if [ -f /tmp/gh-aw/cache-memory/strategies.json ]; then
-  cat /tmp/gh-aw/cache-memory/strategies.json
-fi
-```
+### Step 1: Choose Analysis Focus
 
-### Step 2: Choose Analysis Focus
-
-Using the pre-computed `field_gaps` from Step 0 plus the strategy cache from Step 1:
+Using the pre-computed `field_gaps` plus the strategy cache:
 - If `field_gaps` show promising leads, start there (they are likely high-signal)
 - If cache has strategies, use a proven strategy 70% of the time; try a new approach 30% of the time
 
@@ -332,27 +336,29 @@ else
 fi
 ```
 
-### Step 3: Execute Targeted Analysis
+### Step 2: Execute Targeted Analysis (Batch Operations)
 
-Use the pre-computed data as context and run **targeted** follow-up commands only when
-deeper inspection is needed (e.g., checking how a specific field is actually processed in code).
+Use the pre-computed data as context and run **targeted, batched** follow-up commands only when
+deeper inspection is needed.
 
-**Example: Verify a gap from pre-computed data**
+**Batch multiple verifications together** (one call, multiple results):
 ```bash
-# Verify a specific field gap by searching implementation files
-grep -r "fieldName" pkg/parser/ pkg/workflow/ 2>/dev/null | grep -v "_test.go"
+# Replace fieldA/fieldB/fieldC with actual field names from field_gaps in the pre-computed data
+for field in fieldA fieldB fieldC; do
+  echo "=== $field ===" && \
+  grep -r "$field" pkg/parser/ pkg/workflow/ 2>/dev/null | grep -v "_test.go" | head -5 || echo "(not found)"
+done
 ```
 
-**Example: Type checking for a specific field**
+**Bulk type checking — all fields in one jq pass**:
 ```bash
-# Find schema field types (handles different JSON Schema patterns)
 jq -r '
   (.properties // {}) | to_entries[] | 
   "\(.key): \(.value.type // .value.oneOf // .value.anyOf // .value.allOf // "complex")"
 ' pkg/parser/schemas/main_workflow_schema.json 2>/dev/null || echo "Failed to parse schema"
 ```
 
-### Step 4: Record Findings
+### Step 3: Record Findings
 Create a structured list of inconsistencies found:
 
 ```markdown
@@ -377,7 +383,7 @@ Create a structured list of inconsistencies found:
    - Impact: Users may not understand error
 ```
 
-### Step 5: Update Cache
+### Step 4: Update Cache
 Save successful strategy and findings to cache:
 ```bash
 # Update strategies.json with results
@@ -389,7 +395,7 @@ cat > /tmp/gh-aw/cache-memory/strategies.json << 'EOF'
 EOF
 ```
 
-### Step 6: Create Discussion
+### Step 5: Create Discussion
 
 **⚠️ MANDATORY STEP**: After completing your analysis, you **MUST** call the `create_discussion` safe-output tool with your findings report. **DO NOT just write the report in your output text** — you MUST actually invoke the tool. The workflow will fail if you skip this step.
 
