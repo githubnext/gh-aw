@@ -896,6 +896,22 @@ Fixed intervals create load spikes when many workflows run simultaneously
 
 An implementation SHOULD NOT attempt to correct syntax errors automatically. All errors MUST be reported to the user with actionable correction guidance.
 
+### 8.5 Edge-Case Conformance Requirements
+
+The following edge-case norms are mandatory in addition to §§8.1–8.4:
+
+1. **Invalid scatter seed**: If seed derivation produces an empty, negative, or non-integer
+   value, the implementation **MUST** fail compilation with a descriptive error and
+   **MUST NOT** fall back to a random or default seed.
+2. **Out-of-range time values**: Inputs containing hour values outside `0..23` (24-hour),
+   minute values outside `0..59`, or 12-hour values outside `1..12` **MUST** be rejected
+   with an error that includes the offending token and valid range.
+3. **Malformed grammar input**: Expressions that violate the ABNF in §3.1 (e.g., missing
+   `and` in `between`, dangling modifiers, extra tokens after a valid production) **MUST**
+   fail parsing and **MUST NOT** be auto-corrected.
+4. **Error code stability**: For the same malformed input class, implementations **MUST**
+   return a stable error code category across runs to support deterministic compliance tests.
+
 ---
 
 ## 9. Compliance Testing

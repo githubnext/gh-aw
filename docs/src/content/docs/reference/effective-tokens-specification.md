@@ -272,6 +272,26 @@ Implementations SHOULD version their token weights and model multipliers so that
 
 When sub-agents are not fully observable, implementations MUST still report aggregate totals. Invocation nodes with incomplete data SHOULD be flagged to indicate missing information.
 
+### 8.5 Safeguards
+
+Implementations must prevent unbounded ET accumulation from producing non-finite or
+non-interoperable outputs.
+
+**R-SAFE-001**: ET aggregation logic **MUST** detect overflow and non-finite arithmetic states
+(`NaN`, `+Inf`, `-Inf`) before serializing output.
+
+**R-SAFE-002**: Implementations **MUST** enforce a maximum ET ceiling of
+`9007199254740991` (`2^53 - 1`) for serialized numeric fields to preserve JavaScript-safe
+integer interoperability in cross-language pipelines.
+
+**R-SAFE-003**: When computed ET exceeds the ceiling, implementations **MUST** clamp the
+reported `summary.effective_tokens` value to the ceiling and **MUST** emit a warning indicating
+that capping occurred.
+
+**R-SAFE-004**: For long multi-agent chains, implementations **SHOULD** aggregate ET in a
+streaming manner (incremental updates per invocation) and **SHOULD** emit an early warning when
+running totals exceed 80% of the ceiling.
+
 ---
 
 ## 9. Extensibility

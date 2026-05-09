@@ -382,6 +382,20 @@ Error responses MUST include:
 - Standard JSON-RPC error structure
 - Human-readable error message
 - Error details in `data` field (stack trace, line numbers, etc.)
+- A `data.recoverable` boolean indicating whether a retry MAY succeed (§5.7)
+
+The `data.recoverable` field MUST conform to the following requirements:
+
+1. The field **MUST** be present and **MUST** be a JSON boolean (`true` or `false`) for all
+   execution errors (`-32603`).
+2. `recoverable: true` **MUST** only be used for transient failures where the same invocation
+   MAY succeed on a subsequent attempt (e.g., timeout, temporary runtime startup failure).
+3. `recoverable: false` **MUST** be used for permanent failures where retry would not change
+   the result (e.g., invalid script syntax, unsupported runtime dependency, deterministic
+   input-validation failure detected during execution).
+4. Implementations **MUST NOT** infer retryability solely from the JSON-RPC code; clients
+   **MUST** use `data.recoverable` as the authoritative retryability signal in conjunction with
+   the retry policy in §5.7.
 
 ### 5.4 Execution Isolation
 
@@ -424,6 +438,25 @@ Each runtime handler (`script`, `run`, `py`, and `go`) **MUST** enforce a config
 Implementations **SHOULD** default this timeout to 30 seconds or less unless the workflow author explicitly configures a different value.
 
 When a timeout occurs, the server **MUST** return a JSON-RPC execution error (`-32603`) that explicitly identifies timeout termination.
+
+### 5.7 Retry Policy
+
+Retry behavior is caller-controlled and uses the `data.recoverable` signal from §5.3.
+
+1. MCP Scripts servers **MUST NOT** automatically retry failed tool invocations.
+2. A caller **MUST** treat `data.recoverable: false` from §5.3 as terminal for that invocation
+   and **MUST NOT** retry unless operator policy explicitly overrides this requirement.
+3. A caller **MAY** retry when `data.recoverable: true` from §5.3. When retrying, callers
+   **SHOULD** use exponential backoff with jitter:
+   - Initial delay: 250 ms (or higher)
+   - Backoff multiplier: 2x
+   - Maximum delay: 5 s
+4. The default retry budget for recoverable failures **SHOULD** be at most 3 attempts total
+   (initial attempt + up to 2 retries) unless workflow-specific reliability requirements justify
+   a higher budget.
+5. Because tool invocations may be non-idempotent, callers **MUST** treat retry safety as a
+   caller responsibility and **MUST** apply idempotency safeguards (e.g., idempotency keys or
+   side-effect checks) before retrying state-changing tools.
 
 ---
 
@@ -1397,34 +1430,17 @@ queueing. No additional ordering norm is required.
 
 #### Retry Semantics
 
-**Status: Not specified — gap confirmed.**
+**Status: Specified in §5.7 — no gap.**
 
-The specification does not define retry behavior for transient failures (e.g., container
-startup failures, intermittent network errors for shell tools with network access, or
-Node.js process crashes). The current behavior is implementation-defined.
-
-_Recommendation for a future revision_: Add a normative subsection (e.g., §5.7 Retry
-Semantics) specifying: (a) tools MUST NOT be automatically retried by the MCP server
-without explicit caller instruction; (b) transient container startup failures SHOULD surface
-as a `-32603` execution error so the caller (agent) may decide whether to retry; (c)
-idempotency of tool invocations is the caller's responsibility.
+Section §5.7 now defines normative retry semantics, including caller-controlled retry,
+retry budgets, backoff strategy guidance, and idempotency responsibilities.
 
 #### Error Propagation
 
-**Status: Partially specified — minor gap.**
+**Status: Specified in §5.3 and §5.7 — no gap.**
 
-Section 5.3 specifies JSON-RPC error codes for missing tool (`-32601`), invalid parameters
-(`-32602`), and execution/internal errors (`-32603`). Timeout errors are covered in §5.6
-(code `-32603`). However, the specification does not distinguish between:
-
-- **Recoverable errors**: transient failures where the caller might retry (e.g., timeout,
-  container startup failure)
-- **Non-recoverable errors**: permanent failures where retry would not help (e.g., syntax
-  error in tool script, missing dependency)
-
-_Recommendation for a future revision_: Extend §5.3 to include a `recoverable` boolean in
-the error `data` field, allowing agents to make informed retry decisions without parsing
-error messages.
+Section §5.3 now defines a required `data.recoverable` boolean with normative semantics,
+and §5.7 defines how callers MUST/SHOULD interpret that signal for retries.
 
 ---
 

@@ -35,6 +35,36 @@ This is a **Draft** specification. It may be updated, replaced, or made obsolete
 A future revision will promote this document to Candidate Recommendation once the reference
 implementation (gh-aw v1.x) satisfies all conformance requirements below.
 
+Promotion from **Draft** to **Candidate Recommendation** requires all of the following:
+
+1. **Reference implementation completeness**: 100% of normative requirements in §§4–12 are
+   implemented in `gh-aw` and mapped to concrete implementation files.
+2. **Compliance coverage**: At least 95% of normative requirements have automated tests, and
+   all MUST/MUST NOT requirements have at least one passing automated test.
+3. **CI stability window**: The experiments-related test suite passes on the default branch for
+   30 consecutive days with no unresolved regression in variant selection, persistence, or
+   reporting behavior.
+4. **Interoperability evidence**: At least two production workflows using `experiments:` run for
+   a minimum of 500 total assignments each with valid assignment artifacts and reproducible
+   audit output.
+5. **Review sign-off**: Written approval from at least two gh-aw maintainers that Sections 10–14
+   are complete, internally consistent, and suitable for Candidate Recommendation publication.
+
+### Sync
+
+- **Who reviews**: The experiments specification editors (`gh-aw maintainers`) perform the
+  primary review; one release owner for the current minor version performs final sign-off.
+- **When**: Review occurs on the first business day of each month and during every minor-release
+  cut.
+- **What triggers an immediate sync update**:
+  1. Any change to `experiments:` schema fields or validation behavior (§4)
+  2. Any change to variant selection, gating, or persistence logic (§§5–7)
+  3. Any change to audit/reporting output contracts (§§10–11)
+  4. Any incident postmortem that identifies spec/implementation drift
+
+When a trigger occurs, spec updates **SHOULD** be merged in the same PR as the implementation
+change or in a linked follow-up PR within 3 business days.
+
 Feedback should be filed as GitHub issues against the `github/gh-aw` repository with the
 `experiments` label.
 
