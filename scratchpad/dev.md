@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 9.3
-**Last Updated**: 2026-05-08
+**Version**: 9.4
+**Last Updated**: 2026-05-09
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2973,6 +2973,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v9.4 (2026-05-09): Maintenance tone scan — fixed 2 tone issues in `mdflow.md`: "Context gathering is a first-class feature, not an afterthought."→"Context gathering is built into the core syntax through declarative `imports:` resolution." (line 263); "Workflows are first-class GitHub citizens, not external scripts."→"Workflows compile to native GitHub Actions YAML and run inside the GitHub Actions runtime, not as external scripts." (line 301). Coverage: 63 spec files (no new files).
 - v9.3 (2026-05-08): Maintenance tone scan — 0 tone issues found across all 63 spec files. Documented 1 new feature from PR #31007 in Workflow Patterns: `engine.mcp.tool-timeout` now parses Go duration strings and renders as numeric gateway `toolTimeout` seconds (contrasted with string `session-timeout` rendering). Coverage: 63 spec files (no new files).
 - v9.2 (2026-05-07): Maintenance tone scan — fixed 1 tone issue: `workflow-refactoring-patterns.md` (4 fixes: removed gamified "+X points" scoring from Benefits headings). Documented 3 new features from PR #30800: (1) `mcp-gateway.opentelemetry.headers` now accepts string-only format (migration from object format); (2) `aw_context` caller metadata propagation for compiled `workflow_dispatch` workflows (dispatch traceability via `aw_info.json`); (3) activation artifact now includes `aw_info.json` alongside `prompt.txt`. Coverage: 63 spec files (no new files).
 - v9.1 (2026-05-06): Maintenance tone scan — 0 tone issues found across all 63 spec files. No new spec files since v9.0. Coverage: 63 spec files (no new files).

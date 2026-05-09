@@ -260,7 +260,7 @@ gh aw explain workflow.md
 - Resolver in `src/imports-resolver.ts` (multiple strategies)
 - Symbol extraction using `remark-parse` and AST traversal
 
-**Strength**: Context gathering is a first-class feature, not an afterthought.
+**Strength**: Context gathering is built into the core syntax through declarative `imports:` resolution.
 
 ---
 
@@ -298,7 +298,7 @@ network:           # Explicit allowlist
 - GitHub API integration (`pkg/workflow/create_*.go` pattern)
 - Event-driven triggers with full GitHub Actions compatibility
 
-**Strength**: Workflows are first-class GitHub citizens, not external scripts.
+**Strength**: Workflows compile to native GitHub Actions YAML and run inside the GitHub Actions runtime, not as external scripts.
 
 #### 3. **Team Collaboration**
 - Version controlled workflows (`.md` + `.lock.yml`)
