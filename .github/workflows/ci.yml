@@ -1427,16 +1427,20 @@ jobs:
         echo "provides a lightweight local-proxy repro that does not require Docker." >> $GITHUB_STEP_SUMMARY
 
   windows-redirect-tests:
-    name: Windows - Redirect Resolution Tests
+    name: Redirect Resolution Tests (${{ matrix.os }})
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     needs:
     - changes
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     concurrency:
-      group: ci-${{ github.ref }}-windows-redirect-tests
+      group: ci-${{ github.ref }}-redirect-tests-${{ matrix.os }}
       cancel-in-progress: true
     steps:
     - name: Checkout code
@@ -1461,6 +1465,6 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Run redirect resolution tests on Windows
+    - name: Run redirect resolution tests
       run: go test -v -run TestResolveAddWorkflowSpecAndContent -timeout 5m ./pkg/cli/...
       shell: pwsh
