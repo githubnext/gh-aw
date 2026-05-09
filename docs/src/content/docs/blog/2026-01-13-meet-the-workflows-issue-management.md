@@ -10,7 +10,7 @@ sidebar:
   label: "Issue & PR Management"
 prev:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-documentation/
-  label: "Meeth the Workflows: Continuous Documentation"
+  label: "Meet the Workflows: Continuous Documentation"
 next:
   link: /gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/
   label: "Fault Investigation Workflows"
