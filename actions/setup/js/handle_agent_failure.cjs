@@ -931,7 +931,7 @@ const MAX_EFFECTIVE_TOKENS_FIELDS = new Set(["max_effective_tokens", "maxEffecti
 const EFFECTIVE_TOKENS_FIELDS = new Set(["effective_tokens", "effectiveTokens"]);
 const EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS = new Set(["effective_tokens_rate_limit_error", "effectiveTokensRateLimitError"]);
 const EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail"]);
-const ET_RATE_LIMIT_PATTERNS = [
+const EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS = [
   /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
   /\b429\b.*(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?)/i,
@@ -1072,7 +1072,7 @@ function parseEffectiveTokensErrorInfoFromAuditEntry(entry) {
       }
 
       if (EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS.has(key) && typeof value === "string") {
-        if (ET_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) {
+        if (EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) {
           rateLimitError = true;
         }
       }
@@ -1145,6 +1145,7 @@ function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
       try {
         const entry = JSON.parse(trimmed);
         const parsed = parseEffectiveTokensErrorInfoFromAuditEntry(entry);
+        // AWF audit logs are append-only JSONL; later entries represent newer state.
         if (parsed.effectiveTokens) parsedEffectiveTokens = parsed.effectiveTokens;
         if (parsed.rateLimitError) hasRateLimitError = true;
       } catch {
