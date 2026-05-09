@@ -40,23 +40,18 @@ safe-outputs:
 
 ### Header Levels
 
-**Use `###` or lower for all headers in your report to maintain proper document hierarchy.**
-
-When creating GitHub issues or discussions:
-- Use `###` (h3) for main sections (e.g., `### Test Summary`)
-- Use `####` (h4) for subsections (e.g., `#### Device-Specific Results`)
-- Never use `##` (h2) or `#` (h1) in reports — these are reserved for titles
+- Use `###` (h3) for main sections — e.g., `### Test Summary`
+- Use `####` (h4) for subsections — e.g., `#### Device-Specific Results`
+- Never use `##` (h2) or `#` (h1) — those are reserved for titles
 
 ### Progressive Disclosure
 
-**Wrap detailed content in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.**
-
-Use collapsible sections for:
+Wrap detailed content in `<details><summary>Section Name</summary>` tags. Use for:
 - Verbose details (full logs, raw data)
 - Secondary information (minor warnings, extra context)
 - Per-item breakdowns when there are many items
 
-Always keep critical information visible (summary, critical issues, key metrics).
+Keep critical information visible (summary, critical issues, key metrics).
 
 ### Report Structure Pattern
 
@@ -64,14 +59,6 @@ Always keep critical information visible (summary, critical issues, key metrics)
 2. **Critical Information**: Show immediately (summary stats, critical issues)
 3. **Details**: Use `<details><summary>Section Name</summary>` for expanded content
 4. **Context**: Add helpful metadata (workflow run, date, trigger)
-
-### Design Principles
-
-Reports should:
-- **Build trust through clarity**: Most important info immediately visible
-- **Exceed expectations**: Add helpful context like trends, comparisons
-- **Create delight**: Use progressive disclosure to reduce overwhelm
-- **Maintain consistency**: Follow patterns across all reports
 
 ### Example Report Structure
 
