@@ -50,6 +50,24 @@ function isPositiveIntegerStringGreaterThanOrEqual(left, right) {
 }
 
 /**
+ * @param {boolean} hasRateLimitSignal
+ * @param {string} effectiveTokens
+ * @param {string} maxEffectiveTokens
+ * @returns {boolean}
+ */
+function shouldReportEffectiveTokensRateLimitError(hasRateLimitSignal, effectiveTokens, maxEffectiveTokens) {
+  if (!hasRateLimitSignal) {
+    return false;
+  }
+
+  if (!effectiveTokens || !maxEffectiveTokens) {
+    return true;
+  }
+
+  return isPositiveIntegerStringGreaterThanOrEqual(effectiveTokens, maxEffectiveTokens);
+}
+
+/**
  * @param {unknown} value
  * @returns {boolean}
  */
@@ -243,7 +261,7 @@ function resolveEffectiveTokensFailureState() {
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || process.env.GH_AW_EFFECTIVE_TOKENS || "";
   const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
-  const effectiveTokensRateLimitError = rawEffectiveTokensRateLimitError && (!effectiveTokens || !maxEffectiveTokens || isPositiveIntegerStringGreaterThanOrEqual(effectiveTokens, maxEffectiveTokens));
+  const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
 
   return {
     effectiveTokens,
