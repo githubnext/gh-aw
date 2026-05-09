@@ -140,17 +140,16 @@ func (s *SpinnerWrapper) Start() {
 		go func() {
 			defer s.wg.Done()
 			defer func() {
+				s.mu.Lock()
+				s.running = false
+				s.mu.Unlock()
+			}()
+			defer func() {
 				if r := recover(); r != nil {
 					spinnerLog.Printf("Panic in spinner program (recovered): %v", r)
-					s.mu.Lock()
-					s.running = false
-					s.mu.Unlock()
 				}
 			}()
 			_, _ = s.program.Run()
-			s.mu.Lock()
-			s.running = false
-			s.mu.Unlock()
 		}()
 	}
 }

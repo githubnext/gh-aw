@@ -244,11 +244,11 @@ func waitForSpinnerStopped(t *testing.T, spinner *SpinnerWrapper) {
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
 		spinner.mu.Lock()
-		running := spinner.running
-		spinner.mu.Unlock()
-		if !running {
+		if !spinner.running {
+			spinner.mu.Unlock()
 			return
 		}
+		spinner.mu.Unlock()
 		time.Sleep(10 * time.Millisecond)
 	}
 
