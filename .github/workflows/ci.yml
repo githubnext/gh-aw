@@ -1425,3 +1425,46 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "The existing \`sh-difc-proxy\` job uses the full Docker-based DIFC proxy; this job" >> $GITHUB_STEP_SUMMARY
         echo "provides a lightweight local-proxy repro that does not require Docker." >> $GITHUB_STEP_SUMMARY
+
+  windows-redirect-tests:
+    name: Redirect Resolution Tests (${{ matrix.os }})
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    concurrency:
+      group: ci-${{ github.ref }}-redirect-tests-${{ matrix.os }}
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if ("${{ steps.setup-go.outputs.cache-hit }}" -eq "true") {
+          "✅ Go cache hit" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        } else {
+          "⚠️ Go cache miss" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        }
+      shell: pwsh
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run redirect resolution tests
+      run: go test -v -run TestResolveAddWorkflowSpecAndContent -timeout 5m ./pkg/cli/...
+      shell: pwsh

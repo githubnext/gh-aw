@@ -86,10 +86,15 @@ func compileWorkflowFile(
 	compiler.SetWorkflowIdentifier(relPath)
 
 	// Set repository slug for this specific file (may differ from CWD's repo)
+	// Uses SetRepositorySlugIfUnlocked so that an explicit --schedule-seed flag is never overridden.
 	fileRepoSlug := getRepositorySlugFromRemoteForPath(resolvedFile)
 	if fileRepoSlug != "" {
-		compiler.SetRepositorySlug(fileRepoSlug)
-		compileWorkflowProcessorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+		if compiler.IsRepositorySlugLocked() {
+			compileWorkflowProcessorLog.Printf("Repository slug from file remote (%s) ignored: overridden via --schedule-seed (%s)", fileRepoSlug, compiler.GetRepositorySlug())
+		} else {
+			compiler.SetRepositorySlugIfUnlocked(fileRepoSlug)
+			compileWorkflowProcessorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+		}
 	}
 
 	// Parse the workflow

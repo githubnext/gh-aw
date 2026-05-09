@@ -49,7 +49,7 @@ func TestResolveAddWorkflowSpecAndContent(t *testing.T) {
 		require.NotNil(t, fetched, "resolved fetch should be returned")
 		assert.Equal(t, "owner/repo", resolvedSpec.RepoSlug, "final repo should be redirected repo")
 		assert.Equal(t, "workflows/new.md", resolvedSpec.WorkflowPath, "final path should be redirected path")
-		assert.Equal(t, "new", resolvedSpec.WorkflowName, "workflow name should match redirected workflow")
+		assert.Equal(t, "original", resolvedSpec.WorkflowName, "workflow name should be preserved from the original request")
 	})
 
 	t.Run("detects redirect loops", func(t *testing.T) {
@@ -106,6 +106,6 @@ func TestResolveAddWorkflowSpecAndContent(t *testing.T) {
 		require.NoError(t, err, "ResolveWorkflows should follow redirects")
 		require.Len(t, resolved.Workflows, 1, "one workflow should resolve")
 		assert.Equal(t, "workflows/new.md", resolved.Workflows[0].Spec.WorkflowPath, "resolved spec should point to redirect destination")
-		assert.Equal(t, "new", resolved.Workflows[0].Spec.WorkflowName, "resolved workflow name should follow redirect destination")
+		assert.Equal(t, "original", resolved.Workflows[0].Spec.WorkflowName, "resolved workflow name should be preserved from the original request")
 	})
 }

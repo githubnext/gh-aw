@@ -234,6 +234,7 @@ func setupRepositoryContext(compiler *workflow.Compiler, config CompileConfig) {
 			))
 		} else {
 			compiler.SetRepositorySlug(config.ScheduleSeed)
+			compiler.LockRepositorySlug()
 			compileCompilerSetupLog.Printf("Repository slug overridden via --schedule-seed: %s", config.ScheduleSeed)
 			return
 		}

@@ -89,6 +89,7 @@ type Compiler struct {
 	scheduleWarnings        []string                 // Accumulated schedule warnings for this compiler instance
 	safeUpdateWarnings      []string                 // Accumulated safe update warnings (new secrets/actions requiring review)
 	repositorySlug          string                   // Repository slug (owner/repo) used as seed for scattering
+	repositorySlugLocked    bool                     // If true, repositorySlug was set via --schedule-seed and must not be overridden by per-file detection
 	artifactManager         *ArtifactManager         // Tracks artifact uploads/downloads for validation
 	scheduleFriendlyFormats map[int]string           // Maps schedule item index to friendly format string for current workflow
 	gitRoot                 string                   // Git repository root directory (if set, used for action cache path)
@@ -276,6 +277,27 @@ func (c *Compiler) SetWorkflowIdentifier(identifier string) {
 // SetRepositorySlug sets the repository slug for schedule scattering
 func (c *Compiler) SetRepositorySlug(slug string) {
 	c.repositorySlug = slug
+}
+
+// LockRepositorySlug marks the repository slug as explicitly set (e.g. via --schedule-seed)
+// so that per-file git-remote detection cannot override it.
+func (c *Compiler) LockRepositorySlug() {
+	c.repositorySlugLocked = true
+}
+
+// IsRepositorySlugLocked reports whether the repository slug has been locked
+// via LockRepositorySlug and must not be overridden by per-file detection.
+func (c *Compiler) IsRepositorySlugLocked() bool {
+	return c.repositorySlugLocked
+}
+
+// SetRepositorySlugIfUnlocked sets the repository slug only when it has not been
+// locked via LockRepositorySlug.  This is the method per-file git-remote detection
+// should call so that an explicit --schedule-seed flag is never overridden.
+func (c *Compiler) SetRepositorySlugIfUnlocked(slug string) {
+	if !c.repositorySlugLocked {
+		c.SetRepositorySlug(slug)
+	}
 }
 
 // GetRepositorySlug returns the repository slug (owner/repo) set on this compiler instance.
