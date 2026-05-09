@@ -84,8 +84,10 @@ Before analyzing files:
 1. Check `/tmp/gh-aw/cache-memory/go-logger/` for previous logging sessions
 2. Read `processed-files.json` to see which files were already enhanced
 3. Read `last-run.json` for the last commit SHA processed
-4. If current commit SHA matches and no new .go files exist, exit early with success
-5. Update cache after processing:
+4. If cache files are missing (cold cache / first run), initialize defaults and continue. This is expected and should **not** be reported as `missing_data`.
+5. Only report `missing_data` for cache-memory when files exist but are unreadable/corrupted (for example malformed JSON that cannot be recovered).
+6. If current commit SHA matches and no new .go files exist, exit early with success
+7. Update cache after processing:
    - Save list of processed files to `processed-files.json`
    - Save current commit SHA to `last-run.json`
    - Save summary of changes made

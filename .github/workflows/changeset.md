@@ -22,6 +22,10 @@ safe-outputs:
     commit-title-suffix: " [skip-ci]"
     allowed-files:
       - .changeset/**
+    protected-files:
+      policy: blocked
+      exclude:
+        - .changeset/
   update-pull-request:
     title: false
     operation: append
@@ -160,4 +164,3 @@ Your task is to:
 - **Follow Conventions**: Use the exact changeset format specified above
 - **Single Package Default**: If unsure about package structure, default to "gh-aw"
 - **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
-
