@@ -33,6 +33,23 @@ function parsePositiveIntegerString(value) {
 }
 
 /**
+ * @param {string} left
+ * @param {string} right
+ * @returns {boolean}
+ */
+function isPositiveIntegerStringGreaterThanOrEqual(left, right) {
+  if (!left || !right) {
+    return false;
+  }
+
+  try {
+    return BigInt(left) >= BigInt(right);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * @param {unknown} value
  * @returns {boolean}
  */
@@ -223,10 +240,15 @@ function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
  */
 function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensErrorInfo = parseEffectiveTokensErrorInfoFromAuditLog();
+  const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || process.env.GH_AW_EFFECTIVE_TOKENS || "";
+  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
+  const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
+  const effectiveTokensRateLimitError = rawEffectiveTokensRateLimitError && (!effectiveTokens || !maxEffectiveTokens || isPositiveIntegerStringGreaterThanOrEqual(effectiveTokens, maxEffectiveTokens));
+
   return {
-    effectiveTokens: parsedEffectiveTokensErrorInfo.effectiveTokens || process.env.GH_AW_EFFECTIVE_TOKENS || "",
-    maxEffectiveTokens: parseMaxEffectiveTokensFromAuditLog() || process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "",
-    effectiveTokensRateLimitError: parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true",
+    effectiveTokens,
+    maxEffectiveTokens,
+    effectiveTokensRateLimitError,
   };
 }
 

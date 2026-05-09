@@ -1879,6 +1879,75 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("resolveEffectiveTokensFailureState", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+
+    let tmpDir;
+    let resolveEffectiveTokensFailureState;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ resolveEffectiveTokensFailureState } = require("./effective_tokens_context.cjs"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-resolve-et-"));
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_EFFECTIVE_TOKENS;
+      delete process.env.GH_AW_MAX_EFFECTIVE_TOKENS;
+      delete process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("suppresses ET budget exhaustion when usage is below the configured maximum", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditDir, "log.jsonl"),
+        JSON.stringify({
+          _schema: "audit/v0.26.0",
+          ts: 1,
+          effective_tokens: 2097968,
+          max_effective_tokens: 10000000,
+          effective_tokens_rate_limit_error: true,
+        })
+      );
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "2097968",
+        maxEffectiveTokens: "10000000",
+        effectiveTokensRateLimitError: false,
+      });
+    });
+
+    it("keeps ET budget exhaustion when usage meets the configured maximum", () => {
+      const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+      fs.mkdirSync(auditDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditDir, "log.jsonl"),
+        JSON.stringify({
+          _schema: "audit/v0.26.0",
+          ts: 1,
+          effective_tokens: 10000000,
+          max_effective_tokens: 10000000,
+          effective_tokens_rate_limit_error: true,
+        })
+      );
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "10000000",
+        maxEffectiveTokens: "10000000",
+        effectiveTokensRateLimitError: true,
+      });
+    });
+  });
+
   describe("buildCredentialAuthErrorContext", () => {
     const fs = require("fs");
     const os = require("os");
