@@ -195,8 +195,8 @@ function sanitizeFallbackAssignees(assignees) {
 }
 
 /**
- * Creates a fallback GitHub issue, retrying on rate-limit errors (with exponential back-off)
- * and retrying without assignees if the API rejects them.
+ * Creates a fallback GitHub issue, retrying on rate-limit and other transient errors
+ * (with exponential back-off) and retrying without assignees if the API rejects them.
  * This ensures fallback issue creation remains reliable even if an assignee username
  * is invalid, the repository does not have that collaborator, or the installation token
  * quota is temporarily exhausted.
@@ -226,10 +226,10 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
         const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
         const message = getErrorMessage(error).toLowerCase();
         const isAssigneeError = status === 422 && (message.includes("assignee") || message.includes("assignees") || message.includes("unprocessable"));
-        if (isAssigneeError && assignees && assignees.length > 0) {
+        if (isAssigneeError && payload.assignees && payload.assignees.length > 0) {
           core.warning(`Fallback issue creation failed due to assignee error, retrying without assignees: ${getErrorMessage(error)}`);
-          const { assignees: _removed, ...payloadWithoutAssignees } = payload;
-          return await githubClient.rest.issues.create(payloadWithoutAssignees);
+          delete payload.assignees;
+          return await githubClient.rest.issues.create(payload);
         }
         throw error;
       }
