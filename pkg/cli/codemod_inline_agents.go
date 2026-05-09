@@ -10,7 +10,7 @@ func getInlineAgentsFeatureRemovalCodemod() Codemod {
 		ID:           "features-inline-agents-removal",
 		Name:         "Remove deprecated features.inline-agents",
 		Description:  "Removes deprecated features.inline-agents. Inline sub-agents are now enabled by default.",
-		IntroducedIn: "1.0.0",
+		IntroducedIn: "1.1.0",
 		ParentKey:    "features",
 		FieldKey:     "inline-agents",
 		LogMsg:       "Removed deprecated features.inline-agents",

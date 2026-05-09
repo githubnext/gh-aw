@@ -162,6 +162,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Features != nil {
 		result["features"] = fc.Features
 	}
+	if fc.InlineSubAgents != nil {
+		result["inline-sub-agents"] = *fc.InlineSubAgents
+	}
 	if fc.Env != nil {
 		result["env"] = fc.Env
 	}

@@ -61,11 +61,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, fmt.Errorf("failed to extract inline sub-agents: %w", err)
 	}
 	orchestratorToolsLog.Printf("Effective markdown after stripping sub-agent sections: %d bytes", len(effectiveMarkdown))
-	if len(subAgents) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: inline-sub-agents"))
-		c.IncrementWarningCount()
-	}
-
+	orchestratorToolsLog.Printf("Extracted inline sub-agents: count=%d", len(subAgents))
 	// Surface best-effort sub-agent frontmatter warnings collected during import BFS traversal.
 	for _, w := range importsResult.Warnings {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))

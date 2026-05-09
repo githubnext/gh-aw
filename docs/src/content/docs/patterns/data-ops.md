@@ -186,11 +186,9 @@ main agent:     → orchestrates sub-agents, synthesizes final report (high-reas
 
 ### Enabling inline sub-agents
 
-Add the `inline-agents` feature flag and the `cli-proxy` tool so sub-agents can make authenticated GitHub API calls:
+Inline sub-agents are enabled by default. Add `cli-proxy` so sub-agents can make authenticated GitHub API calls:
 
 ```yaml
-features:
-  inline-agents: true
 tools:
   cli-proxy: true
 ```

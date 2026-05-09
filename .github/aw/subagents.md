@@ -6,8 +6,6 @@ description: Guide for defining inline sub-agents in workflow markdown files —
 
 Inline sub-agents let you define specialised agents directly inside a workflow markdown file. At runtime the sub-agent sections are extracted from the prompt (after `{{#runtime-import}}` macros are resolved) and written to the engine-specific agents directory so the engine CLI can discover and invoke them.
 
-> **Experimental feature.** Compilation emits `⚠ Using experimental feature: inline-sub-agents` whenever a workflow contains at least one `## agent:` block.
-
 ---
 
 ## Enabling the Feature
@@ -21,6 +19,8 @@ engine: copilot
 ```
 
 > `features.inline-agents` is deprecated and no longer needed. Existing workflows may still include it, but it has no effect.
+>
+> `inline-sub-agents: false` is not supported and fails compilation. Remove the field.
 
 ---
 
@@ -200,4 +200,5 @@ changes. Return a bulleted list, one bullet per file.
 - Sub-agents do not support `engine:`, `tools:`, `network:`, or `mcp-servers:` fields — those are stripped at runtime.
 - Sub-agents cannot define their own safe-output jobs.
 - `features.inline-agents` is deprecated and has no effect; inline sub-agent upload/restore is always generated.
+- `inline-sub-agents: false` is rejected at compile time; inline sub-agents cannot be disabled.
 - Sub-agent blocks must appear in the main workflow file body; they are not resolved inside imported shared files.

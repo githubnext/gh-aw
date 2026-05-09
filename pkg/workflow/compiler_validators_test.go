@@ -67,33 +67,38 @@ func TestValidateFeatureConfig(t *testing.T) {
 	tests := []struct {
 		name          string
 		features      map[string]any
+		inlineDisable bool
 		shouldError   bool
 		errorContains string
 	}{
 		{
-			name:        "no features",
-			features:    nil,
-			shouldError: false,
+			name:          "no features",
+			features:      nil,
+			inlineDisable: false,
+			shouldError:   false,
 		},
 		{
 			name: "valid action-mode dev",
 			features: map[string]any{
 				"action-mode": "dev",
 			},
-			shouldError: false,
+			inlineDisable: false,
+			shouldError:   false,
 		},
 		{
 			name: "valid action-mode release",
 			features: map[string]any{
 				"action-mode": "release",
 			},
-			shouldError: false,
+			inlineDisable: false,
+			shouldError:   false,
 		},
 		{
 			name: "invalid action-mode",
 			features: map[string]any{
 				"action-mode": "invalid-mode",
 			},
+			inlineDisable: false,
 			shouldError:   true,
 			errorContains: "invalid action-mode feature flag",
 		},
@@ -102,7 +107,15 @@ func TestValidateFeatureConfig(t *testing.T) {
 			features: map[string]any{
 				"action-mode": "",
 			},
-			shouldError: false,
+			inlineDisable: false,
+			shouldError:   false,
+		},
+		{
+			name:          "inline-sub-agents false is rejected",
+			features:      nil,
+			inlineDisable: true,
+			shouldError:   true,
+			errorContains: "inline-sub-agents: false is not supported",
 		},
 	}
 
@@ -113,10 +126,11 @@ func TestValidateFeatureConfig(t *testing.T) {
 
 			compiler := NewCompiler()
 			workflowData := &WorkflowData{
-				Name:            "Test",
-				MarkdownContent: "# Test",
-				AI:              "copilot",
-				Features:        tt.features,
+				Name:                    "Test",
+				MarkdownContent:         "# Test",
+				AI:                      "copilot",
+				Features:                tt.features,
+				InlineSubAgentsDisabled: tt.inlineDisable,
 			}
 
 			err := compiler.validateFeatureConfig(workflowData, markdownPath)
