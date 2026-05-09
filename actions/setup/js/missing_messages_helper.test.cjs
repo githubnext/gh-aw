@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeEach } from "vitest";
 
 describe("missing_messages_helper.cjs", () => {
@@ -7,6 +8,14 @@ describe("missing_messages_helper.cjs", () => {
     helper = await import("./missing_messages_helper.cjs");
     // Reset state between tests
     helper.setCollectedMissings(null);
+  });
+
+  describe("source metadata", () => {
+    it("should keep TypeScript checking enabled", () => {
+      const source = readFileSync(new URL("./missing_messages_helper.cjs", import.meta.url), "utf8");
+
+      expect(source.split(/\r?\n/, 1)[0]).toBe("// @ts-check");
+    });
   });
 
   describe("setCollectedMissings and getCollectedMissings", () => {
@@ -157,8 +166,14 @@ describe("missing_messages_helper.cjs", () => {
       setCollectedMissings(missings);
       const result = getMissingInfoSections();
 
+      expect(result).toContain("Missing Tools");
+      expect(result).toContain("Missing Data");
+      expect(result).toContain("No-Op Messages");
+      expect(result).toContain("Incomplete Signals");
       expect(result).toContain("docker");
       expect(result).toContain("token");
+      expect(result).toContain("Skipped step");
+      expect(result).toContain("Partial completion");
     });
 
     it("should reflect updates after setCollectedMissings is called again", () => {
