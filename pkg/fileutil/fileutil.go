@@ -122,17 +122,22 @@ type syncWriteCloser interface {
 	Close() error
 }
 
-func copyFileContents(in io.ReadCloser, out syncWriteCloser, dst string) (err error) {
+func copyFileContents(in io.Reader, out syncWriteCloser, dst string) (err error) {
+	removePartial := false
+
 	defer func() {
 		if closeErr := out.Close(); closeErr != nil && err == nil {
 			err = closeErr
 		}
+		if removePartial {
+			if removeErr := os.Remove(dst); removeErr != nil {
+				log.Printf("Failed to remove partial destination file during cleanup: %s", removeErr)
+			}
+		}
 	}()
 
 	if _, err = io.Copy(out, in); err != nil {
-		if removeErr := os.Remove(dst); removeErr != nil {
-			log.Printf("Failed to remove partial destination file during cleanup: %s", removeErr)
-		}
+		removePartial = true
 		return err
 	}
 
