@@ -123,7 +123,7 @@ semverutil.IsCompatible("v6.0.0", "v5") // false
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/logger` — debug logging
 
 **External**:
 - `golang.org/x/mod/semver` — canonical semver parsing and comparison

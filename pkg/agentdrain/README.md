@@ -247,8 +247,8 @@ if report.IsNewTemplate {
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — debug logging
-- `pkg/sliceutil` — slice utilities for cluster management
+- `github.com/github/gh-aw/pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/sliceutil` — slice utilities for cluster management
 
 ## Default Weights
 

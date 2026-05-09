@@ -54,10 +54,10 @@ fmt.Println(reference) // actions/checkout@<sha> # v5
 ## Dependencies
 
 **Internal**:
-- `pkg/console` — warning message formatting
-- `pkg/gitutil` — dynamic SHA resolution via GitHub API/CLI helpers
-- `pkg/logger` — debug logging
-- `pkg/semverutil` — semantic version compatibility checks
+- `github.com/github/gh-aw/pkg/console` — warning message formatting
+- `github.com/github/gh-aw/pkg/gitutil` — dynamic SHA resolution via GitHub API/CLI helpers
+- `github.com/github/gh-aw/pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/semverutil` — semantic version compatibility checks
 
 ## Thread Safety
 

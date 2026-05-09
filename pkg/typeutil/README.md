@@ -94,7 +94,7 @@ n := typeutil.SafeUint64ToInt(uint64Value)
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/logger` — debug logging
 
 ## Design Notes
 

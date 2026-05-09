@@ -53,7 +53,7 @@ content, err := gitutil.ReadFileFromHEADWithRoot("go.mod", root)
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/logger` — debug logging
 
 ## Design Notes
 
