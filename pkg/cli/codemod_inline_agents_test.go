@@ -12,7 +12,7 @@ import (
 
 func TestInlineAgentsFeatureRemovalCodemod(t *testing.T) {
 	codemod := getInlineAgentsFeatureRemovalCodemod()
-	assert.Equal(t, "1.1.0", codemod.IntroducedIn)
+	assert.Equal(t, "1.0.0", codemod.IntroducedIn)
 
 	tests := []struct {
 		name        string
