@@ -1906,6 +1906,19 @@ describe("handle_agent_failure", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(false, "10000000", "2500000", "https://example.com/run/1");
       expect(result).toBe("");
     });
+
+    it("falls back to raw values when effective token values are not numeric", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "unknown", "n/a", "https://example.com/run/1");
+      expect(result).toContain("Effective tokens used: `unknown`");
+      expect(result).toContain("Configured ET budget: `n/a`");
+    });
+
+    it("omits optional lines when values are missing", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "", "", "");
+      expect(result).not.toContain("Effective tokens used:");
+      expect(result).not.toContain("Configured ET budget:");
+      expect(result).not.toContain("- Run:");
+    });
   });
 
   describe("buildCredentialAuthErrorContext", () => {
