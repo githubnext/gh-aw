@@ -27,6 +27,7 @@ type EngineConfig struct {
 	Command            string // Custom executable path (when set, skip installation steps)
 	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
 	Env                map[string]string
+	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
 	Config             string
 	Args               []string
 	Agent              string // Agent identifier for copilot --agent flag (copilot engine only)
@@ -56,6 +57,16 @@ type EngineConfig struct {
 	// Extensions is a list of engine-specific plugin names to install before launching the engine.
 	// Currently used by the Pi engine: each entry is passed to `pi install <extension>`.
 	Extensions []string
+}
+
+// EngineAuthConfig represents engine.auth frontmatter settings used by AWF API proxy sidecar auth.
+type EngineAuthConfig struct {
+	Type          string
+	Audience      string
+	AzureTenantID string
+	AzureClientID string
+	AzureScope    string
+	AzureCloud    string
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -308,6 +319,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
+			// Extract optional 'auth' field (object)
+			if auth, hasAuth := engineObj["auth"]; hasAuth {
+				if authObj, ok := auth.(map[string]any); ok {
+					config.Auth = parseEngineAuthConfig(authObj)
+					applyEngineAuthEnv(config)
+				}
+			}
+
 			// Extract optional 'config' field (additional TOML configuration)
 			if config_field, hasConfig := engineObj["config"]; hasConfig {
 				if configStr, ok := config_field.(string); ok {
@@ -497,6 +516,59 @@ func parseAuthDefinition(authObj map[string]any) *AuthDefinition {
 		def.HeaderName = s
 	}
 	return def
+}
+
+// parseEngineAuthConfig converts a raw engine.auth config map into EngineAuthConfig.
+func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
+	auth := &EngineAuthConfig{}
+	if s, ok := authObj["type"].(string); ok {
+		auth.Type = s
+	}
+	if s, ok := authObj["audience"].(string); ok {
+		auth.Audience = s
+	}
+	if s, ok := authObj["azure-tenant-id"].(string); ok {
+		auth.AzureTenantID = s
+	}
+	if s, ok := authObj["azure-client-id"].(string); ok {
+		auth.AzureClientID = s
+	}
+	if s, ok := authObj["azure-scope"].(string); ok {
+		auth.AzureScope = s
+	}
+	if s, ok := authObj["azure-cloud"].(string); ok {
+		auth.AzureCloud = s
+	}
+	return auth
+}
+
+// applyEngineAuthEnv maps engine.auth fields to AWF_AUTH_* environment variables.
+func applyEngineAuthEnv(config *EngineConfig) {
+	if config == nil || config.Auth == nil {
+		return
+	}
+	if config.Env == nil {
+		config.Env = make(map[string]string)
+	}
+
+	if config.Auth.Type != "" {
+		config.Env["AWF_AUTH_TYPE"] = config.Auth.Type
+	}
+	if config.Auth.Audience != "" {
+		config.Env["AWF_AUTH_OIDC_AUDIENCE"] = config.Auth.Audience
+	}
+	if config.Auth.AzureTenantID != "" {
+		config.Env["AWF_AUTH_AZURE_TENANT_ID"] = config.Auth.AzureTenantID
+	}
+	if config.Auth.AzureClientID != "" {
+		config.Env["AWF_AUTH_AZURE_CLIENT_ID"] = config.Auth.AzureClientID
+	}
+	if config.Auth.AzureScope != "" {
+		config.Env["AWF_AUTH_AZURE_SCOPE"] = config.Auth.AzureScope
+	}
+	if config.Auth.AzureCloud != "" {
+		config.Env["AWF_AUTH_AZURE_CLOUD"] = config.Auth.AzureCloud
+	}
 }
 
 // parseRequestShape converts a raw request config map (from engine.provider.request) into

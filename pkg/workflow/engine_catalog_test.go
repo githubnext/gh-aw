@@ -112,6 +112,8 @@ func TestEngineCatalogMatchesSchema(t *testing.T) {
 	require.True(t, ok, "second variant should have properties")
 	assert.Contains(t, props1, "id",
 		"second variant should have an 'id' property")
+	assert.Contains(t, props1, "auth",
+		"second variant should have an 'auth' property")
 	idProp, ok := props1["id"].(map[string]any)
 	require.True(t, ok, "id property should be a map")
 	assert.Nil(t, idProp["enum"],

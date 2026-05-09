@@ -164,6 +164,41 @@ func TestValidatePermissions(t *testing.T) {
 			shouldError:     false,
 			wantPermissions: true,
 		},
+		{
+			name: "engine auth github-oidc requires id-token write",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Auth: &EngineAuthConfig{
+						Type: "github-oidc",
+					},
+				},
+			},
+			shouldError:     true,
+			errorContains:   "engine.auth.type: github-oidc requires permissions.id-token: write",
+			wantPermissions: false,
+		},
+		{
+			name: "engine auth github-oidc with id-token write succeeds",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n  id-token: write\n",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Auth: &EngineAuthConfig{
+						Type: "github-oidc",
+					},
+				},
+			},
+			shouldError:     false,
+			wantPermissions: true,
+		},
 	}
 
 	for _, tt := range tests {

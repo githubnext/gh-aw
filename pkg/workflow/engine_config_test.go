@@ -330,6 +330,40 @@ func TestExtractEngineConfig(t *testing.T) {
 	}
 }
 
+func TestExtractEngineConfig_EngineAuthMapsToAWFEnv(t *testing.T) {
+	compiler := NewCompiler()
+	_, config := compiler.ExtractEngineConfig(map[string]any{
+		"engine": map[string]any{
+			"id": "copilot",
+			"auth": map[string]any{
+				"type":            "github-oidc",
+				"audience":        "https://cognitiveservices.azure.com",
+				"azure-tenant-id": "tenant-id",
+				"azure-client-id": "client-id",
+				"azure-scope":     "https://cognitiveservices.azure.com/.default",
+				"azure-cloud":     "public",
+			},
+		},
+	})
+
+	assert.NotNil(t, config)
+	if assert.NotNil(t, config.Auth) {
+		assert.Equal(t, "github-oidc", config.Auth.Type)
+		assert.Equal(t, "https://cognitiveservices.azure.com", config.Auth.Audience)
+		assert.Equal(t, "tenant-id", config.Auth.AzureTenantID)
+		assert.Equal(t, "client-id", config.Auth.AzureClientID)
+		assert.Equal(t, "https://cognitiveservices.azure.com/.default", config.Auth.AzureScope)
+		assert.Equal(t, "public", config.Auth.AzureCloud)
+	}
+
+	assert.Equal(t, "github-oidc", config.Env["AWF_AUTH_TYPE"])
+	assert.Equal(t, "https://cognitiveservices.azure.com", config.Env["AWF_AUTH_OIDC_AUDIENCE"])
+	assert.Equal(t, "tenant-id", config.Env["AWF_AUTH_AZURE_TENANT_ID"])
+	assert.Equal(t, "client-id", config.Env["AWF_AUTH_AZURE_CLIENT_ID"])
+	assert.Equal(t, "https://cognitiveservices.azure.com/.default", config.Env["AWF_AUTH_AZURE_SCOPE"])
+	assert.Equal(t, "public", config.Env["AWF_AUTH_AZURE_CLOUD"])
+}
+
 func TestCompileWorkflowWithExtendedEngine(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "extended-engine-test")

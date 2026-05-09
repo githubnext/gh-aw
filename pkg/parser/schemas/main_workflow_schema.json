@@ -10095,6 +10095,40 @@
                 "type": "string"
               }
             },
+            "auth": {
+              "type": "object",
+              "description": "Engine-level authentication configuration for AWF API proxy sidecar integration (for example, Azure OpenAI via GitHub OIDC). Values are mapped to AWF_AUTH_* environment variables.",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["github-oidc"],
+                  "description": "Authentication type. Currently only 'github-oidc' is supported."
+                },
+                "audience": {
+                  "type": "string",
+                  "description": "OIDC audience to request from GitHub Actions for token exchange.",
+                  "format": "uri"
+                },
+                "azure-tenant-id": {
+                  "type": "string",
+                  "description": "Optional Azure tenant ID for token exchange."
+                },
+                "azure-client-id": {
+                  "type": "string",
+                  "description": "Optional Azure client ID for token exchange."
+                },
+                "azure-scope": {
+                  "type": "string",
+                  "description": "Optional Azure OAuth scope (defaults to https://cognitiveservices.azure.com/.default in AWF sidecar)."
+                },
+                "azure-cloud": {
+                  "type": "string",
+                  "description": "Optional Azure cloud name (for example, public, usgovernment, china)."
+                }
+              },
+              "required": ["type"],
+              "additionalProperties": false
+            },
             "config": {
               "type": "string",
               "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
