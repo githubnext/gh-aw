@@ -1946,6 +1946,40 @@ describe("handle_agent_failure", () => {
         effectiveTokensRateLimitError: true,
       });
     });
+
+    it("keeps ET budget exhaustion when the rate-limit signal is present but no max is available", () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "2097968";
+      process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "2097968",
+        maxEffectiveTokens: "",
+        effectiveTokensRateLimitError: true,
+      });
+    });
+
+    it("ignores invalid env token counts when reconciling ET budget exhaustion", () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "2097968";
+      process.env.GH_AW_MAX_EFFECTIVE_TOKENS = "not-a-number";
+      process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "2097968",
+        maxEffectiveTokens: "",
+        effectiveTokensRateLimitError: true,
+      });
+    });
+
+    it("does not report ET budget exhaustion without a rate-limit signal", () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "10000000";
+      process.env.GH_AW_MAX_EFFECTIVE_TOKENS = "10000000";
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "10000000",
+        maxEffectiveTokens: "10000000",
+        effectiveTokensRateLimitError: false,
+      });
+    });
   });
 
   describe("buildCredentialAuthErrorContext", () => {

@@ -258,8 +258,8 @@ function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
  */
 function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensErrorInfo = parseEffectiveTokensErrorInfoFromAuditLog();
-  const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || process.env.GH_AW_EFFECTIVE_TOKENS || "";
-  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
+  const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsePositiveIntegerString(process.env.GH_AW_EFFECTIVE_TOKENS);
+  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsePositiveIntegerString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
 
