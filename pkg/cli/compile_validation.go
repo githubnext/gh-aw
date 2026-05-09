@@ -30,9 +30,10 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	compiler.SetWorkflowIdentifier(relPath)
 
 	// Set repository slug for this specific file (may differ from CWD's repo)
+	// Uses SetRepositorySlugIfUnlocked so that an explicit --schedule-seed flag is never overridden.
 	fileRepoSlug := getRepositorySlugFromRemoteForPath(filePath)
 	if fileRepoSlug != "" {
-		compiler.SetRepositorySlug(fileRepoSlug)
+		compiler.SetRepositorySlugIfUnlocked(fileRepoSlug)
 		compileValidationLog.Printf("Repository slug for file set: %s", fileRepoSlug)
 	}
 
