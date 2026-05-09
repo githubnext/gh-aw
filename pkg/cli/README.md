@@ -49,6 +49,10 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw secrets` | `NewSecretsCommand` | Manage workflow secrets |
 | `gh aw secrets set` | (secret_set_command.go) | Create or update a repository secret |
 | `gh aw secrets bootstrap` | (secret_set_command.go) | Validate and configure all required secrets for workflows |
+| `gh aw lint` | `NewLintCommand` | Lint existing `.lock.yml` workflows with actionlint |
+| `gh aw experiments` | `NewExperimentsCommand` | Explore ongoing A/B experiments in the repository (hidden) |
+| `gh aw experiments list` | `NewExperimentsListSubcommand` | List all experiment workflow branches |
+| `gh aw experiments analyze` | `NewExperimentsAnalyzeSubcommand` | Analyze a specific experiment workflow in detail |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
 | `gh aw version` | `versionCmd` (main.go) | Show version information |
