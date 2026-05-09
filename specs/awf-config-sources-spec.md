@@ -9,7 +9,7 @@ sidebar:
 
 ## 1. Purpose
 
-This document defines the canonical AWF configuration references that gh-aw agents and schema reconciliation workflows MUST use when generating or validating AWF config behavior.
+This document defines the canonical AWF configuration references in `github/gh-aw-firewall` that gh-aw agents and schema reconciliation workflows MUST use when generating or validating AWF config behavior.
 
 ## 2. Canonical sources (gh-aw-firewall)
 
