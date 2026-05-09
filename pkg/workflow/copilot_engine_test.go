@@ -645,7 +645,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					},
 				},
 			},
-			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(gh:*)"},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "shell(echo)", "--allow-tool", "shell(gh:*)"},
 		},
 		// Playwright CLI mode tests - playwright-cli must be auto-allowed when bash is restricted.
 		{
