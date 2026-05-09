@@ -387,7 +387,7 @@ When `auto_create: true` is set, any milestone from the `allowed` list that does
 
 ### Issue Updates (`update-issue:`)
 
-Updates issue status, title, body, and optional issue fields. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `title-prefix` to restrict updates to issues whose titles start with a specific prefix.
+Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `title-prefix` to restrict updates to issues whose titles start with a specific prefix.
 
 ```yaml wrap
 safe-outputs:
@@ -416,26 +416,7 @@ When using `target: "*"`, the agent must provide `issue_number` or `item_number`
 - `replace-island`: Updates a specific section marked with HTML comments
 
 Agent output format: `{"type": "update_issue", "issue_number": 123, "operation": "append", "body": "..."}`. The `operation` field is optional (defaults to `append`).
-
-#### `update_issue` tool field schema (`fields`)
-
-| Parameter | Type | Required | Description | Example |
-|-----------|------|----------|-------------|---------|
-| `fields` | `array<object>` | No | Optional issue field updates to apply as part of the issue update operation. | `[{"name":"Priority","value":"P1"}]` |
-| `fields[].name` | `string` | Yes (when item exists) | Issue field display name to set. | `"Priority"` |
-| `fields[].value` | `string \| number` | Yes (when item exists) | Field value. Use number for numeric fields; string for select/iteration/date/text values. | `"In Progress"` |
-
-```json
-{
-  "type": "update_issue",
-  "issue_number": 123,
-  "status": "open",
-  "fields": [
-    { "name": "Priority", "value": "High" },
-    { "name": "Iteration", "value": "Sprint 42" }
-  ]
-}
-```
+For issue field updates, use [`set_issue_field`](#set-issue-field-set-issue-field).
 
 ### Pull Request Updates (`update-pull-request:`)
 
@@ -581,10 +562,12 @@ safe-outputs:
   {
     "type": "update_issue",
     "body": "Initial triage complete. Escalating for review.",
-    "operation": "append",
-    "fields": [
-      { "name": "Priority", "value": "High" }
-    ]
+    "operation": "append"
+  },
+  {
+    "type": "set_issue_field",
+    "field_name": "Priority",
+    "value": "High"
   },
   {
     "type": "set_issue_field",
