@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6f41bef7489928a5ecd9cabd2c5d3206b52d81acf982471bd12c806bc746271b","agent_id":"claude"}
-# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN","TAVILY_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0"},{"repo":"github/codeql-action/upload-sarif","sha":"68bde559dea0fdcac2102bfdf6230c5f70eb485e","version":"v4.35.4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.42"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.42"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.42"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"ghcr.io/github/serena-mcp-server:latest","digest":"sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5","pinned_image":"ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"dbd0c70b71824605f311207f1a58c7768625e6e4aaa1933a5e5bc720f38be256","agent_id":"claude"}
+# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN","TAVILY_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0"},{"repo":"github/codeql-action/upload-sarif","sha":"68bde559dea0fdcac2102bfdf6230c5f70eb485e","version":"v4.35.4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.42"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.42"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.42"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.42"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"ghcr.io/github/serena-mcp-server:latest","digest":"sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5","pinned_image":"ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -65,6 +65,7 @@
 # Container images used:
 #   - ghcr.io/github/gh-aw-firewall/agent:0.25.42
 #   - ghcr.io/github/gh-aw-firewall/api-proxy:0.25.42
+#   - ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.42
 #   - ghcr.io/github/gh-aw-firewall/squid:0.25.42
 #   - ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c
 #   - ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959
@@ -265,9 +266,9 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_4e9211044d3eddd5_EOF'
+          cat << 'GH_AW_PROMPT_c730fcc3f7716ee6_EOF'
           <system>
-          GH_AW_PROMPT_4e9211044d3eddd5_EOF
+          GH_AW_PROMPT_c730fcc3f7716ee6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -275,16 +276,16 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/agentic_workflows_guide.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4e9211044d3eddd5_EOF'
+          cat << 'GH_AW_PROMPT_c730fcc3f7716ee6_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, close_pull_request, update_pull_request, create_pull_request_review_comment(max:5), submit_pull_request_review, resolve_pull_request_review_thread(max:5), add_labels, add_reviewer(max:2), push_to_pull_request_branch, create_code_scanning_alert, missing_tool, missing_data, noop, post_slack_message
-          GH_AW_PROMPT_4e9211044d3eddd5_EOF
+          GH_AW_PROMPT_c730fcc3f7716ee6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_push_to_pr_branch.md"
-          cat << 'GH_AW_PROMPT_4e9211044d3eddd5_EOF'
+          cat << 'GH_AW_PROMPT_c730fcc3f7716ee6_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_4e9211044d3eddd5_EOF
+          GH_AW_PROMPT_c730fcc3f7716ee6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_4e9211044d3eddd5_EOF'
+          cat << 'GH_AW_PROMPT_c730fcc3f7716ee6_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -316,9 +317,9 @@ jobs:
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
-          GH_AW_PROMPT_4e9211044d3eddd5_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4e9211044d3eddd5_EOF'
+          GH_AW_PROMPT_c730fcc3f7716ee6_EOF
+          cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
+          cat << 'GH_AW_PROMPT_c730fcc3f7716ee6_EOF'
           </system>
           ## Serena Code Analysis
           
@@ -462,19 +463,18 @@ jobs:
           
           This proactive approach eliminates retry loops and reduces token consumption.
           
-          **IMPORTANT**: Always use the `mcpscripts-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `mcpscripts-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+          **IMPORTANT**: The `gh` CLI is pre-authenticated. Always use `gh` commands directly for GitHub operations (listing issues, pull requests, reading repository contents, etc.). No GitHub MCP server is available; `gh` is your only way to interact with GitHub.
           
           **Correct**:
           ```
-          Use the mcpscripts-gh tool with args: "pr list --limit 5"
-          Use the mcpscripts-gh tool with args: "issue view 123"
+          Run: gh pr list --limit 5
+          Run: gh issue view 123
+          Run: gh api repos/{owner}/{repo}
           ```
           
           **Incorrect**:
           ```
-          Use the gh mcp-script tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use mcpscripts-gh)
-          Run: gh pr list --limit 5  ❌ (No authentication in bash)
-          Execute bash: gh issue view 123  ❌ (No authentication in bash)
+          Use the mcpscripts-gh tool  ❌ (Tool no longer available - use gh CLI directly)
           ```
           
           
@@ -713,7 +713,7 @@ jobs:
           
           {{#runtime-import shared/noop-reminder.md}}
           
-          GH_AW_PROMPT_4e9211044d3eddd5_EOF
+          GH_AW_PROMPT_c730fcc3f7716ee6_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -992,7 +992,7 @@ jobs:
           GH_AW_SUB_AGENT_EXT: ".md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.42 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.42 ghcr.io/github/gh-aw-firewall/squid:0.25.42 ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.42 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.42 ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.42 ghcr.io/github/gh-aw-firewall/squid:0.25.42 ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959 ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
       - name: Install gh-aw extension
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1026,9 +1026,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_16cca0ad6dc7d9fb_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_d546bc2eefc89a40_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-claude"]},"add_reviewer":{"max":2,"target":"*"},"close_pull_request":{"max":1,"staged":true},"create_code_scanning_alert":{"driver":"Smoke Claude"},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-claude","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT","target":"*"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"post_slack_message":{"description":"Post a message to a fictitious Slack channel (smoke test only — no real Slack integration)","inputs":{"channel":{"default":"#general","description":"Slack channel name to post to","required":false,"type":"string"},"message":{"description":"Message text to post","required":false,"type":"string"}}},"push_to_pull_request_branch":{"allowed_files":["smoke-test-files/smoke-claude-push-test.md"],"if_no_changes":"warn","labels":["smoke-claude"],"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","CLAUDE.md","AGENTS.md"],"staged":true,"target":"*"},"report_incomplete":{},"resolve_pull_request_review_thread":{"max":5},"submit_pull_request_review":{"footer":"always","max":1},"update_pull_request":{"allow_body":true,"allow_title":true,"max":1,"target":"*","update_branch":false}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_16cca0ad6dc7d9fb_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_d546bc2eefc89a40_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1476,34 +1476,12 @@ jobs:
       - name: Write MCP Scripts Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_8dd626fb2cf97a38_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_18ded532b6298f33_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
             "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
             "tools": [
-              {
-                "name": "gh",
-                "description": "Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
-                "inputSchema": {
-                  "properties": {
-                    "args": {
-                      "description": "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "args"
-                  ],
-                  "type": "object"
-                },
-                "handler": "gh.sh",
-                "env": {
-                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN",
-                  "GH_DEBUG": "GH_DEBUG"
-                },
-                "timeout": 60
-              },
               {
                 "name": "github-discussion-query",
                 "description": "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
@@ -1628,8 +1606,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_8dd626fb2cf97a38_EOF
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_c7327282edd8a455_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_18ded532b6298f33_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_6f108847b736079b_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -1643,26 +1621,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_c7327282edd8a455_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_6f108847b736079b_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
           
       - name: Write MCP Scripts Tool Files
         run: |
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh" << 'GH_AW_MCP_SCRIPTS_SH_GH_b95c0ee908b7e243_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: gh
-          # Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-          
-          set -euo pipefail
-          
-          echo "gh $INPUT_ARGS"
-          echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
-          GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
-          
-          
-          GH_AW_MCP_SCRIPTS_SH_GH_b95c0ee908b7e243_EOF
-          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_3739102a7795b85c_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_c7a79396d5a8ffee_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-discussion-query
           # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1798,9 +1762,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_3739102a7795b85c_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_c7a79396d5a8ffee_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_7db36d800c033ec8_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_5e0a4a5740566146_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-issue-query
           # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1879,9 +1843,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_7db36d800c033ec8_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_5e0a4a5740566146_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_1817084dc82004b9_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_d1aeb59374189e2c_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-pr-query
           # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1966,9 +1930,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_1817084dc82004b9_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_d1aeb59374189e2c_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_6718617ddb732130_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_4b4202dfcc5685d4_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: go
           # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1979,9 +1943,9 @@ jobs:
           go $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_GO_6718617ddb732130_EOF
+          GH_AW_MCP_SCRIPTS_SH_GO_4b4202dfcc5685d4_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_d2e6823f9e78dae7_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_04025a72dc90a25c_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: make
           # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1992,7 +1956,7 @@ jobs:
           make $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_MAKE_d2e6823f9e78dae7_EOF
+          GH_AW_MCP_SCRIPTS_SH_MAKE_04025a72dc90a25c_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh"
           
       - name: Generate MCP Scripts Server Config
@@ -2019,8 +1983,6 @@ jobs:
           DEBUG: '*'
           GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_port }}
           GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_api_key }}
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_DEBUG: 1
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Environment variables are set above to prevent template injection
@@ -2033,17 +1995,12 @@ jobs:
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-start.outputs.api_key }}
           GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
-          GH_DEBUG: 1
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}
-          GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: |
@@ -2066,10 +2023,10 @@ jobs:
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.6'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.6'
           
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_27d34be29e10f6b2_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_83a471b56b50023f_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -2087,21 +2044,6 @@ jobs:
                     "accept": [
                       "*"
                     ]
-                  }
-                }
-              },
-              "github": {
-                "container": "ghcr.io/github/github-mcp-server:v1.0.3",
-                "env": {
-                  "GITHUB_HOST": "$GITHUB_SERVER_URL",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
-                  "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "repos,pull_requests"
-                },
-                "guard-policies": {
-                  "allow-only": {
-                    "min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-                    "repos": "$GITHUB_MCP_GUARD_REPOS"
                   }
                 }
               },
@@ -2193,7 +2135,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_27d34be29e10f6b2_EOF
+          GH_AW_MCP_CONFIG_83a471b56b50023f_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -2215,6 +2157,14 @@ jobs:
         id: pre_agent_audit
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
+      - name: Start CLI Proxy
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          CLI_PROXY_POLICY: '{"allow-only":{"repos":"all","min-integrity":"none"}}'
+          CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.3.6'
+        run: |
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -2322,7 +2272,7 @@ jobs:
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
           printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.25.42/awf-config.schema.json","network":{"allowDomains":["*.githubusercontent.com","anthropic.com","api.anthropic.com","api.github.com","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","cdn.playwright.dev","codeload.github.com","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","docs.github.com","files.pythonhosted.org","ghcr.io","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","github.blog","github.com","github.githubassets.com","go.dev","golang.org","goproxy.io","host.docker.internal","json-schema.org","json.schemastore.org","keyserver.ubuntu.com","lfs.github.com","mcp.tavily.com","objects.githubusercontent.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","pkg.go.dev","playwright.download.prss.microsoft.com","ppa.launchpad.net","proxy.golang.org","pypi.org","raw.githubusercontent.com","registry.npmjs.org","s.symcb.com","s.symcd.com","security.ubuntu.com","sentry.io","statsig.anthropic.com","storage.googleapis.com","sum.golang.org","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com"]},"apiProxy":{"enabled":true,"maxEffectiveTokens":10000000,"models":{"auto":["large"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gpt-4.1":["copilot/gpt-4.1*","openai/gpt-4.1*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash"],"opus":["copilot/*opus*","anthropic/*opus*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"small":["mini"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"]}},"container":{"imageTag":"0.25.42"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json" && cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           # shellcheck disable=SC1003
-          sudo -E awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --tty --env-all --exclude-env ANTHROPIC_API_KEY --exclude-env GH_AW_GH_TOKEN --exclude-env GH_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --exclude-env TAVILY_API_KEY --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --skip-pull \
+          sudo -E awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --tty --env-all --exclude-env ANTHROPIC_API_KEY --exclude-env GH_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --exclude-env TAVILY_API_KEY --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --skip-pull --difc-proxy-host host.docker.internal:18443 --difc-proxy-ca-cert /tmp/gh-aw/difc-proxy-tls/ca.crt \
             -- /bin/bash -c 'export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || echo node)"; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/claude_harness.cjs claude --print --no-chrome --max-turns 100 --mcp-config "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json" --allowed-tools '\''Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__agenticworkflows,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__mcpscripts,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for,mcp__safeoutputs,mcp__serena,mcp__tavily'\'' --debug-file /tmp/gh-aw/agent-stdio.log --verbose --permission-mode bypassPermissions --output-format stream-json --bare --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -2332,7 +2282,6 @@ jobs:
           DISABLE_BUG_COMMAND: 1
           DISABLE_ERROR_REPORTING: 1
           DISABLE_TELEMETRY: 1
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_MAX_TURNS: 100
           GH_AW_MCP_CONFIG: ${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json
           GH_AW_MODEL_AGENT_CLAUDE: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
@@ -2340,8 +2289,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_VERSION: dev
-          GH_DEBUG: 1
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}
           GITHUB_AW: true
           GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
           GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -2351,6 +2299,10 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           MCP_TIMEOUT: 120000
           MCP_TOOL_TIMEOUT: 60000
+      - name: Stop CLI Proxy
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/stop_cli_proxy.sh"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -3043,7 +2995,7 @@ jobs:
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Configure Safe Outputs Custom Scripts
         run: |
-          cat > "${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs" << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_171aad666bd8eb6b_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs" << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_5ebba8801eb7740e_EOF'
           // @ts-check
           /// <reference types="./safe-output-script" />
           // Auto-generated safe-output script handler: post-slack-message
@@ -3063,7 +3015,7 @@ jobs:
           }
           module.exports = { main };
           
-          GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_171aad666bd8eb6b_EOF
+          GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_5ebba8801eb7740e_EOF
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
