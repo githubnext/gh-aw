@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/cli"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateEngine(t *testing.T) {
@@ -82,21 +84,16 @@ func TestValidateEngine(t *testing.T) {
 			err := validateEngine(tt.engine)
 
 			if tt.expectErr {
-				if err == nil {
-					t.Errorf("validateEngine(%q) expected error but got none", tt.engine)
-					return
-				}
+				require.Error(t, err, "validateEngine(%q) should return an error for invalid engines", tt.engine)
 
 				// Check that error message contains the expected format.
 				// The engine list is dynamic, so only check the prefix.
 				expectedPrefix := fmt.Sprintf("invalid engine value '%s'. Must be", tt.engine)
-				if tt.errMessage != "" && !strings.HasPrefix(err.Error(), expectedPrefix) {
-					t.Errorf("validateEngine(%q) error message = %v, want to start with %v", tt.engine, err.Error(), expectedPrefix)
+				if tt.errMessage != "" {
+					assert.True(t, strings.HasPrefix(err.Error(), expectedPrefix), "validateEngine(%q) error should start with %q, got %q", tt.engine, expectedPrefix, err.Error())
 				}
 			} else {
-				if err != nil {
-					t.Errorf("validateEngine(%q) unexpected error: %v", tt.engine, err)
-				}
+				assert.NoError(t, err, "validateEngine(%q) should not return an error for valid engines", tt.engine)
 			}
 		})
 	}
@@ -106,17 +103,13 @@ func TestInitFunction(t *testing.T) {
 	// Test that init function doesn't panic
 	t.Run("init function executes without panic", func(t *testing.T) {
 		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("init() panicked: %v", r)
-			}
+			assert.Nil(t, recover(), "init() should not panic")
 		}()
 
 		// The init function has already been called when the package was loaded
 		// We can't call it again, but we can verify that the initialization worked
 		// by checking that the version was set
-		if version == "" {
-			t.Error("init() should have initialized version variable")
-		}
+		assert.NotEmpty(t, version, "init() should initialize the version variable")
 	})
 }
 
@@ -126,22 +119,10 @@ func TestMainFunction(t *testing.T) {
 
 	t.Run("main function setup", func(t *testing.T) {
 		// Test that root command is properly configured
-		if rootCmd.Use == "" {
-			t.Error("rootCmd.Use should not be empty")
-		}
-
-		if rootCmd.Short == "" {
-			t.Error("rootCmd.Short should not be empty")
-		}
-
-		if rootCmd.Long == "" {
-			t.Error("rootCmd.Long should not be empty")
-		}
-
-		// Test that commands are properly added
-		if len(rootCmd.Commands()) == 0 {
-			t.Error("rootCmd should have subcommands")
-		}
+		assert.NotEmpty(t, rootCmd.Use, "root command Use should not be empty")
+		assert.NotEmpty(t, rootCmd.Short, "root command Short description should not be empty")
+		assert.NotEmpty(t, rootCmd.Long, "root command Long description should not be empty")
+		assert.NotEmpty(t, rootCmd.Commands(), "root command should have subcommands")
 	})
 
 	t.Run("version command is available", func(t *testing.T) {
@@ -152,9 +133,7 @@ func TestMainFunction(t *testing.T) {
 				break
 			}
 		}
-		if !found {
-			t.Error("version command should be available")
-		}
+		assert.True(t, found, "version command should be available")
 	})
 
 	t.Run("root command help", func(t *testing.T) {
@@ -188,13 +167,8 @@ func TestMainFunction(t *testing.T) {
 		<-done
 		output := buf.String()
 
-		if err != nil {
-			t.Errorf("root command help failed: %v", err)
-		}
-
-		if output == "" {
-			t.Error("root command help should produce output")
-		}
+		require.NoError(t, err, "root command help should execute successfully")
+		assert.NotEmpty(t, output, "root command help should produce output")
 
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})
@@ -230,18 +204,11 @@ func TestMainFunction(t *testing.T) {
 		<-done
 		output := buf.String()
 
-		if err != nil {
-			t.Errorf("help all command failed: %v", err)
-		}
-
-		if output == "" {
-			t.Error("help all command should produce output")
-		}
+		require.NoError(t, err, "help all command should execute successfully")
+		assert.NotEmpty(t, output, "help all command should produce output")
 
 		// Verify output contains expected content
-		if !strings.Contains(output, "Complete Command Reference") {
-			t.Error("help all output should contain 'Complete Command Reference'")
-		}
+		assert.Contains(t, output, "Complete Command Reference", "help all output should include the complete command reference heading")
 
 		// Verify output contains multiple commands
 		commandCount := 0
@@ -252,9 +219,7 @@ func TestMainFunction(t *testing.T) {
 			}
 		}
 
-		if commandCount < len(expectedCommands) {
-			t.Errorf("help all should show help for all commands, found %d/%d", commandCount, len(expectedCommands))
-		}
+		assert.GreaterOrEqual(t, commandCount, len(expectedCommands), "help all should show help for all expected commands")
 
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})
@@ -276,18 +241,11 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		cmd.Dir = "."
 
 		output, err := cmd.CombinedOutput() // Use CombinedOutput to capture stderr
-		if err != nil {
-			t.Fatalf("Failed to run main with --help: %v", err)
-		}
+		require.NoError(t, err, "running main with --help should succeed")
 
 		outputStr := string(output)
-		if !strings.Contains(outputStr, "GitHub Agentic Workflows") {
-			t.Error("main function help output should contain 'GitHub Agentic Workflows'")
-		}
-
-		if !strings.Contains(outputStr, "Usage:") {
-			t.Error("main function help output should contain usage information")
-		}
+		assert.Contains(t, outputStr, "GitHub Agentic Workflows", "main help output should contain the product name")
+		assert.Contains(t, outputStr, "Usage:", "main help output should contain usage information")
 	})
 
 	t.Run("main function version command", func(t *testing.T) {
@@ -296,15 +254,11 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		cmd.Dir = "."
 
 		output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
-		if err != nil {
-			t.Fatalf("Failed to run main with version: %v", err)
-		}
+		require.NoError(t, err, "running main with version command should succeed")
 
 		outputStr := string(output)
 		// Should produce some version output (even if it's "unknown")
-		if len(strings.TrimSpace(outputStr)) == 0 {
-			t.Error("main function version command should produce output")
-		}
+		assert.NotEmpty(t, strings.TrimSpace(outputStr), "main version command should produce output")
 	})
 
 	t.Run("main function error handling", func(t *testing.T) {
@@ -313,16 +267,12 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		cmd.Dir = "."
 
 		_, err := cmd.Output()
-		if err == nil {
-			t.Error("main function should return non-zero exit code for invalid command")
-		}
+		require.Error(t, err, "main function should return a non-zero exit code for invalid command")
 
 		// Check that it's an ExitError (non-zero exit code)
-		if exitError, ok := err.(*exec.ExitError); !ok {
-			t.Errorf("Expected ExitError for invalid command, got %T: %v", err, err)
-		} else if exitError.ExitCode() == 0 {
-			t.Error("Expected non-zero exit code for invalid command")
-		}
+		exitError, ok := err.(*exec.ExitError)
+		require.True(t, ok, "invalid command should return an *exec.ExitError, got %T", err)
+		assert.NotEqual(t, 0, exitError.ExitCode(), "invalid command should return a non-zero exit code")
 	})
 
 	t.Run("main function version info setup", func(t *testing.T) {
@@ -336,9 +286,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		cli.SetVersionInfo("test-version")
 
 		// Verify it was set
-		if cli.GetVersion() != "test-version" {
-			t.Error("SetVersionInfo should update the version in CLI package")
-		}
+		assert.Equal(t, "test-version", cli.GetVersion(), "SetVersionInfo should update the version in CLI package")
 
 		// Restore original version
 		cli.SetVersionInfo(originalVersion)
@@ -358,14 +306,12 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 				// Some commands might return non-zero but still function properly
 				t.Logf("Command returned exit code %d, output: %s", exitError.ExitCode(), string(output))
 			} else {
-				t.Fatalf("Failed to run main with version command: %v", err)
+				require.NoError(t, err, "running main with version command should not fail with an unexpected execution error")
 			}
 		}
 
 		// Should produce some output
-		if len(output) == 0 {
-			t.Error("version command should produce some output")
-		}
+		assert.NotEmpty(t, output, "version command should produce some output")
 	})
 }
 
@@ -373,9 +319,7 @@ func TestVersionCommandFunctionality(t *testing.T) {
 	t.Run("version information is available", func(t *testing.T) {
 		// The cli package should provide version functionality
 		versionInfo := cli.GetVersion()
-		if versionInfo == "" {
-			t.Error("GetVersion() should return version information")
-		}
+		assert.NotEmpty(t, versionInfo, "GetVersion should return version information")
 	})
 
 	t.Run("--version flag is supported", func(t *testing.T) {
@@ -384,20 +328,14 @@ func TestVersionCommandFunctionality(t *testing.T) {
 		cmd.Dir = "."
 
 		output, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("Failed to run main with --version: %v", err)
-		}
+		require.NoError(t, err, "running main with --version should succeed")
 
 		outputStr := string(output)
 		// Should produce version output
-		if len(strings.TrimSpace(outputStr)) == 0 {
-			t.Error("--version flag should produce output")
-		}
+		assert.NotEmpty(t, strings.TrimSpace(outputStr), "--version flag should produce output")
 
 		// Should contain "version" in the output
-		if !strings.Contains(outputStr, "version") {
-			t.Errorf("--version output should contain 'version', got: %s", outputStr)
-		}
+		assert.Contains(t, outputStr, "version", "--version output should contain the word 'version'")
 	})
 
 	t.Run("version subcommand and --version flag produce same output", func(t *testing.T) {
@@ -405,23 +343,16 @@ func TestVersionCommandFunctionality(t *testing.T) {
 		cmdVersion := exec.Command("go", "run", ".", "version")
 		cmdVersion.Dir = "."
 		outputVersion, err := cmdVersion.CombinedOutput()
-		if err != nil {
-			t.Fatalf("Failed to run main with version subcommand: %v", err)
-		}
+		require.NoError(t, err, "running main with version subcommand should succeed")
 
 		// Test --version flag
 		cmdFlag := exec.Command("go", "run", ".", "--version")
 		cmdFlag.Dir = "."
 		outputFlag, err := cmdFlag.CombinedOutput()
-		if err != nil {
-			t.Fatalf("Failed to run main with --version flag: %v", err)
-		}
+		require.NoError(t, err, "running main with --version flag should succeed")
 
 		// Both should produce the same output
-		if string(outputVersion) != string(outputFlag) {
-			t.Errorf("version subcommand and --version flag should produce same output.\nSubcommand: %s\nFlag: %s",
-				string(outputVersion), string(outputFlag))
-		}
+		assert.Equal(t, string(outputVersion), string(outputFlag), "version subcommand and --version flag should produce identical output")
 	})
 }
 
@@ -444,28 +375,19 @@ func TestCommandLineIntegration(t *testing.T) {
 			}
 		}
 
-		if len(missingCommands) > 0 {
-			t.Errorf("Missing expected commands: %v", missingCommands)
-		}
+		assert.Empty(t, missingCommands, "all expected commands should be present")
 	})
 
 	t.Run("global flags are configured", func(t *testing.T) {
 		// Test that global flags are properly configured
 		flag := rootCmd.PersistentFlags().Lookup("verbose")
-		if flag == nil {
-			t.Error("verbose flag should be configured")
-		}
-
-		if flag != nil && flag.DefValue != "false" {
-			t.Error("verbose flag should default to false")
-		}
+		require.NotNil(t, flag, "verbose flag should be configured")
+		assert.Equal(t, "false", flag.DefValue, "verbose flag should default to false")
 	})
 
 	t.Run("SilenceUsage is enabled", func(t *testing.T) {
 		// Test that SilenceUsage is set to prevent usage output on application errors
-		if !rootCmd.SilenceUsage {
-			t.Error("SilenceUsage should be true to prevent cluttering terminal output with usage on application errors")
-		}
+		assert.True(t, rootCmd.SilenceUsage, "SilenceUsage should be true to prevent usage output on application errors")
 	})
 }
 
@@ -479,16 +401,12 @@ func TestMCPCommand(t *testing.T) {
 				break
 			}
 		}
-		if !found {
-			t.Error("mcp command should be available")
-		}
+		assert.True(t, found, "mcp command should be available")
 	})
 
 	t.Run("mcp command has inspect subcommand", func(t *testing.T) {
 		mcpCmd, _, _ := rootCmd.Find([]string{"mcp"})
-		if mcpCmd == nil {
-			t.Fatal("mcp command not found")
-		}
+		require.NotNil(t, mcpCmd, "mcp command should be found")
 
 		found := false
 		for _, subCmd := range mcpCmd.Commands() {
@@ -497,30 +415,20 @@ func TestMCPCommand(t *testing.T) {
 				break
 			}
 		}
-		if !found {
-			t.Error("mcp inspect subcommand should be available")
-		}
+		assert.True(t, found, "mcp inspect subcommand should be available")
 	})
 
 	t.Run("mcp inspect command help", func(t *testing.T) {
 		// Test help for nested command
 		mcpCmd, _, _ := rootCmd.Find([]string{"mcp"})
-		if mcpCmd == nil {
-			t.Fatal("mcp command not found")
-		}
+		require.NotNil(t, mcpCmd, "mcp command should be found")
 
 		inspectCmd, _, _ := mcpCmd.Find([]string{"inspect"})
-		if inspectCmd == nil {
-			t.Fatal("mcp inspect command not found")
-		}
+		require.NotNil(t, inspectCmd, "mcp inspect command should be found")
 
 		// Basic validation that command structure is valid
-		if inspectCmd.Use == "" {
-			t.Error("mcp inspect command should have usage text")
-		}
-		if inspectCmd.Short == "" {
-			t.Error("mcp inspect command should have short description")
-		}
+		assert.NotEmpty(t, inspectCmd.Use, "mcp inspect command should have usage text")
+		assert.NotEmpty(t, inspectCmd.Short, "mcp inspect command should have a short description")
 	})
 }
 
@@ -530,9 +438,7 @@ func TestCommandErrorHandling(t *testing.T) {
 		rootCmd.SetArgs([]string{"invalid-command"})
 		err := rootCmd.Execute()
 
-		if err == nil {
-			t.Error("invalid command should produce an error")
-		}
+		assert.Error(t, err, "invalid command should produce an error")
 
 		// With RunE and SilenceErrors, errors are returned but not automatically printed
 		// The main() function is responsible for formatting and printing errors
