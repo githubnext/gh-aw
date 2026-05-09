@@ -928,6 +928,28 @@ const FIREWALL_AUTH_PROVIDER_HOSTS = /** @type {Array<{provider: string, pattern
   { provider: "Google Gemini", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`GEMINI_API_KEY`" },
 ];
 const MAX_EFFECTIVE_TOKENS_FIELDS = new Set(["max_effective_tokens", "maxEffectiveTokens"]);
+const EFFECTIVE_TOKENS_FIELDS = new Set(["effective_tokens", "effectiveTokens"]);
+const EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS = new Set(["effective_tokens_rate_limit_error", "effectiveTokensRateLimitError"]);
+const EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail"]);
+const ET_RATE_LIMIT_PATTERNS = [
+  /effective[\s_-]*tokens?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
+  /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
+  /\b429\b.*(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?)/i,
+];
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function parsePositiveIntegerString(value) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(Math.trunc(value));
+  }
+  if (typeof value === "string" && /^\d+$/.test(value) && Number.parseInt(value, 10) > 0) {
+    return value;
+  }
+  return "";
+}
 
 /**
  * Build the list of registered provider entries from the GH_AW_ENGINE_API_HOSTS and
@@ -1006,12 +1028,8 @@ function parseMaxEffectiveTokensFromAuditEntry(entry) {
     if (!node || typeof node !== "object") continue;
     for (const [key, value] of Object.entries(node)) {
       if (MAX_EFFECTIVE_TOKENS_FIELDS.has(key)) {
-        if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-          return String(Math.trunc(value));
-        }
-        if (typeof value === "string" && /^\d+$/.test(value) && Number.parseInt(value, 10) > 0) {
-          return value;
-        }
+        const parsed = parsePositiveIntegerString(value);
+        if (parsed) return parsed;
       }
       if (value && typeof value === "object") {
         stack.push(value);
@@ -1020,6 +1038,52 @@ function parseMaxEffectiveTokensFromAuditEntry(entry) {
   }
 
   return "";
+}
+
+/**
+ * Parse effective token error metadata from a single AWF audit log entry object.
+ * Accepts both snake_case and camelCase field names.
+ *
+ * @param {unknown} entry
+ * @returns {{effectiveTokens: string, rateLimitError: boolean}}
+ */
+function parseEffectiveTokensErrorInfoFromAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return { effectiveTokens: "", rateLimitError: false };
+
+  /** @type {unknown[]} */
+  const stack = [entry];
+  let effectiveTokens = "";
+  let rateLimitError = false;
+
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+
+    for (const [key, value] of Object.entries(node)) {
+      if (EFFECTIVE_TOKENS_FIELDS.has(key)) {
+        const parsed = parsePositiveIntegerString(value);
+        if (parsed) effectiveTokens = parsed;
+      }
+
+      if (EFFECTIVE_TOKENS_RATE_LIMIT_ERROR_FIELDS.has(key)) {
+        if (value === true || value === "true" || value === 1 || value === "1") {
+          rateLimitError = true;
+        }
+      }
+
+      if (EFFECTIVE_TOKENS_RATE_LIMIT_TEXT_FIELDS.has(key) && typeof value === "string") {
+        if (ET_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) {
+          rateLimitError = true;
+        }
+      }
+
+      if (value && typeof value === "object") {
+        stack.push(value);
+      }
+    }
+  }
+
+  return { effectiveTokens, rateLimitError };
 }
 
 /**
@@ -1054,6 +1118,43 @@ function parseMaxEffectiveTokensFromAuditLog(auditJsonlPathOverride) {
     return parsedMaxEffectiveTokens;
   } catch {
     return "";
+  }
+}
+
+/**
+ * Parse effective token error metadata from AWF firewall audit JSONL.
+ *
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {{effectiveTokens: string, rateLimitError: boolean}}
+ */
+function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
+  try {
+    const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
+    if (!fs.existsSync(auditJsonlPath)) return { effectiveTokens: "", rateLimitError: false };
+
+    const content = fs.readFileSync(auditJsonlPath, "utf8");
+    if (!content.trim()) return { effectiveTokens: "", rateLimitError: false };
+
+    let parsedEffectiveTokens = "";
+    let hasRateLimitError = false;
+
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed[0] !== "{") continue;
+
+      try {
+        const entry = JSON.parse(trimmed);
+        const parsed = parseEffectiveTokensErrorInfoFromAuditEntry(entry);
+        if (parsed.effectiveTokens) parsedEffectiveTokens = parsed.effectiveTokens;
+        if (parsed.rateLimitError) hasRateLimitError = true;
+      } catch {
+        // ignore malformed lines
+      }
+    }
+
+    return { effectiveTokens: parsedEffectiveTokens, rateLimitError: hasRateLimitError };
+  } catch {
+    return { effectiveTokens: "", rateLimitError: false };
   }
 }
 
@@ -1409,9 +1510,10 @@ async function main() {
     const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
-    const effectiveTokens = process.env.GH_AW_EFFECTIVE_TOKENS || "";
+    const parsedEffectiveTokensErrorInfo = parseEffectiveTokensErrorInfoFromAuditLog();
+    const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || process.env.GH_AW_EFFECTIVE_TOKENS || "";
     const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || process.env.GH_AW_MAX_EFFECTIVE_TOKENS || "";
-    const effectiveTokensRateLimitError = process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
+    const effectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
@@ -2125,6 +2227,7 @@ module.exports = {
   buildCredentialAuthErrorContext,
   parseFirewallAuthErrors,
   parseMaxEffectiveTokensFromAuditLog,
+  parseEffectiveTokensErrorInfoFromAuditLog,
   getActionFailureIssueExpiresHours,
   hasAgentTerminalReasonCompleted,
 };
