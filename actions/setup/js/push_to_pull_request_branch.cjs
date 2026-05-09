@@ -8,6 +8,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { updateActivationCommentWithCommit, updateActivationComment } = require("./update_activation_comment.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR, checkBranchPushable } = require("./pr_helpers.cjs");
@@ -471,13 +472,18 @@ async function main(config = {}) {
       });
 
       try {
-        const { data: issue } = await githubClient.rest.issues.create({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          title: issueTitle,
-          body: issueBody,
-          labels: ["agentic-workflows"],
-        });
+        const { data: issue } = await withRetry(
+          () =>
+            githubClient.rest.issues.create({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ["agentic-workflows"],
+            }),
+          RATE_LIMIT_RETRY_CONFIG,
+          `create manifest-protection review issue in ${repoParts.owner}/${repoParts.repo}`
+        );
         core.info(`Created manifest-protection review issue #${issue.number}: ${issue.html_url}`);
         await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
         return {

@@ -2114,3 +2114,170 @@ describe("create_pull_request - threat detection caution", () => {
     expect((between.match(/\n/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("create_pull_request - rate-limit retry", () => {
+  let originalEnv;
+  let tempDir;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-rate-limit-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42" } }),
+          requestReviewers: vi.fn().mockResolvedValue({}),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          create: vi.fn().mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } }),
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+
+    global.context = {
+      eventName: "issues",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+      runId: "12345",
+    };
+
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockImplementation(async (program, args) => {
+        if (program === "git" && args[0] === "rev-list") {
+          return { exitCode: 0, stdout: "1", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "main", stderr: "" };
+      }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should retry PR creation on rate limit error and succeed", async () => {
+    vi.useFakeTimers();
+    try {
+      global.github.rest.pulls.create
+        .mockRejectedValueOnce(Object.assign(new Error("API rate limit exceeded"), { status: 403, response: { headers: { "x-ratelimit-remaining": "0" }, status: 403 } }))
+        .mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42" } });
+
+      const { main } = require("./create_pull_request.cjs");
+      const handler = await main({ allow_empty: true });
+
+      const resultPromise = handler({ title: "Test PR", body: "Test body" }, {});
+
+      await vi.runAllTimersAsync();
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(result.pull_request_number).toBe(42);
+      // 1 initial (rate-limited) + 1 retry (succeeds) = 2 calls total
+      expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(2);
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("create pull request"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should fall back to issue when PR creation fails after all rate-limit retries", async () => {
+    vi.useFakeTimers();
+    try {
+      const rateLimitError = Object.assign(new Error("API rate limit exceeded"), { status: 403, response: { headers: { "x-ratelimit-remaining": "0" }, status: 403 } });
+      global.github.rest.pulls.create.mockRejectedValue(rateLimitError);
+      global.github.rest.issues.create.mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } });
+
+      const { main } = require("./create_pull_request.cjs");
+      const handler = await main({ allow_empty: true });
+
+      const resultPromise = handler({ title: "Test PR", body: "Test body" }, {});
+
+      await vi.runAllTimersAsync();
+
+      const result = await resultPromise;
+
+      // Should fall back to issue creation after PR retries are exhausted
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+      expect(result.issue_number).toBe(99);
+      // 1 initial + 5 retries = 6 total PR creation attempts (RATE_LIMIT_RETRY_CONFIG.maxRetries = 5)
+      expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(6);
+      expect(global.github.rest.issues.create).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should retry fallback issue creation on rate limit error and succeed", async () => {
+    vi.useFakeTimers();
+    try {
+      // PR creation fails with a non-rate-limit error to trigger fallback immediately
+      global.github.rest.pulls.create.mockRejectedValue(new Error("Some PR creation error"));
+      // Fallback issue creation first fails with rate limit, then succeeds
+      global.github.rest.issues.create
+        .mockRejectedValueOnce(Object.assign(new Error("API rate limit exceeded"), { status: 403, response: { headers: { "x-ratelimit-remaining": "0" }, status: 403 } }))
+        .mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } });
+
+      const { main } = require("./create_pull_request.cjs");
+      const handler = await main({ allow_empty: true });
+
+      const resultPromise = handler({ title: "Test PR", body: "Test body" }, {});
+
+      await vi.runAllTimersAsync();
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+      expect(result.issue_number).toBe(99);
+      // Fallback issue: 1 rate-limited attempt + 1 successful retry = 2 calls
+      expect(global.github.rest.issues.create).toHaveBeenCalledTimes(2);
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("create fallback issue"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

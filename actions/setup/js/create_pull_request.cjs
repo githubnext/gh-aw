@@ -30,7 +30,7 @@ const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments, getPromptPath } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_ASSIGNEES } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
-const { withRetry, isTransientError } = require("./error_recovery.cjs");
+const { withRetry, isTransientError, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
@@ -195,9 +195,11 @@ function sanitizeFallbackAssignees(assignees) {
 }
 
 /**
- * Creates a fallback GitHub issue, retrying without assignees if the API rejects them.
+ * Creates a fallback GitHub issue, retrying on rate-limit errors (with exponential back-off)
+ * and retrying without assignees if the API rejects them.
  * This ensures fallback issue creation remains reliable even if an assignee username
- * is invalid or the repository does not have that collaborator.
+ * is invalid, the repository does not have that collaborator, or the installation token
+ * quota is temporarily exhausted.
  * @param {object} githubClient - Authenticated GitHub client
  * @param {{owner: string, repo: string}} repoParts - Repository owner and name
  * @param {string} title - Issue title
@@ -216,19 +218,25 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
     ...(assignees && assignees.length > 0 && { assignees }),
   };
 
-  try {
-    return await githubClient.rest.issues.create(payload);
-  } catch (error) {
-    const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
-    const message = getErrorMessage(error).toLowerCase();
-    const isAssigneeError = status === 422 && (message.includes("assignee") || message.includes("assignees") || message.includes("unprocessable"));
-    if (isAssigneeError && assignees && assignees.length > 0) {
-      core.warning(`Fallback issue creation failed due to assignee error, retrying without assignees: ${getErrorMessage(error)}`);
-      const { assignees: _removed, ...payloadWithoutAssignees } = payload;
-      return await githubClient.rest.issues.create(payloadWithoutAssignees);
-    }
-    throw error;
-  }
+  return withRetry(
+    async () => {
+      try {
+        return await githubClient.rest.issues.create(payload);
+      } catch (error) {
+        const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+        const message = getErrorMessage(error).toLowerCase();
+        const isAssigneeError = status === 422 && (message.includes("assignee") || message.includes("assignees") || message.includes("unprocessable"));
+        if (isAssigneeError && assignees && assignees.length > 0) {
+          core.warning(`Fallback issue creation failed due to assignee error, retrying without assignees: ${getErrorMessage(error)}`);
+          const { assignees: _removed, ...payloadWithoutAssignees } = payload;
+          return await githubClient.rest.issues.create(payloadWithoutAssignees);
+        }
+        throw error;
+      }
+    },
+    RATE_LIMIT_RETRY_CONFIG,
+    `create fallback issue in ${repoParts.owner}/${repoParts.repo}`
+  );
 }
 
 /**
@@ -1743,15 +1751,20 @@ ${patchPreview}`;
 
     // Try to create the pull request, with fallback to issue creation
     try {
-      const { data: pullRequest } = await githubClient.rest.pulls.create({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        title: title,
-        body: body,
-        head: branchName,
-        base: baseBranch,
-        draft: draft,
-      });
+      const { data: pullRequest } = await withRetry(
+        () =>
+          githubClient.rest.pulls.create({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            title: title,
+            body: body,
+            head: branchName,
+            base: baseBranch,
+            draft: draft,
+          }),
+        RATE_LIMIT_RETRY_CONFIG,
+        `create pull request in ${repoParts.owner}/${repoParts.repo}`
+      );
 
       core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
 
