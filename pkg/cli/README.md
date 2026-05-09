@@ -445,24 +445,24 @@ err := cli.RunHealth(cli.HealthConfig{
 ## Dependencies
 
 **Internal**:
-- `pkg/workflow` — workflow compilation and data types
-- `pkg/parser` — markdown frontmatter parsing
-- `pkg/console` — terminal output formatting
-- `pkg/logger` — structured debug logging
-- `pkg/constants` — engine names, job names, feature flags
-- `pkg/agentdrain` — Drain log anomaly detection for audit analysis
-- `pkg/envutil` — environment variable reading with bounds validation
-- `pkg/semverutil` — semantic version comparison for dependency checks
-- `pkg/sliceutil` — slice utilities
-- `pkg/stats` — incremental statistics for health metrics
-- `pkg/styles` — terminal color styles and lipgloss configuration
-- `pkg/timeutil` — human-readable duration formatting
-- `pkg/tty` — terminal detection
-- `pkg/types` — shared MCP server configuration types
-- `pkg/fileutil` — file system helpers
-- `pkg/gitutil` — Git and GitHub CLI helpers
-- `pkg/repoutil` — repository name parsing and normalization
-- `pkg/stringutil` — string manipulation and sanitization utilities
+- `github.com/github/gh-aw/pkg/workflow` — workflow compilation and data types
+- `github.com/github/gh-aw/pkg/parser` — markdown frontmatter parsing
+- `github.com/github/gh-aw/pkg/console` — terminal output formatting
+- `github.com/github/gh-aw/pkg/logger` — structured debug logging
+- `github.com/github/gh-aw/pkg/constants` — engine names, job names, feature flags
+- `github.com/github/gh-aw/pkg/agentdrain` — Drain log anomaly detection for audit analysis
+- `github.com/github/gh-aw/pkg/envutil` — environment variable reading with bounds validation
+- `github.com/github/gh-aw/pkg/semverutil` — semantic version comparison for dependency checks
+- `github.com/github/gh-aw/pkg/sliceutil` — slice utilities
+- `github.com/github/gh-aw/pkg/stats` — incremental statistics for health metrics
+- `github.com/github/gh-aw/pkg/styles` — terminal color styles and lipgloss configuration
+- `github.com/github/gh-aw/pkg/timeutil` — human-readable duration formatting
+- `github.com/github/gh-aw/pkg/tty` — terminal detection
+- `github.com/github/gh-aw/pkg/types` — shared MCP server configuration types
+- `github.com/github/gh-aw/pkg/fileutil` — file system helpers
+- `github.com/github/gh-aw/pkg/gitutil` — Git and GitHub CLI helpers
+- `github.com/github/gh-aw/pkg/repoutil` — repository name parsing and normalization
+- `github.com/github/gh-aw/pkg/stringutil` — string manipulation and sanitization utilities
 
 **External**:
 - `github.com/spf13/cobra` — CLI framework

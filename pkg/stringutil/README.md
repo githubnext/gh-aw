@@ -216,7 +216,7 @@ if err := stringutil.ValidateCopilotPAT(token); err != nil {
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/logger` — debug logging
 
 ## Design Notes
 

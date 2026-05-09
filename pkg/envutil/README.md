@@ -46,8 +46,8 @@ timeout := envutil.GetIntFromEnv("GH_AW_TIMEOUT", 60, 1, 3600, nil)
 ## Dependencies
 
 **Internal**:
-- `pkg/console` — warning message formatting
-- `pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/console` — warning message formatting
+- `github.com/github/gh-aw/pkg/logger` — debug logging
 
 ## Design Notes
 

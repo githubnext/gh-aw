@@ -507,17 +507,17 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 ## Dependencies
 
 **Internal**:
-- `pkg/parser` — frontmatter extraction and import processing
-- `pkg/constants` — engine names, feature flags, job/step IDs
-- `pkg/console` — terminal formatting
-- `pkg/logger` — debug logging
-- `pkg/actionpins` — action pin data and pin lookup helpers
-- `pkg/jsonutil` — compact JSON marshaling for AWF configuration serialization
-- `pkg/semverutil` — semantic version helpers
-- `pkg/typeutil` — safe type conversions
-- `pkg/tty` — terminal capability detection
-- `pkg/stringutil`, `pkg/fileutil`, `pkg/gitutil`, `pkg/sliceutil` — utilities
-- `pkg/types` — shared MCP types
+- `github.com/github/gh-aw/pkg/parser` — frontmatter extraction and import processing
+- `github.com/github/gh-aw/pkg/constants` — engine names, feature flags, job/step IDs
+- `github.com/github/gh-aw/pkg/console` — terminal formatting
+- `github.com/github/gh-aw/pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/actionpins` — action pin data and pin lookup helpers
+- `github.com/github/gh-aw/pkg/jsonutil` — compact JSON marshaling for AWF configuration serialization
+- `github.com/github/gh-aw/pkg/semverutil` — semantic version helpers
+- `github.com/github/gh-aw/pkg/typeutil` — safe type conversions
+- `github.com/github/gh-aw/pkg/tty` — terminal capability detection
+- `github.com/github/gh-aw/pkg/stringutil`, `github.com/github/gh-aw/pkg/fileutil`, `github.com/github/gh-aw/pkg/gitutil`, `github.com/github/gh-aw/pkg/sliceutil` — utilities
+- `github.com/github/gh-aw/pkg/types` — shared MCP types
 
 **External**:
 - `github.com/goccy/go-yaml` — YAML 1.1/1.2 compatible marshaling

@@ -863,9 +863,9 @@ if err != nil || !confirmed {
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — debug-level console logging
-- `pkg/styles` — adaptive color constants and pre-configured lipgloss styles
-- `pkg/tty` — terminal detection for spinner and progress bar
+- `github.com/github/gh-aw/pkg/logger` — debug-level console logging
+- `github.com/github/gh-aw/pkg/styles` — adaptive color constants and pre-configured lipgloss styles
+- `github.com/github/gh-aw/pkg/tty` — terminal detection for spinner and progress bar
 
 **External**:
 - `charm.land/lipgloss/v2` — terminal styling and layout

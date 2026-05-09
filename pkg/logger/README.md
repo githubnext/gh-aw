@@ -222,8 +222,8 @@ slogLogger.Warn("something unusual happened", "count", 42)
 ## Dependencies
 
 **Internal**:
-- `pkg/timeutil` — time-diff formatting for log output
-- `pkg/tty` — terminal detection for color support
+- `github.com/github/gh-aw/pkg/timeutil` — time-diff formatting for log output
+- `github.com/github/gh-aw/pkg/tty` — terminal detection for color support
 
 ## Implementation Notes
 

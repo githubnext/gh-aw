@@ -252,16 +252,16 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 ## Dependencies
 
 **Internal**:
-- `pkg/console` — parser-facing warning/error message formatting
-- `pkg/constants` — shared parser constants and default values
-- `pkg/fileutil` — file existence and path helper utilities
-- `pkg/gitutil` — Git remote and host detection helpers
-- `pkg/jsonutil` — compact JSON marshaling for frontmatter hash computation
-- `pkg/types` — `BaseMCPServerConfig`
-- `pkg/typeutil` — safe type conversion helpers for dynamic frontmatter
-- `pkg/logger` — debug logging
-- `pkg/sliceutil` — slice helper utilities for validation and merging
-- `pkg/stringutil` — string normalization and ANSI/format helpers
+- `github.com/github/gh-aw/pkg/console` — parser-facing warning/error message formatting
+- `github.com/github/gh-aw/pkg/constants` — shared parser constants and default values
+- `github.com/github/gh-aw/pkg/fileutil` — file existence and path helper utilities
+- `github.com/github/gh-aw/pkg/gitutil` — Git remote and host detection helpers
+- `github.com/github/gh-aw/pkg/jsonutil` — compact JSON marshaling for frontmatter hash computation
+- `github.com/github/gh-aw/pkg/types` — `BaseMCPServerConfig`
+- `github.com/github/gh-aw/pkg/typeutil` — safe type conversion helpers for dynamic frontmatter
+- `github.com/github/gh-aw/pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/sliceutil` — slice helper utilities for validation and merging
+- `github.com/github/gh-aw/pkg/stringutil` — string normalization and ANSI/format helpers
 
 **External**:
 - `github.com/santhosh-tekuri/jsonschema/v6` — JSON schema validation
