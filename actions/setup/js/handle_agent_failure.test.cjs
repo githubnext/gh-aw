@@ -1925,6 +1925,29 @@ describe("handle_agent_failure", () => {
       });
     });
 
+    it("uses firewall reflect ET totals to suppress false ET budget exhaustion signals", () => {
+      const firewallDir = path.join(tmpDir, "sandbox", "firewall");
+      fs.mkdirSync(firewallDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(firewallDir, "awf-reflect.json"),
+        JSON.stringify({
+          effective_tokens: {
+            total_effective_tokens: 1355879.9999999995,
+            max_effective_tokens: 10000000,
+          },
+        })
+      );
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      process.env.GH_AW_EFFECTIVE_TOKENS = "12202920";
+      process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR = "true";
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "1355879",
+        maxEffectiveTokens: "10000000",
+        effectiveTokensRateLimitError: false,
+      });
+    });
+
     it("keeps ET budget exhaustion when usage meets the configured maximum", () => {
       const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
       fs.mkdirSync(auditDir, { recursive: true });

@@ -17,6 +17,7 @@ const EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS = [
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
   /\b429\b[\s\S]{0,120}(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?|et budget)/i,
 ];
+const AWF_REFLECT_RELATIVE_PATH = path.join("sandbox", "firewall", "awf-reflect.json");
 
 /**
  * @param {unknown} value
@@ -111,6 +112,45 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
 
   // Default to the latest expected location/name.
   return path.join(candidateBases[0] || "/tmp/gh-aw/sandbox/firewall/audit", "log.jsonl");
+}
+
+/**
+ * Resolve the AWF firewall reflect file path.
+ *
+ * @returns {string}
+ */
+function resolveFirewallReflectPath() {
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  if (agentOutputFile) {
+    return path.join(path.dirname(agentOutputFile), AWF_REFLECT_RELATIVE_PATH);
+  }
+  return "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
+}
+
+/**
+ * Parse effective token totals from AWF firewall reflect JSON.
+ *
+ * @returns {{effectiveTokens: string, maxEffectiveTokens: string}}
+ */
+function parseEffectiveTokensFromReflectFile() {
+  try {
+    const reflectPath = resolveFirewallReflectPath();
+    if (!fs.existsSync(reflectPath)) {
+      return { effectiveTokens: "", maxEffectiveTokens: "" };
+    }
+
+    const content = fs.readFileSync(reflectPath, "utf8");
+    if (!content.trim()) {
+      return { effectiveTokens: "", maxEffectiveTokens: "" };
+    }
+
+    const parsed = JSON.parse(content);
+    const effectiveTokens = parsePositiveIntegerString(parsed?.effective_tokens?.total_effective_tokens);
+    const maxEffectiveTokens = parsePositiveIntegerString(parsed?.effective_tokens?.max_effective_tokens);
+    return { effectiveTokens, maxEffectiveTokens };
+  } catch {
+    return { effectiveTokens: "", maxEffectiveTokens: "" };
+  }
 }
 
 /**
@@ -268,11 +308,12 @@ function parseEffectiveTokensErrorInfoFromAuditLog(auditJsonlPathOverride) {
  */
 function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensErrorInfo = parseEffectiveTokensErrorInfoFromAuditLog();
+  const parsedEffectiveTokensFromReflect = parseEffectiveTokensFromReflectFile();
   // Treat invalid env fallbacks as missing so they do not produce misleading ET math.
   const envEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_EFFECTIVE_TOKENS);
   const envMaxEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
-  const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || envEffectiveTokens || "";
-  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || envMaxEffectiveTokens || "";
+  const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
+  const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
 
