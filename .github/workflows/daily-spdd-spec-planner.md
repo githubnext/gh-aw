@@ -93,6 +93,7 @@ Use cache-memory at `/tmp/gh-aw/cache-memory/spdd-daily/rotation.json` to rotate
 - Process up to 5 files per run
 - Continue from next file on the next run
 - If cache is missing, initialize from the start of the sorted file list
+- Persist rotation state using the `write` tool at that exact path (do not use shell write commands for cache updates)
 
 ### SPDD Evaluation Rules
 
