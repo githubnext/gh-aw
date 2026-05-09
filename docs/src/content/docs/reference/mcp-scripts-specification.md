@@ -451,7 +451,7 @@ Retry behavior is caller-controlled and uses the `data.recoverable` signal from 
    - Initial delay: 250 ms (or higher)
    - Backoff multiplier: 2x
    - Maximum delay: 5 s
-4. The default retry budget for recoverable failures **SHOULD** be at most 3 attempts total
+4. The default retry budget for recoverable failures **SHOULD NOT** exceed 3 attempts total
    (initial attempt + up to 2 retries) unless workflow-specific reliability requirements justify
    a higher budget.
 5. Because tool invocations may be non-idempotent, callers **MUST** treat retry safety as a

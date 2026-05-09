@@ -365,6 +365,9 @@ implementation (`pkg/parser/frontmatter_hash.go`) and the JavaScript implementat
 
 Expected hash: `4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46`
 
+This vector represents an intentionally empty frontmatter block (`---` followed immediately by
+`---`) rather than a file with no frontmatter delimiter.
+
 ```yaml
 ---
 ---
