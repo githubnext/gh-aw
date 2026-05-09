@@ -5,6 +5,8 @@ package fileutil
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,6 +16,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type stubSyncWriteCloser struct {
+	buf        bytes.Buffer
+	writeErr   error
+	syncErr    error
+	closeErr   error
+	closeCalls int
+}
+
+func (s *stubSyncWriteCloser) Write(p []byte) (int, error) {
+	if s.writeErr != nil {
+		return 0, s.writeErr
+	}
+	return s.buf.Write(p)
+}
+
+func (s *stubSyncWriteCloser) Sync() error {
+	return s.syncErr
+}
+
+func (s *stubSyncWriteCloser) Close() error {
+	s.closeCalls++
+	return s.closeErr
+}
+
+func (s *stubSyncWriteCloser) String() string {
+	return s.buf.String()
+}
 
 func TestValidateAbsolutePath(t *testing.T) {
 	tests := []struct {
@@ -341,6 +371,37 @@ func TestCopyFile(t *testing.T) {
 		err := CopyFile(src, dst)
 		require.Error(t, err, "CopyFile should return an error when the write fails")
 		require.False(t, FileExists(dst), "Destination symlink should be removed after io.Copy failure")
+	})
+}
+
+func TestCopyFileContents(t *testing.T) {
+	t.Run("returns close error after successful sync", func(t *testing.T) {
+		closeErr := errors.New("close failed")
+		out := &stubSyncWriteCloser{closeErr: closeErr}
+
+		err := copyFileContents(io.NopCloser(strings.NewReader("hello")), out, filepath.Join(t.TempDir(), "dst.txt"))
+
+		require.ErrorIs(t, err, closeErr)
+		assert.Equal(t, 1, out.closeCalls, "destination should be closed once")
+		assert.Equal(t, "hello", out.String(), "content should be copied before close")
+	})
+
+	t.Run("preserves copy error and closes destination once", func(t *testing.T) {
+		writeErr := errors.New("write failed")
+		closeErr := errors.New("close failed")
+		out := &stubSyncWriteCloser{
+			writeErr: writeErr,
+			closeErr: closeErr,
+		}
+
+		dst := filepath.Join(t.TempDir(), "dst.txt")
+		require.NoError(t, os.WriteFile(dst, []byte("partial"), 0600), "Should create destination placeholder")
+
+		err := copyFileContents(io.NopCloser(strings.NewReader("hello")), out, dst)
+
+		require.ErrorIs(t, err, writeErr)
+		assert.Equal(t, 1, out.closeCalls, "destination should be closed once during cleanup")
+		assert.NoFileExists(t, dst, "partial destination should be removed after copy failure")
 	})
 }
 

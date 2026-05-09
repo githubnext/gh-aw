@@ -116,6 +116,29 @@ func IsDirEmpty(path string) bool {
 	return len(files) == 0
 }
 
+type syncWriteCloser interface {
+	io.Writer
+	Sync() error
+	Close() error
+}
+
+func copyFileContents(in io.ReadCloser, out syncWriteCloser, dst string) (err error) {
+	defer func() {
+		if closeErr := out.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	if _, err = io.Copy(out, in); err != nil {
+		if removeErr := os.Remove(dst); removeErr != nil {
+			log.Printf("Failed to remove partial destination file during cleanup: %s", removeErr)
+		}
+		return err
+	}
+
+	return out.Sync()
+}
+
 // CopyFile copies a file from src to dst using buffered IO.
 func CopyFile(src, dst string) error {
 	log.Printf("Copying file: src=%s, dst=%s", src, dst)
@@ -131,17 +154,11 @@ func CopyFile(src, dst string) error {
 		log.Printf("Failed to create destination file: %s", err)
 		return err
 	}
-	defer func() { _ = out.Close() }()
-
-	if _, err = io.Copy(out, in); err != nil {
-		if closeErr := out.Close(); closeErr != nil {
-			log.Printf("Failed to close destination file during cleanup: %s", closeErr)
-		}
-		if removeErr := os.Remove(dst); removeErr != nil {
-			log.Printf("Failed to remove partial destination file during cleanup: %s", removeErr)
-		}
+	err = copyFileContents(in, out, dst)
+	if err != nil {
 		return err
 	}
+
 	log.Printf("File copied successfully: src=%s, dst=%s", src, dst)
-	return out.Sync()
+	return nil
 }
