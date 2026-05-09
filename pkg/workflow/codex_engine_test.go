@@ -78,6 +78,14 @@ func TestCodexEngine(t *testing.T) {
 		t.Errorf("Expected command to contain 'codex' in step content:\n%s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, "command -v node") {
+		t.Errorf("Expected command to resolve node via PATH in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "node runtime missing on this runner — check runtimes.node in workflow YAML") {
+		t.Errorf("Expected clear node runtime error guidance in step content:\n%s", stepContent)
+	}
+
 	if !strings.Contains(stepContent, "exec") {
 		t.Errorf("Expected command to contain 'exec' in step content:\n%s", stepContent)
 	}

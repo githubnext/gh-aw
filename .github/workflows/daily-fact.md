@@ -18,6 +18,9 @@ engine:
 strict: true
 timeout-minutes: 15
 runs-on: aw-gpu-runner-T4
+runtimes:
+  node:
+    version: "24"
 inlined-imports: true
 network:
   allowed:
