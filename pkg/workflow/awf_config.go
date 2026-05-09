@@ -10,6 +10,8 @@
 // # Config File Schema
 //
 // The generated config file follows the AWF config file format:
+// Cross-reference: /specs/awf-config-sources-spec.md documents the canonical
+// gh-aw-firewall spec/schema sources that MUST be checked when evolving mappings.
 //
 //	{
 //	  "$schema": "https://github.com/github/gh-aw-firewall/releases/download/vX.Y.Z/awf-config.schema.json",
