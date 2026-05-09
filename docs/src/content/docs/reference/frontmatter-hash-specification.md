@@ -361,8 +361,57 @@ Validation status: Each vector hash is verified to match in both implementations
 implementation (`pkg/parser/frontmatter_hash.go`) and the JavaScript implementation
 (`actions/setup/js/frontmatter_hash.cjs`) for the same input.
 
-| Vector ID | Input | Expected SHA-256 hash |
-|---|---|---|
-| FH-TV-001 | `---\n---\n\n# Empty Workflow` | `4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46` |
-| FH-TV-002 | `---\nengine: copilot\ndescription: Test workflow\non:\n  schedule: daily\n---\n\n# Test Workflow` | `b9def9907e3328e2e03e8c47c315723df39788f251627313b1a984bb61b9cbce` |
-| FH-TV-003 | `---\nengine: claude\ndescription: Complex workflow\ntracker-id: complex-test\ntimeout-minutes: 30\non:\n  schedule: daily\n  workflow_dispatch: true\npermissions:\n  contents: read\n  actions: read\ntools:\n  playwright:\n    version: v1.41.0\nlabels:\n  - test\n  - complex\nbots:\n  - copilot\n---\n\n# Complex Workflow` | `8c63a05ef42cbfaff9be87a06257282cb4dcb952f71481d9d65ec3037003dbe8` |
+### FH-TV-001
+
+Expected hash: `4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46`
+
+```yaml
+---
+---
+
+# Empty Workflow
+```
+
+### FH-TV-002
+
+Expected hash: `b9def9907e3328e2e03e8c47c315723df39788f251627313b1a984bb61b9cbce`
+
+```yaml
+---
+engine: copilot
+description: Test workflow
+on:
+  schedule: daily
+---
+
+# Test Workflow
+```
+
+### FH-TV-003
+
+Expected hash: `8c63a05ef42cbfaff9be87a06257282cb4dcb952f71481d9d65ec3037003dbe8`
+
+```yaml
+---
+engine: claude
+description: Complex workflow
+tracker-id: complex-test
+timeout-minutes: 30
+on:
+  schedule: daily
+  workflow_dispatch: true
+permissions:
+  contents: read
+  actions: read
+tools:
+  playwright:
+    version: v1.41.0
+labels:
+  - test
+  - complex
+bots:
+  - copilot
+---
+
+# Complex Workflow
+```
