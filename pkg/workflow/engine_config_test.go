@@ -364,6 +364,27 @@ func TestExtractEngineConfig_EngineAuthMapsToAWFEnv(t *testing.T) {
 	assert.Equal(t, "public", config.Env["AWF_AUTH_AZURE_CLOUD"])
 }
 
+func TestExtractEngineConfig_EngineEnvTakesPrecedenceOverEngineAuth(t *testing.T) {
+	compiler := NewCompiler()
+	_, config := compiler.ExtractEngineConfig(map[string]any{
+		"engine": map[string]any{
+			"id": "copilot",
+			"env": map[string]any{
+				"AWF_AUTH_TYPE":          "static",
+				"AWF_AUTH_OIDC_AUDIENCE": "from-engine-env",
+			},
+			"auth": map[string]any{
+				"type":     "github-oidc",
+				"audience": "from-engine-auth",
+			},
+		},
+	})
+
+	assert.NotNil(t, config)
+	assert.Equal(t, "static", config.Env["AWF_AUTH_TYPE"])
+	assert.Equal(t, "from-engine-env", config.Env["AWF_AUTH_OIDC_AUDIENCE"])
+}
+
 func TestCompileWorkflowWithExtendedEngine(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "extended-engine-test")

@@ -134,7 +134,7 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
-	// Emit warning if id-token: write permission is detected
+	// Enforce required id-token: write permission for engine.auth.type=github-oidc.
 	if err := validateEngineAuthPermissions(workflowData, workflowPermissions); err != nil {
 		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}

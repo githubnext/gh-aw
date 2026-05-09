@@ -544,7 +544,7 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 }
 
 // applyEngineAuthEnv populates config.Env with AWF_AUTH_* environment variables
-// derived from config.Auth.
+// derived from config.Auth. Existing config.Env values take precedence.
 func applyEngineAuthEnv(config *EngineConfig) {
 	if config == nil || config.Auth == nil {
 		return
@@ -554,22 +554,34 @@ func applyEngineAuthEnv(config *EngineConfig) {
 	}
 
 	if config.Auth.Type != "" {
-		config.Env["AWF_AUTH_TYPE"] = config.Auth.Type
+		if _, exists := config.Env["AWF_AUTH_TYPE"]; !exists {
+			config.Env["AWF_AUTH_TYPE"] = config.Auth.Type
+		}
 	}
 	if config.Auth.Audience != "" {
-		config.Env["AWF_AUTH_OIDC_AUDIENCE"] = config.Auth.Audience
+		if _, exists := config.Env["AWF_AUTH_OIDC_AUDIENCE"]; !exists {
+			config.Env["AWF_AUTH_OIDC_AUDIENCE"] = config.Auth.Audience
+		}
 	}
 	if config.Auth.AzureTenantID != "" {
-		config.Env["AWF_AUTH_AZURE_TENANT_ID"] = config.Auth.AzureTenantID
+		if _, exists := config.Env["AWF_AUTH_AZURE_TENANT_ID"]; !exists {
+			config.Env["AWF_AUTH_AZURE_TENANT_ID"] = config.Auth.AzureTenantID
+		}
 	}
 	if config.Auth.AzureClientID != "" {
-		config.Env["AWF_AUTH_AZURE_CLIENT_ID"] = config.Auth.AzureClientID
+		if _, exists := config.Env["AWF_AUTH_AZURE_CLIENT_ID"]; !exists {
+			config.Env["AWF_AUTH_AZURE_CLIENT_ID"] = config.Auth.AzureClientID
+		}
 	}
 	if config.Auth.AzureScope != "" {
-		config.Env["AWF_AUTH_AZURE_SCOPE"] = config.Auth.AzureScope
+		if _, exists := config.Env["AWF_AUTH_AZURE_SCOPE"]; !exists {
+			config.Env["AWF_AUTH_AZURE_SCOPE"] = config.Auth.AzureScope
+		}
 	}
 	if config.Auth.AzureCloud != "" {
-		config.Env["AWF_AUTH_AZURE_CLOUD"] = config.Auth.AzureCloud
+		if _, exists := config.Env["AWF_AUTH_AZURE_CLOUD"]; !exists {
+			config.Env["AWF_AUTH_AZURE_CLOUD"] = config.Auth.AzureCloud
+		}
 	}
 }
 
