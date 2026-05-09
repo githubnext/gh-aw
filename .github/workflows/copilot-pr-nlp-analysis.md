@@ -92,6 +92,7 @@ Generate a daily NLP-based analysis report of Copilot-created PRs merged within 
 
 - Python analysis dependencies are already installed by pre-agent workflow steps.
 - **Do NOT run any `pip install` commands in agent turns.**
+- If an import unexpectedly fails, report the missing package in the output and continue with reduced analysis instead of installing dependencies in agent turns.
 - Run Python scripts with `/tmp/gh-aw/venv/bin/python3` to use the preinstalled environment.
 
 ## Task Overview
