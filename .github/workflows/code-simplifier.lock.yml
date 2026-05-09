@@ -99,6 +99,8 @@ jobs:
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+      setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
+      setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
     steps:
@@ -116,6 +118,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Code Simplifier"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/code-simplifier.lock.yml@${{ github.ref }}
@@ -363,6 +366,8 @@ jobs:
       model_not_supported_error: ${{ steps.detect-copilot-errors.outputs.model_not_supported_error || 'false' }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
+      setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
+      setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
@@ -379,6 +384,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Code Simplifier"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/code-simplifier.lock.yml@${{ github.ref }}
@@ -996,6 +1002,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Code Simplifier"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/code-simplifier.lock.yml@${{ github.ref }}
@@ -1147,6 +1154,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Code Simplifier"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/code-simplifier.lock.yml@${{ github.ref }}
@@ -1325,6 +1333,8 @@ jobs:
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_skip_if_match.outputs.skip_check_ok == 'true' }}
       matched_command: ''
+      setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
+      setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
@@ -1417,6 +1427,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Code Simplifier"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/code-simplifier.lock.yml@${{ github.ref }}
