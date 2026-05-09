@@ -693,6 +693,19 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```
 
   Set `allowed` to an empty string `""` to allow clearing the issue type. When `allowed` is omitted, any type name is accepted.
+- `set-issue-field:` - Set a single issue field value by name/value (avoids the broader update-issue path)
+
+  ```yaml
+  safe-outputs:
+    set-issue-field:
+      allowed-fields: [Priority, Iteration]  # Optional: restrict which issue fields the agent may set (omit/empty = any field; ["*"] explicitly allows all)
+      target: "triggering"                    # Optional: "triggering" (default), "*", or number
+      max: 5                                  # Optional: max operations (default: 5)
+      target-repo: "owner/repo"               # Optional: cross-repository
+      allowed-repos: [owner/other]            # Optional: additional repos agent can target
+  ```
+
+  Agent calls `set_issue_field` with `value` plus either `field_name` (preferred) or `field_node_id`. `issue_number` is optional and defaults to the triggering issue.
 - `noop:` - Log completion message for transparency (auto-enabled)
 
   ```yaml
