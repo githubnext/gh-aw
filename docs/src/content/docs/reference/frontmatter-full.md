@@ -3635,7 +3635,7 @@ safe-outputs:
     # footer/metadata) in characters. If a create_discussion message body is
     # shorter than this value, the safe-outputs job fails.
     # (optional)
-    min-body-length: 1
+    min-body-length: 200
 
     # Optional list of labels to attach to created discussions. Also used for matching
     # when close-older-discussions is enabled - discussions must have ALL specified
