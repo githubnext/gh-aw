@@ -4,7 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
-	"strconv"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -46,7 +46,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		// apiProxy section with enabled: true
 		assert.Contains(t, jsonStr, `"apiProxy"`, "should include apiProxy section")
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy should be enabled")
-		assert.Contains(t, jsonStr, `"maxEffectiveTokens":`+strconv.FormatInt(constants.DefaultMaxEffectiveTokens, 10), "apiProxy should emit default maxEffectiveTokens")
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxEffectiveTokens":%d`, constants.DefaultMaxEffectiveTokens), "apiProxy should emit default maxEffectiveTokens")
 
 		// container.imageTag
 		assert.Contains(t, jsonStr, `"imageTag"`, "should include imageTag")
