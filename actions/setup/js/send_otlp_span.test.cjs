@@ -3477,6 +3477,40 @@ describe("sendJobConclusionSpan", () => {
       expect(span.events).toBeUndefined();
     });
 
+    it("emits a synthetic timeout exception event when agent_output.json is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+      process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.events).toHaveLength(1);
+      expect(span.events[0].name).toBe("exception");
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentTimedOut" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent timed_out" } });
+    });
+
+    it("emits a synthetic cancelled exception event when agent_output.json is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+      process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.events).toHaveLength(1);
+      expect(span.events[0].name).toBe("exception");
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentCancelled" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent cancelled" } });
+    });
+
     it("emits exception events for all errors (not capped at 5 like error messages attribute)", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);

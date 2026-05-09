@@ -1264,7 +1264,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
 
   // Always read agent_output.json so output metrics are available on all outcomes.
-  const agentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json") || {};
+  const rawAgentOutput = readJSONIfExists("/tmp/gh-aw/agent_output.json");
+  const agentOutput = rawAgentOutput || {};
+  const isAgentOutputMissing = rawAgentOutput === null;
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
   const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errorMessages = outputErrors.map(getErrorMessage).filter(Boolean).slice(0, 5);
@@ -1376,6 +1378,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Grafana Tempo, Honeycomb, and Datadog.
   const buildSpanEvents = eventTimeMs => {
     if (outputErrors.length === 0) {
+      if (isAgentOutputMissing && (agentConclusion === "timed_out" || isAgentCancelled)) {
+        const exceptionType = agentConclusion === "timed_out" ? "gh-aw.AgentTimedOut" : "gh-aw.AgentCancelled";
+        const exceptionMessage = (statusMessage || `agent ${agentConclusion}`).slice(0, MAX_ATTR_VALUE_LENGTH);
+        return [{ timeUnixNano: toNanoString(eventTimeMs), name: "exception", attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)] }];
+      }
       return [];
     }
     const errorTimeNano = toNanoString(eventTimeMs);
