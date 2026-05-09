@@ -2119,6 +2119,19 @@ describe("create_pull_request - rate-limit retry", () => {
   let originalEnv;
   let tempDir;
 
+  /**
+   * Creates a mock GitHub API rate-limit error object (HTTP 403 with x-ratelimit-remaining: 0)
+   * that matches what octokit returns when the installation token quota is exhausted.
+   * @param {string} [message]
+   * @returns {Error}
+   */
+  function createRateLimitError(message = "API rate limit exceeded") {
+    return Object.assign(new Error(message), {
+      status: 403,
+      response: { headers: { "x-ratelimit-remaining": "0" }, status: 403 },
+    });
+  }
+
   beforeEach(() => {
     originalEnv = { ...process.env };
     process.env.GH_AW_WORKFLOW_ID = "test-workflow";
@@ -2200,9 +2213,7 @@ describe("create_pull_request - rate-limit retry", () => {
   it("should retry PR creation on rate limit error and succeed", async () => {
     vi.useFakeTimers();
     try {
-      global.github.rest.pulls.create
-        .mockRejectedValueOnce(Object.assign(new Error("API rate limit exceeded"), { status: 403, response: { headers: { "x-ratelimit-remaining": "0" }, status: 403 } }))
-        .mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42" } });
+      global.github.rest.pulls.create.mockRejectedValueOnce(createRateLimitError()).mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42" } });
 
       const { main } = require("./create_pull_request.cjs");
       const handler = await main({ allow_empty: true });
@@ -2226,8 +2237,7 @@ describe("create_pull_request - rate-limit retry", () => {
   it("should fall back to issue when PR creation fails after all rate-limit retries", async () => {
     vi.useFakeTimers();
     try {
-      const rateLimitError = Object.assign(new Error("API rate limit exceeded"), { status: 403, response: { headers: { "x-ratelimit-remaining": "0" }, status: 403 } });
-      global.github.rest.pulls.create.mockRejectedValue(rateLimitError);
+      global.github.rest.pulls.create.mockRejectedValue(createRateLimitError());
       global.github.rest.issues.create.mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } });
 
       const { main } = require("./create_pull_request.cjs");
@@ -2257,9 +2267,7 @@ describe("create_pull_request - rate-limit retry", () => {
       // PR creation fails with a non-rate-limit error to trigger fallback immediately
       global.github.rest.pulls.create.mockRejectedValue(new Error("Some PR creation error"));
       // Fallback issue creation first fails with rate limit, then succeeds
-      global.github.rest.issues.create
-        .mockRejectedValueOnce(Object.assign(new Error("API rate limit exceeded"), { status: 403, response: { headers: { "x-ratelimit-remaining": "0" }, status: 403 } }))
-        .mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } });
+      global.github.rest.issues.create.mockRejectedValueOnce(createRateLimitError()).mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } });
 
       const { main } = require("./create_pull_request.cjs");
       const handler = await main({ allow_empty: true });
