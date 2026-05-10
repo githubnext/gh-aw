@@ -22,18 +22,16 @@ This shared component provides the standard tooling for AI pull request code rev
 ### Available Tools
 
 - **`cache-memory`** — Persist review history across runs at `/tmp/gh-aw/cache-memory/`
-  - Read and write review notes: `/tmp/gh-aw/cache-memory/pr-{number}.json`
+  - Store previous review notes: `/tmp/gh-aw/cache-memory/pr-{number}.json`
   - Avoid repeating comments seen in previous reviews
-  - **Always write back to cache after completing the review** to ensure state is persisted for future runs
 - **GitHub PR tools** — Access PR diffs, file changes, review threads, and check runs
 
 ### Review Guidelines
 
-1. **Check cache first** — Read `/tmp/gh-aw/cache-memory/pr-${{ github.event.pull_request.number || github.event.issue.number }}.json` to avoid re-stating previous comments
+1. **Check cache first** — Read `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number }}.json` to avoid re-stating previous comments
 2. **Use `get_diff`** — Fetch the actual diff to review line-by-line changes
 3. **Use `get_review_comments`** — Check existing review threads before adding new ones
 4. **Submit as a unified review** — Batch comments and call `submit-pull-request-review` once with an overall assessment
-5. **Write cache after review** — Save the review summary to `/tmp/gh-aw/cache-memory/pr-${{ github.event.pull_request.number || github.event.issue.number }}.json` so future runs can avoid repeating the same comments
 
 ### Safe Output Usage
 
