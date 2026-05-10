@@ -948,6 +948,7 @@ The agent span (`gh-aw.agent.agent`) uses [OpenTelemetry GenAI semantic conventi
 | `gen_ai.usage.output_tokens` | Total output tokens produced |
 | `gen_ai.usage.cache_read.input_tokens` | Cache-read tokens reused |
 | `gen_ai.usage.cache_creation.input_tokens` | Cache-creation tokens written |
+| `gen_ai.response.finish_reasons` | Array containing the agent's stop reason (e.g. `["end_turn"]`, `["max_tokens"]`) |
 
 > [!NOTE]
 > Prior to v0.70, the agent span used private `gh-aw.*` attribute names (`gh-aw.model`, `gh-aw.tokens.input`, etc.) and `SPAN_KIND_INTERNAL`. These attributes were removed and replaced with the `gen_ai.*` convention above. Update any dashboards or alert rules that reference the old attribute names.

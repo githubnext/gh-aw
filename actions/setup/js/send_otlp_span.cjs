@@ -100,6 +100,19 @@ function buildAttr(key, value) {
 }
 
 /**
+ * Build an OTLP key-value attribute with an array of string values.
+ * Used for OTel attributes whose type is `string[]`, such as
+ * `gen_ai.response.finish_reasons`.
+ *
+ * @param {string} key
+ * @param {string[]} values
+ * @returns {{ key: string, value: { arrayValue: { values: Array<{ stringValue: string }> } } }}
+ */
+function buildArrayAttr(key, values) {
+  return { key, value: { arrayValue: { values: values.map(v => ({ stringValue: String(v) })) } } };
+}
+
+/**
  * Build the workflow-call identifier for the current run when enough GitHub
  * context is available.
  *
@@ -1084,6 +1097,7 @@ function getErrorMessage(errorEntry) {
  * @typedef {Object} AgentRuntimeMetrics
  * @property {number | undefined} turns
  * @property {number | undefined} estimatedCostUsd
+ * @property {string | undefined} stopReason
  * @property {number} warningCount
  */
 
@@ -1094,7 +1108,7 @@ function getErrorMessage(errorEntry) {
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, estimatedCostUsd: undefined, warningCount: 0 };
+  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, warningCount: 0 };
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
@@ -1126,6 +1140,9 @@ function readAgentRuntimeMetrics() {
         }
         if (typeof parsed.total_cost_usd === "number" && Number.isFinite(parsed.total_cost_usd) && parsed.total_cost_usd >= 0) {
           metrics.estimatedCostUsd = parsed.total_cost_usd;
+        }
+        if (typeof parsed.stop_reason === "string" && parsed.stop_reason) {
+          metrics.stopReason = parsed.stop_reason;
         }
       } catch {
         // Ignore non-JSON and truncated log lines.
@@ -1481,6 +1498,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
     // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
     if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));
+    // gen_ai.response.finish_reasons is a standard OTel GenAI response attribute (array of strings).
+    // It exposes the stop_reason from the agent's result line so operators can detect truncated
+    // runs (e.g. "max_tokens") that would otherwise silently appear as STATUS_OK.
+    if (runtimeMetrics.stopReason) {
+      agentAttributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [runtimeMetrics.stopReason]));
+    }
 
     const agentPayload = buildOTLPPayload({
       traceId,
@@ -1547,6 +1570,7 @@ module.exports = {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildArrayAttr,
   buildGitHubActionsResourceAttributes,
   buildOTLPSpan,
   buildOTLPBatchPayload,
