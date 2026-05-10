@@ -119,3 +119,62 @@ user-rate-limit:
 	assert.False(t, applied)
 	assert.Equal(t, content, result)
 }
+
+func TestRateLimitToUserRateLimitCodemod_DoesNotRenameOtherMaxRuns(t *testing.T) {
+	codemod := getRateLimitToUserRateLimitCodemod()
+
+	content := `---
+rate-limit:
+  max-runs: 5
+  window: 60
+concurrency:
+  max-runs: 2
+---`
+
+	frontmatter := map[string]any{
+		"rate-limit": map[string]any{
+			"max-runs": 5,
+			"window":   60,
+		},
+		"concurrency": map[string]any{
+			"max-runs": 2,
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, "user-rate-limit:")
+	assert.Contains(t, result, "  max-runs-per-window: 5")
+	assert.Contains(t, result, "concurrency:\n  max-runs: 2")
+}
+
+func TestRateLimitToUserRateLimitCodemod_DoesNotRenameNestedMaxRuns(t *testing.T) {
+	codemod := getRateLimitToUserRateLimitCodemod()
+
+	content := `---
+rate-limit:
+  rules:
+    max-runs: 9
+  max-runs: 5
+  window: 60
+---`
+
+	frontmatter := map[string]any{
+		"rate-limit": map[string]any{
+			"rules": map[string]any{
+				"max-runs": 9,
+			},
+			"max-runs": 5,
+			"window":   60,
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, "user-rate-limit:")
+	assert.Contains(t, result, "  max-runs-per-window: 5")
+	assert.Contains(t, result, "  rules:\n    max-runs: 9")
+	assert.NotContains(t, result, "    max-runs-per-window: 9")
+}

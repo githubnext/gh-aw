@@ -41,6 +41,7 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 
 	inUserRateLimit := false
 	userRateLimitIndent := ""
+	userRateLimitChildIndent := ""
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -52,6 +53,7 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 
 		if !strings.HasPrefix(trimmed, "#") && inUserRateLimit && hasExitedBlock(line, userRateLimitIndent) {
 			inUserRateLimit = false
+			userRateLimitChildIndent = ""
 		}
 
 		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "rate-limit:") {
@@ -62,6 +64,7 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 				modified = true
 				inUserRateLimit = true
 				userRateLimitIndent = lineIndent
+				userRateLimitChildIndent = ""
 				userRateLimitCodemodLog.Printf("Renamed 'rate-limit' to 'user-rate-limit' on line %d", i+1)
 				continue
 			}
@@ -70,6 +73,7 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "user-rate-limit:") {
 			inUserRateLimit = true
 			userRateLimitIndent = getIndentation(line)
+			userRateLimitChildIndent = ""
 			result = append(result, line)
 			continue
 		}
@@ -77,6 +81,13 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 		if inUserRateLimit {
 			lineIndent := getIndentation(line)
 			if isDescendant(lineIndent, userRateLimitIndent) {
+				if len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && userRateLimitChildIndent == "" {
+					userRateLimitChildIndent = lineIndent
+				}
+				if userRateLimitChildIndent != "" && lineIndent != userRateLimitChildIndent {
+					result = append(result, line)
+					continue
+				}
 				newLine, replaced := findAndReplaceInLine(line, "max-runs", "max-runs-per-window")
 				if !replaced {
 					newLine, replaced = findAndReplaceInLine(line, "max", "max-runs-per-window")
