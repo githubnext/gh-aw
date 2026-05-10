@@ -33,6 +33,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
+| `gemini-flash-lite` | `copilot/gemini-*flash*lite*`, `google/gemini-*flash*lite*`, `gemini/gemini-*flash*lite*` |
 | `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*`, `gemini/gemini-*pro*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
 
@@ -43,7 +44,7 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 | Meta-alias | Expands to |
 |------------|------------|
 | `small` | `mini` |
-| `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash` |
+| `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
 | `auto` | `large` |
 
@@ -155,11 +156,14 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-3-pro-preview` | 6 |
 | `gemini-3-pro-image-preview` | 6 |
 | `gemini-3.1-pro-preview` | 6 |
+| `gemini-3.1-pro-preview-customtools` | 6 |
 | `gemini-3.1-flash-live-preview` | 0.1 |
+| `gemini-3.1-flash-lite` | 0.1 |
 | `gemini-3.1-flash-lite-preview` | 0.1 |
 | `gemini-3.1-flash-image-preview` | 0.33 |
 | `gemini-3.1-flash-tts-preview` | 0.1 |
 | `gemini-2.5-computer-use-preview` | 0.2 |
+| `gemini-2.5-computer-use-preview-10-2025` | 0.2 |
 
 ### Other
 

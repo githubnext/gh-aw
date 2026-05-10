@@ -66,7 +66,7 @@ func TestResolveEffectiveWeightsCustomClassWeights(t *testing.T) {
 	assert.InDelta(t, 4.0, classWeights.Reasoning, 1e-9, "reasoning weight unchanged")
 }
 
-func TestModelMultipliersInventoryUpdate20260506(t *testing.T) {
+func TestModelMultipliersInventoryUpdate20260510(t *testing.T) {
 	loadedMultipliers = nil
 	initMultipliers()
 
@@ -74,7 +74,11 @@ func TestModelMultipliersInventoryUpdate20260506(t *testing.T) {
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4"], 1e-9, "gpt-5.4 should use updated multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-mini"], 1e-9, "gpt-5.4-mini should use updated multiplier")
 	assert.InDelta(t, 0.05, loadedMultipliers["gpt-5.4-nano"], 1e-9, "gpt-5.4-nano should be present")
+	assert.InDelta(t, 2.0, loadedMultipliers["gpt-5.4-pro"], 1e-9, "gpt-5.4-pro should be present")
 	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.6"], 1e-9, "claude-opus-4.6 should use updated multiplier")
+	assert.InDelta(t, 0.1, loadedMultipliers["gemini-3.1-flash-lite"], 1e-9, "gemini-3.1-flash-lite should be present")
+	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro-preview-customtools"], 1e-9, "gemini-3.1-pro-preview-customtools should be present")
+	assert.InDelta(t, 0.2, loadedMultipliers["gemini-2.5-computer-use-preview-10-2025"], 1e-9, "gemini-2.5-computer-use-preview-10-2025 should be present")
 	assert.InDelta(t, 0.33, loadedMultipliers["grok-code-fast-1"], 1e-9, "grok-code-fast-1 should be present")
 	assert.InDelta(t, 1.0, loadedMultipliers["deep-research-max-preview-04-2026"], 1e-9, "deep-research-max-preview-04-2026 should be present")
 }

@@ -62,11 +62,12 @@ type builtinModelAliasesFile struct {
 //   - "gpt-5-pro"      → OpenAI GPT-5 Pro high-capability tier
 //   - "reasoning"      → OpenAI o1/o3/o4 reasoning model families
 //   - "gemini-flash"   → Google Gemini Flash family (fast/lightweight)
+//   - "gemini-flash-lite" → Google Gemini Flash-Lite subfamily (lowest-cost/latency)
 //   - "gemini-pro"     → Google Gemini Pro family (full-capability)
 //   - "deep-research"  → Google Gemini deep-research family (specialized research agents)
 //
 // Meta-aliases (reference other aliases; resolved recursively by AWF):
-//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash
+//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite
 //   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
 //   - "auto"  → large (convenience alias for the default capable tier)
 func BuiltinModelAliases() map[string][]string {

@@ -18,7 +18,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	expectedFamilies := []string{
 		"sonnet", "haiku", "opus",
 		"gpt-4.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning",
-		"gemini-flash", "gemini-pro", "deep-research",
+		"gemini-flash", "gemini-flash-lite", "gemini-pro", "deep-research",
 		"mini", "large", "auto",
 	}
 	for _, family := range expectedFamilies {
@@ -29,7 +29,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 
 	// Vendor aliases should include at least one copilot/* pattern.
 	// Meta-aliases (mini, large, auto) reference other alias names and are excluded here.
-	vendorFamilies := []string{"sonnet", "haiku", "opus", "gpt-4.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning", "gemini-flash", "gemini-pro", "deep-research"}
+	vendorFamilies := []string{"sonnet", "haiku", "opus", "gpt-4.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning", "gemini-flash", "gemini-flash-lite", "gemini-pro", "deep-research"}
 	for _, family := range vendorFamilies {
 		patterns := aliases[family]
 		hasCopilot := false
@@ -43,11 +43,12 @@ func TestBuiltinModelAliases(t *testing.T) {
 	}
 
 	assert.Contains(t, aliases["gemini-flash"], "gemini/gemini-*flash*", "gemini-flash should support direct gemini/ provider models")
+	assert.Contains(t, aliases["gemini-flash-lite"], "gemini/gemini-*flash*lite*", "gemini-flash-lite should support direct gemini/ provider models")
 	assert.Contains(t, aliases["gemini-pro"], "gemini/gemini-*pro*", "gemini-pro should support direct gemini/ provider models")
 	assert.Contains(t, aliases["deep-research"], "gemini/deep-research*", "deep-research should support direct gemini/ provider models")
 
 	// Meta-aliases reference other alias names (resolved recursively by AWF).
-	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash")
+	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
 	assert.Equal(t, []string{"sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should reference sonnet, gpt-5-pro, gpt-5, and gemini-pro")
 	assert.Equal(t, []string{"large"}, aliases["auto"], "auto should fall back to large")
 
