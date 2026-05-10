@@ -170,14 +170,9 @@ def test_postcompute_does_not_allow_invented_telemetry_to_increase_confidence(tm
     assert any("invented telemetry" in note.lower() for note in notes)
 
 
-def test_recompute_overlap_drag_ignores_invalid_scores() -> None:
-    payload = {
-        "overlap_pairs": [
-            {"score": 0.5},
-            {"score": "bad"},
-            {"score": float("nan")},
-            {"score": float("inf")},
-            {"score": -1},
-        ]
-    }
-    assert post.recompute_overlap_drag(payload) == 0.5
+def test_recompute_overlap_drag_clamps_invalid_scores() -> None:
+    assert post.recompute_overlap_drag({"overlap_pairs": [{"score": "bad"}]}) == 0.0
+    assert post.recompute_overlap_drag({"overlap_pairs": [{"score": float("nan")}]}) == 0.0
+    assert post.recompute_overlap_drag({"overlap_pairs": [{"score": float("inf")}]}) == 0.0
+    assert post.recompute_overlap_drag({"overlap_pairs": [{"score": -1}]}) == 0.0
+    assert post.recompute_overlap_drag({"overlap_pairs": [{"score": 0.5}]}) == 0.5
