@@ -1,0 +1,968 @@
+---
+title: Forecast Command Specification
+description: Formal W3C-style specification for the gh aw forecast command — Monte Carlo token-usage projection, episode analysis, workflow discovery, and output formats for GitHub Agentic Workflows
+sidebar:
+  order: 1355
+---
+
+# Forecast Command Specification
+
+**Version**: 0.1.0  
+**Status**: Experimental Draft  
+**Latest Version**: [forecast-specification](/gh-aw/reference/forecast-specification/)  
+**Editor**: GitHub Agentic Workflows Team
+
+> ⚠️ **Experimental**: This specification describes a feature that is under active development. The command interface, output schema, and algorithmic parameters are subject to change without notice. Do not depend on this interface in production workflows.
+
+---
+
+## Abstract
+
+This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows (gh-aw) project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future Effective Token (ET) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic token-consumption forecasts suitable for capacity planning, cost estimation, and budget governance.
+
+---
+
+## Status of This Document
+
+This section describes the status of this document at the time of publication. This is an **Experimental Draft** specification and may be updated, replaced, or made obsolete by other documents at any time. The feature it describes is experimental and not yet subject to the stability guarantees that apply to other gh-aw commands.
+
+This document is governed by the GitHub Agentic Workflows project specifications process.
+
+Feedback should be filed as GitHub issues against the `github/gh-aw` repository.
+
+---
+
+## Table of Contents
+
+1. [Introduction](#1-introduction)
+2. [Conformance](#2-conformance)
+3. [Terminology](#3-terminology)
+4. [Command Interface](#4-command-interface)
+5. [Workflow Discovery](#5-workflow-discovery)
+6. [Data Sampling](#6-data-sampling)
+7. [Monte Carlo Projection Engine](#7-monte-carlo-projection-engine)
+8. [Episode Analysis](#8-episode-analysis)
+9. [Output Formats](#9-output-formats)
+10. [Error Handling](#10-error-handling)
+11. [Implementation Requirements](#11-implementation-requirements)
+12. [Compliance Testing](#12-compliance-testing)
+13. [Appendices](#appendices)
+14. [References](#references)
+15. [Change Log](#change-log)
+
+---
+
+## 1. Introduction
+
+### 1.1 Purpose
+
+The `gh aw forecast` command addresses the operational need to predict future Large Language Model (LLM) token expenditure for agentic workflows managed by gh-aw. Token consumption is a primary cost driver for agentic systems; the ability to project future usage from historical observations enables:
+
+- **Capacity Planning**: Anticipating token demand before budget thresholds are reached.
+- **Cost Governance**: Providing P10/P50/P90 confidence intervals for financial planning.
+- **Workflow Comparison**: Ranking workflows by projected token cost across a shared time period.
+- **Experiment Evaluation**: Measuring the token impact of A/B experiment variants.
+
+The command combines empirical bootstrapping of historical token observations with a Poisson-distributed run-count model to produce statistically sound projections without requiring parametric distribution assumptions on token usage.
+
+### 1.2 Scope
+
+This specification covers:
+
+- Command-line interface: flags, positional arguments, and invocation modes
+- Workflow discovery in local (`.github/workflows/`) and remote (`--repo`) modes
+- Historical run sampling and per-run metric derivation
+- The Monte Carlo simulation algorithm producing P10, P50, P90 percentile estimates
+- Episode grouping and episode-level metric computation
+- Console table output format
+- Machine-readable JSON output schema (`--json`)
+- Error conditions and graceful-degradation behavior
+
+This specification does NOT cover:
+
+- The Effective Tokens (ET) computation algorithm (defined in the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/))
+- The `aw_info.json` artifact schema
+- A/B experiment frontmatter schema (defined in the [A/B Experiments Specification](/gh-aw/reference/experiments-specification/))
+- Billing, pricing, or financial modeling beyond token projections
+- Streaming or real-time token consumption reporting
+
+### 1.3 Design Goals
+
+A conforming `gh aw forecast` implementation MUST be designed for:
+
+- **Empirical Accuracy**: Projections derived from observed historical data rather than assumed distributions.
+- **Probabilistic Reporting**: P10/P50/P90 uncertainty bounds communicated to callers.
+- **Graceful Degradation**: Missing data (no runs, no artifacts, no frontmatter) MUST produce partial results rather than failures.
+- **Dual Modes**: Both local-repository and remote-repository operation without requiring a checkout.
+- **Interoperability**: JSON output schema stable enough for machine consumption by downstream tooling.
+
+---
+
+## 2. Conformance
+
+### 2.1 Conformance Classes
+
+A **conforming forecast implementation** is one that satisfies all MUST, REQUIRED, and SHALL requirements in this specification.
+
+A **partially conforming forecast implementation** is one that satisfies all MUST requirements in Sections 4, 5, 6, and 7 but MAY lack support for optional features such as episode analysis (Section 8), experiment variant reporting, or verbose diagnostics.
+
+### 2.2 Requirements Notation
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+
+### 2.3 Compliance Levels
+
+Implementations MUST support:
+
+- **Level 1 (Required)**: Command invocation, workflow discovery, historical data sampling, and Monte Carlo projection with console output.
+- **Level 2 (Standard)**: JSON output (`--json`), episode analysis, remote-repository mode (`--repo`), and experiment variant reporting.
+- **Level 3 (Complete)**: All optional features including `--verbose` diagnostics, concurrency limit reporting, and frontmatter metadata enrichment.
+
+---
+
+## 3. Terminology
+
+### 3.1 Effective Tokens (ET)
+
+A normalized unit of LLM token consumption defined in the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/). ET accounts for token class weights and model multipliers to produce a single comparable scalar across heterogeneous LLM invocations.
+
+### 3.2 Workflow Run
+
+A single execution of a GitHub Actions workflow. A run has a unique numeric run ID, an event type, a status (`completed`, `in_progress`, `queued`), a conclusion (`success`, `failure`, `cancelled`, etc.), and a head commit SHA.
+
+### 3.3 Historical Window
+
+The time interval `[now − days, now]` used to bound the set of completed runs eligible for sampling. Controlled by the `--days` flag.
+
+### 3.4 Sample
+
+The subset of completed workflow runs within the historical window selected for metric derivation. The maximum sample size per workflow is controlled by the `--sample` flag.
+
+### 3.5 Monte Carlo Trial
+
+A single independent simulation that draws stochastic values for run count, per-run token usage, and per-run success, combining them to produce one projected Effective Token total for the projection period.
+
+### 3.6 Projection Period
+
+The future time interval for which token consumption is projected. Controlled by the `--period` flag; either one calendar week (`week`) or one calendar month (`month`).
+
+### 3.7 Observed Runs Per Period
+
+The rate of workflow runs observed in the historical window, extrapolated to the projection period length:
+
+```
+observed_runs_per_period = (sampled_run_count / history_days) × period_days
+```
+
+Where `period_days` is 7 for `week` and 30 for `month`.
+
+### 3.8 Episode
+
+A logical grouping of one or more workflow runs that collectively represent a single task attempt. Episodes are identified by grouping runs sharing the same `headSha` and `headBranch`, or by `workflow_dispatch`/`workflow_call` linkage where available.
+
+### 3.9 Yield
+
+The fraction of runs in the sample that concluded with a successful status:
+
+```
+yield = successful_run_count / total_sampled_run_count
+```
+
+### 3.10 Bootstrap Resampling
+
+An empirical resampling technique where individual observations are drawn with replacement from the observed sample. Used in Section 7 to model per-run token usage without parametric distribution assumptions.
+
+### 3.11 Lock File
+
+A `.lock.yml` file located in `.github/workflows/` that declares a compiled agentic workflow and its associated metadata. Lock files are the authoritative source of workflow identifiers in local mode.
+
+---
+
+## 4. Command Interface
+
+### 4.1 Synopsis
+
+```
+gh aw forecast [workflow_id...] [flags]
+```
+
+### 4.2 Positional Arguments
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `workflow_id` | string (repeatable) | No | Zero or more workflow identifiers to forecast. If omitted, all discovered agentic workflows are forecasted. |
+
+Workflow identifiers MUST be matched case-insensitively against:
+1. The workflow display name
+2. The workflow file-path basename (without extension)
+
+If a provided `workflow_id` does not match any discovered workflow, the implementation MUST emit an error message identifying the unmatched identifier and MUST exit with a non-zero status code.
+
+### 4.3 Flags
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--days` | int | `30` | Length of the historical sampling window in days. Permitted values: `7`, `30`, `90`. |
+| `--period` | string | `"month"` | Projection period length. Permitted values: `"week"`, `"month"`. |
+| `--sample` | int | `100` | Maximum number of completed runs to sample per workflow. MUST be ≥ 1. |
+| `--repo` | string | (none) | Target a repository other than the current working directory, in `owner/repo` format. Enables remote mode. |
+| `--json` | bool | `false` | Emit machine-readable JSON output instead of console tables. |
+| `--verbose` | bool | `false` | Emit verbose diagnostic output to stderr during processing. |
+
+### 4.4 Flag Validation
+
+Implementations MUST validate all flag values before beginning any API calls or file system operations:
+
+- **R-CLI-001**: If `--days` is not one of `{7, 30, 90}`, the implementation MUST exit with a non-zero status and an error message specifying the permitted values.
+- **R-CLI-002**: If `--period` is not one of `{"week", "month"}`, the implementation MUST exit with a non-zero status and an error message specifying the permitted values.
+- **R-CLI-003**: If `--sample` is less than 1, the implementation MUST exit with a non-zero status.
+- **R-CLI-004**: If `--repo` is provided, it MUST match the pattern `owner/repo` (two non-empty components separated by `/`). An invalid format MUST produce a non-zero exit with a descriptive error.
+
+### 4.5 Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Forecast completed successfully. |
+| `1` | Usage error (invalid flags, unmatched workflow IDs). |
+| `2` | GitHub API authentication failure. |
+| `3` | No workflows discovered. |
+
+### 4.6 Example Invocations
+
+```sh
+# Forecast all agentic workflows in the current repository for the next month
+gh aw forecast
+
+# Forecast two specific workflows and compare
+gh aw forecast ci-doctor daily-planner
+
+# Use a 90-day window and project over the next week
+gh aw forecast --period week --days 90
+
+# Emit machine-readable JSON
+gh aw forecast --json
+
+# Forecast workflows in a remote repository
+gh aw forecast --repo owner/repo
+
+# Forecast a specific workflow in a remote repository
+gh aw forecast --repo owner/repo ci-doctor
+```
+
+---
+
+## 5. Workflow Discovery
+
+### 5.1 Modes
+
+The forecast command operates in one of two discovery modes, determined by the presence of the `--repo` flag:
+
+- **Local Mode**: `--repo` is absent; workflows are discovered from the current repository's `.github/workflows/` directory.
+- **Remote Mode**: `--repo` is present; workflows are discovered via the GitHub Actions API.
+
+### 5.2 Local Mode Discovery
+
+In local mode, the implementation MUST:
+
+1. **R-DISC-001**: Enumerate all files matching `*.lock.yml` within `.github/workflows/` of the current working repository.
+2. **R-DISC-002**: Parse each lock file to extract the workflow identifier and display name.
+3. **R-DISC-003**: If the `.github/workflows/` directory does not exist or contains no lock files, the implementation MUST emit an informational message and exit with code `3`.
+
+The implementation MAY additionally read frontmatter metadata from corresponding workflow source files to enrich per-workflow records with:
+
+- Active trigger types (`active_triggers`)
+- Concurrency configuration (`concurrency_limit`)
+- A/B experiment variant declarations (`experiment_variants`)
+
+Frontmatter enrichment is OPTIONAL; absence of a corresponding source file MUST NOT prevent discovery or projection of the workflow.
+
+### 5.3 Remote Mode Discovery
+
+In remote mode (when `--repo owner/repo` is specified), the implementation MUST:
+
+1. **R-DISC-010**: Call the GitHub Actions API (`GET /repos/{owner}/{repo}/actions/workflows`) to enumerate workflows in the target repository.
+2. **R-DISC-011**: Filter the returned workflows to those identified as agentic (e.g., by inspecting file-path conventions, labels, or other implementation-defined heuristics).
+3. **R-DISC-012**: Match any caller-supplied `workflow_id` positional arguments against workflow display names and file-path basenames using case-insensitive string comparison.
+
+In remote mode, frontmatter metadata (triggers, concurrency, experiment variants) is UNAVAILABLE because the workflow source files are not accessible. The implementation MUST degrade gracefully: fields that depend on frontmatter MUST be omitted from output or reported as their zero/empty values rather than causing an error.
+
+### 5.4 Workflow ID Matching
+
+Workflow ID matching MUST be case-insensitive. A caller-supplied identifier matches a discovered workflow if and only if it equals (ignoring case) either:
+
+- The workflow's display name, OR
+- The basename of the workflow's file path (without file extension)
+
+Matching MUST be performed after discovery is complete; partial prefix matches are NOT sufficient for conformance.
+
+---
+
+## 6. Data Sampling
+
+### 6.1 Sampling Procedure
+
+For each discovered workflow (or each workflow in the filtered set), the implementation MUST perform the following sampling procedure:
+
+1. **R-SAMP-001**: Query completed workflow runs within the historical window using the equivalent of `gh run list --workflow <id> --status completed --limit <sample> --created >=<cutoff>`.
+2. **R-SAMP-002**: Limit the returned run set to at most `--sample` runs.
+3. **R-SAMP-003**: For each run in the sample, derive the per-run metrics defined in Section 6.2.
+4. **R-SAMP-004**: Record the count of runs with a successful conclusion separately from the total sampled count.
+
+If the historical window yields zero completed runs for a workflow, the implementation MUST:
+
+- **R-SAMP-005**: Return `nil` (or a sentinel empty result) for that workflow's Monte Carlo projection.
+- **R-SAMP-006**: Include the workflow in output with `sampled_runs: 0` and all projection fields set to zero.
+- **R-SAMP-007**: SHOULD emit a warning indicating that no historical data is available for the workflow.
+
+### 6.2 Per-Run Metric Derivation
+
+For each sampled run, the implementation MUST derive:
+
+| Metric | Source | Description |
+|---|---|---|
+| `effective_tokens` | `aw_info.json` artifact | Total ET for this run as defined in the Effective Tokens Specification. |
+| `duration_seconds` | Run start/end timestamps | Wall-clock duration of the run in seconds. |
+| `success` | Run conclusion field | `true` if conclusion is `"success"`, `false` otherwise. |
+
+#### 6.2.1 Effective Token Retrieval
+
+Effective token counts MUST be retrieved from the `aw_info.json` artifact attached to each workflow run. The implementation MUST:
+
+- **R-SAMP-010**: Attempt to download the `aw_info.json` artifact for each sampled run.
+- **R-SAMP-011**: Extract the `effective_tokens` field from the artifact payload.
+- **R-SAMP-012**: If the artifact is absent or the field is missing, treat the run's ET contribution as zero and SHOULD log a debug-level warning. The run MUST still be counted in `sampled_runs`.
+
+#### 6.2.2 Duration Derivation
+
+Duration MUST be computed as:
+
+```
+duration_seconds = run.updated_at − run.created_at
+```
+
+Both timestamps MUST be sourced from the GitHub Actions API run object. If either timestamp is unavailable, the run's duration contribution SHOULD be treated as zero.
+
+### 6.3 Observed Rate Computation
+
+After sampling, the implementation MUST compute:
+
+```
+observed_runs_per_period = (sampled_run_count / history_days) × period_days
+```
+
+Where:
+- `history_days` is the value of `--days`
+- `period_days` is `7` for `"week"` and `30` for `"month"`
+
+---
+
+## 7. Monte Carlo Projection Engine
+
+### 7.1 Overview
+
+The Monte Carlo engine runs **10,000 independent simulation trials** per workflow to produce a probability distribution over projected Effective Token consumption in the next projection period. The engine models three independent sources of uncertainty per trial.
+
+Implementations MUST use exactly 10,000 trials. The trial count is a normative requirement to ensure consistency of P10/P50/P90 estimates across implementations.
+
+### 7.2 Uncertainty Sources
+
+Each trial draws independently from three stochastic components:
+
+#### 7.2.1 Run Count (Poisson Model)
+
+The number of runs in the projection period is modeled as a Poisson random variable with rate parameter:
+
+```
+λ = observed_runs_per_period
+```
+
+The implementation MUST use:
+
+- **Knuth's exact algorithm** when `λ ≤ 15`:
+
+  ```
+  L ← e^(−λ)
+  k ← 0; p ← 1
+  repeat:
+    k ← k + 1
+    p ← p × Uniform(0, 1)
+  until p ≤ L
+  return k − 1
+  ```
+
+- **Normal approximation** when `λ > 15`:
+
+  ```
+  k ← round(Normal(μ=λ, σ=sqrt(λ)))
+  k ← max(0, k)
+  ```
+
+- **R-MC-001**: For `λ = 0`, the implementation MUST return a projected token total of 0 for that trial without invoking either algorithm.
+
+#### 7.2.2 Per-Run Token Usage (Bootstrap Resampling)
+
+Token usage per run is modeled empirically using bootstrap resampling:
+
+- **R-MC-010**: For each run in a trial, the implementation MUST draw one observation uniformly at random **with replacement** from the set of historical ET observations in the sample.
+- **R-MC-011**: If the sample contains zero ET observations (all runs had missing artifacts), the per-run token draw MUST return 0.
+
+This non-parametric approach preserves the empirical distribution of token usage, including multi-modal distributions and heavy tails, without imposing a parametric form.
+
+#### 7.2.3 Per-Run Success (Bernoulli Model)
+
+Whether a given run in the trial succeeds is modeled as a Bernoulli draw:
+
+```
+P(success) = yield = successful_run_count / total_sampled_run_count
+```
+
+- **R-MC-020**: Each run in a trial MUST independently draw from `Bernoulli(yield)`.
+- **R-MC-021**: Only successful runs contribute their token draw to the trial's projected total. Failed runs contribute zero tokens to the projection.
+- **R-MC-022**: If `total_sampled_run_count = 0`, yield MUST be treated as 0. The implementation MUST return a zero projection for all trials.
+
+### 7.3 Trial Aggregation
+
+For a given trial with `k` drawn runs:
+
+```
+trial_tokens = Σ_{i=1}^{k} (success_i × token_draw_i)
+```
+
+Where:
+- `success_i` is `1` if the Bernoulli draw for run `i` succeeds, `0` otherwise
+- `token_draw_i` is the bootstrapped ET observation for run `i`
+
+### 7.4 Output Statistics
+
+After completing all 10,000 trials, the implementation MUST compute and report:
+
+| Statistic | Definition |
+|---|---|
+| `mean_projected_effective_tokens` | Arithmetic mean of all trial totals |
+| `std_dev_effective_tokens` | Population or sample standard deviation of all trial totals |
+| `p10_projected_effective_tokens` | 10th percentile of trial totals (lower bound of 80% CI) |
+| `p50_projected_effective_tokens` | 50th percentile of trial totals (median projection) |
+| `p90_projected_effective_tokens` | 90th percentile of trial totals (upper bound of 80% CI) |
+
+Percentile computation MUST use the nearest-rank method or an equivalent method that produces results consistent with a 10,000-element sorted array.
+
+The `projected_effective_tokens` top-level field MUST equal `p50_projected_effective_tokens`.
+
+### 7.5 Nil Projection Condition
+
+If no historical runs are available for a workflow, the implementation MUST return a nil (empty/zero) projection for that workflow. Nil projections MUST be represented in JSON output as zero values for all numeric Monte Carlo fields. The implementation MUST NOT run trials when the sample is empty.
+
+---
+
+## 8. Episode Analysis
+
+### 8.1 Purpose
+
+An **episode** is a logical grouping of one or more workflow runs that collectively represent a single task attempt. Episode analysis computes per-episode metrics to reveal how many runs, on average, are required to complete a task successfully.
+
+### 8.2 Episode Construction
+
+The implementation MUST group sampled runs into episodes using the `buildEpisodeData` and `classifyEpisode` engine:
+
+- **R-EP-001**: Runs sharing the same `headSha` and `headBranch` MUST be grouped into the same episode.
+- **R-EP-002**: Runs linked by `workflow_dispatch` or `workflow_call` relationships (reconstructed from `aw_info.json`) SHOULD be merged into the triggering run's episode.
+
+#### 8.2.1 Limitations in Forecast Context
+
+During forecasting, `aw_info.json` artifacts may not be available for all sampled runs. When artifact data is unavailable:
+
+- **R-EP-010**: `workflow_dispatch`/`workflow_call` linkage MUST be omitted from episode construction.
+- **R-EP-011**: The resulting `sampled_episodes` count MUST be treated as a **lower-bound estimate**. Implementations MUST communicate this limitation in output (e.g., via a note in console output or a boolean `episode_count_is_lower_bound` field in JSON).
+
+For orchestrator workflows that primarily receive `workflow_call` triggers, the episode count underestimate may be significant. Implementations SHOULD emit a warning when the dominant trigger type is `workflow_call` or `workflow_dispatch`.
+
+### 8.3 Episode Metrics
+
+For each workflow, the implementation MUST compute:
+
+| Metric | Definition |
+|---|---|
+| `sampled_episodes` | Count of distinct episodes identified in the sample |
+| `runs_per_episode` | `sampled_run_count / sampled_episodes` |
+| `avg_effective_tokens_per_episode` | Mean ET summed across all runs within each episode |
+| `observed_episodes_per_period` | `(sampled_episodes / history_days) × period_days` |
+
+### 8.4 Episode Table Display
+
+The implementation MUST display the episode analysis table in console output when any workflow in the result set has `runs_per_episode > 1.0`. The table SHOULD be omitted when all workflows have `runs_per_episode = 1.0` (one run per episode is the baseline and adds no additional information).
+
+---
+
+## 9. Output Formats
+
+### 9.1 Console Table Output
+
+When `--json` is not specified, the implementation MUST render a formatted console table to stdout with the following columns:
+
+| Column | Description |
+|---|---|
+| `Workflow` | Workflow display name or identifier |
+| `Sampled Runs` | Count of runs included in the sample |
+| `Runs/Period` | `observed_runs_per_period` formatted to one decimal place |
+| `Success` | `yield` formatted as a percentage (e.g., `92.0%`) |
+| `Avg ET` | `avg_effective_tokens` formatted with thousands separator |
+| `Proj. ET (P50)` | `p50_projected_effective_tokens` formatted with thousands separator |
+| `80% CI (P10–P90)` | Range from `p10_projected_effective_tokens` to `p90_projected_effective_tokens` |
+
+#### 9.1.1 Table Formatting Requirements
+
+- **R-OUT-001**: Column widths MUST be auto-fitted to the widest value in each column.
+- **R-OUT-002**: Numeric values MUST include thousands separators for readability.
+- **R-OUT-003**: Rows MUST be sorted by `projected_effective_tokens` (P50) in descending order.
+- **R-OUT-004**: A workflow with zero sampled runs MUST appear in the table with `—` or `N/A` in projection columns.
+- **R-OUT-005**: When episode analysis is applicable (Section 8.4), a second table with episode metrics MUST be printed below the main table, separated by a blank line.
+
+#### 9.1.2 Example Console Output
+
+```
+Workflow          Sampled Runs  Runs/Period  Success    Avg ET      Proj. ET (P50)  80% CI (P10–P90)
+ci-doctor                   42         38.5    92.0%    12,500         480,000       430,000–535,000
+daily-planner               18         16.2    88.9%     8,200         131,000       105,000–158,000
+```
+
+### 9.2 JSON Output Schema
+
+When `--json` is specified, the implementation MUST emit a single JSON object to stdout conforming to the following schema. No additional content (banners, progress indicators, or table output) MUST be emitted to stdout. Diagnostic messages MAY be emitted to stderr.
+
+#### 9.2.1 Root Object
+
+```json
+{
+  "period": "<string>",
+  "as_of": "<RFC 3339 timestamp>",
+  "workflows": [ <WorkflowForecast>, ... ]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `period` | string | MUST | Projection period: `"week"` or `"month"`. |
+| `as_of` | string | MUST | ISO 8601 / RFC 3339 UTC timestamp at which the forecast was computed. |
+| `workflows` | array | MUST | Ordered array of per-workflow forecast objects. MUST be sorted by `projected_effective_tokens` (P50) descending. |
+
+#### 9.2.2 WorkflowForecast Object
+
+```json
+{
+  "workflow_id": "<string>",
+  "period": "<string>",
+  "sampled_runs": <integer>,
+  "history_days": <integer>,
+  "observed_runs_per_period": <number>,
+  "success_rate": <number>,
+  "yield": <number>,
+  "avg_effective_tokens": <number>,
+  "avg_duration_seconds": <number>,
+  "projected_effective_tokens": <number>,
+  "active_triggers": [ "<string>", ... ],
+  "concurrency_limit": <integer>,
+  "monte_carlo": { <MonteCarlo> },
+  "episode_analysis": { <EpisodeAnalysis> },
+  "experiment_variants": [ <ExperimentVariant>, ... ]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `workflow_id` | string | MUST | Workflow identifier as used in discovery. |
+| `period` | string | MUST | Mirrors the root `period` field. |
+| `sampled_runs` | integer | MUST | Number of runs included in the sample. |
+| `history_days` | integer | MUST | Value of `--days` used for this forecast. |
+| `observed_runs_per_period` | number | MUST | Extrapolated run rate for the projection period. |
+| `success_rate` | number | MUST | Alias for `yield`; fraction of successful runs in `[0.0, 1.0]`. |
+| `yield` | number | MUST | Fraction of successful runs in `[0.0, 1.0]`. |
+| `avg_effective_tokens` | number | MUST | Mean ET per sampled run. `0` when no ET data is available. |
+| `avg_duration_seconds` | number | MUST | Mean wall-clock duration per sampled run in seconds. |
+| `projected_effective_tokens` | number | MUST | P50 Monte Carlo projection. Equals `monte_carlo.p50_projected_effective_tokens`. |
+| `active_triggers` | array of strings | SHOULD | Trigger event types from workflow frontmatter. Empty array when frontmatter is unavailable. |
+| `concurrency_limit` | integer | SHOULD | Concurrency group limit from frontmatter. `0` indicates unlimited or unavailable. |
+| `monte_carlo` | object | MUST | Monte Carlo simulation results. See Section 9.2.3. |
+| `episode_analysis` | object | SHOULD | Episode analysis results. See Section 9.2.4. |
+| `experiment_variants` | array | MAY | A/B experiment variant breakdown. See Section 9.2.5. Empty array when frontmatter is unavailable or no experiments are configured. |
+
+#### 9.2.3 MonteCarlo Object
+
+```json
+{
+  "iterations": 10000,
+  "mean_projected_effective_tokens": <number>,
+  "std_dev_effective_tokens": <number>,
+  "p10_projected_effective_tokens": <number>,
+  "p50_projected_effective_tokens": <number>,
+  "p90_projected_effective_tokens": <number>
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `iterations` | integer | MUST | Always `10000`. |
+| `mean_projected_effective_tokens` | number | MUST | Arithmetic mean of trial totals. |
+| `std_dev_effective_tokens` | number | MUST | Standard deviation of trial totals. |
+| `p10_projected_effective_tokens` | number | MUST | 10th percentile of trial totals. |
+| `p50_projected_effective_tokens` | number | MUST | 50th percentile (median) of trial totals. |
+| `p90_projected_effective_tokens` | number | MUST | 90th percentile of trial totals. |
+
+When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iterations` MUST be `0`.
+
+#### 9.2.4 EpisodeAnalysis Object
+
+```json
+{
+  "sampled_episodes": <integer>,
+  "runs_per_episode": <number>,
+  "avg_effective_tokens_per_episode": <number>,
+  "observed_episodes_per_period": <number>
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `sampled_episodes` | integer | MUST | Distinct episode count. Lower-bound estimate when artifact linkage is unavailable. |
+| `runs_per_episode` | number | MUST | Mean runs per episode. |
+| `avg_effective_tokens_per_episode` | number | MUST | Mean ET per episode. |
+| `observed_episodes_per_period` | number | MUST | Extrapolated episode rate for the projection period. |
+
+#### 9.2.5 ExperimentVariant Object
+
+```json
+{
+  "experiment_name": "<string>",
+  "variant": "<string>",
+  "run_count": <integer>,
+  "fraction": <number>
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `experiment_name` | string | MUST | Name of the A/B experiment from frontmatter. |
+| `variant` | string | MUST | Variant identifier (e.g., `"control"`, `"treatment"`). |
+| `run_count` | integer | MUST | Number of sampled runs assigned to this variant. |
+| `fraction` | number | MUST | `run_count / sampled_runs` for this workflow; fraction in `[0.0, 1.0]`. |
+
+#### 9.2.6 Complete JSON Example
+
+```json
+{
+  "period": "month",
+  "as_of": "2026-05-10T22:00:00Z",
+  "workflows": [
+    {
+      "workflow_id": "ci-doctor",
+      "period": "month",
+      "sampled_runs": 42,
+      "history_days": 30,
+      "observed_runs_per_period": 38.5,
+      "success_rate": 0.92,
+      "yield": 0.92,
+      "avg_effective_tokens": 12500,
+      "avg_duration_seconds": 145.3,
+      "projected_effective_tokens": 480000,
+      "active_triggers": ["pull_request", "workflow_dispatch"],
+      "concurrency_limit": 0,
+      "monte_carlo": {
+        "iterations": 10000,
+        "mean_projected_effective_tokens": 481250,
+        "std_dev_effective_tokens": 32000.5,
+        "p10_projected_effective_tokens": 430000,
+        "p50_projected_effective_tokens": 480000,
+        "p90_projected_effective_tokens": 535000
+      },
+      "episode_analysis": {
+        "sampled_episodes": 40,
+        "runs_per_episode": 1.05,
+        "avg_effective_tokens_per_episode": 13100,
+        "observed_episodes_per_period": 36.7
+      },
+      "experiment_variants": [
+        {
+          "experiment_name": "model-selection",
+          "variant": "control",
+          "run_count": 21,
+          "fraction": 0.5
+        },
+        {
+          "experiment_name": "model-selection",
+          "variant": "treatment",
+          "run_count": 21,
+          "fraction": 0.5
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 9.3 Output Ordering
+
+- **R-OUT-010**: In both console and JSON output, workflows MUST be ordered by `projected_effective_tokens` (P50 value) in descending order.
+- **R-OUT-011**: Workflows with zero projected tokens MUST appear after all workflows with non-zero projections.
+- **R-OUT-012**: Among workflows with equal projected tokens, the ordering SHOULD be deterministic (e.g., alphabetical by workflow ID).
+
+---
+
+## 10. Error Handling
+
+### 10.1 Authentication Errors
+
+If the GitHub API returns an authentication error (HTTP 401 or 403):
+
+- **R-ERR-001**: The implementation MUST emit a descriptive error message to stderr indicating the authentication failure and guidance on re-authenticating with `gh auth login`.
+- **R-ERR-002**: The implementation MUST exit with code `2`.
+
+### 10.2 API Rate Limiting
+
+If the GitHub API returns a rate-limit response (HTTP 429 or a `X-RateLimit-Remaining: 0` header):
+
+- **R-ERR-010**: The implementation SHOULD retry the request after the period indicated by the `X-RateLimit-Reset` header.
+- **R-ERR-011**: The implementation MUST emit a warning to stderr when entering a rate-limit wait state.
+- **R-ERR-012**: If retry is not feasible, the implementation MUST exit with a non-zero status and a message indicating the rate limit condition.
+
+### 10.3 Partial Failures
+
+When one or more workflows in the discovery set encounter individual errors (e.g., artifact download failure, API timeout for a specific workflow):
+
+- **R-ERR-020**: The implementation MUST continue processing the remaining workflows rather than aborting the entire forecast.
+- **R-ERR-021**: Workflows that encountered individual errors MUST appear in output with `sampled_runs: 0` and all projection fields zeroed.
+- **R-ERR-022**: The implementation MUST emit a warning to stderr for each workflow that encountered an individual error.
+
+### 10.4 No Workflows Discovered
+
+If workflow discovery yields zero workflows:
+
+- **R-ERR-030**: The implementation MUST emit a message to stderr indicating that no agentic workflows were found and describing the discovery mode used.
+- **R-ERR-031**: The implementation MUST exit with code `3`.
+
+### 10.5 Verbose Diagnostics
+
+When `--verbose` is specified, the implementation SHOULD emit the following additional diagnostic information to stderr:
+
+- The list of discovered workflows and their identifiers
+- The number of runs fetched per workflow
+- The number of runs with valid ET data versus missing artifacts
+- The computed `λ` (Poisson rate) for each workflow
+- Timing information for API calls and simulation execution
+
+---
+
+## 11. Implementation Requirements
+
+### 11.1 Randomness
+
+- **R-IMPL-001**: The Monte Carlo engine MUST use a cryptographically seeded pseudorandom number generator (PRNG). Implementations MUST NOT use a fixed seed unless in test mode.
+- **R-IMPL-002**: The PRNG MUST be seeded independently per forecast invocation to ensure different results on repeated calls.
+
+### 11.2 Performance
+
+- **R-IMPL-010**: The 10,000-trial simulation for a single workflow MUST complete within 500 milliseconds on a single CPU core with a sample size of 100 runs.
+- **R-IMPL-011**: Multiple workflows SHOULD be forecasted concurrently where the runtime environment supports parallelism.
+- **R-IMPL-012**: API calls for data sampling SHOULD be made concurrently across workflows, subject to GitHub API rate limit constraints.
+
+### 11.3 Deterministic Output
+
+- **R-IMPL-020**: Given a fixed sample and fixed PRNG seed (in test mode), the Monte Carlo output MUST be reproducible. This requirement applies to test and validation scenarios only; production invocations MUST use random seeds (R-IMPL-001).
+
+### 11.4 Numeric Precision
+
+- **R-IMPL-030**: All intermediate ET computations MUST use 64-bit floating-point arithmetic (IEEE 754 double precision).
+- **R-IMPL-031**: JSON serialization of numeric fields MUST NOT produce non-finite values (`NaN`, `+Inf`, `-Inf`). If a computation produces a non-finite value, it MUST be replaced with `0` and a warning MUST be emitted.
+- **R-IMPL-032**: Implementations MUST NOT round projected ET values in intermediate computations; rounding for display purposes MUST occur only at serialization time.
+
+### 11.5 Experimental Status Behavior
+
+Because the forecast command is marked **Experimental**:
+
+- **R-IMPL-040**: The implementation MUST emit a warning to stderr on every invocation indicating the experimental status of the command unless `--json` is specified (JSON callers are assumed to be automated pipelines that handle warnings separately).
+- **R-IMPL-041**: The JSON output schema MAY have new fields added in minor versions without notice. Callers MUST treat unknown fields as ignorable.
+
+---
+
+## 12. Compliance Testing
+
+### 12.1 Test Suite Requirements
+
+#### 12.1.1 Command Interface Tests
+
+- **T-FC-001**: Invocation with invalid `--days` value exits non-zero with descriptive error.
+- **T-FC-002**: Invocation with invalid `--period` value exits non-zero with descriptive error.
+- **T-FC-003**: Invocation with `--sample < 1` exits non-zero.
+- **T-FC-004**: Invocation with invalid `--repo` format exits non-zero.
+- **T-FC-005**: Unmatched `workflow_id` positional argument exits non-zero with identification of the unmatched value.
+
+#### 12.1.2 Workflow Discovery Tests
+
+- **T-FC-010**: Local mode: discovers workflows from `.github/workflows/*.lock.yml`.
+- **T-FC-011**: Local mode: no lock files found exits with code `3`.
+- **T-FC-012**: Remote mode: calls GitHub Actions API and matches workflow IDs case-insensitively.
+- **T-FC-013**: Remote mode: missing frontmatter fields default to zero/empty without error.
+
+#### 12.1.3 Data Sampling Tests
+
+- **T-FC-020**: Sampling respects `--sample` limit.
+- **T-FC-021**: Sampling respects `--days` historical window cutoff.
+- **T-FC-022**: Run with missing `aw_info.json` artifact contributes zero ET and is still counted in `sampled_runs`.
+- **T-FC-023**: Workflow with zero sampled runs produces nil projection with zero fields.
+
+#### 12.1.4 Monte Carlo Engine Tests
+
+- **T-FC-030**: With `λ ≤ 15`, Knuth's algorithm is used for Poisson draw (verifiable by seeded PRNG in test mode).
+- **T-FC-031**: With `λ > 15`, Normal approximation is used; drawn value is non-negative.
+- **T-FC-032**: With `λ = 0`, projected tokens is exactly `0` for all trials.
+- **T-FC-033**: Bootstrap resampling draws with replacement from historical ET observations.
+- **T-FC-034**: Only successful Bernoulli draws contribute ET to the trial total.
+- **T-FC-035**: 10,000 trials are executed per workflow.
+- **T-FC-036**: P10 ≤ P50 ≤ P90 for all non-zero projections.
+- **T-FC-037**: `projected_effective_tokens` equals `p50_projected_effective_tokens`.
+
+#### 12.1.5 Episode Analysis Tests
+
+- **T-FC-040**: Runs sharing `headSha` and `headBranch` are grouped into the same episode.
+- **T-FC-041**: `runs_per_episode` equals `sampled_run_count / sampled_episodes`.
+- **T-FC-042**: Episode table is printed in console output when any workflow has `runs_per_episode > 1`.
+- **T-FC-043**: Episode table is suppressed when all workflows have `runs_per_episode = 1.0`.
+
+#### 12.1.6 Output Format Tests
+
+- **T-FC-050**: Console output contains all required columns.
+- **T-FC-051**: JSON output is valid JSON conforming to the schema in Section 9.2.
+- **T-FC-052**: JSON `as_of` field is a valid RFC 3339 UTC timestamp.
+- **T-FC-053**: JSON `workflows` array is sorted by `projected_effective_tokens` descending.
+- **T-FC-054**: No stdout output (other than JSON) when `--json` is specified.
+- **T-FC-055**: Experimental warning emitted to stderr unless `--json` is specified.
+
+### 12.2 Compliance Checklist
+
+| Requirement | Test ID | Level | Status |
+|---|---|---|---|
+| Flag validation | T-FC-001–005 | 1 | Required |
+| Local workflow discovery | T-FC-010–011 | 1 | Required |
+| Remote workflow discovery | T-FC-012–013 | 2 | Required |
+| Data sampling with limit and window | T-FC-020–021 | 1 | Required |
+| Missing artifact graceful handling | T-FC-022 | 1 | Required |
+| Nil projection for empty sample | T-FC-023 | 1 | Required |
+| Knuth Poisson algorithm (λ ≤ 15) | T-FC-030 | 1 | Required |
+| Normal approximation (λ > 15) | T-FC-031 | 1 | Required |
+| Zero-λ projection | T-FC-032 | 1 | Required |
+| Bootstrap resampling | T-FC-033 | 1 | Required |
+| Bernoulli success filtering | T-FC-034 | 1 | Required |
+| 10,000 trial count | T-FC-035 | 1 | Required |
+| Percentile ordering | T-FC-036 | 1 | Required |
+| P50 field consistency | T-FC-037 | 1 | Required |
+| Episode grouping | T-FC-040–041 | 2 | Required |
+| Episode table display logic | T-FC-042–043 | 2 | Required |
+| Console output columns | T-FC-050 | 1 | Required |
+| JSON schema conformance | T-FC-051–054 | 2 | Required |
+| Experimental status warning | T-FC-055 | 1 | Required |
+
+---
+
+## Appendices
+
+### Appendix A: Worked Example
+
+#### A.1 Scenario
+
+A workflow named `ci-doctor` has the following historical sample over 30 days:
+
+- 42 completed runs
+- 5 runs missing `aw_info.json` (treated as 0 ET)
+- ET observations (for the 37 runs with artifacts): range from 8,000 to 18,000, mean ≈ 12,500
+- 38 successful runs (yield = 38/42 ≈ 0.905)
+- Projection period: `month` (30 days)
+
+#### A.2 Observed Rate
+
+```
+observed_runs_per_period = (42 / 30) × 30 = 42.0
+λ = 42.0
+```
+
+Since λ > 15, Normal approximation is used: `Normal(μ=42, σ=√42 ≈ 6.48)`.
+
+#### A.3 Single Trial
+
+Draw `k ~ round(Normal(42, 6.48)) = 44` (example).
+
+For each of the 44 runs:
+1. Draw success: `Bernoulli(0.905)` → say 40 succeed.
+2. For each of the 40 successful runs, draw one ET observation from the 37-item historical pool (bootstrap).
+3. Sum the 40 ET draws.
+
+One trial might yield: 40 × 12,200 (average draw) ≈ 488,000 ET.
+
+#### A.4 After 10,000 Trials
+
+Sorted trial totals (example summary):
+
+```
+P10 ≈ 415,000   (10th percentile — lower bound of 80% CI)
+P50 ≈ 479,000   (median — headline projection)
+P90 ≈ 545,000   (90th percentile — upper bound of 80% CI)
+mean ≈ 481,000
+std_dev ≈ 40,000
+```
+
+### Appendix B: Poisson Algorithm Selection Rationale
+
+Knuth's exact Poisson algorithm is used for small λ (≤ 15) because it produces exact integer draws from the Poisson distribution without bias. For large λ, the Poisson distribution converges to a Normal distribution (`N(λ, λ)`), making the Normal approximation computationally efficient and sufficiently accurate.
+
+The threshold of λ = 15 is chosen as the crossover point where Normal approximation error is below 1% for the tails relevant to P10/P90 computation. Implementations MAY lower this threshold (e.g., to λ = 30) for greater accuracy at a minor performance cost.
+
+### Appendix C: Bootstrap Resampling Rationale
+
+Traditional projection models assume a parametric distribution (e.g., log-normal) for per-run token usage. Agentic workflow token usage is frequently multi-modal (e.g., simple tasks versus complex multi-step tasks) and exhibits heavy tails due to recursive sub-agent chains. Bootstrap resampling avoids distributional misspecification by directly sampling from the empirical distribution, preserving these characteristics faithfully. The tradeoff is that projections are bounded by observed extremes; extrapolation beyond observed maximum ET requires explicit assumption and is out of scope for this specification.
+
+### Appendix D: Episode Count Lower-Bound Semantics
+
+For orchestrator workflows that primarily use `workflow_call` or `workflow_dispatch` triggers, episodes are initiated by calls from another workflow rather than directly by GitHub events. These cross-workflow links are embedded in `aw_info.json` artifacts and are unavailable during forecasting when artifacts cannot be retrieved. As a result, each received `workflow_call` is counted as a separate episode, causing the episode count to overcount episodes and undercount the linkage. This means `runs_per_episode` may appear closer to `1.0` than its true value. Callers MUST treat `sampled_episodes` as a lower-bound estimate in this scenario and SHOULD note this limitation in any capacity planning documents.
+
+### Appendix E: Security Considerations
+
+- **Credential scope**: The forecast command accesses the GitHub Actions API using the credentials of the `gh` CLI. Token permissions MUST include `actions:read` for the target repository. Callers SHOULD use the minimum necessary scope.
+- **Artifact content**: The `aw_info.json` artifact MAY contain sensitive information such as prompt fragments embedded in ET metadata. Implementations MUST NOT log artifact payloads at verbosity levels accessible to non-administrative users.
+- **Remote repository access**: When `--repo` targets a repository the caller does not own, the caller MUST have explicit read access. The implementation MUST NOT attempt to bypass or circumvent repository access controls.
+- **JSON output**: The JSON output schema exposes token consumption patterns that MAY reveal information about system architecture and model configuration. JSON output SHOULD be treated as internal operational data and not exposed publicly.
+
+---
+
+## References
+
+### Normative References
+
+- **[RFC 2119]** Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997. <https://www.ietf.org/rfc/rfc2119.txt>
+- **[RFC 3339]** Klyne, G. and Newman, C., "Date and Time on the Internet: Timestamps", RFC 3339, July 2002. <https://www.ietf.org/rfc/rfc3339.txt>
+- **[ET-SPEC]** GitHub Agentic Workflows Team, "Effective Tokens Specification". [effective-tokens-specification](/gh-aw/reference/effective-tokens-specification/)
+- **[EXP-SPEC]** GitHub Agentic Workflows Team, "A/B Experiments Specification". [experiments-specification](/gh-aw/reference/experiments-specification/)
+
+### Informative References
+
+- **[KNUTH-TAOCP]** Knuth, D.E., "The Art of Computer Programming, Volume 2: Seminumerical Algorithms", 3rd edition. Section 3.4.1 (Poisson distribution generation algorithm).
+- **[BOOTSTRAP]** Efron, B. and Tibshirani, R., "An Introduction to the Bootstrap", Chapman & Hall, 1993.
+- **[GH-ACTIONS-API]** GitHub, "GitHub Actions REST API Reference". <https://docs.github.com/en/rest/actions>
+
+---
+
+## Change Log
+
+### Version 0.1.0 (Experimental Draft)
+
+- Initial specification for `gh aw forecast` command
+- Defined command interface: flags `--days`, `--period`, `--sample`, `--repo`, `--json`, `--verbose`
+- Defined local and remote workflow discovery modes
+- Defined data sampling procedure and per-run metric derivation
+- Defined Monte Carlo projection engine with Poisson + bootstrap algorithm
+- Defined episode analysis with lower-bound semantics for orchestrator workflows
+- Defined console table output format
+- Defined JSON output schema (Sections 9.2.1–9.2.6)
+- Defined error handling and exit codes
+- Defined compliance test suite (T-FC-001 through T-FC-055)
+- Added appendices: worked example, algorithm rationale, security considerations
+
+---
+
+*Copyright © 2026 GitHub Agentic Workflows Team. All rights reserved.*
