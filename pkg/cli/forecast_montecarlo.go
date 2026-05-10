@@ -13,7 +13,7 @@ package cli
 //
 // Running 10 000 trials and reporting P10/P50/P90 gives conservative and optimistic
 // estimates alongside the median, which is more informative than a single point
-// estimate for capacity planning and cost budgeting.
+// estimate for capacity planning.
 
 import (
 	"math"
@@ -26,8 +26,8 @@ import (
 // for typical sample sizes.
 const monteCarloIterations = 10_000
 
-// ForecastMonteCarloSummary contains the probability distribution of projected costs
-// and effective-token counts derived from a Monte Carlo simulation.
+// ForecastMonteCarloSummary contains the probability distribution of projected
+// effective-token counts derived from a Monte Carlo simulation.
 //
 // The simulation models run-count uncertainty via a Poisson process, per-run token
 // usage via bootstrap resampling of historical observations, and per-run success
@@ -36,28 +36,22 @@ const monteCarloIterations = 10_000
 type ForecastMonteCarloSummary struct {
 	// Iterations is the number of simulation trials that were run.
 	Iterations int `json:"iterations"`
-	// MeanProjectedCostUSD is the arithmetic mean of simulated costs across all trials.
-	MeanProjectedCostUSD float64 `json:"mean_projected_cost_usd"`
-	// StdDevCostUSD is the standard deviation of simulated costs (spread of the distribution).
-	StdDevCostUSD float64 `json:"std_dev_cost_usd"`
-	// P10ProjectedCostUSD is the 10th-percentile cost — only 10% of simulated outcomes
+	// MeanProjectedEffectiveTokens is the arithmetic mean of simulated ET totals across all trials.
+	MeanProjectedEffectiveTokens int `json:"mean_projected_effective_tokens"`
+	// StdDevEffectiveTokens is the standard deviation of simulated ET totals (spread of distribution).
+	StdDevEffectiveTokens float64 `json:"std_dev_effective_tokens"`
+	// P10ProjectedEffectiveTokens is the 10th-percentile ET count — only 10% of simulated outcomes
 	// fall below this value (optimistic bound).
-	P10ProjectedCostUSD float64 `json:"p10_projected_cost_usd"`
-	// P50ProjectedCostUSD is the median simulated cost.
-	P50ProjectedCostUSD float64 `json:"p50_projected_cost_usd"`
-	// P90ProjectedCostUSD is the 90th-percentile cost — 90% of simulated outcomes fall
-	// below this value (conservative / budget bound).
-	P90ProjectedCostUSD float64 `json:"p90_projected_cost_usd"`
-	// P10ProjectedEffectiveTokens is the 10th-percentile effective-token count.
 	P10ProjectedEffectiveTokens int `json:"p10_projected_effective_tokens"`
-	// P50ProjectedEffectiveTokens is the median effective-token count.
+	// P50ProjectedEffectiveTokens is the median simulated ET count.
 	P50ProjectedEffectiveTokens int `json:"p50_projected_effective_tokens"`
-	// P90ProjectedEffectiveTokens is the 90th-percentile effective-token count.
+	// P90ProjectedEffectiveTokens is the 90th-percentile ET count — 90% of simulated outcomes fall
+	// below this value (conservative / budget bound).
 	P90ProjectedEffectiveTokens int `json:"p90_projected_effective_tokens"`
 }
 
 // runMonteCarlo runs a Monte Carlo simulation to estimate the probability distribution
-// of projected effective-token usage and cost over the forecast period.
+// of projected effective-token usage over the forecast period.
 //
 // Parameters:
 //   - etObservations: per-run effective-token counts from historical completed runs.
@@ -74,7 +68,6 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 
 	successRate := float64(successCount) / float64(n)
 
-	simCosts := make([]float64, monteCarloIterations)
 	simETs := make([]int, monteCarloIterations)
 
 	for i := 0; i < monteCarloIterations; i++ {
@@ -92,22 +85,17 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 		}
 
 		simETs[i] = totalET
-		simCosts[i] = float64(totalET) * costPerEffectiveToken
 	}
 
 	// Sort for percentile computation.
-	sort.Float64s(simCosts)
 	sort.Ints(simETs)
 
-	mean, stddev := costMeanStdDev(simCosts)
+	mean, stddev := meanStdDevInt(simETs)
 
 	return &ForecastMonteCarloSummary{
 		Iterations:                  monteCarloIterations,
-		MeanProjectedCostUSD:        mean,
-		StdDevCostUSD:               stddev,
-		P10ProjectedCostUSD:         percentileFloat64(simCosts, 10),
-		P50ProjectedCostUSD:         percentileFloat64(simCosts, 50),
-		P90ProjectedCostUSD:         percentileFloat64(simCosts, 90),
+		MeanProjectedEffectiveTokens: mean,
+		StdDevEffectiveTokens:        stddev,
 		P10ProjectedEffectiveTokens: percentileInt(simETs, 10),
 		P50ProjectedEffectiveTokens: percentileInt(simETs, 50),
 		P90ProjectedEffectiveTokens: percentileInt(simETs, 90),
@@ -146,18 +134,20 @@ func poissonSample(rng *rand.Rand, lambda float64) int {
 	return int(math.Round(v))
 }
 
-// costMeanStdDev computes the arithmetic mean and population standard deviation
-// of the slice xs (assumed non-empty).
-func costMeanStdDev(xs []float64) (mean, stddev float64) {
+// meanStdDevInt computes the arithmetic mean and population standard deviation
+// of the int slice xs (assumed non-empty).
+func meanStdDevInt(xs []int) (mean int, stddev float64) {
 	if len(xs) == 0 {
 		return 0, 0
 	}
+	var sum int
 	for _, x := range xs {
-		mean += x
+		sum += x
 	}
-	mean /= float64(len(xs))
+	mean = sum / len(xs)
+	fmean := float64(mean)
 	for _, x := range xs {
-		d := x - mean
+		d := float64(x) - fmean
 		stddev += d * d
 	}
 	stddev = math.Sqrt(stddev / float64(len(xs)))
@@ -195,3 +185,4 @@ func percentileInt(sorted []int, p int) int {
 	}
 	return sorted[idx]
 }
+

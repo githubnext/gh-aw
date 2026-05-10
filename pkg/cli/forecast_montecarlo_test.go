@@ -79,15 +79,16 @@ func TestPercentileInt(t *testing.T) {
 	assert.Equal(t, 0, percentileInt(nil, 50), "empty slice")
 }
 
-// TestCostMeanStdDev verifies the mean/stddev helper on a known distribution.
-func TestCostMeanStdDev(t *testing.T) {
-	xs := []float64{2, 4, 4, 4, 5, 5, 7, 9}
-	mean, stddev := costMeanStdDev(xs)
-	assert.InDelta(t, 5.0, mean, 0.001, "mean")
+// TestMeanStdDevInt verifies the mean/stddev helper on a known distribution.
+func TestMeanStdDevInt(t *testing.T) {
+	// Population stddev of {2,4,4,4,5,5,7,9} = 2, mean = 5.
+	xs := []int{2, 4, 4, 4, 5, 5, 7, 9}
+	mean, stddev := meanStdDevInt(xs)
+	assert.Equal(t, 5, mean, "mean")
 	assert.InDelta(t, 2.0, stddev, 0.001, "population stddev")
 
-	m0, s0 := costMeanStdDev(nil)
-	assert.Equal(t, 0.0, m0)
+	m0, s0 := meanStdDevInt(nil)
+	assert.Equal(t, 0, m0)
 	assert.Equal(t, 0.0, s0)
 }
 
@@ -103,7 +104,7 @@ func TestRunMonteCarloNilOnEmpty(t *testing.T) {
 // statistical invariants (P10 ≤ P50 ≤ P90, mean ≥ 0, stddev ≥ 0).
 func TestRunMonteCarloBasicProperties(t *testing.T) {
 	rng := deterministicRNG()
-	// 20 historical runs, all successful, each costing ~1 000 tokens.
+	// 20 historical runs, all successful, each using ~1 000 tokens.
 	etObs := make([]int, 20)
 	for i := range etObs {
 		etObs[i] = 900 + i*10 // 900–1090
@@ -113,27 +114,25 @@ func TestRunMonteCarloBasicProperties(t *testing.T) {
 	require.NotNil(t, mc)
 
 	assert.Equal(t, monteCarloIterations, mc.Iterations)
-	assert.GreaterOrEqual(t, mc.MeanProjectedCostUSD, 0.0)
-	assert.GreaterOrEqual(t, mc.StdDevCostUSD, 0.0)
-	assert.LessOrEqual(t, mc.P10ProjectedCostUSD, mc.P50ProjectedCostUSD, "P10 ≤ P50")
-	assert.LessOrEqual(t, mc.P50ProjectedCostUSD, mc.P90ProjectedCostUSD, "P50 ≤ P90")
+	assert.GreaterOrEqual(t, mc.MeanProjectedEffectiveTokens, 0)
+	assert.GreaterOrEqual(t, mc.StdDevEffectiveTokens, 0.0)
 	assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens, "ET P10 ≤ P50")
 	assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens, "ET P50 ≤ P90")
 }
 
-// TestRunMonteCarloZeroSuccessRate verifies that a 0% success rate produces zero cost.
+// TestRunMonteCarloZeroSuccessRate verifies that a 0% success rate produces zero ET.
 func TestRunMonteCarloZeroSuccessRate(t *testing.T) {
 	rng := deterministicRNG()
 	etObs := []int{1000, 2000, 3000}
 	// successCount = 0 → successRate = 0/3 = 0.
 	mc := runMonteCarlo(etObs, 0, 5.0, rng)
 	require.NotNil(t, mc)
-	assert.Equal(t, 0.0, mc.P50ProjectedCostUSD, "zero success rate → zero cost")
-	assert.Equal(t, 0.0, mc.P90ProjectedCostUSD, "zero success rate → zero cost P90")
+	assert.Equal(t, 0, mc.P50ProjectedEffectiveTokens, "zero success rate → zero ET")
+	assert.Equal(t, 0, mc.P90ProjectedEffectiveTokens, "zero success rate → zero ET P90")
 }
 
 // TestRunMonteCarloOrderOfMagnitude checks that the simulation mean is within
-// an order of magnitude of the deterministic point estimate.
+// 20% of the deterministic point estimate.
 func TestRunMonteCarloOrderOfMagnitude(t *testing.T) {
 	rng := deterministicRNG()
 	etObs := []int{10_000, 12_000, 11_000, 9_500, 10_500}
@@ -143,26 +142,26 @@ func TestRunMonteCarloOrderOfMagnitude(t *testing.T) {
 	mc := runMonteCarlo(etObs, successCount, observedRunsPerPeriod, rng)
 	require.NotNil(t, mc)
 
-	// Deterministic point estimate.
+	// Deterministic point estimate (ET).
 	var totalET int
 	for _, et := range etObs {
 		totalET += et
 	}
 	avgET := totalET / len(etObs)
-	pointEstimate := float64(int(math.Round(observedRunsPerPeriod*float64(avgET)))) * costPerEffectiveToken
+	pointEstimate := int(math.Round(observedRunsPerPeriod * float64(avgET)))
 
 	// Simulation mean should be within 20% of point estimate (with 100% success rate
 	// and Poisson lambda = 20, the spread should be small).
-	assert.InEpsilon(t, pointEstimate, mc.MeanProjectedCostUSD, 0.20,
-		"simulation mean should be close to point estimate")
+	assert.InEpsilon(t, float64(pointEstimate), float64(mc.MeanProjectedEffectiveTokens), 0.20,
+		"simulation mean ET should be close to point estimate")
 
 	// P50 should also be within 20%.
-	assert.InEpsilon(t, pointEstimate, mc.P50ProjectedCostUSD, 0.20,
-		"simulation P50 should be close to point estimate")
+	assert.InEpsilon(t, float64(pointEstimate), float64(mc.P50ProjectedEffectiveTokens), 0.20,
+		"simulation P50 ET should be close to point estimate")
 
 	// Confidence interval must bracket the mean.
-	assert.LessOrEqual(t, mc.P10ProjectedCostUSD, mc.MeanProjectedCostUSD)
-	assert.GreaterOrEqual(t, mc.P90ProjectedCostUSD, mc.MeanProjectedCostUSD)
+	assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.MeanProjectedEffectiveTokens)
+	assert.GreaterOrEqual(t, mc.P90ProjectedEffectiveTokens, mc.MeanProjectedEffectiveTokens)
 }
 
 // TestRunMonteCarloSortedOutputs verifies CI ordering holds across many random seeds.
@@ -172,14 +171,13 @@ func TestRunMonteCarloSortedOutputs(t *testing.T) {
 		rng := rand.New(rand.NewSource(seed)) //nolint:gosec
 		mc := runMonteCarlo(etObs, len(etObs), 12.0, rng)
 		require.NotNil(t, mc)
-		assert.LessOrEqual(t, mc.P10ProjectedCostUSD, mc.P50ProjectedCostUSD)
-		assert.LessOrEqual(t, mc.P50ProjectedCostUSD, mc.P90ProjectedCostUSD)
+		assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens)
+		assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens)
 	}
 }
 
-// TestRunMonteCarloDistributionShape verifies that the cost distribution is roughly
-// unimodal and bell-shaped (skew stays within a reasonable bound) by checking that
-// the mean lies between P10 and P90.
+// TestRunMonteCarloDistributionShape verifies that the ET distribution is roughly
+// unimodal by checking that the mean lies between P10 and P90.
 func TestRunMonteCarloDistributionShape(t *testing.T) {
 	rng := deterministicRNG()
 	etObs := make([]int, 50)
@@ -189,8 +187,8 @@ func TestRunMonteCarloDistributionShape(t *testing.T) {
 	mc := runMonteCarlo(etObs, len(etObs), 30.0, rng)
 	require.NotNil(t, mc)
 
-	assert.GreaterOrEqual(t, mc.MeanProjectedCostUSD, mc.P10ProjectedCostUSD, "mean ≥ P10")
-	assert.LessOrEqual(t, mc.MeanProjectedCostUSD, mc.P90ProjectedCostUSD, "mean ≤ P90")
+	assert.GreaterOrEqual(t, mc.MeanProjectedEffectiveTokens, mc.P10ProjectedEffectiveTokens, "mean ≥ P10")
+	assert.LessOrEqual(t, mc.MeanProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens, "mean ≤ P90")
 }
 
 // TestPercentileSingleElement ensures percentile works for a length-1 slice.
@@ -200,8 +198,8 @@ func TestPercentileSingleElement(t *testing.T) {
 	assert.Equal(t, 42.0, percentileFloat64(sorted, 90))
 }
 
-// TestRunMonteCarloFullEpisodePath is a smoke test that exercises the full
-// forecastWorkflow path by calling runMonteCarlo directly with a realistic setup.
+// TestRunMonteCarloFullEpisodePath is a smoke test that exercises runMonteCarlo
+// with a realistic setup and validates ET percentile ordering.
 func TestRunMonteCarloFullEpisodePath(t *testing.T) {
 	rng := deterministicRNG()
 
@@ -218,12 +216,13 @@ func TestRunMonteCarloFullEpisodePath(t *testing.T) {
 	mc := runMonteCarlo(etObs, successCount, 8.0, rng)
 	require.NotNil(t, mc)
 	assert.Equal(t, monteCarloIterations, mc.Iterations)
-	assert.Greater(t, mc.P90ProjectedCostUSD, mc.P10ProjectedCostUSD, "P90 > P10 for non-trivial inputs")
+	assert.Greater(t, mc.P90ProjectedEffectiveTokens, mc.P10ProjectedEffectiveTokens, "P90 > P10 for non-trivial inputs")
 
-	// Cost field should round-trip through sort correctly.
-	costs := []float64{mc.P10ProjectedCostUSD, mc.P50ProjectedCostUSD, mc.P90ProjectedCostUSD}
-	sorted := make([]float64, len(costs))
-	copy(sorted, costs)
-	sort.Float64s(sorted)
-	assert.Equal(t, costs, sorted, "cost percentiles should already be in ascending order")
+	// ET percentiles should already be in ascending order.
+	ets := []int{mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens}
+	sorted := make([]int, len(ets))
+	copy(sorted, ets)
+	sort.Ints(sorted)
+	assert.Equal(t, ets, sorted, "ET percentiles should already be in ascending order")
 }
+

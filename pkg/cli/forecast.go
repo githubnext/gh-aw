@@ -1,8 +1,8 @@
 package cli
 
 // This file implements the `forecast` command, which samples a workflow's recent
-// GitHub Actions run history and projects forward token usage, cost, and yield on
-// a per-week or per-month basis.
+// GitHub Actions run history and projects forward effective token usage and yield
+// on a per-week or per-month basis.
 //
 // Workflow metadata (trigger types, concurrency, experiments) is read from the
 // workflow's Markdown frontmatter so that projections account for how often the
@@ -35,10 +35,6 @@ var forecastPeriodDays = map[string]int{
 	"month": 30,
 }
 
-// costPerEffectiveToken is the approximate USD cost per effective token.
-// This mirrors the value used elsewhere in the codebase (e.g. health metrics).
-const costPerEffectiveToken = 0.000015
-
 // ForecastEpisodeSummary contains episode-level aggregate metrics derived from
 // run history without downloading artifacts.  Episodes are reconstructed from the
 // fields available in the GitHub Actions run list (event type, head SHA, branch).
@@ -58,9 +54,6 @@ type ForecastEpisodeSummary struct {
 	// ObservedEpisodesPerPeriod is the projected number of episodes in the forecast
 	// period, scaled from the observed episode frequency.
 	ObservedEpisodesPerPeriod float64 `json:"observed_episodes_per_period"`
-	// ProjectedCostPerEpisode is the projected USD cost per episode
-	// (AvgEffectiveTokensPerEpisode × costPerEffectiveToken).
-	ProjectedCostPerEpisode float64 `json:"projected_cost_per_episode"`
 }
 
 // ForecastWorkflowResult contains the projected metrics for a single workflow.
@@ -87,15 +80,14 @@ type ForecastWorkflowResult struct {
 	AvgDurationSeconds float64 `json:"avg_duration_seconds"`
 
 	// Projected totals for the period.
-	ProjectedEffectiveTokens int     `json:"projected_effective_tokens"`
-	ProjectedCostUSD         float64 `json:"projected_cost_usd"`
+	ProjectedEffectiveTokens int `json:"projected_effective_tokens"`
 
 	// EpisodeAnalysis contains episode-level metrics derived from the sampled runs.
 	// Nil when no completed runs were available to analyze.
 	EpisodeAnalysis *ForecastEpisodeSummary `json:"episode_analysis,omitempty"`
 
-	// MonteCarlo contains the probability distribution of projected costs and
-	// effective-token counts derived from a Monte Carlo simulation (10 000 trials).
+	// MonteCarlo contains the probability distribution of projected effective-token
+	// counts derived from a Monte Carlo simulation (10 000 trials).
 	// Nil when no completed runs were available.
 	MonteCarlo *ForecastMonteCarloSummary `json:"monte_carlo,omitempty"`
 
@@ -353,9 +345,8 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 	// Effective throughput (yield) accounts for the success rate.
 	result.Yield = result.ObservedRunsPerPeriod * result.SuccessRate
 
-	// Projected token usage and cost (point estimate using simple means).
+	// Projected token usage (point estimate using simple means).
 	result.ProjectedEffectiveTokens = int(math.Round(result.ObservedRunsPerPeriod * float64(result.AvgEffectiveTokens)))
-	result.ProjectedCostUSD = float64(result.ProjectedEffectiveTokens) * costPerEffectiveToken
 
 	// Monte Carlo simulation: model run-count (Poisson), per-run token usage
 	// (bootstrap), and per-run success (Bernoulli) to produce P10/P50/P90 ranges.
@@ -605,14 +596,12 @@ func buildForecastEpisodeSummary(runs []WorkflowRun, historyDays, periodDays int
 	avgETPerEpisode := totalEpisodeET / numEpisodes
 	runsPerEpisode := float64(len(runs)) / float64(numEpisodes)
 	observedEpisodesPerPeriod := float64(numEpisodes) / float64(historyDays) * float64(periodDays)
-	projectedCostPerEpisode := float64(avgETPerEpisode) * costPerEffectiveToken
 
 	return &ForecastEpisodeSummary{
 		SampledEpisodes:              numEpisodes,
 		RunsPerEpisode:               runsPerEpisode,
 		AvgEffectiveTokensPerEpisode: avgETPerEpisode,
 		ObservedEpisodesPerPeriod:    observedEpisodesPerPeriod,
-		ProjectedCostPerEpisode:      projectedCostPerEpisode,
 	}
 }
 
@@ -636,8 +625,7 @@ type forecastTableRow struct {
 	Yield              string `json:"yield"                   console:"header:Yield/Period"`
 	AvgEffectiveTokens string `json:"avg_effective_tokens"    console:"header:Avg ET"`
 	ProjectedTokens    string `json:"projected_tokens"        console:"header:Proj. ET (P50)"`
-	ProjectedCost      string `json:"projected_cost"          console:"header:Proj. Cost (P50)"`
-	CostRange          string `json:"cost_range"              console:"header:80% CI (P10–P90)"`
+	ETRange            string `json:"et_range"                console:"header:80% CI (P10–P90)"`
 	Triggers           string `json:"triggers"                console:"header:Triggers"`
 }
 
@@ -650,14 +638,14 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 
 	rows := make([]forecastTableRow, 0, len(output.Workflows))
 	for _, wf := range output.Workflows {
-		// Use Monte Carlo P50 as the primary cost/ET estimate when available.
+		// Use Monte Carlo P50 as the primary ET estimate when available.
 		projETStr := formatForecastTokens(wf.ProjectedEffectiveTokens)
-		projCostStr := fmt.Sprintf("$%.3f", wf.ProjectedCostUSD)
-		ciStr := "-"
+		etRangeStr := "-"
 		if mc := wf.MonteCarlo; mc != nil {
 			projETStr = formatForecastTokens(mc.P50ProjectedEffectiveTokens)
-			projCostStr = fmt.Sprintf("$%.3f", mc.P50ProjectedCostUSD)
-			ciStr = fmt.Sprintf("$%.3f–$%.3f", mc.P10ProjectedCostUSD, mc.P90ProjectedCostUSD)
+			etRangeStr = fmt.Sprintf("%s–%s",
+				formatForecastTokens(mc.P10ProjectedEffectiveTokens),
+				formatForecastTokens(mc.P90ProjectedEffectiveTokens))
 		}
 		row := forecastTableRow{
 			Workflow:           wf.WorkflowID,
@@ -666,8 +654,7 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 			Yield:              fmt.Sprintf("%.1f", wf.Yield),
 			AvgEffectiveTokens: formatForecastTokens(wf.AvgEffectiveTokens),
 			ProjectedTokens:    projETStr,
-			ProjectedCost:      projCostStr,
-			CostRange:          ciStr,
+			ETRange:            etRangeStr,
 			Triggers:           formatTriggerList(wf.ActiveTriggers),
 		}
 		rows = append(rows, row)
@@ -698,20 +685,19 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("P50 = median; 80%% CI = P10–P90 from %d-trial Monte Carlo simulation.", monteCarloIterations)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("Run '%s forecast --json' for full output. Costs use %.0e USD/ET.",
-			string(constants.CLIExtensionPrefix), costPerEffectiveToken)))
+		fmt.Sprintf("Run '%s forecast --json' for full output.", string(constants.CLIExtensionPrefix))))
 	return nil
 }
 
-// printEpisodeBreakdown renders per-episode projected cost for workflows that have
+// printEpisodeBreakdown renders per-episode ET metrics for workflows that have
 // multi-run episodes (i.e. orchestrator-style workflows dispatching sub-workflows).
 func printEpisodeBreakdown(workflows []ForecastWorkflowResult) {
 	type episodeRow struct {
-		Workflow          string `json:"workflow"             console:"header:Workflow"`
-		Episodes          int    `json:"episodes"             console:"header:Episodes"`
-		RunsPerEpisode    string `json:"runs_per_episode"     console:"header:Runs/Episode"`
-		AvgETPerEpisode   string `json:"avg_et_per_episode"   console:"header:Avg ET/Episode"`
-		EpisodeCostPerPrd string `json:"episode_cost_per_prd" console:"header:Proj. $/Episode"`
+		Workflow              string `json:"workflow"               console:"header:Workflow"`
+		Episodes              int    `json:"episodes"               console:"header:Episodes"`
+		RunsPerEpisode        string `json:"runs_per_episode"       console:"header:Runs/Episode"`
+		AvgETPerEpisode       string `json:"avg_et_per_episode"     console:"header:Avg ET/Episode"`
+		EpisodesPerPeriod     string `json:"episodes_per_period"    console:"header:Episodes/Period"`
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Episode analysis (runs grouped by logical task):"))
@@ -726,7 +712,7 @@ func printEpisodeBreakdown(workflows []ForecastWorkflowResult) {
 			Episodes:          ep.SampledEpisodes,
 			RunsPerEpisode:    fmt.Sprintf("%.1f", ep.RunsPerEpisode),
 			AvgETPerEpisode:   formatForecastTokens(ep.AvgEffectiveTokensPerEpisode),
-			EpisodeCostPerPrd: fmt.Sprintf("$%.3f", ep.ProjectedCostPerEpisode),
+			EpisodesPerPeriod: fmt.Sprintf("%.1f", ep.ObservedEpisodesPerPeriod),
 		})
 	}
 	fmt.Fprint(os.Stderr, console.RenderStruct(epRows))
