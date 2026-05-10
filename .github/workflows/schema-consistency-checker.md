@@ -10,9 +10,7 @@ permissions:
   pull-requests: read
 engine:
   id: claude
-harness:
-  budget:
-    max-effective-tokens: 20000000
+max-effective-tokens: 20000000
 tools:
   edit:
   bash: ["*"]
