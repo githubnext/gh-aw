@@ -12,6 +12,8 @@ import (
 
 var claudeToolsLog = logger.New("workflow:claude_tools")
 
+const defaultClaudeTmpWritePath = "/tmp"
+
 // hasBashWildcardInTools returns true when the neutral tools map grants unrestricted
 // bash access — either because bash is not a list (e.g. bash: true) or because the
 // list contains a "*" or ":*" wildcard entry.
@@ -441,7 +443,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	// Claude workflows should always be able to use /tmp even when not explicitly
 	// listed in sandbox.agent.config.filesystem.allowWrite.
 	if sandboxConfig != nil {
-		writablePaths := []string{"/tmp"}
+		writablePaths := []string{defaultClaudeTmpWritePath}
 		if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
 			writablePaths = append(writablePaths, sandboxConfig.Agent.Config.Filesystem.AllowWrite...)
 		}
