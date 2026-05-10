@@ -45,7 +45,6 @@ pre-agent-steps:
         exit 1
       fi
 tools:
-  cache-memory: false
   cli-proxy: true
 safe-outputs:
   add-comment:
