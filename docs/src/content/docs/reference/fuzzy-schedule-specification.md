@@ -344,13 +344,13 @@ every 2 days
 ### 3.7 Error Norms for Invalid Schedule Expressions
 
 The following table specifies normative behavior (MUST/SHALL requirements) for malformed or
-unrecognisable fuzzy schedule expressions encountered during compilation. These norms apply
+unrecognizable fuzzy schedule expressions encountered during compilation. These norms apply
 at parse time (when the compiler processes the workflow frontmatter) and at test time (when
 the compliance test suite exercises the parser with invalid inputs).
 
 | # | Error Condition | Input Example | MUST/SHALL Behavior | Error Code |
 |---|----------------|---------------|---------------------|------------|
-| E-01 | Unknown schedule keyword (not one of `daily`, `weekly`, `hourly`, `bi-weekly`, `tri-weekly`, `every`) | `monthly` | Implementation MUST reject with a descriptive error naming the unrecognised keyword and listing valid keywords | `UNKNOWN_KEYWORD` |
+| E-01 | Unknown schedule keyword (not one of `daily`, `weekly`, `hourly`, `bi-weekly`, `tri-weekly`, `every`) | `monthly` | Implementation MUST reject with a descriptive error naming the unrecognized keyword and listing valid keywords | `UNKNOWN_KEYWORD` |
 | E-02 | Out-of-range hour in 24-hour format | `daily around 25:00` | Implementation MUST reject; the error message MUST state the valid hour range (0–23) and the offending value | `HOUR_OUT_OF_RANGE` |
 | E-03 | Out-of-range minute | `daily around 14:65` | Implementation MUST reject; the error message MUST state the valid minute range (0–59) and the offending value | `MINUTE_OUT_OF_RANGE` |
 | E-04 | `around` keyword with no time specification | `daily around` | Implementation MUST reject; the error message MUST include an example of correct `around` usage | `MISSING_TIME_SPEC` |

@@ -490,7 +490,7 @@ This file is embedded at compile time into the `gh-aw` binary using a Go `//go:e
 
 **R-REG-004**: Implementations MUST embed or bundle the registry at build time. Runtime fetching of multiplier values from an external source requires disclosure in reported output.
 
-**R-REG-005**: When a model name is not present in the registry, implementations MUST treat the multiplier as `1.0` and SHOULD emit a warning noting that the model is unrecognised.
+**R-REG-005**: When a model name is not present in the registry, implementations MUST treat the multiplier as `1.0` and SHOULD emit a warning noting that the model is unrecognized.
 
 **R-REG-006**: Custom multipliers supplied by the caller (e.g., via API or configuration) MUST be merged with registry multipliers. Custom values take precedence and MUST be disclosed in any report that uses them.
 

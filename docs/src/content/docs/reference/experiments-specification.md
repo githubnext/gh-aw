@@ -997,7 +997,7 @@ experiments:
 ```
 
 The weight values are **relative proportions**, not absolute percentages. The implementation
-normalises them to compute probabilities:
+normalizes them to compute probabilities:
 
 ```
 total_weight = 20 + 50 + 30 = 100
