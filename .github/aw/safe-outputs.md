@@ -16,6 +16,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       title-prefix: "[ai] "           # Optional: prefix for issue titles
       labels: [automation, agentic]    # Optional: labels to attach to issues
       allowed-labels: [bug, task]     # Optional: restrict which labels the agent can set (any label allowed if omitted)
+      allowed-fields: [Priority, Iteration]  # Optional: restrict which issue fields the agent may set via the `fields` runtime parameter (omit/empty = any field; ["*"] explicitly allows all)
       assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
       max: 5                          # Optional: maximum number of issues (default: 1)
       expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
@@ -49,6 +50,12 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```json
   {"type": "create_issue", "temporary_id": "aw_abc123", "title": "Parent", "body": "Parent issue"}
   {"type": "create_issue", "parent": "aw_abc123", "title": "Sub-task", "body": "References #aw_abc123"}
+  ```
+
+  **Setting Issue Fields on Creation**: Agents can include a `fields` array in the `create_issue` output to set custom field values immediately after creation. Each item is `{"name": <field-display-name>, "value": <string-or-number>}`. Use a number for numeric fields; string for single-select, iteration title, date `YYYY-MM-DD`, or text. Restrict allowed names with `allowed-fields:`.
+
+  ```json
+  {"type": "create_issue", "title": "Triage: flaky parser", "body": "...", "fields": [{"name": "Priority", "value": "High"}, {"name": "Story Points", "value": 3}]}
   ```
 
 - `close-issue:` - Close issues with comment (use this to close issues, not update-issue)
