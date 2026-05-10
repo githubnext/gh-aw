@@ -62,6 +62,18 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantExpressions: []string{"steps.pick-experiment.outputs.caveman"},
 		},
 		{
+			name:            "experiments.name == value comparison form gets transformed to step output",
+			markdown:        `{{#if ${{ experiments.prompt_style == "concise" }} }}foo{{/if}}`,
+			wantCount:       1,
+			wantExpressions: []string{`steps.pick-experiment.outputs.prompt_style == "concise"`},
+		},
+		{
+			name:            "experiments.name !== value comparison form gets transformed to step output",
+			markdown:        `{{#if ${{ experiments.reasoning_depth !== "multi_candidate" }} }}foo{{/if}}`,
+			wantCount:       1,
+			wantExpressions: []string{`steps.pick-experiment.outputs.reasoning_depth !== "multi_candidate"`},
+		},
+		{
 			name:            "expression with whitespace",
 			markdown:        "Value: ${{  github.actor  }}",
 			wantCount:       1,

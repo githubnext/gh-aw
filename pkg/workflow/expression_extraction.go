@@ -199,6 +199,13 @@ func transformActivationOutputs(expr string) string {
 // experimentNameRegex matches experiments.<name> expressions where name is a simple identifier.
 var experimentNameRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)$`)
 
+// experimentComparisonRegex matches experiments.<name> followed by a comparison operator and
+// a quoted string value, e.g. `experiments.prompt_style == "concise"` or
+// `experiments.prompt_style !== "detailed"`. It captures:
+//   - group 1: the experiment name
+//   - group 2: the remainder of the expression (operator + value), verbatim
+var experimentComparisonRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)([ \t]*(?:!==?|===?)[ \t]*".*)$`)
+
 // ExperimentEnvVarName returns the env-var name used for the given experiment.
 // The name is uppercased; hyphens are converted to underscores; all other characters
 // that are not A-Z, 0-9, or underscore are dropped (not replaced).
@@ -209,17 +216,28 @@ func ExperimentEnvVarName(experimentName string) string {
 }
 
 // transformExperimentsExpression detects expressions of the form "experiments.<name>"
-// and rewrites them to "steps.pick-experiment.outputs.<name>" so that the placeholder
-// substitution step reads the value from the pick_experiment step output.
-// This is used for ${{ experiments.name }} expressions that appear directly in the prompt body
-// (mostly relevant in inline mode; in runtime-import mode the template conditional
-// {{#if experiments.name}} path is handled separately via ExperimentExpressionMappings).
+// (and the comparison form "experiments.<name> == "value"") and rewrites them so that the
+// placeholder substitution step reads the value from the pick_experiment step output.
+//
+// Simple form:     experiments.name          → steps.pick-experiment.outputs.name
+// Comparison form: experiments.name == "v"  → steps.pick-experiment.outputs.name == "v"
+//
+// This is used for ${{ experiments.name }} and ${{ experiments.name == "value" }} expressions
+// that appear directly in the prompt body (mostly relevant in inline mode; in runtime-import
+// mode the {{#if experiments.name == "value"}} conditional is handled by interpolate_prompt.cjs
+// step 2.5 which substitutes the variant value directly inside the condition tag).
+//
+// Without this transformation, the generated env var would contain an invalid GitHub Actions
+// expression like `${{ experiments.name == "value" }}` where `experiments` is not a real
+// context, causing the expression to always evaluate to false.
 func transformExperimentsExpression(expr string) string {
-	m := experimentNameRegex.FindStringSubmatch(expr)
-	if m == nil {
-		return expr
+	if m := experimentNameRegex.FindStringSubmatch(expr); m != nil {
+		return "steps.pick-experiment.outputs." + m[1]
 	}
-	return "steps.pick-experiment.outputs." + m[1]
+	if m := experimentComparisonRegex.FindStringSubmatch(expr); m != nil {
+		return "steps.pick-experiment.outputs." + m[1] + m[2]
+	}
+	return expr
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like
