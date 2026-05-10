@@ -37,61 +37,92 @@ async function main() {
 
   // Determine the API endpoint based on the event type
   const eventName = context.eventName;
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
+  const { owner, repo } = context.repo;
 
-  /** @type {string | undefined} */
-  let reactionEndpoint;
+  /** @type {string | null} */
+  const reactionEndpoint = resolveRestEndpoint(eventName, owner, repo);
 
+  if (reactionEndpoint === null) {
+    // GraphQL paths (discussion, discussion_comment) and error paths are handled inside
+    await handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction);
+    return;
+  }
+
+  core.info(`Adding reaction to: ${reactionEndpoint}`);
+  try {
+    await addReaction(reactionEndpoint, reaction);
+  } catch (error) {
+    handleReactionError(error);
+  }
+}
+
+/**
+ * Resolve the REST API endpoint for non-discussion events.
+ * Returns null for discussion/discussion_comment/unsupported events (handled separately).
+ * @param {string} eventName
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {string | null}
+ */
+function resolveRestEndpoint(eventName, owner, repo) {
   switch (eventName) {
     case "issues": {
       const issueNumber = context.payload?.issue?.number;
       if (!issueNumber) {
         core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
-        return;
+        return null;
       }
-      reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-      break;
+      return `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
     }
 
     case "issue_comment": {
       const commentId = context.payload?.comment?.id;
       if (!commentId) {
         core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
-        return;
+        return null;
       }
-      reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-      break;
+      return `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
     }
 
     case "pull_request": {
       const prNumber = context.payload?.pull_request?.number;
       if (!prNumber) {
         core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
-        return;
+        return null;
       }
       // PRs are "issues" for the reactions endpoint
-      reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-      break;
+      return `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
     }
 
     case "pull_request_review_comment": {
       const reviewCommentId = context.payload?.comment?.id;
       if (!reviewCommentId) {
         core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
-        return;
+        return null;
       }
-      reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-      break;
+      return `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
     }
 
+    default:
+      return null;
+  }
+}
+
+/**
+ * Handle GraphQL-based reactions (discussion, discussion_comment) and unsupported event types.
+ * @param {string} eventName
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string} reaction
+ */
+async function handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction) {
+  switch (eventName) {
     case "discussion": {
       const discussionNumber = context.payload?.discussion?.number;
       if (!discussionNumber) {
         core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
         return;
       }
-      // Discussions use GraphQL API - get the node ID
       try {
         const discussionNodeId = await getDiscussionNodeId(owner, repo, discussionNumber);
         await addDiscussionReaction(discussionNodeId, reaction);
@@ -117,17 +148,6 @@ async function main() {
 
     default:
       core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
-      return;
-  }
-
-  // Add reaction using REST API (for non-discussion events)
-  // reactionEndpoint is always defined here - all other cases return early
-  if (!reactionEndpoint) return;
-  core.info(`Adding reaction to: ${reactionEndpoint}`);
-  try {
-    await addReaction(reactionEndpoint, reaction);
-  } catch (error) {
-    handleReactionError(error);
   }
 }
 
@@ -220,4 +240,4 @@ async function getDiscussionNodeId(owner, repo, discussionNumber) {
   return repository.discussion.id;
 }
 
-module.exports = { main, addReaction, addDiscussionReaction, getDiscussionNodeId, handleReactionError, REACTION_MAP };
+module.exports = { main, addReaction, addDiscussionReaction, getDiscussionNodeId, handleReactionError, resolveRestEndpoint, handleGraphQLOrUnknownEvent, REACTION_MAP };
