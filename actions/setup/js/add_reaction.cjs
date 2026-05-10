@@ -44,7 +44,7 @@ async function main() {
 
   if (reactionEndpoint === null) {
     // GraphQL paths are handled separately; REST validation failures already called setFailed.
-    if (eventName === "discussion" || eventName === "discussion_comment" || !isRestReactionEvent(eventName)) {
+    if (!isRestReactionEvent(eventName)) {
       await handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction);
     }
     return;

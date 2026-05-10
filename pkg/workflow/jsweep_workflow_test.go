@@ -127,6 +127,9 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		if !strings.Contains(mdContent, "git log -1 --format='%ct'") {
 			t.Error("jsweep workflow should use a deterministic git query for fallback file selection")
 		}
+		if !strings.Contains(mdContent, "most recent git commit is oldest") {
+			t.Error("jsweep workflow should tie the git query to choosing the oldest cleanup candidate")
+		}
 		if !strings.Contains(mdContent, "sorted by path") {
 			t.Error("jsweep workflow should sort candidate files by path before fallback selection")
 		}
