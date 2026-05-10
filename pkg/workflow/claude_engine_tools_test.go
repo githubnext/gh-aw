@@ -478,6 +478,26 @@ func TestClaudeEngineComputeAllowedToolsWithSandboxAllowWrite(t *testing.T) {
 	}
 }
 
+func TestClaudeEngineComputeAllowedToolsAddsTmpByDefaultWhenSandboxEnabled(t *testing.T) {
+	engine := NewClaudeEngine()
+	cacheMemoryConfig, err := NewCompiler().extractCacheMemoryConfigFromMap(map[string]any{})
+	if err != nil {
+		t.Fatalf("extract cache-memory config: %v", err)
+	}
+
+	sandboxConfig := &SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Type: SandboxTypeAWF,
+		},
+	}
+
+	got := engine.computeAllowedClaudeToolsString(map[string]any{}, nil, cacheMemoryConfig, nil, sandboxConfig)
+	want := "Edit(/tmp/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/*),NotebookRead,Read,Read(/tmp/*),Task,TodoWrite,Write(/tmp/*)"
+	if got != want {
+		t.Fatalf("unexpected allowed tools\nwant: %s\ngot:  %s", want, got)
+	}
+}
+
 func TestHasBashWildcardInTools(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -437,9 +437,15 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		}
 	}
 
-	// Grant path-scoped file tool access for explicit sandbox writable paths.
-	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
-		for _, writablePath := range sandboxConfig.Agent.Config.Filesystem.AllowWrite {
+	// Grant path-scoped file tool access for sandbox writable paths.
+	// Claude workflows should always be able to use /tmp even when not explicitly
+	// listed in sandbox.agent.config.filesystem.allowWrite.
+	if sandboxConfig != nil {
+		writablePaths := []string{"/tmp"}
+		if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
+			writablePaths = append(writablePaths, sandboxConfig.Agent.Config.Filesystem.AllowWrite...)
+		}
+		for _, writablePath := range writablePaths {
 			path := strings.TrimSpace(writablePath)
 			if path == "" {
 				continue
