@@ -197,6 +197,7 @@ var DefaultGitHubTools = DefaultGitHubToolsLocal
 // DefaultBashTools defines basic bash commands that should be available by default when bash is enabled
 var DefaultBashTools = []string{
 	"echo",
+	"printf",
 	"ls",
 	"pwd",
 	"cat",

@@ -176,6 +176,7 @@ func TestDefaultBashTools(t *testing.T) {
 	// Test a few key bash tools are present
 	requiredTools := []string{
 		"echo",
+		"printf",
 		"ls",
 		"cat",
 		"grep",
