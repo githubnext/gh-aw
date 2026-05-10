@@ -415,7 +415,6 @@ def _path_is_within(path: Path, root: Path) -> bool:
 
 def normalize_import_paths(workflow_path: Path, frontmatter: dict[str, Any]) -> list[Path]:
     workflows_root = _get_workflows_root(workflow_path)
-    shared_root = workflows_root / "shared" if workflows_root else None
     imports = []
     for item in as_list(frontmatter.get("imports")):
         raw: str | None = None
@@ -434,7 +433,7 @@ def normalize_import_paths(workflow_path: Path, frontmatter: dict[str, Any]) -> 
             continue
         if raw.startswith("shared/"):
             import_path = (workflows_root / raw).resolve()
-            if _path_is_within(import_path, shared_root):
+            if _path_is_within(import_path, workflows_root / "shared"):
                 imports.append(import_path)
         elif raw.startswith("./") or raw.startswith("../"):
             import_path = (workflow_path.parent / raw).resolve()
