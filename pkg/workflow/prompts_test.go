@@ -217,6 +217,27 @@ This is a test workflow with multiple cache-memory entries.
 	t.Logf("Successfully verified cache memory instructions handle multiple caches")
 }
 
+func TestDailyFunctionNamerTreatsMissingCacheStateAsColdStart(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-function-namer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "Do **not** call `missing_data`") {
+		t.Fatal("Expected daily-function-namer workflow to forbid missing_data on cold start")
+	}
+	if !strings.Contains(workflow, "expected initialization") {
+		t.Fatal("Expected daily-function-namer workflow to describe a missing state file as expected initialization")
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================
