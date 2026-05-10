@@ -133,7 +133,8 @@ def recompute_overlap_drag(payload: dict[str, Any]) -> float:
     for pair in pairs:
         if not isinstance(pair, dict):
             continue
-        drag += float(pair.get("score", 0.0)) ** 2 * 2.0
+        score = pre.clamp(pair.get("score", 0.0))
+        drag += score**2 * 2.0
     return round(drag, 4)
 
 
