@@ -87,7 +87,7 @@ def test_absolute_imports_are_rejected(tmp_path: Path) -> None:
 def test_windows_absolute_imports_are_rejected(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflow = workflows / "alpha.md"
-    write_workflow(workflow, "---\nimports:\n  - C:\\outside.md\n---\n# Alpha\n")
+    write_workflow(workflow, "---\nimports:\n  - \\\\server\\share\\outside.md\n---\n# Alpha\n")
     frontmatter, _ = pre.read_workflow(workflow)
     assert pre.normalize_import_paths(workflow, frontmatter) == []
 

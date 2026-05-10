@@ -400,6 +400,8 @@ def as_list(value: Any) -> list[Any]:
 def _get_workflows_root(workflow_path: Path) -> Path | None:
     resolved = workflow_path.resolve()
     for candidate in (resolved.parent, *resolved.parents):
+        if candidate.parent == candidate:
+            break
         if candidate.name == "workflows" and candidate.parent.name == ".github":
             return candidate
     return None
