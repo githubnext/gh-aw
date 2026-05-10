@@ -22,20 +22,20 @@ Each job also incurs approximately 1.5 minutes of runner setup overhead on top o
 
 ### Inference Costs
 
-The agent job invokes an AI engine (Copilot, Claude, Codex, or a custom engine) to process the prompt and call tools. Inference is billed by the provider:
+The agent job invokes an AI engine to process the prompt and call tools. Inference is billed by the provider:
 
-- **GitHub Copilot CLI** (`copilot` engine): Usage is billed as premium requests against the GitHub account that owns the [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token). A typical workflow run uses 1–2 premium requests. See [GitHub Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot).
-- **Claude** (`claude` engine): Billed per token to the Anthropic account associated with [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key).
-- **Codex** (`codex` engine): Billed per token to the OpenAI account associated with [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key).
+| Engine | Billed to | Unit |
+|--------|-----------|------|
+| `copilot` | Account owning [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | Premium requests (1–2 per run; see [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)) |
+| `claude` | Anthropic account for [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) | Tokens |
+| `codex` | OpenAI account for [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | Tokens |
 
 > [!NOTE]
-> For Copilot, inference is charged to the individual account owning `COPILOT_GITHUB_TOKEN`, not to the repository or organization running the workflow. Use a dedicated service account and monitor its premium request usage to track spend per workflow.
+> For Copilot, inference is charged to the individual account owning `COPILOT_GITHUB_TOKEN`, not the repository or organization. Use a dedicated service account to track spend per workflow.
 
 ## Monitoring Costs with `gh aw logs`
 
-The `gh aw logs` command downloads workflow run data and surfaces per-run metrics including elapsed duration, token usage, and estimated inference cost. Use it to see exactly what your workflows are consuming before deciding what to optimize.
-
-For a deep dive into a single run's token usage, tool calls, and inference spend, use `gh aw audit <run-id>`. The **Metrics** and **Performance Metrics** sections of the audit report show token counts, effective tokens, turn counts, and estimated cost in one place — useful for diagnosing why a specific run was expensive. For cost trends across multiple runs, use `gh aw logs --format markdown [workflow]` to generate a cross-run report with metrics trends and anomaly detection.
+The `gh aw logs` command surfaces per-run metrics — elapsed duration, token usage, and estimated inference cost — before you decide what to optimize. Use `gh aw audit <run-id>` to deep-dive into a single run's token usage, tool calls, and inference spend; its **Metrics** and **Performance Metrics** sections cover token counts, effective tokens, turn counts, and estimated cost in one place. For cost trends across multiple runs, use `gh aw logs --format markdown [workflow]` to generate a cross-run report with anomaly detection.
 
 ### View recent run durations
 
@@ -70,97 +70,33 @@ gh aw logs --start-date -30d --json | \
   map({workflow: .[0].workflow_name, runs: length, total_cost: (map(.estimated_cost) | add // 0)})'
 ```
 
-The JSON output includes `duration`, `token_usage`, `estimated_cost`, `workflow_name`, and `agent` (the engine ID) for each run under `.runs[]`.
-
-For orchestrated workflows, the same JSON also includes deterministic lineage under `.episodes[]` and `.edges[]`. The episode rollups expose aggregate fields such as `total_runs`, `total_tokens`, `total_effective_tokens`, `total_estimated_cost`, `risky_node_count`, and `suggested_route`, which are more useful than raw per-run metrics when one logical job spans multiple workflow runs.
-
-```bash
-# List episode-level usage and risk data over the past 30 days
-gh aw logs --start-date -30d --json | \
-  jq '.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, effective_tokens: .total_effective_tokens, risky_nodes: .risky_node_count}'
-```
+Each run under `.runs[]` includes `duration`, `token_usage`, `estimated_cost`, `workflow_name`, and `agent`. For orchestrated workflows, the same JSON includes deterministic lineage under `.episodes[]` and `.edges[]` — see the next section.
 
 ### Interpret Episode-Level Cost
 
-`gh aw logs --json` always computes deterministic episodes. Users do not need to decide whether a run "is an episode". The system already groups related runs and emits both views:
-
-- `.runs[]` for individual workflow runs
-- `.episodes[]` for the grouped logical execution
-- `.edges[]` for the inferred lineage between related runs
-
-Per-run cost is often the right reporting unit for simple workflows, but it can understate the real footprint of orchestrated systems. A single logical job may span multiple workflow runs:
-
-- an orchestrator run
-- one or more dispatched worker runs
-- one or more `workflow_call` follow-ups
-- a later `workflow_run` analysis or reporting pass
-
-When that happens, `.runs[]` shows the cost of each individual execution, while `.episodes[]` shows the aggregate cost of the whole logical execution chain. If you are trying to answer "what did this job really cost end-to-end?", read the episode view. If you are trying to identify which specific run was expensive, read the run view.
-
-Use `.edges[]` when you need to inspect why runs were grouped together. Each edge records the inferred parent-child relationship and the confidence of that relationship.
+`gh aw logs --json` emits three views of the same data: `.runs[]` (individual workflow runs), `.episodes[]` (related runs grouped into one logical execution — orchestrator, workers, `workflow_call` follow-ups, and reporting passes), and `.edges[]` (the inferred parent-child lineage). Use `.runs[]` to find which specific run was expensive; use `.episodes[]` to answer "what did this job cost end-to-end?". For non-orchestrated workflows, an episode collapses to a single run and the two views are equivalent.
 
 Useful episode fields for cost analysis:
 
-- `total_runs` — how many workflow runs were part of the same logical execution
-- `total_tokens` — aggregate raw tokens across the episode
-- `total_effective_tokens` — aggregate effective tokens across the episode; use this as the primary cost proxy for Copilot runs
-- `total_duration` — wall-clock duration across the grouped runs
-- `primary_workflow` — the main workflow label for the episode
-- `resource_heavy_node_count` — how many runs in the episode were flagged as resource-heavy
-- `blocked_request_count` — aggregate blocked-network pressure across the episode
+| Field | Meaning |
+|-------|---------|
+| `total_runs` | Workflow runs in the logical execution |
+| `total_tokens` / `total_effective_tokens` | Raw and effective token aggregates; prefer `total_effective_tokens` for Copilot |
+| `total_duration` | Wall-clock duration across grouped runs |
+| `primary_workflow` | Main workflow label |
+| `resource_heavy_node_count` | Runs flagged as resource-heavy |
+| `blocked_request_count` | Aggregate blocked-network pressure |
 
-For Copilot runs, prefer `total_effective_tokens` over `total_estimated_cost`. Copilot does not expose reliable billing-grade cost data to gh-aw, so `total_estimated_cost` should be treated as a heuristic rather than authoritative spend.
+For Copilot runs, treat `total_estimated_cost` as a heuristic — Copilot does not expose billing-grade cost data, so `total_effective_tokens` is the more reliable proxy.
 
-Safe-output actuation is also available as a first-class signal in both `gh aw logs --json` and `gh aw audit <run-id>`. This is useful when a workflow creates an issue or PR and then immediately follows up with comments, delegation, or closure actions against the same temporary-ID target.
-
-Useful run-level fields in `gh aw logs --json`:
-
-- `temporary_id_map_status` — whether `temporary-id-map.json` was `loaded`, `missing`, or `invalid`
-- `temporary_id_mappings` — how many temporary IDs were resolved to concrete GitHub targets
-- `chained_target_count` — how many resolved temp-ID targets received more than one safe-output action
-- `chained_followup_action_count` — how many safe-output actions happened after the first action on those targets
-- `delegated_temp_target_count` — how many temp-ID targets were later delegated with `assign_to_agent` or `create_agent_session`
-- `closed_temp_target_count` — how many temp-ID targets were later closed or merged
-
-Repo-level aggregate fields available: `runs_with_temporary_id_chains`, `runs_with_delegated_temp_targets`, `runs_with_missing_temporary_id_map`, `runs_with_invalid_temporary_id_map`, `total_temporary_id_mappings`, `total_chained_targets`, `total_chained_followup_actions`, and `total_closed_temp_targets`. These also roll up onto `.episodes[]` for per-execution chain intensity analysis.
-
-In `gh aw audit <run-id>`, the same metrics appear under `safe_output_summary`, alongside the per-type safe-output counts.
-
-When `temporary_id_map_status` is `missing` or `invalid`, gh-aw deliberately suppresses temp-ID-derived chain counts. That means `chained_target_count`, `chained_followup_action_count`, delegated-target counts, and closed-target counts fall back to `0` rather than guessing from incomplete data.
+Safe-output actuation also appears in both `gh aw logs --json` (run- and repo-level) and `gh aw audit <run-id>` (under `safe_output_summary`). The relevant fields — `temporary_id_map_status`, `temporary_id_mappings`, `chained_target_count`, `chained_followup_action_count`, `delegated_temp_target_count`, `closed_temp_target_count`, and their repo-level aggregates — show how often a workflow follows up on its own outputs. When `temporary_id_map_status` is `missing` or `invalid`, chain counts fall back to `0` rather than guessing from incomplete data.
 
 ```bash
 # Top 10 heaviest logical executions over the past 30 days by effective tokens
 gh aw logs --start-date -30d --json | \
-  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, effective_tokens: (.total_effective_tokens // 0), tokens: (.total_tokens // 0)}]
-      | sort_by(.effective_tokens)
-      | reverse
-      | .[:10]'
+  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, effective_tokens: (.total_effective_tokens // 0)}]
+      | sort_by(.effective_tokens) | reverse | .[:10]'
 ```
-
-```bash
-# Inspect lineage edges for one heavy episode
-gh aw logs --start-date -30d --json | \
-  jq '(.episodes[] | select((.total_effective_tokens // 0) > 100000) | .episode_id) as $id
-      | {episode: $id, edges: [.edges[] | select(.episode_id == $id)]}'
-```
-
-If your workflow is not orchestrated, the automatically computed episode usually collapses to a single run. In that case, episode-level cost is effectively the same as the regular per-run cost, so `.episodes[]` and `.runs[]` are just two views of the same underlying execution. If your workflow dispatches workers or chains follow-up runs, episode-level cost is usually the more accurate optimization target.
-
-### Use inside a workflow agent
-
-The `agentic-workflows` MCP tool exposes the same `logs` operation so that a workflow agent can collect cost data programmatically. Add `tools: agentic-workflows:` to any workflow that needs to read run metrics:
-
-```aw wrap
-description: Weekly Actions minutes cost report
-on: weekly
-permissions:
-  actions: read
-engine: copilot
-tools:
-  agentic-workflows:
-```
-
-The agent then calls the `logs` tool with `start_date: "-7d"` to retrieve duration and cost data for all recent runs, enabling automated reporting or optimization.
 
 ## Trigger Frequency and Cost Risk
 
@@ -221,12 +157,7 @@ Reserve frontier models (GPT-5, Claude Sonnet, etc.) for complex tasks. Use ligh
 
 ### Limit Context Size
 
-Inference cost scales with the size of the prompt sent to the model. Reduce context by:
-
-- Writing focused prompts that include only necessary information.
-- Avoiding whole-file reads when only a few lines are relevant.
-- Capping the number of search results or list items fetched by tools.
-- Using `imports` to compose a smaller subset of prompt sections at runtime.
+Inference cost scales with prompt size. Write focused prompts, avoid whole-file reads when only a few lines matter, cap result counts in tool calls, and use `imports` to compose a smaller subset of prompt sections at runtime.
 
 ### Rate Limiting and Concurrency
 
@@ -252,15 +183,17 @@ One scheduled run per weekday = five agent invocations per week. See [Schedule S
 
 ## Agentic Cost Optimization
 
-Agentic workflows can inspect and optimize other agentic workflows automatically. A scheduled meta-agent reads aggregate run data through the `agentic-workflows` MCP tool, identifies expensive or inefficient workflows, and applies changes — closing the optimization loop without manual intervention.
+The `agentic-workflows` MCP tool exposes the same operations as the CLI (`logs`, `audit`, `status`) to any workflow agent, so a scheduled meta-agent can inspect and optimize other agentic workflows automatically — fetching aggregate cost data, deep-diving into individual runs, and proposing frontmatter changes (cheaper model, tighter `skip-if-match`, lower `rate-limit`) via a pull request.
 
-### How It Works
-
-The `agentic-workflows` tool exposes the same operations as the CLI (`logs`, `audit`, `status`) to any workflow agent. A meta-agent can:
-
-1. Fetch aggregate cost and token data with the `logs` tool (equivalent to `gh aw logs`).
-2. Deep-dive into individual runs with the `audit` tool (equivalent to `gh aw audit <run-id>`).
-3. Propose or directly apply frontmatter changes (cheaper model, tighter `skip-if-match`, lower `rate-limit`) via a pull request.
+```aw wrap
+description: Weekly Actions minutes cost report
+on: weekly
+permissions:
+  actions: read
+engine: copilot
+tools:
+  agentic-workflows:
+```
 
 ### What to Optimize Automatically
 
@@ -286,7 +219,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 | On-demand via slash command | User-controlled | Varies | Varies |
 
 > [!TIP]
-> Use `gh aw audit <run-id>` to deep-dive into token usage and cost for a single run. Use `gh aw logs --format markdown [workflow]` to analyze cost trends across multiple runs. Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
+> Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
 
 ## Related Documentation
 
