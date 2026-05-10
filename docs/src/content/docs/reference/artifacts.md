@@ -112,6 +112,17 @@ gh run download <run-id> -n firewall-audit-logs
 cat firewall-audit-logs/api-proxy-logs/token-usage.jsonl
 ```
 
+### JSON Schemas
+
+The JSONL files in this artifact are described by versioned JSON Schemas published by [github/gh-aw-firewall](https://github.com/github/gh-aw-firewall). Each record includes a `_schema` field (for example `"audit/v0.26.0"`) so consumers can identify the record type and AWF version.
+
+| File | Schema asset | Pinned URL |
+|------|--------------|------------|
+| `audit.jsonl` | `audit.schema.json` | `https://github.com/github/gh-aw-firewall/releases/download/<tag>/audit.schema.json` |
+| `api-proxy-logs/token-usage.jsonl` | `token-usage.schema.json` | `https://github.com/github/gh-aw-firewall/releases/download/<tag>/token-usage.schema.json` |
+
+Use `releases/latest/download/` in place of a specific tag to track the most recent published release. Schemas are versioned by AWF release tag; consumers should match `_schema` by prefix (for example `_schema.startsWith("audit/")`) so additive changes remain non-breaking.
+
 ## `agent`
 
 The unified `agent` artifact contains all agent job outputs.
