@@ -447,6 +447,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
 			writablePaths = append(writablePaths, sandboxConfig.Agent.Config.Filesystem.AllowWrite...)
 		}
+		seenPatterns := make(map[string]struct{}, len(writablePaths))
 		for _, writablePath := range writablePaths {
 			path := strings.TrimSpace(writablePath)
 			if path == "" {
@@ -461,6 +462,10 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			if !strings.ContainsAny(pattern, "*?[]{}") {
 				pattern = strings.TrimRight(pattern, "/") + "/*"
 			}
+			if _, seen := seenPatterns[pattern]; seen {
+				continue
+			}
+			seenPatterns[pattern] = struct{}{}
 			for _, toolPattern := range []string{
 				fmt.Sprintf("Read(%s)", pattern),
 				fmt.Sprintf("Write(%s)", pattern),

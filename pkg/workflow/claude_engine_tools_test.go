@@ -478,7 +478,7 @@ func TestClaudeEngineComputeAllowedToolsWithSandboxAllowWrite(t *testing.T) {
 	}
 }
 
-func TestClaudeEngineComputeAllowedToolsAddsTmpByDefaultWhenSandboxEnabled(t *testing.T) {
+func TestClaudeEngineAddsTmpByDefault(t *testing.T) {
 	engine := NewClaudeEngine()
 	cacheMemoryConfig, err := NewCompiler().extractCacheMemoryConfigFromMap(map[string]any{})
 	if err != nil {
