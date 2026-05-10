@@ -90,7 +90,7 @@ The following skills have been installed via `gh skill` and are available under 
 
 Review this pull request using the most appropriate Matt Pocock skill(s) for the type of changes made, then deliver actionable, specific improvement suggestions as inline review comments and an overall review.
 
-### Step 1: Fetch PR Details
+### Step 1: Fetch PR Details and Check Prior Review History
 
 Use `gh` CLI to gather all necessary information:
 
@@ -99,6 +99,14 @@ gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository 
 gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
 gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json files
 ```
+
+Also check the cache for any prior review history of this PR:
+
+```bash
+cat /tmp/gh-aw/cache-memory/pr-${{ github.event.pull_request.number }}.json 2>/dev/null || echo "No prior review found"
+```
+
+If a prior review exists, use it to avoid repeating comments already made in previous runs.
 
 ### Step 2: Read Available Skills
 
@@ -235,6 +243,27 @@ If the review is complex or the overall findings are significant, post a single 
 - Reference skills by name so the author can learn more
 - Celebrate good decisions as well as flagging problems
 - Keep comments concise: aim for 2–4 sentences per comment
+
+### Step 8: Update Cache Memory
+
+After completing the review, save the review state to the cache so future runs can reuse your notes and avoid repeating comments.
+
+Write to `/tmp/gh-aw/cache-memory/pr-${{ github.event.pull_request.number }}.json`:
+
+```json
+{
+  "pr_number": ${{ github.event.pull_request.number }},
+  "reviewed_at": "<ISO 8601 timestamp>",
+  "skills_applied": ["list", "of", "skills", "used"],
+  "change_type": "bug_fix | new_feature | refactor | architecture | tests | documentation | mixed",
+  "comment_count": 0,
+  "verdict": "APPROVE | REQUEST_CHANGES | COMMENT",
+  "top_themes": ["description of main issues found"],
+  "reviewed_files": ["list of files reviewed"]
+}
+```
+
+This ensures the next run of this workflow can read prior review history and avoid repeating the same suggestions.
 
 Now begin your review! 🧠
 
