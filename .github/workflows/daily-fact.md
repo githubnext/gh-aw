@@ -16,6 +16,22 @@ engine:
   model: gpt-5.4-mini
   bare: true
 strict: true
+experiments:
+  reasoning_depth:
+    variants: [single_pass, multi_candidate]
+    description: "Tests whether deliberating over multiple candidate facts before writing improves verse novelty and engagement."
+    hypothesis: "H0: no change in discussion engagement rate. H1: multi_candidate produces more novel verses with higher reaction counts (expected +20% reactions)."
+    metric: discussion_reaction_count
+    secondary_metrics: [output_length_chars, run_duration_ms]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "<0.05"
+      - name: run_success_rate
+        threshold: ">=0.95"
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-05-11"
+    issue: 31324
 timeout-minutes: 15
 runs-on: aw-gpu-runner-T4
 runtimes:
@@ -83,7 +99,11 @@ Mine recent activity from the repository to find interesting facts. Focus on:
 ## Guidelines
 
 - **Check memory first**: Skip any PR, issue, or release that already appears in the palace results from Step 0
+{{#if experiments.reasoning_depth == "multi_candidate"}}
+- **Multi-candidate deliberation**: Before writing, identify exactly **3 distinct candidate facts** (one PR, one issue or release, one contributor or pattern). For each candidate write one sentence on why it is novel today. Then score each candidate 1–5 on: (a) novelty vs palace memory, (b) intrinsic poetic potential. Select the highest-scoring candidate and write the verse for that one only.
+{{else}}
 - **Favor recent updates** but include variety - pick something interesting, not just the most recent
+{{/if}}
 - **Be specific**: Include PR numbers, issue references, or release tags when relevant
 - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
 - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
