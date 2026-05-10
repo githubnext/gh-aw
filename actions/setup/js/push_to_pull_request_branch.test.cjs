@@ -1197,7 +1197,13 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
     });
+  });
 
+  // ──────────────────────────────────────────────────────
+  // Bundle Transport Application
+  // ──────────────────────────────────────────────────────
+
+  describe("bundle transport application", () => {
     it("should apply bundle transport by updating the branch ref instead of merging", async () => {
       const bundlePath = path.join(tempDir, "test.bundle");
       const patchPath = createPatchFile("small patch content");

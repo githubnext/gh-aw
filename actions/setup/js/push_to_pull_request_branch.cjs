@@ -605,7 +605,7 @@ async function main(config = {}) {
 
           // Point the checked-out branch at the bundle tip directly. In shallow
           // checkouts, merge --ff-only can fail to discover the ancestry even
-          // when the bundle was created from origin/<branch>..branch and the
+          // when the bundle tip is based on the current branch tip and the
           // prerequisite exists locally.
           const updateRefArgs = ["update-ref", `refs/heads/${branchName}`, bundleRef];
           if (remoteHeadBeforePatch) {
