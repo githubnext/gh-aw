@@ -38,6 +38,30 @@ var forecastPeriodDays = map[string]int{
 // This mirrors the value used elsewhere in the codebase (e.g. health metrics).
 const costPerEffectiveToken = 0.000015
 
+// ForecastEpisodeSummary contains episode-level aggregate metrics derived from
+// run history without downloading artifacts.  Episodes are reconstructed from the
+// fields available in the GitHub Actions run list (event type, head SHA, branch).
+// Dispatch and workflow_call linkages that require aw_info.json are not available
+// in this lightweight analysis, so the episode count is a lower-bound estimate.
+type ForecastEpisodeSummary struct {
+	// SampledEpisodes is the number of distinct episodes detected in the sampled
+	// run history.  Each "episode" represents one logical task execution, which may
+	// span multiple runs when a workflow dispatches sub-workflows.
+	SampledEpisodes int `json:"sampled_episodes"`
+	// RunsPerEpisode is the average number of runs per episode (SampledRuns /
+	// SampledEpisodes).  Values > 1 indicate orchestrator-style workflows that
+	// dispatch multiple sub-workflows per task.
+	RunsPerEpisode float64 `json:"runs_per_episode"`
+	// AvgEffectiveTokensPerEpisode is the mean effective-token count per episode.
+	AvgEffectiveTokensPerEpisode int `json:"avg_effective_tokens_per_episode"`
+	// ObservedEpisodesPerPeriod is the projected number of episodes in the forecast
+	// period, scaled from the observed episode frequency.
+	ObservedEpisodesPerPeriod float64 `json:"observed_episodes_per_period"`
+	// ProjectedCostPerEpisode is the projected USD cost per episode
+	// (AvgEffectiveTokensPerEpisode × costPerEffectiveToken).
+	ProjectedCostPerEpisode float64 `json:"projected_cost_per_episode"`
+}
+
 // ForecastWorkflowResult contains the projected metrics for a single workflow.
 type ForecastWorkflowResult struct {
 	// WorkflowID is the short identifier of the workflow (basename without .md).
@@ -64,6 +88,10 @@ type ForecastWorkflowResult struct {
 	// Projected totals for the period.
 	ProjectedEffectiveTokens int     `json:"projected_effective_tokens"`
 	ProjectedCostUSD         float64 `json:"projected_cost_usd"`
+
+	// EpisodeAnalysis contains episode-level metrics derived from the sampled runs.
+	// Nil when no completed runs were available to analyze.
+	EpisodeAnalysis *ForecastEpisodeSummary `json:"episode_analysis,omitempty"`
 
 	// Trigger information derived from frontmatter.
 	ActiveTriggers []string `json:"active_triggers"`
@@ -324,6 +352,10 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 	// Populate experiment variant fractions from run history when metadata has variants.
 	result.ExperimentVariants = computeVariantFractions(result.ExperimentVariants, completed)
 
+	// Build lightweight episode analysis from the completed runs using the fields
+	// available in the GitHub Actions run list (no artifact download required).
+	result.EpisodeAnalysis = buildForecastEpisodeSummary(completed, config.Days, periodDays)
+
 	return result, nil
 }
 
@@ -500,6 +532,77 @@ func extractWorkflowIDFromName(name string) string {
 	return name
 }
 
+// workflowRunToRunData converts a WorkflowRun (sourced from the GitHub Actions API)
+// to a RunData using the fields available without artifact downloads.  Fields that
+// require aw_info.json (AwContext, Repository, Ref, SHA, Actor, RunAttempt, …) are
+// left as zero values; the episode engine degrades gracefully when they are absent.
+func workflowRunToRunData(r WorkflowRun) RunData {
+	return RunData{
+		RunID:           r.DatabaseID,
+		Number:          r.Number,
+		WorkflowName:    r.WorkflowName,
+		WorkflowPath:    r.WorkflowPath,
+		Status:          r.Status,
+		Conclusion:      r.Conclusion,
+		URL:             r.URL,
+		Event:           r.Event,
+		Branch:          r.HeadBranch,
+		HeadSHA:         r.HeadSha,
+		DisplayTitle:    r.DisplayTitle,
+		CreatedAt:       r.CreatedAt,
+		StartedAt:       r.StartedAt,
+		UpdatedAt:       r.UpdatedAt,
+		TokenUsage:      r.TokenUsage,
+		EffectiveTokens: r.EffectiveTokens,
+		EstimatedCost:   r.EstimatedCost,
+	}
+}
+
+// buildForecastEpisodeSummary derives episode-level metrics from a slice of
+// completed WorkflowRun objects using the lightweight episode engine.  Returns nil
+// when no runs are provided.
+//
+// Because only GitHub API fields are available (no aw_info.json artifacts), the
+// episode engine can link runs via workflow_run event SHA/branch matching but
+// cannot detect dispatch or workflow_call lineage.  The resulting episode count is
+// therefore a lower-bound estimate for orchestrator-style workflows.
+func buildForecastEpisodeSummary(runs []WorkflowRun, historyDays, periodDays int) *ForecastEpisodeSummary {
+	if len(runs) == 0 {
+		return nil
+	}
+
+	runData := make([]RunData, 0, len(runs))
+	for _, r := range runs {
+		runData = append(runData, workflowRunToRunData(r))
+	}
+
+	// buildEpisodeData returns (episodes, edges); edges are not needed for
+	// the lightweight forecast summary so they are intentionally discarded.
+	episodes, _ := buildEpisodeData(runData, nil)
+	numEpisodes := len(episodes)
+	if numEpisodes == 0 {
+		return nil
+	}
+
+	var totalEpisodeET int
+	for _, ep := range episodes {
+		totalEpisodeET += ep.TotalEffectiveTokens
+	}
+
+	avgETPerEpisode := totalEpisodeET / numEpisodes
+	runsPerEpisode := float64(len(runs)) / float64(numEpisodes)
+	observedEpisodesPerPeriod := float64(numEpisodes) / float64(historyDays) * float64(periodDays)
+	projectedCostPerEpisode := float64(avgETPerEpisode) * costPerEffectiveToken
+
+	return &ForecastEpisodeSummary{
+		SampledEpisodes:              numEpisodes,
+		RunsPerEpisode:               runsPerEpisode,
+		AvgEffectiveTokensPerEpisode: avgETPerEpisode,
+		ObservedEpisodesPerPeriod:    observedEpisodesPerPeriod,
+		ProjectedCostPerEpisode:      projectedCostPerEpisode,
+	}
+}
+
 // ── Rendering ───────────────────────────────────────────────────────────────
 
 // renderForecastJSON outputs the forecast result as pretty-printed JSON.
@@ -549,6 +652,18 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	fmt.Fprint(os.Stderr, console.RenderStruct(rows))
 	fmt.Fprintln(os.Stderr, "")
 
+	// Show episode analysis when any workflow has multi-run episodes.
+	anyMultiRunEpisodes := false
+	for _, wf := range output.Workflows {
+		if wf.EpisodeAnalysis != nil && wf.EpisodeAnalysis.RunsPerEpisode > 1.0 {
+			anyMultiRunEpisodes = true
+			break
+		}
+	}
+	if anyMultiRunEpisodes {
+		printEpisodeBreakdown(output.Workflows)
+	}
+
 	// Show experiment variant details when present.
 	for _, wf := range output.Workflows {
 		if len(wf.ExperimentVariants) > 0 {
@@ -560,6 +675,36 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		fmt.Sprintf("Run '%s forecast --json' for machine-readable output. Costs use %.0e USD/ET.",
 			string(constants.CLIExtensionPrefix), costPerEffectiveToken)))
 	return nil
+}
+
+// printEpisodeBreakdown renders per-episode projected cost for workflows that have
+// multi-run episodes (i.e. orchestrator-style workflows dispatching sub-workflows).
+func printEpisodeBreakdown(workflows []ForecastWorkflowResult) {
+	type episodeRow struct {
+		Workflow          string `json:"workflow"             console:"header:Workflow"`
+		Episodes          int    `json:"episodes"             console:"header:Episodes"`
+		RunsPerEpisode    string `json:"runs_per_episode"     console:"header:Runs/Episode"`
+		AvgETPerEpisode   string `json:"avg_et_per_episode"   console:"header:Avg ET/Episode"`
+		EpisodeCostPerPrd string `json:"episode_cost_per_prd" console:"header:Proj. $/Episode"`
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Episode analysis (runs grouped by logical task):"))
+	epRows := make([]episodeRow, 0, len(workflows))
+	for _, wf := range workflows {
+		ep := wf.EpisodeAnalysis
+		if ep == nil {
+			continue
+		}
+		epRows = append(epRows, episodeRow{
+			Workflow:          wf.WorkflowID,
+			Episodes:          ep.SampledEpisodes,
+			RunsPerEpisode:    fmt.Sprintf("%.1f", ep.RunsPerEpisode),
+			AvgETPerEpisode:   formatForecastTokens(ep.AvgEffectiveTokensPerEpisode),
+			EpisodeCostPerPrd: fmt.Sprintf("$%.3f", ep.ProjectedCostPerEpisode),
+		})
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(epRows))
+	fmt.Fprintln(os.Stderr, "")
 }
 
 // printVariantBreakdown renders a small per-variant table for a workflow.
