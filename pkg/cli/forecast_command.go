@@ -55,7 +55,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor              # Forecast a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` forecast ci-doctor daily-planner # Compare two workflows
   ` + string(constants.CLIExtensionPrefix) + ` forecast --period week           # Weekly projections
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --days 90              # Use 90-day history window
+  ` + string(constants.CLIExtensionPrefix) + ` forecast --days 7               # Use 7-day history window
   ` + string(constants.CLIExtensionPrefix) + ` forecast --sample 50            # Sample up to 50 runs per workflow
   ` + string(constants.CLIExtensionPrefix) + ` forecast --json                 # Machine-readable JSON output
   ` + string(constants.CLIExtensionPrefix) + ` forecast --repo owner/repo      # Forecast in another repository`,
@@ -82,7 +82,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().Int("days", 30, "Historical window in days used to sample run history (7, 30, or 90)")
+	cmd.Flags().Int("days", 30, "Historical window in days used to sample run history (7 or 30)")
 	cmd.Flags().String("period", "month", "Aggregation period for projections: week or month")
 	cmd.Flags().Int("sample", 100, "Maximum number of completed runs to sample per workflow")
 	addRepoFlag(cmd)

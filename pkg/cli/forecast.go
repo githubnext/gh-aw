@@ -128,8 +128,8 @@ func RunForecast(config ForecastConfig) error {
 	if !ok {
 		return fmt.Errorf("invalid period %q: must be 'week' or 'month'", config.Period)
 	}
-	if config.Days != 7 && config.Days != 30 && config.Days != 90 {
-		return fmt.Errorf("invalid days value: %d; must be 7, 30, or 90", config.Days)
+	if config.Days != 7 && config.Days != 30 {
+		return fmt.Errorf("invalid days value: %d; must be 7 or 30", config.Days)
 	}
 	if config.SampleSize <= 0 {
 		config.SampleSize = 100
