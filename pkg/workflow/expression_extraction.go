@@ -217,7 +217,7 @@ func ExperimentEnvVarName(experimentName string) string {
 }
 
 // transformExperimentsExpression detects expressions of the form "experiments.<name>"
-// (and the comparison form "experiments.<name> == "value"") and rewrites them so that the
+// (and the comparison form `experiments.<name> == "value"`) and rewrites them so that the
 // placeholder substitution step reads the value from the pick_experiment step output.
 //
 // Simple form:     experiments.name          → steps.pick-experiment.outputs.name
