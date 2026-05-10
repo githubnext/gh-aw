@@ -1388,10 +1388,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // making individual errors queryable and classifiable in backends like
   // Grafana Tempo, Honeycomb, and Datadog.
   const buildSpanEvents = eventTimeMs => {
-    const shouldEmitSyntheticException = hasNoReadableAgentOutput && (isAgentTimedOut || isAgentCancelled);
+    const shouldEmitSyntheticException = hasNoReadableAgentOutput && isAgentNonOK;
     if (outputErrors.length === 0) {
       if (shouldEmitSyntheticException) {
-        const exceptionType = isAgentTimedOut ? "gh-aw.AgentTimedOut" : "gh-aw.AgentCancelled";
+        const exceptionType = isAgentTimedOut ? "gh-aw.AgentTimedOut" : isAgentCancelled ? "gh-aw.AgentCancelled" : "gh-aw.AgentFailed";
         const exceptionMessage = (statusMessage || `agent ${agentConclusion}`).slice(0, MAX_ATTR_VALUE_LENGTH);
         return [{ timeUnixNano: toNanoString(eventTimeMs), name: "exception", attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)] }];
       }

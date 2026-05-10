@@ -3461,7 +3461,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.events).toBeUndefined();
     });
 
-    it("does not emit exception events when agent_output.json is absent on failure", async () => {
+    it("emits a synthetic failure exception event when agent_output.json is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -3474,7 +3474,34 @@ describe("sendJobConclusionSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.events).toBeUndefined();
+      expect(span.events).toHaveLength(1);
+      expect(span.events[0].name).toBe("exception");
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentFailed" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent failure" } });
+    });
+
+    it("emits a synthetic failure exception event when agent_output.json is unreadable", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return "{";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.events).toHaveLength(1);
+      expect(span.events[0].name).toBe("exception");
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentFailed" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent failure" } });
     });
 
     it("emits a synthetic timeout exception event when agent_output.json is absent", async () => {
