@@ -486,18 +486,17 @@ def permissions_risk(permissions: Any) -> float:
     read_scopes = 0
     elevated = 0
     id_token = 0
-    for level in permissions.values():
-        normalized = normalize_text(level).lower()
-        if normalized == "read":
-            read_scopes += 1
-        elif normalized in RISKY_PERMISSION_LEVELS:
-            elevated += 1
-        elif normalized == "write":
-            elevated += 1
-        elif normalized == "none":
-            continue
-        elif normalized == "id-token":
+    for scope, level in permissions.items():
+        normalized_scope = normalize_text(scope).lower()
+        normalized_level = normalize_text(level).lower()
+        if normalized_scope == "id-token" and normalized_level in RISKY_PERMISSION_LEVELS:
             id_token += 1
+        if normalized_level == "read":
+            read_scopes += 1
+        elif normalized_level in RISKY_PERMISSION_LEVELS:
+            elevated += 1
+        elif normalized_level == "none":
+            continue
     breadth = clamp(read_scopes / 6.0)
     return round_score(0.2 + breadth * 0.35 + elevated * 0.45 + id_token * 0.1)
 

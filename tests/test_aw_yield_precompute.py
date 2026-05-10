@@ -107,6 +107,12 @@ def test_missing_timeout_increases_risk(tmp_path: Path) -> None:
     assert pre.build_workflow_record(untimed, workflows, {})["risk"] > pre.build_workflow_record(timed, workflows, {})["risk"]
 
 
+def test_id_token_permission_increases_risk() -> None:
+    base = pre.permissions_risk({"contents": "write"})
+    with_id_token = pre.permissions_risk({"contents": "write", "id-token": "write"})
+    assert with_id_token > base
+
+
 def test_overlap_detection_finds_similar_workflows() -> None:
     workflows = [
         {"path": "a.md", "intent_text": "review pull request code quality security review", "agentic_fraction": 0.4},
