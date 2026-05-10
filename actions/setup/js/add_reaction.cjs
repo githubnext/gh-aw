@@ -43,8 +43,10 @@ async function main() {
   const reactionEndpoint = resolveRestEndpoint(eventName, owner, repo);
 
   if (reactionEndpoint === null) {
-    // GraphQL paths (discussion, discussion_comment) and error paths are handled inside
-    await handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction);
+    // GraphQL paths are handled separately; REST validation failures already called setFailed.
+    if (eventName === "discussion" || eventName === "discussion_comment" || !isRestReactionEvent(eventName)) {
+      await handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction);
+    }
     return;
   }
 
@@ -106,6 +108,14 @@ function resolveRestEndpoint(eventName, owner, repo) {
     default:
       return null;
   }
+}
+
+/**
+ * @param {string} eventName
+ * @returns {boolean}
+ */
+function isRestReactionEvent(eventName) {
+  return ["issues", "issue_comment", "pull_request", "pull_request_review_comment"].includes(eventName);
 }
 
 /**

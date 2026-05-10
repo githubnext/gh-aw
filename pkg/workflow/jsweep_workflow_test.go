@@ -122,7 +122,20 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 9: Verify the workflow has instructions to remove @ts-nocheck
+	// Test 9: Verify the fallback selection is deterministic
+	t.Run("UsesDeterministicFallbackSelection", func(t *testing.T) {
+		if !strings.Contains(mdContent, "git log -1 --format='%ct'") {
+			t.Error("jsweep workflow should use a deterministic git query for fallback file selection")
+		}
+		if !strings.Contains(mdContent, "sorted by path") {
+			t.Error("jsweep workflow should sort candidate files by path before fallback selection")
+		}
+		if strings.Contains(mdContent, "earliest modification timestamp") {
+			t.Error("jsweep workflow should not use filesystem modification timestamps for fallback selection")
+		}
+	})
+
+	// Test 10: Verify the workflow has instructions to remove @ts-nocheck
 	t.Run("RemovesTsNocheck", func(t *testing.T) {
 		if !strings.Contains(mdContent, "Remove `@ts-nocheck`") {
 			t.Error("jsweep workflow should have instructions to remove @ts-nocheck")
@@ -135,7 +148,7 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 10: Verify the workflow has a valid lock file
+	// Test 11: Verify the workflow has a valid lock file
 	t.Run("HasValidLockFile", func(t *testing.T) {
 		lockPath := filepath.Join("..", "..", ".github", "workflows", "jsweep.lock.yml")
 		_, err := os.Stat(lockPath)
@@ -144,7 +157,7 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 11: Verify the workflow has explicit done conditions to prevent runaway loops
+	// Test 12: Verify the workflow has explicit done conditions to prevent runaway loops
 	t.Run("HasDoneConditions", func(t *testing.T) {
 		if !strings.Contains(mdContent, "Done Conditions") {
 			t.Error("jsweep workflow should have a 'Done Conditions' section to prevent runaway iteration")
@@ -157,14 +170,14 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 12: Verify the one-file-per-run constraint includes stop instruction
+	// Test 13: Verify the one-file-per-run constraint includes stop instruction
 	t.Run("OneFilePerRunStopsAfterPR", func(t *testing.T) {
 		if !strings.Contains(mdContent, "after calling `create_pull_request`, STOP immediately") {
 			t.Error("jsweep workflow one-file-per-run constraint should include explicit stop instruction after PR creation")
 		}
 	})
 
-	// Test 13: Verify the workflow uses lean GitHub tooling and no Serena import
+	// Test 14: Verify the workflow uses lean GitHub tooling and no Serena import
 	t.Run("UsesReposToolsetWithoutSerenaImport", func(t *testing.T) {
 		if !strings.Contains(mdContent, "toolsets: [repos]") {
 			t.Error("jsweep workflow should scope github tools to [repos]")
@@ -174,7 +187,7 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 14: Verify workflow permissions follow least privilege
+	// Test 15: Verify workflow permissions follow least privilege
 	t.Run("LeastPrivilegePermissions", func(t *testing.T) {
 		if !strings.Contains(mdContent, "contents: read") || !strings.Contains(mdContent, "actions: read") {
 			t.Error("jsweep workflow should keep contents: read and actions: read permissions")
@@ -184,7 +197,7 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 15: Verify validation instructions are batched into one command
+	// Test 16: Verify validation instructions are batched into one command
 	t.Run("BatchedValidationCommand", func(t *testing.T) {
 		if !strings.Contains(mdContent, expectedJSweepBatchedValidationCommand) {
 			t.Error("jsweep workflow should batch validation commands into a single chained command")

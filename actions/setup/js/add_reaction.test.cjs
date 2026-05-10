@@ -165,6 +165,7 @@ describe("add_reaction", () => {
       await runScript();
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });
