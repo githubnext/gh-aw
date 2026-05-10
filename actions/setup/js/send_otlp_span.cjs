@@ -1391,7 +1391,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     const shouldEmitSyntheticException = hasNoReadableAgentOutput && isAgentNonOK;
     if (outputErrors.length === 0) {
       if (shouldEmitSyntheticException) {
-        const exceptionType = isAgentTimedOut ? "gh-aw.AgentTimedOut" : isAgentCancelled ? "gh-aw.AgentCancelled" : "gh-aw.AgentFailed";
+        let exceptionType = "gh-aw.AgentFailed";
+        if (isAgentTimedOut) {
+          exceptionType = "gh-aw.AgentTimedOut";
+        } else if (isAgentCancelled) {
+          exceptionType = "gh-aw.AgentCancelled";
+        }
         const exceptionMessage = (statusMessage || `agent ${agentConclusion}`).slice(0, MAX_ATTR_VALUE_LENGTH);
         return [{ timeUnixNano: toNanoString(eventTimeMs), name: "exception", attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)] }];
       }
