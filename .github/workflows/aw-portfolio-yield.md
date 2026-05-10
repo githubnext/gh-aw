@@ -9,7 +9,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-engine: claude
+engine: copilot
 strict: true
 timeout-minutes: 25
 network:
@@ -22,7 +22,6 @@ tools:
 safe-outputs:
   mentions: false
   allowed-github-references: []
-  max-bot-mentions: 0
   create-issue:
     labels: [automation, report, observability]
     max: 1

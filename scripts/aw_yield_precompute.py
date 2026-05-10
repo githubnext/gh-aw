@@ -226,6 +226,16 @@ def split_key_value(text: str) -> tuple[str, str | None]:
     raise InputError(f"Invalid frontmatter line: {text}")
 
 
+def maybe_split_mapping(text: str) -> tuple[str, str | None] | None:
+    try:
+        key, rest = split_key_value(text)
+    except InputError:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", key):
+        return None
+    return key, rest
+
+
 def _next_significant(lines: list[str], start: int) -> int:
     index = start
     while index < len(lines):
@@ -236,6 +246,26 @@ def _next_significant(lines: list[str], start: int) -> int:
     return index
 
 
+def parse_block_scalar(lines: list[str], start: int, indent: int) -> tuple[str, int]:
+    chunks: list[str] = []
+    index = start
+    while index < len(lines):
+        raw = lines[index]
+        stripped = raw.strip()
+        current_indent = len(raw) - len(raw.lstrip(" "))
+        if stripped and current_indent < indent:
+            break
+        if stripped == "":
+            chunks.append("")
+            index += 1
+            continue
+        if current_indent < indent:
+            break
+        chunks.append(raw[indent:])
+        index += 1
+    return "\n".join(chunks).rstrip(), index
+
+
 def parse_yaml_block(lines: list[str], start: int = 0, indent: int = 0) -> tuple[Any, int]:
     start = _next_significant(lines, start)
     if start >= len(lines):
@@ -244,6 +274,7 @@ def parse_yaml_block(lines: list[str], start: int = 0, indent: int = 0) -> tuple
     current_indent = len(line) - len(line.lstrip(" "))
     if current_indent < indent:
         return {}, start
+    indent = current_indent
     is_list = line.lstrip().startswith("- ")
     if is_list:
         items: list[Any] = []
@@ -265,10 +296,14 @@ def parse_yaml_block(lines: list[str], start: int = 0, indent: int = 0) -> tuple
                 child, index = parse_yaml_block(lines, index, indent + 2)
                 items.append(child)
                 continue
-            if ":" in payload:
-                key, rest = split_key_value(payload)
+            mapping = maybe_split_mapping(payload)
+            if mapping is not None:
+                key, rest = mapping
                 item: dict[str, Any] = {}
-                if rest is None:
+                if rest in {"|", ">", "|-", ">-"}:
+                    child, index = parse_block_scalar(lines, index, indent + 4)
+                    item[key] = child
+                elif rest is None:
                     child, index = parse_yaml_block(lines, index, indent + 2)
                     item[key] = child
                 else:
@@ -287,7 +322,10 @@ def parse_yaml_block(lines: list[str], start: int = 0, indent: int = 0) -> tuple
                         break
                     extra_key, extra_rest = split_key_value(next_raw.strip())
                     index = lookahead + 1
-                    if extra_rest is None:
+                    if extra_rest in {"|", ">", "|-", ">-"}:
+                        child, index = parse_block_scalar(lines, index, indent + 4)
+                        item[extra_key] = child
+                    elif extra_rest is None:
                         child, index = parse_yaml_block(lines, index, indent + 4)
                         item[extra_key] = child
                     else:
@@ -307,13 +345,16 @@ def parse_yaml_block(lines: list[str], start: int = 0, indent: int = 0) -> tuple
         if current_indent < indent:
             break
         if current_indent > indent:
-            raise InputError(f"Unexpected indentation in frontmatter: {raw}")
+            break
         stripped = raw.strip()
         if stripped.startswith("- "):
             break
         key, rest = split_key_value(stripped)
         index += 1
-        if rest is None:
+        if rest in {"|", ">", "|-", ">-"}:
+            child, index = parse_block_scalar(lines, index, indent + 2)
+            mapping[key] = child
+        elif rest is None:
             if index < len(lines) and _next_significant(lines, index) < len(lines):
                 child, index = parse_yaml_block(lines, index, indent + 2)
                 mapping[key] = child
@@ -1098,14 +1139,7 @@ def precompute(workflows_root: Path, otel_summary_path: str | None = None) -> di
         overlap_peers[right][left] = similarity
     for workflow in workflows:
         workflow["overlap_drag"] = round_score(overlap_by_path.get(workflow["path"], 0.0))
-        workflow["maintenance_drag"] = score_maintenance(
-            {"imports": [], "tools": {}},
-            "",
-            overlap_hint=workflow["overlap_drag"],
-            agentic_fraction=workflow["agentic_fraction"],
-            has_precompute=workflow["pre_agent_steps_count"] > 0,
-            has_postcompute=workflow["post_steps_count"] > 0,
-        )
+        workflow["maintenance_drag"] = round_score(workflow["maintenance_drag"] + workflow["overlap_drag"] * 0.2)
         workflow["yield"] = compute_workflow_yield(
             workflow["usefulness"],
             workflow["adoption"],
