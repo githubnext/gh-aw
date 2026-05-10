@@ -364,7 +364,9 @@ func extractTriggerNames(cfg *workflow.FrontmatterConfig) []string {
 }
 
 // extractConcurrencyLimit returns the workflow-level concurrency limit.
-// Returns 0 when unlimited (no concurrency config) and -1 for cancel-in-progress.
+// Returns 0 when unlimited (no concurrency config) and 1 when concurrency is configured
+// (either via cancel-in-progress or a concurrency group, since GitHub Actions queues at
+// most one pending run when a concurrency group is set).
 func extractConcurrencyLimit(cfg *workflow.FrontmatterConfig) int {
 	if cfg.Concurrency == nil {
 		return 0
