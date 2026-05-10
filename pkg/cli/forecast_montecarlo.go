@@ -136,6 +136,11 @@ func poissonSample(rng *rand.Rand, lambda float64) int {
 
 // meanStdDevInt computes the arithmetic mean and population standard deviation
 // of the int slice xs (assumed non-empty).
+//
+// The mean is returned as an int (truncated toward zero after integer division),
+// which is consistent with the ET token counts throughout the forecast output.
+// The standard deviation uses the full floating-point mean to avoid accumulating
+// rounding error in the variance calculation.
 func meanStdDevInt(xs []int) (mean int, stddev float64) {
 	if len(xs) == 0 {
 		return 0, 0
@@ -145,7 +150,8 @@ func meanStdDevInt(xs []int) (mean int, stddev float64) {
 		sum += x
 	}
 	mean = sum / len(xs)
-	fmean := float64(mean)
+	// Use the exact float mean for stddev to avoid bias from integer truncation.
+	fmean := float64(sum) / float64(len(xs))
 	for _, x := range xs {
 		d := float64(x) - fmean
 		stddev += d * d

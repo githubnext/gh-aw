@@ -81,7 +81,7 @@ func TestPercentileInt(t *testing.T) {
 
 // TestMeanStdDevInt verifies the mean/stddev helper on a known distribution.
 func TestMeanStdDevInt(t *testing.T) {
-	// Population stddev of {2,4,4,4,5,5,7,9} = 2, mean = 5.
+	// population stddev of {2,4,4,4,5,5,7,9} = 2, mean = 5.
 	xs := []int{2, 4, 4, 4, 5, 5, 7, 9}
 	mean, stddev := meanStdDevInt(xs)
 	assert.Equal(t, 5, mean, "mean")
