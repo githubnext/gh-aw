@@ -201,10 +201,11 @@ var experimentNameRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9
 
 // experimentComparisonRegex matches experiments.<name> followed by a comparison operator and
 // a quoted string value, e.g. `experiments.prompt_style == "concise"` or
-// `experiments.prompt_style !== "detailed"`. It captures:
+// `experiments.prompt_style !== "detailed"`. The value must be enclosed in double quotes
+// with no embedded quotes. It captures:
 //   - group 1: the experiment name
-//   - group 2: the remainder of the expression (operator + value), verbatim
-var experimentComparisonRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)([ \t]*(?:!==?|===?)[ \t]*".*)$`)
+//   - group 2: the remainder of the expression (operator + quoted value), verbatim
+var experimentComparisonRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)([ \t]*(?:!==?|===?)[ \t]*"[^"]*"[ \t]*)$`)
 
 // ExperimentEnvVarName returns the env-var name used for the given experiment.
 // The name is uppercased; hyphens are converted to underscores; all other characters
