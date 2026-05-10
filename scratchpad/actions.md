@@ -32,7 +32,7 @@ The workflow compiler generates inline JavaScript code embedded in YAML files us
 2. **Limited Reusability**: Same JavaScript logic is duplicated across multiple workflows
 3. **Testing Challenges**: Inline scripts are harder to test independently
 4. **Maintenance Burden**: Changes require recompiling all affected workflows
-5. **Distribution Issues**: Cannot easily share actions across repositories
+5. **Distribution Issues**: No mechanism for sharing actions across repositories
 
 ### Solution
 
