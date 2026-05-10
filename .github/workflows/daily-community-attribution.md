@@ -233,6 +233,57 @@ steps:
       echo "  tier3_candidates_capped.json    — up to 5 issues needing Tier 3 agent lookup (this run)"
       echo "  tier3_candidates.json           — full list of Tier 3+ candidates (for reference)"
 
+  - name: Format attribution data for agent
+    run: |
+      DATA_DIR=/tmp/gh-aw/agent/community-data
+
+      # Group Tier 0-2 attributions by author for agent-ready consumption.
+      # Produces a structured JSON the agent can read with `cat` — no jq needed.
+      jq '
+        group_by(.author.login) |
+        sort_by(.[0].author.login | ascii_downcase) |
+        map({
+          author: .[0].author.login,
+          count: length,
+          issues: (sort_by(-.number))
+        })
+      ' "$DATA_DIR/pre_attributed.json" \
+        > "$DATA_DIR/attribution_by_author.json" 2>/dev/null \
+        || echo "[]" > "$DATA_DIR/attribution_by_author.json"
+
+      AUTHOR_COUNT=$(jq length "$DATA_DIR/attribution_by_author.json")
+      ISSUE_COUNT=$(jq length "$DATA_DIR/pre_attributed.json")
+      echo "✓ Grouped: $AUTHOR_COUNT authors, $ISSUE_COUNT issues"
+
+      # Generate the pre-formatted README community section (Tier 0-2 only).
+      # The agent reads this file directly, appends Tier 3 results, and inserts
+      # the result into README.md — no bash data-processing required.
+      {
+        echo "## 🌍 Community Contributions"
+        echo ""
+        echo "<details>"
+        echo "<summary>Thank you to the community members whose issue reports were resolved in this project! This list is updated automatically and reflects all attributed contributions.</summary>"
+        echo ""
+        jq -r '
+          .[] |
+          (.author) as $author |
+          (.issues | map(
+            "#\(.number)" +
+            if .tier == 0 then " _(direct issue)_" else "" end
+          ) | join(", ")) as $issues |
+          "- @\($author): \($issues)"
+        ' "$DATA_DIR/attribution_by_author.json"
+        echo ""
+        echo "</details>"
+        echo ""
+      } > "$DATA_DIR/readme_community_section_tier012.md"
+
+      echo "✓ Generated readme_community_section_tier012.md"
+      echo ""
+      echo "Data available in $DATA_DIR/:"
+      echo "  attribution_by_author.json          — Tier 0-2 issues grouped by author (agent-ready)"
+      echo "  readme_community_section_tier012.md — pre-formatted README section (Tier 0-2 only)"
+
 ---
 
 # Daily Community Attribution Updater
@@ -251,27 +302,24 @@ and opens a PR for review.
 
 ## Pre-fetched Data
 
-All data is in `/tmp/gh-aw/agent/community-data/`:
+All data is in `/tmp/gh-aw/agent/community-data/`. Use `cat` to read files — no
+shell pipelines or data-processing scripts are needed:
 
 ```bash
-# Use direct file invocations in restricted bash mode (avoid cat/sed/jq pipelines).
+# Pre-formatted README section (Tier 0-2 only — agent adds Tier 3 results):
+cat /tmp/gh-aw/agent/community-data/readme_community_section_tier012.md
 
-# Tier 0+1+2 are already computed — start here:
-jq -r '.[] | "- #\(.number) [Tier \(.tier)] \(.attribution_type) — \(.title) by @\(.author.login)"' \
-  /tmp/gh-aw/agent/community-data/pre_attributed.json
+# Tier 0-2 issues grouped by author (structured JSON, agent-ready):
+cat /tmp/gh-aw/agent/community-data/attribution_by_author.json
 
 # Issues still needing Tier 3 agent lookup (capped at 5 per run):
-jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt), stateReason: \(.stateReason // "null"))"' \
-  /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json
+cat /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json
 
-# View closing reference index
-jq '.' /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json
+# Current README (pre-fetched):
+head -80 /tmp/gh-aw/agent/community-data/README_current.md
 
-# View current README (pre-fetched — read from README_current.md; only fall back to README.md if the pre-fetched copy is missing)
-head -80 /tmp/gh-aw/agent/community-data/README_current.md 2>/dev/null || head -80 README.md
-
-# View existing wiki page (if any)
-cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo "(wiki page does not exist yet)"
+# Existing wiki page (if any):
+cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md
 ```
 
 ## Workflow
@@ -279,19 +327,18 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md 2>/dev/null || echo
 {{#if experiments.prompt_style == "concise"}}
 ### 1. Attribute Issues
 
-Read `pre_attributed.json` (Tier 0–2, pre-computed — do not re-derive). Use
-`/tmp/gh-aw/agent/community-data/community_issues.json` for issue metadata; do
-not call `issue_list` (all needed issue data is already pre-fetched locally).
-For each entry in `tier3_candidates_capped.json` (≤5), apply Tier 3 (one
-`issue_read` call per issue). Anything unresolved → Tier 4. Issues beyond the
-first 5 in `tier3_candidates.json` are deferred to the next run — do not process
-them.
+Read `attribution_by_author.json` (Tier 0–2, pre-grouped and pre-sorted — do not
+re-derive). For each entry in `tier3_candidates_capped.json` (≤5), apply Tier 3
+(one `issue_read` call per issue). Anything unresolved → Tier 4. Issues beyond
+the first 5 in `tier3_candidates.json` are deferred to the next run — do not
+process them.
 {{#else}}
 ### 1. Attribute All Resolved Community Issues
 
-**Tier 0, 1, and 2 attributions are already pre-computed** in
-`pre_attributed.json` — do not re-derive them. Read this file directly
-and use its contents as the confirmed attribution list.
+**Tier 0, 1, and 2 attributions are already pre-computed and pre-grouped** in
+`attribution_by_author.json` — do not re-derive them. Read this file directly
+(using `cat`); it contains all confirmed attributions grouped by author with
+issues sorted by number descending, ready for use.
 
 For each issue in `tier3_candidates_capped.json` (at most 5 per run), apply **Tier 3** from the
 imported Community Attribution Strategy (GitHub MCP `issue_read` to
@@ -356,20 +403,21 @@ Write the updated content back to
 {{#if experiments.prompt_style == "concise"}}
 ### 3. Build Community Section
 
-Produce a `## 🌍 Community Contributions` `<details>` block. One bullet per
-author (alphabetical), issues descending. Use `#N` refs (no full URLs). Suffixes:
-`_(direct issue)_` (T0), none (T1/2), `_(via follow-up #M)_` (T3). Append
+Start from `readme_community_section_tier012.md` (pre-formatted Tier 0-2 content).
+Insert Tier 3 entries (sorted, alphabetical author order). Append
 `### ⚠️ Attribution Candidates Need Review` section for Tier 4 items. Leave a
 blank line after `</details>`.
 {{#else}}
 ### 3. Build the Community Contributions Section
 
-Produce a compact section of attributed community contributors for
-`README.md`, wrapped in a `<details>` element. Use **one list item per
-author** with all their issues listed inline. Use GitHub issue references
-(`#N`) so that GitHub automatically expands them with the issue title —
-do **not** use full URLs or explicit issue titles as link text (GitHub
-renders the title for you):
+The pre-step has already produced a formatted starting point in
+`readme_community_section_tier012.md` — read it with `cat`. This file contains
+the complete Tier 0–2 `## 🌍 Community Contributions` section in the correct
+format. If there are Tier 3 attributions, insert them into the bullet list
+(maintaining alphabetical author order and descending issue order within each
+author). Do not re-format the Tier 0–2 entries; only add new lines.
+
+The expected format (for reference):
 
 ```markdown
 ## 🌍 Community Contributions
@@ -462,7 +510,7 @@ and the Community Contributors wiki page.
 {{#if experiments.prompt_style == "concise"}}
 ## Token Budget
 
-- Read each data file once only
+- Read each data file once only; use `cat` on pre-formatted files — no bash pipelines
 - Process only `tier3_candidates_capped.json` (≤5 issues)
 - One `issue_read` per Tier 3 candidate
 - Stop after safe-output call
@@ -473,7 +521,8 @@ and the Community Contributors wiki page.
 
 This workflow uses the Copilot engine — max-turns is not available. Follow these rules to avoid runaway token consumption:
 
-- **Read each data file at most once** — do not re-read `pre_attributed.json`, `closing_refs_by_issue.json`, or `README_current.md`
+- **Use `cat` on pre-formatted files** — `readme_community_section_tier012.md` and `attribution_by_author.json` are ready to use directly; do not run bash pipelines or data-processing scripts on them
+- **Read each data file at most once** — do not re-read `attribution_by_author.json`, `readme_community_section_tier012.md`, or `README_current.md`
 - **Tier 3 cap enforced in pre-step** — `tier3_candidates_capped.json` contains at most 5 issues; process only those, then stop
 - **At most 1 `issue_read` call per Tier 3 candidate** — call `issue_read` with `method: "get_comments"` once per issue to look for indirect linkage; do not chain further lookups from the results
 - **Stop immediately after the safe-output call** — once `create_pull_request` or `noop` is called, halt without any further tool calls or reasoning
