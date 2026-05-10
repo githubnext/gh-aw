@@ -539,6 +539,7 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*` |
+| `gemini-flash-lite` | `copilot/gemini-*flash*lite*`, `google/gemini-*flash*lite*`, `gemini/gemini-*flash*lite*` |
 | `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*` |
 
 ### 9.2 Meta-Aliases
@@ -546,7 +547,7 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | Alias | Resolves to (in order) |
 |-------|------------------------|
 | `small` | `mini` |
-| `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash` |
+| `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash-lite` |
 | `large` | `sonnet`, `gpt-5`, `gemini-pro` |
 | `auto` | `large` |
 
