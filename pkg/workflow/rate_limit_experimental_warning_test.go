@@ -129,7 +129,7 @@ permissions:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: user-rate-limit"
+			expectedMessage := "Using experimental feature: rate limiting"
 
 			if tt.expectWarning {
 				if !strings.Contains(stderrOutput, expectedMessage) {

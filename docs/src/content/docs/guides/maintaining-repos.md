@@ -99,7 +99,7 @@ The `user-rate-limit` frontmatter key caps how many times a workflow can run in 
 ```aw wrap
 user-rate-limit:
   max-runs-per-window: 5
-  window: 1h
+  window: 60
 ```
 
 See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full options.
