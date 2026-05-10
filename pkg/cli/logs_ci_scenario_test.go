@@ -30,13 +30,13 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 	// Call DownloadWorkflowLogs with parameters that will result in no matching runs
 	// We use a non-existent workflow name to ensure no results
 	err := DownloadWorkflowLogs(ctx, LogsDownloadOptions{
-		WorkflowName: "nonexistent-workflow-12345", // Workflow that doesn't exist
-		Count:        2,
-		OutputDir:    tmpDir,
-		Engine:       "copilot",
-		JSONOutput:   true, // THIS IS KEY
-		Timeout:      10,
-		SummaryFile:  "summary.json",
+		WorkflowName:   "nonexistent-workflow-12345", // Workflow that doesn't exist
+		Count:          2,
+		OutputDir:      tmpDir,
+		Engine:         "copilot",
+		JSONOutput:     true, // THIS IS KEY
+		TimeoutMinutes: 10,
+		SummaryFile:    "summary.json",
 	})
 
 	// Restore stdout and read output

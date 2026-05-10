@@ -261,7 +261,7 @@ Examples:
 				NoFirewall:        noFirewall,
 				Parse:             parse,
 				JSONOutput:        jsonOutput,
-				Timeout:           timeout,
+				TimeoutMinutes:    timeout,
 				SummaryFile:       summaryFile,
 				SafeOutputType:    safeOutputType,
 				FilteredIntegrity: filteredIntegrity,

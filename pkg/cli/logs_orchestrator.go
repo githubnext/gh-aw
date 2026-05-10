@@ -53,7 +53,7 @@ type LogsDownloadOptions struct {
 	NoFirewall        bool
 	Parse             bool
 	JSONOutput        bool
-	Timeout           int
+	TimeoutMinutes    int
 	SummaryFile       string
 	SafeOutputType    string
 	FilteredIntegrity bool
@@ -82,7 +82,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	noFirewall := opts.NoFirewall
 	parse := opts.Parse
 	jsonOutput := opts.JSONOutput
-	timeout := opts.Timeout
+	timeoutMinutes := opts.TimeoutMinutes
 	summaryFile := opts.SummaryFile
 	safeOutputType := opts.SafeOutputType
 	filteredIntegrity := opts.FilteredIntegrity
@@ -153,10 +153,10 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	// Start timeout timer if specified
 	var startTime time.Time
 	var timeoutReached bool
-	if timeout > 0 {
+	if timeoutMinutes > 0 {
 		startTime = time.Now()
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeout)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeoutMinutes)))
 		}
 	}
 
@@ -180,9 +180,9 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		}
 
 		// Check timeout if specified
-		if timeout > 0 {
+		if timeoutMinutes > 0 {
 			elapsed := time.Since(startTime).Seconds()
-			if elapsed >= float64(timeout)*60 {
+			if elapsed >= float64(timeoutMinutes)*60 {
 				timeoutReached = true
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", elapsed)))
@@ -593,7 +593,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 			Branch:       ref,
 			AfterRunID:   afterRunID,
 			BeforeRunID:  oldestRunID, // Continue from where we left off
-			Timeout:      timeout,
+			Timeout:      timeoutMinutes,
 		}
 	}
 

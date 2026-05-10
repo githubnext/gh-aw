@@ -107,18 +107,18 @@ func TestRunWorkflowsOnGitHubCancellationDuringExecution(t *testing.T) {
 	assert.Error(t, err, "Should return an error")
 }
 
-// TestDownloadWorkflowLogsTimeoutRespected tests that timeout is converted to context deadline
+// TestDownloadWorkflowLogsTimeoutRespected tests that timeout-minutes is respected
 func TestDownloadWorkflowLogsTimeoutRespected(t *testing.T) {
-	// Test with a very short timeout (1 second) and verify the function returns quickly
+	// Use a short timeout in minutes and verify fast-fail behavior still returns quickly
 	ctx := context.Background()
 
 	start := time.Now()
 	// Use a workflow name that doesn't exist to avoid actual network calls
 	_ = DownloadWorkflowLogs(ctx, LogsDownloadOptions{
-		WorkflowName: "nonexistent-workflow-12345",
-		Count:        100,
-		OutputDir:    "/tmp/test-logs",
-		Timeout:      1,
+		WorkflowName:   "nonexistent-workflow-12345",
+		Count:          100,
+		OutputDir:      "/tmp/test-logs",
+		TimeoutMinutes: 1,
 	})
 	elapsed := time.Since(start)
 

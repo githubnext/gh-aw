@@ -37,13 +37,13 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 	// Call DownloadWorkflowLogs with parameters that will result in no matching runs
 	// This should trigger the warning message path
 	err := DownloadWorkflowLogs(ctx, LogsDownloadOptions{
-		WorkflowName: "nonexistent-workflow-test-12345", // Workflow that doesn't exist
-		Count:        2,
-		OutputDir:    tmpDir,
-		Engine:       "copilot",
-		JSONOutput:   true, // THIS IS KEY
-		Timeout:      10,
-		SummaryFile:  "summary.json",
+		WorkflowName:   "nonexistent-workflow-test-12345", // Workflow that doesn't exist
+		Count:          2,
+		OutputDir:      tmpDir,
+		Engine:         "copilot",
+		JSONOutput:     true, // THIS IS KEY
+		TimeoutMinutes: 10,
+		SummaryFile:    "summary.json",
 	})
 
 	// Close writers first
@@ -144,13 +144,13 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 	// Call DownloadWorkflowLogs
 	ctx := context.Background()
 	err := DownloadWorkflowLogs(ctx, LogsDownloadOptions{
-		WorkflowName: "nonexistent-workflow-ci-test-67890",
-		Count:        2,
-		OutputDir:    tmpDir,
-		Engine:       "copilot",
-		JSONOutput:   true,
-		Timeout:      10,
-		SummaryFile:  "summary.json",
+		WorkflowName:   "nonexistent-workflow-ci-test-67890",
+		Count:          2,
+		OutputDir:      tmpDir,
+		Engine:         "copilot",
+		JSONOutput:     true,
+		TimeoutMinutes: 10,
+		SummaryFile:    "summary.json",
 	})
 
 	// Close the writer
