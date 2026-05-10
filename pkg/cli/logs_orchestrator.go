@@ -35,8 +35,62 @@ func getMaxConcurrentDownloads() int {
 	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
 }
 
+type LogsDownloadOptions struct {
+	WorkflowName      string
+	Count             int
+	StartDate         string
+	EndDate           string
+	OutputDir         string
+	Engine            string
+	Ref               string
+	BeforeRunID       int64
+	AfterRunID        int64
+	RepoOverride      string
+	Verbose           bool
+	ToolGraph         bool
+	NoStaged          bool
+	FirewallOnly      bool
+	NoFirewall        bool
+	Parse             bool
+	JSONOutput        bool
+	Timeout           int
+	SummaryFile       string
+	SafeOutputType    string
+	FilteredIntegrity bool
+	Train             bool
+	Format            string
+	ArtifactSets      []string
+	After             string
+}
+
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string, after string) error {
+func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
+	workflowName := opts.WorkflowName
+	count := opts.Count
+	startDate := opts.StartDate
+	endDate := opts.EndDate
+	outputDir := opts.OutputDir
+	engine := opts.Engine
+	ref := opts.Ref
+	beforeRunID := opts.BeforeRunID
+	afterRunID := opts.AfterRunID
+	repoOverride := opts.RepoOverride
+	verbose := opts.Verbose
+	toolGraph := opts.ToolGraph
+	noStaged := opts.NoStaged
+	firewallOnly := opts.FirewallOnly
+	noFirewall := opts.NoFirewall
+	parse := opts.Parse
+	jsonOutput := opts.JSONOutput
+	timeout := opts.Timeout
+	summaryFile := opts.SummaryFile
+	safeOutputType := opts.SafeOutputType
+	filteredIntegrity := opts.FilteredIntegrity
+	train := opts.Train
+	format := opts.Format
+	artifactSets := opts.ArtifactSets
+	after := opts.After
+
 	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v, after=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets, after)
 
 	// Validate and resolve artifact sets into a concrete filter (list of artifact base names).

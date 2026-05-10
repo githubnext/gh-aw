@@ -21,7 +21,11 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	// Test the DownloadWorkflowLogs function
 	// This should either fail with auth error (if not authenticated)
 	// or succeed with no results (if authenticated but no workflows match)
-	err := DownloadWorkflowLogs(context.Background(), "", 1, "", "", "./test-logs", "", "", 0, 0, "", false, false, false, false, false, false, false, 0, "summary.json", "", false, false, "", nil, "")
+	err := DownloadWorkflowLogs(context.Background(), LogsDownloadOptions{
+		Count:       1,
+		OutputDir:   "./test-logs",
+		SummaryFile: "summary.json",
+	})
 
 	// If GitHub CLI is authenticated, the function may succeed but find no results
 	// If not authenticated, it should return an auth error
@@ -393,7 +397,12 @@ func TestDownloadWorkflowLogsWithEngineFilter(t *testing.T) {
 			if !tt.expectError {
 				// For valid engines, test that the function can be called without panic
 				// It may still fail with auth errors, which is expected
-				err := DownloadWorkflowLogs(context.Background(), "", 1, "", "", "./test-logs", tt.engine, "", 0, 0, "", false, false, false, false, false, false, false, 0, "summary.json", "", false, false, "", nil, "")
+				err := DownloadWorkflowLogs(context.Background(), LogsDownloadOptions{
+					Count:       1,
+					OutputDir:   "./test-logs",
+					Engine:      tt.engine,
+					SummaryFile: "summary.json",
+				})
 
 				// Clean up any created directories
 				os.RemoveAll("./test-logs")
