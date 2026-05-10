@@ -56,7 +56,7 @@ def test_imported_observability_is_detected(tmp_path: Path) -> None:
     assert pre.has_imported_observability(workflow, frontmatter) is True
 
 
-def test_imports_outside_workflows_root_are_rejected(tmp_path: Path) -> None:
+def test_relative_imports_outside_workflows_root_are_rejected(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     escaped = tmp_path / "outside.md"
     write_workflow(
@@ -64,10 +64,21 @@ def test_imports_outside_workflows_root_are_rejected(tmp_path: Path) -> None:
         "---\nobservability:\n  otlp:\n    endpoint:\n      url: https://example.invalid\n---\n",
     )
     workflow = workflows / "alpha.md"
+    write_workflow(workflow, "---\nimports:\n  - ../outside.md\n---\n# Alpha\n")
+    frontmatter, _ = pre.read_workflow(workflow)
+    assert pre.normalize_import_paths(workflow, frontmatter) == []
+    assert pre.has_imported_observability(workflow, frontmatter) is False
+
+
+def test_absolute_imports_are_rejected(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    escaped = tmp_path / "outside.md"
     write_workflow(
-        workflow,
-        f"---\nimports:\n  - ../outside.md\n  - {escaped}\n---\n# Alpha\n",
+        escaped,
+        "---\nobservability:\n  otlp:\n    endpoint:\n      url: https://example.invalid\n---\n",
     )
+    workflow = workflows / "alpha.md"
+    write_workflow(workflow, f"---\nimports:\n  - {escaped}\n---\n# Alpha\n")
     frontmatter, _ = pre.read_workflow(workflow)
     assert pre.normalize_import_paths(workflow, frontmatter) == []
     assert pre.has_imported_observability(workflow, frontmatter) is False

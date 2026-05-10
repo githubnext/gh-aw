@@ -428,11 +428,13 @@ def normalize_import_paths(workflow_path: Path, frontmatter: dict[str, Any]) -> 
                 pass
             else:
                 continue
-        if not workflows_root or raw.startswith("/"):
+        if not workflows_root:
+            continue
+        if raw.startswith("/"):
             continue
         if raw.startswith("shared/"):
             import_path = (workflows_root / raw).resolve()
-            if shared_root and _path_is_within(import_path, shared_root):
+            if _path_is_within(import_path, shared_root):
                 imports.append(import_path)
         elif raw.startswith("./") or raw.startswith("../"):
             import_path = (workflow_path.parent / raw).resolve()
