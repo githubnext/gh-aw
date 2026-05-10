@@ -9260,12 +9260,12 @@
       },
       "additionalProperties": false
     },
-    "rate-limit": {
+    "user-rate-limit": {
       "type": "object",
       "description": "Rate limiting configuration to restrict how frequently users can trigger the workflow. Helps prevent abuse and resource exhaustion from programmatically triggered events.",
-      "required": ["max"],
+      "required": ["max-runs-per-window"],
       "properties": {
-        "max": {
+        "max-runs-per-window": {
           "description": "Maximum number of workflow runs allowed per user within the time window. Required field. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
           "oneOf": [
             {
@@ -9309,20 +9309,82 @@
       "additionalProperties": false,
       "examples": [
         {
-          "max": 5,
+          "max-runs-per-window": 5,
           "window": 60
         },
         {
-          "max": 10,
+          "max-runs-per-window": 10,
           "window": 30,
           "events": ["workflow_dispatch", "issue_comment"]
         },
         {
-          "max": 5,
+          "max-runs-per-window": 5,
           "window": 60,
           "ignored-roles": ["admin", "maintain"]
         }
       ]
+    },
+    "rate-limit": {
+      "type": "object",
+      "description": "Legacy alias for 'user-rate-limit'. Prefer 'user-rate-limit' with 'max-runs-per-window'.",
+      "properties": {
+        "max-runs": {
+          "description": "Legacy maximum runs key. Prefer 'max-runs-per-window'.",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression that resolves to an integer at runtime"
+            }
+          ]
+        },
+        "max": {
+          "description": "Legacy maximum runs key. Prefer 'max-runs-per-window'.",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression that resolves to an integer at runtime"
+            }
+          ]
+        },
+        "window": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 180,
+          "default": 60,
+          "description": "Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180 (3 hours)."
+        },
+        "events": {
+          "type": "array",
+          "description": "Optional list of event types to apply rate limiting to.",
+          "items": {
+            "type": "string",
+            "enum": ["workflow_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "issues", "pull_request", "discussion_comment", "discussion"]
+          },
+          "minItems": 1
+        },
+        "ignored-roles": {
+          "type": "array",
+          "description": "Optional list of roles that are exempt from rate limiting.",
+          "items": {
+            "type": "string",
+            "enum": ["admin", "maintain", "write", "triage", "read"]
+          },
+          "minItems": 0
+        }
+      },
+      "additionalProperties": false
     },
     "strict": {
       "type": "boolean",

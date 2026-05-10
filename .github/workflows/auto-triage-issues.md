@@ -6,8 +6,8 @@ on:
     types: [opened, edited]
   schedule: every 6h
   workflow_dispatch:
-rate-limit:
-  max: 5
+user-rate-limit:
+  max-runs-per-window: 5
   window: 60
 permissions:
   contents: read
