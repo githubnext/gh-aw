@@ -603,9 +603,17 @@ async function main(config = {}) {
           await exec.exec("git", ["fetch", bundleFilePath, `refs/heads/${message.branch}:${bundleRef}`], baseGitOpts);
           core.info(`Fetched bundle to ${bundleRef}`);
 
-          // Fast-forward the current branch to the bundle tip
-          await exec.exec("git", ["merge", "--ff-only", bundleRef], baseGitOpts);
-          core.info("Fast-forwarded branch to bundle tip");
+          // Point the checked-out branch at the bundle tip directly. In shallow
+          // checkouts, merge --ff-only can fail to discover the ancestry even
+          // when the bundle was created from origin/<branch>..branch and the
+          // prerequisite exists locally.
+          const updateRefArgs = ["update-ref", `refs/heads/${branchName}`, bundleRef];
+          if (remoteHeadBeforePatch) {
+            updateRefArgs.push(remoteHeadBeforePatch);
+          }
+          await exec.exec("git", updateRefArgs, baseGitOpts);
+          await exec.exec("git", ["reset", "--hard"], baseGitOpts);
+          core.info("Updated branch to bundle tip");
 
           // Clean up the temporary ref
           try {

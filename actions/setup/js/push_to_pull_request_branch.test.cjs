@@ -1197,6 +1197,34 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
     });
+
+    it("should apply bundle transport by updating the branch ref instead of merging", async () => {
+      const bundlePath = path.join(tempDir, "test.bundle");
+      const patchPath = createPatchFile("small patch content");
+      fs.writeFileSync(bundlePath, "bundle content");
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+
+      try {
+        mockExec.getExecOutput
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head\n", stderr: "" }) // rev-parse HEAD before bundle
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "2\n", stderr: "" }); // rev-list --count
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+
+        expect(result.success).toBe(true);
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/feature-branch:refs/bundles/push-feature-branch"], expect.any(Object));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature-branch", "refs/bundles/push-feature-branch", "remote-head"], expect.any(Object));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], expect.any(Object));
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["merge", "--ff-only", "refs/bundles/push-feature-branch"], expect.any(Object));
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
   });
 
   // ──────────────────────────────────────────────────────
