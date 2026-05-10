@@ -444,7 +444,12 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			if path == "" {
 				continue
 			}
+			// Claude path-scoped tool permissions must be absolute.
+			if !strings.HasPrefix(path, "/") {
+				continue
+			}
 			pattern := path
+			// Treat plain directory paths as "directory contents" grants to mirror cache-memory behavior.
 			if !strings.ContainsAny(pattern, "*?[]{}") {
 				pattern = strings.TrimRight(pattern, "/") + "/*"
 			}
