@@ -636,7 +636,7 @@ type forecastTableRow struct {
 	Yield              string `json:"yield"                   console:"header:Yield/Period"`
 	AvgEffectiveTokens string `json:"avg_effective_tokens"    console:"header:Avg ET"`
 	ProjectedTokens    string `json:"projected_tokens"        console:"header:Proj. ET (P50)"`
-	ProjectedCost      string `json:"projected_cost"          console:"header:Cost (P50)"`
+	ProjectedCost      string `json:"projected_cost"          console:"header:Proj. Cost (P50)"`
 	CostRange          string `json:"cost_range"              console:"header:80% CI (P10–P90)"`
 	Triggers           string `json:"triggers"                console:"header:Triggers"`
 }
@@ -696,8 +696,10 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("P50 = median; 80%% CI = P10–P90 from %d-trial Monte Carlo simulation. Run '%s forecast --json' for full output. Costs use %.0e USD/ET.",
-			monteCarloIterations, string(constants.CLIExtensionPrefix), costPerEffectiveToken)))
+		fmt.Sprintf("P50 = median; 80%% CI = P10–P90 from %d-trial Monte Carlo simulation.", monteCarloIterations)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		fmt.Sprintf("Run '%s forecast --json' for full output. Costs use %.0e USD/ET.",
+			string(constants.CLIExtensionPrefix), costPerEffectiveToken)))
 	return nil
 }
 

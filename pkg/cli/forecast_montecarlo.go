@@ -116,14 +116,15 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 
 // poissonSample draws a random variate from Poisson(lambda).
 //
-// For lambda ≤ 30 it uses Knuth's multiplicative algorithm (exact).
-// For lambda > 30 it uses a Normal approximation, which is accurate to
-// within 0.3% for the tails that matter in forecasting contexts.
+// For lambda ≤ 15 it uses Knuth's multiplicative algorithm (exact, O(lambda) per sample).
+// For lambda > 15 it uses a Normal approximation, which is accurate to
+// within 0.3% for the tails that matter in forecasting contexts, and avoids
+// the linear cost that becomes significant at 10 000 trials.
 func poissonSample(rng *rand.Rand, lambda float64) int {
 	if lambda <= 0 {
 		return 0
 	}
-	if lambda <= 30 {
+	if lambda <= 15 {
 		// Knuth's algorithm: O(lambda) per sample, exact.
 		L := math.Exp(-lambda)
 		k := 0

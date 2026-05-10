@@ -21,7 +21,7 @@ func deterministicRNG() *rand.Rand {
 // and variance close to lambda (within statistical tolerance for 100 000 draws).
 func TestPoissonSample(t *testing.T) {
 	rng := deterministicRNG()
-	const lambda = 15.0
+	const lambda = 10.0 // within Knuth's exact branch (≤15)
 	const n = 100_000
 
 	sum := 0.0
@@ -39,7 +39,7 @@ func TestPoissonSample(t *testing.T) {
 	assert.InEpsilon(t, lambda, variance, 0.01, "empirical variance should be close to lambda")
 }
 
-// TestPoissonSampleLargeLambda exercises the normal-approximation branch (lambda > 30).
+// TestPoissonSampleLargeLambda exercises the normal-approximation branch (lambda > 15).
 func TestPoissonSampleLargeLambda(t *testing.T) {
 	rng := deterministicRNG()
 	const lambda = 100.0
@@ -210,7 +210,7 @@ func TestRunMonteCarloFullEpisodePath(t *testing.T) {
 	successCount := 0
 	for i := range etObs {
 		etObs[i] = 5_000 + i*200
-		if i%5 != 0 { // 80% success
+		if i%5 != 0 { // 4 out of every 5 runs succeed → 80% success rate
 			successCount++
 		}
 	}
