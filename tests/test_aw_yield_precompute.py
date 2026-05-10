@@ -56,6 +56,37 @@ def test_imported_observability_is_detected(tmp_path: Path) -> None:
     assert pre.has_imported_observability(workflow, frontmatter) is True
 
 
+def test_imports_outside_workflows_root_are_rejected(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    escaped = tmp_path / "outside.md"
+    write_workflow(
+        escaped,
+        "---\nobservability:\n  otlp:\n    endpoint:\n      url: https://example.invalid\n---\n",
+    )
+    workflow = workflows / "alpha.md"
+    write_workflow(
+        workflow,
+        f"---\nimports:\n  - ../outside.md\n  - {escaped}\n---\n# Alpha\n",
+    )
+    frontmatter, _ = pre.read_workflow(workflow)
+    assert pre.normalize_import_paths(workflow, frontmatter) == []
+    assert pre.has_imported_observability(workflow, frontmatter) is False
+
+
+def test_shared_imports_must_stay_under_shared_directory(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    escaped = workflows / "outside.md"
+    write_workflow(
+        escaped,
+        "---\nobservability:\n  otlp:\n    endpoint:\n      url: https://example.invalid\n---\n",
+    )
+    workflow = workflows / "alpha.md"
+    write_workflow(workflow, "---\nimports:\n  - shared/../outside.md\n---\n# Alpha\n")
+    frontmatter, _ = pre.read_workflow(workflow)
+    assert pre.normalize_import_paths(workflow, frontmatter) == []
+    assert pre.has_imported_observability(workflow, frontmatter) is False
+
+
 def test_missing_safe_outputs_increases_risk(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     base = "---\non:\n  workflow_dispatch:\npermissions:\n  contents: read\nstrict: true\ntimeout-minutes: 10\n---\n# Alpha\n"

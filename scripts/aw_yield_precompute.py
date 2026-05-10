@@ -397,7 +397,25 @@ def as_list(value: Any) -> list[Any]:
     return [value]
 
 
+def _get_workflows_root(workflow_path: Path) -> Path | None:
+    resolved = workflow_path.resolve()
+    for candidate in (resolved.parent, *resolved.parents):
+        if candidate.name == "workflows" and candidate.parent.name == ".github":
+            return candidate
+    return None
+
+
+def _path_is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 def normalize_import_paths(workflow_path: Path, frontmatter: dict[str, Any]) -> list[Path]:
+    workflows_root = _get_workflows_root(workflow_path)
+    shared_root = workflows_root / "shared" if workflows_root else None
     imports = []
     for item in as_list(frontmatter.get("imports")):
         raw: str | None = None
@@ -410,12 +428,16 @@ def normalize_import_paths(workflow_path: Path, frontmatter: dict[str, Any]) -> 
                 pass
             else:
                 continue
+        if not workflows_root or raw.startswith("/"):
+            continue
         if raw.startswith("shared/"):
-            imports.append(workflow_path.parent / raw)
+            import_path = (workflows_root / raw).resolve()
+            if shared_root and _path_is_within(import_path, shared_root):
+                imports.append(import_path)
         elif raw.startswith("./") or raw.startswith("../"):
-            imports.append((workflow_path.parent / raw).resolve())
-        elif raw.startswith("/"):
-            imports.append(Path(raw))
+            import_path = (workflow_path.parent / raw).resolve()
+            if _path_is_within(import_path, workflows_root):
+                imports.append(import_path)
     return imports
 
 
