@@ -619,6 +619,46 @@ roles: all                         # Least restrictive
 
 **PM-12**: Failed role checks MUST cancel workflow execution with a warning message.
 
+#### 7.6.1 Pre-Activation Pattern
+
+Role-based access control is implemented via a dedicated `pre_activation` job that runs before the activation job. This ensures that only authorized users can trigger the full workflow execution chain.
+
+**PM-10a**: A conforming implementation MUST implement role checks in a separate `pre_activation` job that precedes the `activation` job:
+
+```yaml
+jobs:
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@<SHA>  # Pin to a specific commit SHA in production
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    # ... remainder of activation job
+```
+
+**PM-10b**: The `pre_activation` job MUST output an `activated` boolean that the `activation` job uses as an execution gate via its `if:` condition.
+
+**PM-10c**: The `pre_activation` job MUST run with read-only permissions (`contents: read`). It MUST NOT have write permissions of any kind.
+
+**PM-10d**: The `GH_AW_REQUIRED_ROLES` environment variable MUST be set from the workflow's `roles` frontmatter field. The default value MUST be `admin,maintainer,write` when no `roles` field is specified.
+
+This pattern separates the membership check from the input sanitization that occurs in the `activation` job, enabling independent auditing of each security gate.
+
 ### 7.7 Token Validation
 
 **PM-13**: The implementation MUST validate that `github-token` fields contain GitHub Actions expressions referencing secrets or job outputs.
@@ -1219,6 +1259,49 @@ Legend:
   │    = Dependency or sequence
 ```
 
+#### Job Dependency Graph
+
+The following diagram shows the concrete job execution order within a compiled gh-aw workflow, as generated in `.lock.yml` files:
+
+```text
+pre_activation (role check — membership validation)
+      │
+      │  if: activated == 'true'
+      ▼
+activation (timestamp check, input sanitization → outputs.text)
+      │
+      │  if: pre_activation.outputs.activated == 'true'
+      ▼
+agent (AI execution — read-only permissions, AWF sandbox)
+      │
+      ├──────────────────────┐
+      │                      │
+      ▼                      ▼
+detection               [other jobs]
+(threat analysis —      (optional parallel
+ no permissions)         post-agent jobs)
+      │
+      │  if: detection.outputs.success == 'true'
+      ▼
+safe_outputs (validated write operations — write permissions)
+      │
+      ▼
+conclusion (cleanup, summary — optional)
+```
+
+**Key properties of this dependency chain**:
+
+| Job | Depends On | Purpose | Permissions |
+|-----|------------|---------|-------------|
+| `pre_activation` | — | Role-based access control | `contents: read` |
+| `activation` | `pre_activation` | Timestamp validation, input sanitization | `contents: read` |
+| `agent` | `activation` | AI agent execution | `contents: read`, `actions: read` |
+| `detection` | `agent` | Threat analysis of agent output | `{}` (none) |
+| `safe_outputs` | `agent`, `detection` (conditional: `success == 'true'`) | Validated write to GitHub API | `contents: read`, `issues: write`, etc. |
+| `conclusion` | `safe_outputs` | Cleanup and execution summary | `contents: read` |
+
+The `detection` job acts as a security gate: `safe_outputs` only runs when `needs.detection.outputs.success == 'true'`.
+
 ### Appendix B: Sanitization Examples
 
 #### Example 1: @Mention Neutralization
@@ -1581,7 +1664,69 @@ network:
 
 **Error**: `strict mode does not allow wildcard (*) in network domains`
 
-### Appendix G: Security Best Practices
+### Appendix G: Lock File Validation Checklist
+
+Use this checklist to verify that a compiled `.lock.yml` workflow file meets all security requirements.
+
+#### G.1 Action Pinning
+
+- [ ] All `uses:` statements reference actions with 40-character SHA commits (not tags or branch names)
+- [ ] Each pinned SHA is accompanied by a version comment (e.g., `# v6`)
+- [ ] No `uses:` statement references a mutable tag (e.g., `@v6`, `@main`, `@latest`)
+
+#### G.2 Permission Separation
+
+- [ ] Top-level `permissions: {}` sets all permissions to `none` by default
+- [ ] `agent` job has only read-only permissions (`contents: read`, `actions: read`, `pull-requests: read`)
+- [ ] `agent` job does NOT have write permissions of any kind
+- [ ] `safe_outputs` job has write permissions only for the specific operations it performs
+- [ ] `activation` job has only `contents: read`
+- [ ] `pre_activation` job has only `contents: read`
+
+#### G.3 Fork Protection
+
+- [ ] `activation` job `if:` condition includes repository ID check for `pull_request` events:  
+  `github.event.pull_request.head.repo.id == github.repository_id`
+- [ ] `pre_activation` job `if:` condition (if present) includes the same fork protection
+
+#### G.4 Input Sanitization
+
+- [ ] `activation` job runs the timestamp validation step (`check_workflow_timestamp_api.cjs`)
+- [ ] `activation` job runs the sanitize content step (`sanitize_content_core.cjs`)
+- [ ] Agent prompts use `needs.activation.outputs.text` (sanitized), not raw `github.event.*` context
+
+#### G.5 Threat Detection
+
+- [ ] A `detection` job exists between the `agent` job and `safe_outputs`
+- [ ] `detection` job has `permissions: {}` (no permissions)
+- [ ] `safe_outputs` job has `if:` condition that checks `needs.detection.outputs.success == 'true'`
+
+#### G.6 Role-Based Access Control
+
+- [ ] A `pre_activation` job exists with a membership check step (`check_membership.cjs`)
+- [ ] `activation` job has `needs: pre_activation` and `if: needs.pre_activation.outputs.activated == 'true'`
+- [ ] `GH_AW_REQUIRED_ROLES` environment variable is set appropriately
+
+#### G.7 AWF Sandbox (Copilot Engine)
+
+- [ ] Agent job installs the AWF binary (`install_awf_binary.sh`)
+- [ ] Agent job runs the Copilot CLI within the AWF container
+
+#### G.8 Concurrency Control
+
+- [ ] `concurrency.group` uses a dynamic identifier including the workflow name and event context (PR number, issue number, or ref)
+- [ ] `cancel-in-progress` is set appropriately for the workflow type:
+  - PR workflows: `true` (latest cancels older)
+  - Issue/audit workflows: `false` or omitted (sequential)
+
+#### G.9 Runtime Validation
+
+- [ ] Activation job checks workflow timestamp to ensure `.lock.yml` is up-to-date
+- [ ] Conclusion job (if present) is documented and performs only cleanup/summary operations
+
+---
+
+### Appendix H: Security Best Practices
 
 #### BP-01: Always Use Sanitized Context
 

@@ -58,7 +58,7 @@ The specification defines **7 security guarantees (SG-01 to SG-07)**:
 
 - **130+ formal requirements** using RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
 - **70+ compliance tests** across 8 categories
-- **6 comprehensive appendices** with diagrams, examples, and best practices
+- **8 comprehensive appendices** with diagrams, examples, and best practices
 
 ### Test Categories
 
@@ -87,12 +87,12 @@ The specification defines **7 security guarantees (SG-01 to SG-07)**:
 | 10. Compilation Security | Schema, expressions, permissions, actions | 13 requirements |
 | 11. Runtime Security | Timestamp, repository, role, token validation | 15 requirements |
 | 12. Compliance Testing | Test suite, categories, procedures | 70+ tests |
-| Appendices A-F | Diagrams, examples, best practices | 6 appendices |
+| Appendices A-H | Diagrams, examples, best practices | 8 appendices |
 
 ## Appendices
 
 ### Appendix A: Security Architecture Diagram
-Complete visual representation of the security architecture with all layers.
+Complete visual representation of the security architecture with all layers, plus a concrete job dependency graph showing `pre_activation → activation → agent → detection → safe_outputs → conclusion`.
 
 ### Appendix B: Sanitization Examples
 Real-world examples of @mention, bot trigger, XML/HTML, and URI sanitization.
@@ -103,10 +103,16 @@ Sample configurations for default, selective, protocol-specific, and blocked dom
 ### Appendix D: Safe Output Configuration Examples
 Examples of basic, multi-output, and threat-detection-enabled configurations.
 
-### Appendix E: Strict Mode Violations
+### Appendix E: Concurrency Control Examples
+Examples of concurrency configuration patterns for PR workflows, issue workflows, scheduled workflows, and repository-wide locks.
+
+### Appendix F: Strict Mode Violations
 Common violations and error messages for write permissions, unpinned actions, and wildcards.
 
-### Appendix F: Security Best Practices
+### Appendix G: Lock File Validation Checklist
+Step-by-step checklist for verifying that a compiled `.lock.yml` file meets all security requirements, covering action pinning, permission separation, fork protection, input sanitization, threat detection, role-based access control, AWF sandbox, concurrency control, and runtime validation.
+
+### Appendix H: Security Best Practices
 Six key best practices with "Don't" and "Do" examples.
 
 ## Target Audience
@@ -176,6 +182,17 @@ Key implementation files referenced in the specification:
 3. Implement equivalent sandbox mechanisms
 4. Adapt network isolation to platform capabilities
 5. Validate against compliance tests
+
+### Spec Maintenance Tasks
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Add job dependency diagram to Appendix A | ✅ Done (2026-05-10) | Added to `security-architecture-spec.md` Appendix A |
+| Add lock file validation checklist as Appendix G | ✅ Done (2026-05-10) | Added to `security-architecture-spec.md` as Appendix G; old Appendix G renamed to Appendix H |
+| Document the pre_activation pattern in Section 7.6 | ✅ Done (2026-05-10) | Added Section 7.6.1 "Pre-Activation Pattern" with normative requirements PM-10a through PM-10d |
+| Rerun validation report after Appendix A update | ⏳ Pending | Should re-validate spec-to-implementation match grade |
+| Update summary to reflect v1.0.2 CTR-012 work | ✅ Done (2026-05-10) | Appendix count updated; security architecture remains at version 1.0.0 |
+| Audit "Next Steps" for stale v1.0.0 tasks | ✅ Done (2026-05-10) | This table replaces the stale untracked list |
 
 ## Versioning
 

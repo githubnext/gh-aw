@@ -137,6 +137,16 @@ When a new threat class is identified:
 - If implementation already covers the threat, the threat MUST be added to this specification with mapping and tests.
 - If implementation does not cover the threat, detection/remediation MUST be implemented and then added to this specification.
 
+#### 4.3.1 Deprecation Policy
+
+When a compiler feature that a `CTR-*` rule depends on is removed, the rule MUST be formally retired:
+
+- The rule's status MUST be updated to `Deprecated` in this specification in the same change set as the implementation removal.
+- The rule catalog entry MUST be retained (not deleted) with a deprecation notice indicating the version in which the rule was retired and the reason.
+- All test IDs mapped to the deprecated rule in Section 7 MUST be marked as `[DEPRECATED]` and MUST NOT be required for conformance after the deprecation version.
+- The implementation mapping in Section 6.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
+- A change-log entry MUST document the deprecation with the rule ID, deprecation version, and rationale.
+
 ---
 
 ## 5. Daily Optimizer Maintenance Protocol
@@ -212,6 +222,33 @@ A conforming implementation MUST provide tests that validate:
 4. No regression in secure generation behavior.
 
 Test updates SHOULD be included whenever rules are added or modified.
+
+### 7.1 Test ID Catalog
+
+The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test case MUST exercise the described detection trigger and verify the expected compiler action.
+
+| Test ID | Rule | Detection Trigger | Expected Compiler Action | Stable Diagnostic ID |
+|---------|------|-------------------|--------------------------|----------------------|
+| **T-CTR-001** | CTR-001 Privilege Escalation | Workflow frontmatter declares `permissions: contents: write` (or another write permission) in a non-safe-outputs job without `strict: false` override | Compilation failure with error identifying the unauthorized write permission and suggesting `safe-outputs` | `CTR-001` |
+| **T-CTR-002** | CTR-002 Unpinned Action Integrity | A `jobs.*.steps[].uses` field references an action by tag (e.g., `actions/checkout@v6`) or branch name (`@main`) in strict mode | Compilation failure with error identifying the unpinned reference and providing SHA pinning instructions | `CTR-002` |
+| **T-CTR-003** | CTR-003 Unsafe Tool Scope Expansion | Workflow grants wildcard tool permissions (e.g., `tools: bash: ["*"]`) in a context where policy forbids it, or an MCP server is granted broader than declared tool scope | Compilation failure or warning identifying the overbroad scope and suggesting a restricted permission set | `CTR-003` |
+| **T-CTR-004** | CTR-004 Sandbox Bypass Configuration | Workflow configuration sets `sandbox: false` or equivalent field that disables required sandboxing | Compilation failure with error identifying the disabled sandbox control and referencing the required configuration | `CTR-004` |
+| **T-CTR-005** | CTR-005 Unsafe Output Route | Workflow uses a direct write path (e.g., `contents: write` with inline shell commands) that bypasses the safe-outputs subsystem | Compilation failure with error identifying the unsafe write route and requiring use of `safe-outputs` | `CTR-005` |
+| **T-CTR-006** | CTR-006 Template Injection | A `run:` step embeds a GitHub Actions expression (`${{ github.event.issue.title }}`) directly in the shell command string without environment variable indirection | Compilation failure with error identifying the injected expression, the affected step, and providing the env-var indirection pattern | `CTR-006` |
+| **T-CTR-007** | CTR-007 Markdown Content Security | An externally-sourced markdown workflow file contains a known dangerous pattern (e.g., unicode abuse, embedded HTML script tag, obfuscated link) | Compilation failure or error identifying the detected dangerous pattern, its location in the file, and recommending sanitization | `CTR-007` |
+| **T-CTR-008** | CTR-008 Pull Request Target Safety | Workflow declares `on: pull_request_target` and a `checkout` step that references the PR head (`ref: ${{ github.event.pull_request.head.sha }}`) without an explicit fork-safety guard | Compilation failure with error identifying the unsafe checkout pattern, the pwn-request risk, and safe alternatives | `CTR-008` |
+| **T-CTR-009** | CTR-009 Shell Expansion in Safe-Outputs | A `safe-outputs` `run:` step contains a dangerous bash expansion (e.g., `${var@Q}`, `${!var}`, `` `cmd` ``, `$(cmd)`) that the safe-outputs security harness would block at runtime | Compilation failure or error identifying the dangerous expansion pattern, the affected step, and safe alternatives | `CTR-009` |
+| **T-CTR-010** | CTR-010 Expression Safety Allowlist | A workflow prompt or step uses a GitHub Actions expression not on the approved allowlist (e.g., `${{ github.event.comment.body }}`) or a multi-line expression that could enable exfiltration | Compilation failure with error identifying the disallowed expression, its location, and the approved allowlist | `CTR-010` |
+| **T-CTR-011** | CTR-011 Network Firewall Configuration | Workflow declares `network: allowed: [some-domain]` with `ssl-bump: false` (or omits `ssl-bump` when required), or uses a wildcard `*` domain in strict mode | Compilation failure with error identifying the missing prerequisite or disallowed wildcard domain and providing the corrective configuration | `CTR-011` |
+| **T-CTR-012** | CTR-012 Safe-Outputs Wildcard Push Scope | Workflow uses `safe-outputs.push-to-pull-request-branch: target: "*"` without a wildcard fetch pattern in checkout (for non-public repos) or without `title-prefix` or `labels` access constraints | Compilation warning identifying the unconstrained wildcard scope and the missing checkout fetch pattern or access constraint; suppressed for public repositories | `CTR-012` |
+
+### 7.2 Test Coverage Requirements
+
+- Each active CTR rule MUST have at least one test ID in Section 7.1 that covers the primary detection trigger.
+- Tests MUST be deterministic: given the same malicious or unsafe input, the compiler MUST always emit the same diagnostic.
+- Tests MUST assert the stable diagnostic ID (e.g., `CTR-006`) appears in the compiler error output so that CI can mechanically verify rule coverage.
+- When a new rule is added to Section 4.1, at least one new test ID MUST be added to Section 7.1 in the same change set.
+- When a rule is deprecated per Section 4.3.1, its test IDs MUST be marked `[DEPRECATED]` and removed from the required compliance gate.
 
 ---
 

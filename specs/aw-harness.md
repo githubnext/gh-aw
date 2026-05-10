@@ -4,9 +4,11 @@
 
 **Title:** AW Harness — Single-Session Agentic Workflow Execution Engine
 
-**Status:** Unofficial Draft
+**Status:** Working Draft
 
 **Date:** 2025-07-14
+
+**Last Updated:** 2026-05-10
 
 **Editor:** GitHub gh-aw Team
 
@@ -35,8 +37,9 @@ This is an internal design specification for the GitHub gh-aw project. It is not
 9. [Model Resolution](#9-model-resolution)
 10. [Build and Deployment](#10-build-and-deployment)
 11. [Security Considerations](#11-security-considerations)
-12. [Privacy Considerations](#12-privacy-considerations)
-13. [References](#13-references)
+12. [Compliance Tests](#12-compliance-tests)
+13. [Privacy Considerations](#13-privacy-considerations)
+14. [References](#14-references)
 
 ---
 
@@ -982,6 +985,8 @@ The following ordered work items describe the implementation sequence:
 
 ## 11. Security Considerations
 
+### 11.1 General Security Requirements
+
 **Mandatory proxy features.** The `gh-proxy` and `cli-proxy` features **MUST** always be active for `engine: aw`. MCP tools are available to agent sessions as CLI commands via `cli-proxy`; disabling it would make those tools inaccessible. Any attempt by a workflow author to disable either feature **MUST** be silently overridden (see [Section 6.2](#62-overrides-and-fixed-settings)).
 
 **No direct LLM routing by harness.** The harness delegates all LLM routing to Pi SDK and the provider credentials injected by AWF. It **MUST NOT** perform additional proxy interception or credential manipulation.
@@ -992,9 +997,122 @@ The following ordered work items describe the implementation sequence:
 
 **Token and secret handling.** Provider credentials (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`) **MUST NOT** be logged to stderr or embedded in JSONL events. Implementations **MUST** treat all credential env vars as opaque secrets.
 
+### 11.2 Safeguards
+
+This section specifies normative failure-mode responses that a conforming implementation **MUST** provide. Each safeguard defines a failure mode and its required normative response.
+
+#### 11.2.1 Pi SDK Failure to Load
+
+**Failure mode:** The Pi SDK package (`@mariozechner/pi-coding-agent`) or one of its core dependencies (`pi-agent-core`, `pi-ai`) cannot be loaded at harness startup (e.g., missing from bundle, corrupted installation, incompatible Node.js version).
+
+**Normative response:**
+
+- The harness **MUST** catch the load error and emit a structured JSONL error event to stderr indicating the SDK load failure and the originating error message.
+- The harness **MUST** write a human-readable error summary to `$GITHUB_STEP_SUMMARY` (if set) that identifies the failed module and suggests reinstalling or rebuilding the bundle.
+- The harness **MUST** exit with code `2` (invocation error) rather than code `1` (session failure), to distinguish SDK infrastructure failures from session-level failures.
+- The harness **MUST NOT** attempt to proceed with a partial or degraded session; no `AgentSession` **MUST** be created if the SDK cannot be loaded.
+
+#### 11.2.2 Budget Exhaustion
+
+**Failure mode:** The cumulative effective token count across all turns exceeds `harness.budget.max-effective-tokens` during an active session.
+
+**Normative response:**
+
+- When effective tokens reach the **soft limit** (default: 80% of `max-effective-tokens`), the cost-tracker extension **MUST** inject a steering message via `session.steer()` informing the agent that it is approaching the token budget and **SHOULD** conclude its work soon.
+- When effective tokens reach the **hard limit** (`max-effective-tokens`), the cost-tracker extension **MUST** abort the session immediately by invoking the session's abort API. The harness **MUST NOT** allow additional turns to proceed after the hard limit is reached.
+- Upon hard-limit abort, the harness **MUST** emit a `budget_exceeded` JSONL event to stderr containing the final cumulative token count and the configured limit.
+- The harness **MUST** write a step summary entry to `$GITHUB_STEP_SUMMARY` (if set) indicating that the session was terminated due to budget exhaustion, showing the final token count versus the limit.
+- The harness **MUST** exit with code `1` (session failure) after a hard-limit abort, so that the GitHub Actions job is marked as failed.
+
+#### 11.2.3 Extension Crash Isolation
+
+**Failure mode:** A user-supplied Pi extension (declared via `harness.extensions`) throws an uncaught exception or returns a rejected Promise during its initialization function, or throws during event handler execution.
+
+**Normative response:**
+
+- **During initialization:** If an extension's default export function throws or rejects, the harness **MUST** catch the error, emit a warning to stderr identifying the failing extension by name/path and the error message, and continue loading the remaining extensions. The failing extension **MUST** be skipped and **MUST NOT** be registered into the session. If `harness.extensions-required: true` is set, the harness **MUST** instead abort startup with exit code `2` and a descriptive error message.
+- **During event handling:** If an extension's event handler (registered via `pi.on()`) throws or rejects, the Pi SDK event dispatch **MUST** catch the error. If the Pi SDK does not isolate handler errors, the harness **MUST** wrap all user extension event handlers in a try/catch that emits a structured JSONL warning and allows the session to continue.
+- **Built-in extensions are never skipped:** The five built-in gh-aw extensions (provider setup, cost-tracker, steering, repair, observability) **MUST NOT** be subject to the skip-on-error policy described above. If a built-in extension fails to load, the harness **MUST** treat it as a fatal startup error and exit with code `2`.
+- The harness **MUST NOT** allow a crashing user extension to terminate the entire harness process without first completing the cleanup described above (step summary, final JSONL event).
+
 ---
 
-## 12. Privacy Considerations
+## 12. Compliance Tests
+
+This section specifies normative test cases for the AW Harness. A conforming implementation **MUST** provide an automated test suite that passes all tests marked **MUST** below. Tests marked **SHOULD** are strongly recommended.
+
+Each test case specifies:
+- **ID**: Stable test identifier.
+- **Precondition**: The state required before the test stimulus is applied.
+- **Stimulus**: The action taken to trigger the behavior under test.
+- **Expected Result**: The observable outcome that a conforming implementation **MUST** produce.
+
+---
+
+### T-AW-001: Harness Invocation Contract
+
+**ID**: `T-AW-001`  
+**Precondition**: A valid `config.json` and `prompt.txt` are present at known paths. The Pi SDK is installed and loadable. AWF has injected at least one LLM provider credential into the container environment.  
+**Stimulus**: Invoke `node aw_harness.cjs --config <config-path> --prompt <prompt-path>` with the correct paths.  
+**Expected Result**: The harness starts without error, creates an `AgentSession`, runs the prompt to completion, and exits with code `0`. At least one JSONL `session_start` event and one `session_end` event are written to stderr. The step summary file (if `$GITHUB_STEP_SUMMARY` is set) contains a valid Markdown execution summary.
+
+---
+
+### T-AW-002: Extension Loading
+
+**ID**: `T-AW-002`  
+**Precondition**: `config.json` references one valid user extension at a local path that exports a default function, and one invalid extension path that does not exist. `harness.extensions-required` is `false` (default).  
+**Stimulus**: Invoke the harness with this configuration.  
+**Expected Result**: The harness loads the valid extension successfully. The missing extension causes a warning message on stderr (including the path and reason) but does **not** cause the harness to abort. The session proceeds with the valid extension registered and the missing extension skipped. Exit code is `0` (assuming the session completes successfully).
+
+---
+
+### T-AW-003: Budget Gate
+
+**ID**: `T-AW-003`  
+**Precondition**: `config.json` sets `harness.budget.max-effective-tokens` to a very low value (e.g., `1000` tokens). The Pi SDK is running in a mode where token counts can be simulated or observed. The agent session is active.  
+**Stimulus**: Drive the session to consume effective tokens exceeding the configured hard limit.  
+**Expected Result**: The cost-tracker extension aborts the session. A `budget_exceeded` JSONL event is emitted to stderr. The harness exits with code `1`. The step summary (if `$GITHUB_STEP_SUMMARY` is set) contains a budget exhaustion notice with the final token count and configured limit.
+
+---
+
+### T-AW-004: Model Resolution
+
+**ID**: `T-AW-004`  
+**Precondition**: `config.json` specifies a model alias (e.g., `"claude-sonnet-4.6"`) in the engine model field. The `ANTHROPIC_API_KEY` environment variable is set (or a stub is configured). The provider-setup extension is loaded.  
+**Stimulus**: Start the harness and allow the `AgentSession` to be created.  
+**Expected Result**: The provider-setup extension registers the Anthropic provider using the `ANTHROPIC_API_KEY` credential. The Pi SDK resolves the model alias to the corresponding Anthropic endpoint. No hard-coded provider URL or token appears in any JSONL event or the step summary. The session starts without a provider resolution error.
+
+---
+
+### T-AW-005: Session Termination
+
+**ID**: `T-AW-005`  
+**Precondition**: The harness is running a session. The Pi SDK session completes normally (agent returns a final response without error).  
+**Stimulus**: The `AgentSession` reaches its natural end (agent sends a final message with no pending tool calls).  
+**Expected Result**: The harness receives the `agent_end` event. The observability extension writes the context provenance file to `/tmp/gh-aw/context-provenance.jsonl`. A `session_end` JSONL event is emitted to stderr. The step summary (if `$GITHUB_STEP_SUMMARY` is set) contains a per-turn token table. The harness disposes the session and exits with code `0`. No dangling async operations remain after exit.
+
+---
+
+### T-AW-006: Pi SDK Failure to Load
+
+**ID**: `T-AW-006`  
+**Precondition**: The Pi SDK is unavailable (e.g., the bundle is intentionally corrupted or the require path is incorrect).  
+**Stimulus**: Invoke the harness.  
+**Expected Result**: The harness catches the load error, emits a structured JSONL error event identifying the missing module, writes a human-readable error to `$GITHUB_STEP_SUMMARY` (if set), and exits with code `2`. No `AgentSession` is created.
+
+---
+
+### T-AW-007: Extension Crash Isolation
+
+**ID**: `T-AW-007`  
+**Precondition**: `config.json` references a user extension that throws an exception during its initialization function. `harness.extensions-required` is `false`.  
+**Stimulus**: Invoke the harness.  
+**Expected Result**: The harness catches the extension initialization error, emits a warning to stderr identifying the failing extension and error message, skips the crashing extension, and continues loading the remaining extensions. The session proceeds without the crashing extension. The harness does **not** exit with a non-zero code due to the extension crash alone.
+
+---
+
+## 13. Privacy Considerations
 
 *(This section is non-normative.)*
 
@@ -1008,14 +1126,14 @@ The following ordered work items describe the implementation sequence:
 
 ---
 
-## 13. References
+## 14. References
 
-### 13.1 Normative References
+### 14.1 Normative References
 
 **[RFC 2119]**
 Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997. <https://www.rfc-editor.org/rfc/rfc2119>
 
-### 13.2 Informative References
+### 14.2 Informative References
 
 **[Pi SDK]**
 `@mariozechner/pi-coding-agent` — Pi agent SDK providing `createAgentSession()`, `Agent`, `AgentTool`, and `ExtensionAPI`.
