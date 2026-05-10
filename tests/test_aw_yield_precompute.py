@@ -56,7 +56,7 @@ def test_imported_observability_is_detected(tmp_path: Path) -> None:
     assert pre.has_imported_observability(workflow, frontmatter) is True
 
 
-def test_relative_imports_outside_workflows_root_are_rejected(tmp_path: Path) -> None:
+def test_relative_import_escapes_are_rejected(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     escaped = tmp_path / "outside.md"
     write_workflow(
@@ -84,7 +84,15 @@ def test_absolute_imports_are_rejected(tmp_path: Path) -> None:
     assert pre.has_imported_observability(workflow, frontmatter) is False
 
 
-def test_shared_imports_must_stay_under_shared_directory(tmp_path: Path) -> None:
+def test_windows_absolute_imports_are_rejected(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflow = workflows / "alpha.md"
+    write_workflow(workflow, "---\nimports:\n  - C:\\outside.md\n---\n# Alpha\n")
+    frontmatter, _ = pre.read_workflow(workflow)
+    assert pre.normalize_import_paths(workflow, frontmatter) == []
+
+
+def test_shared_import_escapes_are_rejected(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     escaped = workflows / "outside.md"
     write_workflow(

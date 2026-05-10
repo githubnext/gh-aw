@@ -10,7 +10,7 @@ import os
 import re
 import sys
 from collections import Counter, defaultdict
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 LAMBDA = 0.25
@@ -413,6 +413,10 @@ def _path_is_within(path: Path, root: Path) -> bool:
         return False
 
 
+def _is_absolute_import_path(raw: str) -> bool:
+    return Path(raw).is_absolute() or PureWindowsPath(raw).is_absolute()
+
+
 def normalize_import_paths(workflow_path: Path, frontmatter: dict[str, Any]) -> list[Path]:
     workflows_root = _get_workflows_root(workflow_path)
     imports = []
@@ -423,13 +427,13 @@ def normalize_import_paths(workflow_path: Path, frontmatter: dict[str, Any]) -> 
         elif isinstance(item, dict):
             raw = normalize_text(item.get("uses")) or normalize_text(item.get("path"))
         if not raw or "@" in raw or "/" in raw and not raw.startswith("shared/") and not raw.startswith("."):
-            if raw and raw.startswith(("shared/", "./", "../", "/")):
+            if raw and (raw.startswith(("shared/", "./", "../", "/")) or _is_absolute_import_path(raw)):
                 pass
             else:
                 continue
         if not workflows_root:
             continue
-        if raw.startswith("/"):
+        if _is_absolute_import_path(raw):
             continue
         if raw.startswith("shared/"):
             import_path = (workflows_root / raw).resolve()
