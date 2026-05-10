@@ -407,7 +407,7 @@ def _get_workflows_root(workflow_path: Path) -> Path | None:
 
 def _path_is_within(path: Path, root: Path) -> bool:
     try:
-        path.relative_to(root)
+        path.resolve().relative_to(root.resolve())
         return True
     except ValueError:
         return False
