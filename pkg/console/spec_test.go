@@ -398,3 +398,59 @@ func TestSpec_PublicAPI_RenderTitleBox(t *testing.T) {
 	assert.Contains(t, sb.String(), "Audit Report",
 		"RenderTitleBox output should contain the provided title")
 }
+
+// TestSpec_PublicAPI_FormatMessages validates the documented Format*Message
+// functions from the README's "Message Formatting Functions" table. Each
+// function takes a message string and returns a styled string ready to be
+// printed to os.Stderr.
+//
+// Specification: "All Format* functions return a styled string ready to be
+// printed to os.Stderr."
+func TestSpec_PublicAPI_FormatMessages(t *testing.T) {
+	const probe = "spec-probe-message-12345"
+
+	tests := []struct {
+		name string
+		fn   func(string) string
+	}{
+		{name: "FormatSuccessMessage", fn: FormatSuccessMessage},
+		{name: "FormatInfoMessage", fn: FormatInfoMessage},
+		{name: "FormatWarningMessage", fn: FormatWarningMessage},
+		{name: "FormatErrorMessage", fn: FormatErrorMessage},
+		{name: "FormatCommandMessage", fn: FormatCommandMessage},
+		{name: "FormatProgressMessage", fn: FormatProgressMessage},
+		{name: "FormatVerboseMessage", fn: FormatVerboseMessage},
+		{name: "FormatListItem", fn: FormatListItem},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.fn(probe)
+			assert.NotEmpty(t, result,
+				"%s should return a non-empty styled string as documented", tt.name)
+			assert.Contains(t, result, probe,
+				"%s output should preserve the input message text", tt.name)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_FormatBanner validates the documented FormatBanner function.
+// Specification: "Returns the gh aw ASCII art banner as a styled string."
+func TestSpec_PublicAPI_FormatBanner(t *testing.T) {
+	result := FormatBanner()
+	assert.NotEmpty(t, result, "FormatBanner should return a non-empty banner string as documented")
+}
+
+// TestSpec_PublicAPI_LogVerbose validates the documented behavior of LogVerbose.
+// Specification: "Writes message as a FormatVerboseMessage to os.Stderr when
+// verbose is true. This is a convenience helper that avoids repetitive `if
+// verbose` guards throughout the codebase."
+func TestSpec_PublicAPI_LogVerbose(t *testing.T) {
+	// Documented behavior: should not panic for either boolean.
+	assert.NotPanics(t, func() {
+		LogVerbose(false, "hidden when verbose is false")
+	}, "LogVerbose should be a safe no-op when verbose=false")
+	assert.NotPanics(t, func() {
+		LogVerbose(true, "shown when verbose is true")
+	}, "LogVerbose should not panic when verbose=true")
+}

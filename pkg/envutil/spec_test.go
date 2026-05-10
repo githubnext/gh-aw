@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
 // TestSpec_PublicAPI_GetIntFromEnv validates the documented behavior of
@@ -117,6 +119,25 @@ func TestSpec_PublicAPI_GetIntFromEnv_AcceptsNilLogger(t *testing.T) {
 	assert.NotPanics(t, func() {
 		GetIntFromEnv(envVar, 5, 1, 20, nil)
 	}, "GetIntFromEnv should not panic when nil logger is passed")
+}
+
+// TestSpec_PublicAPI_GetIntFromEnv_AcceptsNonNilLogger validates that a non-nil
+// logger is accepted and the function returns the parsed value as documented.
+//
+// Specification: "Logs the accepted value at debug level when log is non-nil."
+func TestSpec_PublicAPI_GetIntFromEnv_AcceptsNonNilLogger(t *testing.T) {
+	const envVar = "GH_AW_SPEC_TEST_NON_NIL_LOGGER"
+	os.Setenv(envVar, "10")
+	defer os.Unsetenv(envVar)
+
+	log := logger.New("envutil:spec_test")
+
+	var result int
+	assert.NotPanics(t, func() {
+		result = GetIntFromEnv(envVar, 5, 1, 20, log)
+	}, "GetIntFromEnv should not panic when a non-nil logger is passed")
+	assert.Equal(t, 10, result,
+		"GetIntFromEnv should return the parsed value regardless of whether a logger is provided")
 }
 
 // TestSpec_PublicAPI_GetIntFromEnv_DocExample validates the usage example
