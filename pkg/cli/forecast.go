@@ -167,7 +167,12 @@ func RunForecast(config ForecastConfig) error {
 
 // resolveForecastWorkflows returns the ordered list of workflow IDs to forecast.
 // When WorkflowIDs is empty, all agentic workflow IDs in the repository are returned.
+// When RepoOverride is set, workflows are discovered via the GitHub API instead of local files.
 func resolveForecastWorkflows(config ForecastConfig) ([]string, error) {
+	if config.RepoOverride != "" {
+		return resolveForecastWorkflowsFromRemote(config.WorkflowIDs, config.RepoOverride, config.Verbose)
+	}
+
 	if len(config.WorkflowIDs) > 0 {
 		// Resolve each provided ID to a canonical lock-file workflow name.
 		resolved := make([]string, 0, len(config.WorkflowIDs))
@@ -187,6 +192,51 @@ func resolveForecastWorkflows(config ForecastConfig) ([]string, error) {
 		return nil, fmt.Errorf("failed to discover agentic workflows: %w", err)
 	}
 	return names, nil
+}
+
+// resolveForecastWorkflowsFromRemote resolves workflow names for a remote repository using
+// the GitHub API. When ids is empty, all workflows in the remote repository are returned.
+// When ids are provided, each is matched (case-insensitively) against remote workflow names
+// and file-path basenames.
+func resolveForecastWorkflowsFromRemote(ids []string, repoOverride string, verbose bool) ([]string, error) {
+	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, verbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workflows in %s: %w", repoOverride, err)
+	}
+
+	if len(ids) == 0 {
+		// Return display names for all workflows in the remote repo.
+		names := make([]string, 0, len(githubWorkflows))
+		for _, wf := range githubWorkflows {
+			names = append(names, wf.Name)
+		}
+		sort.Strings(names)
+		return names, nil
+	}
+
+	// Match each provided ID against the remote workflow list.
+	resolved := make([]string, 0, len(ids))
+	for _, id := range ids {
+		matched := matchRemoteWorkflowName(id, githubWorkflows)
+		if matched == "" {
+			return nil, fmt.Errorf("workflow %q not found in %s", id, repoOverride)
+		}
+		resolved = append(resolved, matched)
+	}
+	return resolved, nil
+}
+
+// matchRemoteWorkflowName returns the display name of the workflow in the remote map that
+// best matches id. Matching is tried against the file-based key (e.g. "ci-doctor") and the
+// display name (e.g. "CI Failure Doctor"), both case-insensitively. Returns "" on no match.
+func matchRemoteWorkflowName(id string, workflows map[string]*GitHubWorkflow) string {
+	lowerID := strings.ToLower(id)
+	for key, wf := range workflows {
+		if strings.ToLower(key) == lowerID || strings.ToLower(wf.Name) == lowerID {
+			return wf.Name
+		}
+	}
+	return ""
 }
 
 // forecastWorkflow computes a ForecastWorkflowResult for a single workflow.
