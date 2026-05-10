@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"sort"
 	"strconv"
@@ -92,6 +93,11 @@ type ForecastWorkflowResult struct {
 	// EpisodeAnalysis contains episode-level metrics derived from the sampled runs.
 	// Nil when no completed runs were available to analyze.
 	EpisodeAnalysis *ForecastEpisodeSummary `json:"episode_analysis,omitempty"`
+
+	// MonteCarlo contains the probability distribution of projected costs and
+	// effective-token counts derived from a Monte Carlo simulation (10 000 trials).
+	// Nil when no completed runs were available.
+	MonteCarlo *ForecastMonteCarloSummary `json:"monte_carlo,omitempty"`
 
 	// Trigger information derived from frontmatter.
 	ActiveTriggers []string `json:"active_triggers"`
@@ -324,10 +330,12 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 	var totalET int
 	var totalDurSec float64
 	successCount := 0
+	etObservations := make([]int, 0, len(completed))
 
 	for _, r := range completed {
 		totalET += r.EffectiveTokens
 		totalDurSec += r.Duration.Seconds()
+		etObservations = append(etObservations, r.EffectiveTokens)
 		if r.Conclusion == "success" {
 			successCount++
 		}
@@ -345,9 +353,14 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 	// Effective throughput (yield) accounts for the success rate.
 	result.Yield = result.ObservedRunsPerPeriod * result.SuccessRate
 
-	// Projected token usage and cost.
+	// Projected token usage and cost (point estimate using simple means).
 	result.ProjectedEffectiveTokens = int(math.Round(result.ObservedRunsPerPeriod * float64(result.AvgEffectiveTokens)))
 	result.ProjectedCostUSD = float64(result.ProjectedEffectiveTokens) * costPerEffectiveToken
+
+	// Monte Carlo simulation: model run-count (Poisson), per-run token usage
+	// (bootstrap), and per-run success (Bernoulli) to produce P10/P50/P90 ranges.
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec // non-cryptographic simulation RNG
+	result.MonteCarlo = runMonteCarlo(etObservations, successCount, result.ObservedRunsPerPeriod, rng)
 
 	// Populate experiment variant fractions from run history when metadata has variants.
 	result.ExperimentVariants = computeVariantFractions(result.ExperimentVariants, completed)
@@ -622,8 +635,9 @@ type forecastTableRow struct {
 	SuccessRate        string `json:"success_rate"            console:"header:Success Rate"`
 	Yield              string `json:"yield"                   console:"header:Yield/Period"`
 	AvgEffectiveTokens string `json:"avg_effective_tokens"    console:"header:Avg ET"`
-	ProjectedTokens    string `json:"projected_tokens"        console:"header:Proj. ET"`
-	ProjectedCost      string `json:"projected_cost"          console:"header:Proj. Cost"`
+	ProjectedTokens    string `json:"projected_tokens"        console:"header:Proj. ET (P50)"`
+	ProjectedCost      string `json:"projected_cost"          console:"header:Cost (P50)"`
+	CostRange          string `json:"cost_range"              console:"header:80% CI (P10–P90)"`
 	Triggers           string `json:"triggers"                console:"header:Triggers"`
 }
 
@@ -636,14 +650,24 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 
 	rows := make([]forecastTableRow, 0, len(output.Workflows))
 	for _, wf := range output.Workflows {
+		// Use Monte Carlo P50 as the primary cost/ET estimate when available.
+		projETStr := formatForecastTokens(wf.ProjectedEffectiveTokens)
+		projCostStr := fmt.Sprintf("$%.3f", wf.ProjectedCostUSD)
+		ciStr := "-"
+		if mc := wf.MonteCarlo; mc != nil {
+			projETStr = formatForecastTokens(mc.P50ProjectedEffectiveTokens)
+			projCostStr = fmt.Sprintf("$%.3f", mc.P50ProjectedCostUSD)
+			ciStr = fmt.Sprintf("$%.3f–$%.3f", mc.P10ProjectedCostUSD, mc.P90ProjectedCostUSD)
+		}
 		row := forecastTableRow{
 			Workflow:           wf.WorkflowID,
 			Runs:               wf.SampledRuns,
 			SuccessRate:        formatForecastPercent(wf.SuccessRate),
 			Yield:              fmt.Sprintf("%.1f", wf.Yield),
 			AvgEffectiveTokens: formatForecastTokens(wf.AvgEffectiveTokens),
-			ProjectedTokens:    formatForecastTokens(wf.ProjectedEffectiveTokens),
-			ProjectedCost:      fmt.Sprintf("$%.3f", wf.ProjectedCostUSD),
+			ProjectedTokens:    projETStr,
+			ProjectedCost:      projCostStr,
+			CostRange:          ciStr,
 			Triggers:           formatTriggerList(wf.ActiveTriggers),
 		}
 		rows = append(rows, row)
@@ -672,8 +696,8 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("Run '%s forecast --json' for machine-readable output. Costs use %.0e USD/ET.",
-			string(constants.CLIExtensionPrefix), costPerEffectiveToken)))
+		fmt.Sprintf("P50 = median; 80%% CI = P10–P90 from %d-trial Monte Carlo simulation. Run '%s forecast --json' for full output. Costs use %.0e USD/ET.",
+			monteCarloIterations, string(constants.CLIExtensionPrefix), costPerEffectiveToken)))
 	return nil
 }
 
