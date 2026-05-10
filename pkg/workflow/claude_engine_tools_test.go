@@ -303,7 +303,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
-			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig, nil)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig, nil, nil)
 
 			// Parse expected and actual results into sets for comparison
 			expectedTools := make(map[string]bool)
@@ -423,7 +423,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
-			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig, nil)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig, nil, nil)
 
 			// Split both expected and result into slices and check each tool is present
 			expectedTools := strings.Split(tt.expected, ",")
@@ -451,6 +451,30 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestClaudeEngineComputeAllowedToolsWithSandboxAllowWrite(t *testing.T) {
+	engine := NewClaudeEngine()
+	cacheMemoryConfig, err := NewCompiler().extractCacheMemoryConfigFromMap(map[string]any{})
+	if err != nil {
+		t.Fatalf("extract cache-memory config: %v", err)
+	}
+
+	sandboxConfig := &SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Config: &SandboxRuntimeConfig{
+				Filesystem: &SRTFilesystemConfig{
+					AllowWrite: []string{"/tmp"},
+				},
+			},
+		},
+	}
+
+	got := engine.computeAllowedClaudeToolsString(map[string]any{}, nil, cacheMemoryConfig, nil, sandboxConfig)
+	want := "Edit(/tmp/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/*),NotebookRead,Read,Read(/tmp/*),Task,TodoWrite,Write(/tmp/*)"
+	if got != want {
+		t.Fatalf("unexpected allowed tools\nwant: %s\ngot:  %s", want, got)
 	}
 }
 

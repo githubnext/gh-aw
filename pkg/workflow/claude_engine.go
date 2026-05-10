@@ -156,7 +156,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// - MCP tool prefixes: mcp__github__issue_read
 	// - Path-specific tools: Read(/tmp/gh-aw/cache-memory/*)
 	// The --tools flag only supports basic tool names (e.g., "Bash,Edit,Read") without patterns.
-	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts)
+	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}

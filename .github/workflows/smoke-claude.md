@@ -36,6 +36,12 @@ network:
     - defaults
     - github
     - playwright
+sandbox:
+  agent:
+    config:
+      filesystem:
+        allowWrite:
+          - /tmp
 tools:
   agentic-workflows:
   cache-memory: true

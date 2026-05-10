@@ -209,7 +209,7 @@ func (c *Compiler) parseWorkflowMarkdownContentWithToolsString(content string) (
 		SafeOutputs: safeOutputs,
 		AI:          "claude",
 	}
-	allowedToolsStr := engine.computeAllowedClaudeToolsString(topTools, safeOutputs, cacheMemoryConfig, nil)
+	allowedToolsStr := engine.computeAllowedClaudeToolsString(topTools, safeOutputs, cacheMemoryConfig, nil, nil)
 
 	return workflowData, allowedToolsStr, nil
 }
