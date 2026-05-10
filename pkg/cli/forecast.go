@@ -120,6 +120,9 @@ type ForecastResult struct {
 func RunForecast(config ForecastConfig) error {
 	forecastRunLog.Printf("Running forecast: workflows=%v, days=%d, period=%s", config.WorkflowIDs, config.Days, config.Period)
 
+	// Emit experimental warning so users know this command is not yet stable.
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("forecast is an experimental command and may change without notice"))
+
 	// Validate period.
 	periodDays, ok := forecastPeriodDays[config.Period]
 	if !ok {

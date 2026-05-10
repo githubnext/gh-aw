@@ -28,8 +28,8 @@ type ForecastConfig struct {
 func NewForecastCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "forecast [workflow]...",
-		Short: "Forecast token usage and costs for agentic workflows",
-		Long: `Forecast token usage, costs, and yield for agentic workflows by sampling
+		Short: "Forecast token usage and costs for agentic workflows (experimental)",
+		Long: `[EXPERIMENTAL] Forecast token usage, costs, and yield for agentic workflows by sampling
 recent run history and projecting forward on a per-week or per-month basis.
 
 The forecaster downloads a sample of recent workflow runs, computes per-run
