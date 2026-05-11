@@ -337,5 +337,8 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.TokenWeights == nil {
 		return nil
 	}
+	if len(workflowData.EngineConfig.TokenWeights.Multipliers) == 0 {
+		return nil
+	}
 	return workflowData.EngineConfig.TokenWeights.Multipliers
 }
