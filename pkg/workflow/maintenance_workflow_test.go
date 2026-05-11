@@ -284,11 +284,12 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == ''`
-	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'update_pull_request_branches' && inputs.operation != 'validate'`
+	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'update_pull_request_branches' && inputs.operation != 'validate' && inputs.operation != 'forecast'`
 	applySafeOutputsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'safe_outputs'`
 	createLabelsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'create_labels'`
 	updatePullRequestBranchesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'update_pull_request_branches'`
 	activityReportCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'activity_report'`
+	forecastCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'forecast'`
 	closeAgenticWorkflowIssuesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'close_agentic_workflows_issues'`
 	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '' || inputs.operation == 'clean_cache_memories'`
 
@@ -448,6 +449,34 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		t.Errorf("Job activity_report issue generation step should create the activity report issue title in:\n%s", yaml)
 	}
 
+	forecastIdx := strings.Index(yaml, "\n  forecast_report:")
+	if forecastIdx == -1 {
+		t.Errorf("Job forecast_report not found in generated workflow")
+	} else {
+		forecastSection := yaml[forecastIdx : forecastIdx+runOpSectionSearchRange]
+		if !strings.Contains(forecastSection, forecastCondition) {
+			t.Errorf("Job forecast_report should have the activation condition %q in:\n%s", forecastCondition, forecastSection)
+		}
+		if !strings.Contains(forecastSection, "actions: read") {
+			t.Errorf("Job forecast_report should include actions: read permission in:\n%s", forecastSection)
+		}
+		if !strings.Contains(forecastSection, "issues: write") {
+			t.Errorf("Job forecast_report should include issues: write permission in:\n%s", forecastSection)
+		}
+	}
+	if !strings.Contains(yaml, "Generate forecast report") {
+		t.Errorf("Job forecast_report should include forecast generation step in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
+		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --json") {
+		t.Errorf("Job forecast_report gh aw forecast command should include --repo and --json in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "title: '[aw] workflow forecast report'") {
+		t.Errorf("Job forecast_report issue generation step should create the forecast issue title in:\n%s", yaml)
+	}
+
 	// close_agentic_workflows_issues job should be triggered when operation == 'close_agentic_workflows_issues'
 	closeAgenticWorkflowIssuesIdx := strings.Index(yaml, "\n  close_agentic_workflows_issues:")
 	if closeAgenticWorkflowIssuesIdx == -1 {
@@ -487,6 +516,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify activity_report is an option in the operation choices
 	if !strings.Contains(yaml, "- 'activity_report'") {
 		t.Error("workflow_dispatch operation choices should include 'activity_report'")
+	}
+
+	// Verify forecast is an option in the operation choices
+	if !strings.Contains(yaml, "- 'forecast'") {
+		t.Error("workflow_dispatch operation choices should include 'forecast'")
 	}
 
 	// Verify close_agentic_workflows_issues is an option in the operation choices
