@@ -56,23 +56,42 @@ steps:
       
       REPO = os.environ["GITHUB_REPOSITORY"]
       OUT = "/tmp/gh-aw/failure-investigator/prefetch.json"
+      TRACKER_ID = "aw-failure-investigator"
       LOOKBACK = "-6h"
       MAX_FAILED_RUNS = 20
+      MAX_RUNS_TO_FETCH = 200
+      MAX_LOG_TAIL_LINES = 200
+      
+      def cmd_display(args):
+          return " ".join(args)
       
       def run_json(args):
           try:
               out = subprocess.check_output(args, text=True, stderr=subprocess.STDOUT)
               return json.loads(out)
-          except Exception:
+          except subprocess.CalledProcessError as error:
+              print(f"Warning: command failed: {cmd_display(args)}")
+              print(error.output)
+              return None
+          except json.JSONDecodeError as error:
+              print(f"Warning: non-JSON output from command: {cmd_display(args)} ({error})")
+              return None
+          except OSError as error:
+              print(f"Warning: could not execute command: {cmd_display(args)} ({error})")
               return None
       
       def run_text(args):
           try:
               return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT)
-          except Exception:
+          except subprocess.CalledProcessError as error:
+              print(f"Warning: command failed: {cmd_display(args)}")
+              print(error.output)
+              return ""
+          except OSError as error:
+              print(f"Warning: could not execute command: {cmd_display(args)} ({error})")
               return ""
       
-      logs = run_json(["gh", "aw", "logs", "--start-date", LOOKBACK, "--json", "-c", "200"]) or {"runs": []}
+      logs = run_json(["gh", "aw", "logs", "--start-date", LOOKBACK, "--json", "-c", str(MAX_RUNS_TO_FETCH)]) or {"runs": []}
       failed_runs = []
       for run in logs.get("runs", []):
           if (run.get("conclusion") or "").lower() != "failure":
@@ -142,7 +161,7 @@ steps:
                           ]
                       )
                       if log_text:
-                          tail_lines = log_text.splitlines()[-200:]
+                          tail_lines = log_text.splitlines()[-MAX_LOG_TAIL_LINES:]
                           truncated_error_logs.append(
                               {
                                   "job_id": job_id,
@@ -175,7 +194,7 @@ steps:
               "--state",
               "open",
               "--search",
-              "gh-aw-tracker-id: aw-failure-investigator",
+              f"gh-aw-tracker-id: {TRACKER_ID}",
               "--limit",
               "100",
               "--json",
