@@ -61,10 +61,7 @@
         },
         "anthropicCacheTailTtl": {
           "type": "string",
-          "enum": [
-            "5m",
-            "1h"
-          ],
+          "enum": ["5m", "1h"],
           "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
         },
         "maxEffectiveTokens": {
@@ -358,12 +355,7 @@
       "properties": {
         "logLevel": {
           "type": "string",
-          "enum": [
-            "debug",
-            "info",
-            "warn",
-            "error"
-          ],
+          "enum": ["debug", "info", "warn", "error"],
           "description": "Log verbosity level. Defaults to \"info\"."
         },
         "diagnosticLogs": {

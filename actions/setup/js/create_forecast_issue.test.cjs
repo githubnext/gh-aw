@@ -71,7 +71,7 @@ describe("create_forecast_issue", () => {
         serverUrl: "https://github.com",
         runID: "123456",
         generatedAtISO: "2026-01-01T00:00:00.000Z",
-      },
+      }
     );
 
     expect(body).toContain("| Workflow | Sampled runs | Forecast ET (P50) |");
@@ -95,7 +95,7 @@ describe("create_forecast_issue", () => {
         repo: "repo",
         serverUrl: "https://github.com",
         generatedAtISO: "2026-01-01T00:00:00.000Z",
-      },
+      }
     );
 
     expect(body).toContain("All projected ET values are 0 even after cache warm-up.");

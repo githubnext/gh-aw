@@ -64,6 +64,14 @@ This is a test workflow with empty frontmatter.`,
 			},
 			wantMarkdown: "# Content",
 		},
+		{
+			name: "frontmatter delimiters with surrounding whitespace",
+			content: " \t--- \t\r\non: push\r\n \t--- \t\r\n\r\n# Test Workflow\r\n",
+			wantYAML: map[string]any{
+				"on": "push",
+			},
+			wantMarkdown: "# Test Workflow",
+		},
 	}
 
 	for _, tt := range tests {

@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f9608483adcb0c79a5e69f9f9b65316d28ce066651d7b81cb1516ee8cfb30606","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b6bd4f1dd75cd11cd7eda4883b7314aa30d9f40bddce2dba9e85c3b3481ffd3b","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"anchore/sbom-action","sha":"e22c389904149dbc22b58101806040fa8d37a610","version":"v0.24.0"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/login-action","sha":"4907a6ddec9925e35a0a9e82d7399ccc52663121","version":"v4.1.0"},{"repo":"docker/metadata-action","sha":"030e881283bb7a6894de51c315a6bfe6a94e05cf","version":"v6.0.0 (source v6)"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0 (source v4)"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.43"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -215,20 +215,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_957d319882c4382d_EOF'
+          cat << 'GH_AW_PROMPT_2802203809a8f195_EOF'
           <system>
-          GH_AW_PROMPT_957d319882c4382d_EOF
+          GH_AW_PROMPT_2802203809a8f195_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_957d319882c4382d_EOF'
+          cat << 'GH_AW_PROMPT_2802203809a8f195_EOF'
           <safe-output-tools>
           Tools: update_release, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_957d319882c4382d_EOF
+          GH_AW_PROMPT_2802203809a8f195_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_957d319882c4382d_EOF'
+          cat << 'GH_AW_PROMPT_2802203809a8f195_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -257,15 +257,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_957d319882c4382d_EOF
+          GH_AW_PROMPT_2802203809a8f195_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_957d319882c4382d_EOF'
+          cat << 'GH_AW_PROMPT_2802203809a8f195_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/community-attribution.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/release.md}}
-          GH_AW_PROMPT_957d319882c4382d_EOF
+          GH_AW_PROMPT_2802203809a8f195_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -493,9 +493,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_b1a69c0270c24336_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_ad91a0c2c517568c_EOF'
           {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"update_release":{"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_b1a69c0270c24336_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_ad91a0c2c517568c_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -689,7 +689,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_910694ced22ce5d3_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_5e7cf1e86a34dcd5_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -736,7 +736,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_910694ced22ce5d3_EOF
+          GH_AW_MCP_CONFIG_5e7cf1e86a34dcd5_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1218,33 +1218,55 @@ jobs:
                 break;
             }
 
-            const releaseTag = `v${major}.${minor}.${patch}`;
-            console.log(`Computed release tag: ${releaseTag}`);
+            // Helper: check whether a given tag already exists (as a release or git ref)
+            const tagExists = async (tagName) => {
+              const releaseExists = releases.some(r => r.tag_name === tagName);
+              if (releaseExists) return true;
+              try {
+                await github.rest.git.getRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${tagName}`
+                });
+                return true; // tag ref exists
+              } catch (error) {
+                if (error.status === 404) return false;
+                throw new Error(`Failed to check if tag ${tagName} exists: ${error.message}`);
+              }
+            };
 
-            // Sanity check: Verify the computed tag doesn't already exist
-            const existingRelease = releases.find(r => r.tag_name === releaseTag);
-            if (existingRelease) {
-              core.setFailed(`Release tag ${releaseTag} already exists (created ${existingRelease.created_at}). Cannot create duplicate release. Please check existing releases.`);
-              return;
-            }
-
-            // Also check if tag exists in git (in case release was deleted but tag remains)
-            try {
-              await github.rest.git.getRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: `tags/${releaseTag}`
-              });
-              // If we get here, the tag exists
-              core.setFailed(`Git tag ${releaseTag} already exists in the repository. Cannot create duplicate tag. Please delete the existing tag or use a different version.`);
-              return;
-            } catch (error) {
-              // 404 means tag doesn't exist, which is what we want
-              if (error.status !== 404) {
-                throw error; // Re-throw unexpected errors
+            // Find the first available tag, bumping the minor/patch if the computed one is taken.
+            // This handles the case where a release failed half-way and left a tag behind.
+            const MAX_ATTEMPTS = 10;
+            let releaseTag;
+            for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+              const candidate = `v${major}.${minor}.${patch}`;
+              if (!(await tagExists(candidate))) {
+                releaseTag = candidate;
+                break;
+              }
+              console.log(`Tag ${candidate} already exists – bumping version and retrying…`);
+              // For patch releases keep bumping the patch number.
+              // For minor/major releases bump the minor number (patch is already 0).
+              switch (releaseType) {
+                case 'patch':
+                  patch += 1;
+                  break;
+                case 'minor':
+                  minor += 1;
+                  break;
+                case 'major':
+                  minor += 1;
+                  break;
               }
             }
 
+            if (!releaseTag) {
+              core.setFailed(`Could not find an available release tag after ${MAX_ATTEMPTS} attempts. Please check existing tags and releases.`);
+              return;
+            }
+
+            console.log(`Computed release tag: ${releaseTag}`);
             core.setOutput('release_tag', releaseTag);
             console.log(`✓ Release tag: ${releaseTag}`);
 

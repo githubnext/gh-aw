@@ -168,12 +168,6 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		m.ResponseBytes += entry.ResponseBytes
 	}
 
-	// Compute cache efficiency: cache_read / (input + cache_read)
-	totalInputPlusCacheRead := summary.TotalInputTokens + summary.TotalCacheReadTokens
-	if totalInputPlusCacheRead > 0 {
-		summary.CacheEfficiency = float64(summary.TotalCacheReadTokens) / float64(totalInputPlusCacheRead)
-	}
-
 	tokenUsageLog.Printf("Parsed %d entries: %d input, %d output, %d cache_read, %d cache_write, %d requests",
 		lineNum, summary.TotalInputTokens, summary.TotalOutputTokens,
 		summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
@@ -347,11 +341,6 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		TotalCacheWriteTokens: entry.CacheWriteTokens,
 		TotalEffectiveTokens:  entry.EffectiveTokens,
 		ByModel:               make(map[string]*ModelTokenUsage),
-	}
-
-	totalInputPlusCacheRead := summary.TotalInputTokens + summary.TotalCacheReadTokens
-	if totalInputPlusCacheRead > 0 {
-		summary.CacheEfficiency = float64(summary.TotalCacheReadTokens) / float64(totalInputPlusCacheRead)
 	}
 
 	hasTokenData := summary.TotalInputTokens > 0 ||
