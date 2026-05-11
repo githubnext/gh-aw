@@ -470,6 +470,12 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "Generate forecast report") {
 		t.Errorf("Job forecast_report should include forecast generation step in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "Restore forecast report logs cache") {
+		t.Errorf("Job forecast_report should restore logs cache before warm-up in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "Save forecast report logs cache") {
+		t.Errorf("Job forecast_report should save logs cache after forecast generation in:\n%s", yaml)
+	}
 	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
 	}

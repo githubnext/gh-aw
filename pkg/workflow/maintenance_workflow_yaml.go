@@ -563,7 +563,17 @@ jobs:
 `)
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
-	yaml.WriteString(`      - name: Generate forecast report
+	yaml.WriteString(`      - name: Restore forecast report logs cache
+        id: forecast_report_logs_cache
+        uses: ` + getActionPin("actions/cache/restore") + `
+        with:
+          path: .github/aw/logs
+          key: ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-
+            ${{ runner.os }}-forecast-report-logs-
+
+      - name: Generate forecast report
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -576,6 +586,13 @@ jobs:
             exit 1
           fi
           ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
+
+      - name: Save forecast report logs cache
+        if: ${{ always() }}
+        uses: ` + getActionPin("actions/cache/save") + `
+        with:
+          path: .github/aw/logs
+          key: ${{ steps.forecast_report_logs_cache.outputs.cache-primary-key }}
 
       - name: Generate forecast issue
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
