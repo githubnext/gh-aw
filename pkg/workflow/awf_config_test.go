@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,6 +116,33 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should emit configured maxEffectiveTokens")
+	})
+
+	t.Run("engine token-weights multipliers are emitted in apiProxy modelMultipliers", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					TokenWeights: &types.TokenWeights{
+						Multipliers: map[string]float64{
+							"gpt-5":     1.2,
+							"gpt-5-mini": 0.8,
+						},
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelMultipliers"`, "apiProxy should emit modelMultipliers")
+		assert.Contains(t, jsonStr, `"gpt-5":1.2`, "apiProxy should include configured model multiplier")
+		assert.Contains(t, jsonStr, `"gpt-5-mini":0.8`, "apiProxy should include configured model multiplier")
 	})
 
 	t.Run("anthropic API target is included in apiProxy targets", func(t *testing.T) {

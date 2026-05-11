@@ -156,6 +156,9 @@ type AWFAPIProxyConfig struct {
 	// MaxEffectiveTokens is the explicit ET budget enforced by the API proxy.
 	MaxEffectiveTokens int64 `json:"maxEffectiveTokens,omitempty"`
 
+	// ModelMultipliers configures per-model ET accounting multipliers in AWF.
+	ModelMultipliers map[string]float64 `json:"modelMultipliers,omitempty"`
+
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
@@ -252,6 +255,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	apiProxy := &AWFAPIProxyConfig{
 		Enabled:            true,
 		MaxEffectiveTokens: maxEffectiveTokens,
+	}
+
+	if config.WorkflowData != nil &&
+		config.WorkflowData.EngineConfig != nil &&
+		config.WorkflowData.EngineConfig.TokenWeights != nil &&
+		len(config.WorkflowData.EngineConfig.TokenWeights.Multipliers) > 0 {
+		apiProxy.ModelMultipliers = config.WorkflowData.EngineConfig.TokenWeights.Multipliers
+		awfConfigLog.Printf("API proxy: %d model multipliers configured", len(apiProxy.ModelMultipliers))
 	}
 
 	targets := map[string]*AWFAPITargetConfig{}

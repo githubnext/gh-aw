@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/github/gh-aw-firewall/releases/download/v0.25.38/awf-config.schema.json",
+  "$id": "https://raw.githubusercontent.com/github/gh-aw-firewall/main/docs/awf-config.schema.json",
   "title": "AWF Configuration",
   "description": "JSON/YAML configuration for awf CLI. CLI flags override config file values. See https://github.com/github/gh-aw-firewall for documentation.",
   "type": "object",
@@ -49,12 +49,7 @@
       "properties": {
         "enabled": {
           "type": "boolean",
-          "description": "Enable the API proxy sidecar container."
-        },
-        "maxEffectiveTokens": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum effective-token (ET) budget enforced by the API proxy."
+          "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md §9 for credential isolation semantics."
         },
         "enableOpenCode": {
           "type": "boolean",
@@ -66,8 +61,29 @@
         },
         "anthropicCacheTailTtl": {
           "type": "string",
-          "enum": ["5m", "1h"],
+          "enum": [
+            "5m",
+            "1h"
+          ],
           "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
+        },
+        "maxEffectiveTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
+        },
+        "modelMultipliers": {
+          "type": "object",
+          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Defaults to 1 for unlisted models. See spec §10.2.",
+          "additionalProperties": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "maxRuns": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
         },
         "targets": {
           "type": "object",
@@ -99,6 +115,93 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        },
+        "auth": {
+          "type": "object",
+          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, or GCP Workload Identity). See docs/awf-config-spec.md §9.5.",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["github-oidc"],
+              "description": "Authentication type. Currently only 'github-oidc' is supported. Maps to AWF_AUTH_TYPE."
+            },
+            "provider": {
+              "type": "string",
+              "enum": ["azure", "aws", "gcp"],
+              "description": "Cloud provider for OIDC token exchange. Determines which token exchange protocol is used. Maps to AWF_AUTH_PROVIDER.",
+              "default": "azure"
+            },
+            "oidcAudience": {
+              "type": "string",
+              "description": "Audience claim for the GitHub OIDC token. Provider-specific defaults apply when omitted: Azure='api://AzureADTokenExchange', AWS='sts.amazonaws.com', GCP=workloadIdentityProvider value. Maps to AWF_AUTH_OIDC_AUDIENCE."
+            },
+            "azureTenantId": {
+              "type": "string",
+              "description": "Azure AD tenant ID for federated credential exchange. Required when provider is 'azure'. Maps to AWF_AUTH_AZURE_TENANT_ID."
+            },
+            "azureClientId": {
+              "type": "string",
+              "description": "Azure AD application (client) ID for the federated credential. Required when provider is 'azure'. Maps to AWF_AUTH_AZURE_CLIENT_ID."
+            },
+            "azureScope": {
+              "type": "string",
+              "description": "Azure token scope. Maps to AWF_AUTH_AZURE_SCOPE.",
+              "default": "https://cognitiveservices.azure.com/.default"
+            },
+            "azureCloud": {
+              "type": "string",
+              "enum": ["public", "usgovernment", "china"],
+              "description": "Azure cloud environment. Maps to AWF_AUTH_AZURE_CLOUD.",
+              "default": "public"
+            },
+            "awsRoleArn": {
+              "type": "string",
+              "description": "AWS IAM role ARN to assume via OIDC federation. Required when provider is 'aws'. Maps to AWF_AUTH_AWS_ROLE_ARN."
+            },
+            "awsRegion": {
+              "type": "string",
+              "description": "AWS region for the Bedrock endpoint. Required when provider is 'aws'. Maps to AWF_AUTH_AWS_REGION."
+            },
+            "awsRoleSessionName": {
+              "type": "string",
+              "description": "Session name for the AWS STS AssumeRoleWithWebIdentity call. Maps to AWF_AUTH_AWS_ROLE_SESSION_NAME.",
+              "default": "awf-oidc-session"
+            },
+            "gcpWorkloadIdentityProvider": {
+              "type": "string",
+              "description": "Full resource name of the GCP Workload Identity Provider (projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID). Required when provider is 'gcp'. Maps to AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER."
+            },
+            "gcpServiceAccount": {
+              "type": "string",
+              "description": "GCP service account email to impersonate. When omitted, the federated token is used directly (requires direct resource access grants on the principal). Maps to AWF_AUTH_GCP_SERVICE_ACCOUNT."
+            },
+            "gcpScope": {
+              "type": "string",
+              "description": "OAuth2 scope for GCP token. Maps to AWF_AUTH_GCP_SCOPE.",
+              "default": "https://www.googleapis.com/auth/cloud-platform"
+            }
+          },
+          "required": ["type"],
+          "if": {
+            "properties": { "provider": { "const": "aws" } },
+            "required": ["provider"]
+          },
+          "then": {
+            "required": ["awsRoleArn", "awsRegion"]
+          },
+          "else": {
+            "if": {
+              "properties": { "provider": { "const": "gcp" } },
+              "required": ["provider"]
+            },
+            "then": {
+              "required": ["gcpWorkloadIdentityProvider"]
+            },
+            "else": {
+              "required": ["azureTenantId", "azureClientId"]
             }
           }
         }
@@ -219,12 +322,16 @@
         "dockerHost": {
           "type": "string",
           "description": "Docker daemon socket or host to connect to (e.g. \"unix:///var/run/docker.sock\")."
+        },
+        "dockerHostPathPrefix": {
+          "type": "string",
+          "description": "Prefix bind-mount source paths so the Docker daemon can resolve runner filesystem paths. Required for ARC DinD sidecar runners where the runner and daemon have separate filesystems. Example: \"/host\". Kernel virtual filesystems (/dev, /sys, /proc) are automatically excluded from prefixing."
         }
       }
     },
     "environment": {
       "type": "object",
-      "description": "Environment variable propagation into the agent container.",
+      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence and may override any variable, including AWF-reserved ones. When apiProxy.enabled is true, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md §8–9 for credential isolation rules.",
       "additionalProperties": false,
       "properties": {
         "envFile": {
@@ -251,7 +358,12 @@
       "properties": {
         "logLevel": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "description": "Log verbosity level. Defaults to \"info\"."
         },
         "diagnosticLogs": {

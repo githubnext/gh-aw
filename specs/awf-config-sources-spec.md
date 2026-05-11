@@ -57,6 +57,10 @@ The following fields previously existed in schema but were missed in spec CLI ma
 | `apiProxy.anthropicAutoCache` | `--anthropic-auto-cache` |
 | `apiProxy.anthropicCacheTailTtl` | `--anthropic-cache-tail-ttl` |
 | `apiProxy.models` | config-only (model alias rewriting) |
+| `apiProxy.modelMultipliers` | config-only (effective-token accounting) |
+| `apiProxy.maxRuns` | config-only (LLM invocation hard cap) |
+| `apiProxy.auth.*` | config-only (maps to `AWF_AUTH_*` env vars) |
+| `container.dockerHostPathPrefix` | `--docker-host-path-prefix` |
 
 Agents SHOULD treat this class of mismatch as a regression signal and open a corrective PR when detected.
 
