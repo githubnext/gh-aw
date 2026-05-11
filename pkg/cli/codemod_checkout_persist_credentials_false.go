@@ -247,6 +247,9 @@ func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionNam
 	return result, true
 }
 
+// findDirectChildIndentLen returns the indentation width of the first non-empty,
+// non-comment line that is a direct child of the given parent block.
+// It returns (0, false) when no such child line exists.
 func findDirectChildIndentLen(lines []string, parentStart int, parentIndentLen int) (int, bool) {
 	for i := parentStart + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
