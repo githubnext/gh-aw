@@ -365,7 +365,7 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
-    - name: Compile workflows from pkg/cli/workflows
+    - name: Compile pkg/cli/workflows
       run: make compile-cli-workflows
 
   js-integration-live-api:

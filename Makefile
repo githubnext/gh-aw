@@ -701,7 +701,10 @@ recompile: build
 # Compile workflows under pkg/cli/workflows
 .PHONY: compile-cli-workflows
 compile-cli-workflows: build
-	@WORKFLOWS=$$(find pkg/cli/workflows -maxdepth 1 -type f -name '*.lock.yml' | sed 's/\.lock\.yml$$/.md/' | sort | tr '\n' ' '); \
+	@TMP_WORKFLOWS_DIR=$$(mktemp -d); \
+	trap 'rm -rf "$$TMP_WORKFLOWS_DIR"' EXIT; \
+	cp -R pkg/cli/workflows "$$TMP_WORKFLOWS_DIR/workflows"; \
+	WORKFLOWS=$$(find "$$TMP_WORKFLOWS_DIR/workflows" -maxdepth 1 -type f -name '*.lock.yml' | sed 's/\.lock\.yml$$/.md/' | sort | tr '\n' ' '); \
 	if [ -z "$$WORKFLOWS" ]; then \
 		echo "No workflow files found in pkg/cli/workflows"; \
 		exit 1; \
