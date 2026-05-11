@@ -28,9 +28,10 @@ You are the Lockfile Statistics Analysis Agent. Analyze `.github/workflows/*.loc
 
 ## Performance contract (must follow)
 
-- Target **effective tokens ≤ 1M**.
-- Use **≤ 5 bash turns total**.
-- **Do not** open individual `.lock.yml` files with `cat`, `sed`, `awk`, `grep`, or similar for analysis.
+- Target **effective tokens ≤ 1M** (the sum of input and output tokens as reported by the engine usage metrics for this workflow run).
+- Use **≤ 5 bash turns total** (each bash command execution counts as one turn).
+- If you are about to exceed either limit, call the `noop` safe-output action exposed by the runtime import (`{{#runtime-import shared/noop-reminder.md}}`) with a short reason and stop. Do not create a discussion in that case.
+- **Do not** open individual `.lock.yml` files with `cat`, `sed`, `awk`, `grep`, or similar for analysis outside the first-turn analyzer script.
 - Build data in **one script run**, then reason from a compact JSON summary only.
 
 ## Required execution flow
@@ -42,7 +43,8 @@ Use a single bash command that:
 1. Creates `/tmp/gh-aw/cache-memory/scripts` and `/tmp/gh-aw/agent`.
 2. Reuses `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v1.py` if it already exists.
 3. Otherwise writes that script once, then executes it.
-4. Produces `/tmp/gh-aw/agent/lockfile-stats-summary.json` (compact, max ~10KB).
+4. Produces `/tmp/gh-aw/agent/lockfile-stats-summary.json` (compact, target ≤50KB; if larger, reduce examples before writing).
+5. If the prompt version is bumped (for example to `lockfile_stats_v2.py`), do not reuse older script versions; use the version referenced in this prompt.
 
 The script must parse all `.github/workflows/*.lock.yml` files and compute aggregate metrics including:
 
@@ -58,7 +60,14 @@ The script must parse all `.github/workflows/*.lock.yml` files and compute aggre
 - engine distribution
 - MCP server/tool usage frequencies
 
-Keep only compact examples (e.g., top 3 workflow names per bucket) so JSON stays small.
+Keep only compact examples and enforce these limits so JSON stays within target size:
+- max 10 workflow names per bucket
+- max 100 items for any list
+- truncate string fields to 120 chars
+- if still >50KB, progressively drop lowest-priority sections in this order:
+  1. examples
+  2. combination lists
+  3. per-workflow breakdowns (keep aggregate totals such as total lockfiles, total bytes, trigger counts, safe-output counts, and overall job/step/script totals)
 
 ### 2) Second turn: read summary JSON only
 
@@ -71,6 +80,7 @@ If `/tmp/gh-aw/cache-memory/history/` has prior summaries, compare against lates
 ## Cache-memory requirements
 
 - Persist the analyzer script at `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v1.py`.
+- Treat `v1` as a schema/version marker and as the source-of-truth filename for this prompt. Bump script name (for example `lockfile_stats_v2.py`) in the prompt **and update all Step 1 script filename references (items 2 and 5)** when adding/removing metrics or changing output structure; bug fixes that preserve schema can keep the same version.
 - Save current run summary to `/tmp/gh-aw/cache-memory/history/<YYYY-MM-DD>.json`.
 - If historical data exists, include trend deltas in the report.
 
