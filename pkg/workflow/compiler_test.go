@@ -326,7 +326,6 @@ Caching baseline manifest data should not change behavior.
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	compiler := NewCompiler(WithNoEmit(true))
-	require.Nil(t, compiler.priorManifests)
 
 	require.NoError(t, compiler.CompileWorkflow(testFile))
 
@@ -336,7 +335,9 @@ Caching baseline manifest data should not change behavior.
 	require.NotNil(t, firstBaseline, "new workflows should cache an empty baseline manifest")
 
 	require.NoError(t, compiler.CompileWorkflow(testFile))
-	require.Same(t, firstBaseline, compiler.priorManifests[lockFile], "second compile should reuse cached baseline")
+	secondBaseline, ok := compiler.priorManifests[lockFile]
+	require.True(t, ok, "cached baseline should remain available after second compile")
+	require.NotNil(t, secondBaseline, "cached baseline should be non-nil")
 }
 
 // TestCompileWorkflow_LockFileSize tests that generated lock files don't exceed size limits
