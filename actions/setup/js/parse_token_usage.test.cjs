@@ -225,6 +225,73 @@ describe("parse_token_usage", () => {
       expect(agentUsage.output_tokens).toBe(280);
     });
 
+    test("deduplicates overlapping entries across audit and legacy token usage files", async () => {
+      const agentUsageFile = path.join(tmpDir, "agent_usage.json");
+      const sharedEntry = JSON.stringify({
+        request_id: "req-shared",
+        model: "claude-sonnet-4-6",
+        provider: "anthropic",
+        input_tokens: 100,
+        output_tokens: 200,
+        cache_read_tokens: 0,
+        cache_write_tokens: 0,
+        duration_ms: 1000,
+      });
+      const auditOnlyEntry = JSON.stringify({
+        request_id: "req-audit",
+        model: "claude-haiku-4-5",
+        provider: "anthropic",
+        input_tokens: 50,
+        output_tokens: 75,
+        cache_read_tokens: 0,
+        cache_write_tokens: 0,
+        duration_ms: 500,
+      });
+      const legacyOnlyEntry = JSON.stringify({
+        request_id: "req-legacy",
+        model: "gpt-4o",
+        provider: "openai",
+        input_tokens: 20,
+        output_tokens: 30,
+        cache_read_tokens: 0,
+        cache_write_tokens: 0,
+        duration_ms: 400,
+      });
+
+      const auditContent = [sharedEntry, auditOnlyEntry].join("\n");
+      const legacyContent = [sharedEntry, legacyOnlyEntry].join("\n");
+
+      fs.existsSync = vi.fn(p => (p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_PATH ? true : originalExistsSync(p)));
+      fs.statSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_AUDIT_PATH) return { size: auditContent.length };
+        if (p === TOKEN_USAGE_PATH) return { size: legacyContent.length };
+        return originalStatSync(p);
+      });
+      fs.readFileSync = vi.fn((p, enc) => {
+        if (p === TOKEN_USAGE_AUDIT_PATH) return auditContent;
+        if (p === TOKEN_USAGE_PATH) return legacyContent;
+        return originalReadFileSync(p, enc);
+      });
+      fs.writeFileSync = vi.fn((p, data) => {
+        if (p === AGENT_USAGE_PATH) {
+          originalWriteFileSync(agentUsageFile, data);
+        } else {
+          originalWriteFileSync(p, data);
+        }
+      });
+
+      await main();
+
+      const detailsCall = mockCore.summary.addDetails.mock.calls[0];
+      expect(detailsCall[1]).toContain("claude-sonnet-4-6");
+      expect(detailsCall[1]).toContain("claude-haiku-4-5");
+      expect(detailsCall[1]).toContain("gpt-4o");
+
+      const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
+      expect(agentUsage.input_tokens).toBe(170);
+      expect(agentUsage.output_tokens).toBe(305);
+    });
+
     test("calls setFailed when an error is thrown", async () => {
       fs.existsSync = vi.fn(p => (p === TOKEN_USAGE_PATH ? true : originalExistsSync(p)));
       fs.statSync = vi.fn(p => {

@@ -30,17 +30,31 @@ async function main() {
       return;
     }
 
-    const uniqueLines = new Set();
+    const uniqueLineKeys = new Set();
+    const dedupedLines = [];
     for (const path of tokenUsagePaths) {
       const fileContent = fs.readFileSync(path, "utf8");
       const lines = fileContent.split("\n");
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        uniqueLines.add(trimmed);
+        let dedupeKey = trimmed;
+        let normalizedLine = trimmed;
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === "object") {
+            dedupeKey = typeof parsed.request_id === "string" && parsed.request_id.length > 0 ? `request_id:${parsed.request_id}` : trimmed;
+            normalizedLine = JSON.stringify(parsed);
+          }
+        } catch {
+          // Keep raw line as-is; parseTokenUsageJsonl will skip malformed entries.
+        }
+        if (uniqueLineKeys.has(dedupeKey)) continue;
+        uniqueLineKeys.add(dedupeKey);
+        dedupedLines.push(normalizedLine);
       }
     }
-    const content = Array.from(uniqueLines).join("\n");
+    const content = dedupedLines.join("\n");
     core.info(`Parsing token usage from ${tokenUsagePaths.length} file(s): ${tokenUsagePaths.join(", ")} (${content.length} bytes)`);
 
     const summary = parseTokenUsageJsonl(content);
