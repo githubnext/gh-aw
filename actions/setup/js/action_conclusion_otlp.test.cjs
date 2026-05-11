@@ -167,6 +167,14 @@ describe("action_conclusion_otlp.cjs", () => {
 
         expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
+
+      it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is Infinity", async () => {
+        process.env.GITHUB_AW_OTEL_JOB_START_MS = "Infinity";
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
+      });
     });
   });
 
