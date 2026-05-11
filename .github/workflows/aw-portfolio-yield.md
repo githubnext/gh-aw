@@ -57,6 +57,7 @@ pre-agent-steps:
 
         const aggregates = new Map();
         let pageCount = 0;
+        let reachedWindowLimit = false;
         for await (const page of github.paginate.iterator(github.rest.actions.listWorkflowRunsForRepo, {
           owner,
           repo,
@@ -71,7 +72,8 @@ pre-agent-steps:
             }
             const createdAt = run.created_at ? Date.parse(run.created_at) : Number.NaN;
             if (!Number.isNaN(createdAt) && createdAt < now - windowMs) {
-              continue;
+              reachedWindowLimit = true;
+              break;
             }
             const startedAt = run.run_started_at ? Date.parse(run.run_started_at) : Number.NaN;
             const updatedAt = run.updated_at ? Date.parse(run.updated_at) : Number.NaN;
@@ -95,7 +97,7 @@ pre-agent-steps:
             }
             aggregates.set(sourcePath, aggregate);
           }
-          if (pageCount >= 10) {
+          if (reachedWindowLimit || pageCount >= 10) {
             break;
           }
         }
