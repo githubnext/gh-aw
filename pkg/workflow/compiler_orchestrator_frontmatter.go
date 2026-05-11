@@ -40,12 +40,13 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		// Intentionally not wrapping to avoid exposing internal path details
 		return nil, fmt.Errorf("failed to read file: %v", err) //nolint:errorlint // intentionally not wrapping to avoid exposing os.PathError
 	}
+	contentString := string(content)
 
 	log.Printf("File size: %d bytes", len(content))
 
 	// Parse frontmatter and markdown
 	orchestratorFrontmatterLog.Printf("Parsing frontmatter from file: %s", cleanPath)
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	result, err := parser.ExtractFrontmatterFromContent(contentString)
 	if err != nil {
 		orchestratorFrontmatterLog.Printf("Frontmatter extraction failed: %v", err)
 		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
@@ -53,7 +54,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		if result != nil && result.FrontmatterStart > 0 {
 			frontmatterStart = result.FrontmatterStart
 		}
-		return nil, c.createFrontmatterError(cleanPath, string(content), err, frontmatterStart)
+		return nil, c.createFrontmatterError(cleanPath, contentString, err, frontmatterStart)
 	}
 
 	if len(result.Frontmatter) == 0 {
@@ -62,7 +63,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	}
 
 	// Preprocess schedule fields to convert human-friendly format to cron expressions
-	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
+	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, contentString); err != nil {
 		orchestratorFrontmatterLog.Printf("Schedule preprocessing failed: %v", err)
 		return nil, err
 	}
