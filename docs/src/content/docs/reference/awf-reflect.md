@@ -5,7 +5,7 @@ sidebar:
   order: 1355
 ---
 
-The AWF API proxy exposes `GET /reflect` on `http://api-proxy:10000/reflect` inside the AWF runtime network.
+Inside the AWF runtime network, the AWF API proxy exposes `GET /reflect` at `http://api-proxy:10000/reflect`.
 
 Use this route when building shared workflows, tools, or extensions that need runtime model routing.
 
@@ -13,24 +13,22 @@ Use this route when building shared workflows, tools, or extensions that need ru
 
 `/reflect` returns the currently configured inference providers and their model availability for the active run. This allows a shared workflow or tool to:
 
-- discover which gateway endpoints are available
-- check whether each endpoint is configured
-- read or refresh model availability
-- select a provider/model dynamically at runtime
-
-Do not hardcode direct upstream model API URLs in shared workflow logic.
+- Discover which gateway endpoints are available
+- Check whether each endpoint is configured
+- Read or refresh model availability
+- Select a provider/model dynamically at runtime
 
 > [!IMPORTANT]
-> All inference requests should go through the AWF gateway. Avoid calling model providers directly outside the gateway so usage remains controllable and observable for cost control, tracking, and optimization.
+> Do not hardcode direct upstream model API URLs in shared workflow logic. All inference requests should go through the AWF gateway so usage remains controllable and observable for cost control, tracking, and optimization.
 
 ## Response shape
 
 The response includes an `endpoints` array and a `models_fetch_complete` flag:
 
-- `endpoints[].provider`: provider identifier (for example `openai`, `anthropic`, `copilot`, `gemini`)
+- `endpoints[].provider`: provider identifier (e.g., `openai`, `anthropic`, `copilot`, `gemini`)
 - `endpoints[].base_url`: gateway base URL for inference calls
 - `endpoints[].configured`: whether credentials/config are present for that provider
-- `endpoints[].models`: discovered model IDs, or `null` when not yet available
+- `endpoints[].models`: discovered model IDs, or `null` when model discovery is not yet complete
 - `endpoints[].models_url`: gateway URL used to query models for that provider
 - `models_fetch_complete`: whether startup model discovery is complete
 
@@ -41,7 +39,7 @@ The response includes an `endpoints` array and a `models_fetch_complete` flag:
 3. Prefer endpoints with a non-empty `models` list.
 4. Match requested model aliases/patterns against available models.
 5. Route inference to the selected endpoint `base_url`.
-6. If `models` is `null`, treat availability as temporary and retry discovery before failing.
+6. If `models` is `null`, retry discovery with bounded backoff (for example, every 3 seconds up to 5 attempts) before failing.
 
 This keeps shared tooling portable across repositories and environments where available providers differ.
 
