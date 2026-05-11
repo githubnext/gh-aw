@@ -326,16 +326,18 @@ Caching baseline manifest data should not change behavior.
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	compiler := NewCompiler(WithNoEmit(true))
+	manifestCache := map[string]*GHAWManifest{}
+	compiler.SetPriorManifests(manifestCache)
 
 	require.NoError(t, compiler.CompileWorkflow(testFile))
 
 	lockFile := filepath.Clean(stringutil.MarkdownToLockFile(testFile))
-	firstBaseline, ok := compiler.priorManifests[lockFile]
+	firstBaseline, ok := manifestCache[lockFile]
 	require.True(t, ok, "baseline manifest should be cached after first compile")
 	require.NotNil(t, firstBaseline, "new workflows should cache an empty baseline manifest")
 
 	require.NoError(t, compiler.CompileWorkflow(testFile))
-	secondBaseline, ok := compiler.priorManifests[lockFile]
+	secondBaseline, ok := manifestCache[lockFile]
 	require.True(t, ok, "cached baseline should remain available after second compile")
 	require.NotNil(t, secondBaseline, "cached baseline should be non-nil")
 }
