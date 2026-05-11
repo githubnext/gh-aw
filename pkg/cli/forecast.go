@@ -738,7 +738,14 @@ func loadCachedEffectiveTokens(runID int64, verbose bool) int {
 // Actual runs are fetched with the same pagination helper used for training,
 // but with the validation date range.
 func evaluateForecast(workflowName string, forecast ForecastWorkflowResult, validationStartDate, validationEndDate string, config ForecastConfig) *ForecastEvaluation {
-	trainingStartDate := fmt.Sprintf("(-%dd before %s)", forecast.HistoryDays, validationStartDate)
+	// Compute the actual ISO-8601 training start date by subtracting HistoryDays
+	// from the validation start (= anchor).
+	var trainingStartDate string
+	if t, err := time.Parse("2006-01-02", validationStartDate); err == nil {
+		trainingStartDate = t.AddDate(0, 0, -forecast.HistoryDays).Format("2006-01-02")
+	} else {
+		trainingStartDate = validationStartDate
+	}
 	eval := &ForecastEvaluation{
 		TrainingStartDate: trainingStartDate,
 		TrainingEndDate:   validationStartDate,
@@ -772,8 +779,12 @@ func evaluateForecast(workflowName string, forecast ForecastWorkflowResult, vali
 		if r.Status != "completed" {
 			continue
 		}
-		// Guard: only include runs that actually started after the anchor.
-		if !r.StartedAt.IsZero() && (r.StartedAt.Before(validationStart) || r.StartedAt.After(validationEnd)) {
+		// Skip runs with no timestamp — we cannot verify they belong to the
+		// validation window, so including them would introduce undefined bias.
+		if r.StartedAt.IsZero() {
+			continue
+		}
+		if r.StartedAt.Before(validationStart) || r.StartedAt.After(validationEnd) {
 			continue
 		}
 		if r.EffectiveTokens == 0 {
@@ -963,7 +974,7 @@ func printEvalBreakdown(workflows []ForecastWorkflowResult) {
 			ActualRuns:  ev.ActualRuns,
 			ActualET:    formatForecastTokens(ev.ActualEffectiveTokens),
 			ForecastP50: formatForecastTokens(p50),
-			ErrorAbs:    formatForecastTokens(ev.P50ErrorAbs),
+			ErrorAbs:    formatForecastSignedTokens(ev.P50ErrorAbs),
 			ErrorPct:    fmt.Sprintf("%.1f%%", ev.P50ErrorPct),
 			InCI:        inCI,
 		})
@@ -1020,6 +1031,21 @@ func formatForecastTokens(n int) string {
 		return fmt.Sprintf("%.1fK", float64(n)/1000)
 	}
 	return fmt.Sprintf("%.2fM", float64(n)/1_000_000)
+}
+
+// formatForecastSignedTokens formats a signed integer token count, preserving
+// the sign so callers can display positive/negative deltas (e.g., error abs).
+func formatForecastSignedTokens(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	sign := ""
+	v := n
+	if n < 0 {
+		sign = "-"
+		v = -n
+	}
+	return sign + formatForecastTokens(v)
 }
 
 func formatTriggerList(triggers []string) string {
