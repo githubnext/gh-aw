@@ -341,6 +341,7 @@ jobs:
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     needs:
     - changes
+    - update
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -352,18 +353,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
 
-    - name: Set up Go
-      id: setup-go
-      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+    - name: Download gh-aw binary artifact
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
       with:
-        go-version-file: go.mod
-        cache: true
+        name: gh-aw-linux-amd64
+        path: .
 
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Verify dependencies
-      run: go mod verify
+    - name: Prepare gh-aw binary
+      run: chmod +x ./gh-aw
 
     - name: Compile pkg/cli/workflows
       run: make compile-cli-workflows

@@ -700,7 +700,11 @@ recompile: build
 
 # Compile workflows under pkg/cli/workflows
 .PHONY: compile-cli-workflows
-compile-cli-workflows: build
+compile-cli-workflows:
+	@if [ ! -x "./$(BINARY_NAME)" ]; then \
+		echo "./$(BINARY_NAME) not found; building it first..."; \
+		$(MAKE) build; \
+	fi
 	@TMP_WORKFLOWS_DIR=$$(mktemp -d); \
 	trap 'rm -rf "$$TMP_WORKFLOWS_DIR"' EXIT; \
 	cp -R pkg/cli/workflows "$$TMP_WORKFLOWS_DIR/workflows"; \
@@ -845,7 +849,7 @@ help:
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
-	@echo "  compile-cli-workflows - Compile workflows in pkg/cli/workflows (depends on build)"
+	@echo "  compile-cli-workflows - Compile workflows in pkg/cli/workflows (builds binary if missing)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-agent-factory     - Generate agent factory documentation page"
