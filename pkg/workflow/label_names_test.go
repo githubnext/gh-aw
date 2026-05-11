@@ -110,10 +110,10 @@ func TestLabelNamesPreActivationFilter(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
-		name                  string
-		frontmatter           string
-		expectedIf            string
-		shouldHaveIf          bool
+		name                       string
+		frontmatter                string
+		expectedIf                 string
+		shouldHaveIf               bool
 		shouldCheckLabelArrayItems bool
 		labelItems                 []string
 	}{
@@ -135,8 +135,8 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review'",
-			shouldHaveIf: true,
+			expectedIf:                 "github.event.label == null || github.event.label.name == 'panel-review'",
+			shouldHaveIf:               true,
 			labelItems:                 []string{"panel-review"},
 			shouldCheckLabelArrayItems: false,
 		},
@@ -158,8 +158,8 @@ tools:
   github:
     allowed: [get_pull_request]
 ---`,
-			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
-			shouldHaveIf: true,
+			expectedIf:                 "github.event.label == null || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
+			shouldHaveIf:               true,
 			labelItems:                 []string{"panel-review", "needs-triage"},
 			shouldCheckLabelArrayItems: true,
 		},
@@ -203,8 +203,8 @@ tools:
   github:
     allowed: [issue_read]
 ---`,
-			expectedIf:   "github.event.label == null || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
-			shouldHaveIf: true,
+			expectedIf:                 "github.event.label == null || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
+			shouldHaveIf:               true,
 			labelItems:                 []string{"bug", "enhancement"},
 			shouldCheckLabelArrayItems: true,
 		},

@@ -15,7 +15,7 @@ network:
     - github
 imports:
   - shared/github-guard-policy.md
-  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@main
+  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@b7f12b67daa31a47c4caa3b5ee3851639edce709
     with:
       config:
         yaml: |
