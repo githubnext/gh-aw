@@ -292,7 +292,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 
 		// Check if we're entering labels array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "labels:") {
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && trimmedLine == "labels:" {
 			// Check if this is an array (next line will be "- ") or inline value
 			inLabelsArray = true
 		}

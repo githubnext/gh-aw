@@ -232,7 +232,7 @@ tools:
 				assert.Contains(t, lockContent, "Label filtering applied via job conditions",
 					"on.labels comment should explain filter handling")
 				for _, item := range tt.labelItems {
-					if strings.Contains(tt.frontmatter, "labels: [") {
+					if len(tt.labelItems) > 1 {
 						assert.Contains(t, lockContent, "# - "+item,
 							"on.labels array items should be commented out in generated workflow")
 					}
