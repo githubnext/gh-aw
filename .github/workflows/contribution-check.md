@@ -15,6 +15,7 @@ env:
 engine:
   id: copilot
   agent: contribution-checker
+  max-continuations: 20
 
 imports:
   - shared/observability-otlp.md
