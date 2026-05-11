@@ -118,11 +118,15 @@ Every blog post must include an **Agent of the Week** spotlight that celebrates 
 Use the published blog posts in `docs/src/content/docs/blog/` as the source of truth for past Agent of the Week picks. Extract previously featured workflow filenames from the "View the workflow on GitHub" links:
 
 ```bash
-grep -RhoE 'blob/main/\.github/workflows/[^)]+\.md' docs/src/content/docs/blog \
+grep -RhoE 'blob/main/\.github/workflows/[^[:space:]]+\.md' docs/src/content/docs/blog \
   | sed -E 's#^blob/main/\.github/workflows/##; s#\.md$##' \
   | sort -u > /tmp/gh-aw/featured-from-blog.txt
 
-cat /tmp/gh-aw/featured-from-blog.txt 2>/dev/null || echo "(no featured workflows found in blog posts yet)"
+if [ -s /tmp/gh-aw/featured-from-blog.txt ]; then
+  cat /tmp/gh-aw/featured-from-blog.txt
+else
+  echo "(no featured workflows found in blog posts yet)"
+fi
 ```
 
 If this list is non-empty, treat it as authoritative for duplicate prevention.
