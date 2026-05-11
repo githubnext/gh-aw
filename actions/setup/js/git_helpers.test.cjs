@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("git_helpers.cjs", () => {
   let originalCore;
@@ -274,6 +274,34 @@ describe("git_helpers.cjs", () => {
       const env = getGitAuthEnv("test-token");
 
       expect(env.GIT_CONFIG_KEY_0).toBe("http.https://github.example.com/.extraheader");
+    });
+  });
+
+  describe("ensureFullHistoryForBundle", () => {
+    it("should fetch full history when the repository is shallow", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: "true\n" }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+      const options = { cwd: "/tmp/repo" };
+
+      await ensureFullHistoryForBundle(execApi, options);
+
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["rev-parse", "--is-shallow-repository"], options);
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], options);
+    });
+
+    it("should not fetch full history when the repository is not shallow", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: "false\n" }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      await ensureFullHistoryForBundle(execApi);
+
+      expect(execApi.exec).not.toHaveBeenCalled();
     });
   });
 });

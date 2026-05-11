@@ -1213,20 +1213,36 @@ index 0000000..abc1234
       const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
 
       try {
-        mockExec.getExecOutput
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head\n", stderr: "" }) // rev-parse HEAD before bundle
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "2\n", stderr: "" }); // rev-list --count
+        mockExec.getExecOutput.mockImplementation((cmd, args) => {
+          if (cmd === "git" && args[0] === "ls-remote") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-list") {
+            return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        });
 
         const module = await loadModule();
         const handler = await module.main({});
         const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/feature-branch:refs/bundles/push-feature-branch"], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature-branch", "refs/bundles/push-feature-branch", "remote-head"], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], expect.any(Object));
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["merge", "--ff-only", "refs/bundles/push-feature-branch"], expect.any(Object));
+        const unshallowCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
+        const bundleFetchCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+        expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
+        expect(bundleFetchCallIndex).toBeGreaterThan(unshallowCallIndex);
       } finally {
         pushSignedSpy.mockRestore();
       }
