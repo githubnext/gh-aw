@@ -403,9 +403,19 @@ describe("frontmatter_hash with GitHub API", () => {
       console.log(`\n🔍 Fetching live data from GitHub API: ${owner}/${repo}/${workflowPath}@${ref}`);
 
       // Compute hash using live API data
-      const hash = await computeFrontmatterHash(workflowPath, {
-        fileReader,
-      });
+      let hash;
+      try {
+        hash = await computeFrontmatterHash(workflowPath, {
+          fileReader,
+        });
+      } catch (err) {
+        if (err.message && err.message.toLowerCase().includes("rate limit")) {
+          console.log("Skipping live API test - GitHub API rate limit exceeded");
+          console.log("This is expected when the API rate limit is reached during CI runs");
+          return;
+        }
+        throw err;
+      }
 
       // Verify hash format
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
