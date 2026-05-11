@@ -139,11 +139,9 @@ def recompute_overlap_drag(payload: dict[str, Any]) -> float:
 
 
 def derive_evidence_quality(workflows: list[dict[str, Any]], base_quality: str) -> str:
-    coverage = sum(
-        1.0 if workflow.get("telemetry_metrics") else 0.5 if workflow.get("has_observability") or workflow.get("has_imported_observability") else 0.0
-        for workflow in workflows
-    ) / max(1, len(workflows))
-    derived = pre.portfolio_evidence_quality(workflows, coverage)
+    observed_coverage = sum(1.0 for workflow in workflows if workflow.get("telemetry_observed")) / max(1, len(workflows))
+    validated_coverage = sum(1.0 for workflow in workflows if workflow.get("telemetry_validated")) / max(1, len(workflows))
+    derived = pre.portfolio_evidence_quality(workflows, observed_coverage, validated_coverage)
     order = {"low": 0, "medium": 1, "high": 2}
     return derived if order[derived] <= order.get(base_quality, 0) else base_quality
 
@@ -171,7 +169,9 @@ def build_report_markdown(final_payload: dict[str, Any], precompute_payload: dic
         "Workflow count": final_payload["workflow_count"],
         "Agentic fraction": final_payload["average_agentic_fraction"],
         "Deterministic fraction": round(1.0 - final_payload["average_agentic_fraction"], 4),
-        "Telemetry coverage": precompute_payload.get("portfolio_metrics", {}).get("telemetry_coverage", 0.0),
+        "Observability declared coverage": precompute_payload.get("portfolio_metrics", {}).get("observability_declared_coverage", 0.0),
+        "Telemetry observed coverage": precompute_payload.get("portfolio_metrics", {}).get("telemetry_observed_coverage", 0.0),
+        "Telemetry validated coverage": precompute_payload.get("portfolio_metrics", {}).get("telemetry_validated_coverage", 0.0),
         "High-overlap clusters": len(final_payload.get("overlap_clusters", [])),
         "Estimated governance drag": final_payload.get("organizational_health_signals", {}).get("governance_drag", 0.0),
         "Estimated trust score": round(
@@ -224,6 +224,9 @@ def build_report_markdown(final_payload: dict[str, Any], precompute_payload: dic
         {
             "portfolio_yield": final_payload["portfolio_yield"],
             "workflow_count": final_payload["workflow_count"],
+            "observability_declared_coverage": final_payload.get("observability_declared_coverage", 0.0),
+            "telemetry_observed_coverage": final_payload.get("telemetry_observed_coverage", 0.0),
+            "telemetry_validated_coverage": final_payload.get("telemetry_validated_coverage", 0.0),
             "keep": final_payload.get("keep", []),
             "revise": final_payload.get("revise", []),
             "merge": final_payload.get("merge", []),
@@ -348,6 +351,18 @@ def finalize(precompute_payload: dict[str, Any], agent_dir: Path) -> tuple[dict[
         "portfolio_maintenance_drag": round(sum(workflow["maintenance_drag"] for workflow in workflows) / max(1, len(workflows)), 4),
         "portfolio_overlap_drag": overlap_drag_value,
         "average_agentic_fraction": round(sum(workflow["agentic_fraction"] for workflow in workflows) / max(1, len(workflows)), 4),
+        "observability_declared_coverage": round(
+            sum(1.0 for workflow in workflows if workflow.get("observability_declared")) / max(1, len(workflows)),
+            4,
+        ),
+        "telemetry_observed_coverage": round(
+            sum(1.0 for workflow in workflows if workflow.get("telemetry_observed")) / max(1, len(workflows)),
+            4,
+        ),
+        "telemetry_validated_coverage": round(
+            sum(1.0 for workflow in workflows if workflow.get("telemetry_validated")) / max(1, len(workflows)),
+            4,
+        ),
         "evidence_quality": derive_evidence_quality(workflows, precompute_payload.get("portfolio_metrics", {}).get("evidence_quality", "low")),
         "keep": buckets.get("keep", []),
         "revise": buckets.get("revise", []),
@@ -386,6 +401,9 @@ def error_payload(message: str) -> dict[str, Any]:
         "portfolio_maintenance_drag": 0.0,
         "portfolio_overlap_drag": 0.0,
         "average_agentic_fraction": 0.0,
+        "observability_declared_coverage": 0.0,
+        "telemetry_observed_coverage": 0.0,
+        "telemetry_validated_coverage": 0.0,
         "evidence_quality": "low",
         "keep": [],
         "revise": [],
