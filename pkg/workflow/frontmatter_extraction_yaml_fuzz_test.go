@@ -49,9 +49,18 @@ func FuzzCommentOutProcessedFieldsInOnSectionTopLevelLabels(f *testing.F) {
 		assertContains("  # labels: # Label filtering applied via job conditions")
 		assertContains("# - " + topAQuoted + " # Label filtering applied via job conditions")
 		assertContains("# - " + topBQuoted + " # Label filtering applied via job conditions")
+		assertContains("          # - " + nestedAQuoted)
+		assertContains("          # - " + nestedBQuoted)
+		if strings.Contains(result, "          # - "+nestedAQuoted+" # Label filtering applied via job conditions") {
+			t.Fatalf("nested labels item should not be marked as top-level label filtering:\n%s", result)
+		}
+		if strings.Contains(result, "          # - "+nestedBQuoted+" # Label filtering applied via job conditions") {
+			t.Fatalf("nested labels item should not be marked as top-level label filtering:\n%s", result)
+		}
 
-		if got := strings.Count(result, "Label filtering applied via job conditions"); got != 3 {
-			t.Fatalf("expected 3 label-filter annotations (labels key + 2 items), got %d:\n%s", got, result)
+		expectedLabelFilterAnnotations := len([]string{topAQuoted, topBQuoted}) + 1 // labels key + top-level items
+		if got := strings.Count(result, "Label filtering applied via job conditions"); got != expectedLabelFilterAnnotations {
+			t.Fatalf("expected %d label-filter annotations (labels key + top-level items), got %d:\n%s", expectedLabelFilterAnnotations, got, result)
 		}
 	})
 }
@@ -81,6 +90,12 @@ func FuzzCommentOutProcessedFieldsInOnSectionNoTopLevelLabels(f *testing.F) {
 
 		result := compiler.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
 
+		if !strings.Contains(result, "          # - "+nestedAQuoted) {
+			t.Fatalf("expected nested labels item to remain in on.steps output:\n%s", result)
+		}
+		if !strings.Contains(result, "          # - "+nestedBQuoted) {
+			t.Fatalf("expected nested labels item to remain in on.steps output:\n%s", result)
+		}
 		if strings.Contains(result, "Label filtering applied via job conditions") {
 			t.Fatalf("unexpected top-level label filter annotation without on.labels:\n%s", result)
 		}
