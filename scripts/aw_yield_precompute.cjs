@@ -5,7 +5,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 function resolvePythonCommand() {
-  for (const command of [process.env.AW_YIELD_PYTHON, "python3", "python"]) {
+  for (const command of [process.env.AW_YIELD_PYTHON, "python3"]) {
     if (!command) {
       continue;
     }
@@ -17,7 +17,7 @@ function resolvePythonCommand() {
   throw new Error("Unable to locate a Python interpreter for aw_yield_precompute.py");
 }
 
-async function runPrecompute({ workspace, workflows, out }) {
+function runPrecompute({ workspace, workflows, out }) {
   if (!workspace || !workflows || !out) {
     throw new Error("workspace, workflows, and out are required");
   }
