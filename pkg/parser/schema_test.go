@@ -346,6 +346,21 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokens
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpressions(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on":                   "push",
+		"max-runs":             "${{ inputs.max-runs }}",
+		"max-effective-tokens": "${{ inputs.max-effective-tokens }}",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-expression-test.md")
+	if err != nil {
+		t.Fatalf("expected max-runs/max-effective-tokens expressions to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {
 	t.Parallel()
 

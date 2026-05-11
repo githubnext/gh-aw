@@ -3689,8 +3689,15 @@
         },
         {
           "type": "string",
-          "pattern": "^[1-9][0-9]*$",
-          "description": "Maximum effective-token (ET) budget as a numeric string."
+          "oneOf": [
+            {
+              "pattern": "^[1-9][0-9]*$"
+            },
+            {
+              "pattern": "^\\$\\{\\{.*\\}\\}$"
+            }
+          ],
+          "description": "Maximum effective-token (ET) budget as a numeric string or GitHub Actions expression."
         }
       ],
       "default": 25000000,
@@ -3705,8 +3712,15 @@
         },
         {
           "type": "string",
-          "pattern": "^[1-9][0-9]*$",
-          "description": "Maximum number of LLM invocations allowed per run as a numeric string."
+          "oneOf": [
+            {
+              "pattern": "^[1-9][0-9]*$"
+            },
+            {
+              "pattern": "^\\$\\{\\{.*\\}\\}$"
+            }
+          ],
+          "description": "Maximum number of LLM invocations allowed per run as a numeric string or GitHub Actions expression."
         }
       ],
       "default": 100,
