@@ -166,7 +166,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 					ID: "copilot",
 					TokenWeights: &types.TokenWeights{
 						Multipliers: map[string]float64{
-							"gpt-5":     1.2,
+							"gpt-5":      1.2,
 							"gpt-5-mini": 0.8,
 						},
 					},
