@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -309,14 +308,12 @@ func transformCheckoutWithinSection(sectionLines []string, sectionIndent string)
 func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string) ([]string, bool) {
 	usesIdx := -1
 	usesIndent := ""
-	isUsesInline := false
 	withStart := -1
 	withEnd := -1
 	withIndent := ""
-	withKeyIndentLen := 0
 	persistIdx := -1
 
-	for i := 0; i < len(stepLines); i++ {
+	for i := range stepLines {
 		line := stepLines[i]
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
@@ -324,7 +321,7 @@ func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string)
 		usesMatch, usesValue, _ := parseStepKeyLine(trimmed, indent, stepIndent, "uses")
 		if usesMatch && isCheckoutUsesValue(usesValue) {
 			usesIdx = i
-			isUsesInline = strings.HasPrefix(trimmed, "- uses:") && len(indent) == len(stepIndent)
+			isUsesInline := strings.HasPrefix(trimmed, "- uses:") && len(indent) == len(stepIndent)
 			if isUsesInline {
 				usesIndent = stepIndent + "  "
 			} else {
@@ -343,7 +340,7 @@ func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string)
 			withStart = i
 			withEnd = i
 			withIndent = indent
-			withKeyIndentLen = currentWithKeyIndentLen
+			withKeyIndentLen := currentWithKeyIndentLen
 			for j := i + 1; j < len(stepLines); j++ {
 				t := strings.TrimSpace(stepLines[j])
 				if len(t) == 0 {
@@ -375,7 +372,7 @@ func ensureStepCheckoutPersistCredentials(stepLines []string, stepIndent string)
 
 	if withStart != -1 {
 		insertAt := withEnd + 1
-		insertLine := fmt.Sprintf("%spersist-credentials: false", withIndent+"  ")
+		insertLine := withIndent + "  persist-credentials: false"
 		updated := append([]string{}, stepLines[:insertAt]...)
 		updated = append(updated, insertLine)
 		updated = append(updated, stepLines[insertAt:]...)
