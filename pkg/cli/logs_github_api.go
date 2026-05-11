@@ -48,6 +48,8 @@ func buildCreatedFilter(startDate, endDate, beforeDate string) string {
 			upper = t.Add(-time.Second).Format(time.RFC3339)
 		} else {
 			// Unparseable beforeDate: use it as-is and treat as inclusive best-effort.
+			// Log a warning so the caller knows the exact exclusive bound may be missed.
+			logsGitHubAPILog.Printf("buildCreatedFilter: could not parse beforeDate %q as RFC3339, using as-is: %v", beforeDate, err)
 			upper = beforeDate
 		}
 	} else if endDate != "" {
