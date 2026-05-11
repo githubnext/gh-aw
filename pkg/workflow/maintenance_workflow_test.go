@@ -1218,13 +1218,14 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 		}
 		yaml := string(content)
-		// run_operation, create_labels, activity_report, validate_workflows, and compile_workflows should use the same setup-go version
-		// (all use getActionPin, not hardcoded pins). Exactly 5 occurrences expected.
+		// run_operation, create_labels, activity_report, forecast_report, validate_workflows,
+		// and compile_workflows should use the same setup-go version
+		// (all use getActionPin, not hardcoded pins). Exactly 6 occurrences expected.
 		// Note: label_disable_agentic_workflow no longer installs the CLI, so it has no setup-go step.
 		setupGoPin := getActionPin("actions/setup-go")
 		occurrences := strings.Count(yaml, setupGoPin)
-		if occurrences != 5 {
-			t.Errorf("Expected exactly 5 occurrences of pinned setup-go ref %q (run_operation + create_labels + activity_report + validate_workflows + compile_workflows), got %d in:\n%s",
+		if occurrences != 6 {
+			t.Errorf("Expected exactly 6 occurrences of pinned setup-go ref %q (run_operation + create_labels + activity_report + forecast_report + validate_workflows + compile_workflows), got %d in:\n%s",
 				setupGoPin, occurrences, yaml)
 		}
 	})

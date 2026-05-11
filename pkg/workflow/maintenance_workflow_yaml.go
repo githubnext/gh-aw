@@ -600,9 +600,9 @@ jobs:
               'Repository: ' + repoSlug,
               'Generated at: ' + new Date().toISOString(),
               '',
-              '```json',
+              '~~~json',
               reportBody,
-              '```',
+              '~~~',
             ].join('\n');
             const createdIssue = await github.rest.issues.create({
               owner: context.repo.owner,
