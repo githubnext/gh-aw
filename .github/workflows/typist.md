@@ -39,8 +39,6 @@ tools:
 
 timeout-minutes: 20
 strict: true
-features:
-  inline-agents: true
 
 ---
 # Typist - Go Type Consistency Analysis
