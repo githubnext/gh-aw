@@ -92,8 +92,8 @@ func TestCodexParseLogMetricsMultipleToolsWithOutputSizes(t *testing.T) {
 	require.NotNil(t, searchPRTool, "search_pull_requests tool should be found")
 
 	// Verify output sizes
-	assert.Equal(t, len("[]"), listPRTool.MaxOutputSize, "list_pull_requests output size")
-	assert.Equal(t, len("[{\"number\":123,\"title\":\"Test PR\"}]"), searchPRTool.MaxOutputSize, "search_pull_requests output size")
+	assert.Len(t, "[]", listPRTool.MaxOutputSize, "list_pull_requests output size")
+	assert.Len(t, "[{\"number\":123,\"title\":\"Test PR\"}]", searchPRTool.MaxOutputSize, "search_pull_requests output size")
 }
 
 func TestCodexParseLogMetricsNoOutputSize(t *testing.T) {

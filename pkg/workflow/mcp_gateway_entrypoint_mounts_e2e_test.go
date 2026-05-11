@@ -269,7 +269,7 @@ Test that entrypoint with special characters in args is properly handled.
 	// Verify args with special characters are properly handled
 	assert.Contains(t, yamlStr, "bash", "Compiled YAML should contain bash arg")
 	// The exact format of the shell-quoted command may vary, but it should contain the key parts
-	assert.True(t, strings.Contains(yamlStr, "Hello World") || strings.Contains(yamlStr, "Hello\\ World"),
+	assert.Regexp(t, `Hello(?: |\\ )World`, yamlStr,
 		"Compiled YAML should contain the command string (possibly escaped)")
 }
 

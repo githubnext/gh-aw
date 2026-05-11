@@ -5,7 +5,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -431,6 +430,6 @@ jobs:
 	err = validateWorkflowInputs(markdownPath, []string{"issue_ur=https://example.com"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Invalid input name")
-	assert.True(t, strings.Contains(err.Error(), "issue_ur") && strings.Contains(err.Error(), "issue_url"),
-		"Error should suggest correct input name")
+	assert.Contains(t, err.Error(), "issue_ur", "Error should include invalid input")
+	assert.Contains(t, err.Error(), "issue_url", "Error should suggest correct input name")
 }

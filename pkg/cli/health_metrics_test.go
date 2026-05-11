@@ -78,7 +78,7 @@ func TestCalculateWorkflowHealth(t *testing.T) {
 			}
 
 			if len(tt.runs) > 0 {
-				assert.Equal(t, len(tt.runs), health.TotalRuns, "Total runs should match")
+				assert.Len(t, tt.runs, health.TotalRuns, "Total runs should match")
 			}
 
 			// Check below threshold flag

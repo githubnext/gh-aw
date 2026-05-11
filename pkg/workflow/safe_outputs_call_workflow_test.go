@@ -580,10 +580,6 @@ Analyse the issue and determine which worker to run.
 	assert.Contains(t, yamlOutput, "call_workflow_payload", "Should reference call_workflow_payload")
 
 	// Verify if conditions
-	assert.True(t, strings.Contains(yamlOutput, "call_workflow_name == 'worker-a'") ||
-		strings.Contains(yamlOutput, "call_workflow_name == \"worker-a\""),
-		"Should contain if condition for worker-a")
-	assert.True(t, strings.Contains(yamlOutput, "call_workflow_name == 'worker-b'") ||
-		strings.Contains(yamlOutput, "call_workflow_name == \"worker-b\""),
-		"Should contain if condition for worker-b")
+	assert.Regexp(t, `call_workflow_name == ['"]worker-a['"]`, yamlOutput, "Should contain if condition for worker-a")
+	assert.Regexp(t, `call_workflow_name == ['"]worker-b['"]`, yamlOutput, "Should contain if condition for worker-b")
 }

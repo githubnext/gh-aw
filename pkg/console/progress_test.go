@@ -4,7 +4,6 @@ package console
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -259,7 +258,7 @@ func TestProgressBarOutputFormat(t *testing.T) {
 
 		// Should contain: percentage, current size, total size
 		assert.Contains(t, output, "%", "Output should contain percentage symbol")
-		assert.True(t, strings.Contains(output, "KB") || strings.Contains(output, "MB"), "Output should contain size units")
+		assert.Regexp(t, `KB|MB`, output, "Output should contain size units")
 		assert.Contains(t, output, "/", "Output should contain separator between current and total")
 	})
 }

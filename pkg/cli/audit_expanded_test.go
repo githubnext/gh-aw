@@ -614,7 +614,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 
 	t.Run("PromptAnalysis", func(t *testing.T) {
 		require.NotNil(t, auditData.PromptAnalysis, "Prompt analysis should be populated")
-		assert.Equal(t, len(promptContent), auditData.PromptAnalysis.PromptSize, "Prompt size should match")
+		assert.Len(t, promptContent, auditData.PromptAnalysis.PromptSize, "Prompt size should match")
 		assert.Equal(t, filepath.Join("activation", "aw-prompts", "prompt.txt"), auditData.PromptAnalysis.PromptFile, "Prompt file should be a relative path")
 	})
 

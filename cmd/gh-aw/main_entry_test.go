@@ -272,7 +272,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		// Check that it's an ExitError (non-zero exit code)
 		exitError, ok := err.(*exec.ExitError)
 		require.True(t, ok, "invalid command should return an *exec.ExitError, got %T", err)
-		assert.NotEqual(t, 0, exitError.ExitCode(), "invalid command should return a non-zero exit code")
+		assert.NotZero(t, exitError.ExitCode(), "invalid command should return a non-zero exit code")
 	})
 
 	t.Run("main function version info setup", func(t *testing.T) {

@@ -214,7 +214,7 @@ name: test
 					assert.Contains(t, err.Error(), tt.errorText, "Error message should contain expected text")
 				}
 			} else {
-				assert.NoError(t, err, "Should not error on compatible schema")
+				require.NoError(t, err, "Should not error on compatible schema")
 			}
 		})
 	}
