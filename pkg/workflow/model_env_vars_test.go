@@ -27,7 +27,7 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 			name:            "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
 			engine:          "codex",
 			expectedEnvVar:  constants.EnvVarModelAgentCodex,
-			expectedCommand: "${" + constants.EnvVarModelAgentCodex + ":+-c model=",
+			expectedCommand: "${" + constants.EnvVarModelAgentCodex + `:+--model "`,
 		},
 	}
 

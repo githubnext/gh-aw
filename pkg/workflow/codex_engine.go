@@ -50,7 +50,7 @@ func NewCodexEngine() *CodexEngine {
 
 // GetModelEnvVarName returns an empty string because the Codex CLI does not support
 // selecting the model via a native environment variable. Model selection for Codex
-// is done via the -c model=... configuration override in the shell command.
+// is done via the --model flag in the shell command.
 func (e *CodexEngine) GetModelEnvVarName() string {
 	return ""
 }
@@ -152,8 +152,9 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	var steps []GitHubActionStep
 
 	// Codex does not support a native model environment variable, so model selection
-	// always uses GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX with shell expansion.
-	// This also correctly handles GitHub Actions expressions like ${{ inputs.model }}.
+	// always uses GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX with shell expansion
+	// via the --model flag. This also correctly handles GitHub Actions expressions like ${{ inputs.model }}.
+	// Note: the older -c model="$VAR" TOML override syntax is silently ignored by Codex CLI v0.128+.
 	isDetectionJob := workflowData.SafeOutputs == nil
 	var modelEnvVar string
 	if isDetectionJob {
@@ -161,7 +162,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	} else {
 		modelEnvVar = constants.EnvVarModelAgentCodex
 	}
-	modelParam := fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
+	modelParam := fmt.Sprintf(`${%s:+--model "$%s" }`, modelEnvVar, modelEnvVar)
 
 	// Build search parameter: disable web search by default, enable only if web-search tool is present.
 	// Codex enables web search by default, so we must explicitly set web_search="disabled" to disable it.
