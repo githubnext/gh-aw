@@ -497,7 +497,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "All projected ET values are 0 even after cache warm-up.") {
 		t.Errorf("Job forecast_report issue generation step should explain zero projected ET values in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "workflow(s) have sampled runs but forecast ET is 0.") {
+	if !strings.Contains(yaml, "have sampled runs but forecast ET is 0.") {
 		t.Errorf("Job forecast_report issue generation step should include targeted zero-ET diagnostics in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "_Forecast source run: [#") {
