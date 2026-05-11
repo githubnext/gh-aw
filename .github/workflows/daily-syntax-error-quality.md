@@ -15,8 +15,8 @@ tools:
   bash:
     - "gh aw compile *"
     - "gh aw compile /tmp/gh-aw/syntax-error-tests/*.md"
-    - "head -n 30 .github/workflows/*.md"
-    - "cp .github/workflows/*.md /tmp/gh-aw/syntax-error-tests/*.md"
+    - "head -n 30 /tmp/gh-aw/agent/candidates/"
+    - "cp /tmp/gh-aw/agent/candidates/"
     - "cat /tmp/gh-aw/syntax-error-tests/*.md"
     - "mkdir -p /tmp/gh-aw/syntax-error-tests"
 safe-outputs:
@@ -32,9 +32,13 @@ steps:
   - name: Find candidate workflows
     run: |
       mkdir -p /tmp/gh-aw/agent
+      mkdir -p /tmp/gh-aw/agent/candidates
       find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md' \
         | shuf -n 5 \
         > /tmp/gh-aw/agent/candidates.txt
+      while IFS= read -r workflow; do
+        cp "$workflow" /tmp/gh-aw/agent/candidates/
+      done < /tmp/gh-aw/agent/candidates.txt
       echo "Pre-selected $(wc -l < /tmp/gh-aw/agent/candidates.txt) candidate workflows"
   - name: Install gh-aw CLI
     env:
@@ -89,6 +93,14 @@ Test the quality of compiler error messages by:
 - **Repository**: ${{ github.repository }}
 - **Workspace**: ${{ github.workspace }}
 - **Compiler**: gh aw
+- **Candidate copy directory**: /tmp/gh-aw/agent/candidates
+
+## ⚡ Batching Rules (enforce strictly)
+
+- Read `candidates.txt` and preview both selected workflows in **one** bash call.
+- For each test case, use **one chained bash call** that starts with `cp /tmp/gh-aw/agent/candidates/...` and includes the file edit plus `gh aw compile ... 2>&1`.
+- Never spend a separate tool call on shell work you can combine with `&&`.
+- Target: complete Phases 1–5 in **≤ 10 tool calls total**.
 
 ## Phase 1: Select Test Workflows
 
@@ -102,7 +114,7 @@ cat /tmp/gh-aw/agent/candidates.txt
 **Selection Criteria**:
 - Choose workflows with different complexity levels (simple, complex)
 - Prefer workflows with different structures (different engines, tools, safe-outputs)
-- Preview with `head -n 30` only — do not read full files
+- Preview the pre-copied candidate files with `head -n 30` only — do not read full files
 
 **Example selections**:
 1. Simple workflow (< 100 lines, minimal config)
@@ -146,26 +158,6 @@ Examples:
     unknown-scope: read  # Invalid scope
   ```
 
-#### Category C: Semantic Errors
-Examples:
-- **Conflicting configuration**: Incompatible settings
-  ```yaml
-  tools:
-    github:
-      mode: lockdown
-      toolsets: [default]  # Conflicting with lockdown mode
-  ```
-- **Invalid value**: Out-of-range or invalid enum value
-  ```yaml
-  timeout-minutes: -10  # Negative timeout
-  ```
-- **Missing dependency**: Reference to undefined element
-  ```yaml
-  safe-outputs:
-    create-issue:
-      target-repo: undefined-variable  # Invalid reference
-  ```
-
 ### Implementation Steps
 
 For each workflow:
@@ -173,7 +165,7 @@ For each workflow:
 1. **Copy workflow to /tmp** for testing:
    ```bash
    mkdir -p /tmp/gh-aw/syntax-error-tests
-   cp .github/workflows/selected-workflow.md /tmp/gh-aw/syntax-error-tests/test-1.md
+   cp /tmp/gh-aw/agent/candidates/selected-workflow.md /tmp/gh-aw/syntax-error-tests/test-1.md
    ```
 
 2. **Introduce ONE error** from a different category:
@@ -290,45 +282,6 @@ Use this **compact** template (do not add extra sections):
 2. **Actionable Recommendations**: Provide specific, implementable suggestions
 3. **Prioritize Improvements**: Focus on high-impact, feasible changes
 4. **Include Examples**: Show both current and improved error messages
-
-## Example Error Output Analysis
-
-### ✅ Example of Good Error Output
-
-```
-.github/workflows/test-workflow.md:5:8: error: invalid engine 'copiilot'
-
-Valid engines: copilot, claude, codex, custom
-
-Did you mean: copilot?
-
-Correct usage:
-  engine: copilot
-
-For custom engines, see: https://github.com/github/gh-aw#custom-engines
-```
-
-**Why it's good**:
-- Clear location (file:line:column)
-- Lists valid options
-- Suggests correction (did you mean)
-- Shows example of correct usage
-- Links to documentation
-
-### ❌ Example of Poor Error Output
-
-```
-Error: invalid engine
-```
-
-**Why it's poor**:
-- No file/line information
-- No context about what's invalid
-- No suggestions or examples
-- User must hunt for the error location
-- No guidance on how to fix
-
----
 
 ## Success Criteria
 

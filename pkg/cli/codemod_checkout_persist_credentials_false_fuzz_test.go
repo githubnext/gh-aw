@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -82,9 +81,9 @@ func FuzzCheckoutPersistCredentialsFalseCodemod(f *testing.F) {
 }
 
 func buildCheckoutFuzzContent(section, uses string, hasWith, hasPersist, persistTrue, inlineUses bool) string {
-	usesLine := fmt.Sprintf("    uses: %s", uses)
+	usesLine := "    uses: " + uses
 	if inlineUses {
-		usesLine = fmt.Sprintf("  - uses: %s", uses)
+		usesLine = "  - uses: " + uses
 	}
 
 	lines := []string{
