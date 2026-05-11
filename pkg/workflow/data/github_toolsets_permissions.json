@@ -147,7 +147,7 @@
       "description": "Security advisories",
       "read_permissions": ["security-events"],
       "write_permissions": ["security-events"],
-      "tools": ["get_global_security_advisory", "list_global_security_advisories", "list_repository_security_advisories"]
+      "tools": ["check_dependency_vulnerabilities", "get_global_security_advisory", "list_global_security_advisories", "list_repository_security_advisories"]
     },
     "stargazers": {
       "description": "Repository stars",

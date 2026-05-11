@@ -2,7 +2,7 @@
 
 **Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 **Mapping File**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-**Last Updated**: 2026-05-03
+**Last Updated**: 2026-05-11
 
 ## Overview
 
@@ -325,6 +325,7 @@ The following toolsets are recommended as defaults for typical agentic workflows
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
+| `check_dependency_vulnerabilities` | Check dependencies against known vulnerabilities in the GitHub Advisory Database | `owner`, `repo`, `dependencies` |
 | `get_global_security_advisory` | Get a specific global security advisory | `ghsa_id` |
 | `list_global_security_advisories` | List advisories from the GitHub Advisory Database | `type`, `severity`, `ecosystem` |
 | `list_repository_security_advisories` | List security advisories for a specific repository | `owner`, `repo`, `state` |
