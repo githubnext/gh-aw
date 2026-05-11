@@ -9,7 +9,7 @@ permissions:
   pull-requests: read
 engine:
   id: copilot
-  max-continuations: 40
+  max-continuations: 15
 tools:
   cli-proxy: true
   github:
