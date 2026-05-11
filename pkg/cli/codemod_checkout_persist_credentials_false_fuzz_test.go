@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const maxCheckoutRefLength = 16
+
 func FuzzCheckoutPersistCredentialsFalseCodemod(f *testing.F) {
 	f.Add(true, "@v5", false, false, false, false, uint8(0))
 	f.Add(true, "", true, false, false, false, uint8(1))
@@ -58,7 +60,7 @@ func FuzzCheckoutPersistCredentialsFalseCodemod(f *testing.F) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectMutation := isCheckout && !(hasWith && hasPersist)
+		expectMutation := isCheckout && (!hasWith || !hasPersist)
 
 		if expectMutation {
 			if !applied {
@@ -114,8 +116,8 @@ func sanitizeCheckoutRef(ref string) string {
 	if ref == "" {
 		return ""
 	}
-	if len(ref) > 16 {
-		ref = ref[:16]
+	if len(ref) > maxCheckoutRefLength {
+		ref = ref[:maxCheckoutRefLength]
 	}
 	var b strings.Builder
 	for _, r := range ref {
