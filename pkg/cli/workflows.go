@@ -30,6 +30,8 @@ var workflowTitleScannerBufferPool = sync.Pool{
 	},
 }
 
+const workflowTitleScannerBufferSize = 4 * 1024
+
 func getWorkflowsDir() string {
 	return ".github/workflows"
 }
@@ -345,6 +347,10 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 	// Reuse the small initial scanner buffer across calls while still allowing
 	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
 	scannerBuffer := workflowTitleScannerBufferPool.Get().([]byte)
+	if cap(scannerBuffer) < workflowTitleScannerBufferSize {
+		scannerBuffer = make([]byte, workflowTitleScannerBufferSize)
+	}
+	scannerBuffer = scannerBuffer[:workflowTitleScannerBufferSize]
 	defer workflowTitleScannerBufferPool.Put(scannerBuffer)
 	scanner.Buffer(scannerBuffer, 1024*1024)
 	firstLine := true
