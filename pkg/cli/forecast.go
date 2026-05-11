@@ -916,11 +916,11 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 // multi-run episodes (i.e. orchestrator-style workflows dispatching sub-workflows).
 func printEpisodeBreakdown(workflows []ForecastWorkflowResult) {
 	type episodeRow struct {
-		Workflow              string `json:"workflow"               console:"header:Workflow"`
-		Episodes              int    `json:"episodes"               console:"header:Episodes"`
-		RunsPerEpisode        string `json:"runs_per_episode"       console:"header:Runs/Episode"`
-		AvgETPerEpisode       string `json:"avg_et_per_episode"     console:"header:Avg ET/Episode"`
-		EpisodesPerPeriod     string `json:"episodes_per_period"    console:"header:Episodes/Period"`
+		Workflow          string `json:"workflow"               console:"header:Workflow"`
+		Episodes          int    `json:"episodes"               console:"header:Episodes"`
+		RunsPerEpisode    string `json:"runs_per_episode"       console:"header:Runs/Episode"`
+		AvgETPerEpisode   string `json:"avg_et_per_episode"     console:"header:Avg ET/Episode"`
+		EpisodesPerPeriod string `json:"episodes_per_period"    console:"header:Episodes/Period"`
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Episode analysis (runs grouped by logical task):"))
@@ -984,7 +984,6 @@ func printEvalBreakdown(workflows []ForecastWorkflowResult) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		"Training window ended at the forecast anchor; validation window is the following projection period."))
 }
-
 
 func printVariantBreakdown(wf ForecastWorkflowResult) {
 	type variantRow struct {

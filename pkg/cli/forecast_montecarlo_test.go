@@ -26,7 +26,7 @@ func TestPoissonSample(t *testing.T) {
 
 	sum := 0.0
 	sumSq := 0.0
-	for i := 0; i < n; i++ {
+	for range n {
 		v := float64(poissonSample(rng, lambda))
 		sum += v
 		sumSq += v * v
@@ -46,7 +46,7 @@ func TestPoissonSampleLargeLambda(t *testing.T) {
 	const n = 100_000
 
 	sum := 0.0
-	for i := 0; i < n; i++ {
+	for range n {
 		sum += float64(poissonSample(rng, lambda))
 	}
 	mean := sum / n
@@ -64,10 +64,10 @@ func TestPoissonSampleEdgeCases(t *testing.T) {
 // TestPercentileFloat64 checks the nearest-rank percentile helper.
 func TestPercentileFloat64(t *testing.T) {
 	sorted := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	assert.Equal(t, 1.0, percentileFloat64(sorted, 10), "P10")
-	assert.Equal(t, 5.0, percentileFloat64(sorted, 50), "P50")
-	assert.Equal(t, 9.0, percentileFloat64(sorted, 90), "P90")
-	assert.Equal(t, 0.0, percentileFloat64(nil, 50), "empty slice")
+	assert.InDelta(t, 1.0, percentileFloat64(sorted, 10), 0, "P10")
+	assert.InDelta(t, 5.0, percentileFloat64(sorted, 50), 0, "P50")
+	assert.InDelta(t, 9.0, percentileFloat64(sorted, 90), 0, "P90")
+	assert.InDelta(t, 0.0, percentileFloat64(nil, 50), 0, "empty slice")
 }
 
 // TestPercentileInt checks the int variant of the percentile helper.
@@ -89,7 +89,7 @@ func TestMeanStdDevInt(t *testing.T) {
 
 	m0, s0 := meanStdDevInt(nil)
 	assert.Equal(t, 0, m0)
-	assert.Equal(t, 0.0, s0)
+	assert.InDelta(t, 0.0, s0, 0)
 }
 
 // TestRunMonteCarloNilOnEmpty verifies that runMonteCarlo returns nil for empty inputs.
@@ -167,8 +167,8 @@ func TestRunMonteCarloOrderOfMagnitude(t *testing.T) {
 // TestRunMonteCarloSortedOutputs verifies CI ordering holds across many random seeds.
 func TestRunMonteCarloSortedOutputs(t *testing.T) {
 	etObs := []int{5_000, 7_000, 6_000, 4_500}
-	for seed := int64(0); seed < 5; seed++ {
-		rng := rand.New(rand.NewSource(seed)) //nolint:gosec
+	for seed := range 5 {
+		rng := rand.New(rand.NewSource(int64(seed))) //nolint:gosec
 		mc := runMonteCarlo(etObs, len(etObs), 12.0, rng)
 		require.NotNil(t, mc)
 		assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens)
@@ -194,8 +194,8 @@ func TestRunMonteCarloDistributionShape(t *testing.T) {
 // TestPercentileSingleElement ensures percentile works for a length-1 slice.
 func TestPercentileSingleElement(t *testing.T) {
 	sorted := []float64{42.0}
-	assert.Equal(t, 42.0, percentileFloat64(sorted, 10))
-	assert.Equal(t, 42.0, percentileFloat64(sorted, 90))
+	assert.InDelta(t, 42.0, percentileFloat64(sorted, 10), 0)
+	assert.InDelta(t, 42.0, percentileFloat64(sorted, 90), 0)
 }
 
 // TestGammaSampleMeanVariance verifies that gammaSample produces the expected mean
@@ -206,7 +206,7 @@ func TestGammaSampleMeanVariance(t *testing.T) {
 	const n = 200_000
 
 	var sum, sumSq float64
-	for i := 0; i < n; i++ {
+	for range n {
 		v := gammaSample(rng, shape)
 		sum += v
 		sumSq += v * v
@@ -227,7 +227,7 @@ func TestGammaSampleSmallShape(t *testing.T) {
 	for _, shape := range []float64{0.3, 0.5, 0.8} {
 		rng := deterministicRNG()
 		var sum float64
-		for i := 0; i < n; i++ {
+		for range n {
 			sum += gammaSample(rng, shape)
 		}
 		mean := sum / n
@@ -239,8 +239,8 @@ func TestGammaSampleSmallShape(t *testing.T) {
 // TestGammaSampleEdgeCases checks boundary and degenerate inputs.
 func TestGammaSampleEdgeCases(t *testing.T) {
 	rng := deterministicRNG()
-	assert.Equal(t, 0.0, gammaSample(rng, 0), "shape=0 → 0")
-	assert.Equal(t, 0.0, gammaSample(rng, -1), "shape<0 → 0")
+	assert.InDelta(t, 0.0, gammaSample(rng, 0), 0, "shape=0 → 0")
+	assert.InDelta(t, 0.0, gammaSample(rng, -1), 0, "shape<0 → 0")
 }
 
 // TestRunMonteCarloIsReliable verifies that IsReliable reflects the minimum
@@ -328,4 +328,3 @@ func TestRunMonteCarloFullEpisodePath(t *testing.T) {
 	sort.Ints(sorted)
 	assert.Equal(t, ets, sorted, "ET percentiles should already be in ascending order")
 }
-
