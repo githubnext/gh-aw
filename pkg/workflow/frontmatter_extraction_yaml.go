@@ -101,7 +101,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	return yamlStr
 }
 
-// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, skip-if-no-match, skip-roles, reaction, lock-for-agent, steps, permissions, and stale-check fields in the on section
+// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, labels, manual-approval, stop-after, skip-if-match, skip-if-no-match, skip-roles, reaction, lock-for-agent, steps, permissions, and stale-check fields in the on section
 // These fields are processed separately and should be commented for documentation
 // Exception: names fields in sections with __gh_aw_native_label_filter__ marker in frontmatter are NOT commented out
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
@@ -143,6 +143,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inSkipBotsArray := false
 	inRolesArray := false
 	inBotsArray := false
+	inLabelsArray := false
 	inGitHubApp := false
 	inOnSteps := false
 	inOnPermissions := false
@@ -252,6 +253,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 
 		trimmedLine := strings.TrimSpace(line)
+		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 
 		// Skip marker lines in the YAML output
 		if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.Contains(trimmedLine, "__gh_aw_native_label_filter__:") {
@@ -288,6 +290,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "bots:") {
 			// Check if this is an array (next line will be "- ") or inline value
 			inBotsArray = true
+		}
+
+		// Check if we're entering labels array
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment &&
+			!inOnSteps && !inOnPermissions &&
+			lineIndent == 2 && trimmedLine == "labels:" {
+			inLabelsArray = true
 		}
 
 		// Check if we're entering on.steps array
@@ -444,6 +453,17 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
+		// Check if we're leaving the labels array by encountering another top-level field
+		if inLabelsArray && strings.TrimSpace(line) != "" {
+			// Get the indentation of the current line
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+			// If this is a non-dash line at the same level as labels (2 spaces), we're out of the array
+			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "labels:") && !strings.HasPrefix(trimmedLine, "#") {
+				inLabelsArray = false
+			}
+		}
+
 		// Check if we're leaving the on.steps array by encountering another top-level field
 		if inOnSteps && strings.TrimSpace(line) != "" {
 			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
@@ -524,6 +544,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				// Comment out array items in bots
 				shouldComment = true
 				commentReason = " # Bots processed as bot check in pre-activation job"
+			} else if !inOnSteps && !inOnPermissions && lineIndent == 2 && strings.HasPrefix(trimmedLine, "labels:") {
+				shouldComment = true
+				commentReason = " # Label filtering applied via job conditions"
+			} else if inLabelsArray && strings.HasPrefix(trimmedLine, "-") {
+				// Comment out array items in labels
+				shouldComment = true
+				commentReason = " # Label filtering applied via job conditions"
 			} else if strings.HasPrefix(trimmedLine, "steps:") {
 				shouldComment = true
 				commentReason = " # Steps injected into pre-activation job"

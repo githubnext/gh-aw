@@ -78,7 +78,7 @@ func TestWorkflowCounting(t *testing.T) {
 	}
 
 	// Verify counts
-	assert.Equal(t, len(mdWorkflowNames), userWorkflowCount, "User workflow count should match .md file count")
+	assert.Len(t, mdWorkflowNames, userWorkflowCount, "User workflow count should match .md file count")
 
 	// Verify message format (internal workflows are never mentioned)
 	var message string

@@ -35,6 +35,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
 | `gemini-flash-lite` | `copilot/gemini-*flash*lite*`, `google/gemini-*flash*lite*`, `gemini/gemini-*flash*lite*` |
 | `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*`, `gemini/gemini-*pro*` |
+| `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
 
 ### Meta-Aliases
@@ -74,18 +75,24 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 |-------|-----------|
 | `claude-haiku-4-5` | 0.33 |
 | `claude-haiku-4.5` | 0.33 |
+| `claude-haiku-4-5-20251001` | 0.33 |
 | `claude-3-5-haiku` | 0.1 |
 | `claude-3-haiku` | 0.1 |
 | `claude-sonnet-4` | 1 |
+| `claude-sonnet-4-20250514` | 1 |
 | `claude-sonnet-4-5` | 6 |
 | `claude-sonnet-4.5` | 6 |
+| `claude-sonnet-4-5-20250929` | 6 |
 | `claude-sonnet-4.6` | 9 |
 | `claude-3-5-sonnet` | 1 |
 | `claude-3-7-sonnet` | 1 |
 | `claude-3-sonnet` | 1 |
 | `claude-opus-4` | 5 |
+| `claude-opus-4-20250514` | 5 |
 | `claude-opus-4-1` | 5 |
+| `claude-opus-4-1-20250805` | 5 |
 | `claude-opus-4-5` | 15 |
+| `claude-opus-4-5-20251101` | 15 |
 | `claude-opus-4-6` | 27 |
 | `claude-opus-4-7` | 27 |
 | `claude-opus-4.5` | 15 |
@@ -152,6 +159,9 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-2.0-flash-lite` | 0.1 |
 | `gemini-1.5-pro` | 1 |
 | `gemini-1.5-flash` | 0.1 |
+| `gemini-flash-latest` | 0.2 |
+| `gemini-flash-lite-latest` | 0.1 |
+| `gemini-pro-latest` | 1 |
 | `gemini-3-flash-preview` | 0.33 |
 | `gemini-3-pro-preview` | 6 |
 | `gemini-3-pro-image-preview` | 6 |
@@ -164,6 +174,8 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-3.1-flash-tts-preview` | 0.1 |
 | `gemini-2.5-computer-use-preview` | 0.2 |
 | `gemini-2.5-computer-use-preview-10-2025` | 0.2 |
+| `gemini-robotics-er-1.5-preview` | 0.2 |
+| `gemini-robotics-er-1.6-preview` | 0.2 |
 
 ### Other
 
@@ -171,6 +183,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 |-------|-----------|
 | `deep-research-max-preview-04-2026` | 1 |
 | `deep-research-preview-04-2026` | 1 |
+| `deep-research-pro-preview-12-2025` | 1 |
 | `gemma-4-26b-a4b-it` | 0.1 |
 | `gemma-4-31b-it` | 0.2 |
 | `grok-code-fast-1` | 0.33 |

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -39,8 +40,10 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Preserve the top-level ET budget before string-form engine handling may
 	// intentionally clear engineConfig while converting "engine: <id>" into an import.
 	preservedMaxEffectiveTokens := int64(0)
+	preservedMaxRuns := 0
 	if engineConfig != nil {
 		preservedMaxEffectiveTokens = engineConfig.MaxEffectiveTokens
+		preservedMaxRuns = engineConfig.MaxRuns
 	}
 
 	// Validate and register inline engine definitions (engine.runtime sub-object).
@@ -290,6 +293,27 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 	if preservedMaxEffectiveTokens > 0 {
 		engineConfig.MaxEffectiveTokens = preservedMaxEffectiveTokens
+	}
+	if preservedMaxRuns > 0 {
+		engineConfig.MaxRuns = preservedMaxRuns
+	}
+	if engineConfig.MaxRuns <= 0 && importsResult.MergedMaxRuns != "" {
+		var importedMaxRuns any
+		if err := json.Unmarshal([]byte(importsResult.MergedMaxRuns), &importedMaxRuns); err == nil {
+			if parsed := parseMaxRunsValue(importedMaxRuns); parsed > 0 {
+				engineConfig.MaxRuns = parsed
+				orchestratorEngineLog.Printf("Applied max-runs from import")
+			}
+		}
+	}
+	if engineConfig.MaxEffectiveTokens <= 0 && importsResult.MergedMaxEffectiveTokens != "" {
+		var importedMaxTokens any
+		if err := json.Unmarshal([]byte(importsResult.MergedMaxEffectiveTokens), &importedMaxTokens); err == nil {
+			if parsed := parseMaxEffectiveTokensValue(importedMaxTokens); parsed > 0 {
+				engineConfig.MaxEffectiveTokens = parsed
+				orchestratorEngineLog.Printf("Applied max-effective-tokens from import")
+			}
+		}
 	}
 	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
 		engineConfig.MCPToolTimeout = importsResult.MergedEngineMCPToolTimeout

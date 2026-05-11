@@ -336,6 +336,35 @@ jobs:
         ./gh-aw update --verbose
         echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
 
+  compile-cli-workflows:
+    name: Compile pkg/cli/workflows
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    - update
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-compile-cli-workflows
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Download gh-aw binary artifact
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+      with:
+        name: gh-aw-linux-amd64
+        path: .
+
+    - name: Prepare gh-aw binary
+      run: chmod +x ./gh-aw
+
+    - name: Compile pkg/cli/workflows
+      run: make compile-cli-workflows
+
   js-integration-live-api:
     if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
     needs:

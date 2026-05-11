@@ -47,6 +47,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		// apiProxy section with enabled: true
 		assert.Contains(t, jsonStr, `"apiProxy"`, "should include apiProxy section")
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy should be enabled")
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns")
 		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxEffectiveTokens":%d`, constants.DefaultMaxEffectiveTokens), "apiProxy should emit default maxEffectiveTokens")
 
 		// container.imageTag
@@ -118,6 +119,45 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should emit configured maxEffectiveTokens")
 	})
 
+	t.Run("configured max-runs is emitted in apiProxy config", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:      "copilot",
+					MaxRuns: 37,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxRuns":37`, "apiProxy should emit configured maxRuns")
+	})
+
+	t.Run("default max-runs is emitted when not configured", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns when unset")
+	})
+
 	t.Run("engine token-weights multipliers are emitted in apiProxy modelMultipliers", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -127,7 +167,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 					ID: "copilot",
 					TokenWeights: &types.TokenWeights{
 						Multipliers: map[string]float64{
-							"gpt-5":     1.2,
+							"gpt-5":      1.2,
 							"gpt-5-mini": 0.8,
 						},
 					},

@@ -190,7 +190,7 @@ func TestEnsureToolsSection(t *testing.T) {
 
 			// Verify reference identity: mutating the returned map must be visible via frontmatter
 			tools["__probe__"] = true
-			assert.Equal(t, true, frontmatterTools["__probe__"], "returned tools should be the same map stored in frontmatter['tools']")
+			assert.True(t, frontmatterTools["__probe__"].(bool), "returned tools should be the same map stored in frontmatter['tools']")
 			delete(tools, "__probe__")
 
 			// Verify returned tools matches the expected content

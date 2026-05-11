@@ -168,6 +168,9 @@ The YAML frontmatter supports these fields:
   - Bot must be active (installed) on repository to trigger workflow
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - Must be `true`
+- **`max-runs:`** - Maximum number of LLM invocations allowed per workflow run (integer or numeric string, minimum: 1)
+  - Top-level field mapped to `apiProxy.maxRuns`
+  - Supported by all engines
 - **`user-rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
   - **`max-runs-per-window:`** - Maximum runs allowed per user per time window (required, integer 1-10)
   - **`window:`** - Time window in minutes (integer 1-180, default: 60)

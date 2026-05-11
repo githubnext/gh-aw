@@ -324,6 +324,7 @@ export default defineConfig({
 						{ label: 'Audit', link: '/reference/audit/' },
 						{ label: 'Authentication', link: '/reference/auth/' },
 						{ label: 'Authentication (Projects)', link: '/reference/auth-projects/' },
+						{ label: 'AWF Reflect Route', link: '/reference/awf-reflect/' },
 						{ label: 'Cache Memory', link: '/reference/cache-memory/' },
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },

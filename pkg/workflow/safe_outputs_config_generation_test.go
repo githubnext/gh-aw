@@ -89,11 +89,11 @@ func TestGenerateSafeOutputsConfigActions(t *testing.T) {
 	// registers it. Names are normalized (hyphens converted to underscores).
 	uploadVal, hasUploadReport := parsed["upload_report"]
 	assert.True(t, hasUploadReport, "Expected upload_report key in config")
-	assert.Equal(t, true, uploadVal, "upload_report value should be true")
+	assert.True(t, uploadVal.(bool), "upload_report value should be true")
 
 	publishVal, hasPublishResults := parsed["publish_results"]
 	assert.True(t, hasPublishResults, "Expected publish_results key in config (hyphen normalized to underscore)")
-	assert.Equal(t, true, publishVal, "publish_results value should be true")
+	assert.True(t, publishVal.(bool), "publish_results value should be true")
 }
 
 // TestGenerateSafeOutputsConfigActionsCollisionReturnsError tests that a custom action
@@ -181,8 +181,8 @@ func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 
 	mentions, ok := parsed["mentions"].(map[string]any)
 	require.True(t, ok, "Expected mentions key in config")
-	assert.Equal(t, true, mentions["enabled"], "enabled should be true")
-	assert.Equal(t, false, mentions["allowTeamMembers"], "allowTeamMembers should be false")
+	assert.True(t, mentions["enabled"].(bool), "enabled should be true")
+	assert.False(t, mentions["allowTeamMembers"].(bool), "allowTeamMembers should be false")
 	assert.InDelta(t, float64(5), mentions["max"], 0.0001, "max should be 5")
 }
 
@@ -263,7 +263,7 @@ func TestGenerateCustomJobToolDefinition(t *testing.T) {
 				schema, ok := result["inputSchema"].(map[string]any)
 				require.True(t, ok, "inputSchema should be a map")
 				assert.Equal(t, "object", schema["type"], "schema type should be object")
-				assert.Equal(t, false, schema["additionalProperties"], "additionalProperties should be false")
+				assert.False(t, schema["additionalProperties"].(bool), "additionalProperties should be false")
 				props, ok := schema["properties"].(map[string]any)
 				require.True(t, ok, "properties should be a map")
 				titleProp, ok := props["title"].(map[string]any)
@@ -474,7 +474,7 @@ func TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo(t *testing.T) {
 	assert.Equal(t, "caido/other-repo", allowedRepos[0], "allowed_repos should match")
 
 	assert.Equal(t, "dev", prConfig["base_branch"], "base_branch should be set")
-	assert.Equal(t, true, prConfig["draft"], "draft should be true")
+	assert.True(t, prConfig["draft"].(bool), "draft should be true")
 
 	reviewers, ok := prConfig["reviewers"].([]any)
 	require.True(t, ok, "reviewers should be an array")
@@ -487,7 +487,7 @@ func TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo(t *testing.T) {
 	assert.Equal(t, "platform-reviewers", teamReviewers[0], "team reviewer should match")
 
 	assert.Equal(t, "[refactor] ", prConfig["title_prefix"], "title_prefix should be set")
-	assert.Equal(t, false, prConfig["fallback_as_issue"], "fallback_as_issue should be false")
+	assert.False(t, prConfig["fallback_as_issue"].(bool), "fallback_as_issue should be false")
 }
 
 // TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat tests that config without
@@ -516,8 +516,8 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 	require.True(t, ok, "Expected create_pull_request key in config")
 
 	assert.InDelta(t, float64(2), prConfig["max"], 0.0001, "max should be 2")
-	assert.Equal(t, true, prConfig["allow_empty"], "allow_empty should be true")
-	assert.Equal(t, true, prConfig["auto_merge"], "auto_merge should be true")
+	assert.True(t, prConfig["allow_empty"].(bool), "allow_empty should be true")
+	assert.True(t, prConfig["auto_merge"].(bool), "auto_merge should be true")
 	assert.InDelta(t, float64(24), prConfig["expires"], 0.0001, "expires should be 24")
 
 	// target-repo and allowed_repos should not be present when not configured
@@ -611,7 +611,7 @@ func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue(t *testing.T) 
 	prConfig, ok := parsed["create_pull_request"].(map[string]any)
 	require.True(t, ok, "Expected create_pull_request key in config")
 
-	assert.Equal(t, false, prConfig["auto_close_issue"], "auto_close_issue should be false")
+	assert.False(t, prConfig["auto_close_issue"].(bool), "auto_close_issue should be false")
 }
 
 // TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueExpression tests that
@@ -825,7 +825,7 @@ func TestGenerateSafeOutputsConfigReplyToPullRequestReviewCommentWithTarget(t *t
 	assert.Len(t, allowedRepos, 1, "Should have 1 allowed repo")
 	assert.Equal(t, "org/other-repo", allowedRepos[0], "allowed_repos entry should match")
 
-	assert.Equal(t, true, replyConfig["footer"], "footer should be true")
+	assert.True(t, replyConfig["footer"].(bool), "footer should be true")
 }
 
 // TestGenerateSafeOutputsConfigClosePullRequest tests that generateSafeOutputsConfig correctly
@@ -901,6 +901,6 @@ func TestGenerateSafeOutputsConfigClosePullRequestStaged(t *testing.T) {
 	closePRConfig, ok := parsed["close_pull_request"].(map[string]any)
 	require.True(t, ok, "Expected close_pull_request key in config.json")
 
-	assert.Equal(t, true, closePRConfig["staged"], "staged should be true")
+	assert.True(t, closePRConfig["staged"].(bool), "staged should be true")
 	assert.Nil(t, closePRConfig["github-token"], "github-token should not be set when empty")
 }

@@ -43,6 +43,7 @@ func GetAllCodemods() []Codemod {
 		getRolesToOnRolesCodemod(),                    // Move top-level roles to on.roles
 		getBotsToOnBotsCodemod(),                      // Move top-level bots to on.bots
 		getEngineStepsToTopLevelCodemod(),             // Move engine.steps to top-level steps
+		getEngineMaxRunsToTopLevelCodemod(),           // Move engine.max-runs to top-level max-runs
 		getStepsRunSecretsToEnvCodemod(),              // Move inline secrets in step run fields to step env bindings
 		getEngineEnvSecretsCodemod(),                  // Remove unsafe secret-bearing engine.env entries
 		getAssignToAgentDefaultAgentCodemod(),         // Rename deprecated default-agent to name in assign-to-agent
@@ -55,6 +56,7 @@ func GetAllCodemods() []Codemod {
 		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)
 		getSerenaToSharedImportCodemod(),              // Migrate removed tools.serena to shared/mcp/serena.md import
 		getWorkflowRunBranchesCodemod(),               // Add default branches to bare on.workflow_run trigger
+		getCheckoutPersistCredentialsFalseCodemod(),   // Add with.persist-credentials: false to actions/checkout steps
 		getPullRequestTargetCheckoutFalseCodemod(),    // Add checkout: false for pull_request_target workflows when safe
 		getDependabotPermissionsCodemod(),             // Add vulnerability-alerts: read when dependabot toolset is used
 		getGitHubReposToAllowedReposCodemod(),         // Rename deprecated tools.github.repos to tools.github.allowed-repos

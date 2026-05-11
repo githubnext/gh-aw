@@ -24,7 +24,11 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var forecastMonteCarloLog = logger.New("cli:forecast_montecarlo")
 
 // monteCarloIterations is the number of simulation trials per workflow.
 // 10 000 gives < 1% Monte Carlo error on percentile estimates and runs in < 10 ms
@@ -85,10 +89,13 @@ type ForecastMonteCarloSummary struct {
 func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod float64, rng *rand.Rand) *ForecastMonteCarloSummary {
 	n := len(etObservations)
 	if n == 0 || observedRunsPerPeriod <= 0 {
+		forecastMonteCarloLog.Printf("Skipping Monte Carlo: observations=%d, runs_per_period=%.2f", n, observedRunsPerPeriod)
 		return nil
 	}
 
 	successRate := float64(successCount) / float64(n)
+	forecastMonteCarloLog.Printf("Running Monte Carlo: observations=%d, success_count=%d, success_rate=%.3f, runs_per_period=%.2f, iterations=%d",
+		n, successCount, successRate, observedRunsPerPeriod, monteCarloIterations)
 
 	// Bayesian posterior parameters for the Poisson arrival rate λ.
 	// Prior: Jeffreys improper prior ∝ 1/√λ — equivalent to Gamma(0.5, ∞).
@@ -100,14 +107,14 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 
 	simETs := make([]int, monteCarloIterations)
 
-	for i := 0; i < monteCarloIterations; i++ {
+	for i := range monteCarloIterations {
 		// Draw run-count rate from posterior Gamma (accounts for estimation uncertainty in λ).
 		lambdaTrial := gammaSample(rng, gammaShape) * gammaScale
 		// Draw number of runs from Poisson(λ_trial).
 		numRuns := poissonSample(rng, lambdaTrial)
 
 		var totalET int
-		for j := 0; j < numRuns; j++ {
+		for range numRuns {
 			// Each run succeeds independently with probability successRate.
 			if rng.Float64() >= successRate {
 				continue
@@ -123,6 +130,9 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 	sort.Ints(simETs)
 
 	mean, stddev := meanStdDevInt(simETs)
+	reliable := n >= minObservationsForReliableForecast
+	forecastMonteCarloLog.Printf("Monte Carlo complete: mean_et=%d, stddev=%.1f, p10=%d, p50=%d, p90=%d, reliable=%v",
+		mean, stddev, percentileInt(simETs, 10), percentileInt(simETs, 50), percentileInt(simETs, 90), reliable)
 
 	return &ForecastMonteCarloSummary{
 		Iterations:                   monteCarloIterations,
@@ -131,7 +141,7 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 		P10ProjectedEffectiveTokens:  percentileInt(simETs, 10),
 		P50ProjectedEffectiveTokens:  percentileInt(simETs, 50),
 		P90ProjectedEffectiveTokens:  percentileInt(simETs, 90),
-		IsReliable:                   n >= minObservationsForReliableForecast,
+		IsReliable:                   reliable,
 	}
 }
 
@@ -237,22 +247,6 @@ func meanStdDevInt(xs []int) (mean int, stddev float64) {
 	return
 }
 
-// percentileFloat64 returns the p-th percentile of an already-sorted float64 slice
-// using the nearest-rank method.  p must be in [1, 100].
-func percentileFloat64(sorted []float64, p int) float64 {
-	if len(sorted) == 0 {
-		return 0
-	}
-	idx := int(math.Ceil(float64(p)/100*float64(len(sorted)))) - 1
-	if idx < 0 {
-		idx = 0
-	}
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	return sorted[idx]
-}
-
 // percentileInt returns the p-th percentile of an already-sorted int slice
 // using the nearest-rank method.  p must be in [1, 100].
 func percentileInt(sorted []int, p int) int {
@@ -260,12 +254,9 @@ func percentileInt(sorted []int, p int) int {
 		return 0
 	}
 	idx := int(math.Ceil(float64(p)/100*float64(len(sorted)))) - 1
-	if idx < 0 {
-		idx = 0
-	}
+	idx = max(idx, 0)
 	if idx >= len(sorted) {
 		idx = len(sorted) - 1
 	}
 	return sorted[idx]
 }
-

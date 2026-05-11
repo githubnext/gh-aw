@@ -37,6 +37,97 @@ func TestWorkflowRunUnmarshal(t *testing.T) {
 	assert.Empty(t, runs[0].WorkflowPath, "WorkflowPath should be empty when 'path' field is absent")
 }
 
+// TestBuildCreatedFilter verifies that buildCreatedFilter always produces a single
+// --created expression that enforces all supplied date bounds. The key invariant is that
+// StartDate is never silently dropped, which was the root cause of the bug where runs
+// outside the requested window were returned (multiple --created flags were used but gh
+// CLI only honours the last one).
+func TestBuildCreatedFilter(t *testing.T) {
+	tests := []struct {
+		name       string
+		startDate  string
+		endDate    string
+		beforeDate string
+		want       string
+	}{
+		{
+			name: "no bounds",
+			want: "",
+		},
+		{
+			name:      "start date only",
+			startDate: "2026-04-17",
+			want:      ">=2026-04-17",
+		},
+		{
+			name:    "end date only",
+			endDate: "2026-04-17",
+			want:    "<=2026-04-17",
+		},
+		{
+			name:      "start and end date",
+			startDate: "2026-04-17",
+			endDate:   "2026-04-17",
+			want:      "2026-04-17..2026-04-17",
+		},
+		{
+			name:      "start and end date different days",
+			startDate: "2026-04-01",
+			endDate:   "2026-04-30",
+			want:      "2026-04-01..2026-04-30",
+		},
+		{
+			name:       "before date only (pagination cursor)",
+			beforeDate: "2026-04-17T12:00:00Z",
+			// No startDate: keep the original < form.
+			want: "<2026-04-17T12:00:00Z",
+		},
+		{
+			name:       "start date and before date (pagination with lower bound)",
+			startDate:  "2026-04-01",
+			beforeDate: "2026-04-17T12:00:01Z",
+			// beforeDate is exclusive; subtract 1 s for inclusive range syntax.
+			want: "2026-04-01..2026-04-17T12:00:00Z",
+		},
+		{
+			name:       "start date, end date, and before date",
+			startDate:  "2026-04-01",
+			endDate:    "2026-04-30",
+			beforeDate: "2026-04-17T12:00:01Z",
+			// beforeDate takes precedence over endDate as the pagination upper bound.
+			want: "2026-04-01..2026-04-17T12:00:00Z",
+		},
+		{
+			name:       "before date at second boundary",
+			startDate:  "2026-04-17T00:00:00Z",
+			beforeDate: "2026-04-17T00:00:01Z",
+			// Subtracting 1 s from beforeDate gives exactly startDate.
+			want: "2026-04-17T00:00:00Z..2026-04-17T00:00:00Z",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildCreatedFilter(tt.startDate, tt.endDate, tt.beforeDate)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestBuildCreatedFilterStartDateAlwaysEnforced verifies that when both startDate and
+// beforeDate are set, the returned filter contains the startDate so that the lower bound
+// is always honoured. This is the regression test for the original bug.
+func TestBuildCreatedFilterStartDateAlwaysEnforced(t *testing.T) {
+	startDate := "2026-04-17"
+	beforeDate := "2026-04-17T23:59:59Z"
+
+	filter := buildCreatedFilter(startDate, "", beforeDate)
+
+	// The filter must start with the startDate so it is part of the expression sent to gh.
+	assert.True(t, strings.HasPrefix(filter, startDate),
+		"filter %q must start with startDate %q so the lower bound is enforced", filter, startDate)
+}
+
 // TestListWorkflowRunsErrorHandling verifies the error classification logic in
 // listWorkflowRunsWithPagination. In particular it checks that:
 //   - "Unknown JSON field" (capital U, as emitted by gh CLI) is treated as an

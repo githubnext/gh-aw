@@ -110,10 +110,12 @@ func TestLabelNamesPreActivationFilter(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
-		name         string
-		frontmatter  string
-		expectedIf   string
-		shouldHaveIf bool
+		name                  string
+		frontmatter           string
+		expectedIf            string
+		shouldHaveIf          bool
+		shouldCheckLabelArrayItems bool
+		labelItems                 []string
 	}{
 		{
 			name: "pull_request_target with single labels",
@@ -135,6 +137,8 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review'",
 			shouldHaveIf: true,
+			labelItems:                 []string{"panel-review"},
+			shouldCheckLabelArrayItems: false,
 		},
 		{
 			name: "pull_request_target with multiple labels",
@@ -156,6 +160,8 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
 			shouldHaveIf: true,
+			labelItems:                 []string{"panel-review", "needs-triage"},
+			shouldCheckLabelArrayItems: true,
 		},
 		{
 			// Negative test: no on.labels specified → the label-filter condition should not appear.
@@ -199,6 +205,8 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
 			shouldHaveIf: true,
+			labelItems:                 []string{"bug", "enhancement"},
+			shouldCheckLabelArrayItems: true,
 		},
 	}
 
@@ -223,10 +231,72 @@ tools:
 			if tt.shouldHaveIf {
 				assert.Contains(t, lockContent, tt.expectedIf,
 					"pre_activation job should have if condition matching label filter")
+				assert.Contains(t, lockContent, "# labels:",
+					"on.labels should be commented out in generated workflow")
+				assert.Contains(t, lockContent, "Label filtering applied via job conditions",
+					"on.labels comment should explain filter handling")
+				if tt.shouldCheckLabelArrayItems {
+					for _, item := range tt.labelItems {
+						assert.Contains(t, lockContent, "# - "+item,
+							"on.labels array items should be commented out in generated workflow")
+					}
+				}
 			} else {
 				assert.NotContains(t, lockContent, tt.expectedIf,
 					"pre_activation job should not have label-name if condition when labels not specified")
 			}
 		})
 	}
+}
+
+func TestLabelNamesDoesNotAffectNestedOnStepsLabels(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "labels-nested-steps-test")
+	compiler := NewCompiler()
+
+	frontmatter := `---
+on:
+  issues:
+    types: [labeled]
+  labels: bug
+  steps:
+    - name: Nested labels in step input
+      uses: actions/github-script@v8
+      with:
+        labels:
+          - triage
+          - needs-info
+        script: |
+          core.info('label')
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+strict: false
+tools:
+  github:
+    allowed: [issue_read]
+---`
+
+	testFile := tmpDir + "/test-nested-labels.md"
+	content := frontmatter + "\n\n# Test Workflow\n\nNested labels in on.steps should not be treated as on.labels."
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644), "should write test file")
+	defer os.Remove(testFile)
+
+	err := compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "should compile workflow successfully")
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockBytes, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "should read lock file")
+	defer os.Remove(lockFile)
+	lockContent := string(lockBytes)
+
+	assert.Equal(t, 1, strings.Count(lockContent, "Label filtering applied via job conditions"),
+		"label-filter annotation should appear exactly once for top-level on.labels")
+	assert.NotContains(t, lockContent, "- name: Nested labels in step input # Label filtering applied via job conditions",
+		"on.steps list items should not be annotated as label filtering")
+	assert.NotContains(t, lockContent, "- triage # Label filtering applied via job conditions",
+		"nested labels in on.steps should not be annotated as top-level label filtering")
 }

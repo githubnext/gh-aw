@@ -1128,6 +1128,68 @@ Uses imported MCP timeout setting.
 	}
 }
 
+// TestImportMaxLimitsFromSharedWorkflow verifies that top-level max-runs and
+// max-effective-tokens can be imported from a shared workflow and resolved from
+// import-schema defaults.
+func TestImportMaxLimitsFromSharedWorkflow(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	sharedPath := filepath.Join(tempDir, "shared-max-limits.md")
+	sharedContent := `---
+import-schema:
+  max-runs:
+    type: integer
+    default: 37
+  max-effective-tokens:
+    type: integer
+    default: 424242
+
+max-runs: ${{ github.aw.import-inputs.max-runs }}
+max-effective-tokens: ${{ github.aw.import-inputs.max-effective-tokens }}
+---
+
+# Shared max limits
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "main-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+imports:
+  - shared-max-limits.md
+permissions:
+  contents: read
+---
+
+# Main Workflow
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContent := string(lockFileContent)
+	if !strings.Contains(lockContent, `"maxRuns":37`) {
+		t.Errorf("Expected lock file to contain apiProxy.maxRuns from imported workflow, got:\n%s", lockContent)
+	}
+	if !strings.Contains(lockContent, `"maxEffectiveTokens":424242`) {
+		t.Errorf("Expected lock file to contain apiProxy.maxEffectiveTokens from imported workflow, got:\n%s", lockContent)
+	}
+}
+
 // TestImportEngineMCPToolTimeoutConsumerOverride tests that a consumer-specified
 // engine.mcp.tool-timeout takes precedence over the imported value.
 func TestImportEngineMCPToolTimeoutConsumerOverride(t *testing.T) {

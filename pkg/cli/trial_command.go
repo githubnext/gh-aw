@@ -65,6 +65,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflowSpecs := args
+			trialLog.Printf("Trial command invoked: workflow_count=%d", len(workflowSpecs))
 			logicalRepoSpec, _ := cmd.Flags().GetString("logical-repo")
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
 			hostRepoSpec, _ := cmd.Flags().GetString("host-repo")
@@ -83,7 +84,12 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
 
 			if err := validateEngine(engineOverride); err != nil {
+				trialLog.Printf("Engine validation failed: engine=%s, err=%v", engineOverride, err)
 				return err
+			}
+			if trialLog.Enabled() {
+				trialLog.Printf("Trial options: dry_run=%v, repeat=%d, timeout_min=%d, auto_merge_prs=%v, logical_repo=%q, clone_repo=%q, host_repo=%q",
+					dryRun, repeatCount, timeout, autoMergePRs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec)
 			}
 			// If --repo was used instead of --host-repo, use its value
 			if repoSpec != "" {

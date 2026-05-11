@@ -42,6 +42,7 @@ imports:
   - shared/observability-otlp.md
 features:
   copilot-requests: true
+  inline-agents: true
 
 ---
 # Claude Code User Documentation Review
@@ -73,15 +74,7 @@ Start by reading the essential documentation files to understand what gh-aw is a
 5. **Tools Reference** - Read `docs/src/content/docs/reference/tools.md`
 6. **CLI Reference** - Read `docs/src/content/docs/setup/cli.md`
 
-Use bash commands to read these files:
-```bash
-cat README.md
-cat docs/src/content/docs/setup/quick-start.md
-cat docs/src/content/docs/introduction/how-they-work.mdx
-cat docs/src/content/docs/introduction/architecture.mdx
-cat docs/src/content/docs/reference/tools.md
-cat docs/src/content/docs/setup/cli.md
-```
+Use the `doc-reader` agent to gather structured facts from the six core documentation files. Use its JSON output as the factual basis for Phases 2, 3, and 7.
 
 ## Phase 2: Critical Analysis - Answer Key Questions
 
@@ -159,14 +152,7 @@ Things that would slow down adoption or cause brief confusion:
 
 ## Phase 4: Test Key Workflows
 
-Look at example workflows in `.github/workflows/*.md` to understand what's possible:
-
-```bash
-# Find workflows using different engines
-grep -l "engine: claude" .github/workflows/*.md | head -5
-grep -l "engine: copilot" .github/workflows/*.md | head -5
-grep -l "engine: codex" .github/workflows/*.md | head -5
-```
+Use the `engine-example-counter` agent to enumerate workflow examples per engine. Use its counts to answer the parity questions below.
 
 **Analyze:**
 - Are there enough Claude engine examples?
@@ -176,11 +162,7 @@ grep -l "engine: codex" .github/workflows/*.md | head -5
 
 ## Phase 5: Check Tool and Feature Availability
 
-Review the tools documentation to understand dependencies:
-
-```bash
-cat docs/src/content/docs/reference/tools.md
-```
+Use the `tool-engine-classifier` agent to produce the engine-compatibility table. Use it to answer the questions below.
 
 **Questions to answer:**
 - Which tools require specific engines?
@@ -190,13 +172,7 @@ cat docs/src/content/docs/reference/tools.md
 
 ## Phase 6: Authentication and Setup
 
-Focus on authentication requirements:
-
-**Review:**
-- Quick start authentication steps (Step 4 in quick-start.md)
-- Are Claude API key instructions provided?
-- Is it clear that `COPILOT_GITHUB_TOKEN` is only for Copilot users?
-- What secret names are needed for Claude? (`ANTHROPIC_API_KEY`?)
+Focus on authentication requirements. Use the `auth-doc-extractor` agent to gather per-engine auth/secret facts. Then evaluate the gaps it reports against the criteria below.
 
 **Check for:**
 - Missing Claude authentication documentation
@@ -554,3 +530,72 @@ Your report is successful if it:
 Execute your review systematically and provide a comprehensive report that helps make gh-aw accessible to all AI tool users, not just Copilot users.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `doc-reader`
+---
+description: Extracts structured Claude/Copilot/Codex documentation facts from six core docs
+model: small
+---
+Read these files:
+- README.md
+- docs/src/content/docs/setup/quick-start.md
+- docs/src/content/docs/introduction/how-they-work.mdx
+- docs/src/content/docs/introduction/architecture.mdx
+- docs/src/content/docs/reference/tools.md
+- docs/src/content/docs/setup/cli.md
+
+Return compact JSON with:
+- engines_mentioned
+- copilot_dependencies
+- claude_or_codex_mentions
+- prerequisites
+- missing_setup_pieces_for_claude_users
+- notable_quotes_with_file_refs
+
+## agent: `engine-example-counter`
+---
+description: Counts workflow examples by engine and lists representative files
+model: small
+---
+Scan `.github/workflows/*.md` and count occurrences of:
+- `engine: claude`
+- `engine: copilot`
+- `engine: codex`
+- `engine: custom`
+
+Return compact JSON with:
+- counts_by_engine
+- sample_files_by_engine (up to 5 per engine)
+- parity_observations
+
+## agent: `tool-engine-classifier`
+---
+description: Classifies documented tools as agnostic, engine-specific, or unclear
+model: small
+---
+Read `docs/src/content/docs/reference/tools.md`.
+Classify each documented tool into one of:
+- engine-agnostic
+- copilot-only
+- claude-only
+- codex-only
+- unclear
+
+Return a compact markdown table and JSON summary with counts by class and any ambiguous entries.
+
+## agent: `auth-doc-extractor`
+---
+description: Extracts authentication and required secret names per engine from quick start docs
+model: small
+---
+Read `docs/src/content/docs/setup/quick-start.md` and extract authentication details for:
+- copilot
+- claude
+- codex
+- custom
+
+Return compact JSON with:
+- required_secrets_by_engine
+- setup_steps_by_engine
+- explicit_warnings_or_scope_notes
+- auth_gaps_or_missing_instructions

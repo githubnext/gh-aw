@@ -13,6 +13,10 @@ tracker-id: aw-failure-investigator
 engine: claude
 tools:
   bash: ["*"]
+cache:
+  - key: aw-failure-investigator-prefetch-${{ github.run_id }}
+    name: Failure investigator prefetch
+    path: /tmp/gh-aw/failure-investigator
 safe-outputs:
   create-issue:
     expires: 7d
@@ -36,6 +40,185 @@ imports:
   - shared/observability-otlp.md
 features:
   inline-agents: true
+steps:
+  - name: Deterministic pre-fetch for failure analysis
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/failure-investigator
+      python3 - <<'PY'
+      import json
+      import os
+      import subprocess
+      from datetime import datetime, timezone
+      
+      REPO = os.environ["GITHUB_REPOSITORY"]
+      OUT = "/tmp/gh-aw/failure-investigator/prefetch.json"
+      TRACKER_ID = "aw-failure-investigator"
+      LOOKBACK = "-6h"
+      MAX_FAILED_RUNS = 20
+      MAX_RUNS_TO_FETCH = 200
+      MAX_LOG_TAIL_LINES = 200
+      
+      def cmd_display(args):
+          return " ".join(args)
+      
+      def run_json(args):
+          try:
+              out = subprocess.check_output(args, text=True, stderr=subprocess.STDOUT)
+              return json.loads(out)
+          except subprocess.CalledProcessError as error:
+              print(f"Warning: command failed: {cmd_display(args)}")
+              print(error.output)
+              return None
+          except json.JSONDecodeError as error:
+              print(f"Warning: non-JSON output from command: {cmd_display(args)} ({error})")
+              return None
+          except OSError as error:
+              print(f"Warning: could not execute command: {cmd_display(args)} ({error})")
+              return None
+      
+      def run_text(args):
+          try:
+              return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT)
+          except subprocess.CalledProcessError as error:
+              print(f"Warning: command failed: {cmd_display(args)}")
+              print(error.output)
+              return ""
+          except OSError as error:
+              print(f"Warning: could not execute command: {cmd_display(args)} ({error})")
+              return ""
+      
+      logs = run_json(["gh", "aw", "logs", "--start-date", LOOKBACK, "--json", "-c", str(MAX_RUNS_TO_FETCH)]) or {"runs": []}
+      failed_runs = []
+      for run in logs.get("runs", []):
+          if (run.get("conclusion") or "").lower() != "failure":
+              continue
+          failed_runs.append(
+              {
+                  "run_id": run.get("run_id"),
+                  "workflow_name": run.get("workflow_name"),
+                  "workflow_path": run.get("workflow_path"),
+                  "created_at": run.get("created_at"),
+                  "status": run.get("status"),
+                  "conclusion": run.get("conclusion"),
+                  "url": run.get("url"),
+              }
+          )
+          if len(failed_runs) >= MAX_FAILED_RUNS:
+              break
+      
+      failure_details = []
+      for run in failed_runs:
+          run_id = run.get("run_id")
+          if not run_id:
+              continue
+      
+          run_view = run_json(
+              [
+                  "gh",
+                  "run",
+                  "view",
+                  str(run_id),
+                  "--repo",
+                  REPO,
+                  "--json",
+                  "databaseId,url,name,workflowName,createdAt,conclusion,status,jobs",
+              ]
+          )
+          if not run_view:
+              continue
+      
+          failed_steps = []
+          truncated_error_logs = []
+          for job in run_view.get("jobs", []):
+              if (job.get("conclusion") or "").lower() == "failure":
+                  for step in job.get("steps", []):
+                      if (step.get("conclusion") or "").lower() == "failure":
+                          failed_steps.append(
+                              {
+                                  "job_id": job.get("databaseId"),
+                                  "job_name": job.get("name"),
+                                  "step_name": step.get("name"),
+                              }
+                          )
+      
+                  job_id = job.get("databaseId")
+                  if job_id:
+                      log_text = run_text(
+                          [
+                              "gh",
+                              "run",
+                              "view",
+                              str(run_id),
+                              "--repo",
+                              REPO,
+                              "--job",
+                              str(job_id),
+                              "--log-failed",
+                          ]
+                      )
+                      if log_text:
+                          tail_lines = log_text.splitlines()[-MAX_LOG_TAIL_LINES:]
+                          truncated_error_logs.append(
+                              {
+                                  "job_id": job_id,
+                                  "job_name": job.get("name"),
+                                  "line_count": len(tail_lines),
+                                  "tail_200_lines": "\n".join(tail_lines),
+                              }
+                          )
+      
+          failure_details.append(
+              {
+                  "run_id": run_id,
+                  "workflow_name": run_view.get("workflowName") or run_view.get("name"),
+                  "url": run_view.get("url"),
+                  "created_at": run_view.get("createdAt"),
+                  "status": run_view.get("status"),
+                  "conclusion": run_view.get("conclusion"),
+                  "failed_steps": failed_steps,
+                  "truncated_error_logs": truncated_error_logs,
+              }
+          )
+      
+      existing_tracking_issues = run_json(
+          [
+              "gh",
+              "issue",
+              "list",
+              "--repo",
+              REPO,
+              "--state",
+              "open",
+              "--search",
+              f"gh-aw-tracker-id: {TRACKER_ID}",
+              "--limit",
+              "100",
+              "--json",
+              "number,title,state,url,labels,createdAt,updatedAt",
+          ]
+      ) or []
+      
+      payload = {
+          "generated_at": datetime.now(timezone.utc).isoformat(),
+          "repository": REPO,
+          "lookback_window": "6h",
+          "failed_run_ids": [run.get("run_id") for run in failed_runs if run.get("run_id")],
+          "failures": failure_details,
+          "existing_tracking_issues": existing_tracking_issues,
+      }
+      
+      with open(OUT, "w", encoding="utf-8") as f:
+          json.dump(payload, f, indent=2)
+          f.write("\n")
+      
+      print(f"Wrote deterministic prefetch payload to {OUT}")
+      print(f"Failed runs in payload: {len(payload['failed_run_ids'])}")
+      print(f"Existing tracking issues in payload: {len(existing_tracking_issues)}")
+      PY
 ---
 
 # [aw] Failure Investigator (6h)
@@ -47,6 +230,7 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 - **Repository**: `${{ github.repository }}`
 - **Lookback window**: last 6 hours
 - **Issue query to inspect first**: <https://github.com/github/gh-aw/issues?q=is%3Aissue%20state%3Aopen%20label%3Aagentic-workflows>
+- **Deterministic pre-fetch payload**: `/tmp/gh-aw/failure-investigator/prefetch.json`
 
 ## Mission
 
@@ -57,13 +241,24 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 
 ## Required Investigation Steps
 
+### 0) Use deterministic pre-fetch payload first (required)
+
+Read `/tmp/gh-aw/failure-investigator/prefetch.json` first. It already includes:
+- recent failed run IDs for the 6-hour window
+- failed step names
+- truncated error logs (up to last 200 lines per failed job)
+- existing open tracking issues filtered by `gh-aw-tracker-id: aw-failure-investigator`
+
+Use this payload as the primary discovery dataset. Only call additional logs/list APIs when a field is missing or stale.
+
 ### 1) Fetch and review existing issue context
 
-Use the `issue-context-fetcher` agent to retrieve open `agentic-workflows` issues grouped into clusters, gaps, and potential duplicates. Use the returned JSON when correlating failures.
+Use the `issue-context-fetcher` agent to retrieve open `agentic-workflows` issues grouped into clusters, gaps, and potential duplicates. Merge that with `existing_tracking_issues` from the pre-fetch payload when correlating failures.
 
 ### 2) Collect workflow runs and isolate failures (last 6h)
 
-Use the `failure-dataset-builder` agent to fetch logs for the last 6 hours and return clustered failure rows with representative + comparator run IDs.
+Start from `failed_run_ids` and `failures` in the pre-fetch payload to build clustered failure rows with representative + comparator run IDs.
+Only run additional logs queries if the pre-fetch payload cannot support a cluster decision.
 
 ### 3) Deep-dive each failure cluster with `audit`
 

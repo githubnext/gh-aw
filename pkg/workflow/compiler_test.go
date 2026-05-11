@@ -365,8 +365,7 @@ This workflow is missing the required 'on' field.
 
 	// Error should contain file reference
 	errorStr := err.Error()
-	assert.True(t, strings.Contains(errorStr, "invalid.md") || strings.Contains(errorStr, "error"),
-		"Error should reference the file or contain 'error'")
+	assert.Regexp(t, `invalid\.md|error`, errorStr, "Error should reference the file or contain 'error'")
 }
 
 // TestCompileWorkflow_PathTraversal tests that path traversal attempts are handled safely

@@ -1286,6 +1286,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 - **[custom-agents](skills/custom-agents/SKILL.md)** - GitHub custom agent file format
 - **[gh-agent-session](skills/gh-agent-session/SKILL.md)** - GitHub CLI agent session extension
 - **<a>adding-new-engines</a>** - Comprehensive guide for adding new agentic engines (AI coding agents)
+- **[otel-queries](skills/otel-queries/SKILL.md)** - Fixed OTEL query loop for gh-aw spans: use local JSONL mirrors or live backends, answer telemetry questions efficiently, and only then drive follow-on optimization when needed
 
 ### Safe Outputs & Features
 - **[temporary-id-safe-output](skills/temporary-id-safe-output/SKILL.md)** - Adding temporary ID support to safe output jobs
