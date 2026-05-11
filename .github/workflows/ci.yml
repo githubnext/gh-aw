@@ -336,6 +336,35 @@ jobs:
         ./gh-aw update --verbose
         echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
 
+  compile-cli-workflows:
+    name: Compile pkg/cli/workflows
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    - update
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-compile-cli-workflows
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Download gh-aw binary artifact
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+      with:
+        name: gh-aw-linux-amd64
+        path: .
+
+    - name: Prepare gh-aw binary
+      run: chmod +x ./gh-aw
+
+    - name: Compile pkg/cli/workflows
+      run: make compile-cli-workflows
+
   js-integration-live-api:
     if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
     needs:
@@ -1290,8 +1319,9 @@ jobs:
         NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       run: |
         echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
-        repo_name=$(gh api /repos/${{ github.repository }} --jq '.full_name')
-        echo "✅ gh CLI works through DIFC proxy (repo: $repo_name)"
+        # Use /rate_limit which is exempt from rate limits and proves proxy routing works
+        rate_limit=$(gh api /rate_limit --jq '.rate.limit')
+        echo "✅ gh CLI works through DIFC proxy (rate limit: ${rate_limit})"
 
     - name: Test actions/github-script with proxy env
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9

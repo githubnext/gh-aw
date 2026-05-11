@@ -3,25 +3,25 @@ import { describe, it, expect, beforeAll, vi } from "vitest";
 const path = require("path");
 const fs = require("fs");
 const { computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
-const { withRetry, isTransientError } = require("./error_recovery.cjs");
-
-// Retry configuration for live API tests
-const LIVE_API_RETRY_CONFIG = {
-  maxRetries: 3,
-  initialDelayMs: 1000,
-  shouldRetry: isTransientError,
-};
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 
 /**
- * Wraps a file reader function with retry logic for transient GitHub API errors
+ * Wraps a file reader function with retry logic for transient GitHub API errors.
+ * Uses RATE_LIMIT_RETRY_CONFIG (5 retries, ~30 s initial delay) so that installation-level
+ * rate limit bursts during busy CI windows don't cause spurious test failures.
  * @param {Function} fileReader - The original file reader function
  * @returns {Function} File reader with retry logic
  */
 function createRetryableFileReader(fileReader) {
   return async function (filePath) {
-    return withRetry(async () => fileReader(filePath), LIVE_API_RETRY_CONFIG, `fetch file ${filePath}`);
+    return withRetry(async () => fileReader(filePath), RATE_LIMIT_RETRY_CONFIG, `fetch file ${filePath}`);
   };
 }
+
+// Maximum time to allow the live API test to run. Must accommodate RATE_LIMIT_RETRY_CONFIG's
+// worst-case retry sequence (~30 s + ~60 s + ~120 s + ~240 s + ~240 s = ~11.5 min) plus
+// network and processing overhead. The CI job itself times out at 20 minutes.
+const LIVE_API_TEST_TIMEOUT_MS = 18 * 60 * 1000; // 18 minutes
 
 /**
  * Tests for frontmatter hash computation using GitHub's API to fetch real workflows.
@@ -371,7 +371,7 @@ describe("frontmatter_hash with GitHub API", () => {
   });
 
   describe("live GitHub API integration", () => {
-    it("should compute hash using real GitHub API (no mocks)", { timeout: 30000 }, async () => {
+    it("should compute hash using real GitHub API (no mocks)", { timeout: LIVE_API_TEST_TIMEOUT_MS }, async () => {
       // Skip this test if no GitHub token is available
       // Check multiple possible token environment variables
       const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
@@ -403,9 +403,19 @@ describe("frontmatter_hash with GitHub API", () => {
       console.log(`\n🔍 Fetching live data from GitHub API: ${owner}/${repo}/${workflowPath}@${ref}`);
 
       // Compute hash using live API data
-      const hash = await computeFrontmatterHash(workflowPath, {
-        fileReader,
-      });
+      let hash;
+      try {
+        hash = await computeFrontmatterHash(workflowPath, {
+          fileReader,
+        });
+      } catch (err) {
+        if (err.message?.toLowerCase().includes("rate limit")) {
+          console.log("Skipping live API test - GitHub API rate limit exceeded");
+          console.log("This is expected when the API rate limit is reached during CI runs");
+          return;
+        }
+        throw err;
+      }
 
       // Verify hash format
       expect(hash).toMatch(/^[a-f0-9]{64}$/);

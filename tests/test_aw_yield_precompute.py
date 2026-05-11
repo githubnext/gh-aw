@@ -56,6 +56,75 @@ def test_imported_observability_is_detected(tmp_path: Path) -> None:
     assert pre.has_imported_observability(workflow, frontmatter) is True
 
 
+def test_telemetry_entry_preserves_observed_and_validated_flags() -> None:
+    normalized = pre.normalize_telemetry_entry(
+        {
+            "workflow_path": ".github/workflows/alpha.md",
+            "workflow_invocation_count": 4,
+            "success_rate": 0.75,
+            "runtime_duration": 12,
+            "observed": True,
+            "validated": True,
+            "source": "github-actions-runs",
+        }
+    )
+    assert normalized["metrics"]["workflow_invocation_count"] == 4
+    assert normalized["observed"] is True
+    assert normalized["validated"] is True
+    assert normalized["source"] == "github-actions-runs"
+
+
+def test_declared_observability_without_telemetry_stays_low_evidence(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflow = workflows / "alpha.md"
+    write_workflow(
+        workflow,
+        "---\nobservability:\n  otlp:\n    endpoint:\n      url: ${{ secrets.OTLP_ENDPOINT }}\nstrict: true\nsafe-outputs:\n  create-issue:\n    max: 1\n---\n# Alpha\n",
+    )
+    record = pre.build_workflow_record(workflow, workflows, {})
+    assert record["observability_declared"] is True
+    assert record["telemetry_observed"] is False
+    assert record["telemetry_validated"] is False
+    assert record["evidence_quality"] == "low"
+    assert "telemetry not observed" in record["notes"]
+
+
+def test_telemetry_prefers_repo_relative_path_over_name_collisions(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    first = workflows / "foo" / "alpha.md"
+    second = workflows / "bar" / "alpha.md"
+    write_workflow(first, "---\nname: Alpha One\n---\n# Alpha One\n")
+    write_workflow(second, "---\nname: Alpha Two\n---\n# Alpha Two\n")
+    telemetry = tmp_path / "summary.json"
+    telemetry.write_text(
+        """
+{
+  "workflows": [
+    {"workflow_path": ".github/workflows/foo/alpha.md", "workflow_invocation_count": 1, "observed": true, "validated": true},
+    {"workflow_path": ".github/workflows/bar/alpha.md", "workflow_invocation_count": 7, "observed": true, "validated": true}
+  ]
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    telemetry_index = pre.load_otel_summary(str(telemetry))
+    record = pre.build_workflow_record(second, workflows, telemetry_index)
+    assert record["telemetry_metrics"]["workflow_invocation_count"] == 7
+
+
+def test_portfolio_metrics_split_declared_observed_and_validated_coverage() -> None:
+    workflows = [
+        {"yield": 0.3, "cost": 0.2, "risk": 0.2, "maintenance_drag": 0.2, "agentic_fraction": 0.4, "deterministic_fraction": 0.6, "observability_declared": True, "telemetry_observed": True, "telemetry_validated": True, "evidence_quality": "high"},
+        {"yield": 0.2, "cost": 0.2, "risk": 0.2, "maintenance_drag": 0.2, "agentic_fraction": 0.5, "deterministic_fraction": 0.5, "observability_declared": True, "telemetry_observed": False, "telemetry_validated": False, "evidence_quality": "low"},
+        {"yield": 0.1, "cost": 0.2, "risk": 0.2, "maintenance_drag": 0.2, "agentic_fraction": 0.6, "deterministic_fraction": 0.4, "observability_declared": False, "telemetry_observed": False, "telemetry_validated": False, "evidence_quality": "low"},
+    ]
+    metrics = pre.compute_portfolio_metrics(workflows, overlap_drag_value=0.0)
+    assert metrics["observability_declared_coverage"] == 0.6667
+    assert metrics["telemetry_observed_coverage"] == 0.3333
+    assert metrics["telemetry_validated_coverage"] == 0.3333
+    assert metrics["telemetry_coverage"] == 0.3333
+
+
 def test_relative_import_escapes_are_rejected(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     escaped = tmp_path / "outside.md"

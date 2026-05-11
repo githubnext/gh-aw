@@ -284,11 +284,12 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == ''`
-	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'update_pull_request_branches' && inputs.operation != 'validate'`
+	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'update_pull_request_branches' && inputs.operation != 'validate' && inputs.operation != 'forecast'`
 	applySafeOutputsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'safe_outputs'`
 	createLabelsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'create_labels'`
 	updatePullRequestBranchesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'update_pull_request_branches'`
 	activityReportCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'activity_report'`
+	forecastCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'forecast'`
 	closeAgenticWorkflowIssuesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'close_agentic_workflows_issues'`
 	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '' || inputs.operation == 'clean_cache_memories'`
 
@@ -448,6 +449,58 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		t.Errorf("Job activity_report issue generation step should create the activity report issue title in:\n%s", yaml)
 	}
 
+	forecastIdx := strings.Index(yaml, "\n  forecast_report:")
+	if forecastIdx == -1 {
+		t.Errorf("Job forecast_report not found in generated workflow")
+	} else {
+		forecastSection := yaml[forecastIdx : forecastIdx+runOpSectionSearchRange]
+		if !strings.Contains(forecastSection, forecastCondition) {
+			t.Errorf("Job forecast_report should have the activation condition %q in:\n%s", forecastCondition, forecastSection)
+		}
+		if !strings.Contains(forecastSection, "actions: read") {
+			t.Errorf("Job forecast_report should include actions: read permission in:\n%s", forecastSection)
+		}
+		if !strings.Contains(forecastSection, "issues: write") {
+			t.Errorf("Job forecast_report should include issues: write permission in:\n%s", forecastSection)
+		}
+		if !strings.Contains(forecastSection, "timeout-minutes: 60") {
+			t.Errorf("Job forecast_report should set timeout-minutes: 60 in:\n%s", forecastSection)
+		}
+	}
+	if !strings.Contains(yaml, "Generate forecast report") {
+		t.Errorf("Job forecast_report should include forecast generation step in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "Restore forecast report logs cache") {
+		t.Errorf("Job forecast_report should restore logs cache before warm-up in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "Save forecast report logs cache") {
+		t.Errorf("Job forecast_report should save logs cache after forecast generation in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
+		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500") {
+		t.Errorf("Job forecast_report should warm logs cache with 30-day lookback and expanded count in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast.") {
+		t.Errorf("Job forecast_report should fail when run summary cache is missing after warm-up in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --json") {
+		t.Errorf("Job forecast_report gh aw forecast command should include --repo and --json in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "shell: bash") {
+		t.Errorf("Job forecast_report should explicitly use bash shell for stderr filtering in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"${{ github.repository }}\" --json 2> >(grep -Fv \"forecast is an experimental command and may change without notice\" >&2) > ./.cache/gh-aw/forecast/report.json") {
+		t.Errorf("Job forecast_report gh aw forecast command should filter the experimental warning while preserving stderr in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "const { main } = require('${{ runner.temp }}/gh-aw/actions/create_forecast_issue.cjs');") {
+		t.Errorf("Job forecast_report issue generation step should call create_forecast_issue.cjs in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "setupGlobals(core, github, context, exec, io, getOctokit);") {
+		t.Errorf("Job forecast_report issue generation step should initialize setup globals before calling create_forecast_issue.cjs in:\n%s", yaml)
+	}
+
 	// close_agentic_workflows_issues job should be triggered when operation == 'close_agentic_workflows_issues'
 	closeAgenticWorkflowIssuesIdx := strings.Index(yaml, "\n  close_agentic_workflows_issues:")
 	if closeAgenticWorkflowIssuesIdx == -1 {
@@ -487,6 +540,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify activity_report is an option in the operation choices
 	if !strings.Contains(yaml, "- 'activity_report'") {
 		t.Error("workflow_dispatch operation choices should include 'activity_report'")
+	}
+
+	// Verify forecast is an option in the operation choices
+	if !strings.Contains(yaml, "- 'forecast'") {
+		t.Error("workflow_dispatch operation choices should include 'forecast'")
 	}
 
 	// Verify close_agentic_workflows_issues is an option in the operation choices
@@ -1184,13 +1242,14 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 		}
 		yaml := string(content)
-		// run_operation, create_labels, activity_report, validate_workflows, and compile_workflows should use the same setup-go version
-		// (all use getActionPin, not hardcoded pins). Exactly 5 occurrences expected.
+		// run_operation, create_labels, activity_report, forecast_report, validate_workflows,
+		// and compile_workflows should use the same setup-go version
+		// (all use getActionPin, not hardcoded pins). Exactly 6 occurrences expected.
 		// Note: label_disable_agentic_workflow no longer installs the CLI, so it has no setup-go step.
 		setupGoPin := getActionPin("actions/setup-go")
 		occurrences := strings.Count(yaml, setupGoPin)
-		if occurrences != 5 {
-			t.Errorf("Expected exactly 5 occurrences of pinned setup-go ref %q (run_operation + create_labels + activity_report + validate_workflows + compile_workflows), got %d in:\n%s",
+		if occurrences != 6 {
+			t.Errorf("Expected exactly 6 occurrences of pinned setup-go ref %q (run_operation + create_labels + activity_report + forecast_report + validate_workflows + compile_workflows), got %d in:\n%s",
 				setupGoPin, occurrences, yaml)
 		}
 	})

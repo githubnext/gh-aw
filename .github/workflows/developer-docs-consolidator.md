@@ -16,9 +16,6 @@ permissions:
 engine: claude
 strict: true
 
-features:
-  inline-agents: true
-
 network:
   allowed:
     - defaults

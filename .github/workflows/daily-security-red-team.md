@@ -23,8 +23,6 @@ safe-outputs:
     labels: ["security", "red-team"]
     max: 5
 timeout-minutes: 60
-features:
-  inline-agents: true
 imports:
   - shared/security-analysis-base.md
   - uses: shared/daily-audit-base.md

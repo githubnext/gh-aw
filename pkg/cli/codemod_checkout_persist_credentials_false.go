@@ -17,26 +17,23 @@ func getCheckoutPersistCredentialsFalseCodemod() Codemod {
 		Description:  "Ensures actions/checkout steps set with.persist-credentials: false in steps-like sections for strict-mode safety.",
 		IntroducedIn: "1.0.44",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			sections := []string{"pre-steps", "steps", "post-steps", "pre-agent-steps"}
-			hasTargetSection := false
-			for _, section := range sections {
-				if _, ok := frontmatter[section]; ok {
-					hasTargetSection = true
-					break
-				}
-			}
-			if !hasTargetSection {
+			agentSections := []string{"pre-steps", "steps", "post-steps", "pre-agent-steps"}
+			if !hasTopLevelSection(frontmatter, agentSections) && !hasAgentJobSection(frontmatter, agentSections) {
 				return content, false, nil
 			}
 
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 				modified := false
 				current := lines
-				for _, section := range sections {
+				// Top-level sections and jobs.agent sections are distinct config surfaces
+				// for the same agent job and are transformed independently when present.
+				for _, section := range agentSections {
 					var sectionChanged bool
 					current, sectionChanged = transformSectionCheckoutPersistCredentials(current, section)
 					modified = modified || sectionChanged
 				}
+				current, appliedInAgentJob := transformAgentJobCheckoutPersistCredentials(current, agentSections)
+				modified = modified || appliedInAgentJob
 				return current, modified
 			})
 			if applied {
@@ -45,6 +42,40 @@ func getCheckoutPersistCredentialsFalseCodemod() Codemod {
 			return newContent, applied, err
 		},
 	}
+}
+
+func hasTopLevelSection(frontmatter map[string]any, sections []string) bool {
+	for _, section := range sections {
+		if _, ok := frontmatter[section]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAgentJobSection(frontmatter map[string]any, sections []string) bool {
+	jobsValue, ok := frontmatter["jobs"]
+	if !ok {
+		return false
+	}
+	jobsMap, ok := jobsValue.(map[string]any)
+	if !ok {
+		return false
+	}
+	agentValue, ok := jobsMap["agent"]
+	if !ok {
+		return false
+	}
+	agentMap, ok := agentValue.(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, section := range sections {
+		if _, ok := agentMap[section]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func transformSectionCheckoutPersistCredentials(lines []string, sectionName string) ([]string, bool) {
@@ -85,6 +116,154 @@ func transformSectionCheckoutPersistCredentials(lines []string, sectionName stri
 	result = append(result, updatedSection...)
 	result = append(result, lines[sectionEnd+1:]...)
 	return result, true
+}
+
+func transformAgentJobCheckoutPersistCredentials(lines []string, sectionNames []string) ([]string, bool) {
+	jobsStart := -1
+	jobsIndent := ""
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "jobs:") {
+			jobsStart = i
+			jobsIndent = getIndentation(line)
+			break
+		}
+	}
+	if jobsStart == -1 {
+		return lines, false
+	}
+
+	jobsEnd := len(lines) - 1
+	for i := jobsStart + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if len(getIndentation(lines[i])) <= len(jobsIndent) {
+			jobsEnd = i - 1
+			break
+		}
+	}
+
+	jobsLines := lines[jobsStart : jobsEnd+1]
+	jobsChildIndentLen, hasJobsChild := findDirectChildIndentLen(jobsLines, 0, len(jobsIndent))
+	if !hasJobsChild {
+		return lines, false
+	}
+
+	agentStart := -1
+	agentIndent := ""
+	for i, line := range jobsLines {
+		trimmed := strings.TrimSpace(line)
+		indent := getIndentation(line)
+		if len(indent) == jobsChildIndentLen && parseYAMLMapKey(trimmed) == "agent" {
+			agentStart = i
+			agentIndent = indent
+			break
+		}
+	}
+	if agentStart == -1 {
+		return lines, false
+	}
+
+	agentEnd := len(jobsLines) - 1
+	for i := agentStart + 1; i < len(jobsLines); i++ {
+		trimmed := strings.TrimSpace(jobsLines[i])
+		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if len(getIndentation(jobsLines[i])) <= len(agentIndent) {
+			agentEnd = i - 1
+			break
+		}
+	}
+
+	agentLines := append([]string(nil), jobsLines[agentStart:agentEnd+1]...)
+	modified := false
+	for _, sectionName := range sectionNames {
+		var sectionChanged bool
+		agentLines, sectionChanged = transformNestedSectionCheckoutPersistCredentials(agentLines, sectionName, agentIndent)
+		modified = modified || sectionChanged
+	}
+	if !modified {
+		return lines, false
+	}
+
+	updatedJobsLines := make([]string, 0, len(jobsLines))
+	updatedJobsLines = append(updatedJobsLines, jobsLines[:agentStart]...)
+	updatedJobsLines = append(updatedJobsLines, agentLines...)
+	updatedJobsLines = append(updatedJobsLines, jobsLines[agentEnd+1:]...)
+
+	result := make([]string, 0, len(lines))
+	result = append(result, lines[:jobsStart]...)
+	result = append(result, updatedJobsLines...)
+	result = append(result, lines[jobsEnd+1:]...)
+	return result, true
+}
+
+func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionName, parentIndent string) ([]string, bool) {
+	childIndentLen, hasChild := findDirectChildIndentLen(lines, 0, len(parentIndent))
+	if !hasChild {
+		return lines, false
+	}
+
+	sectionStart := -1
+	sectionIndent := ""
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		indent := getIndentation(line)
+		if len(indent) == childIndentLen && strings.HasPrefix(trimmed, sectionName+":") {
+			sectionStart = i
+			sectionIndent = indent
+			break
+		}
+	}
+	if sectionStart == -1 {
+		return lines, false
+	}
+
+	sectionEnd := len(lines) - 1
+	for i := sectionStart + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if len(getIndentation(lines[i])) <= len(sectionIndent) {
+			sectionEnd = i - 1
+			break
+		}
+	}
+
+	sectionLines := lines[sectionStart : sectionEnd+1]
+	updatedSection, changed := transformCheckoutWithinSection(sectionLines, sectionIndent)
+	if !changed {
+		return lines, false
+	}
+
+	result := make([]string, 0, len(lines))
+	result = append(result, lines[:sectionStart]...)
+	result = append(result, updatedSection...)
+	result = append(result, lines[sectionEnd+1:]...)
+	return result, true
+}
+
+// findDirectChildIndentLen returns the indentation width of the first non-empty,
+// non-comment line that is a direct child of the given parent block.
+// It returns (0, false) when no such child line exists.
+func findDirectChildIndentLen(lines []string, parentStart int, parentIndentLen int) (int, bool) {
+	for i := parentStart + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		indentLen := len(getIndentation(lines[i]))
+		if indentLen <= parentIndentLen {
+			return 0, false
+		}
+		return indentLen, true
+	}
+
+	return 0, false
 }
 
 func transformCheckoutWithinSection(sectionLines []string, sectionIndent string) ([]string, bool) {

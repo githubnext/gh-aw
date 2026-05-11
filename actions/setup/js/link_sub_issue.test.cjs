@@ -55,7 +55,10 @@ const mockCore = {
         fs.rmSync(tempDir, { recursive: true });
       }
     });
-    it("should fail when sub-issue already has a different parent", async () => {
+    it("should succeed (skip) when sub-issue already has a different parent", async () => {
+      // Previously this returned failure; it now returns success/skipped to be idempotent —
+      // if a sub-issue is already tracked in any group, we warn and move on rather than
+      // failing the safe-output job.
       const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };
       mockGithub.rest.issues.get
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
@@ -64,8 +67,8 @@ const mockCore = {
 
       const result = await handler(message, {});
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("Sub-issue is already a sub-issue of #99");
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Sub-issue #50 is already a sub-issue of #99 ("Existing Parent Issue"). Skipping.'));
       expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
       expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("parent {"), expect.any(Object));
@@ -116,6 +119,23 @@ const mockCore = {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
       expect(mockGithub.graphql).toHaveBeenLastCalledWith(expect.stringContaining("addSubIssue"), expect.any(Object));
       expect(mockCore.info).toHaveBeenCalledWith("Successfully linked issue #50 as sub-issue of #100");
+    });
+    it("should succeed (skip) when mutation fails because sub-issue is already a sub-issue", async () => {
+      const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };
+      mockGithub.rest.issues.get
+        .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
+        .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
+      // Pre-flight check says no parent (e.g. parent field not yet populated), but mutation fails
+      mockGithub.graphql
+        .mockResolvedValueOnce({ repository: { issue: { parent: null } } })
+        .mockRejectedValueOnce(new Error("Issue is already a sub-issue of the specified issue."));
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Sub-issue #50 is already linked as a sub-issue"));
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
     });
     it("should handle max count limit", async () => {
       // Create handler with max=1
