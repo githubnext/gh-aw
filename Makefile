@@ -698,6 +698,11 @@ recompile: build
 	./$(BINARY_NAME) compile --validate --verbose --purge --stats
 #	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge
 
+# Compile workflows under pkg/cli/workflows
+.PHONY: compile-cli-workflows
+compile-cli-workflows: build
+	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --purge --no-check-update
+
 # Apply automatic fixes to workflow files
 .PHONY: fix
 fix: build
@@ -832,6 +837,7 @@ help:
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
+	@echo "  compile-cli-workflows - Compile workflows in pkg/cli/workflows (depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-agent-factory     - Generate agent factory documentation page"
