@@ -3,23 +3,18 @@ import { describe, it, expect, beforeAll, vi } from "vitest";
 const path = require("path");
 const fs = require("fs");
 const { computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
-const { withRetry, isTransientError } = require("./error_recovery.cjs");
-
-// Retry configuration for live API tests
-const LIVE_API_RETRY_CONFIG = {
-  maxRetries: 3,
-  initialDelayMs: 1000,
-  shouldRetry: isTransientError,
-};
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 
 /**
- * Wraps a file reader function with retry logic for transient GitHub API errors
+ * Wraps a file reader function with retry logic for transient GitHub API errors.
+ * Uses RATE_LIMIT_RETRY_CONFIG (5 retries, ~30 s initial delay) so that installation-level
+ * rate limit bursts during busy CI windows don't cause spurious test failures.
  * @param {Function} fileReader - The original file reader function
  * @returns {Function} File reader with retry logic
  */
 function createRetryableFileReader(fileReader) {
   return async function (filePath) {
-    return withRetry(async () => fileReader(filePath), LIVE_API_RETRY_CONFIG, `fetch file ${filePath}`);
+    return withRetry(async () => fileReader(filePath), RATE_LIMIT_RETRY_CONFIG, `fetch file ${filePath}`);
   };
 }
 
@@ -371,7 +366,7 @@ describe("frontmatter_hash with GitHub API", () => {
   });
 
   describe("live GitHub API integration", () => {
-    it("should compute hash using real GitHub API (no mocks)", { timeout: 30000 }, async () => {
+    it("should compute hash using real GitHub API (no mocks)", { timeout: 18 * 60 * 1000 }, async () => {
       // Skip this test if no GitHub token is available
       // Check multiple possible token environment variables
       const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;

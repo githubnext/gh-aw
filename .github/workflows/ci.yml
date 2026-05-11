@@ -1319,8 +1319,9 @@ jobs:
         NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       run: |
         echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
-        repo_name=$(gh api /repos/${{ github.repository }} --jq '.full_name')
-        echo "✅ gh CLI works through DIFC proxy (repo: $repo_name)"
+        # Use /rate_limit which is exempt from rate limits and proves proxy routing works
+        rate_limit=$(gh api /rate_limit --jq '.rate.limit')
+        echo "✅ gh CLI works through DIFC proxy (rate limit: ${rate_limit})"
 
     - name: Test actions/github-script with proxy env
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
