@@ -58,7 +58,7 @@ func FuzzCommentOutProcessedFieldsInOnSectionTopLevelLabels(f *testing.F) {
 			t.Fatalf("nested labels item should not be marked as top-level label filtering:\n%s", result)
 		}
 
-		expectedLabelFilterAnnotations := len([]string{topAQuoted, topBQuoted}) + 1 // labels key + top-level items
+		expectedLabelFilterAnnotations := 3 // labels key + 2 top-level items
 		if got := strings.Count(result, "Label filtering applied via job conditions"); got != expectedLabelFilterAnnotations {
 			t.Fatalf("expected %d label-filter annotations (labels key + top-level items), got %d:\n%s", expectedLabelFilterAnnotations, got, result)
 		}
@@ -98,9 +98,6 @@ func FuzzCommentOutProcessedFieldsInOnSectionNoTopLevelLabels(f *testing.F) {
 		}
 		if strings.Contains(result, "Label filtering applied via job conditions") {
 			t.Fatalf("unexpected top-level label filter annotation without on.labels:\n%s", result)
-		}
-		if got := strings.Count(result, "Label filtering applied via job conditions"); got != 0 {
-			t.Fatalf("unexpected top-level label filter annotations without on.labels (got %d):\n%s", got, result)
 		}
 	})
 }
