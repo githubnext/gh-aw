@@ -113,6 +113,25 @@ func TestExtractWorkflowNameFromFile_NonExistentFile(t *testing.T) {
 	}
 }
 
+func TestExtractWorkflowNameFromFile_LargeFrontmatterLine(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	filePath := filepath.Join(tmpDir, "large-frontmatter.md")
+	content := "---\nblob: " + strings.Repeat("x", 70*1024) + "\n---\n\n# Large Frontmatter Workflow\n"
+
+	err := os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	result, err := extractWorkflowNameFromFile(filePath)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if result != "Large Frontmatter Workflow" {
+		t.Fatalf("Expected %q, got %q", "Large Frontmatter Workflow", result)
+	}
+}
+
 func TestIsGitRepo(t *testing.T) {
 	// Test in current directory (should be a git repo based on project setup)
 	result := isGitRepo()
