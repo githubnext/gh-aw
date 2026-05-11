@@ -42,11 +42,7 @@ function buildForecastIssueBody(report, options) {
   const zeroProjectedWithSamples = rows.filter(([, sampledRuns, p50]) => Number(sampledRuns) > 0 && Number(p50) === 0).length;
   const zeroWorkflowWord = zeroProjectedWithSamples === 1 ? "workflow" : "workflows";
   const zeroWorkflowVerb = zeroProjectedWithSamples === 1 ? "has" : "have";
-  const reportTable = [
-    "| Workflow | Sampled runs | Forecast ET (P50) |",
-    "| --- | ---: | ---: |",
-    ...rows.map(([workflowID, sampledRuns, p50]) => `| ${workflowID} | ${sampledRuns} | ${formatET(p50)} |`),
-  ].join("\n");
+  const reportTable = ["| Workflow | Sampled runs | Forecast ET (P50) |", "| --- | ---: | ---: |", ...rows.map(([workflowID, sampledRuns, p50]) => `| ${workflowID} | ${sampledRuns} | ${formatET(p50)} |`)].join("\n");
 
   const repoSlug = `${options.owner}/${options.repo}`;
   const period = report.period || "month";
@@ -72,11 +68,11 @@ function buildForecastIssueBody(report, options) {
       : []),
     ...(zeroProjectedWithSamples > 0
       ? [
-        "> [!TIP]",
-        `> ${zeroProjectedWithSamples} ${zeroWorkflowWord} ${zeroWorkflowVerb} sampled runs but forecast ET is 0. This usually indicates missing token usage in cached run summaries for sampled runs.`,
-        "> Increase the warm-up scope with `gh aw logs --start-date -30d --count <larger value>` if this persists.",
-        "",
-      ]
+          "> [!TIP]",
+          `> ${zeroProjectedWithSamples} ${zeroWorkflowWord} ${zeroWorkflowVerb} sampled runs but forecast ET is 0. This usually indicates missing token usage in cached run summaries for sampled runs.`,
+          "> Increase the warm-up scope with `gh aw logs --start-date -30d --count <larger value>` if this persists.",
+          "",
+        ]
       : []),
     ...(runURL ? [`_Forecast source run: [#${runID}](${runURL})._`] : []),
   ].join("\n");
