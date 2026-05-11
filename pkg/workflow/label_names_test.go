@@ -114,6 +114,7 @@ func TestLabelNamesPreActivationFilter(t *testing.T) {
 		frontmatter  string
 		expectedIf   string
 		shouldHaveIf bool
+		labelItems   []string
 	}{
 		{
 			name: "pull_request_target with single labels",
@@ -135,6 +136,7 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review'",
 			shouldHaveIf: true,
+			labelItems:   []string{"panel-review"},
 		},
 		{
 			name: "pull_request_target with multiple labels",
@@ -156,6 +158,7 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
 			shouldHaveIf: true,
+			labelItems:   []string{"panel-review", "needs-triage"},
 		},
 		{
 			// Negative test: no on.labels specified → the label-filter condition should not appear.
@@ -199,6 +202,7 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
 			shouldHaveIf: true,
+			labelItems:   []string{"bug", "enhancement"},
 		},
 	}
 
@@ -223,6 +227,16 @@ tools:
 			if tt.shouldHaveIf {
 				assert.Contains(t, lockContent, tt.expectedIf,
 					"pre_activation job should have if condition matching label filter")
+				assert.Contains(t, lockContent, "# labels:",
+					"on.labels should be commented out in generated workflow")
+				assert.Contains(t, lockContent, "Label filtering applied via job conditions",
+					"on.labels comment should explain filter handling")
+				for _, item := range tt.labelItems {
+					if strings.Contains(tt.frontmatter, "labels: [") {
+						assert.Contains(t, lockContent, "# - "+item,
+							"on.labels array items should be commented out in generated workflow")
+					}
+				}
 			} else {
 				assert.NotContains(t, lockContent, tt.expectedIf,
 					"pre_activation job should not have label-name if condition when labels not specified")
