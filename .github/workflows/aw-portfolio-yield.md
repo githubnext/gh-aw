@@ -31,16 +31,38 @@ imports:
   - shared/otel-observability.md
 pre-agent-steps:
   - name: Precompute workflow portfolio data
-    run: |
-      set -euo pipefail
-      mkdir -p /tmp/gh-aw
-      python3 scripts/aw_yield_precompute.py --workflows ".github/workflows" --out /tmp/aw-yield-precompute.json
+    uses: actions/github-script@v9
+    env:
+      AW_YIELD_WORKSPACE: ${{ github.workspace }}
+      AW_YIELD_WORKFLOWS: .github/workflows
+      AW_YIELD_OUT: /tmp/aw-yield-precompute.json
+    with:
+      script: |
+        const path = require("path");
+        const { runPrecompute } = require(path.join(process.env.AW_YIELD_WORKSPACE, "scripts/aw_yield_precompute.cjs"));
+        await runPrecompute({
+          workspace: process.env.AW_YIELD_WORKSPACE,
+          workflows: process.env.AW_YIELD_WORKFLOWS,
+          out: process.env.AW_YIELD_OUT,
+        });
 post-steps:
   - name: Finalize workflow portfolio report
-    run: |
-      set -euo pipefail
-      mkdir -p /tmp/gh-aw
-      python3 scripts/aw_yield_postcompute.py --precompute /tmp/aw-yield-precompute.json --agent-output /tmp/gh-aw --out /tmp/aw-yield-final.json
+    uses: actions/github-script@v9
+    env:
+      AW_YIELD_WORKSPACE: ${{ github.workspace }}
+      AW_YIELD_PRECOMPUTE: /tmp/aw-yield-precompute.json
+      AW_YIELD_AGENT_OUTPUT: /tmp/gh-aw
+      AW_YIELD_OUT: /tmp/aw-yield-final.json
+    with:
+      script: |
+        const path = require("path");
+        const { runPostcompute } = require(path.join(process.env.AW_YIELD_WORKSPACE, "scripts/aw_yield_postcompute.cjs"));
+        await runPostcompute({
+          workspace: process.env.AW_YIELD_WORKSPACE,
+          precompute: process.env.AW_YIELD_PRECOMPUTE,
+          agentOutput: process.env.AW_YIELD_AGENT_OUTPUT,
+          out: process.env.AW_YIELD_OUT,
+        });
 ---
 # Agentic Workflow Portfolio Yield
 
@@ -49,7 +71,7 @@ You are the semantic interpreter for the repository's agentic workflow portfolio
 ## Hard Rules
 
 - Treat `/tmp/aw-yield-precompute.json` as the factual source of truth.
-- OTel = facts. Python = math. Agent = interpretation.
+- OTel = facts. Deterministic precompute/postcompute = math. Agent = interpretation.
 - Do **not** recompute raw scores, ranking, overlap values, fractions, or portfolio math from scratch.
 - Do **not** invent telemetry, economics, confidence, or success evidence.
 - Use the `otel` MCP server only for aggregated summaries when the precompute file explicitly indicates that telemetry exists but needs brief interpretation.
