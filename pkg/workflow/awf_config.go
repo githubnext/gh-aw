@@ -257,11 +257,8 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		MaxEffectiveTokens: maxEffectiveTokens,
 	}
 
-	if config.WorkflowData != nil &&
-		config.WorkflowData.EngineConfig != nil &&
-		config.WorkflowData.EngineConfig.TokenWeights != nil &&
-		len(config.WorkflowData.EngineConfig.TokenWeights.Multipliers) > 0 {
-		apiProxy.ModelMultipliers = config.WorkflowData.EngineConfig.TokenWeights.Multipliers
+	if modelMultipliers := extractModelMultipliers(config.WorkflowData); len(modelMultipliers) > 0 {
+		apiProxy.ModelMultipliers = modelMultipliers
 		awfConfigLog.Printf("API proxy: %d model multipliers configured", len(apiProxy.ModelMultipliers))
 	}
 
@@ -334,4 +331,11 @@ func splitDomainList(domains string) []string {
 		}
 	}
 	return result
+}
+
+func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.TokenWeights == nil {
+		return nil
+	}
+	return workflowData.EngineConfig.TokenWeights.Multipliers
 }

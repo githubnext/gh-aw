@@ -145,6 +145,28 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"gpt-5-mini":0.8`, "apiProxy should include configured model multiplier")
 	})
 
+	t.Run("apiProxy modelMultipliers omitted when engine token-weights multipliers are empty", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					TokenWeights: &types.TokenWeights{
+						Multipliers: map[string]float64{},
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"modelMultipliers"`, "apiProxy should omit modelMultipliers when empty")
+	})
+
 	t.Run("anthropic API target is included in apiProxy targets", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "claude",
