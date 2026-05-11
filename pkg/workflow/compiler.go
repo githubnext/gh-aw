@@ -446,12 +446,16 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
 		}
 	}
-	// Keep the first baseline seen by this compiler instance.
+	// Keep the first non-nil baseline seen by this compiler instance.
 	// This intentionally does not overwrite an existing cache entry so repeated
 	// compiles in the same process continue to compare against the same trusted
 	// baseline rather than a just-generated local lock file.
-	if _, ok := c.priorManifests[lockFile]; !ok {
-		c.priorManifests[lockFile] = oldManifest
+	// Nil baselines (e.g., legacy lock files without gh-aw-manifest) are not
+	// cached so future compiles can pick up a newly available manifest.
+	if oldManifest != nil {
+		if _, ok := c.priorManifests[lockFile]; !ok {
+			c.priorManifests[lockFile] = oldManifest
+		}
 	}
 
 	// Validate workflow data

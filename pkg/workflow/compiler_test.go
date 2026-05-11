@@ -340,6 +340,43 @@ Caching baseline manifest data should not change behavior.
 	secondBaseline, ok := manifestCache[lockFile]
 	require.True(t, ok, "cached baseline should remain available after second compile")
 	require.NotNil(t, secondBaseline, "cached baseline should be non-nil")
+	require.Same(t, firstBaseline, secondBaseline, "cache should keep the first baseline without overwrite")
+}
+
+func TestCompileWorkflow_DoesNotCacheNilLegacyBaseline(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "compiler-manifest-legacy")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Legacy lock file baseline should not be cached when manifest is missing.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	lockFile := filepath.Clean(stringutil.MarkdownToLockFile(testFile))
+	legacyLockContent := `name: legacy
+on: push
+jobs:
+  task:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "legacy lock"
+`
+	require.NoError(t, os.WriteFile(lockFile, []byte(legacyLockContent), 0644))
+
+	compiler := NewCompiler(WithNoEmit(true))
+	manifestCache := map[string]*GHAWManifest{}
+	compiler.SetPriorManifests(manifestCache)
+
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	_, ok := manifestCache[lockFile]
+	require.False(t, ok, "nil legacy baseline should not be cached")
 }
 
 // TestCompileWorkflow_LockFileSize tests that generated lock files don't exceed size limits
