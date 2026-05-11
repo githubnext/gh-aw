@@ -34,6 +34,7 @@ Examples:
 			ref, _ := cmd.Flags().GetString("ref")
 			labelFilter, _ := cmd.Flags().GetString("label")
 			repoOverride, _ := cmd.Flags().GetString("repo")
+			statusLog.Printf("Status command invoked: pattern=%q, json=%v, ref=%q, label=%q, repo=%q", pattern, jsonFlag, ref, labelFilter, repoOverride)
 			return StatusWorkflows(pattern, verbose, jsonFlag, ref, labelFilter, repoOverride)
 		},
 	}

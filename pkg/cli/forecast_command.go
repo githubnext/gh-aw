@@ -82,6 +82,9 @@ Examples:
 			sampleSize, _ := cmd.Flags().GetInt("sample")
 			evalMode, _ := cmd.Flags().GetBool("eval")
 
+			forecastRunLog.Printf("Forecast command invoked: workflow_count=%d, days=%d, period=%s, sample_size=%d, eval=%v, json=%v, repo=%q",
+				len(args), days, period, sampleSize, evalMode, jsonOutput, repoOverride)
+
 			config := ForecastConfig{
 				WorkflowIDs:  args,
 				Days:         days,

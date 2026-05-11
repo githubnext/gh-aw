@@ -24,7 +24,11 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var forecastMonteCarloLog = logger.New("cli:forecast_montecarlo")
 
 // monteCarloIterations is the number of simulation trials per workflow.
 // 10 000 gives < 1% Monte Carlo error on percentile estimates and runs in < 10 ms
@@ -85,10 +89,13 @@ type ForecastMonteCarloSummary struct {
 func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod float64, rng *rand.Rand) *ForecastMonteCarloSummary {
 	n := len(etObservations)
 	if n == 0 || observedRunsPerPeriod <= 0 {
+		forecastMonteCarloLog.Printf("Skipping Monte Carlo: observations=%d, runs_per_period=%.2f", n, observedRunsPerPeriod)
 		return nil
 	}
 
 	successRate := float64(successCount) / float64(n)
+	forecastMonteCarloLog.Printf("Running Monte Carlo: observations=%d, success_count=%d, success_rate=%.3f, runs_per_period=%.2f, iterations=%d",
+		n, successCount, successRate, observedRunsPerPeriod, monteCarloIterations)
 
 	// Bayesian posterior parameters for the Poisson arrival rate λ.
 	// Prior: Jeffreys improper prior ∝ 1/√λ — equivalent to Gamma(0.5, ∞).
@@ -123,6 +130,9 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 	sort.Ints(simETs)
 
 	mean, stddev := meanStdDevInt(simETs)
+	reliable := n >= minObservationsForReliableForecast
+	forecastMonteCarloLog.Printf("Monte Carlo complete: mean_et=%d, stddev=%.1f, p10=%d, p50=%d, p90=%d, reliable=%v",
+		mean, stddev, percentileInt(simETs, 10), percentileInt(simETs, 50), percentileInt(simETs, 90), reliable)
 
 	return &ForecastMonteCarloSummary{
 		Iterations:                   monteCarloIterations,
@@ -131,7 +141,7 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 		P10ProjectedEffectiveTokens:  percentileInt(simETs, 10),
 		P50ProjectedEffectiveTokens:  percentileInt(simETs, 50),
 		P90ProjectedEffectiveTokens:  percentileInt(simETs, 90),
-		IsReliable:                   n >= minObservationsForReliableForecast,
+		IsReliable:                   reliable,
 	}
 }
 
