@@ -17,6 +17,10 @@ Apply these in order — each check can halve costs:
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
 - [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
 - [ ] **Prompt caching**: Put stable instructions before dynamic content to maximize cache hits
+- [ ] **Cadence**: If the result is not time-sensitive, schedule less often (`hourly` → `daily`, `daily` → `weekly`)
+- [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
+- [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
+- [ ] **Agentic Ops**: Add token audit / optimizer workflows so the repository keeps finding waste automatically
 - [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "effective_tokens"` before promoting
 
 ---
@@ -347,7 +351,82 @@ See also: [A/B Testing Experiments](experiments.md)
 
 ---
 
-## Technique 6 — Enable Prompt Caching
+## Technique 6 — Reduce Trigger Frequency and Batch Work
+
+**The cheapest run is the one you do not execute.** If a workflow does not need near-real-time feedback, run it less often and process multiple items in one pass.
+
+### Prefer slower schedules when latency is acceptable
+
+Move high-frequency schedules down to the slowest cadence that still meets the operational need:
+
+- `hourly` → `daily on weekdays` for team-facing summaries or audits
+- `daily` → `weekly` for trend reports, optimization reviews, and backlog hygiene
+- `every N hours` → a daily or weekly batch when the workflow only produces guidance or reports
+
+This reduces total workflow runs, token usage, GitHub Actions minutes, and notification noise all at once.
+
+### Prefer scheduled batches over reactive triggers
+
+Reactive triggers (`issues:`, `pull_request:`, comment commands) are appropriate when maintainers need immediate feedback. Otherwise, prefer `schedule:` and batch work:
+
+```yaml
+on:
+  schedule: daily on weekdays
+```
+
+Typical batch-friendly tasks:
+
+- daily or weekly triage summaries
+- stale backlog review
+- token usage audits
+- repository-wide quality or security digests
+
+Combine batching with `cache-memory` or `repo-memory` to track what was already processed so each scheduled run only handles new items.
+
+---
+
+## Technique 7 — Measure Continuously with OpenTelemetry and Agentic Ops
+
+**Don't rely only on ad hoc audits.** Export telemetry automatically, then add workflows that keep looking for token waste over time.
+
+### Enable OTLP export
+
+Add workflow-level OpenTelemetry export so each run emits token and phase data to your observability backend:
+
+```yaml
+observability:
+  otlp:
+    endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
+    headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
+```
+
+`gh-aw` emits setup, agent, and conclusion spans with token usage attributes, which makes it easier to:
+
+- compare workflows over time
+- identify expensive phases before opening logs
+- validate that an optimization reduced cost after rollout
+
+See also: [Frontmatter syntax](syntax.md#observability)
+
+### Add agentic-ops token workflows
+
+Use the token-focused workflows from the Agentic Ops pattern to optimize continuously at the repository level:
+
+- `copilot-token-audit` — scheduled audit of token usage across workflows
+- `copilot-token-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings
+
+This turns token optimization into an ongoing loop:
+
+1. export OTEL data
+2. collect and summarize repository-wide token usage
+3. open optimization issues for the highest-value fixes
+4. re-measure after changes land
+
+This repository already includes examples derived from the Agentic Ops workflow set under `.github/workflows/`.
+
+---
+
+## Technique 8 — Enable Prompt Caching
 
 **Repeated context (system prompt, shared preamble) is charged at ~10× less when cached.**
 
