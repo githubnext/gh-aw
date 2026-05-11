@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.2  
+**Version**: 1.0.3  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -120,6 +120,7 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-010 Expression Safety Allowlist**: Enforce an allowlist of approved GitHub Actions expressions; reject unauthorized or multi-line expressions that could enable injection or exfiltration.
 - **CTR-011 Network Firewall Configuration**: Validate network firewall configuration dependencies and domain patterns; reject configurations that declare firewall rules without required prerequisites (e.g., `allow-urls` without `ssl-bump`); reject wildcard `*` domains in strict mode.
 - **CTR-012 Safe-Outputs Wildcard Push Scope**: Detect misconfiguration patterns when `safe-outputs.push-to-pull-request-branch: target: "*"` is used; warn when no wildcard fetch pattern is present in checkout (suppressed for public repos) and when no access constraints (`title-prefix` or `labels`) are configured.
+- **CTR-013 Argument Injection via Package/Image Names**: Detect package or container image names that start with `-` (hyphen) in npm/npx, pip/uv, and Docker frontmatter configurations; reject these names before they are passed to `exec.Command` calls where they would be interpreted as CLI flags, enabling argument injection.
 
 ### 4.2 Compiler Response Requirements
 
@@ -205,6 +206,7 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-010 Expression Safety Allowlist | `pkg/workflow/expression_safety_validation.go`, `pkg/workflow/expression_syntax_validation.go` | `pkg/workflow/expression_extraction_test.go` |
 | CTR-011 Network Firewall Configuration | `pkg/workflow/network_firewall_validation.go`, `pkg/workflow/firewall_validation.go`, `pkg/workflow/strict_mode_network_validation.go` | `pkg/workflow/network_firewall_validation_test.go` |
 | CTR-012 Safe-Outputs Wildcard Push Scope | `pkg/workflow/push_to_pull_request_branch_validation.go` | `pkg/workflow/push_to_pull_request_branch_test.go`, `pkg/workflow/push_to_pull_request_branch_warning_test.go` |
+| CTR-013 Argument Injection via Package/Image Names | `pkg/workflow/name_validation.go` (shared helper `rejectHyphenPrefixPackages`), `pkg/workflow/npm_validation.go`, `pkg/workflow/pip_validation.go`, `pkg/workflow/docker_validation.go` | `pkg/workflow/argument_injection_test.go` |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
@@ -241,6 +243,7 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 | **T-CTR-010** | CTR-010 Expression Safety Allowlist | A workflow prompt or step uses a GitHub Actions expression not on the approved allowlist (e.g., `${{ github.event.comment.body }}`) or a multi-line expression that could enable exfiltration | Compilation failure with error identifying the disallowed expression, its location, and the approved allowlist | `CTR-010` |
 | **T-CTR-011** | CTR-011 Network Firewall Configuration | Workflow declares `network: allowed: [some-domain]` with `ssl-bump: false` (or omits `ssl-bump` when required), or uses a wildcard `*` domain in strict mode | Compilation failure with error identifying the missing prerequisite or disallowed wildcard domain and providing the corrective configuration | `CTR-011` |
 | **T-CTR-012** | CTR-012 Safe-Outputs Wildcard Push Scope | Workflow uses `safe-outputs.push-to-pull-request-branch: target: "*"` without a wildcard fetch pattern in checkout (for non-public repos) or without `title-prefix` or `labels` access constraints | Compilation warning identifying the unconstrained wildcard scope and the missing checkout fetch pattern or access constraint; suppressed for public repositories | `CTR-012` |
+| **T-CTR-013** | CTR-013 Argument Injection via Package/Image Names | A workflow frontmatter declares an npm/npx package, a pip/uv package, or a Docker container image name that starts with `-` (e.g., `--privileged`, `-exploit`) | Compilation failure with error identifying the invalid name, the affected tool kind, and instructing the user to fix the package or image name | `CTR-013` |
 
 ### 7.2 Test Coverage Requirements
 
@@ -261,6 +264,12 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 ---
 
 ## 9. Change Log
+
+### 1.0.3 (2026-05-11)
+
+- Added CTR-013 Argument Injection via Package/Image Names (hyphen-prefix package/image name rejection for npm/npx, pip/uv, and Docker to prevent exec.Command argument injection)
+- Added T-CTR-013 test ID entry in Section 7.1
+- Extended Section 6.1 baseline rule mapping table with CTR-013 implementation references
 
 ### 1.0.2 (2026-05-09)
 
