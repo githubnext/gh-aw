@@ -140,6 +140,9 @@ func isFrontmatterDelimiterLine(line string) bool {
 		}
 	}
 leftTrimmed:
+	if start >= end {
+		return false
+	}
 	for end > start {
 		switch line[end-1] {
 		case ' ', '\t', '\n', '\r', '\v', '\f':
