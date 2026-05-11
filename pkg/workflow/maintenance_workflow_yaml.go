@@ -582,94 +582,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('node:fs');
-            const reportPath = './.cache/gh-aw/forecast/report.json';
-            if (!fs.existsSync(reportPath)) {
-              core.warning('Forecast report JSON not found at ' + reportPath + '; skipping issue creation.');
-              return;
-            }
-            let reportBody = '';
-            try {
-              reportBody = fs.readFileSync(reportPath, 'utf8').trim();
-            } catch (error) {
-              core.warning('Failed to read forecast report JSON at ' + reportPath + ': ' + error.message);
-              return;
-            }
-            if (!reportBody) {
-              core.warning('Forecast report JSON is empty at ' + reportPath + '; skipping issue creation.');
-              return;
-            }
-            let report = {};
-            try {
-              report = JSON.parse(reportBody);
-            } catch (error) {
-              core.warning('Failed to parse forecast report JSON at ' + reportPath + ': ' + error.message);
-              return;
-            }
-            const workflows = Array.isArray(report.workflows) ? report.workflows : [];
-            if (workflows.length === 0) {
-              core.warning('Forecast report contains no workflows; skipping issue creation.');
-              return;
-            }
-            const escapeCell = (value) => String(value ?? '').replaceAll('|', '\\|');
-            const formatET = (value) => {
-              const n = Number(value ?? 0);
-              if (!Number.isFinite(n) || n <= 0) {
-                return '0';
-              }
-              return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n);
-            };
-            const rows = workflows.map((workflow) => {
-              const p50 = workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
-              return [
-                escapeCell(workflow.workflow_id),
-                workflow.sampled_runs ?? 0,
-                Number(p50),
-              ];
-            });
-            const allProjectedZero = rows.every(([, , p50]) => Number(p50) === 0);
-            const zeroProjectedWithSamples = rows.filter(([, sampledRuns, p50]) => Number(sampledRuns) > 0 && Number(p50) === 0).length;
-            const zeroWorkflowWord = zeroProjectedWithSamples === 1 ? 'workflow' : 'workflows';
-            const reportTable = [
-              '| Workflow | Sampled runs | Forecast ET (P50) |',
-              '| --- | ---: | ---: |',
-              ...rows.map(([workflowID, sampledRuns, p50]) => ` + "`| ${workflowID} | ${sampledRuns} | ${formatET(p50)} |`" + `),
-            ].join('\n');
-            const repoSlug = context.repo.owner + '/' + context.repo.repo;
-            const period = report.period || 'month';
-            const runID = process.env.GITHUB_RUN_ID || '';
-            const runURL = runID ? context.serverUrl + '/' + repoSlug + '/actions/runs/' + runID : '';
-            const body = [
-              '### Agentic workflow forecast report',
-              '',
-              'Repository: ' + repoSlug,
-              'Generated at: ' + new Date().toISOString(),
-              'Period: ' + period,
-              '',
-              reportTable,
-              '',
-              ...(allProjectedZero ? [
-                '> [!NOTE]',
-                '> All projected ET values are 0 even after cache warm-up. This usually means cached run summaries do not include token usage for sampled runs.',
-                '> Verify gh aw logs fetched recent runs and that run_summary.json files include token usage.',
-                '',
-              ] : []),
-              ...(zeroProjectedWithSamples > 0 ? [
-                '> [!TIP]',
-                '> ' + zeroProjectedWithSamples + ' ' + zeroWorkflowWord + ' have sampled runs but forecast ET is 0. This usually indicates missing token usage in cached run summaries for sampled runs.',
-                '> Increase the warm-up scope with ` + "`gh aw logs --start-date -30d --count <larger value>`" + ` if this persists.',
-                '',
-              ] : []),
-              ...(runURL ? ['_Forecast source run: [#' + runID + '](' + runURL + ')._'] : []),
-            ].join('\n');
-            const createdIssue = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '[aw] workflow forecast report',
-              body,
-              labels: ['agentic-workflows'],
-            });
-            core.info('Created issue #' + createdIssue.data.number + ': ' + createdIssue.data.html_url);
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/create_forecast_issue.cjs');
+            await main();
 `)
 
 	// Add close_agentic_workflows_issues job for workflow_dispatch with operation == 'close_agentic_workflows_issues'
