@@ -56,6 +56,9 @@ const mockCore = {
       }
     });
     it("should succeed (skip) when sub-issue already has a different parent", async () => {
+      // Previously this returned failure; it now returns success/skipped to be idempotent —
+      // if a sub-issue is already tracked in any group, we warn and move on rather than
+      // failing the safe-output job.
       const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };
       mockGithub.rest.issues.get
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })

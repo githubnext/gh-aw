@@ -333,7 +333,7 @@ async function main(config = {}) {
       // treat it as a successful no-op — the pre-flight parent check may have failed to
       // detect the existing relationship (e.g. due to schema availability), but the
       // desired state (sub-issue belongs to a group) is effectively achieved.
-      if (/already a sub.?issue/i.test(errorMessage) || /already.*sub.?issue/i.test(errorMessage)) {
+      if (/already.*sub.?issue/i.test(errorMessage)) {
         core.warning(`Sub-issue #${subIssueNumber} is already linked as a sub-issue (confirmed via mutation error). Skipping.`);
         return {
           parent_issue_number: parentIssueNumber,
