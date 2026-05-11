@@ -470,13 +470,19 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --all") {
+		t.Errorf("Job forecast_report should warm logs cache via gh aw logs --all in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast.") {
+		t.Errorf("Job forecast_report should fail when run summary cache is missing after warm-up in:\n%s", yaml)
+	}
 	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --json") {
 		t.Errorf("Job forecast_report gh aw forecast command should include --repo and --json in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "| Workflow | Sampled runs | Forecast ET (P50) |") {
 		t.Errorf("Job forecast_report issue generation step should render markdown table output in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "All projected ET values are 0 because forecast ET data comes from locally cached run summaries") {
+	if !strings.Contains(yaml, "All projected ET values are 0 even after cache warm-up.") {
 		t.Errorf("Job forecast_report issue generation step should explain zero projected ET values in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "title: '[aw] workflow forecast report'") {

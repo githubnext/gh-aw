@@ -569,6 +569,11 @@ jobs:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         run: |
           mkdir -p ./.cache/gh-aw/forecast
+          ${GH_AW_CMD_PREFIX} logs --repo "${{ github.repository }}" --all > /dev/null
+          if ! compgen -G ".github/aw/logs/run-*/run_summary.json" > /dev/null; then
+            echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
+            exit 1
+          fi
           ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json > ./.cache/gh-aw/forecast/report.json
 
       - name: Generate forecast issue
@@ -633,8 +638,8 @@ jobs:
               '',
               ...(allProjectedZero ? [
                 '> [!NOTE]',
-                '> All projected ET values are 0 because forecast ET data comes from locally cached run summaries (gh aw logs), and this maintenance runner starts from a clean workspace.',
-                '> Run gh aw logs --repo owner/repo --all before forecast if you want ET projections based on cached token usage.',
+                '> All projected ET values are 0 even after cache warm-up. This usually means cached run summaries do not include token usage for sampled runs.',
+                '> Verify gh aw logs fetched recent runs and that run_summary.json files include token usage.',
                 '',
               ] : []),
             ].join('\n');
