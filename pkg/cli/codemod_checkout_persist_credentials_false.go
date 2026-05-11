@@ -9,9 +9,6 @@ import (
 
 var checkoutPersistCredentialsFalseCodemodLog = logger.New("cli:codemod_checkout_persist_credentials_false")
 
-// Frontmatter examples in gh-aw use two-space indentation for nested YAML mappings.
-const yamlIndentIncrement = 2
-
 // getCheckoutPersistCredentialsFalseCodemod ensures checkout steps set with.persist-credentials: false.
 func getCheckoutPersistCredentialsFalseCodemod() Codemod {
 	return Codemod{
@@ -149,12 +146,17 @@ func transformAgentJobCheckoutPersistCredentials(lines []string, sectionNames []
 	}
 
 	jobsLines := lines[jobsStart : jobsEnd+1]
+	jobsChildIndentLen, hasJobsChild := findDirectChildIndentLen(jobsLines, 0, len(jobsIndent))
+	if !hasJobsChild {
+		return lines, false
+	}
+
 	agentStart := -1
 	agentIndent := ""
 	for i, line := range jobsLines {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
-		if len(indent) == len(jobsIndent)+yamlIndentIncrement && parseYAMLMapKey(trimmed) == "agent" {
+		if len(indent) == jobsChildIndentLen && parseYAMLMapKey(trimmed) == "agent" {
 			agentStart = i
 			agentIndent = indent
 			break
@@ -200,12 +202,17 @@ func transformAgentJobCheckoutPersistCredentials(lines []string, sectionNames []
 }
 
 func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionName, parentIndent string) ([]string, bool) {
+	childIndentLen, hasChild := findDirectChildIndentLen(lines, 0, len(parentIndent))
+	if !hasChild {
+		return lines, false
+	}
+
 	sectionStart := -1
 	sectionIndent := ""
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
-		if len(indent) == len(parentIndent)+yamlIndentIncrement && strings.HasPrefix(trimmed, sectionName+":") {
+		if len(indent) == childIndentLen && strings.HasPrefix(trimmed, sectionName+":") {
 			sectionStart = i
 			sectionIndent = indent
 			break
@@ -238,6 +245,22 @@ func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionNam
 	result = append(result, updatedSection...)
 	result = append(result, lines[sectionEnd+1:]...)
 	return result, true
+}
+
+func findDirectChildIndentLen(lines []string, parentStart int, parentIndentLen int) (int, bool) {
+	for i := parentStart + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if len(trimmed) == 0 || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		indentLen := len(getIndentation(lines[i]))
+		if indentLen <= parentIndentLen {
+			return 0, false
+		}
+		return indentLen, true
+	}
+
+	return 0, false
 }
 
 func transformCheckoutWithinSection(sectionLines []string, sectionIndent string) ([]string, bool) {
