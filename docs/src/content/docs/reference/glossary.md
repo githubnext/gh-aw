@@ -388,6 +388,16 @@ Optional workflow metadata for categorization and organization. Enables filterin
 
 A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/reference/model-alias-specification/).
 
+### Max Runs (`max-runs`)
+
+A top-level frontmatter field that caps the number of times the AWF proxy will invoke the AI engine within a single workflow run. Applies to all engines and maps to `apiProxy.maxRuns` in the compiled lock file. Replaces the deprecated `engine.max-runs` field. Example:
+
+```aw wrap
+max-runs: 10
+```
+
+See [Engines Reference](/gh-aw/reference/engines/).
+
 ### Network Permissions
 
 Controls over external domains and services a workflow can access. Configured via `network:` section with options: `defaults` (common infrastructure), custom allow-lists, or `{}` (no access).
@@ -427,6 +437,19 @@ Events that cause a workflow to run, defined in the `on:` section of frontmatter
 A plain GitHub Actions workflow (`.yml`) that separates trigger definitions from agentic workflow logic. Calls a compiled orchestrator's `workflow_call` entry point in response to any GitHub event (issues, pushes, labels, manual dispatch). Decouples trigger changes from the compilation cycle — updating when an orchestrator runs requires editing only the trigger file, not recompiling the agentic workflow.
 
 Trigger files can live in the **same repository** as the orchestrator or in a **different repository** (cross-repo `workflow_call`). Cross-repo usage requires the callee repository to be public, internal, or to have explicitly granted Actions access. When using `secrets: inherit`, the caller's secrets are passed through — including `COPILOT_GITHUB_TOKEN`, which must be configured in the caller's repository. See [CentralRepoOps](/gh-aw/patterns/central-repo-ops/).
+
+### User Rate Limit (`user-rate-limit`)
+
+A frontmatter field that prevents individual users from triggering a workflow too frequently. Configured with `max-runs-per-window` (maximum runs per time window, 1–10), an optional `window` in minutes (default 60, max 180), an optional `events` list to restrict which trigger types count, and an optional `ignored-roles` list of exempt roles (default: `[admin, maintain, write]`). The pre-activation job checks recent runs and cancels the current run if the limit is exceeded. Example:
+
+```aw wrap
+user-rate-limit:
+  max-runs-per-window: 5
+  window: 60
+  ignored-roles: []
+```
+
+See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/).
 
 ### Weekday Schedules
 
@@ -511,6 +534,10 @@ A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across
 ### Effective Tokens
 
 A weighted token count that normalizes raw API token usage into a single comparable value for cost estimation and monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). For episode-level aggregation, `total_estimated_cost` uses effective tokens as its basis. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
+
+### Forecast (`gh aw forecast`)
+
+An experimental CLI command that projects future Effective Token consumption using a Monte Carlo simulation. It samples historical workflow runs, applies a Poisson-bootstrap algorithm to model run frequency, and returns P10/P50/P90 percentile estimates over a configurable time horizon. Supports both local (`.github/workflows/`) and remote (`--repo`) discovery modes. Output is available as a console table or machine-readable JSON (`--json`). Useful for capacity planning, budget governance, and detecting cost regressions before they occur. See [Forecast Specification](/gh-aw/reference/forecast-specification/).
 
 ### Time Between Turns (TBT)
 
