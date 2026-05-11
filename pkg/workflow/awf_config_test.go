@@ -118,6 +118,28 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should emit configured maxEffectiveTokens")
 	})
 
+	t.Run("user-rate-limit max-runs-per-window is emitted as apiProxy maxRuns", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				RateLimit: &RateLimitConfig{
+					Max: 7,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxRuns":7`, "apiProxy should emit configured maxRuns")
+	})
+
 	t.Run("engine token-weights multipliers are emitted in apiProxy modelMultipliers", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -127,7 +149,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 					ID: "copilot",
 					TokenWeights: &types.TokenWeights{
 						Multipliers: map[string]float64{
-							"gpt-5":     1.2,
+							"gpt-5":      1.2,
 							"gpt-5-mini": 0.8,
 						},
 					},

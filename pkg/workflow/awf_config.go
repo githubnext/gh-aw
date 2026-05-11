@@ -159,6 +159,9 @@ type AWFAPIProxyConfig struct {
 	// ModelMultipliers configures per-model ET accounting multipliers in AWF.
 	ModelMultipliers map[string]float64 `json:"modelMultipliers,omitempty"`
 
+	// MaxRuns caps the number of LLM API calls AWF allows in a run.
+	MaxRuns int `json:"maxRuns,omitempty"`
+
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
@@ -261,6 +264,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		apiProxy.ModelMultipliers = modelMultipliers
 		awfConfigLog.Printf("API proxy: %d model multipliers configured", len(apiProxy.ModelMultipliers))
 	}
+	if maxRuns := extractAPIMaxRuns(config.WorkflowData); maxRuns > 0 {
+		apiProxy.MaxRuns = maxRuns
+		awfConfigLog.Printf("API proxy: maxRuns=%d", apiProxy.MaxRuns)
+	}
 
 	targets := map[string]*AWFAPITargetConfig{}
 
@@ -341,4 +348,11 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 		return nil
 	}
 	return workflowData.EngineConfig.TokenWeights.Multipliers
+}
+
+func extractAPIMaxRuns(workflowData *WorkflowData) int {
+	if workflowData == nil || workflowData.RateLimit == nil {
+		return 0
+	}
+	return workflowData.RateLimit.Max
 }
