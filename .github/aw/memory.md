@@ -35,7 +35,7 @@ Before writing new persistent files, check whether GitHub and Git already expose
 
 | Goal | Built-in source | Caching strategy |
 |---|---|---|
-| Skip stale files in docs/code scans | Git history (`git log` / last modified commit per file) | Cache only the last processed commit SHA and compare changed paths in newer commits |
+| Skip stale files in docs/code scans | Git history (`git log` / last modified commit per file) | Cache either a single repo watermark SHA or per-file SHAs, then compare changed paths in newer commits |
 | Avoid reopening known incidents | Issue/PR history (recent open + closed items by label/title prefix) | Cache only canonical identifiers (issue numbers, advisory IDs), not full issue payloads |
 | Process incrementally across repo activity | PR merge history (`merged_at`, base branch) | Cache the last merged PR number or merge timestamp and fetch only newer merges |
 | Keep nightly triage focused | Issue timeline (`updated_at`, comments) | Cache the last scan cursor (`updated_at` watermark) and only inspect newer updates |
@@ -46,7 +46,7 @@ Before writing new persistent files, check whether GitHub and Git already expose
 - Prefer **stable identifiers** from GitHub graph data (`node_id`, issue/PR number, commit SHA) over mutable text fields.
 - Persist **watermarks** (last seen timestamp, commit SHA, PR number) instead of full snapshots when possible.
 - Use built-in history as the source of truth; use memory tools to store only incremental state needed to resume efficiently.
-- If history queries are cheap and deterministic, recompute from GitHub/git instead of storing large derived datasets.
+- If history queries are cheap and deterministic (for example, bounded to recent activity like the latest 20-100 items), recompute from GitHub/git instead of storing large derived datasets.
 
 ---
 
