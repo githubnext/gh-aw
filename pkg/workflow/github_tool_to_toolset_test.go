@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
@@ -236,6 +238,14 @@ func TestGitHubToolToToolsetMap_Completeness(t *testing.T) {
 	for _, expectedToolset := range expectedToolsets {
 		if !foundToolsets[expectedToolset] {
 			t.Errorf("Expected to find tools for toolset %q in GitHubToolToToolsetMap", expectedToolset)
+		}
+	}
+}
+
+func TestGitHubToolToToolsetMap_IncludesDefaultGitHubTools(t *testing.T) {
+	for _, tool := range constants.DefaultReadOnlyGitHubTools {
+		if _, exists := GitHubToolToToolsetMap[tool]; !exists {
+			t.Errorf("Expected tool %q from constants.DefaultReadOnlyGitHubTools to be in GitHubToolToToolsetMap", tool)
 		}
 	}
 }
