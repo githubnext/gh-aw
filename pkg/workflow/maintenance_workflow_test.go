@@ -482,8 +482,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --json") {
 		t.Errorf("Job forecast_report gh aw forecast command should include --repo and --json in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "grep -Fv \"forecast is an experimental command and may change without notice\"") {
-		t.Errorf("Job forecast_report gh aw forecast command should filter the experimental warning in:\n%s", yaml)
+	if !strings.Contains(yaml, "shell: bash") {
+		t.Errorf("Job forecast_report should explicitly use bash shell for stderr filtering in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast --repo \"${{ github.repository }}\" --json 2> >(grep -Fv \"forecast is an experimental command and may change without notice\" >&2) > ./.cache/gh-aw/forecast/report.json") {
+		t.Errorf("Job forecast_report gh aw forecast command should filter the experimental warning while preserving stderr in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "| Workflow | Sampled runs | Forecast ET (P50) |") {
 		t.Errorf("Job forecast_report issue generation step should render markdown table output in:\n%s", yaml)
