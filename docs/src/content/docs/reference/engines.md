@@ -44,7 +44,7 @@ Not all features are available across all engines. The table below summarizes pe
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 
 **Notes:**
-- `max-runs` is a top-level frontmatter field that maps to `awf.maxRuns` / `apiProxy.maxRuns` and is supported by all engines.
+- `max-runs` is a top-level frontmatter field that maps to `apiProxy.maxRuns` and is supported by all engines.
 - `max-turns` limits the number of AI chat iterations per run (Claude only).
 - `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
 - `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/guides/web-search/).

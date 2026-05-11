@@ -32,6 +32,18 @@ func getEngineMaxRunsToTopLevelCodemod() Codemod {
 			_, hasTopLevelMaxRuns := frontmatter["max-runs"]
 
 			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				for _, line := range lines {
+					trimmed := strings.TrimSpace(line)
+					if !isTopLevelKey(line) || !strings.HasPrefix(trimmed, "engine:") {
+						continue
+					}
+					inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
+					if strings.HasPrefix(inlineValue, "{") && strings.Contains(inlineValue, "max-runs:") {
+						engineMaxRunsCodemodLog.Print("Skipping engine.max-runs migration for inline-map engine syntax; migrate to top-level max-runs manually")
+						return lines, false
+					}
+				}
+
 				maxRunsSuffix := ""
 				inEngineBlock := false
 				engineIndent := ""
