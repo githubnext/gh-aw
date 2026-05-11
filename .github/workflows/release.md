@@ -112,19 +112,19 @@ jobs:
             }
             
             // Helper: check whether a given tag already exists (as a release or git ref)
-            const tagExists = async (tag) => {
-              const releaseExists = releases.some(r => r.tag_name === tag);
+            const tagExists = async (tagName) => {
+              const releaseExists = releases.some(r => r.tag_name === tagName);
               if (releaseExists) return true;
               try {
                 await github.rest.git.getRef({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  ref: `tags/${tag}`
+                  ref: `tags/${tagName}`
                 });
                 return true; // tag ref exists
               } catch (error) {
                 if (error.status === 404) return false;
-                throw error; // re-throw unexpected errors
+                throw new Error(`Failed to check if tag ${tagName} exists: ${error.message}`);
               }
             };
 
@@ -140,11 +140,17 @@ jobs:
               }
               console.log(`Tag ${candidate} already exists – bumping version and retrying…`);
               // For patch releases keep bumping the patch number.
-              // For minor/major releases bump the minor number (patch already 0).
-              if (releaseType === 'patch') {
-                patch += 1;
-              } else {
-                minor += 1;
+              // For minor/major releases bump the minor number (patch is already 0).
+              switch (releaseType) {
+                case 'patch':
+                  patch += 1;
+                  break;
+                case 'minor':
+                  minor += 1;
+                  break;
+                case 'major':
+                  minor += 1;
+                  break;
               }
             }
 
