@@ -1176,6 +1176,11 @@
       "desc": "Explicit ET budget control for firewall cost enforcement.",
       "leaf": true
     },
+    "max-runs": {
+      "type": "integer|string",
+      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.",
+      "leaf": true
+    },
     "mcp-servers": {
       "type": "object",
       "desc": "MCP server definitions"

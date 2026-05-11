@@ -153,6 +153,9 @@ type AWFAPIProxyConfig struct {
 	// Maps to: --enable-api-proxy
 	Enabled bool `json:"enabled"`
 
+	// MaxRuns is the maximum number of LLM invocations allowed for a run.
+	MaxRuns int `json:"maxRuns,omitempty"`
+
 	// MaxEffectiveTokens is the explicit ET budget enforced by the API proxy.
 	MaxEffectiveTokens int64 `json:"maxEffectiveTokens,omitempty"`
 
@@ -248,12 +251,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── API proxy section ─────────────────────────────────────────────────────
 	maxEffectiveTokens := constants.DefaultMaxEffectiveTokens
+	maxRuns := 0
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		maxEffectiveTokens = config.WorkflowData.EngineConfig.GetMaxEffectiveTokens()
+		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
 
 	apiProxy := &AWFAPIProxyConfig{
 		Enabled:            true,
+		MaxRuns:            maxRuns,
 		MaxEffectiveTokens: maxEffectiveTokens,
 	}
 

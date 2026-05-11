@@ -3695,6 +3695,21 @@
       ],
       "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 10000000 when omitted."
     },
+    "max-runs": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of LLM invocations allowed per run."
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Maximum number of LLM invocations allowed per run as a numeric string."
+        }
+      ],
+      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines."
+    },
     "mcp-servers": {
       "type": "object",
       "description": "MCP server definitions",

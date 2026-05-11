@@ -20,6 +20,7 @@ type EngineConfig struct {
 	Version            string
 	Model              string
 	MaxTurns           string
+	MaxRuns            int    // Maximum number of LLM invocations per run (AWF apiProxy.maxRuns)
 	MaxContinuations   int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
 	MaxEffectiveTokens int64  // Maximum allowed effective tokens (ET) budget for AWF apiProxy firewall enforcement
 	Concurrency        string // Agent job-level concurrency configuration (YAML format)
@@ -121,6 +122,14 @@ func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
 	return e.MaxEffectiveTokens
 }
 
+// GetMaxRuns returns the configured AWF max-runs value, or 0 when unset.
+func (e *EngineConfig) GetMaxRuns() int {
+	if e == nil || e.MaxRuns <= 0 {
+		return 0
+	}
+	return e.MaxRuns
+}
+
 // parseMaxEffectiveTokensValue parses max-effective-tokens from either integer
 // or numeric-string frontmatter values.
 //
@@ -140,9 +149,25 @@ func parseMaxEffectiveTokensValue(raw any) int64 {
 	return 0
 }
 
+// parseMaxRunsValue parses max-runs from either integer or numeric-string
+// frontmatter values.
+func parseMaxRunsValue(raw any) int {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
+		return val
+	}
+	if rawStr, ok := raw.(string); ok {
+		if parsed, err := strconv.Atoi(rawStr); err == nil && parsed > 0 {
+			return parsed
+		}
+		engineLog.Printf("Ignoring invalid max-runs value: %q", rawStr)
+	}
+	return 0
+}
+
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
 func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
 	topLevelMaxEffectiveTokens := parseMaxEffectiveTokensValue(frontmatter["max-effective-tokens"])
+	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-runs"])
 
 	if engine, exists := frontmatter["engine"]; exists {
 		engineLog.Print("Extracting engine configuration from frontmatter")
@@ -152,6 +177,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			engineLog.Printf("Found engine in string format: %s", engineStr)
 			return engineStr, &EngineConfig{
 				ID:                 engineStr,
+				MaxRuns:            topLevelMaxRuns,
 				MaxEffectiveTokens: topLevelMaxEffectiveTokens,
 			}
 		}
@@ -216,6 +242,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						engineLog.Printf("Extracted bare mode (inline): %v", config.Bare)
 					}
 				}
+				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
@@ -426,14 +453,15 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			}
 
 			// Return the ID as the engineSetting for backwards compatibility
+			config.MaxRuns = topLevelMaxRuns
 			config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)
 			return config.ID, config
 		}
 	}
 
-	if topLevelMaxEffectiveTokens > 0 {
-		return "", &EngineConfig{MaxEffectiveTokens: topLevelMaxEffectiveTokens}
+	if topLevelMaxEffectiveTokens > 0 || topLevelMaxRuns > 0 {
+		return "", &EngineConfig{MaxRuns: topLevelMaxRuns, MaxEffectiveTokens: topLevelMaxEffectiveTokens}
 	}
 
 	// No engine specified

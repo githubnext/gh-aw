@@ -37,6 +37,14 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxEffectiveTokens: 10000000},
 		},
 		{
+			name: "top-level max-runs without engine",
+			frontmatter: map[string]any{
+				"max-runs": 25,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxRuns: 25},
+		},
+		{
 			name:                  "string format - claude",
 			frontmatter:           map[string]any{"engine": "claude"},
 			expectedEngineSetting: "claude",
@@ -146,6 +154,28 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "claude",
 			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 10000000},
+		},
+		{
+			name: "object format - with top-level max-runs",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+				},
+				"max-runs": 12,
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", MaxRuns: 12},
+		},
+		{
+			name: "object format - with top-level max-runs as string",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+				},
+				"max-runs": "12",
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", MaxRuns: 12},
 		},
 		{
 			name: "object format - with top-level max-effective-tokens as string",
@@ -303,6 +333,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.MaxEffectiveTokens != test.expectedConfig.MaxEffectiveTokens {
 					t.Errorf("Expected config.MaxEffectiveTokens '%d', got '%d'", test.expectedConfig.MaxEffectiveTokens, config.MaxEffectiveTokens)
+				}
+
+				if config.MaxRuns != test.expectedConfig.MaxRuns {
+					t.Errorf("Expected config.MaxRuns '%d', got '%d'", test.expectedConfig.MaxRuns, config.MaxRuns)
 				}
 
 				if config.UserAgent != test.expectedConfig.UserAgent {
