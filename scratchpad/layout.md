@@ -1,18 +1,18 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-05-04
+> Last updated: 2026-05-11
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 211
-- **Unique GitHub Actions**: 26
-- **Artifact patterns**: 36
-- **Job name patterns**: 38
-- **File path references**: 65
+- **Lock files analyzed**: 219
+- **Unique GitHub Actions**: 27
+- **Artifact patterns**: 42
+- **Job name patterns**: 37
+- **File path references**: 81
 
 ## GitHub Actions
 
@@ -28,7 +28,7 @@ Common GitHub Actions used across compiled workflows:
 | `actions/setup-go` | `4a360112...` | Sets up Go environment | Used for Go-based builds and tests |
 | `actions/setup-java` | `be666c2f...` | Sets up Java environment | Used for Java-based workflows |
 | `actions/setup-dotnet` | `c2fa09f4...` | Sets up .NET environment | Used for .NET-based workflows |
-| `actions/github-script` | `373c709c...` | Runs GitHub API scripts | Used for GitHub API interactions and workflow logic |
+| `actions/github-script` | `3a2844b7...` | Runs GitHub API scripts | Used for GitHub API interactions and workflow logic |
 | `actions/cache` | `27d5ce7f...` | Caches dependencies | Used for caching npm, pip, go modules |
 | `actions/cache/restore` | `27d5ce7f...` | Restores cached dependencies | Explicit cache restore action |
 | `actions/cache/save` | `27d5ce7f...` | Saves dependencies to cache | Explicit cache save action |
@@ -39,7 +39,8 @@ Common GitHub Actions used across compiled workflows:
 | `astral-sh/setup-uv` | `08807647...`, `eac588ad...` | Sets up uv package manager | Used for Python package management |
 | `anchore/sbom-action` | `e22c3899...` | Generates SBOM | Used for security and compliance |
 | `super-linter/super-linter` | `9e863354...` | Runs super-linter | Used for code quality checks |
-| `github/codeql-action/upload-sarif` | `0e9f5595...` | Uploads SARIF to GitHub Code Scanning | Used for security scanning results from threat detection |
+| `github/codeql-action/upload-sarif` | `68bde559...` | Uploads SARIF to GitHub Code Scanning | Used for security scanning results from threat detection |
+| `github/gh-aw-actions/setup` | `v0.71.5` | Sets up gh-aw actions | Installs the gh-aw actions setup for use in workflows |
 | `github/stale-repos` | `5f2e18fc...` | Manages stale repositories | Used for repository maintenance |
 | `microsoft/apm-action` | `a190b0b1...` | Collects APM bundle data | Used for performance monitoring and APM artifact creation |
 | `./actions/setup` | N/A (local) | Custom setup action | Copies JavaScript and shell scripts to `/tmp/gh-aw/actions` |
@@ -79,6 +80,9 @@ Artifacts uploaded/downloaded between workflow jobs:
 | `${{ needs.activation.outputs.artifact_prefix }}agent` | Agent job | Downstream jobs | Dynamic-prefixed agent artifact (used in `workflow_call` context) |
 | `${{ needs.activation.outputs.artifact_prefix }}activation` | Activation job | Agent job | Dynamic-prefixed activation artifact (used in `workflow_call` context) |
 | `${{ needs.activation.outputs.artifact_prefix }}apm-${{ matrix.group.id }}` | APM matrix job | Conclusion job | Dynamic-prefixed APM artifact for each matrix group |
+| `${{ needs.activation.outputs.artifact_prefix }}safe-outputs-items` | Safe-output jobs | Conclusion job | Dynamic-prefixed safe-output items artifact (workflow_call context) |
+| `${{ needs.agent.outputs.artifact_prefix }}detection` | Detection job | Conclusion job | Dynamic-prefixed detection artifact (workflow_call context) |
+| `${{ steps.artifact-prefix.outputs.prefix }}activation` | Activation job | Agent job | Step-expression-prefixed activation artifact |
 | `anthropic-models` | Model inventory job | Download step | Anthropic model inventory data |
 | `copilot-models` | Model inventory job | Download step | Copilot model inventory data |
 | `gemini-models` | Model inventory job | Download step | Gemini model inventory data |
@@ -88,6 +92,12 @@ Artifacts uploaded/downloaded between workflow jobs:
 | `dailyastrostylelitemarkdownspellcheck-experiment` | Daily workflow job | Download step | Daily Astro/style-lite/markdown/spellcheck experiment artifact |
 | `dailycommunityattribution-experiment` | Daily workflow job | Download step | Daily community attribution experiment artifact |
 | `smokecopilot-experiment` | Smoke test job | Download step | Smoke test Copilot experiment artifact |
+| `copilot-billing-multipliers` | Model inventory job | Download step | Copilot billing multipliers data |
+| `dailyfact-experiment` | Daily workflow job | Download step | Daily fact experiment artifact |
+| `dailyissuesreport-experiment` | Daily workflow job | Download step | Daily issues report experiment artifact |
+| `dailynews-experiment` | Daily workflow job | Download step | Daily news experiment artifact |
+| `deepreport-experiment` | Agent job | Download step | Deep report experiment artifact |
+| `trufflehog-scan-results` | TruffleHog scan job | Download step | TruffleHog secret scanner results |
 
 ## Common Job Names
 
@@ -148,10 +158,19 @@ Common file paths referenced in workflow files:
 | `.github/agents/` | Directory | Custom agent definitions | Contains agent markdown files (e.g., `test-agent.md`) |
 | `/tmp/gh-aw/` | Directory | Temporary workflow data | Root temporary directory for all workflow artifacts |
 | `/tmp/gh-aw/agent/` | Directory | Agent execution workspace | Agent's working directory during execution |
+| `/tmp/gh-aw/agent_output.json` | File | Agent output JSON | Structured JSON output from agent execution |
+| `/tmp/gh-aw/agent_usage.json` | File | Agent token usage JSON | Token usage statistics from agent execution |
 | `/tmp/gh-aw/agent-stdio.log` | File | Agent stdio logs | Standard input/output logs from agent |
 | `/tmp/gh-aw/aw-prompts/prompt.txt` | File | Agent prompt file | Prompt text sent to AI agent |
+| `/tmp/gh-aw/aw-prompts/prompt-template.txt` | File | Agent prompt template | Template file used to generate the agent prompt |
+| `/tmp/gh-aw/aw-prompts/prompt-import-tree.json` | File | Prompt import tree | JSON tree of all imported prompt files |
+| `/tmp/gh-aw/aw-*.patch` | Files | Git patch files | Changes made by agent in patch format (wildcard per workflow run) |
+| `/tmp/gh-aw/aw-*.bundle` | Files | Git bundle files | Git bundle of agent changes (wildcard per workflow run) |
 | `/tmp/gh-aw/aw.patch` | File | Git patch file | Changes made by agent in patch format |
 | `/tmp/gh-aw/aw_info.json` | File | Workflow info JSON | Workflow metadata and configuration |
+| `/tmp/gh-aw/awf-config.json` | File | AWF config JSON | Agentic Workflow Firewall (AWF) configuration file |
+| `/tmp/gh-aw/base` | Directory | Base checkout | Base repository checkout for git diff operations |
+| `/tmp/gh-aw/copilot-otel.jsonl` | File | Copilot OTEL log | OpenTelemetry spans from Copilot engine requests |
 | `/tmp/gh-aw/cache-memory` | Directory | Cache memory storage | Persistent cache data across runs |
 | `/tmp/gh-aw/cache-memory-chroma` | Directory | Chroma cache storage | Chroma vector database cache |
 | `/tmp/gh-aw/cache-memory-focus-areas` | Directory | Focus areas cache | Cached focus area data |
@@ -204,6 +223,8 @@ Common file paths referenced in workflow files:
 | `${{ env.GH_AW_AGENT_OUTPUT }}` | Environment var | Agent output path | Dynamic path to agent output file |
 | `${{ env.GH_AW_SAFE_OUTPUTS }}` | Environment var | Safe outputs path | Dynamic path to safe outputs directory |
 | `/tmp/gh-aw/.claude/agents` | Directory | Claude custom agents | Custom agent definitions mounted for Claude engine |
+| `/tmp/gh-aw/.codex/agents` | Directory | Codex custom agents | Custom agent definitions mounted for Codex engine |
+| `/tmp/gh-aw/.gemini/agents` | Directory | Gemini custom agents | Custom agent definitions mounted for Gemini engine |
 | `/tmp/gh-aw/.github/agents` | Directory | GitHub custom agents | Custom agent definitions mounted for workflows |
 | `/tmp/gh-aw/apm-bundles` | Directory | APM bundle storage | Uploaded APM bundle files for performance monitoring |
 | `/tmp/gh-aw/comment-memory/` | Directory | Comment memory | Persistent memory from issue/PR comments |
@@ -212,9 +233,18 @@ Common file paths referenced in workflow files:
 | `/tmp/gh-aw/experiments/state.json` | File | Experiments state | Current A/B experiments state |
 | `/tmp/gh-aw/geo-optimizer` | Directory | Geo optimizer data | Geographic optimization analysis results |
 | `/tmp/gh-aw/model-inventory/anthropic/` | Directory | Anthropic model data | Anthropic models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/anthropic/models.json` | File | Anthropic models JSON | Processed Anthropic models inventory |
+| `/tmp/gh-aw/model-inventory/anthropic/raw.json` | File | Anthropic raw JSON | Raw Anthropic API model list |
 | `/tmp/gh-aw/model-inventory/copilot/` | Directory | Copilot model data | Copilot models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/copilot/models.json` | File | Copilot models JSON | Processed Copilot models inventory |
+| `/tmp/gh-aw/model-inventory/copilot/raw.json` | File | Copilot raw JSON | Raw Copilot API model list |
+| `/tmp/gh-aw/model-inventory/copilot-billing/multipliers.json` | File | Copilot billing multipliers | Copilot billing multiplier data per model |
 | `/tmp/gh-aw/model-inventory/gemini/` | Directory | Gemini model data | Gemini models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/gemini/models.json` | File | Gemini models JSON | Processed Gemini models inventory |
+| `/tmp/gh-aw/model-inventory/gemini/raw.json` | File | Gemini raw JSON | Raw Gemini API model list |
 | `/tmp/gh-aw/model-inventory/openai/` | Directory | OpenAI model data | OpenAI models inventory (models.json, raw.json) |
+| `/tmp/gh-aw/model-inventory/openai/models.json` | File | OpenAI models JSON | Processed OpenAI models inventory |
+| `/tmp/gh-aw/model-inventory/openai/raw.json` | File | OpenAI raw JSON | Raw OpenAI API model list |
 | `/tmp/gh-aw/model-inventory/artifacts` | Directory | Model inventory artifacts | Aggregated model inventory artifacts |
 | `/tmp/gh-aw/pi-streaming.jsonl` | File | PI streaming log | Prompt injection streaming detection log |
 | `/tmp/gh-aw/pre-agent-audit.txt` | File | Pre-agent audit | Audit snapshot taken before agent execution |
@@ -527,6 +557,8 @@ GitHub Actions runner images used across compiled workflows:
 ```
 /tmp/gh-aw/
 ├── .claude/agents/             # Claude custom agent definitions
+├── .codex/agents/              # Codex custom agent definitions
+├── .gemini/agents/             # Gemini custom agent definitions
 ├── .github/agents/             # GitHub custom agent definitions
 ├── agent/                      # Agent workspace
 ├── agent-stdio.log             # Agent logs
@@ -536,15 +568,22 @@ GitHub Actions runner images used across compiled workflows:
 ├── apm-bundles/                # Uploaded APM bundle files
 ├── artifact-resolver.json      # Artifact resolution config
 ├── aw-prompts/                 # Prompt storage
-│   └── prompt.txt
-├── aw.patch                    # Git patch
+│   ├── prompt.txt
+│   ├── prompt-template.txt
+│   └── prompt-import-tree.json
+├── aw-*.patch                  # Git patches (wildcard)
+├── aw-*.bundle                 # Git bundles (wildcard)
+├── aw.patch                    # Git patch (legacy name)
 ├── aw_info.json                # Workflow metadata
+├── awf-config.json             # AWF firewall configuration
+├── base/                       # Base checkout for git diff
 ├── cache-memory/               # Persistent cache
 ├── cache-memory-chroma/        # Vector DB cache
 ├── cache-memory-focus-areas/   # Focus areas cache
 ├── cache-memory-repo-audits/   # Audit cache
 ├── comment-memory/             # Comment memory
 │   └── default.md
+├── copilot-otel.jsonl          # Copilot OpenTelemetry spans
 ├── experiments/                # A/B experiments
 │   ├── assignments.json
 │   └── state.json
@@ -563,10 +602,11 @@ GitHub Actions runner images used across compiled workflows:
 ├── mcp-payloads/               # MCP gateway payloads
 ├── mcp-scripts/logs/           # MCP scripts logs
 ├── model-inventory/            # AI model inventories
-│   ├── anthropic/              # Anthropic models
-│   ├── copilot/                # Copilot models
-│   ├── gemini/                 # Gemini models
-│   └── openai/                 # OpenAI models
+│   ├── anthropic/              # Anthropic models (models.json, raw.json)
+│   ├── copilot/                # Copilot models (models.json, raw.json)
+│   ├── copilot-billing/        # Copilot billing (multipliers.json)
+│   ├── gemini/                 # Gemini models (models.json, raw.json)
+│   └── openai/                 # OpenAI models (models.json, raw.json)
 ├── otel.jsonl                  # OpenTelemetry span mirror
 ├── pi-streaming.jsonl          # Prompt injection streaming log
 ├── pre-agent-audit.txt         # Pre-agent audit snapshot
@@ -648,9 +688,9 @@ This specification is automatically maintained by the **Layout Specification Mai
 4. Updates this document with findings
 5. Creates a PR with the changes
 
-**Last extraction run**: 2026-05-04
-**Lock files analyzed**: 211
-**Patterns documented**: 350+
+**Last extraction run**: 2026-05-11
+**Lock files analyzed**: 219
+**Patterns documented**: 380+
 
 ---
 
