@@ -282,6 +282,7 @@ tools:
 	testFile := tmpDir + "/test-nested-labels.md"
 	content := frontmatter + "\n\n# Test Workflow\n\nNested labels in on.steps should not be treated as on.labels."
 	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644), "should write test file")
+	defer os.Remove(testFile)
 
 	err := compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "should compile workflow successfully")
@@ -289,14 +290,11 @@ tools:
 	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockBytes, err := os.ReadFile(lockFile)
 	require.NoError(t, err, "should read lock file")
+	defer os.Remove(lockFile)
 	lockContent := string(lockBytes)
 
-	// Clean up
-	os.Remove(testFile)
-	os.Remove(lockFile)
-
 	assert.Equal(t, 1, strings.Count(lockContent, "Label filtering applied via job conditions"),
-		"only top-level on.labels should receive label-filter annotation")
+		"label-filter annotation should appear exactly once for top-level on.labels")
 	assert.NotContains(t, lockContent, "- name: Nested labels in step input # Label filtering applied via job conditions",
 		"on.steps list items should not be annotated as label filtering")
 	assert.NotContains(t, lockContent, "- triage # Label filtering applied via job conditions",
