@@ -198,6 +198,106 @@ func TestPercentileSingleElement(t *testing.T) {
 	assert.Equal(t, 42.0, percentileFloat64(sorted, 90))
 }
 
+// TestGammaSampleMeanVariance verifies that gammaSample produces the expected mean
+// (= shape) and variance (= shape) for a Gamma(shape, scale=1) distribution.
+func TestGammaSampleMeanVariance(t *testing.T) {
+	rng := deterministicRNG()
+	const shape = 5.5 // typical value: n+0.5 for n=5 observed runs
+	const n = 200_000
+
+	var sum, sumSq float64
+	for i := 0; i < n; i++ {
+		v := gammaSample(rng, shape)
+		sum += v
+		sumSq += v * v
+	}
+	mean := sum / n
+	variance := sumSq/n - mean*mean
+
+	// Gamma(shape, scale=1): mean = shape, variance = shape.  Allow 1% relative error.
+	assert.InEpsilon(t, shape, mean, 0.01, "gamma empirical mean should equal shape")
+	assert.InEpsilon(t, shape, variance, 0.01, "gamma empirical variance should equal shape")
+}
+
+// TestGammaSampleSmallShape verifies the shape < 1 reduction path.
+func TestGammaSampleSmallShape(t *testing.T) {
+	rng := deterministicRNG()
+	const shape = 0.5
+	const n = 200_000
+
+	var sum float64
+	for i := 0; i < n; i++ {
+		sum += gammaSample(rng, shape)
+	}
+	mean := sum / n
+	assert.InEpsilon(t, shape, mean, 0.01, "gamma mean should equal shape for shape < 1")
+}
+
+// TestGammaSampleEdgeCases checks boundary and degenerate inputs.
+func TestGammaSampleEdgeCases(t *testing.T) {
+	rng := deterministicRNG()
+	assert.Equal(t, 0.0, gammaSample(rng, 0), "shape=0 → 0")
+	assert.Equal(t, 0.0, gammaSample(rng, -1), "shape<0 → 0")
+}
+
+// TestRunMonteCarloIsReliable verifies that IsReliable reflects the minimum
+// observation threshold.
+func TestRunMonteCarloIsReliable(t *testing.T) {
+	rng := deterministicRNG()
+
+	// Below threshold: 3 observations < minObservationsForReliableForecast (5).
+	smallObs := []int{1000, 1500, 1200}
+	mcSmall := runMonteCarlo(smallObs, len(smallObs), 4.0, rng)
+	require.NotNil(t, mcSmall)
+	assert.False(t, mcSmall.IsReliable, "fewer than 5 observations → IsReliable=false")
+
+	// At threshold: exactly minObservationsForReliableForecast observations.
+	atThreshold := []int{1000, 1100, 1200, 1300, 1400}
+	mcAt := runMonteCarlo(atThreshold, len(atThreshold), 4.0, rng)
+	require.NotNil(t, mcAt)
+	assert.True(t, mcAt.IsReliable, "exactly 5 observations → IsReliable=true")
+
+	// Well above threshold.
+	largeObs := make([]int, 20)
+	for i := range largeObs {
+		largeObs[i] = 1000 + i*50
+	}
+	mcLarge := runMonteCarlo(largeObs, len(largeObs), 10.0, rng)
+	require.NotNil(t, mcLarge)
+	assert.True(t, mcLarge.IsReliable, "20 observations → IsReliable=true")
+}
+
+// TestRunMonteCarloGammaPoissonWiderCI verifies that the Gamma–Poisson compound model
+// produces wider confidence intervals for small samples compared to a scenario where
+// the rate is well-estimated (large sample).  With small n the posterior Gamma has
+// higher relative variance, so the simulated ET distribution should be broader.
+func TestRunMonteCarloGammaPoissonWiderCI(t *testing.T) {
+	// Same observed rate (λ = 10) but different sample sizes.
+	etVal := 1_000 // constant ET to isolate run-count variability
+	const lambda = 10.0
+
+	// Small sample: 3 runs observed → high relative uncertainty in λ.
+	smallObs := []int{etVal, etVal, etVal}
+	rngSmall := rand.New(rand.NewSource(7)) //nolint:gosec
+	mcSmall := runMonteCarlo(smallObs, len(smallObs), lambda, rngSmall)
+	require.NotNil(t, mcSmall)
+
+	// Large sample: 100 runs observed → low relative uncertainty in λ.
+	largeObs := make([]int, 100)
+	for i := range largeObs {
+		largeObs[i] = etVal
+	}
+	rngLarge := rand.New(rand.NewSource(7)) //nolint:gosec
+	mcLarge := runMonteCarlo(largeObs, len(largeObs), lambda, rngLarge)
+	require.NotNil(t, mcLarge)
+
+	ciSmall := mcSmall.P90ProjectedEffectiveTokens - mcSmall.P10ProjectedEffectiveTokens
+	ciLarge := mcLarge.P90ProjectedEffectiveTokens - mcLarge.P10ProjectedEffectiveTokens
+
+	assert.Greater(t, ciSmall, ciLarge,
+		"small-sample CI (P90-P10=%d) should be wider than large-sample CI (%d)", ciSmall, ciLarge)
+}
+
 // TestRunMonteCarloFullEpisodePath is a smoke test that exercises runMonteCarlo
 // with a realistic setup and validates ET percentile ordering.
 func TestRunMonteCarloFullEpisodePath(t *testing.T) {

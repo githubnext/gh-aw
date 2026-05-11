@@ -4,7 +4,12 @@ package cli
 // It models three independent sources of uncertainty:
 //
 //  1. Run-count uncertainty — the number of workflow executions in a future period
-//     follows a Poisson process with rate λ = observed runs per period.
+//     follows a Poisson process.  The arrival rate λ is itself uncertain (estimated
+//     from a finite history window), so each trial draws λ from its Bayesian posterior
+//     Gamma(n+0.5, scale=observedRunsPerPeriod/n), where n is the observed run count
+//     and 0.5 is the Jeffreys non-informative prior shape.  This Gamma–Poisson
+//     (Negative Binomial) compound model naturally produces wider confidence intervals
+//     when data are sparse and converges to the classical Poisson estimate as n grows.
 //  2. Per-run token usage variability — effective tokens per run are drawn via
 //     bootstrap resampling from the historical observations, capturing the empirical
 //     distribution without assuming a parametric form.
@@ -26,13 +31,20 @@ import (
 // for typical sample sizes.
 const monteCarloIterations = 10_000
 
+// minObservationsForReliableForecast is the minimum number of completed run
+// observations required for confidence intervals to be considered statistically
+// meaningful.  Forecasts based on fewer observations are returned but flagged
+// IsReliable = false.
+const minObservationsForReliableForecast = 5
+
 // ForecastMonteCarloSummary contains the probability distribution of projected
 // effective-token counts derived from a Monte Carlo simulation.
 //
-// The simulation models run-count uncertainty via a Poisson process, per-run token
-// usage via bootstrap resampling of historical observations, and per-run success
-// probability via a Bernoulli draw.  Percentile estimates (P10/P50/P90) give
-// optimistic, median, and conservative bounds for the forecast period.
+// The simulation models run-count uncertainty via a Gamma–Poisson (Negative
+// Binomial) compound process, per-run token usage via bootstrap resampling of
+// historical observations, and per-run success probability via a Bernoulli draw.
+// Percentile estimates (P10/P50/P90) give optimistic, median, and conservative
+// bounds for the forecast period.
 type ForecastMonteCarloSummary struct {
 	// Iterations is the number of simulation trials that were run.
 	Iterations int `json:"iterations"`
@@ -48,6 +60,9 @@ type ForecastMonteCarloSummary struct {
 	// P90ProjectedEffectiveTokens is the 90th-percentile ET count — 90% of simulated outcomes fall
 	// below this value (conservative / budget bound).
 	P90ProjectedEffectiveTokens int `json:"p90_projected_effective_tokens"`
+	// IsReliable is true when the simulation was based on at least minObservationsForReliableForecast
+	// completed runs.  When false the confidence intervals may be very wide or unreliable.
+	IsReliable bool `json:"is_reliable"`
 }
 
 // runMonteCarlo runs a Monte Carlo simulation to estimate the probability distribution
@@ -56,8 +71,15 @@ type ForecastMonteCarloSummary struct {
 // Parameters:
 //   - etObservations: per-run effective-token counts from historical completed runs.
 //   - successCount: number of those runs that concluded "success".
-//   - observedRunsPerPeriod: expected number of runs in the projection period (λ).
+//   - observedRunsPerPeriod: point estimate of expected runs in the projection period.
 //   - rng: caller-supplied random number generator (allows deterministic testing).
+//
+// The run-count rate λ is treated as uncertain and drawn each trial from its
+// Bayesian posterior Gamma(n+0.5, scale=observedRunsPerPeriod/n), where n is the
+// number of historical observations and 0.5 is the Jeffreys non-informative prior
+// shape.  This compound Gamma–Poisson model is equivalent to a Negative Binomial
+// and naturally produces wider confidence intervals for small samples, converging to
+// the classical Poisson(observedRunsPerPeriod) model as n → ∞.
 //
 // Returns nil when etObservations is empty or observedRunsPerPeriod ≤ 0.
 func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod float64, rng *rand.Rand) *ForecastMonteCarloSummary {
@@ -68,11 +90,21 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 
 	successRate := float64(successCount) / float64(n)
 
+	// Bayesian posterior parameters for the Poisson arrival rate λ.
+	// Prior: Jeffreys improper prior ∝ 1/√λ — equivalent to Gamma(0.5, ∞).
+	// Likelihood: observedCount ~ Poisson(λ × historyWindow).
+	// Posterior: λ_period | n ~ Gamma(shape=n+0.5, scale=observedRunsPerPeriod/n).
+	// Mean of this Gamma = (n+0.5)/n × observedRunsPerPeriod ≈ observedRunsPerPeriod.
+	gammaShape := float64(n) + 0.5
+	gammaScale := observedRunsPerPeriod / float64(n)
+
 	simETs := make([]int, monteCarloIterations)
 
 	for i := 0; i < monteCarloIterations; i++ {
-		// Draw number of runs from Poisson(λ = observedRunsPerPeriod).
-		numRuns := poissonSample(rng, observedRunsPerPeriod)
+		// Draw run-count rate from posterior Gamma (accounts for estimation uncertainty in λ).
+		lambdaTrial := gammaSample(rng, gammaShape) * gammaScale
+		// Draw number of runs from Poisson(λ_trial).
+		numRuns := poissonSample(rng, lambdaTrial)
 
 		var totalET int
 		for j := 0; j < numRuns; j++ {
@@ -93,12 +125,13 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 	mean, stddev := meanStdDevInt(simETs)
 
 	return &ForecastMonteCarloSummary{
-		Iterations:                  monteCarloIterations,
+		Iterations:                   monteCarloIterations,
 		MeanProjectedEffectiveTokens: mean,
 		StdDevEffectiveTokens:        stddev,
-		P10ProjectedEffectiveTokens: percentileInt(simETs, 10),
-		P50ProjectedEffectiveTokens: percentileInt(simETs, 50),
-		P90ProjectedEffectiveTokens: percentileInt(simETs, 90),
+		P10ProjectedEffectiveTokens:  percentileInt(simETs, 10),
+		P50ProjectedEffectiveTokens:  percentileInt(simETs, 50),
+		P90ProjectedEffectiveTokens:  percentileInt(simETs, 90),
+		IsReliable:                   n >= minObservationsForReliableForecast,
 	}
 }
 
@@ -132,6 +165,45 @@ func poissonSample(rng *rand.Rand, lambda float64) int {
 		return 0
 	}
 	return int(math.Round(v))
+}
+
+// gammaSample draws a random variate from Gamma(shape, scale=1) using the
+// Marsaglia-Tsang squeeze method for shape ≥ 1, and the reduction
+// Gamma(shape) = Gamma(shape+1) × U^(1/shape) for 0 < shape < 1.
+//
+// References: Marsaglia & Tsang (2000), "A Simple Method for Generating Gamma Variables".
+func gammaSample(rng *rand.Rand, shape float64) float64 {
+	if shape <= 0 {
+		return 0
+	}
+	if shape < 1 {
+		// Reduce to shape+1 via the identity X = Y × U^(1/shape).
+		return gammaSample(rng, shape+1) * math.Pow(rng.Float64(), 1.0/shape)
+	}
+	// Marsaglia-Tsang method for shape ≥ 1.
+	d := shape - 1.0/3.0
+	c := 1.0 / math.Sqrt(9.0*d)
+	for {
+		var x, v float64
+		for {
+			x = rng.NormFloat64()
+			v = 1.0 + c*x
+			if v > 0 {
+				break
+			}
+		}
+		v = v * v * v
+		u := rng.Float64()
+		xsq := x * x
+		// Fast acceptance (squeeze step).
+		if u < 1.0-0.0331*(xsq*xsq) {
+			return d * v
+		}
+		// Slower acceptance (log-space step).
+		if math.Log(u) < 0.5*xsq+d*(1.0-v+math.Log(v)) {
+			return d * v
+		}
+	}
 }
 
 // meanStdDevInt computes the arithmetic mean and population standard deviation

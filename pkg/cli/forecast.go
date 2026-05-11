@@ -691,19 +691,25 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		fmt.Sprintf("Workflow Forecast — per %s (based on last %d days of history)", periodLabel, config.Days)))
 	fmt.Fprintln(os.Stderr, "")
 
+	anyUnreliable := false
 	rows := make([]forecastTableRow, 0, len(output.Workflows))
 	for _, wf := range output.Workflows {
 		// Use Monte Carlo P50 as the primary ET estimate when available.
 		projETStr := formatForecastTokens(wf.ProjectedEffectiveTokens)
 		etRangeStr := "-"
+		unreliableMark := ""
 		if mc := wf.MonteCarlo; mc != nil {
 			projETStr = formatForecastTokens(mc.P50ProjectedEffectiveTokens)
 			etRangeStr = fmt.Sprintf("%s–%s",
 				formatForecastTokens(mc.P10ProjectedEffectiveTokens),
 				formatForecastTokens(mc.P90ProjectedEffectiveTokens))
+			if !mc.IsReliable {
+				anyUnreliable = true
+				unreliableMark = "*"
+			}
 		}
 		row := forecastTableRow{
-			Workflow:           wf.WorkflowID,
+			Workflow:           wf.WorkflowID + unreliableMark,
 			Runs:               wf.SampledRuns,
 			SuccessRate:        formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
 			Yield:              fmt.Sprintf("%.1f", wf.Yield),
@@ -738,7 +744,11 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("P50 = median; 80%% CI = P10–P90 from %d-trial Monte Carlo simulation.", monteCarloIterations)))
+		fmt.Sprintf("P50 = median; 80%% CI = P10–P90 from %d-trial Gamma–Poisson Monte Carlo simulation.", monteCarloIterations)))
+	if anyUnreliable {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("* Fewer than %d sampled runs — confidence intervals may be unreliable.", minObservationsForReliableForecast)))
+	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("Run '%s forecast --json' for full output.", string(constants.CLIExtensionPrefix))))
 	return nil
