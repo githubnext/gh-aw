@@ -114,8 +114,8 @@ func TestLabelNamesPreActivationFilter(t *testing.T) {
 		frontmatter           string
 		expectedIf            string
 		shouldHaveIf          bool
-		expectLabelArrayItems bool
-		labelItems            []string
+		shouldCheckLabelArrayItems bool
+		labelItems                 []string
 	}{
 		{
 			name: "pull_request_target with single labels",
@@ -137,8 +137,8 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review'",
 			shouldHaveIf: true,
-			labelItems:            []string{"panel-review"},
-			expectLabelArrayItems: false,
+			labelItems:                 []string{"panel-review"},
+			shouldCheckLabelArrayItems: false,
 		},
 		{
 			name: "pull_request_target with multiple labels",
@@ -160,8 +160,8 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'panel-review' || github.event.label.name == 'needs-triage'",
 			shouldHaveIf: true,
-			labelItems:            []string{"panel-review", "needs-triage"},
-			expectLabelArrayItems: true,
+			labelItems:                 []string{"panel-review", "needs-triage"},
+			shouldCheckLabelArrayItems: true,
 		},
 		{
 			// Negative test: no on.labels specified → the label-filter condition should not appear.
@@ -205,8 +205,8 @@ tools:
 ---`,
 			expectedIf:   "github.event.label == null || github.event.label.name == 'bug' || github.event.label.name == 'enhancement'",
 			shouldHaveIf: true,
-			labelItems:            []string{"bug", "enhancement"},
-			expectLabelArrayItems: true,
+			labelItems:                 []string{"bug", "enhancement"},
+			shouldCheckLabelArrayItems: true,
 		},
 	}
 
@@ -235,7 +235,7 @@ tools:
 					"on.labels should be commented out in generated workflow")
 				assert.Contains(t, lockContent, "Label filtering applied via job conditions",
 					"on.labels comment should explain filter handling")
-				if tt.expectLabelArrayItems {
+				if tt.shouldCheckLabelArrayItems {
 					for _, item := range tt.labelItems {
 						assert.Contains(t, lockContent, "# - "+item,
 							"on.labels array items should be commented out in generated workflow")
