@@ -18,6 +18,11 @@ function createRetryableFileReader(fileReader) {
   };
 }
 
+// Maximum time to allow the live API test to run. Must accommodate RATE_LIMIT_RETRY_CONFIG's
+// worst-case retry sequence (~30 s + ~60 s + ~120 s + ~240 s + ~240 s = ~11.5 min) plus
+// network and processing overhead. The CI job itself times out at 20 minutes.
+const LIVE_API_TEST_TIMEOUT_MS = 18 * 60 * 1000; // 18 minutes
+
 /**
  * Tests for frontmatter hash computation using GitHub's API to fetch real workflows.
  * This validates that the JavaScript hash algorithm correctly computes hashes
@@ -366,7 +371,7 @@ describe("frontmatter_hash with GitHub API", () => {
   });
 
   describe("live GitHub API integration", () => {
-    it("should compute hash using real GitHub API (no mocks)", { timeout: 18 * 60 * 1000 }, async () => {
+    it("should compute hash using real GitHub API (no mocks)", { timeout: LIVE_API_TEST_TIMEOUT_MS }, async () => {
       // Skip this test if no GitHub token is available
       // Check multiple possible token environment variables
       const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
