@@ -251,7 +251,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── API proxy section ─────────────────────────────────────────────────────
 	maxEffectiveTokens := constants.DefaultMaxEffectiveTokens
-	maxRuns := 0
+	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		maxEffectiveTokens = config.WorkflowData.EngineConfig.GetMaxEffectiveTokens()
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()

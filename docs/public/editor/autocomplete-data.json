@@ -1173,12 +1173,12 @@
     },
     "max-effective-tokens": {
       "type": "integer|string",
-      "desc": "Explicit ET budget control for firewall cost enforcement.",
+      "desc": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted.",
       "leaf": true
     },
     "max-runs": {
       "type": "integer|string",
-      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.",
+      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 100 when omitted.",
       "leaf": true
     },
     "mcp-servers": {

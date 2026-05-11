@@ -47,6 +47,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		// apiProxy section with enabled: true
 		assert.Contains(t, jsonStr, `"apiProxy"`, "should include apiProxy section")
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy should be enabled")
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns")
 		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxEffectiveTokens":%d`, constants.DefaultMaxEffectiveTokens), "apiProxy should emit default maxEffectiveTokens")
 
 		// container.imageTag
@@ -138,7 +139,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"maxRuns":37`, "apiProxy should emit configured maxRuns")
 	})
 
-	t.Run("max-runs omitted when not configured", func(t *testing.T) {
+	t.Run("default max-runs is emitted when not configured", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -154,7 +155,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.NotContains(t, jsonStr, `"maxRuns"`, "apiProxy should omit maxRuns when unset")
+		assert.Contains(t, jsonStr, fmt.Sprintf(`"maxRuns":%d`, constants.DefaultMaxRuns), "apiProxy should emit default maxRuns when unset")
 	})
 
 	t.Run("engine token-weights multipliers are emitted in apiProxy modelMultipliers", func(t *testing.T) {
