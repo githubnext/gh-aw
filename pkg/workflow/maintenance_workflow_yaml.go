@@ -569,7 +569,7 @@ jobs:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         run: |
           mkdir -p ./.cache/gh-aw/forecast
-          ${GH_AW_CMD_PREFIX} logs --repo "${{ github.repository }}" --all > /dev/null
+          ${GH_AW_CMD_PREFIX} logs --repo "${{ github.repository }}" --count 100 > /dev/null
           if ! compgen -G ".github/aw/logs/run-*/run_summary.json" > /dev/null; then
             echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
             exit 1

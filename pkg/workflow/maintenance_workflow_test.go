@@ -470,8 +470,8 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --all") {
-		t.Errorf("Job forecast_report should warm logs cache via gh aw logs --all in:\n%s", yaml)
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --count 100") {
+		t.Errorf("Job forecast_report should warm logs cache via gh aw logs --count 100 in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast.") {
 		t.Errorf("Job forecast_report should fail when run summary cache is missing after warm-up in:\n%s", yaml)
