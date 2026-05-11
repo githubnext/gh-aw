@@ -126,9 +126,7 @@ const mockCore = {
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
         .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
       // Pre-flight check says no parent (e.g. parent field not yet populated), but mutation fails
-      mockGithub.graphql
-        .mockResolvedValueOnce({ repository: { issue: { parent: null } } })
-        .mockRejectedValueOnce(new Error("Issue is already a sub-issue of the specified issue."));
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockRejectedValueOnce(new Error("Issue is already a sub-issue of the specified issue."));
 
       const result = await handler(message, {});
 

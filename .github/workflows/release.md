@@ -111,33 +111,55 @@ jobs:
                 break;
             }
             
-            const releaseTag = `v${major}.${minor}.${patch}`;
-            console.log(`Computed release tag: ${releaseTag}`);
-            
-            // Sanity check: Verify the computed tag doesn't already exist
-            const existingRelease = releases.find(r => r.tag_name === releaseTag);
-            if (existingRelease) {
-              core.setFailed(`Release tag ${releaseTag} already exists (created ${existingRelease.created_at}). Cannot create duplicate release. Please check existing releases.`);
-              return;
-            }
-            
-            // Also check if tag exists in git (in case release was deleted but tag remains)
-            try {
-              await github.rest.git.getRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: `tags/${releaseTag}`
-              });
-              // If we get here, the tag exists
-              core.setFailed(`Git tag ${releaseTag} already exists in the repository. Cannot create duplicate tag. Please delete the existing tag or use a different version.`);
-              return;
-            } catch (error) {
-              // 404 means tag doesn't exist, which is what we want
-              if (error.status !== 404) {
-                throw error; // Re-throw unexpected errors
+            // Helper: check whether a given tag already exists (as a release or git ref)
+            const tagExists = async (tagName) => {
+              const releaseExists = releases.some(r => r.tag_name === tagName);
+              if (releaseExists) return true;
+              try {
+                await github.rest.git.getRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${tagName}`
+                });
+                return true; // tag ref exists
+              } catch (error) {
+                if (error.status === 404) return false;
+                throw new Error(`Failed to check if tag ${tagName} exists: ${error.message}`);
+              }
+            };
+
+            // Find the first available tag, bumping the minor/patch if the computed one is taken.
+            // This handles the case where a release failed half-way and left a tag behind.
+            const MAX_ATTEMPTS = 10;
+            let releaseTag;
+            for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+              const candidate = `v${major}.${minor}.${patch}`;
+              if (!(await tagExists(candidate))) {
+                releaseTag = candidate;
+                break;
+              }
+              console.log(`Tag ${candidate} already exists – bumping version and retrying…`);
+              // For patch releases keep bumping the patch number.
+              // For minor/major releases bump the minor number (patch is already 0).
+              switch (releaseType) {
+                case 'patch':
+                  patch += 1;
+                  break;
+                case 'minor':
+                  minor += 1;
+                  break;
+                case 'major':
+                  minor += 1;
+                  break;
               }
             }
-            
+
+            if (!releaseTag) {
+              core.setFailed(`Could not find an available release tag after ${MAX_ATTEMPTS} attempts. Please check existing tags and releases.`);
+              return;
+            }
+
+            console.log(`Computed release tag: ${releaseTag}`);
             core.setOutput('release_tag', releaseTag);
             console.log(`✓ Release tag: ${releaseTag}`);
   push_tag:
