@@ -28,7 +28,7 @@ safe-outputs:
     close-older-issues: true
     expires: 30d
 imports:
-  - shared/otel-observability.md
+  - shared/otel-queries.md
 pre-agent-steps:
   - name: Precompute workflow portfolio data
     uses: actions/github-script@v9
@@ -74,7 +74,7 @@ You are the semantic interpreter for the repository's agentic workflow portfolio
 - OTel = facts. Deterministic precompute/postcompute = math. Agent = interpretation.
 - Do **not** recompute raw scores, ranking, overlap values, fractions, or portfolio math from scratch.
 - Do **not** invent telemetry, economics, confidence, or success evidence.
-- Use the `otel` MCP server only for aggregated summaries when the precompute file explicitly indicates that telemetry exists but needs brief interpretation.
+- Use the OTel queries skill only when the precompute file explicitly indicates that telemetry exists and needs brief interpretation.
 - Do not request or inspect raw traces.
 - Do not perform write actions with GitHub tools.
 
