@@ -409,7 +409,7 @@ describe("frontmatter_hash with GitHub API", () => {
           fileReader,
         });
       } catch (err) {
-        if (err.message && err.message.toLowerCase().includes("rate limit")) {
+        if (err.message?.toLowerCase().includes("rate limit")) {
           console.log("Skipping live API test - GitHub API rate limit exceeded");
           console.log("This is expected when the API rate limit is reached during CI runs");
           return;
