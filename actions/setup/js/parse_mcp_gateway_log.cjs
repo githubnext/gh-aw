@@ -50,7 +50,7 @@ function formatDurationMs(ms) {
  * Parses token-usage.jsonl content and returns an aggregated summary.
  * Computes effective tokens (ET) per model using the GH_AW_MODEL_MULTIPLIERS env var.
  * @param {string} jsonlContent - The token-usage.jsonl file content
- * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, totalEffectiveTokens: number, byModel: Object} | null}
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object} | null}
  */
 function parseTokenUsageJsonl(jsonlContent) {
   const summary = {
@@ -60,7 +60,6 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalCacheWriteTokens: 0,
     totalRequests: 0,
     totalDurationMs: 0,
-    cacheEfficiency: 0,
     totalEffectiveTokens: 0,
     byModel: {},
   };
@@ -110,11 +109,6 @@ function parseTokenUsageJsonl(jsonlContent) {
 
   if (summary.totalRequests === 0) return null;
 
-  const totalInputPlusCacheRead = summary.totalInputTokens + summary.totalCacheReadTokens;
-  if (totalInputPlusCacheRead > 0) {
-    summary.cacheEfficiency = summary.totalCacheReadTokens / totalInputPlusCacheRead;
-  }
-
   // Compute effective tokens per model and aggregate total
   let totalEffectiveTokens = 0;
   for (const [model, usage] of Object.entries(summary.byModel)) {
@@ -130,7 +124,7 @@ function parseTokenUsageJsonl(jsonlContent) {
 /**
  * Generates a markdown summary section for token usage data.
  * Includes an Effective Tokens (ET) column per model and a ● ET summary line.
- * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, totalEffectiveTokens: number, byModel: Object} | null} summary
+ * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object} | null} summary
  * @returns {string} Markdown section, or empty string if no data
  */
 function generateTokenUsageSummary(summary) {
@@ -159,13 +153,10 @@ function generateTokenUsageSummary(summary) {
     `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${totalET}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
 
-  // Footer line with ET summary using ● symbol and optional cache efficiency
+  // Footer line with ET summary using ● symbol
   const footerParts = [];
   if (summary.totalEffectiveTokens > 0) {
     footerParts.push(`● ${formatET(Math.round(summary.totalEffectiveTokens))}`);
-  }
-  if (summary.cacheEfficiency > 0) {
-    footerParts.push(`Cache efficiency: ${(summary.cacheEfficiency * 100).toFixed(1)}%`);
   }
   if (footerParts.length > 0) {
     lines.push(`\n_${footerParts.join(" · ")}_`);

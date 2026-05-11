@@ -1092,12 +1092,11 @@ not-json
       expect(summary.byModel["unknown"]).toBeDefined();
     });
 
-    test("computes cache efficiency", () => {
+    test("does not compute cache efficiency", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
       const summary = parseTokenUsageJsonl(content);
       expect(summary).not.toBeNull();
-      // cache_read / (input + cache_read) = 900 / 1000 = 0.9
-      expect(summary.cacheEfficiency).toBeCloseTo(0.9);
+      expect(summary).not.toHaveProperty("cacheEfficiency");
     });
   });
 
@@ -1120,15 +1119,8 @@ not-json
       expect(md).toContain("**Total**");
     });
 
-    test("includes cache efficiency when non-zero", () => {
+    test("does not include cache efficiency", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
-      const summary = parseTokenUsageJsonl(content);
-      const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("Cache efficiency: 90.0%");
-    });
-
-    test("omits cache efficiency line when zero", () => {
-      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
       expect(md).not.toContain("Cache efficiency");
@@ -1163,16 +1155,12 @@ not-json
       expect(md).toContain("●");
     });
 
-    test("includes cache efficiency after ● ET in footer line", () => {
+    test("includes ● ET in footer line without cache efficiency", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
       expect(md).toContain("●");
-      expect(md).toContain("Cache efficiency: 90.0%");
-      // ET should appear before cache efficiency
-      const etIdx = md.indexOf("●");
-      const ceIdx = md.indexOf("Cache efficiency");
-      expect(etIdx).toBeLessThan(ceIdx);
+      expect(md).not.toContain("Cache efficiency");
     });
   });
 
