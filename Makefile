@@ -701,7 +701,12 @@ recompile: build
 # Compile workflows under pkg/cli/workflows
 .PHONY: compile-cli-workflows
 compile-cli-workflows: build
-	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --purge --no-check-update
+	@WORKFLOWS=$$(find pkg/cli/workflows -maxdepth 1 -type f -name '*.lock.yml' | sed 's/\.lock\.yml$$/.md/' | sort | tr '\n' ' '); \
+	if [ -z "$$WORKFLOWS" ]; then \
+		echo "No workflow files found in pkg/cli/workflows"; \
+		exit 1; \
+	fi; \
+	./$(BINARY_NAME) compile --fix --no-check-update $$WORKFLOWS
 
 # Apply automatic fixes to workflow files
 .PHONY: fix
