@@ -63,7 +63,6 @@ You have access to the `agentic-workflows` MCP tool which provides:
 - `audit` - Audit a workflow run and generate detailed report
 - `logs` - Download workflow logs with filtering and analysis
 - `compile` - Compile workflow markdown files to YAML
-- `list` - List all workflows in the repository
 - `status` - Get status and metadata for workflows
 
 **CRITICAL**: Use the MCP tool exclusively - do NOT try to run `gh aw` commands directly via bash as authentication is not configured for direct CLI usage.
@@ -87,7 +86,7 @@ Use the agentic-workflows MCP tool's "status" command to verify the server is op
 Get a comprehensive list of workflows to test:
 
 ```
-Use the agentic-workflows MCP tool's "list" command to enumerate all workflows in the repository.
+Use the agentic-workflows MCP tool's "status" command to enumerate all workflows in the repository.
 ```
 
 Expected output: List of workflow markdown files with metadata
