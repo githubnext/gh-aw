@@ -296,7 +296,7 @@ func TestConcurrency(t *testing.T) {
 			for i := range linesEach {
 				line := fmt.Sprintf("stage=work goroutine=%d iter=%d", id, i)
 				_, trainErr := m.Train(line)
-				require.NoError(t, trainErr, "Train should not error during concurrent access")
+				assert.NoError(t, trainErr, "Train should not error during concurrent access")
 			}
 		}(g)
 	}
