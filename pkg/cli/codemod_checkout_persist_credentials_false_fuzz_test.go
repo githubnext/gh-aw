@@ -58,13 +58,7 @@ func FuzzCheckoutPersistCredentialsFalseCodemod(f *testing.F) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectMutation := isCheckout && (!hasWith || (hasWith && !hasPersist))
-		if hasWith && hasPersist && persistTrue && isCheckout {
-			expectMutation = false
-		}
-		if hasWith && hasPersist && !persistTrue && isCheckout {
-			expectMutation = false
-		}
+		expectMutation := isCheckout && !(hasWith && hasPersist)
 
 		if expectMutation {
 			if !applied {
@@ -95,9 +89,11 @@ func buildCheckoutFuzzContent(section, uses string, hasWith, hasPersist, persist
 		"---",
 		"on: push",
 		section + ":",
-		"  - name: checkout-step",
-		usesLine,
 	}
+	if !inlineUses {
+		lines = append(lines, "  - name: checkout-step")
+	}
+	lines = append(lines, usesLine)
 
 	if hasWith {
 		lines = append(lines, "    with:", "      fetch-depth: 0")
