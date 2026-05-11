@@ -89,6 +89,29 @@ def test_declared_observability_without_telemetry_stays_low_evidence(tmp_path: P
     assert "telemetry not observed" in record["notes"]
 
 
+def test_telemetry_prefers_repo_relative_path_over_name_collisions(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    first = workflows / "foo" / "alpha.md"
+    second = workflows / "bar" / "alpha.md"
+    write_workflow(first, "---\nname: Alpha One\n---\n# Alpha One\n")
+    write_workflow(second, "---\nname: Alpha Two\n---\n# Alpha Two\n")
+    telemetry = tmp_path / "summary.json"
+    telemetry.write_text(
+        """
+{
+  "workflows": [
+    {"workflow_path": ".github/workflows/foo/alpha.md", "workflow_invocation_count": 1, "observed": true, "validated": true},
+    {"workflow_path": ".github/workflows/bar/alpha.md", "workflow_invocation_count": 7, "observed": true, "validated": true}
+  ]
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    telemetry_index = pre.load_otel_summary(str(telemetry))
+    record = pre.build_workflow_record(second, workflows, telemetry_index)
+    assert record["telemetry_metrics"]["workflow_invocation_count"] == 7
+
+
 def test_portfolio_metrics_split_declared_observed_and_validated_coverage() -> None:
     workflows = [
         {"yield": 0.3, "cost": 0.2, "risk": 0.2, "maintenance_drag": 0.2, "agentic_fraction": 0.4, "deterministic_fraction": 0.6, "observability_declared": True, "telemetry_observed": True, "telemetry_validated": True, "evidence_quality": "high"},

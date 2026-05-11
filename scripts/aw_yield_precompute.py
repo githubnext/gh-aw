@@ -862,11 +862,15 @@ def load_otel_summary(path: str | None) -> dict[str, dict[str, Any]]:
     return index
 
 
-def telemetry_for_workflow(workflow_path: Path, frontmatter: dict[str, Any], telemetry_index: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def telemetry_for_workflow(
+    workflow_path: Path,
+    relative_path: str,
+    frontmatter: dict[str, Any],
+    telemetry_index: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     candidates = [
-        workflow_path.as_posix(),
+        normalize_text(relative_path),
         workflow_path.name,
-        workflow_path.stem,
         normalize_text(frontmatter.get("name")),
     ]
     for key in candidates:
@@ -883,7 +887,7 @@ def build_workflow_record(workflow_path: Path, workflows_root: Path, telemetry_i
     timeout_minutes = infer_timeout_minutes(frontmatter.get("timeout-minutes"))
     safe_outputs = frontmatter.get("safe-outputs") or {}
     has_safe_outputs = isinstance(safe_outputs, dict) and bool(safe_outputs)
-    telemetry_entry = telemetry_for_workflow(workflow_path, frontmatter, telemetry_index)
+    telemetry_entry = telemetry_for_workflow(workflow_path, relative_path, frontmatter, telemetry_index)
     telemetry_metrics = telemetry_entry.get("metrics", {})
     telemetry_observed = coerce_bool(telemetry_entry.get("observed"), default=bool(telemetry_metrics)) and bool(telemetry_metrics)
     telemetry_validated = coerce_bool(telemetry_entry.get("validated"), default=False) and bool(telemetry_metrics)
