@@ -446,6 +446,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
 		}
 	}
+	if c.priorManifests == nil {
+		c.priorManifests = map[string]*GHAWManifest{}
+	}
+	if _, ok := c.priorManifests[lockFile]; !ok {
+		c.priorManifests[lockFile] = oldManifest
+	}
 
 	// Validate workflow data
 	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {

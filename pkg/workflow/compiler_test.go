@@ -310,6 +310,35 @@ Test content
 	require.NoError(t, err, "Lock file should be created")
 }
 
+func TestCompileWorkflow_CachesResolvedManifestBaseline(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "compiler-manifest-cache")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Caching baseline manifest data should not change behavior.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(WithNoEmit(true))
+	require.Nil(t, compiler.priorManifests)
+
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Clean(stringutil.MarkdownToLockFile(testFile))
+	firstBaseline, ok := compiler.priorManifests[lockFile]
+	require.True(t, ok, "baseline manifest should be cached after first compile")
+	require.NotNil(t, firstBaseline, "new workflows should cache an empty baseline manifest")
+
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+	require.Same(t, firstBaseline, compiler.priorManifests[lockFile], "second compile should reuse cached baseline")
+}
+
 // TestCompileWorkflow_LockFileSize tests that generated lock files don't exceed size limits
 func TestCompileWorkflow_LockFileSize(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "compiler-size-test")
