@@ -14,7 +14,9 @@ const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp
  * is bundled in the agent artifact and accessible to third-party tools.
  */
 
+const TOKEN_USAGE_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl";
 const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
+const TOKEN_USAGE_PATHS = [TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH];
 const AGENT_USAGE_PATH = "/tmp/gh-aw/agent_usage.json";
 
 /**
@@ -22,13 +24,24 @@ const AGENT_USAGE_PATH = "/tmp/gh-aw/agent_usage.json";
  */
 async function main() {
   try {
-    if (!fs.existsSync(TOKEN_USAGE_PATH) || fs.statSync(TOKEN_USAGE_PATH).size === 0) {
+    const tokenUsagePaths = TOKEN_USAGE_PATHS.filter(path => fs.existsSync(path) && fs.statSync(path).size > 0);
+    if (tokenUsagePaths.length === 0) {
       core.info("No token usage data found, skipping summary");
       return;
     }
 
-    const content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
-    core.info(`Parsing token usage from: ${TOKEN_USAGE_PATH} (${content.length} bytes)`);
+    const uniqueLines = new Set();
+    for (const path of tokenUsagePaths) {
+      const fileContent = fs.readFileSync(path, "utf8");
+      const lines = fileContent.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        uniqueLines.add(trimmed);
+      }
+    }
+    const content = Array.from(uniqueLines).join("\n");
+    core.info(`Parsing token usage from ${tokenUsagePaths.length} file(s): ${tokenUsagePaths.join(", ")} (${content.length} bytes)`);
 
     const summary = parseTokenUsageJsonl(content);
     if (!summary || summary.totalRequests === 0) {
@@ -72,7 +85,9 @@ async function main() {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     main,
+    TOKEN_USAGE_AUDIT_PATH,
     TOKEN_USAGE_PATH,
+    TOKEN_USAGE_PATHS,
     AGENT_USAGE_PATH,
   };
 }

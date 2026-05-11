@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const { main, TOKEN_USAGE_PATH, AGENT_USAGE_PATH } = require("./parse_token_usage.cjs");
+const { main, TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH, TOKEN_USAGE_PATHS, AGENT_USAGE_PATH } = require("./parse_token_usage.cjs");
 
 describe("parse_token_usage", () => {
   const singleEntry = JSON.stringify({
@@ -24,8 +24,16 @@ describe("parse_token_usage", () => {
   ].join("\n");
 
   describe("constant paths", () => {
+    test("TOKEN_USAGE_AUDIT_PATH points to firewall audit log file", () => {
+      expect(TOKEN_USAGE_AUDIT_PATH).toBe("/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl");
+    });
+
     test("TOKEN_USAGE_PATH points to firewall proxy log file", () => {
       expect(TOKEN_USAGE_PATH).toBe("/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl");
+    });
+
+    test("TOKEN_USAGE_PATHS includes audit and legacy paths", () => {
+      expect(TOKEN_USAGE_PATHS).toEqual([TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH]);
     });
 
     test("AGENT_USAGE_PATH points to agent_usage.json", () => {
@@ -186,6 +194,31 @@ describe("parse_token_usage", () => {
       expect(detailsCall[1]).toContain("claude-sonnet-4-6");
       expect(detailsCall[1]).toContain("gpt-4o");
       expect(detailsCall[1]).toContain("**Total**");
+
+      const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
+      expect(agentUsage.input_tokens).toBe(150);
+      expect(agentUsage.output_tokens).toBe(280);
+    });
+
+    test("reads token usage from firewall-audit-logs path", async () => {
+      const agentUsageFile = path.join(tmpDir, "agent_usage.json");
+
+      fs.existsSync = vi.fn(p => (p === TOKEN_USAGE_AUDIT_PATH ? true : originalExistsSync(p)));
+      fs.statSync = vi.fn(p => (p === TOKEN_USAGE_AUDIT_PATH ? { size: multiEntry.length } : originalStatSync(p)));
+      fs.readFileSync = vi.fn((p, enc) => (p === TOKEN_USAGE_AUDIT_PATH ? multiEntry : originalReadFileSync(p, enc)));
+      fs.writeFileSync = vi.fn((p, data) => {
+        if (p === AGENT_USAGE_PATH) {
+          originalWriteFileSync(agentUsageFile, data);
+        } else {
+          originalWriteFileSync(p, data);
+        }
+      });
+
+      await main();
+
+      const detailsCall = mockCore.summary.addDetails.mock.calls[0];
+      expect(detailsCall[1]).toContain("claude-sonnet-4-6");
+      expect(detailsCall[1]).toContain("gpt-4o");
 
       const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
       expect(agentUsage.input_tokens).toBe(150);
