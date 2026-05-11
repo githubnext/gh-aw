@@ -9,6 +9,7 @@ import (
 
 var checkoutPersistCredentialsFalseCodemodLog = logger.New("cli:codemod_checkout_persist_credentials_false")
 
+// Frontmatter examples in gh-aw use two-space indentation for nested YAML mappings.
 const yamlIndentIncrement = 2
 
 // getCheckoutPersistCredentialsFalseCodemod ensures checkout steps set with.persist-credentials: false.
@@ -27,6 +28,8 @@ func getCheckoutPersistCredentialsFalseCodemod() Codemod {
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 				modified := false
 				current := lines
+				// Top-level sections and jobs.agent sections are distinct config surfaces
+				// for the same agent job and are transformed independently when present.
 				for _, section := range agentSections {
 					var sectionChanged bool
 					current, sectionChanged = transformSectionCheckoutPersistCredentials(current, section)
