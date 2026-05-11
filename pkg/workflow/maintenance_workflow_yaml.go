@@ -633,8 +633,8 @@ jobs:
               '',
               ...(allProjectedZero ? [
                 '> [!NOTE]',
-                '> All projected ET values are 0 because forecast ET data comes from locally cached run summaries (` + "`gh aw logs`" + `), and this maintenance runner starts from a clean workspace.',
-                '> Run ` + "`gh aw logs --repo owner/repo --all`" + ` before forecast if you want ET projections based on cached token usage.',
+                '> All projected ET values are 0 because forecast ET data comes from locally cached run summaries (gh aw logs), and this maintenance runner starts from a clean workspace.',
+                '> Run gh aw logs --repo owner/repo --all before forecast if you want ET projections based on cached token usage.',
                 '',
               ] : []),
             ].join('\n');
