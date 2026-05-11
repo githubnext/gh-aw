@@ -9,6 +9,8 @@ import (
 
 var checkoutPersistCredentialsFalseCodemodLog = logger.New("cli:codemod_checkout_persist_credentials_false")
 
+const yamlIndentIncrement = 2
+
 // getCheckoutPersistCredentialsFalseCodemod ensures checkout steps set with.persist-credentials: false.
 func getCheckoutPersistCredentialsFalseCodemod() Codemod {
 	return Codemod{
@@ -149,7 +151,7 @@ func transformAgentJobCheckoutPersistCredentials(lines []string, sectionNames []
 	for i, line := range jobsLines {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
-		if len(indent) == len(jobsIndent)+2 && parseYAMLMapKey(trimmed) == "agent" {
+		if len(indent) == len(jobsIndent)+yamlIndentIncrement && parseYAMLMapKey(trimmed) == "agent" {
 			agentStart = i
 			agentIndent = indent
 			break
@@ -200,7 +202,7 @@ func transformNestedSectionCheckoutPersistCredentials(lines []string, sectionNam
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
-		if len(indent) == len(parentIndent)+2 && strings.HasPrefix(trimmed, sectionName+":") {
+		if len(indent) == len(parentIndent)+yamlIndentIncrement && strings.HasPrefix(trimmed, sectionName+":") {
 			sectionStart = i
 			sectionIndent = indent
 			break
