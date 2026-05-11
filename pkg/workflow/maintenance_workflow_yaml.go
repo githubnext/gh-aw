@@ -593,16 +593,50 @@ jobs:
               core.warning('Forecast report JSON is empty at ' + reportPath + '; skipping issue creation.');
               return;
             }
+            let report = {};
+            try {
+              report = JSON.parse(reportBody);
+            } catch (error) {
+              core.warning('Failed to parse forecast report JSON at ' + reportPath + ': ' + error.message);
+              return;
+            }
+            const workflows = Array.isArray(report.workflows) ? report.workflows : [];
+            if (workflows.length === 0) {
+              core.warning('Forecast report contains no workflows; skipping issue creation.');
+              return;
+            }
+            const escapeCell = (value) => String(value ?? '').replaceAll('|', '\\|');
+            const rows = workflows.map((workflow) => {
+              const p50 = workflow?.monte_carlo?.p50_projected_effective_tokens ?? workflow?.projected_effective_tokens ?? 0;
+              return [
+                escapeCell(workflow.workflow_id),
+                workflow.sampled_runs ?? 0,
+                p50,
+              ];
+            });
+            const allProjectedZero = rows.every(([, , p50]) => Number(p50) === 0);
+            const reportTable = [
+              '| Workflow | Sampled runs | Forecast ET (P50) |',
+              '| --- | ---: | ---: |',
+              ...rows.map(([workflowID, sampledRuns, p50]) => ` + "`| ${workflowID} | ${sampledRuns} | ${p50} |`" + `),
+            ].join('\n');
             const repoSlug = context.repo.owner + '/' + context.repo.repo;
+            const period = report.period || 'month';
             const body = [
               '### Agentic workflow forecast report',
               '',
               'Repository: ' + repoSlug,
               'Generated at: ' + new Date().toISOString(),
+              'Period: ' + period,
               '',
-              '~~~json',
-              reportBody,
-              '~~~',
+              reportTable,
+              '',
+              ...(allProjectedZero ? [
+                '> [!NOTE]',
+                '> All projected ET values are 0 because forecast ET data comes from locally cached run summaries (` + "`gh aw logs`" + `), and this maintenance runner starts from a clean workspace.',
+                '> Run ` + "`gh aw logs --repo owner/repo --all`" + ` before forecast if you want ET projections based on cached token usage.',
+                '',
+              ] : []),
             ].join('\n');
             const createdIssue = await github.rest.issues.create({
               owner: context.repo.owner,

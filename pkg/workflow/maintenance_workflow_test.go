@@ -473,6 +473,12 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --json") {
 		t.Errorf("Job forecast_report gh aw forecast command should include --repo and --json in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "| Workflow | Sampled runs | Forecast ET (P50) |") {
+		t.Errorf("Job forecast_report issue generation step should render markdown table output in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "All projected ET values are 0 because forecast ET data comes from locally cached run summaries") {
+		t.Errorf("Job forecast_report issue generation step should explain zero projected ET values in:\n%s", yaml)
+	}
 	if !strings.Contains(yaml, "title: '[aw] workflow forecast report'") {
 		t.Errorf("Job forecast_report issue generation step should create the forecast issue title in:\n%s", yaml)
 	}
