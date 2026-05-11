@@ -56,6 +56,7 @@ func GetAllCodemods() []Codemod {
 		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)
 		getSerenaToSharedImportCodemod(),              // Migrate removed tools.serena to shared/mcp/serena.md import
 		getWorkflowRunBranchesCodemod(),               // Add default branches to bare on.workflow_run trigger
+		getCheckoutPersistCredentialsFalseCodemod(),   // Add with.persist-credentials: false to actions/checkout steps
 		getPullRequestTargetCheckoutFalseCodemod(),    // Add checkout: false for pull_request_target workflows when safe
 		getDependabotPermissionsCodemod(),             // Add vulnerability-alerts: read when dependabot toolset is used
 		getGitHubReposToAllowedReposCodemod(),         // Rename deprecated tools.github.repos to tools.github.allowed-repos
