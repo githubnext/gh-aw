@@ -5,7 +5,16 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const { main, getReadableTokenUsagePaths, extractRequestId, readDedupedTokenUsage, TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH, TOKEN_USAGE_PATHS, AGENT_USAGE_PATH } = require("./parse_token_usage.cjs");
+const {
+  main,
+  getReadableTokenUsagePaths,
+  extractRequestId,
+  readDedupedTokenUsage,
+  TOKEN_USAGE_AUDIT_PATH,
+  TOKEN_USAGE_PATH,
+  TOKEN_USAGE_PATHS,
+  AGENT_USAGE_PATH,
+} = require("./parse_token_usage.cjs");
 
 describe("parse_token_usage", () => {
   const singleEntry = JSON.stringify({
