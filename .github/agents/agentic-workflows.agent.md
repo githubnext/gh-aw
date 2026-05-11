@@ -20,6 +20,7 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Fixing Dependabot PRs**: Routes to `dependabot` prompt — use this when Dependabot opens PRs that modify generated manifest files (`.github/workflows/package.json`, `.github/workflows/requirements.txt`, `.github/workflows/go.mod`). Never merge those PRs directly; instead update the source `.md` files and rerun `gh aw compile --dependabot` to bundle all fixes
 - **Analyzing test coverage**: Routes to `test-coverage` prompt — consult this whenever the workflow reads, analyzes, or reports on test coverage data from PRs or CI runs
 - **CLI commands and triggering workflows**: Routes to `cli-commands` guide — consult this whenever the user asks how to run, compile, debug, or manage workflows from the command line, or when they need the MCP tool equivalent of a `gh aw` command
+- **Reducing token consumption / cost optimization**: Routes to `token-optimization` guide — consult this whenever the user asks how to reduce token usage, lower costs, speed up workflows, or measure the impact of prompt changes with experiments
 
 Workflows may optionally include:
 
@@ -140,6 +141,19 @@ When you interact with this agent, it will:
 - "What's the MCP equivalent of `gh aw logs`?"
 - "I'm in Copilot Cloud — how do I compile a workflow?"
 - "Show me all available gh aw commands"
+
+### Token Consumption Optimization
+**Load when**: The user asks how to reduce token usage, lower workflow costs, make a workflow faster or cheaper, or measure the impact of prompt or configuration changes.
+
+**Reference file**: https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md
+
+**Use cases**:
+- "How do I reduce the token cost of this workflow?"
+- "My workflow is too expensive — how do I optimize it?"
+- "How do I compare token usage between two runs?"
+- "Should I use gh-proxy or the MCP server?"
+- "How do I use sub-agents to reduce costs?"
+- "How do I measure the impact of a prompt change?"
 
 ## Instructions
 
