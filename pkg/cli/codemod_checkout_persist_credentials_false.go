@@ -80,7 +80,7 @@ func transformSectionCheckoutPersistCredentials(lines []string, sectionName stri
 		return lines, false
 	}
 
-	result := make([]string, 0, len(lines)-(len(sectionLines)-len(updatedSection)))
+	result := make([]string, 0, len(lines))
 	result = append(result, lines[:sectionStart]...)
 	result = append(result, updatedSection...)
 	result = append(result, lines[sectionEnd+1:]...)
