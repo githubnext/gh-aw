@@ -8,25 +8,12 @@ This directory contains operational runbooks for managing and troubleshooting Gi
 
 ## Purpose
 
-Runbooks provide step-by-step procedures for:
-- Diagnosing workflow issues
-- Resolving common failure patterns
-- Applying learnings from incident response
-- Maintaining workflow reliability
-
-## How to Use Runbooks
-
-1. Identify the type of issue you're experiencing
-2. Open the relevant runbook
-3. Follow the investigation steps
-4. Apply the resolution procedure
-5. Verify the fix
+Step-by-step procedures for diagnosing workflow issues, resolving failure patterns, applying incident-response learnings, and maintaining reliability.
 
 ## Contributing
 
 When creating new runbooks:
-- Focus on actionable procedures
-- Include real-world examples and case studies
+- Focus on actionable procedures with real-world examples
 - Document commands and configuration patterns
 - Reference related documentation
 - Follow the how-to guide format

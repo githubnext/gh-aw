@@ -212,15 +212,31 @@ func parseOptionalStringSliceField(value any, fieldName string) []string {
 	return result
 }
 
-// extractRateLimitConfig extracts the 'rate-limit' field from frontmatter
+// extractRateLimitConfig extracts the rate-limit config from frontmatter.
+// Preferred key: user-rate-limit
+// Legacy key (still accepted): rate-limit
 func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimitConfig {
-	if rateLimitValue, exists := frontmatter["rate-limit"]; exists && rateLimitValue != nil {
+	rateLimitValue, exists := frontmatter["user-rate-limit"]
+	legacyKey := false
+	if !exists || rateLimitValue == nil {
+		rateLimitValue, exists = frontmatter["rate-limit"]
+		legacyKey = exists && rateLimitValue != nil
+	}
+
+	if exists && rateLimitValue != nil {
 		switch v := rateLimitValue.(type) {
 		case map[string]any:
 			config := &RateLimitConfig{}
 
-			// Extract max (default: 5)
-			if maxValue, ok := v["max"]; ok {
+			// Extract max-runs-per-window (default: 5)
+			maxValue, ok := v["max-runs-per-window"]
+			if !ok {
+				maxValue, ok = v["max-runs"]
+			}
+			if !ok {
+				maxValue, ok = v["max"] // legacy compatibility
+			}
+			if ok {
 				switch max := maxValue.(type) {
 				case int:
 					config.Max = max
@@ -281,11 +297,14 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 				roleLog.Print("No ignored-roles specified, using defaults: admin, maintain, write")
 			}
 
-			roleLog.Printf("Extracted rate-limit config: max=%d, window=%d, events=%v, ignored-roles=%v", config.Max, config.Window, config.Events, config.IgnoredRoles)
+			if legacyKey {
+				roleLog.Print("Extracted legacy rate-limit configuration")
+			}
+			roleLog.Printf("Extracted user-rate-limit config: max=%d, window=%d, events=%v, ignored-roles=%v", config.Max, config.Window, config.Events, config.IgnoredRoles)
 			return config
 		}
 	}
-	roleLog.Print("No rate-limit configuration specified")
+	roleLog.Print("No user-rate-limit configuration specified")
 	return nil
 }
 

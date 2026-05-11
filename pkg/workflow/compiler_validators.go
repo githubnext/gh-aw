@@ -275,9 +275,9 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		c.IncrementWarningCount()
 	}
 
-	// Emit experimental warning for rate-limit feature
+	// Emit experimental warning for rate-limiting feature
 	if workflowData.RateLimit != nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: rate-limit"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: rate limiting"))
 		c.IncrementWarningCount()
 	}
 

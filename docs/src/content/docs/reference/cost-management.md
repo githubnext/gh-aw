@@ -161,11 +161,11 @@ Inference cost scales with prompt size. Write focused prompts, avoid whole-file 
 
 ### Rate Limiting and Concurrency
 
-Use `rate-limit` to cap how many times a user can trigger the workflow in a given window, and rely on concurrency controls to serialize runs rather than letting them pile up:
+Use `user-rate-limit` to cap how many times a user can trigger the workflow in a given window, and rely on concurrency controls to serialize runs rather than letting them pile up:
 
 ```aw wrap
-rate-limit:
-  max: 3
+user-rate-limit:
+  max-runs-per-window: 3
   window: 60  # 3 runs per hour per user
 ```
 
@@ -183,7 +183,7 @@ One scheduled run per weekday = five agent invocations per week. See [Schedule S
 
 ## Agentic Cost Optimization
 
-The `agentic-workflows` MCP tool exposes the same operations as the CLI (`logs`, `audit`, `status`) to any workflow agent, so a scheduled meta-agent can inspect and optimize other agentic workflows automatically — fetching aggregate cost data, deep-diving into individual runs, and proposing frontmatter changes (cheaper model, tighter `skip-if-match`, lower `rate-limit`) via a pull request.
+The `agentic-workflows` MCP tool exposes the same operations as the CLI (`logs`, `audit`, `status`) to any workflow agent, so a scheduled meta-agent can inspect and optimize other agentic workflows automatically — fetching aggregate cost data, deep-diving into individual runs, and proposing frontmatter changes (cheaper model, tighter `skip-if-match`, lower `user-rate-limit`) via a pull request.
 
 ```aw wrap
 description: Weekly Actions minutes cost report
@@ -201,7 +201,7 @@ tools:
 |--------|-----------------|
 | High token count per run | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
 | Frequent runs with no safe-output produced | Add or tighten `skip-if-match` |
-| Long queue times due to concurrency | Lower `rate-limit.max` or add a `concurrency` group |
+| Long queue times due to concurrency | Lower `user-rate-limit.max-runs-per-window` or add a `concurrency` group |
 | Workflow running too often | Change trigger to `schedule` or add `workflow_dispatch` |
 
 > [!NOTE]

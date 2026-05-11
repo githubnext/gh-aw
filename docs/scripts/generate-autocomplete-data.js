@@ -37,7 +37,7 @@ const ROOT_SORT_ORDER = [
   'timeout-minutes', 'concurrency', 'environment', 'container', 'services',
   'network', 'sandbox', 'plugins', 'if', 'steps', 'post-steps',
   'features', 'infer', 'disable-model-invocation', 'secrets',
-  'secret-masking', 'bots', 'rate-limit', 'strict', 'safe-inputs',
+  'secret-masking', 'bots', 'user-rate-limit', 'strict', 'safe-inputs',
   'runtimes', 'jobs',
 ];
 

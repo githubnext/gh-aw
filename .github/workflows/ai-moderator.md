@@ -13,8 +13,8 @@ on:
     forks: "*"
   skip-roles: [admin, maintainer, write, triage]
   skip-bots: [github-actions, copilot, dependabot, renovate, github-copilot-enterprise, copilot-swe-agent]
-rate-limit:
-  max: 5
+user-rate-limit:
+  max-runs-per-window: 5
   window: 60
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"

@@ -13,7 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestRateLimitExperimentalWarning tests that the rate-limit feature
+// TestRateLimitExperimentalWarning tests that the user-rate-limit feature
 // emits an experimental warning when enabled.
 func TestRateLimitExperimentalWarning(t *testing.T) {
 	tests := []struct {
@@ -22,12 +22,12 @@ func TestRateLimitExperimentalWarning(t *testing.T) {
 		expectWarning bool
 	}{
 		{
-			name: "rate-limit enabled produces experimental warning",
+			name: "user-rate-limit enabled produces experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
-rate-limit:
-  max: 5
+user-rate-limit:
+  max-runs-per-window: 5
   window: 60
 permissions:
   contents: read
@@ -40,7 +40,7 @@ permissions:
 			expectWarning: true,
 		},
 		{
-			name: "no rate-limit does not produce experimental warning",
+			name: "no user-rate-limit does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -55,12 +55,12 @@ permissions:
 			expectWarning: false,
 		},
 		{
-			name: "rate-limit with custom ignored roles produces experimental warning",
+			name: "user-rate-limit with custom ignored roles produces experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
-rate-limit:
-  max: 3
+user-rate-limit:
+  max-runs-per-window: 3
   window: 30
   ignored-roles:
     - admin
@@ -76,15 +76,15 @@ permissions:
 			expectWarning: true,
 		},
 		{
-			name: "rate-limit with events produces experimental warning",
+			name: "user-rate-limit with events produces experimental warning",
 			content: `---
 on:
   workflow_dispatch:
   issue_comment:
     types: [created]
 engine: copilot
-rate-limit:
-  max: 5
+user-rate-limit:
+  max-runs-per-window: 5
   window: 60
   events: [workflow_dispatch, issue_comment]
 permissions:
@@ -129,7 +129,7 @@ permissions:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: rate-limit"
+			expectedMessage := "Using experimental feature: rate limiting"
 
 			if tt.expectWarning {
 				if !strings.Contains(stderrOutput, expectedMessage) {

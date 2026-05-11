@@ -94,12 +94,12 @@ Use `gh aw logs --format markdown --count 20` to track token trends over time. T
 
 ### Rate Limiting
 
-The `rate-limit` frontmatter key caps how many times a workflow can run in a sliding window, preventing a flood of incoming issues from exhausting compute or inference budget:
+The `user-rate-limit` frontmatter key caps how many times a workflow can run in a sliding window, preventing a flood of incoming issues from exhausting compute or inference budget:
 
 ```aw wrap
-rate-limit:
-  max-runs: 5
-  window: 1h
+user-rate-limit:
+  max-runs-per-window: 5
+  window: 60
 ```
 
 See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full options.
@@ -186,7 +186,7 @@ gh aw audit BASELINE_ID CURRENT_ID
 | **Authentication failures** | Token permissions too narrow or API key missing. | Review `permissions:` block; ensure secrets are set; see [Auth Reference](/gh-aw/reference/auth/). |
 | **Integrity filtering blocking content** | Author's association below `min-integrity`. `DIFC_FILTERED` events in audit show details. | Adjust `min-integrity`; add author to `trusted-users`; use `approval-labels`; check `gh aw logs --filtered-integrity`. |
 | **Safe-output validation failures** | Agent attempted undeclared GitHub action. Safe-outputs blocks anything not listed. | Review `safe-outputs:`; check `safe_outputs.jsonl` in audit artifacts; see [Safe Outputs Reference](/gh-aw/reference/safe-outputs/). |
-| **Token budget exhaustion** | Run hit token limit before completing. | Raise `min-integrity` to reduce context; add `cache-memory:`; simplify prompt; tighten `rate-limit`. |
+| **Token budget exhaustion** | Run hit token limit before completing. | Raise `min-integrity` to reduce context; add `cache-memory:`; simplify prompt; tighten `user-rate-limit`. |
 | **Network blocks** | Required domain blocked by firewall. | Check firewall section of audit; add domain to `network.allowed`; see [Network Configuration Guide](/gh-aw/guides/network-configuration/). |
 
 ### Iterative Debug Workflow

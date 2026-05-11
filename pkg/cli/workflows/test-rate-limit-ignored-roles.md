@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
   issue_comment:
     types: [created]
-rate-limit:
-  max: 3
+user-rate-limit:
+  max-runs-per-window: 3
   window: 30
   ignored-roles:
     - admin

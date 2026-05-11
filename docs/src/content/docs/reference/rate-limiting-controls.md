@@ -111,11 +111,11 @@ Configure environments in repository Settings → Environments, add reviewers, t
 
 ## Rate Limiting Per User
 
-The `rate-limit` frontmatter field prevents users from triggering workflows too frequently:
+The `user-rate-limit` frontmatter field prevents users from triggering workflows too frequently:
 
 ```yaml wrap
-rate-limit:
-  max: 5        # Required: Maximum runs per window (1-10)
+user-rate-limit:
+  max-runs-per-window: 5        # Required: Maximum runs per window (1-10)
   window: 60    # Optional: Time window in minutes (default: 60, max: 180)
   events: [workflow_dispatch, issue_comment]  # Optional: Specific events (auto-inferred if omitted)
   ignored-roles: [admin, maintain]  # Optional: Roles exempt from rate limiting (default: [admin, maintain, write])
@@ -136,8 +136,8 @@ timeout-minutes: 60  # Job timeout
 on:
   issues:
     types: [opened]
-rate-limit:
-  max: 5
+user-rate-limit:
+  max-runs-per-window: 5
   window: 60
 stop-after: +2h  # Workflow time limit
 safe-outputs:

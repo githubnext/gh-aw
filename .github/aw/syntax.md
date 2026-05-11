@@ -168,8 +168,8 @@ The YAML frontmatter supports these fields:
   - Bot must be active (installed) on repository to trigger workflow
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - Must be `true`
-- **`rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
-  - **`max:`** - Maximum runs allowed per user per time window (required, integer 1-10)
+- **`user-rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
+  - **`max-runs-per-window:`** - Maximum runs allowed per user per time window (required, integer 1-10)
   - **`window:`** - Time window in minutes (integer 1-180, default: 60)
   - **`events:`** - Event types to apply rate limiting to (array; if omitted, applies to all programmatic events)
     - Available: `workflow_dispatch`, `issue_comment`, `pull_request_review`, `pull_request_review_comment`, `issues`, `pull_request`, `discussion_comment`, `discussion`
@@ -177,8 +177,8 @@ The YAML frontmatter supports these fields:
   - Example:
 
     ```yaml
-    rate-limit:
-      max: 5
+    user-rate-limit:
+      max-runs-per-window: 5
       window: 60
       ignored-roles: [admin, maintain]
     ```

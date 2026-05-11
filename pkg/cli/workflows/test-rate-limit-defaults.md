@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
   issue_comment:
     types: [created]
-rate-limit:
-  max: 5
+user-rate-limit:
+  max-runs-per-window: 5
   window: 60
 ---
 

@@ -183,10 +183,10 @@ type ExperimentConfig struct {
 // RateLimitConfig represents rate limiting configuration for workflow triggers
 // Limits how many times a user can trigger a workflow within a time window
 type RateLimitConfig struct {
-	Max          int      `json:"max,omitempty"`           // Maximum number of runs allowed per time window (default: 5)
-	Window       int      `json:"window,omitempty"`        // Time window in minutes (default: 60)
-	Events       []string `json:"events,omitempty"`        // Event types to apply rate limiting to (e.g., ["workflow_dispatch", "issue_comment"])
-	IgnoredRoles []string `json:"ignored-roles,omitempty"` // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
+	Max          int      `json:"max-runs-per-window,omitempty"` // Maximum runs allowed per user per time window (default: 5)
+	Window       int      `json:"window,omitempty"`              // Time window in minutes (default: 60)
+	Events       []string `json:"events,omitempty"`              // Event types to apply rate limiting to (e.g., ["workflow_dispatch", "issue_comment"])
+	IgnoredRoles []string `json:"ignored-roles,omitempty"`       // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
 }
 
 // OTLPEndpointConfig holds configuration for a single OTLP endpoint entry
@@ -323,7 +323,7 @@ type FrontmatterConfig struct {
 	Models map[string][]string `json:"models,omitempty"`
 
 	// Rate limiting configuration
-	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
+	RateLimit *RateLimitConfig `json:"user-rate-limit,omitempty"`
 
 	// Update check configuration.
 	// When set to false, the version update check step is skipped in the activation job.

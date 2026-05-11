@@ -6869,17 +6869,17 @@ observability:
 # workflow. Helps prevent abuse and resource exhaustion from programmatically
 # triggered events.
 # (optional)
-rate-limit:
+user-rate-limit:
   # Maximum number of workflow runs allowed per user within the time window.
   # Required field. Supports integer or GitHub Actions expression (e.g. '${{
   # inputs.max }}').
   # Accepted formats:
 
   # Format 1: integer
-  max: 1
+  max-runs-per-window: 1
 
   # Format 2: GitHub Actions expression that resolves to an integer at runtime
-  max: "example-value"
+  max-runs-per-window: "example-value"
 
   # Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180
   # (3 hours).
