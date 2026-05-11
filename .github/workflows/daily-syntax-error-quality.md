@@ -2,7 +2,7 @@
 name: Daily Syntax Error Quality Check
 description: Tests compiler error message quality by introducing syntax errors in workflows, evaluating error clarity, and suggesting improvements
 on:
-  schedule: daily
+  schedule: weekly
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,8 +15,8 @@ tools:
   bash:
     - "gh aw compile *"
     - "gh aw compile /tmp/gh-aw/syntax-error-tests/*.md"
-    - "head -n 30 .github/workflows/*.md"
-    - "cp .github/workflows/*.md /tmp/gh-aw/syntax-error-tests/*.md"
+    - "head -n 30 .github/workflows/"
+    - "cp .github/workflows/"
     - "cat /tmp/gh-aw/syntax-error-tests/*.md"
     - "mkdir -p /tmp/gh-aw/syntax-error-tests"
 safe-outputs:
@@ -90,6 +90,13 @@ Test the quality of compiler error messages by:
 - **Workspace**: ${{ github.workspace }}
 - **Compiler**: gh aw
 
+## ⚡ Batching Rules (enforce strictly)
+
+- Read `candidates.txt` and preview both selected workflows in **one** bash call.
+- For each test case, use **one chained bash call** that starts with `cp .github/workflows/...` and includes the file edit plus `gh aw compile ... 2>&1`.
+- Never spend a separate tool call on shell work you can combine with `&&`.
+- Target: complete Phases 1–5 in **≤ 10 tool calls total**.
+
 ## Phase 1: Select Test Workflows
 
 Select 2 diverse workflows for testing from the pre-selected candidate list (5 candidates):
@@ -144,26 +151,6 @@ Examples:
   ```yaml
   permissions:
     unknown-scope: read  # Invalid scope
-  ```
-
-#### Category C: Semantic Errors
-Examples:
-- **Conflicting configuration**: Incompatible settings
-  ```yaml
-  tools:
-    github:
-      mode: lockdown
-      toolsets: [default]  # Conflicting with lockdown mode
-  ```
-- **Invalid value**: Out-of-range or invalid enum value
-  ```yaml
-  timeout-minutes: -10  # Negative timeout
-  ```
-- **Missing dependency**: Reference to undefined element
-  ```yaml
-  safe-outputs:
-    create-issue:
-      target-repo: undefined-variable  # Invalid reference
   ```
 
 ### Implementation Steps
@@ -290,45 +277,6 @@ Use this **compact** template (do not add extra sections):
 2. **Actionable Recommendations**: Provide specific, implementable suggestions
 3. **Prioritize Improvements**: Focus on high-impact, feasible changes
 4. **Include Examples**: Show both current and improved error messages
-
-## Example Error Output Analysis
-
-### ✅ Example of Good Error Output
-
-```
-.github/workflows/test-workflow.md:5:8: error: invalid engine 'copiilot'
-
-Valid engines: copilot, claude, codex, custom
-
-Did you mean: copilot?
-
-Correct usage:
-  engine: copilot
-
-For custom engines, see: https://github.com/github/gh-aw#custom-engines
-```
-
-**Why it's good**:
-- Clear location (file:line:column)
-- Lists valid options
-- Suggests correction (did you mean)
-- Shows example of correct usage
-- Links to documentation
-
-### ❌ Example of Poor Error Output
-
-```
-Error: invalid engine
-```
-
-**Why it's poor**:
-- No file/line information
-- No context about what's invalid
-- No suggestions or examples
-- User must hunt for the error location
-- No guidance on how to fix
-
----
 
 ## Success Criteria
 
