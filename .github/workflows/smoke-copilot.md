@@ -126,8 +126,6 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
 strict: false
-features:
-  inline-agents: true
 experiments:
   caveman: [yes, no]
 

@@ -16,8 +16,6 @@ permissions:
 
 tracker-id: daily-firewall-report
 timeout-minutes: 45
-features:
-  inline-agents: true
 
 safe-outputs:
   upload-asset:

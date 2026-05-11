@@ -73,7 +73,6 @@ safe-outputs:
 timeout-minutes: 25
 features:
   copilot-requests: true
-  inline-agents: true
 
 ---
 

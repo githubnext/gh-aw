@@ -38,8 +38,6 @@ imports:
   - shared/reporting.md
 
   - shared/observability-otlp.md
-features:
-  inline-agents: true
 steps:
   - name: Deterministic pre-fetch for failure analysis
     env:

@@ -75,7 +75,6 @@ imports:
   - shared/observability-otlp.md
 features:
   copilot-requests: true
-  inline-agents: true
 
 ---
 

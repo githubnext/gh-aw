@@ -24,9 +24,6 @@ permissions:
 
 strict: true
 
-features:
-  inline-agents: true
-
 runtimes:
   node:
     version: "22"
