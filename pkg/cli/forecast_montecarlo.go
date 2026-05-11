@@ -172,6 +172,11 @@ func poissonSample(rng *rand.Rand, lambda float64) int {
 // Gamma(shape) = Gamma(shape+1) × U^(1/shape) for 0 < shape < 1.
 //
 // References: Marsaglia & Tsang (2000), "A Simple Method for Generating Gamma Variables".
+//
+// shape ≤ 0 is a caller error; the function returns 0 as a defensive no-op
+// consistent with poissonSample's treatment of lambda ≤ 0.  All call sites in the
+// simulation pass shape = n+0.5 (n ≥ 1), so this branch is never reached in
+// practice.
 func gammaSample(rng *rand.Rand, shape float64) float64 {
 	if shape <= 0 {
 		return 0

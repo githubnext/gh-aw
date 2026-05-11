@@ -219,18 +219,21 @@ func TestGammaSampleMeanVariance(t *testing.T) {
 	assert.InEpsilon(t, shape, variance, 0.01, "gamma empirical variance should equal shape")
 }
 
-// TestGammaSampleSmallShape verifies the shape < 1 reduction path.
+// TestGammaSampleSmallShape verifies the shape < 1 reduction path for multiple
+// fractional shape values (0.3, 0.5, 0.8) to ensure the recursive identity
+// Gamma(shape) = Gamma(shape+1) × U^(1/shape) is exercised correctly.
 func TestGammaSampleSmallShape(t *testing.T) {
-	rng := deterministicRNG()
-	const shape = 0.5
 	const n = 200_000
-
-	var sum float64
-	for i := 0; i < n; i++ {
-		sum += gammaSample(rng, shape)
+	for _, shape := range []float64{0.3, 0.5, 0.8} {
+		rng := deterministicRNG()
+		var sum float64
+		for i := 0; i < n; i++ {
+			sum += gammaSample(rng, shape)
+		}
+		mean := sum / n
+		assert.InEpsilon(t, shape, mean, 0.01,
+			"gamma mean should equal shape for shape=%v", shape)
 	}
-	mean := sum / n
-	assert.InEpsilon(t, shape, mean, 0.01, "gamma mean should equal shape for shape < 1")
 }
 
 // TestGammaSampleEdgeCases checks boundary and degenerate inputs.
