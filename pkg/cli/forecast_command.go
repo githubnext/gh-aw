@@ -22,6 +22,10 @@ type ForecastConfig struct {
 	RepoOverride string
 	// SampleSize is the maximum number of completed runs to sample per workflow.
 	SampleSize int
+	// EvalMode enables backtesting mode: the training window is shifted back by
+	// one projection period and forecast quality is evaluated against the actual
+	// runs observed in that period.
+	EvalMode bool
 }
 
 // NewForecastCommand creates the forecast command.
@@ -49,6 +53,13 @@ are included and displayed side-by-side for easy comparison.
 
 Multiple workflow IDs may be provided to compare specific workflows.
 
+Backtesting (--eval):
+  Shifts the training window back by one projection period, builds the forecast,
+  then measures actual runs in that period and computes quality metrics:
+  P50 absolute/percentage error and whether the actual value fell inside the
+  P10–P90 confidence interval.  Use this to validate the model before relying on
+  forward projections.
+
 ` + WorkflowIDExplanation + `
 
 Examples:
@@ -59,7 +70,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` forecast --days 7               # Use 7-day history window
   ` + string(constants.CLIExtensionPrefix) + ` forecast --sample 50            # Sample up to 50 runs per workflow
   ` + string(constants.CLIExtensionPrefix) + ` forecast --json                 # Machine-readable JSON output
-  ` + string(constants.CLIExtensionPrefix) + ` forecast --repo owner/repo      # Forecast in another repository`,
+  ` + string(constants.CLIExtensionPrefix) + ` forecast --repo owner/repo      # Forecast in another repository
+  ` + string(constants.CLIExtensionPrefix) + ` forecast --eval                 # Backtest: evaluate forecast quality against past data`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			days, _ := cmd.Flags().GetInt("days")
@@ -68,6 +80,7 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			sampleSize, _ := cmd.Flags().GetInt("sample")
+			evalMode, _ := cmd.Flags().GetBool("eval")
 
 			config := ForecastConfig{
 				WorkflowIDs:  args,
@@ -77,6 +90,7 @@ Examples:
 				Verbose:      verbose,
 				RepoOverride: repoOverride,
 				SampleSize:   sampleSize,
+				EvalMode:     evalMode,
 			}
 
 			return RunForecast(config)
@@ -86,6 +100,7 @@ Examples:
 	cmd.Flags().Int("days", 30, "Historical window in days used to sample run history (7 or 30)")
 	cmd.Flags().String("period", "month", "Aggregation period for projections: week or month")
 	cmd.Flags().Int("sample", 100, "Maximum number of completed runs to sample per workflow")
+	cmd.Flags().Bool("eval", false, "Evaluate forecast quality against past data (backtesting mode)")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 

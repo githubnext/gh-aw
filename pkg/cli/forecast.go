@@ -100,6 +100,10 @@ type ForecastWorkflowResult struct {
 	// ExperimentVariants contains per-variant forecasts when the workflow defines A/B
 	// experiments.  Nil when no experiments are present.
 	ExperimentVariants []ForecastVariantResult `json:"experiment_variants,omitempty"`
+
+	// Evaluation contains backtesting quality metrics when --eval is set.
+	// Nil in normal forecast mode.
+	Evaluation *ForecastEvaluation `json:"evaluation,omitempty"`
 }
 
 // ForecastVariantResult contains projected metrics split by A/B experiment variant.
@@ -110,16 +114,46 @@ type ForecastVariantResult struct {
 	Fraction       float64 `json:"fraction"`
 }
 
+// ForecastEvaluation contains the quality metrics for a backtested forecast.
+// It is populated only when --eval is set.  The training window ends one
+// projection period before now; the validation window is the most recent period.
+type ForecastEvaluation struct {
+	// TrainingStartDate is the ISO-8601 date the training window began.
+	TrainingStartDate string `json:"training_start_date"`
+	// TrainingEndDate is the ISO-8601 date the training window ended
+	// (= the start of the validation window).
+	TrainingEndDate string `json:"training_end_date"`
+	// ValidationEndDate is the ISO-8601 date the validation window ended (= today).
+	ValidationEndDate string `json:"validation_end_date"`
+
+	// ActualRuns is the number of completed runs observed in the validation window.
+	ActualRuns int `json:"actual_runs"`
+	// ActualEffectiveTokens is the total effective-token count actually consumed
+	// in the validation window.
+	ActualEffectiveTokens int `json:"actual_effective_tokens"`
+
+	// P50ErrorAbs is the signed difference (actual − P50 forecast) in effective tokens.
+	// Positive = actual was higher than forecast; negative = forecast over-estimated.
+	P50ErrorAbs int `json:"p50_error_abs"`
+	// P50ErrorPct is P50ErrorAbs as a percentage of the P50 forecast.
+	// NaN-safe: 0 when P50 is 0.
+	P50ErrorPct float64 `json:"p50_error_pct"`
+	// InCI is true when ActualEffectiveTokens fell within the P10–P90 confidence
+	// interval.  A well-calibrated model should be in-CI ~80% of the time.
+	InCI bool `json:"in_ci"`
+}
+
 // ForecastResult is the top-level output of the forecast command.
 type ForecastResult struct {
 	Period    string                   `json:"period"`
 	AsOf      string                   `json:"as_of"`
+	EvalMode  bool                     `json:"eval_mode,omitempty"`
 	Workflows []ForecastWorkflowResult `json:"workflows"`
 }
 
 // RunForecast is the entry point for the forecast command.
 func RunForecast(config ForecastConfig) error {
-	forecastRunLog.Printf("Running forecast: workflows=%v, days=%d, period=%s", config.WorkflowIDs, config.Days, config.Period)
+	forecastRunLog.Printf("Running forecast: workflows=%v, days=%d, period=%s, eval=%v", config.WorkflowIDs, config.Days, config.Period, config.EvalMode)
 
 	// Emit experimental warning so users know this command is not yet stable.
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("forecast is an experimental command and may change without notice"))
@@ -146,11 +180,38 @@ func RunForecast(config ForecastConfig) error {
 		return nil
 	}
 
-	startDate := time.Now().AddDate(0, 0, -config.Days).Format("2006-01-02")
+	now := time.Now()
+
+	// In eval mode, shift the entire date range back by one period so we can
+	// compare the forecast against the actual runs in the most recent period.
+	//
+	//  ┌──────────────────────────────────────────────────────────────────┐
+	//  │  [anchor - days ... anchor]  training  │  [anchor ... now]  val  │
+	//  └──────────────────────────────────────────────────────────────────┘
+	//   anchor = now - periodDays
+	//
+	// Normal mode: startDate = now - days (no anchor shift).
+	var anchor time.Time
+	var validationStartDate, validationEndDate string
+	if config.EvalMode {
+		anchor = now.AddDate(0, 0, -periodDays)
+		validationStartDate = anchor.Format("2006-01-02")
+		validationEndDate = now.Format("2006-01-02")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			fmt.Sprintf("Eval mode: training window ends %s; validation window %s → %s",
+				anchor.Format("2006-01-02"), validationStartDate, validationEndDate)))
+	}
+
+	startDate := now.AddDate(0, 0, -config.Days).Format("2006-01-02")
+	if config.EvalMode {
+		// Training window ends at the anchor, not now.
+		startDate = anchor.AddDate(0, 0, -config.Days).Format("2006-01-02")
+	}
+
 	if !config.Verbose && !config.JSONOutput {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(
-			fmt.Sprintf("Forecasting %d workflow(s) using %d-day history → projecting per %s",
-				len(workflowIDs), config.Days, config.Period)))
+		label := fmt.Sprintf("Forecasting %d workflow(s) using %d-day history → projecting per %s",
+			len(workflowIDs), config.Days, config.Period)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(label))
 	}
 
 	spinner := console.NewSpinner("Sampling workflow run history…")
@@ -164,6 +225,8 @@ func RunForecast(config ForecastConfig) error {
 			spinner.UpdateMessage(fmt.Sprintf("Sampling %s…", wfID))
 		}
 
+		// forecastWorkflow uses the shifted startDate; in eval mode we also pass the
+		// anchor so the function knows where the training window ends.
 		result, err := forecastWorkflow(wfID, startDate, config, periodDays)
 		if err != nil {
 			if !config.Verbose {
@@ -176,6 +239,12 @@ func RunForecast(config ForecastConfig) error {
 			}
 			continue
 		}
+
+		// In eval mode, fetch the validation-window runs and attach evaluation metrics.
+		if config.EvalMode {
+			result.Evaluation = evaluateForecast(wfID, result, validationStartDate, validationEndDate, config)
+		}
+
 		results = append(results, result)
 	}
 
@@ -198,7 +267,8 @@ func RunForecast(config ForecastConfig) error {
 
 	output := ForecastResult{
 		Period:    config.Period,
-		AsOf:      time.Now().UTC().Format(time.RFC3339),
+		AsOf:      now.UTC().Format(time.RFC3339),
+		EvalMode:  config.EvalMode,
 		Workflows: results,
 	}
 
@@ -660,6 +730,78 @@ func loadCachedEffectiveTokens(runID int64, verbose bool) int {
 	return 0
 }
 
+// evaluateForecast fetches actual completed runs in the validation window and
+// returns a ForecastEvaluation comparing them against the Monte Carlo forecast.
+//
+// validationStartDate / validationEndDate are ISO-8601 strings bracketing the
+// period that was forecast (= one projection period immediately before now).
+// Actual runs are fetched with the same pagination helper used for training,
+// but with the validation date range.
+func evaluateForecast(workflowName string, forecast ForecastWorkflowResult, validationStartDate, validationEndDate string, config ForecastConfig) *ForecastEvaluation {
+	trainingStartDate := fmt.Sprintf("(-%dd before %s)", forecast.HistoryDays, validationStartDate)
+	eval := &ForecastEvaluation{
+		TrainingStartDate: trainingStartDate,
+		TrainingEndDate:   validationStartDate,
+		ValidationEndDate: validationEndDate,
+	}
+
+	// Determine the API name used to filter workflow runs.
+	apiName := workflowName
+	if lockFile, err := workflow.GetWorkflowLockFileName(workflowName); err == nil {
+		apiName = lockFile
+	}
+
+	// Fetch completed runs in the validation window.
+	opts := ListWorkflowRunsOptions{
+		WorkflowName: apiName,
+		StartDate:    validationStartDate,
+		Limit:        config.SampleSize,
+		RepoOverride: config.RepoOverride,
+		Verbose:      config.Verbose,
+	}
+	runs, _, err := listWorkflowRunsWithPagination(opts)
+	if err != nil {
+		forecastRunLog.Printf("Eval: failed to fetch validation runs for %s: %v", workflowName, err)
+		return eval
+	}
+
+	// Filter to completed runs that fall within the validation window.
+	validationEnd := time.Now()
+	validationStart, _ := time.Parse("2006-01-02", validationStartDate)
+	for _, r := range runs {
+		if r.Status != "completed" {
+			continue
+		}
+		// Guard: only include runs that actually started after the anchor.
+		if !r.StartedAt.IsZero() && (r.StartedAt.Before(validationStart) || r.StartedAt.After(validationEnd)) {
+			continue
+		}
+		if r.EffectiveTokens == 0 {
+			r.EffectiveTokens = loadCachedEffectiveTokens(r.DatabaseID, config.Verbose)
+		}
+		eval.ActualRuns++
+		eval.ActualEffectiveTokens += r.EffectiveTokens
+	}
+
+	// Compute error metrics against P50 (falls back to point estimate).
+	p50 := forecast.ProjectedEffectiveTokens
+	p10 := forecast.ProjectedEffectiveTokens
+	p90 := forecast.ProjectedEffectiveTokens
+	if mc := forecast.MonteCarlo; mc != nil {
+		p50 = mc.P50ProjectedEffectiveTokens
+		p10 = mc.P10ProjectedEffectiveTokens
+		p90 = mc.P90ProjectedEffectiveTokens
+	}
+
+	eval.P50ErrorAbs = eval.ActualEffectiveTokens - p50
+	if p50 > 0 {
+		eval.P50ErrorPct = float64(eval.P50ErrorAbs) / float64(p50) * 100
+	}
+	eval.InCI = eval.ActualEffectiveTokens >= p10 && eval.ActualEffectiveTokens <= p90
+
+	return eval
+}
+
 // ── Rendering ───────────────────────────────────────────────────────────────
 
 // renderForecastJSON outputs the forecast result as pretty-printed JSON.
@@ -743,6 +885,11 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		}
 	}
 
+	// Show backtesting evaluation table in --eval mode.
+	if output.EvalMode {
+		printEvalBreakdown(output.Workflows)
+	}
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("P50 = median; 80%% CI = P10–P90 from %d-trial Monte Carlo simulation (Gamma–Poisson model accounts for rate estimation uncertainty).", monteCarloIterations)))
 	if anyUnreliable {
@@ -784,7 +931,50 @@ func printEpisodeBreakdown(workflows []ForecastWorkflowResult) {
 	fmt.Fprintln(os.Stderr, "")
 }
 
-// printVariantBreakdown renders a small per-variant table for a workflow.
+// printEvalBreakdown renders the backtesting comparison table.
+func printEvalBreakdown(workflows []ForecastWorkflowResult) {
+	type evalRow struct {
+		Workflow    string `json:"workflow"       console:"header:Workflow"`
+		ActualRuns  int    `json:"actual_runs"    console:"header:Actual Runs"`
+		ActualET    string `json:"actual_et"      console:"header:Actual ET"`
+		ForecastP50 string `json:"forecast_p50"   console:"header:Forecast P50"`
+		ErrorAbs    string `json:"error_abs"      console:"header:Error (abs)"`
+		ErrorPct    string `json:"error_pct"      console:"header:Error %"`
+		InCI        string `json:"in_ci"          console:"header:In 80% CI?"`
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Backtesting evaluation (actual vs forecasted):"))
+	var rows []evalRow
+	for _, wf := range workflows {
+		ev := wf.Evaluation
+		if ev == nil {
+			continue
+		}
+		p50 := wf.ProjectedEffectiveTokens
+		if mc := wf.MonteCarlo; mc != nil {
+			p50 = mc.P50ProjectedEffectiveTokens
+		}
+		inCI := "No"
+		if ev.InCI {
+			inCI = "Yes ✓"
+		}
+		rows = append(rows, evalRow{
+			Workflow:    wf.WorkflowID,
+			ActualRuns:  ev.ActualRuns,
+			ActualET:    formatForecastTokens(ev.ActualEffectiveTokens),
+			ForecastP50: formatForecastTokens(p50),
+			ErrorAbs:    formatForecastTokens(ev.P50ErrorAbs),
+			ErrorPct:    fmt.Sprintf("%.1f%%", ev.P50ErrorPct),
+			InCI:        inCI,
+		})
+	}
+	fmt.Fprint(os.Stderr, console.RenderStruct(rows))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		"Training window ended at the forecast anchor; validation window is the following projection period."))
+}
+
+
 func printVariantBreakdown(wf ForecastWorkflowResult) {
 	type variantRow struct {
 		Experiment string `json:"experiment" console:"header:Experiment"`
