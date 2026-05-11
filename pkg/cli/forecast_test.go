@@ -1,61 +1,50 @@
+//go:build !integration
+
 package cli
 
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ── formatForecastPercent ────────────────────────────────────────────────────
 
 func TestFormatForecastPercent_NoData(t *testing.T) {
-	if got := formatForecastPercent(0, false); got != "N/A" {
-		t.Errorf("want N/A, got %q", got)
-	}
+	assert.Equal(t, "N/A", formatForecastPercent(0, false), "no data → N/A")
 }
 
 func TestFormatForecastPercent_ZeroPercent(t *testing.T) {
 	// A legitimate 0% success rate (all runs failed) must NOT return N/A.
-	if got := formatForecastPercent(0, true); got != "0%" {
-		t.Errorf("want 0%%, got %q", got)
-	}
+	assert.Equal(t, "0%", formatForecastPercent(0, true), "0% with data → '0%'")
 }
 
 func TestFormatForecastPercent_NonZero(t *testing.T) {
-	if got := formatForecastPercent(0.923, true); got != "92%" {
-		t.Errorf("want 92%%, got %q", got)
-	}
+	assert.Equal(t, "92%", formatForecastPercent(0.923, true))
 }
 
 func TestFormatForecastPercent_OneHundred(t *testing.T) {
-	if got := formatForecastPercent(1.0, true); got != "100%" {
-		t.Errorf("want 100%%, got %q", got)
-	}
+	assert.Equal(t, "100%", formatForecastPercent(1.0, true))
 }
 
 // ── formatForecastTokens ─────────────────────────────────────────────────────
 
 func TestFormatForecastTokens_Zero(t *testing.T) {
-	if got := formatForecastTokens(0); got != "-" {
-		t.Errorf("want -, got %q", got)
-	}
+	assert.Equal(t, "-", formatForecastTokens(0))
 }
 
 func TestFormatForecastTokens_SmallInt(t *testing.T) {
-	if got := formatForecastTokens(500); got != "500" {
-		t.Errorf("want 500, got %q", got)
-	}
+	assert.Equal(t, "500", formatForecastTokens(500))
 }
 
 func TestFormatForecastTokens_Kilo(t *testing.T) {
-	if got := formatForecastTokens(12500); got != "12.5K" {
-		t.Errorf("want 12.5K, got %q", got)
-	}
+	assert.Equal(t, "12.5K", formatForecastTokens(12500))
 }
 
 func TestFormatForecastTokens_Mega(t *testing.T) {
-	if got := formatForecastTokens(1_200_000); got != "1.20M" {
-		t.Errorf("want 1.20M, got %q", got)
-	}
+	assert.Equal(t, "1.20M", formatForecastTokens(1_200_000))
 }
 
 // ── extractWorkflowIDFromName ─────────────────────────────────────────────────
@@ -72,9 +61,7 @@ func TestExtractWorkflowIDFromName(t *testing.T) {
 		{"daily-planner.lock.yml", "daily-planner"},
 	}
 	for _, tc := range cases {
-		if got := extractWorkflowIDFromName(tc.in); got != tc.want {
-			t.Errorf("extractWorkflowIDFromName(%q) = %q, want %q", tc.in, got, tc.want)
-		}
+		assert.Equal(t, tc.want, extractWorkflowIDFromName(tc.in), "input=%q", tc.in)
 	}
 }
 
@@ -83,17 +70,13 @@ func TestExtractWorkflowIDFromName(t *testing.T) {
 func TestRunForecast_InvalidPeriod(t *testing.T) {
 	cfg := ForecastConfig{Days: 30, Period: "quarter", SampleSize: 10}
 	err := RunForecast(cfg)
-	if err == nil {
-		t.Fatal("expected error for invalid period, got nil")
-	}
+	require.Error(t, err, "should error for invalid period")
 }
 
 func TestRunForecast_InvalidDays(t *testing.T) {
 	cfg := ForecastConfig{Days: 90, Period: "month", SampleSize: 10}
 	err := RunForecast(cfg)
-	if err == nil {
-		t.Fatal("expected error for days=90, got nil")
-	}
+	require.Error(t, err, "should error for days=90 (max is 30)")
 }
 
 // ── Duration enrichment ───────────────────────────────────────────────────────
@@ -117,7 +100,5 @@ func TestDurationEnrichment(t *testing.T) {
 		r.Duration = r.UpdatedAt.Sub(r.StartedAt)
 	}
 
-	if r.Duration != 5*time.Minute {
-		t.Errorf("expected 5m duration, got %v", r.Duration)
-	}
+	assert.Equal(t, 5*time.Minute, r.Duration)
 }

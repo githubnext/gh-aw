@@ -640,6 +640,9 @@ func buildForecastEpisodeSummary(runs []WorkflowRun, historyDays, periodDays int
 // Returns 0 when no cache exists or the cache does not contain token data.
 // This avoids re-downloading aw_info.json artifacts for runs already processed by
 // `gh aw logs` while still providing accurate ET observations for the simulation.
+//
+// Cache location: <defaultLogsOutputDir>/run-<runID>/run_summary.json
+// (defaultLogsOutputDir is ".github/aw/logs" — defined in logs_models.go)
 func loadCachedEffectiveTokens(runID int64, verbose bool) int {
 	dir := filepath.Join(defaultLogsOutputDir, fmt.Sprintf("run-%d", runID))
 	summary, ok := loadRunSummary(dir, verbose)
@@ -649,7 +652,8 @@ func loadCachedEffectiveTokens(runID int64, verbose bool) int {
 	if summary.TokenUsage != nil && summary.TokenUsage.TotalEffectiveTokens > 0 {
 		return summary.TokenUsage.TotalEffectiveTokens
 	}
-	// Fallback: check the Run itself (populated when the summary was originally saved).
+	// Fallback: legacy run summaries (written before TokenUsage was a separate
+	// field) may have stored the computed ET directly on the Run struct.
 	if summary.Run.EffectiveTokens > 0 {
 		return summary.Run.EffectiveTokens
 	}
