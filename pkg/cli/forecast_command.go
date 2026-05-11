@@ -29,19 +29,20 @@ func NewForecastCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "forecast [workflow]...",
 		Short: "Forecast token usage and costs for agentic workflows (experimental)",
-		Long: `[EXPERIMENTAL] Forecast token usage, costs, and yield for agentic workflows by sampling
+		Long: `[EXPERIMENTAL] Forecast effective token usage for agentic workflows by sampling
 recent run history and projecting forward on a per-week or per-month basis.
 
-The forecaster downloads a sample of recent workflow runs, computes per-run
-metrics (effective tokens, cost, yield, duration), then projects those metrics
-over the expected run frequency derived from the workflow's trigger configuration
-and its GitHub Actions execution history.
+The forecaster downloads a sample of recent completed workflow runs and derives
+per-run metrics (effective tokens, duration, success rate).  When runs have been
+previously processed by 'gh aw logs', cached token-usage data is used.  The
+observed run frequency is then projected to the target period using a Monte Carlo
+simulation that models three sources of uncertainty: run count (Poisson), per-run
+token usage (bootstrap resampling), and per-run success (Bernoulli).
 
 Accounts for:
-  - Active trigger types (schedule, pull_request, issues, workflow_dispatch, …)
-  - Workflow-level concurrency configuration
   - A/B experiment variants (results are split per variant when present)
   - Observed run frequency from GitHub Actions history
+  - Per-run success rate
 
 If no workflow arguments are provided, all agentic workflows in the repository
 are included and displayed side-by-side for easy comparison.

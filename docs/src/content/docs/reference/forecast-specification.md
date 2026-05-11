@@ -162,11 +162,13 @@ A logical grouping of one or more workflow runs that collectively represent a si
 
 ### 3.9 Yield
 
-The fraction of runs in the sample that concluded with a successful status:
+The effective throughput rate: the expected number of successful runs per projection period, computed as the product of the observed run frequency and the historical success rate:
 
 ```
-yield = successful_run_count / total_sampled_run_count
+yield = observed_runs_per_period × success_rate
 ```
+
+Where `success_rate = successful_run_count / total_sampled_run_count`.
 
 ### 3.10 Bootstrap Resampling
 
@@ -202,7 +204,7 @@ If a provided `workflow_id` does not match any discovered workflow, the implemen
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--days` | int | `30` | Length of the historical sampling window in days. Permitted values: `7`, `30`, `90`. |
+| `--days` | int | `30` | Length of the historical sampling window in days. Permitted values: `7`, `30`. |
 | `--period` | string | `"month"` | Projection period length. Permitted values: `"week"`, `"month"`. |
 | `--sample` | int | `100` | Maximum number of completed runs to sample per workflow. MUST be ≥ 1. |
 | `--repo` | string | (none) | Target a repository other than the current working directory, in `owner/repo` format. Enables remote mode. |
@@ -213,7 +215,7 @@ If a provided `workflow_id` does not match any discovered workflow, the implemen
 
 Implementations MUST validate all flag values before beginning any API calls or file system operations:
 
-- **R-CLI-001**: If `--days` is not one of `{7, 30, 90}`, the implementation MUST exit with a non-zero status and an error message specifying the permitted values.
+- **R-CLI-001**: If `--days` is not one of `{7, 30}`, the implementation MUST exit with a non-zero status and an error message specifying the permitted values.
 - **R-CLI-002**: If `--period` is not one of `{"week", "month"}`, the implementation MUST exit with a non-zero status and an error message specifying the permitted values.
 - **R-CLI-003**: If `--sample` is less than 1, the implementation MUST exit with a non-zero status.
 - **R-CLI-004**: If `--repo` is provided, it MUST match the pattern `owner/repo` (two non-empty components separated by `/`). An invalid format MUST produce a non-zero exit with a descriptive error.
@@ -236,8 +238,8 @@ gh aw forecast
 # Forecast two specific workflows and compare
 gh aw forecast ci-doctor daily-planner
 
-# Use a 90-day window and project over the next week
-gh aw forecast --period week --days 90
+# Use a 7-day window and project over the next week
+gh aw forecast --period week --days 7
 
 # Emit machine-readable JSON
 gh aw forecast --json
@@ -326,21 +328,23 @@ For each sampled run, the implementation MUST derive:
 
 #### 6.2.1 Effective Token Retrieval
 
-Effective token counts MUST be retrieved from the `aw_info.json` artifact attached to each workflow run. The implementation MUST:
+Effective token counts are obtained from locally-cached run summaries when available.  The `gh aw logs` command stores a `run_summary.json` file for each processed run under `{output_dir}/run-{run_id}/`.  During forecasting the implementation:
 
-- **R-SAMP-010**: Attempt to download the `aw_info.json` artifact for each sampled run.
-- **R-SAMP-011**: Extract the `effective_tokens` field from the artifact payload.
-- **R-SAMP-012**: If the artifact is absent or the field is missing, treat the run's ET contribution as zero and SHOULD log a debug-level warning. The run MUST still be counted in `sampled_runs`.
+- **R-SAMP-010**: MUST attempt to load the cached `run_summary.json` for each sampled run using the default logs output directory (`.github/aw/logs`).
+- **R-SAMP-011**: MUST extract the `TotalEffectiveTokens` field from the cached `TokenUsage` summary when present.
+- **R-SAMP-012**: If no cached summary exists or the ET field is zero, the run's ET contribution MUST be treated as zero and the run MUST still be counted in `sampled_runs`.  The implementation SHOULD log a debug-level warning.
+
+This lightweight approach avoids re-downloading artifacts while still providing accurate ET observations for runs that have already been processed locally by `gh aw logs`.
 
 #### 6.2.2 Duration Derivation
 
 Duration MUST be computed as:
 
 ```
-duration_seconds = run.updated_at − run.created_at
+duration_seconds = run.updated_at − run.started_at
 ```
 
-Both timestamps MUST be sourced from the GitHub Actions API run object. If either timestamp is unavailable, the run's duration contribution SHOULD be treated as zero.
+Both timestamps MUST be sourced from the GitHub Actions API run object. If either timestamp is zero or unavailable, the run's duration contribution SHOULD be treated as zero.
 
 ### 6.3 Observed Rate Computation
 
@@ -413,12 +417,12 @@ This non-parametric approach preserves the empirical distribution of token usage
 Whether a given run in the trial succeeds is modeled as a Bernoulli draw:
 
 ```
-P(success) = yield = successful_run_count / total_sampled_run_count
+P(success) = success_rate = successful_run_count / total_sampled_run_count
 ```
 
-- **R-MC-020**: Each run in a trial MUST independently draw from `Bernoulli(yield)`.
+- **R-MC-020**: Each run in a trial MUST independently draw from `Bernoulli(success_rate)`.
 - **R-MC-021**: Only successful runs contribute their token draw to the trial's projected total. Failed runs contribute zero tokens to the projection.
-- **R-MC-022**: If `total_sampled_run_count = 0`, yield MUST be treated as 0. The implementation MUST return a zero projection for all trials.
+- **R-MC-022**: If `total_sampled_run_count = 0`, `success_rate` MUST be treated as 0. The implementation MUST return a zero projection for all trials.
 
 ### 7.3 Trial Aggregation
 
@@ -465,11 +469,11 @@ An **episode** is a logical grouping of one or more workflow runs that collectiv
 The implementation MUST group sampled runs into episodes using the `buildEpisodeData` and `classifyEpisode` engine:
 
 - **R-EP-001**: Runs sharing the same `headSha` and `headBranch` MUST be grouped into the same episode.
-- **R-EP-002**: Runs linked by `workflow_dispatch` or `workflow_call` relationships (reconstructed from `aw_info.json`) SHOULD be merged into the triggering run's episode.
+- **R-EP-002**: Runs linked by `workflow_dispatch` or `workflow_call` relationships (reconstructed from cached run summaries) SHOULD be merged into the triggering run's episode.
 
 #### 8.2.1 Limitations in Forecast Context
 
-During forecasting, `aw_info.json` artifacts may not be available for all sampled runs. When artifact data is unavailable:
+During forecasting, full artifact data may not be available for all sampled runs. When cached summary data is unavailable:
 
 - **R-EP-010**: `workflow_dispatch`/`workflow_call` linkage MUST be omitted from episode construction.
 - **R-EP-011**: The resulting `sampled_episodes` count MUST be treated as a **lower-bound estimate**. Implementations MUST communicate this limitation in output (e.g., via a note in console output or a boolean `episode_count_is_lower_bound` field in JSON).
@@ -497,32 +501,33 @@ The implementation MUST display the episode analysis table in console output whe
 
 ### 9.1 Console Table Output
 
-When `--json` is not specified, the implementation MUST render a formatted console table to stdout with the following columns:
+When `--json` is not specified, the implementation MUST render a formatted console table to stderr with the following columns:
 
 | Column | Description |
 |---|---|
 | `Workflow` | Workflow display name or identifier |
-| `Sampled Runs` | Count of runs included in the sample |
-| `Runs/Period` | `observed_runs_per_period` formatted to one decimal place |
-| `Success` | `yield` formatted as a percentage (e.g., `92.0%`) |
-| `Avg ET` | `avg_effective_tokens` formatted with thousands separator |
-| `Proj. ET (P50)` | `p50_projected_effective_tokens` formatted with thousands separator |
-| `80% CI (P10–P90)` | Range from `p10_projected_effective_tokens` to `p90_projected_effective_tokens` |
+| `Sampled Runs` | Count of completed runs included in the sample |
+| `Success Rate` | Fraction of sampled runs concluding with `success`, formatted as a percentage; `N/A` when no runs were sampled |
+| `Yield/Period` | Effective throughput rate (`success_rate × observed_runs_per_period`) formatted to one decimal place |
+| `Avg ET` | `avg_effective_tokens` formatted as K/M abbreviations (e.g. `12.5K`, `1.20M`); `-` when zero |
+| `Proj. ET (P50)` | Median projected effective tokens from Monte Carlo (P50), formatted as K/M abbreviations |
+| `80% CI (P10–P90)` | Confidence interval range `p10–p90`, both formatted as K/M abbreviations |
+| `Triggers` | Comma-separated list of active trigger event names from frontmatter (up to 3, remainder shown as `+N`) |
 
 #### 9.1.1 Table Formatting Requirements
 
 - **R-OUT-001**: Column widths MUST be auto-fitted to the widest value in each column.
-- **R-OUT-002**: Numeric values MUST include thousands separators for readability.
-- **R-OUT-003**: Rows MUST be sorted by `projected_effective_tokens` (P50) in descending order.
-- **R-OUT-004**: A workflow with zero sampled runs MUST appear in the table with `—` or `N/A` in projection columns.
+- **R-OUT-002**: ET values MUST be formatted as K/M abbreviations (e.g. `12.5K`, `1.20M`); raw integer values of zero MUST be rendered as `-`.
+- **R-OUT-003**: Rows MUST be sorted by Monte Carlo P50 projected effective tokens in descending order; when Monte Carlo data is unavailable, sort by `projected_effective_tokens`.
+- **R-OUT-004**: A workflow with zero sampled runs MUST appear in the table with `-` in projection columns and `N/A` in rate columns.
 - **R-OUT-005**: When episode analysis is applicable (Section 8.4), a second table with episode metrics MUST be printed below the main table, separated by a blank line.
 
 #### 9.1.2 Example Console Output
 
 ```
-Workflow          Sampled Runs  Runs/Period  Success    Avg ET      Proj. ET (P50)  80% CI (P10–P90)
-ci-doctor                   42         38.5    92.0%    12,500         480,000       430,000–535,000
-daily-planner               18         16.2    88.9%     8,200         131,000       105,000–158,000
+Workflow          Sampled Runs  Success Rate  Yield/Period  Avg ET  Proj. ET (P50)  80% CI (P10–P90)  Triggers
+ci-doctor                   42         92%          35.4   12.5K         480.0K       430.0K–535.0K   pull_request, workflow_dispatch
+daily-planner               18         89%          14.4    8.2K         131.0K       105.0K–158.0K   schedule
 ```
 
 ### 9.2 JSON Output Schema
@@ -574,8 +579,8 @@ When `--json` is specified, the implementation MUST emit a single JSON object to
 | `sampled_runs` | integer | MUST | Number of runs included in the sample. |
 | `history_days` | integer | MUST | Value of `--days` used for this forecast. |
 | `observed_runs_per_period` | number | MUST | Extrapolated run rate for the projection period. |
-| `success_rate` | number | MUST | Alias for `yield`; fraction of successful runs in `[0.0, 1.0]`. |
-| `yield` | number | MUST | Fraction of successful runs in `[0.0, 1.0]`. |
+| `success_rate` | number | MUST | Fraction of sampled runs that concluded successfully, in `[0.0, 1.0]`. |
+| `yield` | number | MUST | Effective throughput rate: `success_rate × observed_runs_per_period`. |
 | `avg_effective_tokens` | number | MUST | Mean ET per sampled run. `0` when no ET data is available. |
 | `avg_duration_seconds` | number | MUST | Mean wall-clock duration per sampled run in seconds. |
 | `projected_effective_tokens` | number | MUST | P50 Monte Carlo projection. Equals `monte_carlo.p50_projected_effective_tokens`. |

@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -168,7 +169,12 @@ func RunForecast(config ForecastConfig) error {
 			if !config.Verbose {
 				spinner.Stop()
 			}
-			return fmt.Errorf("forecast failed for workflow %q: %w", wfID, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Skipping %s: %v", wfID, err)))
+			if !config.Verbose {
+				spinner.Start()
+			}
+			continue
 		}
 		results = append(results, result)
 	}
@@ -177,9 +183,17 @@ func RunForecast(config ForecastConfig) error {
 		spinner.Stop()
 	}
 
-	// Sort results by projected effective tokens descending for easy comparison.
+	// Sort results by Monte Carlo P50 (or point estimate when MC unavailable) descending.
 	sort.Slice(results, func(i, j int) bool {
-		return results[i].ProjectedEffectiveTokens > results[j].ProjectedEffectiveTokens
+		pi := results[i].ProjectedEffectiveTokens
+		if mc := results[i].MonteCarlo; mc != nil {
+			pi = mc.P50ProjectedEffectiveTokens
+		}
+		pj := results[j].ProjectedEffectiveTokens
+		if mc := results[j].MonteCarlo; mc != nil {
+			pj = mc.P50ProjectedEffectiveTokens
+		}
+		return pi > pj
 	})
 
 	output := ForecastResult{
@@ -311,6 +325,19 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 	completed := make([]WorkflowRun, 0, len(runs))
 	for _, r := range runs {
 		if r.Status == "completed" {
+			// Compute Duration from StartedAt/UpdatedAt when not already set (gh run list
+			// does not populate the Duration field; health_command uses the same approach).
+			if r.Duration == 0 && !r.StartedAt.IsZero() && !r.UpdatedAt.IsZero() {
+				r.Duration = r.UpdatedAt.Sub(r.StartedAt)
+			}
+			// Enrich with ET from a locally-cached run summary when available.
+			// gh run list does not return token-usage fields; they are only stored in
+			// the aw_info.json artifacts downloaded by `gh aw logs`.  Loading the cached
+			// RunSummary avoids re-downloading artifacts while still providing accurate
+			// ET observations for runs that have already been processed locally.
+			if r.EffectiveTokens == 0 {
+				r.EffectiveTokens = loadCachedEffectiveTokens(r.DatabaseID, config.Verbose)
+			}
 			completed = append(completed, r)
 		}
 	}
@@ -608,6 +635,27 @@ func buildForecastEpisodeSummary(runs []WorkflowRun, historyDays, periodDays int
 	}
 }
 
+// loadCachedEffectiveTokens looks up a locally-cached RunSummary for the given
+// run ID and returns the TotalEffectiveTokens from its TokenUsage summary.
+// Returns 0 when no cache exists or the cache does not contain token data.
+// This avoids re-downloading aw_info.json artifacts for runs already processed by
+// `gh aw logs` while still providing accurate ET observations for the simulation.
+func loadCachedEffectiveTokens(runID int64, verbose bool) int {
+	dir := filepath.Join(defaultLogsOutputDir, fmt.Sprintf("run-%d", runID))
+	summary, ok := loadRunSummary(dir, verbose)
+	if !ok || summary == nil {
+		return 0
+	}
+	if summary.TokenUsage != nil && summary.TokenUsage.TotalEffectiveTokens > 0 {
+		return summary.TokenUsage.TotalEffectiveTokens
+	}
+	// Fallback: check the Run itself (populated when the summary was originally saved).
+	if summary.Run.EffectiveTokens > 0 {
+		return summary.Run.EffectiveTokens
+	}
+	return 0
+}
+
 // ── Rendering ───────────────────────────────────────────────────────────────
 
 // renderForecastJSON outputs the forecast result as pretty-printed JSON.
@@ -653,7 +701,7 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		row := forecastTableRow{
 			Workflow:           wf.WorkflowID,
 			Runs:               wf.SampledRuns,
-			SuccessRate:        formatForecastPercent(wf.SuccessRate),
+			SuccessRate:        formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
 			Yield:              fmt.Sprintf("%.1f", wf.Yield),
 			AvgEffectiveTokens: formatForecastTokens(wf.AvgEffectiveTokens),
 			ProjectedTokens:    projETStr,
@@ -738,7 +786,7 @@ func printVariantBreakdown(wf ForecastWorkflowResult) {
 			Experiment: v.ExperimentName,
 			Variant:    v.Variant,
 			Runs:       v.RunCount,
-			Fraction:   formatForecastPercent(v.Fraction),
+			Fraction:   formatForecastPercent(v.Fraction, wf.SampledRuns > 0),
 		})
 	}
 	fmt.Fprint(os.Stderr, console.RenderStruct(varRows))
@@ -747,8 +795,11 @@ func printVariantBreakdown(wf ForecastWorkflowResult) {
 
 // ── Format helpers ───────────────────────────────────────────────────────────
 
-func formatForecastPercent(v float64) string {
-	if v == 0 {
+// formatForecastPercent formats v as a percentage string.
+// hasData must be false when the underlying sample is empty (no runs), in which
+// case "N/A" is returned; otherwise the value (including 0%) is formatted.
+func formatForecastPercent(v float64, hasData bool) string {
+	if !hasData {
 		return "N/A"
 	}
 	return fmt.Sprintf("%.0f%%", v*100)
