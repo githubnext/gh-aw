@@ -463,6 +463,9 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		if !strings.Contains(forecastSection, "issues: write") {
 			t.Errorf("Job forecast_report should include issues: write permission in:\n%s", forecastSection)
 		}
+		if !strings.Contains(forecastSection, "timeout-minutes: 60") {
+			t.Errorf("Job forecast_report should set timeout-minutes: 60 in:\n%s", forecastSection)
+		}
 	}
 	if !strings.Contains(yaml, "Generate forecast report") {
 		t.Errorf("Job forecast_report should include forecast generation step in:\n%s", yaml)
@@ -478,6 +481,9 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 	if !strings.Contains(yaml, "--repo \"${{ github.repository }}\" --json") {
 		t.Errorf("Job forecast_report gh aw forecast command should include --repo and --json in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "grep -Fv \"forecast is an experimental command and may change without notice\"") {
+		t.Errorf("Job forecast_report gh aw forecast command should filter the experimental warning in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "| Workflow | Sampled runs | Forecast ET (P50) |") {
 		t.Errorf("Job forecast_report issue generation step should render markdown table output in:\n%s", yaml)

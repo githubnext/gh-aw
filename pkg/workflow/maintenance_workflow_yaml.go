@@ -534,6 +534,7 @@ jobs:
   forecast_report:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("forecast")) + ` }}
     runs-on: ` + runsOnValue + `
+    timeout-minutes: 60
     permissions:
       actions: read
       contents: read
@@ -574,7 +575,7 @@ jobs:
             echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
             exit 1
           fi
-          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json > ./.cache/gh-aw/forecast/report.json
+          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
 
       - name: Generate forecast issue
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `

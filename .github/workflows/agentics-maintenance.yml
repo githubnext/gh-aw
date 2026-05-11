@@ -474,6 +474,7 @@ jobs:
   forecast_report:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'forecast' && (!(github.event.repository.fork)) }}
     runs-on: ubuntu-slim
+    timeout-minutes: 60
     permissions:
       actions: read
       contents: read
@@ -520,7 +521,7 @@ jobs:
             echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
             exit 1
           fi
-          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json > ./.cache/gh-aw/forecast/report.json
+          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
 
       - name: Generate forecast issue
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
