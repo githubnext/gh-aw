@@ -422,7 +422,7 @@ This turns token optimization into an ongoing loop:
 3. open optimization issues for the highest-value fixes
 4. re-measure after changes land
 
-This repository already includes derived `copilot-token-audit` and `copilot-token-optimizer` examples under `.github/workflows/`.
+See the `gh-aw` repository for derived `copilot-token-audit` and `copilot-token-optimizer` examples under `.github/workflows/`.
 
 ---
 
