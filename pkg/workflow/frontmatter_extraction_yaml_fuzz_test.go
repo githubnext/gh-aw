@@ -15,11 +15,11 @@ func FuzzCommentOutProcessedFieldsInOnSectionTopLevelLabels(f *testing.F) {
 	f.Add("", "", "", "")
 
 	compiler := NewCompiler()
-	f.Fuzz(func(t *testing.T, topA, topB, nestedA, nestedB string) {
-		topAQuoted := strconv.Quote(topA)
-		topBQuoted := strconv.Quote(topB)
-		nestedAQuoted := strconv.Quote(nestedA)
-		nestedBQuoted := strconv.Quote(nestedB)
+	f.Fuzz(func(t *testing.T, topLevelLabelA, topLevelLabelB, nestedLabelA, nestedLabelB string) {
+		topAQuoted := strconv.Quote(topLevelLabelA)
+		topBQuoted := strconv.Quote(topLevelLabelB)
+		nestedAQuoted := strconv.Quote(nestedLabelA)
+		nestedBQuoted := strconv.Quote(nestedLabelB)
 
 		yamlStr := fmt.Sprintf(`on:
   issues:
@@ -40,17 +40,17 @@ func FuzzCommentOutProcessedFieldsInOnSectionTopLevelLabels(f *testing.F) {
 
 		result := compiler.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
 
-		assertContains := func(expected string) {
+		mustContain := func(expected string) {
 			if !strings.Contains(result, expected) {
 				t.Fatalf("expected %q in result:\n%s", expected, result)
 			}
 		}
 
-		assertContains("  # labels: # Label filtering applied via job conditions")
-		assertContains("# - " + topAQuoted + " # Label filtering applied via job conditions")
-		assertContains("# - " + topBQuoted + " # Label filtering applied via job conditions")
-		assertContains("          # - " + nestedAQuoted)
-		assertContains("          # - " + nestedBQuoted)
+		mustContain("  # labels: # Label filtering applied via job conditions")
+		mustContain("# - " + topAQuoted + " # Label filtering applied via job conditions")
+		mustContain("# - " + topBQuoted + " # Label filtering applied via job conditions")
+		mustContain("          # - " + nestedAQuoted)
+		mustContain("          # - " + nestedBQuoted)
 		if strings.Contains(result, "          # - "+nestedAQuoted+" # Label filtering applied via job conditions") {
 			t.Fatalf("nested labels item should not be marked as top-level label filtering:\n%s", result)
 		}
@@ -58,7 +58,8 @@ func FuzzCommentOutProcessedFieldsInOnSectionTopLevelLabels(f *testing.F) {
 			t.Fatalf("nested labels item should not be marked as top-level label filtering:\n%s", result)
 		}
 
-		expectedLabelFilterAnnotations := 3 // labels key + 2 top-level items
+		expectedTopLevelLabelItems := 2
+		expectedLabelFilterAnnotations := expectedTopLevelLabelItems + 1 // labels key + top-level items
 		if got := strings.Count(result, "Label filtering applied via job conditions"); got != expectedLabelFilterAnnotations {
 			t.Fatalf("expected %d label-filter annotations (labels key + top-level items), got %d:\n%s", expectedLabelFilterAnnotations, got, result)
 		}
