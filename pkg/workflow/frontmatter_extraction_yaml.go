@@ -253,6 +253,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 
 		trimmedLine := strings.TrimSpace(line)
+		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 
 		// Skip marker lines in the YAML output
 		if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.Contains(trimmedLine, "__gh_aw_native_label_filter__:") {
@@ -292,7 +293,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 
 		// Check if we're entering labels array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && trimmedLine == "labels:" {
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment &&
+			!inOnSteps && !inOnPermissions &&
+			lineIndent == 2 && trimmedLine == "labels:" {
 			inLabelsArray = true
 		}
 
@@ -541,7 +544,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				// Comment out array items in bots
 				shouldComment = true
 				commentReason = " # Bots processed as bot check in pre-activation job"
-			} else if strings.HasPrefix(trimmedLine, "labels:") {
+			} else if !inOnSteps && !inOnPermissions && lineIndent == 2 && strings.HasPrefix(trimmedLine, "labels:") {
 				shouldComment = true
 				commentReason = " # Label filtering applied via job conditions"
 			} else if inLabelsArray && strings.HasPrefix(trimmedLine, "-") {

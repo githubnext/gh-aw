@@ -248,3 +248,57 @@ tools:
 		})
 	}
 }
+
+func TestLabelNamesDoesNotAffectNestedOnStepsLabels(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "labels-nested-steps-test")
+	compiler := NewCompiler()
+
+	frontmatter := `---
+on:
+  issues:
+    types: [labeled]
+  labels: bug
+  steps:
+    - name: Nested labels in step input
+      uses: actions/github-script@v8
+      with:
+        labels:
+          - triage
+          - needs-info
+        script: |
+          core.info('label')
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+strict: false
+tools:
+  github:
+    allowed: [issue_read]
+---`
+
+	testFile := tmpDir + "/test-nested-labels.md"
+	content := frontmatter + "\n\n# Test Workflow\n\nNested labels in on.steps should not be treated as on.labels."
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644), "should write test file")
+
+	err := compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "should compile workflow successfully")
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockBytes, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "should read lock file")
+	lockContent := string(lockBytes)
+
+	// Clean up
+	os.Remove(testFile)
+	os.Remove(lockFile)
+
+	assert.Equal(t, 1, strings.Count(lockContent, "Label filtering applied via job conditions"),
+		"only top-level on.labels should receive label-filter annotation")
+	assert.NotContains(t, lockContent, "- name: Nested labels in step input # Label filtering applied via job conditions",
+		"on.steps list items should not be annotated as label filtering")
+	assert.NotContains(t, lockContent, "- triage # Label filtering applied via job conditions",
+		"nested labels in on.steps should not be annotated as top-level label filtering")
+}
