@@ -473,8 +473,8 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} forecast") {
 		t.Errorf("Job forecast_report should run gh aw forecast directly in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --count 100") {
-		t.Errorf("Job forecast_report should warm logs cache via gh aw logs --count 100 in:\n%s", yaml)
+	if !strings.Contains(yaml, "${GH_AW_CMD_PREFIX} logs --repo \"${{ github.repository }}\" --start-date -30d --count 1500") {
+		t.Errorf("Job forecast_report should warm logs cache with 30-day lookback and expanded count in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast.") {
 		t.Errorf("Job forecast_report should fail when run summary cache is missing after warm-up in:\n%s", yaml)
@@ -491,8 +491,17 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "| Workflow | Sampled runs | Forecast ET (P50) |") {
 		t.Errorf("Job forecast_report issue generation step should render markdown table output in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })") {
+		t.Errorf("Job forecast_report issue generation step should pretty-format ET values in:\n%s", yaml)
+	}
 	if !strings.Contains(yaml, "All projected ET values are 0 even after cache warm-up.") {
 		t.Errorf("Job forecast_report issue generation step should explain zero projected ET values in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "workflow(s) have sampled runs but forecast ET is 0.") {
+		t.Errorf("Job forecast_report issue generation step should include targeted zero-ET diagnostics in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "_Forecast source run: [#") {
+		t.Errorf("Job forecast_report issue generation step should include source run footnote link in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "title: '[aw] workflow forecast report'") {
 		t.Errorf("Job forecast_report issue generation step should create the forecast issue title in:\n%s", yaml)
