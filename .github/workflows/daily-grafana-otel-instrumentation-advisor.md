@@ -41,6 +41,7 @@ imports:
       title-prefix: "[grafana-otel-advisor] "
       expires: 3d
 
+  - shared/otel-queries.md
   - shared/observability-otlp.md
 ---
 
