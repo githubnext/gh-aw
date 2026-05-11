@@ -389,7 +389,7 @@ name: "Issue Monster"
               # return {
                 # number: issue.number,
                 # title: issue.title,
-                # labels: issue.labels.map(l => l.name), # Label filtering applied via job conditions
+                # labels: issue.labels.map(l => l.name),
                 # body: issue.body,
                 # created_at: issue.created_at,
                 # score
