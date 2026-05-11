@@ -4,13 +4,26 @@ description: Guide for reducing token consumption in agentic workflows — DataO
 
 # Token Consumption Optimization
 
-Tokens are the primary cost driver for agentic workflows. This guide distils the most effective techniques for reducing effective token consumption while preserving output quality.
+Tokens are the primary cost driver for agentic workflows. Apply the techniques below to reduce effective token consumption while preserving output quality.
+
+## Quick-Reference Checklist
+
+Apply these in order — each check can halve costs:
+
+- [ ] **DataOps**: Move data fetching into `steps:` — agent reads compact JSON, not raw API responses
+- [ ] **gh-proxy**: Set `tools.github.mode: gh-proxy` — skips Docker MCP server startup and extra tool definitions
+- [ ] **cli-proxy**: Mount additional MCP servers as CLIs via `cli-proxy: true` — agent pipes output through `jq` before it enters context
+- [ ] **Sub-agents**: Delegate repetitive per-item tasks to `model: small` sub-agents (~10–20× cheaper)
+- [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
+- [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
+- [ ] **Prompt caching**: Put stable instructions before dynamic content to maximize cache hits
+- [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "effective_tokens"` before promoting
 
 ---
 
 ## How to Measure Token Usage
 
-Before optimizing, establish a baseline. The audit command is your main instrument.
+Establish a baseline before optimizing. The audit command is your main instrument.
 
 ### Single-run audit
 
@@ -50,11 +63,11 @@ The diff output highlights changes in effective tokens, tool calls, and safe out
 
 ### Per-request token detail
 
-For deep analysis, download the `firewall-audit-logs` artifact:
+`gh aw audit <run-id>` downloads all artifacts into `logs/run-<run-id>/`. Read the per-call breakdown from there:
 
 ```bash
-gh run download <run-id> -n firewall-audit-logs
-cat firewall-audit-logs/api-proxy-logs/token-usage.jsonl
+gh aw audit <run-id>
+cat logs/run-<run-id>/firewall-audit-logs/api-proxy-logs/token-usage.jsonl
 ```
 
 Each line is one API call with `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens`. Use this to find which API calls are the most expensive.
@@ -345,21 +358,6 @@ To maximize cache hits:
 - **Keep stable content at the top of the prompt.** Instructions that don't change between runs (role description, output format rules, JSON schema) should appear before dynamic content (issue body, event context).
 - **Use `cache-memory`** for workflows that re-read the same large knowledge base across runs. The memory server avoids injecting duplicate context into every turn.
 - **Minimize dynamic context.** Inject only the fields the agent actually needs: use `${{ github.event.issue.number }}` instead of dumping the full event payload.
-
----
-
-## Quick-Reference Checklist
-
-Use this checklist when reviewing a workflow for token efficiency:
-
-- [ ] **DataOps**: Is data fetching done in `steps:` instead of agentic tool calls?
-- [ ] **gh-proxy**: Is `tools.github.mode: gh-proxy` set (avoids Docker MCP server)?
-- [ ] **cli-proxy**: Are additional MCP servers mounted as CLIs via `cli-proxy: true`?
-- [ ] **Sub-agents**: Are repetitive per-item tasks delegated to `model: small` sub-agents?
-- [ ] **Prompt size**: Is the prompt free of redundant instructions, examples, and pleasantries?
-- [ ] **Dynamic context**: Is only the minimum required event context injected?
-- [ ] **Experiments**: Is each change backed by an A/B experiment with `metric: "effective_tokens"`?
-- [ ] **Baseline**: Have you run `gh aw audit <before-id> <after-id>` to confirm the saving?
 
 ---
 
