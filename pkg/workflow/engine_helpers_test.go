@@ -489,71 +489,71 @@ func TestAppendEnvVarLine(t *testing.T) {
 }
 
 func TestNormalizeBashCommand(t *testing.T) {
-tests := []struct {
-name            string
-input           string
-expectedCmd     string
-expectedChanged bool
-}{
-{
-name:            "plain command unchanged",
-input:           "jq",
-expectedCmd:     "jq",
-expectedChanged: false,
-},
-{
-name:            "command with space-star suffix is stripped",
-input:           "jq *",
-expectedCmd:     "jq",
-expectedChanged: true,
-},
-{
-name:            "multi-word command with space-star suffix is stripped",
-input:           "gh issue list *",
-expectedCmd:     "gh issue list",
-expectedChanged: true,
-},
-{
-name:            "command with arguments but no wildcard unchanged",
-input:           "jq . /tmp/file.json",
-expectedCmd:     "jq . /tmp/file.json",
-expectedChanged: false,
-},
-{
-name:            "lone star is not stripped (handled as full-wildcard sentinel)",
-input:           "*",
-expectedCmd:     "*",
-expectedChanged: false,
-},
-{
-name:            "colon-star is not stripped (handled as full-wildcard sentinel)",
-input:           ":*",
-expectedCmd:     ":*",
-expectedChanged: false,
-},
-{
-name:            "sed with space-star suffix is stripped",
-input:           "sed *",
-expectedCmd:     "sed",
-expectedChanged: true,
-},
-{
-name:            "awk with space-star suffix is stripped",
-input:           "awk *",
-expectedCmd:     "awk",
-expectedChanged: true,
-},
-}
+	tests := []struct {
+		name            string
+		input           string
+		expectedCmd     string
+		expectedChanged bool
+	}{
+		{
+			name:            "plain command unchanged",
+			input:           "jq",
+			expectedCmd:     "jq",
+			expectedChanged: false,
+		},
+		{
+			name:            "command with space-star suffix is stripped",
+			input:           "jq *",
+			expectedCmd:     "jq",
+			expectedChanged: true,
+		},
+		{
+			name:            "multi-word command with space-star suffix is stripped",
+			input:           "gh issue list *",
+			expectedCmd:     "gh issue list",
+			expectedChanged: true,
+		},
+		{
+			name:            "command with arguments but no wildcard unchanged",
+			input:           "jq . /tmp/file.json",
+			expectedCmd:     "jq . /tmp/file.json",
+			expectedChanged: false,
+		},
+		{
+			name:            "lone star is not stripped (handled as full-wildcard sentinel)",
+			input:           "*",
+			expectedCmd:     "*",
+			expectedChanged: false,
+		},
+		{
+			name:            "colon-star is not stripped (handled as full-wildcard sentinel)",
+			input:           ":*",
+			expectedCmd:     ":*",
+			expectedChanged: false,
+		},
+		{
+			name:            "sed with space-star suffix is stripped",
+			input:           "sed *",
+			expectedCmd:     "sed",
+			expectedChanged: true,
+		},
+		{
+			name:            "awk with space-star suffix is stripped",
+			input:           "awk *",
+			expectedCmd:     "awk",
+			expectedChanged: true,
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-gotCmd, gotChanged := normalizeBashCommand(tt.input)
-if gotCmd != tt.expectedCmd {
-t.Errorf("normalizeBashCommand(%q) cmd = %q, want %q", tt.input, gotCmd, tt.expectedCmd)
-}
-if gotChanged != tt.expectedChanged {
-t.Errorf("normalizeBashCommand(%q) changed = %v, want %v", tt.input, gotChanged, tt.expectedChanged)
-}
-})
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCmd, gotChanged := normalizeBashCommand(tt.input)
+			if gotCmd != tt.expectedCmd {
+				t.Errorf("normalizeBashCommand(%q) cmd = %q, want %q", tt.input, gotCmd, tt.expectedCmd)
+			}
+			if gotChanged != tt.expectedChanged {
+				t.Errorf("normalizeBashCommand(%q) changed = %v, want %v", tt.input, gotChanged, tt.expectedChanged)
+			}
+		})
+	}
 }

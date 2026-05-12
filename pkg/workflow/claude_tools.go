@@ -510,6 +510,21 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		allowedTools = append(allowedTools, "mcp__"+string(constants.MCPScriptsMCPServerID))
 	}
 
+	// Deduplicate tools before sorting/joining to avoid duplicate Bash(...) entries
+	// when equivalent wildcard/non-wildcard bash commands normalize to the same form.
+	if len(allowedTools) > 1 {
+		seen := make(map[string]struct{}, len(allowedTools))
+		deduped := make([]string, 0, len(allowedTools))
+		for _, tool := range allowedTools {
+			if _, ok := seen[tool]; ok {
+				continue
+			}
+			seen[tool] = struct{}{}
+			deduped = append(deduped, tool)
+		}
+		allowedTools = deduped
+	}
+
 	// Sort the allowed tools alphabetically for consistent output
 	sort.Strings(allowedTools)
 
