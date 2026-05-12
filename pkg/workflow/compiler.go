@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -391,6 +392,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		c.artifactManager = NewArtifactManager()
 	} else {
 		c.artifactManager.Reset()
+	}
+
+	// Enable GHES artifact compatibility when the feature flag is set.
+	// This makes getActionPin return v3.x artifact actions instead of v7/v8.
+	if isFeatureEnabled(constants.GHESArtifactCompatFeatureFlag, workflowData) {
+		SetGHESArtifactCompat(true)
+		defer SetGHESArtifactCompat(false)
 	}
 
 	// Generate lock file name
