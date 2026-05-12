@@ -288,7 +288,7 @@ func TestValidatePathComponents(t *testing.T) {
 				require.Error(t, err, "should return error for: %s", tt.name)
 				assert.Contains(t, err.Error(), tt.errMsg, "error message should mention: %s", tt.errMsg)
 			} else {
-				assert.NoError(t, err, "should not return error for valid components")
+				require.NoError(t, err, "should not return error for valid components")
 			}
 		})
 	}

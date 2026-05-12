@@ -22,7 +22,10 @@ def sample_precompute() -> dict:
             "portfolio_maintenance_drag": 0.3,
             "average_agentic_fraction": 0.5,
             "average_deterministic_fraction": 0.5,
-            "telemetry_coverage": 0.2,
+            "observability_declared_coverage": 0.5,
+            "telemetry_observed_coverage": 0.5,
+            "telemetry_validated_coverage": 0.5,
+            "telemetry_coverage": 0.5,
             "evidence_quality": "low",
         },
         "workflows": [
@@ -35,6 +38,9 @@ def sample_precompute() -> dict:
                 "has_safe_outputs": True,
                 "has_observability": False,
                 "has_imported_observability": False,
+                "observability_declared": False,
+                "telemetry_observed": False,
+                "telemetry_validated": False,
                 "strict": True,
                 "timeout_minutes": 10,
                 "permissions_risk": 1.2,
@@ -54,7 +60,7 @@ def sample_precompute() -> dict:
                 "intent_text": "review pull request",
                 "recommendation_seed": "Instrument",
                 "evidence_quality": "low",
-                "notes": ["missing telemetry"],
+                "notes": ["observability not declared"],
                 "telemetry_metrics": {},
             },
             {
@@ -66,6 +72,9 @@ def sample_precompute() -> dict:
                 "has_safe_outputs": True,
                 "has_observability": True,
                 "has_imported_observability": False,
+                "observability_declared": True,
+                "telemetry_observed": True,
+                "telemetry_validated": True,
                 "strict": True,
                 "timeout_minutes": 10,
                 "permissions_risk": 0.2,
@@ -86,7 +95,7 @@ def sample_precompute() -> dict:
                 "recommendation_seed": "Keep",
                 "evidence_quality": "medium",
                 "notes": [],
-                "telemetry_metrics": {"success_rate": 0.9},
+                "telemetry_metrics": {"success_rate": 0.9, "workflow_invocation_count": 4, "runtime_duration": 30},
             },
         ],
         "overlap_clusters": [{"workflows": [".github/workflows/a.md", ".github/workflows/b.md"], "max_overlap": 0.9, "reason": "review"}],
@@ -136,6 +145,9 @@ def test_recommendations_are_valid_and_mutually_exclusive(tmp_path: Path) -> Non
     assert final_payload["keep"] == [".github/workflows/b.md"]
     assert final_payload["instrument"] == [".github/workflows/a.md"]
     assert set(final_payload["keep"]).isdisjoint(final_payload["instrument"])
+    assert final_payload["observability_declared_coverage"] == 0.5
+    assert final_payload["telemetry_observed_coverage"] == 0.5
+    assert final_payload["telemetry_validated_coverage"] == 0.5
 
 
 def test_postcompute_handles_malformed_agent_output_safely(tmp_path: Path) -> None:

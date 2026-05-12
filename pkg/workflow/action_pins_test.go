@@ -894,11 +894,11 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 		expectedSHA     string
 	}{
 		{
-			name:            "v8 falls back to v8.0.0 and comment records source v8",
+			name:            "v8 falls back to v9.0.0 and comment records source v8",
 			repo:            "actions/github-script",
 			requestedVer:    "v8",
-			expectedComment: "# v8.0.0 (source v8)",
-			expectedSHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+			expectedComment: "# v9.0.0 (source v8)",
+			expectedSHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 		},
 		{
 			name:            "v7 falls back to v9.0.0 and comment records source v7",
@@ -930,8 +930,8 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 					tt.repo, tt.requestedVer, result, tt.expectedSHA)
 			}
 
-			if tt.requestedVer == "v8" && !strings.Contains(result, "# v8.0.0 (source v8)") {
-				t.Errorf("Expected v8 fallback comment to record resolved version v8.0.0, got: %s", result)
+			if tt.requestedVer == "v8" && !strings.Contains(result, "# v9.0.0 (source v8)") {
+				t.Errorf("Expected v8 fallback comment to record resolved version v9.0.0, got: %s", result)
 			}
 		})
 	}

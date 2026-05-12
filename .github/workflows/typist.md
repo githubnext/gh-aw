@@ -82,55 +82,9 @@ Generate a single formatted discussion summarizing all refactoring opportunities
 
 ### Phase 1: Identify Duplicated Type Definitions
 
-Analyze type definitions to find duplicates:
+Use the `duplicate-type-finder` agent to collect all Go type definitions under `pkg/` and cluster them into exact, near, and semantic duplicates.
 
-**1. Collect All Type Definitions**:
-   For each Go file:
-   - Use Serena's `get_symbols_overview` to extract type definitions
-   - Collect struct types, interface types, and type aliases
-   - Record: file path, package, type name, type definition
-
-**2. Group Similar Types**:
-   Cluster types by:
-   - Identical names in different packages
-   - Similar names (e.g., `Config` vs `Configuration`, `Opts` vs `Options`)
-   - Similar field structures (same fields with different type names)
-   - Same purpose but different implementations
-
-**3. Analyze Type Similarity**:
-   For each cluster:
-   - Compare field names and types
-   - Identify exact duplicates (100% identical)
-   - Identify near-duplicates (>80% field similarity)
-   - Identify semantic duplicates (same purpose, different implementation)
-
-**4. Identify Refactoring Opportunities**:
-   For duplicated types:
-   - **Exact duplicates**: Consolidate into single shared type
-   - **Near duplicates**: Determine if they should be merged or remain separate
-   - **Scattered definitions**: Consider creating a shared types package
-   - **Package-specific vs shared**: Determine appropriate location
-
-**Examples of Duplicated Types**:
-```go
-// File: pkg/workflow/compiler.go
-type Config struct {
-    Timeout int
-    Verbose bool
-}
-
-// File: pkg/cli/commands.go
-type Config struct {  // DUPLICATE - same name, different package
-    Timeout int
-    Verbose bool
-}
-
-// File: pkg/parser/parser.go
-type Options struct {  // SEMANTIC DUPLICATE - same fields as Config
-    Timeout int
-    Verbose bool
-}
-```
+Store the returned JSON as `phase1_results`. In Phase 3, pass the `duplicate_clusters` array when tracing references. In Phase 4, use `total_types` and `duplicate_clusters` to populate the discussion statistics and per-cluster writeups.
 
 ### Phase 2: Identify Untyped Usages
 
@@ -188,24 +142,16 @@ type Duration int
 const DefaultTimeout Duration = 30  // Clearly defined type
 ```
 
-### Phase 3: Use Serena for Deep Analysis
+### Phase 3: Cross-Reference Analysis
 
-Leverage Serena's semantic capabilities:
+Using the type definitions from Phase 1 and the untyped usages from Phase 2:
 
-**1. Symbol Analysis**:
-   - Use `find_symbol` to locate all occurrences of similar type names
-   - Use `get_symbols_overview` to extract type definitions
-   - Use `read_file` to examine type usage context
-
-**2. Pattern Search**:
-   - Use `search_for_pattern` to find `interface{}` usage: `interface\{\}`
-   - Use `search_for_pattern` to find `any` usage: `\bany\b`
-   - Use `search_for_pattern` to find untyped constants: `const\s+\w+\s*=`
-
-**3. Cross-Reference Analysis**:
-   - Use `find_referencing_symbols` to understand how types are used
-   - Identify which code would benefit most from type consolidation
+1. **Reference Tracing**:
+   - Use `find_referencing_symbols` to discover how the duplicated/weakly-typed symbols are used
+   - Identify which clusters would benefit most from consolidation
    - Map dependencies between duplicated types
+
+(Do NOT re-run `get_symbols_overview` or `search_for_pattern` — those results are already available from Phases 1 and 2.)
 
 ### Phase 4: Generate Refactoring Discussion
 
@@ -506,3 +452,47 @@ This analysis is successful when:
 **Objective**: Improve type safety and code maintainability by identifying and recommending fixes for duplicated type definitions and untyped usages in the Go codebase.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `duplicate-type-finder`
+---
+description: Collects all Go type definitions under pkg/ and groups them into exact, near, and semantic duplicate clusters
+model: small
+---
+You are a Go type-definition analyst. Collect all type definitions from non-test Go source files under `pkg/` and group them into duplicate clusters.
+
+**Step 1 — Discover source files**:
+```bash
+find pkg -name "*.go" ! -name "*_test.go" -type f | sort
+```
+
+**Step 2 — Extract type definitions**:
+For each file discovered, use Serena's `get_symbols_overview` to extract type definitions (structs, interfaces, type aliases). For each type, record:
+- `file`: file path relative to repo root
+- `package`: Go package name
+- `type_name`: name of the type
+- `fields`: for structs, list each field as `"name type"` (e.g. `"Timeout int"`); empty list for interfaces and aliases
+
+**Step 3 — Cluster duplicates**:
+Group collected types using these rules:
+- **Exact duplicates**: same `type_name` appears in two or more different packages
+- **Near duplicates**: names differ only by common synonyms (`Config`/`Configuration`, `Opts`/`Options`, `Info`/`Data`, `Result`/`Response`), OR two struct types share ≥80% of their field name+type pairs (count matching `"name type"` strings divided by the size of the larger field list)
+- **Semantic duplicates**: same apparent purpose inferred from name and fields, but different structure; use this category only when exact/near do not apply
+
+Only include a cluster when it has two or more occurrences. Omit types with no near-duplicates.
+
+Return ONLY a JSON object:
+```json
+{
+  "total_files": 0,
+  "total_types": 0,
+  "duplicate_clusters": [
+    {
+      "cluster_type": "exact|near|semantic",
+      "type_name": "",
+      "occurrences": [
+        {"file": "", "package": "", "type_name": "", "fields": []}
+      ]
+    }
+  ]
+}
+```

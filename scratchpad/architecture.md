@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-05-05 · Source: [Issue created by workflow run §25368177917](https://github.com/github/gh-aw/actions/runs/25368177917)
+> Last updated: 2026-05-11 · Source: [Issue created by workflow run §25663288420](https://github.com/github/gh-aw/actions/runs/25663288420)
 
 ## Overview
 
@@ -48,16 +48,21 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 │  └───────────────┘  └──────────────┘  └──────────────┘  └────────────┘  └──────────────────────┘  │
 │                                                                                                      │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  ┌──────────────────────┐  │
-│  │ pkg/fileutil  │  │ pkg/gitutil  │  │ pkg/repoutil │  │pkg/envutil │  │   pkg/sliceutil      │  │
-│  │ File path &   │  │ Git repo     │  │ GitHub repo  │  │ Env var    │  │  Generic slice       │  │
-│  │ I/O utilities │  │ utilities    │  │ slug/URL util │  │ utilities  │  │  utilities           │  │
+│  │ pkg/fileutil  │  │ pkg/gitutil  │  │ pkg/jsonutil │  │pkg/envutil │  │   pkg/sliceutil      │  │
+│  │ File path &   │  │ Git repo     │  │ JSON utility │  │ Env var    │  │  Generic slice       │  │
+│  │ I/O utilities │  │ utilities    │  │ functions    │  │ utilities  │  │  utilities           │  │
 │  └───────────────┘  └──────────────┘  └──────────────┘  └────────────┘  └──────────────────────┘  │
 │                                                                                                      │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  ┌──────────────────────┐  │
-│  │ pkg/typeutil  │  │pkg/semverutil│  │ pkg/timeutil │  │  pkg/tty   │  │   pkg/testutil       │  │
-│  │ Type conversion│  │ Semantic     │  │ Time helpers │  │TTY detect  │  │  Test helpers        │  │
-│  │ utilities     │  │ versioning   │  │              │  │            │  │  (test builds only)  │  │
+│  │ pkg/repoutil  │  │pkg/semverutil│  │ pkg/typeutil │  │ pkg/timeutil│  │   pkg/tty            │  │
+│  │ GitHub repo   │  │ Semantic     │  │ Type convert │  │ Time helpers│  │  TTY detection       │  │
+│  │ slug/URL util │  │ versioning   │  │ utilities    │  │            │  │                      │  │
 │  └───────────────┘  └──────────────┘  └──────────────┘  └────────────┘  └──────────────────────┘  │
+│                                                                                                      │
+│  ┌──────────────────────────────────┐                                                               │
+│  │  pkg/testutil  (test builds only)│                                                               │
+│  │  Test helper utilities           │                                                               │
+│  └──────────────────────────────────┘                                                               │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -81,6 +86,7 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 | `pkg/stringutil` | Utility | String utility functions |
 | `pkg/fileutil` | Utility | File path and I/O operation utilities |
 | `pkg/gitutil` | Utility | Git repository utilities |
+| `pkg/jsonutil` | Utility | JSON utility functions |
 | `pkg/repoutil` | Utility | GitHub repository slug/URL utilities |
 | `pkg/envutil` | Utility | Environment variable reading/validation |
 | `pkg/sliceutil` | Utility | Generic slice utilities |

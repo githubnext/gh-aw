@@ -18,7 +18,7 @@ engine: copilot
 ---
 ```
 
-> `features.inline-agents` is deprecated and no longer needed. Existing workflows may still include it, but it has no effect.
+> `features.inline-agents` is deprecated and should be removed. Inline sub-agent extraction is always on, so this field is unnecessary.
 >
 > `inline-sub-agents: false` is not supported and fails compilation. Remove the field.
 
@@ -199,6 +199,6 @@ changes. Return a bulleted list, one bullet per file.
 
 - Sub-agents do not support `engine:`, `tools:`, `network:`, or `mcp-servers:` fields — those are stripped at runtime.
 - Sub-agents cannot define their own safe-output jobs.
-- `features.inline-agents` is deprecated and has no effect; inline sub-agent upload/restore is always generated.
+- `features.inline-agents` is deprecated and should be removed; inline sub-agent upload/restore is always generated.
 - `inline-sub-agents: false` is rejected at compile time; inline sub-agents cannot be disabled.
 - Sub-agent blocks must appear in the main workflow file body; they are not resolved inside imported shared files.

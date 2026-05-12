@@ -332,6 +332,35 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPatte
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensStringMustBePositive(t *testing.T) {
+	t.Parallel()
+
+	invalidFrontmatter := map[string]any{
+		"on":                   "push",
+		"max-effective-tokens": "0",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-effective-tokens-zero-string-test.md")
+	if err == nil {
+		t.Fatal("expected max-effective-tokens='0' to fail schema validation")
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpressions(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on":                   "push",
+		"max-runs":             "${{ inputs.max-runs }}",
+		"max-effective-tokens": "${{ inputs.max-effective-tokens }}",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-expression-test.md")
+	if err != nil {
+		t.Fatalf("expected max-runs/max-effective-tokens expressions to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {
 	t.Parallel()
 

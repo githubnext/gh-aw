@@ -71,6 +71,11 @@ type importAccumulator struct {
 	// First engine.model found in imports that have no engine.id (first-wins strategy).
 	// These express a model preference without selecting a specific engine.
 	mergedEngineModel string
+	// First top-level max-runs / max-effective-tokens found across imports (first-wins).
+	// Values are stored as JSON-encoded raw values so numeric literals and strings
+	// round-trip consistently through import processing.
+	mergedMaxRuns            string
+	mergedMaxEffectiveTokens string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -294,6 +299,24 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 			if engineJSON, merr := json.Marshal(engineVal); merr == nil {
 				acc.engines = append(acc.engines, string(engineJSON))
 			}
+		}
+	}
+
+	// Extract max-runs from imported file (first-wins across imports).
+	if acc.mergedMaxRuns == "" {
+		if maxRunsJSON, merr := extractFieldJSONFromMap(fm, "max-runs", ""); merr == nil &&
+			maxRunsJSON != "" && maxRunsJSON != "null" {
+			acc.mergedMaxRuns = maxRunsJSON
+			log.Printf("Extracted max-runs from import: %s", item.fullPath)
+		}
+	}
+
+	// Extract max-effective-tokens from imported file (first-wins across imports).
+	if acc.mergedMaxEffectiveTokens == "" {
+		if maxTokensJSON, merr := extractFieldJSONFromMap(fm, "max-effective-tokens", ""); merr == nil &&
+			maxTokensJSON != "" && maxTokensJSON != "null" {
+			acc.mergedMaxEffectiveTokens = maxTokensJSON
+			log.Printf("Extracted max-effective-tokens from import: %s", item.fullPath)
 		}
 	}
 
@@ -630,6 +653,8 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEngineMCPToolTimeout:    acc.mergedEngineMCPToolTimeout,
 		MergedEngineMCPSessionTimeout: acc.mergedEngineMCPSessionTimeout,
 		MergedEngineModel:             acc.mergedEngineModel,
+		MergedMaxRuns:                 acc.mergedMaxRuns,
+		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
 		Warnings:                      acc.warnings,
 	}
 }

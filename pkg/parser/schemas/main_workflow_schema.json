@@ -3689,11 +3689,19 @@
         },
         {
           "type": "string",
-          "pattern": "^[0-9]+$",
-          "description": "Maximum effective-token (ET) budget as a numeric string."
+          "oneOf": [
+            {
+              "pattern": "^[1-9][0-9]*$"
+            },
+            {
+              "pattern": "^\\$\\{\\{.*\\}\\}$"
+            }
+          ],
+          "description": "Maximum effective-token (ET) budget as a numeric string or GitHub Actions expression."
         }
       ],
-      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 10000000 when omitted."
+      "default": 25000000,
+      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted."
     },
     "max-runs": {
       "oneOf": [
@@ -3704,11 +3712,19 @@
         },
         {
           "type": "string",
-          "pattern": "^[1-9][0-9]*$",
-          "description": "Maximum number of LLM invocations allowed per run as a numeric string."
+          "oneOf": [
+            {
+              "pattern": "^[1-9][0-9]*$"
+            },
+            {
+              "pattern": "^\\$\\{\\{.*\\}\\}$"
+            }
+          ],
+          "description": "Maximum number of LLM invocations allowed per run as a numeric string or GitHub Actions expression."
         }
       ],
-      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines."
+      "default": 100,
+      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 100 when omitted."
     },
     "mcp-servers": {
       "type": "object",

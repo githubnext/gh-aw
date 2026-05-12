@@ -326,9 +326,9 @@ async function main(config = {}) {
       const availableFields = await fetchIssueFields(githubClient, owner, repo);
 
       if (availableFields.length === 0) {
-        const error = "No issue fields were discovered for this repository. Verify issue fields are enabled and visible to this token.";
-        core.error(error);
-        return { success: false, error };
+        const warning = "No issue fields were discovered for this repository. Verify issue fields are enabled and visible to this token.";
+        core.warning(warning);
+        return { success: false, skipped: true, error: warning };
       }
 
       let resolvedFieldByName = null;

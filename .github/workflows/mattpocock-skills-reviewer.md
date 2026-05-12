@@ -6,7 +6,9 @@ on:
 permissions:
   contents: read
   pull-requests: read
-engine: copilot
+engine:
+  id: copilot
+  max-continuations: 10
 imports:
   - uses: shared/pr-review-base.md
     with:
@@ -44,6 +46,21 @@ pre-agent-steps:
         echo "::error::No SKILL.md files found after installing mattpocock/skills"
         exit 1
       fi
+  - name: Pre-fetch PR diff
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+      gh pr diff "$PR_NUMBER" \
+        --repo ${{ github.repository }} \
+        > /tmp/gh-aw/agent/pr-diff.patch
+      gh pr view "$PR_NUMBER" \
+        --repo ${{ github.repository }} \
+        --json number,title,body,headRefName,additions,deletions,changedFiles,files \
+        > /tmp/gh-aw/agent/pr-meta.json
+      echo "Pre-fetched PR diff ($(wc -l < /tmp/gh-aw/agent/pr-diff.patch) lines) and metadata"
 tools:
   cli-proxy: true
 safe-outputs:
@@ -90,15 +107,16 @@ The following skills have been installed via `gh skill` and are available under 
 
 Review this pull request using the most appropriate Matt Pocock skill(s) for the type of changes made, then deliver actionable, specific improvement suggestions as inline review comments and an overall review.
 
-### Step 1: Fetch PR Details
+### Step 1: Load Pre-fetched PR Data
 
-Use `gh` CLI to gather all necessary information:
+PR data and the full diff have already been fetched before the agent started. Read the pre-fetched files:
 
 ```bash
-gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json number,title,body,headRefName,additions,deletions,changedFiles
-gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
-gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json files
+cat /tmp/gh-aw/agent/pr-meta.json   # fields: number, title, body, headRefName, additions, deletions, changedFiles, files
+cat /tmp/gh-aw/agent/pr-diff.patch  # full unified diff of all changed files
 ```
+
+Do **not** call `gh pr diff` or `gh pr view` inside the agent — the data is already available on disk.
 
 ### Step 2: Read Available Skills
 

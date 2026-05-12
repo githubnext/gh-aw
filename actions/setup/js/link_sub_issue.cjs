@@ -242,19 +242,11 @@ async function main(config = {}) {
       const existingParent = parentCheckResult?.repository?.issue?.parent;
       if (existingParent) {
         core.warning(`Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`);
-        if (existingParent.number === parentIssueNumber) {
-          return {
-            parent_issue_number: parentIssueNumber,
-            sub_issue_number: subIssueNumber,
-            success: true,
-            skipped: true,
-          };
-        }
         return {
           parent_issue_number: parentIssueNumber,
           sub_issue_number: subIssueNumber,
-          success: false,
-          error: `Sub-issue is already a sub-issue of #${existingParent.number}`,
+          success: true,
+          skipped: true,
         };
       }
     } catch (error) {
@@ -337,6 +329,19 @@ async function main(config = {}) {
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
+      // If the mutation fails because the sub-issue is already linked (to any parent),
+      // treat it as a successful no-op — the pre-flight parent check may have failed to
+      // detect the existing relationship (e.g. due to schema availability), but the
+      // desired state (sub-issue belongs to a group) is effectively achieved.
+      if (/already.*sub.?issue/i.test(errorMessage)) {
+        core.warning(`Sub-issue #${subIssueNumber} is already linked as a sub-issue (confirmed via mutation error). Skipping.`);
+        return {
+          parent_issue_number: parentIssueNumber,
+          sub_issue_number: subIssueNumber,
+          success: true,
+          skipped: true,
+        };
+      }
       core.warning(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
       return {
         parent_issue_number: parentIssueNumber,

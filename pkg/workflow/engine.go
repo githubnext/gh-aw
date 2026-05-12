@@ -122,10 +122,10 @@ func (e *EngineConfig) GetMaxEffectiveTokens() int64 {
 	return e.MaxEffectiveTokens
 }
 
-// GetMaxRuns returns the configured AWF max-runs value, or 0 when unset.
+// GetMaxRuns returns the configured AWF max-runs value, falling back to the default.
 func (e *EngineConfig) GetMaxRuns() int {
 	if e == nil || e.MaxRuns <= 0 {
-		return 0
+		return constants.DefaultMaxRuns
 	}
 	return e.MaxRuns
 }

@@ -9,7 +9,7 @@ permissions:
   pull-requests: read
 engine:
   id: copilot
-  max-continuations: 40
+  max-continuations: 15
 tools:
   cli-proxy: true
   github:
@@ -75,7 +75,6 @@ imports:
   - shared/observability-otlp.md
 features:
   copilot-requests: true
-  inline-agents: true
 
 ---
 

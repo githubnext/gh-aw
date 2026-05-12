@@ -37,9 +37,6 @@ safe-outputs:
 
 timeout-minutes: 30
 
-features:
-  inline-agents: true
-
 imports:
   - uses: shared/meta-analysis-base.md
     with:
@@ -80,7 +77,7 @@ From the ranked list, filter out:
 - This optimizer itself (`daily-subagent-optimizer`)
 - Workflows already using inline sub-agents
 
-Use the `workflow-screener` sub-agent to check the top 6 remaining candidates. For each, pass the file path and ask the agent to read the file and report all six fields: `inline_agents_enabled`, `has_agent_blocks`, `engine`, `is_smoke_test`, `prompt_phases`, and `notes`.
+Use the `workflow-screener` sub-agent to check the top 6 remaining candidates. For each, pass the file path and ask the agent to read the file and report all five fields: `has_agent_blocks`, `engine`, `is_smoke_test`, `prompt_phases`, and `notes`.
 
 Select the **highest-token workflow that passes all filters and has at least 3 distinct phases/sections** in its prompt. This is your optimization target.
 
@@ -177,7 +174,6 @@ For each selected sub-agent candidate, design a concrete inline sub-agent:
 5. **Invocation change**: the 1–3 line replacement in the main prompt that calls the sub-agent by name
 
 Also determine:
-- Whether the target workflow needs `features: inline-agents: true` added to its frontmatter
 - Estimated token reduction per run (be conservative: 10–25% per sub-agent extracted)
 
 ## Phase 7 — Create the Proposal Issue
@@ -277,18 +273,6 @@ Use the `<agent-name>` agent to [task].
 
 [Repeat for each proposed sub-agent]
 
-### Frontmatter Change Required
-
-[Only include if `features: inline-agents: true` is not already set]
-
-Add to frontmatter:
-```yaml
-features:
-  inline-agents: true
-```
-
----
-
 ### Estimated Impact
 
 | Metric | Before | After (estimated) |
@@ -300,11 +284,10 @@ features:
 ### Implementation Steps
 
 1. **Common prefix** (if applicable): Add `## Setup` section at the top of the prompt body and remove duplicated tool calls from affected sections
-2. **Sub-agents** (if applicable): Add `features: inline-agents: true` to frontmatter (if not already present)
-3. Add each sub-agent block at the bottom of `.github/workflows/<name>.md`, after all workflow content
-4. Update the prompt sections listed above to invoke sub-agents by name
-5. Compile: `gh aw compile <name>`
-6. Test: `gh workflow run <name>.yml`
+2. **Sub-agents** (if applicable): Add each sub-agent block at the bottom of `.github/workflows/<name>.md`, after all workflow content
+3. Update the prompt sections listed above to invoke sub-agents by name
+4. Compile: `gh aw compile <name>`
+5. Test: `gh workflow run <name>.yml`
 
 ### References
 
@@ -379,21 +362,19 @@ reasoning: <1–2 sentences explaining the finding>
 
 ## agent: `workflow-screener`
 ---
-description: Reads a workflow .md file and reports whether inline-agents are enabled, the engine, and prompt complexity
+description: Reads a workflow .md file and reports sub-agent blocks, engine, and prompt complexity
 model: small
 ---
 You are a workflow file scanner. When given a file path, read the file using bash and report the following facts:
 
-1. **inline_agents_enabled**: Does the frontmatter contain `inline-agents: true` under `features:`? (yes/no)
-2. **has_agent_blocks**: Does the file body contain any `## agent:` section? (yes/no)
-3. **engine**: The value of the `engine:` field (e.g., `claude`, `copilot`, `codex`). If `engine:` is an object, report `id:` value.
-4. **is_smoke_test**: Is this a smoke-test workflow? (yes if filename starts with `smoke-` or file body is fewer than 40 lines)
-5. **prompt_phases**: Count the number of major sections (lines starting with `## ` or `### `) in the prompt body (everything after the closing `---`). Report as a number.
-6. **notes**: One sentence about anything notable (e.g., "already uses inline-agents", "very short prompt", "no distinct phases").
+1. **has_agent_blocks**: Does the file body contain any `## agent:` section? (yes/no)
+2. **engine**: The value of the `engine:` field (e.g., `claude`, `copilot`, `codex`). If `engine:` is an object, report `id:` value.
+3. **is_smoke_test**: Is this a smoke-test workflow? (yes if filename starts with `smoke-` or file body is fewer than 40 lines)
+4. **prompt_phases**: Count the number of major sections (lines starting with `## ` or `### `) in the prompt body (everything after the closing `---`). Report as a number.
+5. **notes**: One sentence about anything notable (e.g., "already has inline sub-agent blocks", "very short prompt", "no distinct phases").
 
 Return your findings in this exact format:
 ```
-inline_agents_enabled: yes/no
 has_agent_blocks: yes/no
 engine: <value>
 is_smoke_test: yes/no

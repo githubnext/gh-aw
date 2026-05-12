@@ -310,6 +310,75 @@ Test content
 	require.NoError(t, err, "Lock file should be created")
 }
 
+func TestCompileWorkflow_CachesResolvedManifestBaseline(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "compiler-manifest-cache")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Caching baseline manifest data should not change behavior.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(WithNoEmit(true))
+	manifestCache := map[string]*GHAWManifest{}
+	compiler.SetPriorManifests(manifestCache)
+
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Clean(stringutil.MarkdownToLockFile(testFile))
+	firstBaseline, ok := manifestCache[lockFile]
+	require.True(t, ok, "baseline manifest should be cached after first compile")
+	require.NotNil(t, firstBaseline, "new workflows should cache an empty baseline manifest")
+
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+	secondBaseline, ok := manifestCache[lockFile]
+	require.True(t, ok, "cached baseline should remain available after second compile")
+	require.NotNil(t, secondBaseline, "cached baseline should be non-nil")
+	require.Same(t, firstBaseline, secondBaseline, "cache should keep the first baseline without overwrite")
+}
+
+func TestCompileWorkflow_DoesNotCacheNilLegacyBaseline(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "compiler-manifest-legacy")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Legacy lock file baseline should not be cached when manifest is missing.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	lockFile := filepath.Clean(stringutil.MarkdownToLockFile(testFile))
+	legacyLockContent := `name: legacy
+on: push
+jobs:
+  task:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "legacy lock"
+`
+	require.NoError(t, os.WriteFile(lockFile, []byte(legacyLockContent), 0644))
+
+	compiler := NewCompiler(WithNoEmit(true))
+	manifestCache := map[string]*GHAWManifest{}
+	compiler.SetPriorManifests(manifestCache)
+
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	_, ok := manifestCache[lockFile]
+	require.False(t, ok, "nil legacy baseline should not be cached")
+}
+
 // TestCompileWorkflow_LockFileSize tests that generated lock files don't exceed size limits
 func TestCompileWorkflow_LockFileSize(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "compiler-size-test")
@@ -365,8 +434,7 @@ This workflow is missing the required 'on' field.
 
 	// Error should contain file reference
 	errorStr := err.Error()
-	assert.True(t, strings.Contains(errorStr, "invalid.md") || strings.Contains(errorStr, "error"),
-		"Error should reference the file or contain 'error'")
+	assert.Regexp(t, `invalid\.md|error`, errorStr, "Error should reference the file or contain 'error'")
 }
 
 // TestCompileWorkflow_PathTraversal tests that path traversal attempts are handled safely

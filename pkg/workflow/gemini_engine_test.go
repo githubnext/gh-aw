@@ -455,6 +455,27 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 			assert.LessOrEqual(t, result[i-1], result[i], "Tools should be sorted alphabetically")
 		}
 	})
+
+	t.Run("bash tool with trailing space-star is normalized to canonical run_shell_command(cmd)", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{"jq *"},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command(jq)", "Should normalize 'jq *' to run_shell_command(jq)")
+		assert.NotContains(t, result, "run_shell_command(jq *)", "Should not emit run_shell_command(jq *)")
+	})
+
+	t.Run("community-attribution-style wildcard entries normalize to canonical forms", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{"jq *", "sed *", "awk *", "cat *"},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command(jq)", "Should normalize 'jq *'")
+		assert.Contains(t, result, "run_shell_command(sed)", "Should normalize 'sed *'")
+		assert.Contains(t, result, "run_shell_command(awk)", "Should normalize 'awk *'")
+		assert.Contains(t, result, "run_shell_command(cat)", "Should normalize 'cat *'")
+		assert.NotContains(t, result, "run_shell_command(jq *)", "Should not emit run_shell_command with wildcard suffix")
+	})
 }
 
 func TestGenerateGeminiSettingsStep(t *testing.T) {

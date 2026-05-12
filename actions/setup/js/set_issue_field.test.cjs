@@ -240,4 +240,37 @@ describe("set_issue_field (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
   });
+
+  it("should skip gracefully with a warning when no issue fields are discovered", async () => {
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("issueFields")) {
+        return Promise.resolve({
+          repository: {
+            issueFields: { nodes: [] },
+            owner: {
+              __typename: "Organization",
+              issueFields: { nodes: [] },
+            },
+          },
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    const { main } = require("./set_issue_field.cjs");
+    const noFieldsHandler = await main({ max: 5 });
+
+    const result = await noFieldsHandler({
+      type: "set_issue_field",
+      issue_number: 42,
+      field_name: "Priority",
+      value: "High",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.error).toContain("No issue fields were discovered");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("No issue fields were discovered"));
+    expect(mockCore.error).not.toHaveBeenCalled();
+  });
 });

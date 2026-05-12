@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bufio"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,6 +111,25 @@ func TestExtractWorkflowNameFromFile_NonExistentFile(t *testing.T) {
 	_, err := extractWorkflowNameFromFile("/nonexistent/file.md")
 	if err == nil {
 		t.Error("Expected error for nonexistent file, got nil")
+	}
+}
+
+func TestExtractWorkflowNameFromFile_LargeFrontmatterLine(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	filePath := filepath.Join(tmpDir, "large-frontmatter.md")
+	content := "---\nblob: " + strings.Repeat("x", bufio.MaxScanTokenSize+1) + "\n---\n\n# Large Frontmatter Workflow\n"
+
+	err := os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	result, err := extractWorkflowNameFromFile(filePath)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if result != "Large Frontmatter Workflow" {
+		t.Fatalf("Expected %q, got %q", "Large Frontmatter Workflow", result)
 	}
 }
 

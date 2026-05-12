@@ -389,6 +389,7 @@ constants.AWFProxyLogsDir            // "/tmp/gh-aw/sandbox/firewall/logs"
 constants.AWFAuditDir                // "/tmp/gh-aw/sandbox/firewall/audit"
 constants.AWFDefaultLogLevel         // "info"
 constants.DefaultGitHubLockdown      // false — GitHub MCP server lockdown default
+constants.AWFAPIProxyContainerIP     // "172.30.0.30" — fixed api-proxy sidecar address inside the AWF sandbox network
 ```
 
 ## Validation Field Lists

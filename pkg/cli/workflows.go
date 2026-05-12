@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -22,6 +23,14 @@ import (
 )
 
 var workflowsLog = logger.New("cli:workflows")
+
+const workflowTitleScannerBufferSize = 4 * 1024
+
+var workflowTitleScannerBufferPool = sync.Pool{
+	New: func() any {
+		return make([]byte, workflowTitleScannerBufferSize)
+	},
+}
 
 func getWorkflowsDir() string {
 	return ".github/workflows"
@@ -335,11 +344,16 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 // Returns an error if frontmatter is opened but never closed.
 func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
-	// Use a small initial buffer (4 KB, matching the default scanner allocation)
-	// but allow growth up to 1 MB to handle files with large frontmatter values
-	// or long base64-encoded lines.  Keeping the initial size small avoids a
-	// costly 64 KB heap allocation on every call.
-	scanner.Buffer(make([]byte, 4*1024), 1024*1024)
+	// Reuse the small initial scanner buffer across calls while still allowing
+	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
+	scannerBuffer := workflowTitleScannerBufferPool.Get().([]byte)
+	if cap(scannerBuffer) != workflowTitleScannerBufferSize {
+		scannerBuffer = make([]byte, workflowTitleScannerBufferSize)
+	} else {
+		scannerBuffer = scannerBuffer[:workflowTitleScannerBufferSize]
+	}
+	defer workflowTitleScannerBufferPool.Put(scannerBuffer)
+	scanner.Buffer(scannerBuffer, 1024*1024)
 	firstLine := true
 	inFrontmatter := false
 	for scanner.Scan() {

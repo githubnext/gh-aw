@@ -44,6 +44,19 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Expected command to contain '--log-level'")
 		}
 
+		initSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`
+		conditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]; then`
+		flagAssignmentSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`
+		argsRefSnippet := `${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}`
+
+		initIdx := strings.Index(stepContent, initSnippet)
+		conditionIdx := strings.Index(stepContent, conditionSnippet)
+		flagIdx := strings.Index(stepContent, flagAssignmentSnippet)
+		argsRefIdx := strings.Index(stepContent, argsRefSnippet)
+		if initIdx == -1 || conditionIdx == -1 || flagIdx == -1 || argsRefIdx == -1 || !(initIdx < conditionIdx && conditionIdx < flagIdx && flagIdx < argsRefIdx) {
+			t.Error("Expected command to initialize probe variable, evaluate DOCKER_HOST condition, assign docker-host-path-prefix flag, then expand args variable in AWF invocation")
+		}
+
 		// Verify that --log-dir is included in copilot args for log collection
 		if !strings.Contains(stepContent, "--log-dir /tmp/gh-aw/sandbox/agent/logs/") {
 			t.Error("Expected copilot command to contain '--log-dir /tmp/gh-aw/sandbox/agent/logs/' for log collection in firewall mode")
@@ -208,6 +221,38 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		// --image-tag must NOT appear as a CLI flag
 		if strings.Contains(stepContent, "--image-tag") {
 			t.Error("--image-tag should not appear as a CLI flag; it is in the config JSON")
+		}
+	})
+
+	t.Run("skips docker-host-path-prefix probe and arg ref when AWF version is too old", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: "v0.25.42",
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+		stepContent := requireCopilotExecutionStep(t, steps)
+
+		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`) {
+			t.Error("Expected command to skip docker-host-path-prefix probe variable initialization for unsupported AWF versions")
+		}
+		if strings.Contains(stepContent, `if [[ "${DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]; then`) {
+			t.Error("Expected command to skip docker-host-path-prefix DOCKER_HOST probe for unsupported AWF versions")
+		}
+		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`) {
+			t.Error("Expected command to skip docker-host-path-prefix assignment for unsupported AWF versions")
+		}
+		if strings.Contains(stepContent, `${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}`) {
+			t.Error("Expected command to skip docker-host-path-prefix args variable expansion for unsupported AWF versions")
 		}
 	})
 

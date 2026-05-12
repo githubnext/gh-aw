@@ -78,7 +78,11 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 				// Add an entry for each specific command: run_shell_command(cmd)
 				for _, cmd := range bashCommands {
 					if cmdStr, ok := cmd.(string); ok {
-						entry := fmt.Sprintf("run_shell_command(%s)", cmdStr)
+						// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+						// all engines emit the canonical prefix form (run_shell_command(jq))
+						// regardless of whether the command was written with or without the wildcard.
+						normalized, _ := normalizeBashCommand(cmdStr)
+						entry := fmt.Sprintf("run_shell_command(%s)", normalized)
 						geminiToolsLog.Printf("bash %q → %s", cmdStr, entry)
 						toolsCore = append(toolsCore, entry)
 					}

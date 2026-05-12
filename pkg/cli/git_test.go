@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -729,6 +730,124 @@ func TestResolveRemoteURL(t *testing.T) {
 		}
 		if url != "https://github.com/owner/repo.git" {
 			t.Errorf("resolveRemoteURL() URL = %q, want %q", url, "https://github.com/owner/repo.git")
+		}
+	})
+}
+
+func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-slug-upstream-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	addRemote := func(t *testing.T, name, remoteURL string) {
+		t.Helper()
+		if err := exec.Command("git", "remote", "get-url", name).Run(); err == nil {
+			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
+				t.Fatalf("Failed to remove existing %s remote: %v", name, err)
+			}
+		}
+		if err := exec.Command("git", "remote", "add", name, remoteURL).Run(); err != nil {
+			t.Fatalf("Failed to add %s remote: %v", name, err)
+		}
+		t.Cleanup(func() {
+			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
+				t.Logf("Warning: failed to remove %s remote during cleanup: %v", name, err)
+			}
+		})
+	}
+
+	t.Run("prefers upstream when both origin and upstream exist", func(t *testing.T) {
+		addRemote(t, "origin", "https://github.com/fork/repo.git")
+		addRemote(t, "upstream", "https://github.com/upstream/repo.git")
+
+		slug := getRepositorySlugFromRemotePreferringUpstream()
+		if slug != "upstream/repo" {
+			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() = %q, want %q", slug, "upstream/repo")
+		}
+	})
+
+	t.Run("falls back to origin when upstream missing", func(t *testing.T) {
+		addRemote(t, "origin", "https://github.com/myorg/myrepo.git")
+
+		slug := getRepositorySlugFromRemotePreferringUpstream()
+		if slug != "myorg/myrepo" {
+			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() = %q, want %q", slug, "myorg/myrepo")
+		}
+	})
+
+	t.Run("falls back to origin when upstream is unparsable", func(t *testing.T) {
+		addRemote(t, "origin", "https://github.com/myorg/myrepo.git")
+		addRemote(t, "upstream", "https://example.com/upstream/repo.git")
+
+		slug := getRepositorySlugFromRemotePreferringUpstream()
+		if slug != "myorg/myrepo" {
+			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() with unparsable upstream = %q, want %q", slug, "myorg/myrepo")
+		}
+	})
+}
+
+func TestGetRepositorySlugFromRemoteForPathPreferringUpstream(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-slug-upstream-path-*")
+	testFilePath := filepath.Join(tmpDir, "workflow.md")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	addRemote := func(t *testing.T, name, remoteURL string) {
+		t.Helper()
+		if err := exec.Command("git", "remote", "get-url", name).Run(); err == nil {
+			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
+				t.Fatalf("Failed to remove existing %s remote: %v", name, err)
+			}
+		}
+		if err := exec.Command("git", "remote", "add", name, remoteURL).Run(); err != nil {
+			t.Fatalf("Failed to add %s remote: %v", name, err)
+		}
+		t.Cleanup(func() {
+			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
+				t.Logf("Warning: failed to remove %s remote during cleanup: %v", name, err)
+			}
+		})
+	}
+
+	t.Run("prefers upstream for path-based resolution", func(t *testing.T) {
+		addRemote(t, "origin", "https://github.com/fork/repo.git")
+		addRemote(t, "upstream", "https://github.com/upstream/repo.git")
+
+		slug := getRepositorySlugFromRemoteForPath(testFilePath)
+		if slug != "upstream/repo" {
+			t.Errorf("getRepositorySlugFromRemoteForPath() = %q, want %q", slug, "upstream/repo")
 		}
 	})
 }

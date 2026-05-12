@@ -125,7 +125,7 @@ permissions:
 	}
 
 	_, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, mainPath, mainContent)
-	assert.NoError(t, err, "Importing the same file twice with identical 'with' values should be allowed")
+	require.NoError(t, err, "Importing the same file twice with identical 'with' values should be allowed")
 }
 
 // TestImportConflict_SameFileTwiceNoWith tests that importing the same file (no 'with')
@@ -166,7 +166,7 @@ permissions:
 	}
 
 	_, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, mainPath, mainContent)
-	assert.NoError(t, err, "Importing the same file (no 'with') twice should be silently deduplicated")
+	require.NoError(t, err, "Importing the same file (no 'with') twice should be silently deduplicated")
 }
 
 // TestImportConflict_NestedConflict tests that a conflict detected via nested imports

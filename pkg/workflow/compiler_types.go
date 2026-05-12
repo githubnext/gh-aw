@@ -127,7 +127,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		stepOrderTracker:  NewStepOrderTracker(),
 		artifactManager:   NewArtifactManager(),
 		actionPinWarnings: make(map[string]bool), // Initialize warning cache
-		gitRoot:           gitRoot,               // Auto-detected git root
+		priorManifests:    make(map[string]*GHAWManifest),
+		gitRoot:           gitRoot, // Auto-detected git root
 	}
 
 	// Apply functional options
@@ -328,6 +329,9 @@ func (c *Compiler) GetSafeUpdateWarnings() []string {
 
 // SetPriorManifests replaces the entire pre-cached manifest map.
 func (c *Compiler) SetPriorManifests(manifests map[string]*GHAWManifest) {
+	if manifests == nil {
+		manifests = make(map[string]*GHAWManifest)
+	}
 	c.priorManifests = manifests
 }
 

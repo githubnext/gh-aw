@@ -34,6 +34,7 @@ const { withRetry, isTransientError, RATE_LIMIT_RETRY_CONFIG } = require("./erro
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+const { ensureFullHistoryForBundle } = require("./git_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -1266,6 +1267,8 @@ async function main(config = {}) {
       core.info(`Applying changes from bundle: ${bundleFilePath}`);
       const bundleBranchRef = originalAgentBranch || branchName;
       try {
+        await ensureFullHistoryForBundle(exec);
+
         // Fetch from bundle: creates a local branch pointing to the bundle's tip commit.
         // The bundle contains refs/heads/<bundleBranchRef> which was the agent's working branch.
         await exec.exec("git", ["fetch", bundleFilePath, `refs/heads/${bundleBranchRef}:refs/heads/${branchName}`]);

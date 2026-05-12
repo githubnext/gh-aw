@@ -107,14 +107,14 @@ func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod
 
 	simETs := make([]int, monteCarloIterations)
 
-	for i := 0; i < monteCarloIterations; i++ {
+	for i := range monteCarloIterations {
 		// Draw run-count rate from posterior Gamma (accounts for estimation uncertainty in λ).
 		lambdaTrial := gammaSample(rng, gammaShape) * gammaScale
 		// Draw number of runs from Poisson(λ_trial).
 		numRuns := poissonSample(rng, lambdaTrial)
 
 		var totalET int
-		for j := 0; j < numRuns; j++ {
+		for range numRuns {
 			// Each run succeeds independently with probability successRate.
 			if rng.Float64() >= successRate {
 				continue
@@ -247,22 +247,6 @@ func meanStdDevInt(xs []int) (mean int, stddev float64) {
 	return
 }
 
-// percentileFloat64 returns the p-th percentile of an already-sorted float64 slice
-// using the nearest-rank method.  p must be in [1, 100].
-func percentileFloat64(sorted []float64, p int) float64 {
-	if len(sorted) == 0 {
-		return 0
-	}
-	idx := int(math.Ceil(float64(p)/100*float64(len(sorted)))) - 1
-	if idx < 0 {
-		idx = 0
-	}
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	return sorted[idx]
-}
-
 // percentileInt returns the p-th percentile of an already-sorted int slice
 // using the nearest-rank method.  p must be in [1, 100].
 func percentileInt(sorted []int, p int) int {
@@ -270,12 +254,9 @@ func percentileInt(sorted []int, p int) int {
 		return 0
 	}
 	idx := int(math.Ceil(float64(p)/100*float64(len(sorted)))) - 1
-	if idx < 0 {
-		idx = 0
-	}
+	idx = max(idx, 0)
 	if idx >= len(sorted) {
 		idx = len(sorted) - 1
 	}
 	return sorted[idx]
 }
-

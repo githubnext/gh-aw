@@ -136,7 +136,7 @@ Initialize repository for agentic workflows. Configures `.gitattributes`, create
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
 gh aw init --no-mcp                     # Skip MCP server integration
-gh aw init --codespaces                 # Configure devcontainer for current repo
+gh aw init --codespaces ""              # Configure devcontainer for current repo only
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
@@ -601,7 +601,7 @@ gh aw update --disable-release-bump       # Update workflows; only force-update 
 gh aw update --create-pull-request        # Update and open a pull request
 ```
 
-**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`, `--no-compile`, `--no-redirect`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`, `--no-compile`, `--no-redirect`, `--cool-down`
 
 The `--no-redirect` flag causes `update` to fail when the source workflow has a [`redirect`](/gh-aw/reference/frontmatter/) field, rather than following the redirect to its new location. Use this when you want explicit control over redirect handling.
 
