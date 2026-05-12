@@ -28,7 +28,7 @@ func TestRuntimesConfigToMap_GhAw(t *testing.T) {
 			Version:       "v1.2.3",
 			If:            "github.event_name == 'push'",
 			ActionRepo:    "github/gh-aw/actions/setup-cli",
-			ActionVersion: "main",
+			ActionVersion: "v0.72.1",
 		},
 	})
 
@@ -39,7 +39,7 @@ func TestRuntimesConfigToMap_GhAw(t *testing.T) {
 	assert.Equal(t, "v1.2.3", ghAw["version"])
 	assert.Equal(t, "github.event_name == 'push'", ghAw["if"])
 	assert.Equal(t, "github/gh-aw/actions/setup-cli", ghAw["action-repo"])
-	assert.Equal(t, "main", ghAw["action-version"])
+	assert.Equal(t, "v0.72.1", ghAw["action-version"])
 }
 
 func TestDetectRuntimeFromCommand_GhAw(t *testing.T) {

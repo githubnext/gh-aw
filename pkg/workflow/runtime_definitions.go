@@ -92,7 +92,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "gh-aw",
 		Name:           "gh-aw CLI",
 		ActionRepo:     "github/gh-aw/actions/setup-cli",
-		ActionVersion:  "main",
+		ActionVersion:  "v0.72.1",
 		VersionField:   "version",
 		// Default version is computed at generation time from the current gh-aw build.
 		DefaultVersion: "",
