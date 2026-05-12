@@ -16,15 +16,21 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 
 	data := []*WorkflowData{
 		{
-			WorkflowID:         "triage",
+			WorkflowID:         "triage-issue",
 			Command:            []string{"triage"},
-			CommandEvents:      []string{"issue_comment"},
+			CommandEvents:      []string{"issue_comment", "issues"},
 			CommandCentralized: true,
 		},
 		{
-			WorkflowID:         "review",
+			WorkflowID:         "triage-pr",
 			Command:            []string{"triage"},
-			CommandEvents:      []string{"pull_request_comment"},
+			CommandEvents:      []string{"pull_request", "pull_request_comment"},
+			CommandCentralized: true,
+		},
+		{
+			WorkflowID:         "cloclo",
+			Command:            []string{"cloclo"},
+			CommandEvents:      []string{"discussion_comment"},
 			CommandCentralized: true,
 		},
 	}
@@ -37,8 +43,15 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	text := string(content)
 
 	require.Contains(t, text, "name: \"Agentic Slash Command Trigger\"")
+	require.Contains(t, text, "permissions: {}")
+	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read")
+	require.Contains(t, text, "issues:")
 	require.Contains(t, text, "issue_comment:")
-	require.Contains(t, text, `"triage":[{"workflow":"review","events":["pull_request_comment"]},{"workflow":"triage","events":["issue_comment"]}]`)
+	require.Contains(t, text, "pull_request:")
+	require.Contains(t, text, "discussion_comment:")
+	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"]},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"]}]`)
+	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"]}]`)
+	require.Contains(t, text, `const routes = (routeMap[commandName] ?? []).filter(route => Array.isArray(route.events) && route.events.includes(identifier));`)
 	require.Contains(t, text, `workflow_id: route.workflow + ".lock.yml"`)
 }
 
@@ -74,4 +87,47 @@ func TestRemoveIfExists(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 
 	require.NoError(t, removeIfExists(missingPath))
+}
+
+func TestCollectCentralSlashCommandRoutes_UnionizesMergedEvents(t *testing.T) {
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "triage-issue",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issues", "issue_comment"},
+			CommandCentralized: true,
+		},
+		{
+			WorkflowID:         "triage-pr",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"pull_request", "pull_request_comment"},
+			CommandCentralized: true,
+		},
+		{
+			WorkflowID:         "non-centralized",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"discussion"},
+			CommandCentralized: false,
+		},
+	}
+
+	routesByCommand, mergedEvents := collectCentralSlashCommandRoutes(data)
+
+	require.Equal(t, []slashCommandRoute{
+		{Workflow: "triage-issue", Events: []string{"issue_comment", "issues"}},
+		{Workflow: "triage-pr", Events: []string{"pull_request", "pull_request_comment"}},
+	}, routesByCommand["triage"])
+
+	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, keys(mergedEvents["issues"]))
+	require.ElementsMatch(t, []string{"created", "edited"}, keys(mergedEvents["issue_comment"]))
+	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, keys(mergedEvents["pull_request"]))
+	require.NotContains(t, mergedEvents, "discussion")
+}
+
+func keys(typeSet map[string]bool) []string {
+	out := make([]string, 0, len(typeSet))
+	for key := range typeSet {
+		out = append(out, key)
+	}
+	return out
 }
