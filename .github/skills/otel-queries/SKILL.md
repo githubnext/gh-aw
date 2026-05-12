@@ -1,6 +1,6 @@
 ---
 name: otel-queries
-description: Query and interpret gh-aw OpenTelemetry data efficiently, using a fixed analysis loop over local JSONL mirrors or live OTLP backends to answer telemetry questions and support downstream decisions.
+description: Analyze gh-aw OpenTelemetry traces from JSONL mirrors or OTLP backends.
 ---
 
 # OTel Queries

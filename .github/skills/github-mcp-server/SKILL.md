@@ -1,6 +1,6 @@
 ---
 name: github-mcp-server
-description: GitHub MCP Server Documentation
+description: Reference for GitHub MCP server tools, methods, and usage patterns.
 ---
 
 

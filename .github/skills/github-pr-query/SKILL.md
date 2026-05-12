@@ -1,6 +1,6 @@
 ---
 name: github-pr-query
-description: Query GitHub pull requests efficiently with jq argument support for filtering
+description: Query GitHub pull requests with jq filtering and reusable selectors.
 ---
 
 # GitHub Pull Request Query Skill

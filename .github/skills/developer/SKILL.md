@@ -1,6 +1,6 @@
 ---
 name: developer
-description: Developer Instructions for GitHub Agentic Workflows
+description: Core developer rules and coding conventions for gh-aw changes.
 ---
 
 

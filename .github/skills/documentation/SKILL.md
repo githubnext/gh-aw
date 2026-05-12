@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Documentation Brief description for SEO and navigation
+description: Write concise Diataxis docs for gh-aw with Starlight markdown conventions.
 ---
 
 ### Documentation

@@ -313,6 +313,34 @@ func isActivationMetadataTriggerField(eventName string) bool {
 	return isMetadataField
 }
 
+// buildCentralizedCommandOnSection builds a synthetic "on" YAML section from command events.
+// Centralized slash_command workflows compile to workflow_dispatch, so their activation job
+// does not expose the original event triggers. This helper reconstructs the equivalent GitHub
+// event names to allow addActivationInteractionPermissionsMap to compute the right permissions.
+func buildCentralizedCommandOnSection(commandEvents []string) string {
+	filteredEvents := FilterCommentEvents(commandEvents)
+	// Map to actual GitHub event names and deduplicate.
+	eventSet := make(map[string]bool)
+	for _, mapping := range filteredEvents {
+		eventSet[GetActualGitHubEventName(mapping.EventName)] = true
+	}
+	if len(eventSet) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("on:\n")
+	// Derive ordering from GetAllCommentEvents to stay consistent with the rest of the codebase.
+	seen := make(map[string]bool)
+	for _, mapping := range GetAllCommentEvents() {
+		name := GetActualGitHubEventName(mapping.EventName)
+		if eventSet[name] && !seen[name] {
+			seen[name] = true
+			b.WriteString("  " + name + ":\n    types: [created]\n")
+		}
+	}
+	return b.String()
+}
+
 // generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
 // This creates the prompt.txt file that will be uploaded as an artifact and downloaded by the agent job
 // beforeActivationJobs is the list of custom job names that run before (i.e., are dependencies of) activation.

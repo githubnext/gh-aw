@@ -1,6 +1,6 @@
 ---
 name: gh-agent-session
-description: GitHub CLI Agent Session Extension
+description: Use gh agent-session commands to inspect and manage agent sessions.
 ---
 
 

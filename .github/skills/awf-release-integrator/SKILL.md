@@ -1,6 +1,6 @@
 ---
 name: awf-release-integrator
-description: Integrate the latest gh-aw-firewall release into gh-aw and surface follow-up spec work
+description: Upgrade gh-aw to latest gh-aw-firewall release and identify follow-up spec tasks.
 ---
 
 # AWF Release Integrator

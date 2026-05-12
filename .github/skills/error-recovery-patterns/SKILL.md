@@ -1,5 +1,5 @@
 ---
-description: Error handling, recovery, and debugging patterns for GitHub Agentic Workflows (gh-aw).
+description: Design gh-aw error handling, retry, recovery, and debugging flows.
 ---
 
 # Error Recovery Patterns Skill

@@ -1,6 +1,6 @@
 ---
 name: temporary-id-safe-output
-description: Plan for adding temporary ID support to safe output jobs
+description: Add temporary ID support to safe-output jobs end to end.
 ---
 
 
