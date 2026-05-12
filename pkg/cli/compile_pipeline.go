@@ -346,6 +346,9 @@ func compileAllFilesInDirectory(
 		}
 	}
 
+	// Emit recommendation when many slash commands are present without centralized strategy.
+	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
+
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 

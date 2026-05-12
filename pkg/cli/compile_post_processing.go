@@ -236,6 +236,39 @@ func displaySafeUpdateWarnings(compiler *workflow.Compiler, jsonOutput bool) {
 	}
 }
 
+// displayCentralizedSlashCommandRecommendation warns when a repository has many
+// slash commands still using non-centralized strategy.
+func displayCentralizedSlashCommandRecommendation(compiler *workflow.Compiler, workflowDataList []*workflow.WorkflowData, jsonOutput bool) {
+	if jsonOutput {
+		return
+	}
+
+	totalSlashCommands := 0
+	nonCentralizedSlashCommands := 0
+	for _, wd := range workflowDataList {
+		if wd == nil || len(wd.Command) == 0 {
+			continue
+		}
+		totalSlashCommands += len(wd.Command)
+		if !wd.CommandCentralized {
+			nonCentralizedSlashCommands += len(wd.Command)
+		}
+	}
+
+	if totalSlashCommands < 3 || nonCentralizedSlashCommands == 0 {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		fmt.Sprintf(
+			"Detected %d slash_command entries in this repository; %d are not using centralized routing. Consider setting `on.slash_command.strategy: centralized` to reduce duplicate triggers and route through `agentic_slash_commands.yml`.",
+			totalSlashCommands,
+			nonCentralizedSlashCommands,
+		),
+	))
+	compiler.IncrementWarningCount()
+}
+
 // pruneStaleActionCacheEntries removes stale gh-aw-actions entries from the
 // action cache whose version does not match the compiler's current version.
 // This prevents actions-lock.json from accumulating entries for old compiler
