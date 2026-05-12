@@ -29,7 +29,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var awfHelpersLog = logger.New("workflow:awf_helpers")
@@ -644,16 +643,13 @@ func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
 // If firewallConfig has no version set, DefaultFirewallVersion is used. "latest" always
 // returns true. Non-semver strings (e.g. branch names) return false (conservative).
 func awfVersionAtLeast(firewallConfig *FirewallConfig, minVersion constants.Version) bool {
-	var versionStr string
+	var versionStr, defaultVersion string
 	if firewallConfig != nil && firewallConfig.Version != "" {
 		versionStr = firewallConfig.Version
 	} else {
-		versionStr = string(constants.DefaultFirewallVersion)
+		defaultVersion = string(constants.DefaultFirewallVersion)
 	}
-	if strings.EqualFold(versionStr, "latest") {
-		return true
-	}
-	return semverutil.Compare(versionStr, string(minVersion)) >= 0
+	return versionAtLeast(versionStr, defaultVersion, string(minVersion))
 }
 
 // awfSupportsCliProxy returns true when the effective AWF version supports --difc-proxy-host
