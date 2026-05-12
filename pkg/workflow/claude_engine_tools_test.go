@@ -365,6 +365,25 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 	}
 }
 
+func TestClaudeEngineComputeAllowedToolsDeduplicatesNormalizedBashEntries(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	tools := map[string]any{
+		"bash": []any{"jq *", "jq"},
+	}
+
+	cacheMemoryConfig, err := NewCompiler().extractCacheMemoryConfigFromMap(tools)
+	if err != nil {
+		t.Fatalf("extract cache-memory config: %v", err)
+	}
+
+	result := engine.computeAllowedClaudeToolsString(tools, nil, cacheMemoryConfig, nil, nil)
+	expected := "Bash(jq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite"
+	if result != expected {
+		t.Fatalf("unexpected allowed tools\nwant: %s\ngot:  %s", expected, result)
+	}
+}
+
 func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 	engine := NewClaudeEngine()
 

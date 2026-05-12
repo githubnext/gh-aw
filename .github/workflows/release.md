@@ -517,7 +517,6 @@ tools:
   cli-proxy: true
   bash:
     - jq
-    - bash
     - awk
     - sed
 
