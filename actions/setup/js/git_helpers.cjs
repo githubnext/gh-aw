@@ -164,7 +164,14 @@ function hasMergeCommitsInRange(baseRef, headRef, options = {}) {
  * @returns {Promise<void>}
  */
 async function ensureFullHistoryForBundle(execApi, options = {}) {
-  const { stdout } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], options);
+  let stdout;
+  try {
+    ({ stdout } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], options));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    core.warning(`Could not determine shallow repository status; skipping unshallow: ${message}`);
+    return;
+  }
   if (stdout.trim() === "true") {
     core.info("Repository is shallow; fetching full history before applying bundle");
     await execApi.exec("git", ["fetch", "--unshallow", "origin"], options);

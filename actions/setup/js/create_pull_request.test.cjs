@@ -187,7 +187,7 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
         if (cmd === "git" && args[0] === "rev-list") {
           return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
         }
-        if (typeof cmd === "string" && cmd.startsWith("git ls-remote")) {
+        if (cmd === "git" && args && args[0] === "ls-remote") {
           return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
         }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });

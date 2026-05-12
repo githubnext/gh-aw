@@ -303,5 +303,19 @@ describe("git_helpers.cjs", () => {
 
       expect(execApi.exec).not.toHaveBeenCalled();
     });
+
+    it("should skip unshallow when shallow status cannot be determined", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const warning = vi.spyOn(global.core, "warning").mockImplementation(() => {});
+      const execApi = {
+        getExecOutput: vi.fn().mockRejectedValue(new Error("not a git repository")),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      await ensureFullHistoryForBundle(execApi);
+
+      expect(execApi.exec).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: not a git repository");
+    });
   });
 });
