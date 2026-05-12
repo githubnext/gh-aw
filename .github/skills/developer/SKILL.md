@@ -1,12 +1,12 @@
 ---
 name: developer
-description: Developer Instructions for GitHub Agentic Workflows
+description: Core developer rules and coding conventions for gh-aw changes.
 ---
 
 
 # Developer Instructions
 
-This document consolidates technical specifications and development guidelines for GitHub Agentic Workflows (gh-aw). It provides comprehensive guidance on code organization, validation architecture, security practices, and implementation patterns.
+Use this reference for gh-aw technical specs and development guidelines across code organization, validation, security, and implementation patterns.
 
 ## Table of Contents
 

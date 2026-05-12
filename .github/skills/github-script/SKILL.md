@@ -1,11 +1,11 @@
 ---
 name: github-script
-description: Best practices for writing JavaScript code for GitHub Actions using github-script
+description: Write robust JavaScript for GitHub Actions github-script steps.
 ---
 
 # GitHub Action Script Best Practices
 
-This skill provides guidelines for writing JavaScript files that run using the GitHub Action `actions/github-script@v8`.
+Use these guidelines for JavaScript executed by `actions/github-script@v8`.
 
 ## Important Notes
 

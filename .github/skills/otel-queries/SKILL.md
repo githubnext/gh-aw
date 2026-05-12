@@ -1,13 +1,11 @@
 ---
 name: otel-queries
-description: Query and interpret gh-aw OpenTelemetry data efficiently, using a fixed analysis loop over local JSONL mirrors or live OTLP backends to answer telemetry questions and support downstream decisions.
+description: Analyze gh-aw OpenTelemetry traces from JSONL mirrors or OTLP backends.
 ---
 
 # OTel Queries
 
-Use this skill when a task requires an agent to inspect OpenTelemetry or OTLP data from gh-aw and answer telemetry questions efficiently.
-
-This skill exists to avoid wasting prompt budget on rediscovering the same trace fields, backend filters, and diagnostic questions.
+Use this skill to inspect gh-aw OpenTelemetry/OTLP data and answer telemetry questions without re-deriving trace fields, backend filters, and diagnostics.
 
 ## When To Use
 

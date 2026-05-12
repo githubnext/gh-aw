@@ -1,12 +1,12 @@
 ---
 name: gh-agent-session
-description: GitHub CLI Agent Session Extension
+description: Use gh agent-session commands to inspect and manage agent sessions.
 ---
 
 
 # GitHub CLI Agent Session Extension
 
-The `gh agent-task` CLI extension enables creating GitHub Copilot coding agent sessions through the command line. An agent session is a specialized GitHub issue that triggers GitHub Copilot to perform automated code changes based on natural language instructions.
+The `gh agent-task` extension creates GitHub Copilot coding agent sessions from the CLI. A session is a GitHub issue that triggers automated code changes from natural language instructions.
 
 **Repository**: https://github.com/github/agent-task (internal GitHub extension)
 

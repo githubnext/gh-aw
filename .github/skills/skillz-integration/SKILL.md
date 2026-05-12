@@ -1,11 +1,11 @@
 ---
-description: Using Skillz MCP Server with Docker
+description: Run and integrate Skillz MCP server with Docker for skill execution.
 ---
 
 
 # Skillz MCP Server Integration
 
-Skillz is an MCP server that turns Claude-style skills (`SKILL.md` files plus optional resources) into callable tools for any MCP client. It discovers each skill, exposes instructions and resources, and can run bundled helper scripts.
+Skillz is an MCP server that turns Claude-style skills (`SKILL.md` plus optional resources) into callable tools for MCP clients. It discovers skills, exposes instructions/resources, and runs bundled helper scripts.
 
 **Repository**: https://github.com/intellectronica/skillz
 
