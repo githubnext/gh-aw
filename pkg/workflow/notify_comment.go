@@ -624,9 +624,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 func isGroupConcurrencyQueueEnabled(data *WorkflowData) bool {
 	flag := strings.ToLower(strings.TrimSpace(string(constants.GroupConcurrencyQueueFeatureFlag)))
 	if data != nil && data.Features != nil {
-		if value, exists := data.Features[flag]; exists {
-			return parseGroupConcurrencyQueueFeatureValue(value)
-		}
 		for key, value := range data.Features {
 			if strings.ToLower(key) == flag {
 				return parseGroupConcurrencyQueueFeatureValue(value)
@@ -645,10 +642,8 @@ func parseGroupConcurrencyQueueFeatureValue(value any) bool {
 		switch normalized {
 		case "false", "0", "off", "no":
 			return false
-		case "":
-			return false
 		default:
-			return true
+			return normalized != ""
 		}
 	default:
 		return true
