@@ -14,7 +14,8 @@ import (
 // IsRateLimitError as described in the package README.md.
 //
 // Specification: Returns true when errMsg indicates a GitHub API rate-limit
-// error (HTTP 403 "API rate limit exceeded" or HTTP 429).
+// error (case-insensitive match against "api rate limit exceeded",
+// "rate limit exceeded", or "secondary rate limit").
 func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -22,22 +23,23 @@ func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "HTTP 403 API rate limit exceeded returns true",
+			name:     "documented phrase 'api rate limit exceeded' returns true",
 			errMsg:   "403: API rate limit exceeded",
 			expected: true,
 		},
 		{
-			name:     "API rate limit exceeded message returns true",
-			errMsg:   "API rate limit exceeded for user ID 123",
+			name:     "documented phrase 'rate limit exceeded' returns true",
+			errMsg:   "rate limit exceeded for user ID 123",
 			expected: true,
 		},
 		{
-			// SPEC_MISMATCH: README says HTTP 429 should return true, but the
-			// implementation only matches "rate limit exceeded" substrings and
-			// does not check for the literal "429" status code in the error string.
-			// Using a string that the implementation actually matches instead.
-			name:     "secondary rate limit message returns true",
+			name:     "documented phrase 'secondary rate limit' returns true",
 			errMsg:   "secondary rate limit triggered",
+			expected: true,
+		},
+		{
+			name:     "case-insensitive match returns true (documented as case-insensitive)",
+			errMsg:   "API RATE LIMIT EXCEEDED",
 			expected: true,
 		},
 		{
@@ -91,6 +93,11 @@ func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
 		{
 			name:     "forbidden returns true",
 			errMsg:   "403: forbidden",
+			expected: true,
+		},
+		{
+			name:     "SAML enforcement message returns true (documented)",
+			errMsg:   "Resource protected by organization SAML enforcement",
 			expected: true,
 		},
 		{
@@ -270,9 +277,13 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 // FindGitRoot as described in the package README.md.
 //
 // Specification: Returns the absolute path of the root directory of the current
-// Git repository using pure Go filesystem traversal (looks for .git in the
-// current directory and its parents). Returns an error if the working directory
-// is not inside a Git repository.
+// Git repository by running `git rev-parse --show-toplevel`.
+//
+// SPEC_MISMATCH: The README states FindGitRoot runs `git rev-parse --show-toplevel`,
+// but the implementation actually uses pure Go filesystem traversal (looking for a
+// `.git` entry walking up from the current directory). The observable contract
+// (returns the absolute repository root, errors when not in a repo) is unchanged,
+// so the assertions below remain valid for either mechanism.
 func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 	t.Run("returns non-empty absolute path when in git repository", func(t *testing.T) {
 		root, err := FindGitRoot()
@@ -287,8 +298,8 @@ func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 // ReadFileFromHEADWithRoot as described in the package README.md.
 //
 // Specification: Reads a file's content from the HEAD commit without touching
-// the working tree. gitRoot must be the repository root. The function rejects
-// paths that escape the repository (i.e. paths containing .. after resolution).
+// the working tree. Uses `git show HEAD:<relpath>` internally and resolves
+// paths with filepath.Rel to prevent path-traversal attacks.
 func TestSpec_PublicAPI_ReadFileFromHEADWithRoot(t *testing.T) {
 	root, err := FindGitRoot()
 	if err != nil {
