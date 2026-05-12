@@ -154,8 +154,9 @@ on:
 
     # Trigger compilation strategy for slash commands.
     # - "inline" (default): compile comment/body listeners directly in this workflow
-    # - "centralized": compile this workflow as workflow_dispatch-centric and route
-    #   slash command events via the generated central trigger workflow.
+    # - "centralized" (experimental): compile this workflow as
+    #   workflow_dispatch-centric and route slash command events via the generated
+    #   central trigger workflow.
     # (optional)
     strategy: "centralized"
 
