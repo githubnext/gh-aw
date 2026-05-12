@@ -1,6 +1,6 @@
 ---
 name: github-discussion-query
-description: Query GitHub discussions efficiently with jq argument support for filtering
+description: Query GitHub discussions with jq filtering and reusable selectors.
 ---
 
 # GitHub Discussion Query Skill

@@ -1,6 +1,6 @@
 ---
 name: debugging-workflows
-description: Guide for debugging GitHub Agentic Workflows - analyzing logs, auditing runs, and troubleshooting issues
+description: Debug gh-aw workflows using run logs, audits, and failure triage.
 ---
 
 

@@ -1,6 +1,6 @@
 ---
 name: error-pattern-safety
-description: Error Pattern Safety Guidelines for Agentic Engines
+description: Apply safe error-pattern matching rules for agentic engines.
 ---
 
 

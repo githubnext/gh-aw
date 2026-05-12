@@ -1,6 +1,6 @@
 ---
 name: messages
-description: Instructions for adding new message types to the safe-output messages system
+description: Add new safe-output message types and wire validation/rendering.
 ---
 
 

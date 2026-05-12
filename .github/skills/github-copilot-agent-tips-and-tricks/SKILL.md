@@ -1,6 +1,6 @@
 ---
 name: github-copilot-agent-tips-and-tricks
-description: Tips and Tricks for Working with GitHub Copilot Agent PRs
+description: Practical tips for reviewing and improving Copilot agent PRs.
 ---
 
 

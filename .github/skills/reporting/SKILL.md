@@ -1,6 +1,6 @@
 ---
 name: reporting
-description: Guidelines for formatting reports using HTML details/summary tags
+description: Format reports with HTML details/summary blocks for readable output.
 ---
 
 # Report Format Guidelines
