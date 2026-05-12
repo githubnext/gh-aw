@@ -34,6 +34,12 @@ import (
 
 var awfHelpersLog = logger.New("workflow:awf_helpers")
 
+const (
+	awfArcDindPrefixArgsVarName  = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	awfArcDindDockerHostRegex    = `^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$`
+	awfArcDindHostPathPrefixFlag = "--docker-host-path-prefix /tmp/gh-aw"
+)
+
 // AWFCommandConfig contains configuration for building AWF commands.
 // This struct centralizes all the parameters needed to construct an AWF-wrapped command.
 type AWFCommandConfig struct {
@@ -96,11 +102,15 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	arcDindPrefixProbe := ""
 	arcDindPrefixArgs := ""
 	if awfSupportsDockerHostPathPrefix(firewallConfig) {
-		arcDindPrefixProbe = `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
-if [[ "${DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]; then
-  GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
-fi`
-		arcDindPrefixArgs = "${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}"
+		arcDindPrefixProbe = fmt.Sprintf(`%s=""
+if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
+  %s="%s"
+fi`,
+			awfArcDindPrefixArgsVarName,
+			awfArcDindDockerHostRegex,
+			awfArcDindPrefixArgsVarName,
+			awfArcDindHostPathPrefixFlag)
+		arcDindPrefixArgs = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 	}
 
 	// Build the expandable args string for args that need shell variable expansion.
