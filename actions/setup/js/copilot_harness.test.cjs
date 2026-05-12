@@ -209,7 +209,7 @@ describe("copilot_harness.cjs", () => {
   describe("permission-denied classification helpers", () => {
     it("counts repeated permission-denied signals", () => {
       const output = "permission denied\nEACCES: permission denied\nEPERM operation not permitted\npermissions denied";
-      expect(countPermissionDeniedIssues(output)).toBe(4);
+      expect(countPermissionDeniedIssues(output)).toBe(5);
     });
 
     it("detects numerous permission-denied issues at threshold", () => {

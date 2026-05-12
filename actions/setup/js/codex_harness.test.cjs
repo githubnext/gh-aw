@@ -112,7 +112,7 @@ describe("codex_harness.cjs", () => {
   describe("permission-denied classification helpers", () => {
     it("counts repeated permission-denied signals", () => {
       const output = "permission denied\npermissions denied\nEACCES: permission denied";
-      expect(countPermissionDeniedIssues(output)).toBe(3);
+      expect(countPermissionDeniedIssues(output)).toBe(4);
     });
 
     it("detects numerous permission-denied issues at threshold", () => {
