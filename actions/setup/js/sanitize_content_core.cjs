@@ -211,9 +211,9 @@ function sanitizeUrlProtocols(s) {
   let result = normalized.replace(/(?<![a-z0-9])(?!https:\/\/)([a-z][a-z0-9+.-]*)(:\/\/)([\w.-]*)([^\s]*)/gi, (_match, scheme, _slashes, domain, _rest) => {
     const fullMatch = _match;
     if (!domain) {
-      // No host present (e.g. "file:///path" or bare "http://"). Track the
-      // scheme so the redaction summary is still useful, but skip
-      // addRedactedDomain to avoid recording an empty-string entry.
+      // No host present (e.g. "file:///path" or bare "http://"). Use the scheme
+      // (e.g. "file://") as the redacted-domain token so the redaction summary
+      // remains useful without recording an empty-string entry.
       const truncated = fullMatch.length > 12 ? fullMatch.substring(0, 12) + "..." : fullMatch;
       core.info(`Redacted URL: ${truncated}`);
       core.debug(`Redacted URL (full): ${fullMatch}`);
