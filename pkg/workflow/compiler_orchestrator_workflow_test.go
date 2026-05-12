@@ -1817,12 +1817,14 @@ func TestExtractConcurrencySection(t *testing.T) {
 		frontmatter := map[string]any{
 			"concurrency": map[string]any{
 				"group":             "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}",
+				"queue":             "max",
 				"job-discriminator": "${{ inputs.finding_id }}",
 			},
 		}
 		result := compiler.extractConcurrencySection(frontmatter)
 		assert.NotContains(t, result, "job-discriminator", "job-discriminator should be stripped from serialized concurrency YAML")
 		assert.Contains(t, result, "group:", "group field should remain in serialized YAML")
+		assert.Contains(t, result, "queue: max", "queue field should remain in serialized YAML")
 		assert.Contains(t, result, "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}", "group value should be preserved")
 	})
 

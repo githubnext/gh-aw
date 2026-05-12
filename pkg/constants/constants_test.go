@@ -363,6 +363,7 @@ func TestFeatureFlagConstants(t *testing.T) {
 		{"DisableXPIAPromptFeatureFlag", DisableXPIAPromptFeatureFlag, "disable-xpia-prompt"},
 		{"DIFCProxyFeatureFlag", DIFCProxyFeatureFlag, "difc-proxy"},
 		{"AwfDiagnosticLogsFeatureFlag", AwfDiagnosticLogsFeatureFlag, "awf-diagnostic-logs"},
+		{"GroupConcurrencyQueueFeatureFlag", GroupConcurrencyQueueFeatureFlag, "group-concurrency-queue"},
 	}
 
 	for _, tt := range tests {
