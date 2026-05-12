@@ -125,14 +125,6 @@ func buildCentralizedLabelCommandCondition(labelNames []string, labelCommandEven
 		Left:  &AndNode{Left: isLabelSourceEvent, Right: labelNameMatch},
 		Right: &NotNode{Child: isLabelSourceEvent},
 	}
-
-	dispatchCheck := BuildEventTypeEquals("workflow_dispatch")
-	if !hasOtherEvents {
-		return &AndNode{Left: dispatchCheck, Right: dispatchLabelCondition}, nil
-	}
-
-	return &OrNode{
-		Left:  &AndNode{Left: dispatchCheck, Right: dispatchLabelCondition},
-		Right: &NotNode{Child: dispatchCheck},
-	}, nil
+	_ = hasOtherEvents
+	return dispatchLabelCondition, nil
 }

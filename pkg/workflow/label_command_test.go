@@ -203,7 +203,7 @@ func TestBuildCentralizedLabelCommandCondition(t *testing.T) {
 	condition, err := buildCentralizedLabelCommandCondition([]string{"cloclo"}, []string{"issues"}, false)
 	require.NoError(t, err)
 	rendered := condition.Render()
-	assert.Contains(t, rendered, "github.event_name == 'workflow_dispatch'")
+	assert.NotContains(t, rendered, "github.event_name")
 	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'cloclo'")
 }
