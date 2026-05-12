@@ -19,6 +19,7 @@ describe("git_helpers.cjs", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     global.core = originalCore;
   });
 
@@ -316,7 +317,6 @@ describe("git_helpers.cjs", () => {
 
       expect(execApi.exec).not.toHaveBeenCalled();
       expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: not a git repository");
-      warning.mockRestore();
     });
 
     it("should warn with stringified non-error shallow status failures", async () => {
@@ -331,7 +331,6 @@ describe("git_helpers.cjs", () => {
 
       expect(execApi.exec).not.toHaveBeenCalled();
       expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: unknown failure");
-      warning.mockRestore();
     });
   });
 });
