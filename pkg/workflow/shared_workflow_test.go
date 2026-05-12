@@ -396,7 +396,6 @@ This is a main workflow that also has a redirect for update tracking.
 	// It may return a different error (e.g., if the workflow body is missing context), but not these two
 }
 
-
 func TestMainWorkflowWithoutMarkdownContent(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-main-no-markdown-*")
 
