@@ -655,9 +655,10 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 	}
 }
 
-// generateCacheMemoryArtifactUpload generates artifact upload steps for cache-memory
-// This should be called after agent execution steps to ensure cache is uploaded after the agent has finished
-func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+// generateCacheMemoryArtifactUpload generates artifact upload steps for cache-memory.
+// This should be called after agent execution steps to ensure cache is uploaded after the agent has finished.
+// pinAction resolves the upload-artifact action reference; pass c.getActionPin from Compiler methods.
+func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData, pinAction func(string) string) {
 	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
 		return
 	}
@@ -692,7 +693,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 		} else {
 			fmt.Fprintf(builder, "      - name: Upload cache-memory data as artifact (%s)\n", cache.ID)
 		}
-		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
+		fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format, with prefix in workflow_call context
@@ -873,7 +874,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		downloadStepID := strings.ReplaceAll("download_cache_"+cache.ID, "-", "_")
 		fmt.Fprintf(&downloadStep, "      - name: Download cache-memory artifact (%s)\n", cache.ID)
 		fmt.Fprintf(&downloadStep, "        id: %s\n", downloadStepID)
-		fmt.Fprintf(&downloadStep, "        uses: %s\n", getActionPin("actions/download-artifact"))
+		fmt.Fprintf(&downloadStep, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 		downloadStep.WriteString("        continue-on-error: true\n")
 		downloadStep.WriteString("        with:\n")
 		fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)

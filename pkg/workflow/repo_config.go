@@ -7,6 +7,7 @@
 // Configuration reference:
 //
 //	{
+//	  "ghes": true,               // enables GHES compatibility mode (v3 artifact pins)
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
@@ -93,6 +94,12 @@ func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
+	// GHES enables GitHub Enterprise Server compatibility mode.
+	// When true, the compiler emits GHES-compatible artifact action versions
+	// (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8
+	// which are not supported on GHES.
+	GHES bool
+
 	// MaintenanceDisabled is true when maintenance has been explicitly set to false
 	// in aw.json, disabling agentic-maintenance generation and any features that
 	// depend on it (such as expires).
@@ -109,11 +116,14 @@ type RepoConfig struct {
 func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	// Use an intermediate struct with json.RawMessage to defer maintenance parsing.
 	var raw struct {
+		GHES        bool            `json:"ghes,omitempty"`
 		Maintenance json.RawMessage `json:"maintenance,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
+
+	r.GHES = raw.GHES
 
 	if len(raw.Maintenance) == 0 || string(raw.Maintenance) == "null" {
 		return nil

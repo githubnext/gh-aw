@@ -152,6 +152,44 @@ func TestLoadRepoConfig_InvalidActionFailureIssueExpires(t *testing.T) {
 	assert.Error(t, err, "action_failure_issue_expires must be >= 1")
 }
 
+func TestLoadRepoConfig_GHESTrue(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"ghes": true}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json with ghes: true should load without error")
+	assert.True(t, cfg.GHES, "GHES should be true when set in aw.json")
+}
+
+func TestLoadRepoConfig_GHESFalse(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"ghes": false}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json with ghes: false should load without error")
+	assert.False(t, cfg.GHES, "GHES should be false when explicitly set to false")
+}
+
+func TestLoadRepoConfig_GHESDefault(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err)
+	assert.False(t, cfg.GHES, "GHES should default to false when not present in aw.json")
+}
+
+func TestLoadRepoConfig_GHESWithMaintenance(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"ghes": true, "maintenance": {"runs_on": "self-hosted"}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "aw.json with ghes and maintenance should load without error")
+	assert.True(t, cfg.GHES, "GHES should be true")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	assert.Equal(t, RunsOnValue{"self-hosted"}, cfg.Maintenance.RunsOn)
+}
+
 // TestFormatRunsOn tests the YAML serialisation of runs-on values.
 func TestFormatRunsOn(t *testing.T) {
 	const def = "ubuntu-slim"

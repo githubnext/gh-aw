@@ -33,6 +33,7 @@ type CompileConfig struct {
 	Approve                bool     // Approve all safe update changes, skipping safe update enforcement regardless of strict mode setting.
 	ValidateImages         bool     // Require Docker to be available for container image validation (fail instead of skipping when Docker is unavailable)
 	PriorManifestFile      string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
+	GHESCompat             bool     // Enable GHES compatibility mode: emit v3.x artifact action pins instead of v7/v8 (overrides aw.json ghes field)
 }
 
 // CompileValidationError represents a single validation error or warning

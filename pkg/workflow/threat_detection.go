@@ -827,7 +827,7 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 	return []string{
 		"      - name: Upload threat detection log\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
-		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
@@ -893,11 +893,11 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// Download agent output artifact to access output files (prompt.txt, agent_output.json, patches).
 	// Use agent-downstream prefix since this job depends on the agent job.
 	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
-	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix)...)
+	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
 
 	// Download experiment artifact so the detection agent can read the current variant assignments.
 	// The experiment artifact is uploaded by the activation job.
-	steps = append(steps, buildExperimentArtifactDownloadSteps(data)...)
+	steps = append(steps, buildExperimentArtifactDownloadSteps(data, c.getActionPin)...)
 
 	// Conditionally checkout the target repository so the detection engine can
 	// analyze patches in the context of the surrounding codebase.
