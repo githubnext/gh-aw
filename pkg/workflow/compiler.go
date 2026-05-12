@@ -393,6 +393,19 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		c.artifactManager.Reset()
 	}
 
+	// Enable GHES artifact compatibility from CLI flag or aw.json (CLI flag wins).
+	// c.ghesCompatFromCLI is set once per compiler instance via SetGHESCompat().
+	c.ghesArtifactCompat = c.ghesCompatFromCLI
+	if !c.ghesArtifactCompat {
+		// Fall back to aw.json ghes field when CLI flag was not passed.
+		if repoConfig, err := c.loadRepoConfig(); err == nil && repoConfig != nil {
+			c.ghesArtifactCompat = repoConfig.GHES
+		}
+	}
+	if c.ghesArtifactCompat {
+		actionPinsLog.Print("GHES artifact compatibility mode enabled: artifact actions will use v3.x pins")
+	}
+
 	// Generate lock file name
 	lockFile := stringutil.MarkdownToLockFile(markdownPath)
 

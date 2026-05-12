@@ -111,7 +111,7 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 		defaultLines := checkoutMgr.GenerateDefaultCheckoutStep(
 			c.trialMode,
 			c.trialLogicalRepoSlug,
-			getActionPin,
+			c.getActionPin,
 		)
 		for _, line := range defaultLines {
 			yaml.WriteString(line)
@@ -131,7 +131,7 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 	}
 
 	// Emit additional (non-default) user-configured checkouts
-	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(getActionPin)
+	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(c.getActionPin)
 	for _, line := range additionalLines {
 		yaml.WriteString(line)
 	}
@@ -380,7 +380,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	compilerYamlLog.Print("Adding activation artifact download step")
 	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
 	yaml.WriteString("      - name: Download activation artifact\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/download-artifact"))
+	fmt.Fprintf(yaml, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
@@ -744,7 +744,7 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	}
 
 	// Add repo-memory artifact upload to save state for push job
-	generateRepoMemoryArtifactUpload(yaml, data)
+	generateRepoMemoryArtifactUpload(yaml, data, c.getActionPin)
 
 	// Add cache-memory git commit steps (after agent execution, before validation)
 	// This commits agent-written changes to the current integrity branch.
@@ -756,16 +756,16 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 
 	// Add cache-memory artifact upload (after agent execution)
 	// This ensures artifacts are uploaded after the agent has finished modifying the cache
-	generateCacheMemoryArtifactUpload(yaml, data)
+	generateCacheMemoryArtifactUpload(yaml, data, c.getActionPin)
 
 	// Add safe-outputs assets artifact upload (after agent execution)
 	// This creates a separate artifact for assets that will be downloaded by upload_assets job
-	generateSafeOutputsAssetsArtifactUpload(yaml, data)
+	generateSafeOutputsAssetsArtifactUpload(yaml, data, c.getActionPin)
 
 	// Add safe-outputs upload-artifact staging upload (after agent execution)
 	// This creates a separate artifact for files the model staged for artifact upload,
 	// to be downloaded and processed by the upload_artifact job
-	generateSafeOutputsArtifactStagingUpload(yaml, data)
+	generateSafeOutputsArtifactStagingUpload(yaml, data, c.getActionPin)
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)

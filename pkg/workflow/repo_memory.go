@@ -470,9 +470,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 	return nil, nil
 }
 
-// generateRepoMemoryArtifactUpload generates steps to upload repo-memory directories as artifacts
-// This runs at the end of the agent job (always condition) to save the state
-func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+// generateRepoMemoryArtifactUpload generates steps to upload repo-memory directories as artifacts.
+// This runs at the end of the agent job (always condition) to save the state.
+// pinAction resolves the upload-artifact action reference; pass c.getActionPin from Compiler methods.
+func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData, pinAction func(string) string) {
 	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
 		return
 	}
@@ -514,7 +515,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		// Step: Upload repo-memory directory as artifact
 		fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
 		builder.WriteString("        if: always()\n")
-		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
+		fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
 		fmt.Fprintf(builder, "          path: %s\n", memoryDir)

@@ -89,11 +89,11 @@ var knownRuntimes = []*Runtime{
 		ManifestFiles: []string{"go.mod", "go.sum"},
 	},
 	{
-		ID:             "gh-aw",
-		Name:           "gh-aw CLI",
-		ActionRepo:     "github/gh-aw/actions/setup-cli",
-		ActionVersion:  "v0.72.1",
-		VersionField:   "version",
+		ID:            "gh-aw",
+		Name:          "gh-aw CLI",
+		ActionRepo:    "github/gh-aw/actions/setup-cli",
+		ActionVersion: "v0.72.1",
+		VersionField:  "version",
 		// Default version is computed at generation time from the current gh-aw build.
 		DefaultVersion: "",
 		Commands:       []string{"gh-aw"},
