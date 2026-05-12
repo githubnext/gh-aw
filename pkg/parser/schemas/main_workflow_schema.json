@@ -4665,10 +4665,6 @@
       },
       "additionalProperties": false
     },
-    "command": {
-      "type": "string",
-      "description": "Command name for the workflow"
-    },
     "cache": {
       "description": "Cache configuration for workflow (uses actions/cache syntax)",
       "oneOf": [

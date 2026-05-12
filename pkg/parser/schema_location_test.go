@@ -307,3 +307,19 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsAllowedBase
 		t.Fatalf("expected allowed-base-branches to be accepted under safe-outputs.create-pull-request, got error: %v", err)
 	}
 }
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsTopLevelCommand(t *testing.T) {
+	frontmatter := map[string]any{
+		"on":      "push",
+		"command": "my-cmd",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err == nil {
+		t.Fatal("expected top-level command to be rejected")
+	}
+
+	if !strings.Contains(err.Error(), "Unknown property: command") {
+		t.Fatalf("expected unknown property error for command, got: %v", err)
+	}
+}
