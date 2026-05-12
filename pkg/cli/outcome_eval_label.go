@@ -25,12 +25,13 @@ func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 		return report
 	}
 
-	// We don't know exactly which labels were added (the manifest doesn't record them).
-	// We can only confirm that the issue still has labels. If the issue has zero labels
-	// and we know we added some, that is a rejection signal.
+	// We don't know exactly which labels were added (the manifest doesn't record them),
+	// so we cannot reliably verify retention. If labels are still present we report
+	// pending rather than accepted, because the current labels could differ entirely
+	// from the ones we added. Only an empty label list is a clear rejection signal.
 	if len(labels) > 0 {
-		report.Result = OutcomeAccepted
-		report.Detail = fmt.Sprintf("%d labels present", len(labels))
+		report.Result = OutcomePending
+		report.Detail = "cannot evaluate label retention (added labels not recorded)"
 	} else {
 		report.Result = OutcomeRejected
 		report.Detail = "all labels removed"

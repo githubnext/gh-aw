@@ -92,6 +92,27 @@ func TestParseRepoFromURL(t *testing.T) {
 	}
 }
 
+func TestNormalizeRepoForAPI(t *testing.T) {
+	tests := []struct {
+		name          string
+		repo          string
+		wantOwnerRepo string
+		wantHost      string
+	}{
+		{"plain owner/repo", "owner/repo", "owner/repo", ""},
+		{"GHES HOST/owner/repo", "myhost.com/owner/repo", "owner/repo", "myhost.com"},
+		{"github.com/owner/repo treated as host prefix", "github.com/owner/repo", "owner/repo", "github.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ownerRepo, host := normalizeRepoForAPI(tt.repo)
+			assert.Equal(t, tt.wantOwnerRepo, ownerRepo, "owner/repo portion")
+			assert.Equal(t, tt.wantHost, host, "host portion")
+		})
+	}
+}
+
 func TestIsBotUser(t *testing.T) {
 	assert.True(t, isBotUser("github-actions[bot]"), "github-actions[bot] is a bot")
 	assert.True(t, isBotUser("github-actions"), "github-actions is a bot")

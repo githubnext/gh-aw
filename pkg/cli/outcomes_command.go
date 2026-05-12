@@ -41,6 +41,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			outputDir, _ := cmd.Flags().GetString("output")
+			outcomesDir, _ := cmd.Flags().GetString("outcomes-dir")
 
 			runID, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
@@ -53,6 +54,7 @@ Examples:
 				JSONOutput:   jsonOutput,
 				RepoOverride: repoOverride,
 				OutputDir:    outputDir,
+				OutcomesDir:  outcomesDir,
 			})
 		},
 	}
@@ -73,6 +75,7 @@ type OutcomesConfig struct {
 	JSONOutput   bool
 	RepoOverride string
 	OutputDir    string
+	OutcomesDir  string
 }
 
 // OutcomesData is the structured output of the outcomes command.
@@ -166,8 +169,13 @@ func RunOutcomes(config OutcomesConfig) error {
 	reports := EvaluateOutcomes(items, repo)
 	outcomeSummary := ComputeOutcomeSummary(reports, 0) // TODO: pass actual cost when available
 
-	// Write outcome JSONL if requested (for OTLP export or downstream processing)
-	if outcomesDir, _ := os.LookupEnv("GH_AW_OUTCOMES_DIR"); outcomesDir != "" {
+	// Write outcome JSONL if requested (for OTLP export or downstream processing).
+	// The --outcomes-dir flag takes precedence over the GH_AW_OUTCOMES_DIR env var.
+	outcomesDir := config.OutcomesDir
+	if outcomesDir == "" {
+		outcomesDir, _ = os.LookupEnv("GH_AW_OUTCOMES_DIR")
+	}
+	if outcomesDir != "" {
 		writeOutcomeJSONL(outcomesDir, config.RunID, reports)
 	}
 

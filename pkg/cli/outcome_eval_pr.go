@@ -108,14 +108,14 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 		}
 	}
 
-	// Count reviews
+	// Count reviews (used for ZeroTouch, stored separately from edits to avoid conflation)
 	reviews, err := ghAPIGetArray(fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err == nil {
-		report.HumanEdits = len(reviews)
+		report.HumanReviews = len(reviews)
 	}
 
 	if report.Result == OutcomeAccepted {
-		report.ZeroTouch = report.HumanComments == 0 && report.HumanEdits == 0
+		report.ZeroTouch = report.HumanComments == 0 && report.HumanReviews == 0
 	}
 
 	return report

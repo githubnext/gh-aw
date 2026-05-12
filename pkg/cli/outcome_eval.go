@@ -35,6 +35,7 @@ type OutcomeReport struct {
 	TimeToOutcomeHours float64       `json:"time_to_outcome_hours,omitempty" console:"header:Time,omitempty"`
 	HumanComments      int           `json:"human_comments,omitempty" console:"header:Comments,omitempty"`
 	HumanEdits         int           `json:"human_edits,omitempty" console:"header:Edits,omitempty"`
+	HumanReviews       int           `json:"human_reviews,omitempty" console:"header:Reviews,omitempty"`
 	ZeroTouch          bool          `json:"zero_touch,omitempty" console:"header:Zero-touch,omitempty"`
 	CreatedAt          string        `json:"created_at" console:"-"`
 	CheckedAt          string        `json:"checked_at" console:"-"`
@@ -155,10 +156,29 @@ func ComputeOutcomeSummary(reports []OutcomeReport, totalCost float64) OutcomeSu
 	return s
 }
 
+// normalizeRepoForAPI splits a repo string of the form "[HOST/]owner/repo" into
+// the owner/repo portion and an optional host. Most callers pass plain "owner/repo",
+// but GHES and Proxima installs may supply "HOST/owner/repo".
+func normalizeRepoForAPI(repo string) (ownerRepo string, host string) {
+	parts := strings.SplitN(repo, "/", 3)
+	if len(parts) == 3 {
+		// HOST/owner/repo
+		return parts[1] + "/" + parts[2], parts[0]
+	}
+	return repo, ""
+}
+
 // ghAPIGet calls the GitHub REST API via gh cli and returns the parsed JSON.
 func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", repo, endpoint)}
-	output, err := workflow.RunGH("Checking outcome...", args...)
+	ownerRepo, host := normalizeRepoForAPI(repo)
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
+	var output []byte
+	var err error
+	if host != "" {
+		output, err = workflow.RunGHWithHost("Checking outcome...", host, args...)
+	} else {
+		output, err = workflow.RunGH("Checking outcome...", args...)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
 	}
@@ -171,8 +191,15 @@ func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 
 // ghAPIGetArray calls the GitHub REST API and returns a JSON array.
 func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", repo, endpoint)}
-	output, err := workflow.RunGH("Checking outcome...", args...)
+	ownerRepo, host := normalizeRepoForAPI(repo)
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
+	var output []byte
+	var err error
+	if host != "" {
+		output, err = workflow.RunGHWithHost("Checking outcome...", host, args...)
+	} else {
+		output, err = workflow.RunGH("Checking outcome...", args...)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
 	}
