@@ -45,7 +45,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "central-slash-workflow-delete-test")
 	generatedPath := filepath.Join(tmpDir, centralSlashCommandWorkflowFilename)
-	legacyGeneratedPath := filepath.Join(tmpDir, legacySlashCommandWorkflowFilename)
+	legacyGeneratedPath := filepath.Join(tmpDir, legacyCentralSlashCommandWorkflowFilename)
 	require.NoError(t, os.WriteFile(generatedPath, []byte("stale"), 0644))
 	require.NoError(t, os.WriteFile(legacyGeneratedPath, []byte("stale"), 0644))
 
@@ -65,4 +65,18 @@ func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
 	_, err = os.Stat(legacyGeneratedPath)
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
+}
+
+func TestRemoveIfExists(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "remove-if-exists-test")
+	existingPath := filepath.Join(tmpDir, "existing.txt")
+	missingPath := filepath.Join(tmpDir, "missing.txt")
+
+	require.NoError(t, os.WriteFile(existingPath, []byte("content"), 0644))
+	require.NoError(t, removeIfExists(existingPath))
+	_, err := os.Stat(existingPath)
+	require.Error(t, err)
+	require.True(t, os.IsNotExist(err))
+
+	require.NoError(t, removeIfExists(missingPath))
 }

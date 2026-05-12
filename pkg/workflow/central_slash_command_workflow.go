@@ -15,8 +15,8 @@ import (
 var centralSlashCommandWorkflowLog = logger.New("workflow:central_slash_command_workflow")
 
 const (
-	centralSlashCommandWorkflowFilename       = "agentic_slash_commands.yml"
-	legacySlashCommandWorkflowFilename        = "agentics-slash-command-trigger.yml"
+	centralSlashCommandWorkflowFilename             = "agentic_slash_commands.yml"
+	legacyCentralSlashCommandWorkflowFilename       = "agentics-slash-command-trigger.yml"
 )
 
 type slashCommandRoute struct {
@@ -32,7 +32,7 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 	routesByCommand, mergedEvents := collectCentralSlashCommandRoutes(workflowDataList)
 
 	triggerFile := filepath.Join(workflowDir, centralSlashCommandWorkflowFilename)
-	legacyTriggerFile := filepath.Join(workflowDir, legacySlashCommandWorkflowFilename)
+	legacyTriggerFile := filepath.Join(workflowDir, legacyCentralSlashCommandWorkflowFilename)
 	if len(routesByCommand) == 0 || len(mergedEvents) == 0 {
 		centralSlashCommandWorkflowLog.Print("No centralized slash-command participants found")
 		if err := removeIfExists(triggerFile); err != nil {
