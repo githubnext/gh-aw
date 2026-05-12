@@ -2,6 +2,7 @@
 description: Performs web searches using Brave search engine when invoked with /brave command in issues or PRs
 on:
   slash_command:
+    strategy: centralized
     name: brave
     events: [issue_comment]
 permissions:

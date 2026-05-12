@@ -5,6 +5,7 @@ on:
   pull_request:
     types: [ready_for_review]
   slash_command:
+    strategy: centralized
     name: review
     events: [pull_request_comment, pull_request_review_comment]
 engine: copilot

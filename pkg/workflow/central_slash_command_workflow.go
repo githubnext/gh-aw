@@ -25,6 +25,14 @@ type slashCommandRoute struct {
 	Events   []string `json:"events"`
 }
 
+type commandsHeaderMetadata struct {
+	PayloadVersion string   `json:"payload_version"`
+	SchemaVersion  string   `json:"schema_version"`
+	Compiler       string   `json:"compiler_version"`
+	Commands       []string `json:"commands"`
+	Workflows      []string `json:"workflows"`
+}
+
 // GenerateCentralSlashCommandWorkflow generates a single centralized slash-command trigger
 // workflow for workflows that opt into on.slash_command.strategy: centralized.
 // When no centralized slash-command workflows are found, any existing generated file is deleted.
@@ -131,10 +139,7 @@ func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashComm
 		return "", fmt.Errorf("failed to marshal centralized slash-command routes: %w", err)
 	}
 
-	commandsMetadata, err := json.Marshal(map[string]string{
-		"schema_version":   "v1",
-		"compiler_version": GetVersion(),
-	})
+	commandsMetadata, err := json.Marshal(buildCommandsHeaderMetadata(routesByCommand))
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal centralized slash-command metadata: %w", err)
 	}
@@ -176,6 +181,32 @@ jobs:
             await main();
 `)
 	return b.String(), nil
+}
+
+func buildCommandsHeaderMetadata(routesByCommand map[string][]slashCommandRoute) commandsHeaderMetadata {
+	commands := make([]string, 0, len(routesByCommand))
+	workflowSet := make(map[string]bool)
+	for command, routes := range routesByCommand {
+		commands = append(commands, command)
+		for _, route := range routes {
+			if route.Workflow != "" {
+				workflowSet[route.Workflow] = true
+			}
+		}
+	}
+	sort.Strings(commands)
+	workflows := make([]string, 0, len(workflowSet))
+	for workflowID := range workflowSet {
+		workflows = append(workflows, workflowID)
+	}
+	sort.Strings(workflows)
+	return commandsHeaderMetadata{
+		PayloadVersion: "v1",
+		SchemaVersion:  "v1",
+		Compiler:       GetVersion(),
+		Commands:       commands,
+		Workflows:      workflows,
+	}
 }
 
 func resolveCentralSlashRunsOn(workflowDataList []*WorkflowData) string {

@@ -47,10 +47,13 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.NotEmpty(t, lines)
 	require.Contains(t, lines[0], "# gh-aw-commands: ")
 	metadataJSON := strings.TrimPrefix(lines[0], "# gh-aw-commands: ")
-	var metadata map[string]string
+	var metadata commandsHeaderMetadata
 	require.NoError(t, json.Unmarshal([]byte(metadataJSON), &metadata))
-	require.Equal(t, "v1", metadata["schema_version"])
-	require.NotEmpty(t, metadata["compiler_version"])
+	require.Equal(t, "v1", metadata.PayloadVersion)
+	require.Equal(t, "v1", metadata.SchemaVersion)
+	require.NotEmpty(t, metadata.Compiler)
+	require.Equal(t, []string{"cloclo", "triage"}, metadata.Commands)
+	require.Equal(t, []string{"cloclo", "triage-issue", "triage-pr"}, metadata.Workflows)
 
 	require.Contains(t, text, "name: \"Agentic Commands\"")
 	require.NotContains(t, text, "Compiler version:")
