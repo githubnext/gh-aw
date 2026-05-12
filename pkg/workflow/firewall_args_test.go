@@ -44,6 +44,14 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Expected command to contain '--log-level'")
 		}
 
+		if !strings.Contains(stepContent, `DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$`) {
+			t.Error("Expected command to include ARC/DinD runtime probe for localhost TCP DOCKER_HOST")
+		}
+
+		if !strings.Contains(stepContent, "--docker-host-path-prefix /tmp/gh-aw") {
+			t.Error("Expected command to include --docker-host-path-prefix for ARC/DinD compatibility")
+		}
+
 		// Verify that --log-dir is included in copilot args for log collection
 		if !strings.Contains(stepContent, "--log-dir /tmp/gh-aw/sandbox/agent/logs/") {
 			t.Error("Expected copilot command to contain '--log-dir /tmp/gh-aw/sandbox/agent/logs/' for log collection in firewall mode")
@@ -208,6 +216,29 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		// --image-tag must NOT appear as a CLI flag
 		if strings.Contains(stepContent, "--image-tag") {
 			t.Error("--image-tag should not appear as a CLI flag; it is in the config JSON")
+		}
+	})
+
+	t.Run("skips docker-host-path-prefix probe when AWF version is too old", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: "v0.25.42",
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+		stepContent := requireCopilotExecutionStep(t, steps)
+
+		if strings.Contains(stepContent, "--docker-host-path-prefix /tmp/gh-aw") {
+			t.Error("Expected command to skip --docker-host-path-prefix for unsupported AWF versions")
 		}
 	})
 

@@ -88,6 +88,20 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// and --mount "${RUNNER_TEMP}/...") are appended raw below so that shell variable
 	// expansion is not suppressed by single-quoting.
 	awfArgs := BuildAWFArgs(config)
+	firewallConfig := getFirewallConfig(config.WorkflowData)
+
+	// Auto-detect ARC/DinD split daemon topology at runtime and emit
+	// --docker-host-path-prefix when supported by the selected AWF version.
+	// This avoids requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
+	arcDindPrefixProbe := ""
+	arcDindPrefixArgs := ""
+	if awfSupportsDockerHostPathPrefix(firewallConfig) {
+		arcDindPrefixProbe = `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
+if [[ "${DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]; then
+  GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
+fi`
+		arcDindPrefixArgs = "${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}"
+	}
 
 	// Build the expandable args string for args that need shell variable expansion.
 	// These MUST be appended as raw (unescaped) strings because single-quoting would
@@ -166,14 +180,17 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s \
+%s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
+			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
+			arcDindPrefixArgs,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -182,13 +199,16 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		command = fmt.Sprintf(`set -o pipefail
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s \
+%s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			config.PathSetup,
 			preCreateLog,
+			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
+			arcDindPrefixArgs,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -196,25 +216,31 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		command = fmt.Sprintf(`set -o pipefail
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s \
+%s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			preCreateLog,
 			configFileSetup,
+			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
+			arcDindPrefixArgs,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s \
+%s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			preCreateLog,
+			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
+			arcDindPrefixArgs,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -682,5 +708,23 @@ func awfSupportsAllowHostPorts(firewallConfig *FirewallConfig) bool {
 	}
 
 	minVersion := string(constants.AWFAllowHostPortsMinVersion)
+	return semverutil.Compare(versionStr, minVersion) >= 0
+}
+
+// awfSupportsDockerHostPathPrefix returns true when the effective AWF version supports
+// --docker-host-path-prefix.
+func awfSupportsDockerHostPathPrefix(firewallConfig *FirewallConfig) bool {
+	var versionStr string
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		versionStr = firewallConfig.Version
+	} else {
+		versionStr = string(constants.DefaultFirewallVersion)
+	}
+
+	if strings.EqualFold(versionStr, "latest") {
+		return true
+	}
+
+	minVersion := string(constants.AWFDockerHostPathPrefixMinVersion)
 	return semverutil.Compare(versionStr, minVersion) >= 0
 }
