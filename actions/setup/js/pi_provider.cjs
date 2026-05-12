@@ -35,6 +35,9 @@ const DEFAULT_LOGGER = /** @type {(msg: string) => void} */ (msg => process.stde
 
 /**
  * Return the workflow-configured model string exposed to Pi extensions.
+ * GH_AW_PI_MODEL takes precedence because gh-aw sets it explicitly for extensions
+ * while continuing to pass the CLI model via --model. PI_MODEL remains a legacy
+ * fallback for older callers.
  *
  * @returns {string}
  */
