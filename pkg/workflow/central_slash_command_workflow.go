@@ -126,12 +126,14 @@ on:
 	writeCentralSlashEventsYAML(&b, mergedEvents)
 	b.WriteString(`
 permissions:
-  actions: write
-  contents: read
+  {}
 
 jobs:
   route:
     runs-on: ubuntu-slim
+    permissions:
+      actions: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: ` + getActionPin("actions/checkout") + `
