@@ -59,6 +59,9 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	if version == "" {
 		version = runtime.DefaultVersion
 	}
+	if runtime.ID == "gh-aw" && version == "" {
+		version = getDefaultGhAWRuntimeVersion()
+	}
 
 	// Use SHA-pinned action reference for security if available
 	actionRef := getActionPin(runtime.ActionRepo)

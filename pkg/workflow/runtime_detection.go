@@ -138,7 +138,7 @@ func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRe
 	for i := 0; i < len(words)-1; i++ {
 		if strings.EqualFold(words[i], "gh") && strings.EqualFold(words[i+1], "aw") {
 			if runtime := findRuntimeByID("gh-aw"); runtime != nil {
-				updateRequiredRuntime(runtime, string(constants.DefaultGhAWVersion), requirements)
+				updateRequiredRuntime(runtime, getDefaultGhAWRuntimeVersion(), requirements)
 			}
 			break
 		}
@@ -170,6 +170,16 @@ func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRe
 			updateRequiredRuntime(runtime, "", requirements)
 		}
 	}
+}
+
+// getDefaultGhAWRuntimeVersion returns the default gh-aw runtime version to inject.
+// Release builds use the released compiler version; dev builds use the current build version.
+func getDefaultGhAWRuntimeVersion() string {
+	version := GetVersion()
+	if version == "" {
+		return "dev"
+	}
+	return version
 }
 
 // detectFromMCPConfigs scans MCP server configurations for runtime commands

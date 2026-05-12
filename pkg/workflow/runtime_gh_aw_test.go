@@ -3,9 +3,9 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,12 +43,36 @@ func TestRuntimesConfigToMap_GhAw(t *testing.T) {
 }
 
 func TestDetectRuntimeFromCommand_GhAw(t *testing.T) {
-	requirements := make(map[string]*RuntimeRequirement)
-	detectRuntimeFromCommand("gh aw add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md", requirements)
+	originalVersion := GetVersion()
+	originalRelease := IsRelease()
+	t.Cleanup(func() {
+		SetVersion(originalVersion)
+		SetIsRelease(originalRelease)
+	})
 
-	req, ok := requirements["gh-aw"]
-	require.True(t, ok)
-	assert.Equal(t, string(constants.DefaultGhAWVersion), req.Version)
+	t.Run("release build uses compiler version", func(t *testing.T) {
+		SetVersion("v9.9.9")
+		SetIsRelease(true)
+
+		requirements := make(map[string]*RuntimeRequirement)
+		detectRuntimeFromCommand("gh aw add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md", requirements)
+
+		req, ok := requirements["gh-aw"]
+		require.True(t, ok)
+		assert.Equal(t, "v9.9.9", req.Version)
+	})
+
+	t.Run("dev build uses current build version", func(t *testing.T) {
+		SetVersion("dev-build-sha")
+		SetIsRelease(false)
+
+		requirements := make(map[string]*RuntimeRequirement)
+		detectRuntimeFromCommand("gh aw add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md", requirements)
+
+		req, ok := requirements["gh-aw"]
+		require.True(t, ok)
+		assert.Equal(t, "dev-build-sha", req.Version)
+	})
 }
 
 func TestGetDomainsFromRuntimes_GhAw(t *testing.T) {
@@ -61,4 +85,29 @@ func TestGetDomainsFromRuntimes_GhAw(t *testing.T) {
 	assert.Contains(t, domains, "github.com")
 	assert.Contains(t, domains, "github.github.com")
 	assert.Contains(t, domains, "raw.githubusercontent.com")
+}
+
+func TestGenerateRuntimeSetupSteps_GhAw_DefaultVersionUsesBuildVersion(t *testing.T) {
+	originalVersion := GetVersion()
+	originalRelease := IsRelease()
+	t.Cleanup(func() {
+		SetVersion(originalVersion)
+		SetIsRelease(originalRelease)
+	})
+
+	SetVersion("dev-build-sha")
+	SetIsRelease(false)
+
+	ghAwRuntime := findRuntimeByID("gh-aw")
+	require.NotNil(t, ghAwRuntime)
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: ghAwRuntime,
+		Version: "",
+	}})
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "uses: github/gh-aw/actions/setup-cli@")
+	assert.Contains(t, content, "version: 'dev-build-sha'")
 }
