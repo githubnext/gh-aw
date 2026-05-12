@@ -733,6 +733,57 @@ func TestResolveRemoteURL(t *testing.T) {
 	})
 }
 
+func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-slug-upstream-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	t.Run("prefers upstream when both origin and upstream exist", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/fork/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add origin remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+
+		if err := exec.Command("git", "remote", "add", "upstream", "https://github.com/upstream/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add upstream remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() }()
+
+		slug := getRepositorySlugFromRemotePreferringUpstream()
+		if slug != "upstream/repo" {
+			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() = %q, want %q", slug, "upstream/repo")
+		}
+	})
+
+	t.Run("falls back to origin when upstream missing", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/myorg/myrepo.git").Run(); err != nil {
+			t.Fatalf("Failed to add origin remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+
+		slug := getRepositorySlugFromRemotePreferringUpstream()
+		if slug != "myorg/myrepo" {
+			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() = %q, want %q", slug, "myorg/myrepo")
+		}
+	})
+}
+
 func TestGetRepositorySlugFromRemoteFallback(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-slug-fallback-*")
 

@@ -217,6 +217,25 @@ func getRepositorySlugFromRemote() string {
 	return slug
 }
 
+// getRepositorySlugFromRemotePreferringUpstream extracts the repository slug (owner/repo)
+// from git remotes, preferring the 'upstream' remote when available.
+// This keeps schedule scattering stable for fork checkouts where origin points to the fork.
+func getRepositorySlugFromRemotePreferringUpstream() string {
+	if output, err := exec.Command("git", "config", "--get", "remote.upstream.url").Output(); err == nil {
+		upstreamURL := strings.TrimSpace(string(output))
+		if upstreamURL != "" {
+			slug := parseGitHubRepoSlugFromURL(upstreamURL)
+			if slug != "" {
+				gitLog.Printf("Repository slug from upstream remote: %s", slug)
+				return slug
+			}
+			gitLog.Printf("Unable to parse repository slug from upstream remote URL %q; falling back", upstreamURL)
+		}
+	}
+
+	return getRepositorySlugFromRemote()
+}
+
 // getRepositorySlugFromRemoteForPath extracts the repository slug (owner/repo) from the git remote URL
 // of the repository containing the specified file path.
 // It prefers the 'origin' remote for backward compatibility. If 'origin' is not
