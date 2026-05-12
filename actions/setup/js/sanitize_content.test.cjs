@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, afterEach, vi } from "vitest";
 
 describe("sanitize_content.cjs", () => {
   let mockCore;
@@ -2645,7 +2645,7 @@ describe("sanitize_content.cjs", () => {
     // have it escaped, causing these tests to fail and exposing the regression.
     let sanitizeContentCore;
 
-    beforeEach(async () => {
+    beforeAll(async () => {
       const coreModule = await import("./sanitize_content_core.cjs");
       sanitizeContentCore = coreModule.sanitizeContentCore;
     });
