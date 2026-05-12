@@ -46,3 +46,39 @@ tools:
 	require.NotContains(t, compiled, "pull_request_review_comment:")
 	require.NotContains(t, compiled, "startsWith(github.event.comment.body")
 }
+
+func TestCompileWorkflow_SlashCommandCentralizedWithLabelCommand(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-label-test")
+
+	markdownPath := filepath.Join(tmpDir, "triage.md")
+	content := `---
+on:
+  slash_command:
+    name: triage
+    strategy: centralized
+  label_command:
+    name: triage
+    events: [issues]
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Triage
+`
+	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(markdownPath))
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	compiled := string(lockContent)
+
+	require.Contains(t, compiled, "workflow_dispatch:")
+	require.Contains(t, compiled, "issues:")
+	require.Contains(t, compiled, "types:\n    - labeled")
+	require.Contains(t, compiled, "github.event.label.name == 'triage'")
+	require.Contains(t, compiled, "|| !(github.event_name == 'issues')")
+}

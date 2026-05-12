@@ -154,22 +154,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 				// Keep "on" quoted as it's a YAML boolean keyword
 				data.On = yamlStr
 			} else {
-				// If conversion fails, build a basic YAML string manually
-				var builder strings.Builder
-				builder.WriteString(`"on":`)
-				for _, event := range filteredEvents {
-					builder.WriteString("\n  ")
-					builder.WriteString(event.EventName)
-					builder.WriteString(":\n    types: [")
-					for i, t := range event.Types {
-						if i > 0 {
-							builder.WriteString(", ")
-						}
-						builder.WriteString(t)
-					}
-					builder.WriteString("]")
-				}
-				data.On = builder.String()
+				return fmt.Errorf("failed to marshal command events: %w", err)
 			}
 
 			// Add conditional logic for command workflows unless centralized mode is enabled.
@@ -200,7 +185,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			} else if data.If == "" && len(data.LabelCommand) > 0 {
 				// Centralized command mode bypasses slash-command content checks.
 				// If label_command is also configured, keep label gating logic.
-				labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
+				labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, true)
 				if err != nil {
 					return fmt.Errorf("failed to build label-command condition: %w", err)
 				} else {
