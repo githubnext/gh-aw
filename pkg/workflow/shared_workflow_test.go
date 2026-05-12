@@ -271,9 +271,9 @@ mcp-servers:
 
 // TestRedirectOnlyWorkflow tests that a workflow with a redirect field but no 'on' trigger
 // is detected as a redirect-only placeholder and returns a RedirectOnlyWorkflowError.
-// This is the scenario from the regression reported in gh-aw#<issue>: `gh aw add githubnext/agentics/daily-repo-status`
-// downloads a file with only redirect: and source: fields, which should give a helpful message
-// directing the user to run `gh aw update` rather than the confusing "Shared agentic workflow detected" error.
+// Regression: `gh aw add githubnext/agentics/daily-repo-status` downloads a file with only
+// redirect: and source: fields, which should give a helpful message directing the user to run
+// `gh aw update` rather than the confusing "Shared agentic workflow detected" error.
 func TestRedirectOnlyWorkflow(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-redirect-only-*")
 

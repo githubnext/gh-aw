@@ -330,7 +330,7 @@ func (e *RedirectOnlyWorkflowError) Error() string {
 	filename := filepath.Base(e.Path)
 
 	msg := fmt.Sprintf(
-		"ℹ️  Redirect-only workflow detected: %s\n\n"+
+		"Redirect-only workflow detected: %s\n\n"+
 			"This workflow file is a redirect placeholder and is missing the 'on' trigger field.\n"+
 			"The redirect was not resolved to the full workflow content during download.\n\n",
 		filename,

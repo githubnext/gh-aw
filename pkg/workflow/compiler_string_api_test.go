@@ -92,6 +92,31 @@ tools:
 	assert.ErrorAs(t, err, &sharedErr, "expected SharedWorkflowError")
 }
 
+func TestParseWorkflowString_RedirectOnlyDetection(t *testing.T) {
+	// Redirect-only workflows have a redirect field but no 'on' trigger field.
+	// ParseWorkflowString should return RedirectOnlyWorkflowError, not SharedWorkflowError.
+	markdown := `---
+redirect: "githubnext/agentics/workflows/repo-status.md@main"
+source: githubnext/agentics/workflows/daily-repo-status.md@c7d030cd6d4607b90d9ac3ffc8b24aff4f251632
+---
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "daily-repo-status.md")
+	require.Error(t, err)
+
+	var redirectErr *RedirectOnlyWorkflowError
+	assert.ErrorAs(t, err, &redirectErr, "expected RedirectOnlyWorkflowError, not SharedWorkflowError")
+	assert.Equal(t, "githubnext/agentics/workflows/repo-status.md@main", redirectErr.Target)
+
+	// The error message should NOT contain a duplicate info icon
+	assert.NotContains(t, err.Error(), "ℹ", "error string should not contain icon prefix (caller adds it)")
+}
+
 func TestParseWorkflowString_VirtualPathBehavior(t *testing.T) {
 	markdown := `---
 name: path-test
