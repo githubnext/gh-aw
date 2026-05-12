@@ -21,7 +21,17 @@ function resolveBodyText() {
 }
 
 function resolveDispatchRef() {
-  return process.env.GITHUB_HEAD_REF ? `refs/heads/${process.env.GITHUB_HEAD_REF}` : process.env.GITHUB_REF || context.ref || `refs/heads/${context.payload?.repository?.default_branch || "main"}`;
+  if (process.env.GITHUB_HEAD_REF) {
+    return `refs/heads/${process.env.GITHUB_HEAD_REF}`;
+  }
+
+  const fallbackRef = process.env.GITHUB_REF || context.ref;
+  if (fallbackRef) {
+    return fallbackRef;
+  }
+
+  const defaultBranch = context.payload?.repository?.default_branch || "main";
+  return `refs/heads/${defaultBranch}`;
 }
 
 async function main() {
