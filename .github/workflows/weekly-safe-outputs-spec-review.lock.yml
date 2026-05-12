@@ -972,6 +972,7 @@ jobs:
     concurrency:
       group: "gh-aw-conclusion-weekly-safe-outputs-spec-review"
       cancel-in-progress: false
+      queue: max
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
