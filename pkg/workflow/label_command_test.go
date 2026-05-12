@@ -200,7 +200,7 @@ func TestBuildLabelCommandCondition(t *testing.T) {
 }
 
 func TestBuildCentralizedLabelCommandCondition(t *testing.T) {
-	condition, err := buildCentralizedLabelCommandCondition([]string{"cloclo"}, []string{"issues"}, false)
+	condition, err := buildCentralizedLabelCommandCondition([]string{"cloclo"}, []string{"issues"})
 	require.NoError(t, err)
 	rendered := condition.Render()
 	assert.NotContains(t, rendered, "github.event_name")

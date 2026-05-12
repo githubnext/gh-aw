@@ -185,7 +185,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			} else if data.If == "" && len(data.LabelCommand) > 0 {
 				// Centralized command mode compiles slash-command workflows as workflow_dispatch
 				// targets. Label checks for dispatches must be derived from aw_context metadata.
-				labelConditionTree, err := buildCentralizedLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, len(data.CommandOtherEvents) > 0)
+				labelConditionTree, err := buildCentralizedLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
 				if err != nil {
 					return fmt.Errorf("failed to build label-command condition: %w", err)
 				} else {
