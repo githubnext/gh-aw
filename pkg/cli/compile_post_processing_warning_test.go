@@ -3,12 +3,9 @@
 package cli
 
 import (
-	"bytes"
-	"io"
-	"os"
-	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/require"
 )
@@ -67,7 +64,7 @@ func TestDisplayCentralizedSlashCommandRecommendation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := workflow.NewCompiler()
 
-			stderrOutput := captureStderr(t, func() {
+			stderrOutput := testutil.CaptureStderr(t, func() {
 				displayCentralizedSlashCommandRecommendation(compiler, tt.workflows, tt.jsonOutput)
 			})
 
@@ -81,28 +78,4 @@ func TestDisplayCentralizedSlashCommandRecommendation(t *testing.T) {
 			require.Equal(t, tt.expectedWarnCount, compiler.GetWarningCount())
 		})
 	}
-}
-
-func captureStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stderr = w
-	t.Cleanup(func() {
-		os.Stderr = oldStderr
-		_ = r.Close()
-		_ = w.Close()
-	})
-
-	fn()
-
-	require.NoError(t, w.Close())
-	os.Stderr = oldStderr
-
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, r)
-	require.NoError(t, err)
-	return strings.TrimSpace(buf.String())
 }
