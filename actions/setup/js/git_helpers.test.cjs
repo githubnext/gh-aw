@@ -19,9 +19,13 @@ describe("git_helpers.cjs", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
     global.core = originalCore;
   });
+
+  function mockCoreWarning() {
+    global.core.warning = vi.fn();
+    return global.core.warning;
+  }
 
   describe("execGitSync", () => {
     it("should export execGitSync function", async () => {
@@ -307,7 +311,7 @@ describe("git_helpers.cjs", () => {
 
     it("should skip unshallow when shallow status cannot be determined", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
-      const warning = vi.spyOn(global.core, "warning").mockImplementation(() => {});
+      const warning = mockCoreWarning();
       const execApi = {
         getExecOutput: vi.fn().mockRejectedValue(new Error("not a git repository")),
         exec: vi.fn().mockResolvedValue(0),
@@ -322,7 +326,7 @@ describe("git_helpers.cjs", () => {
 
     it("should warn with stringified non-error shallow status failures", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
-      const warning = vi.spyOn(global.core, "warning").mockImplementation(() => {});
+      const warning = mockCoreWarning();
       const execApi = {
         getExecOutput: vi.fn().mockRejectedValue("unknown failure"),
         exec: vi.fn().mockResolvedValue(0),
