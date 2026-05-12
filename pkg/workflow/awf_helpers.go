@@ -183,6 +183,12 @@ fi`,
 	// runner host until the secret-redaction step runs.
 	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
 
+	// Capture the epoch-millisecond timestamp at the very start of the Execute Agent CLI
+	// step on the host, before the AWF container launches.  sendJobConclusionSpan reads
+	// this file to set the dedicated gh-aw.<job>.agent span start time, which excludes
+	// pre-agent overhead such as workspace audit and CLI proxy startup.
+	writeAgentCLIStartMs := fmt.Sprintf("printf '%%s' \"$(date +%%s%%3N)\" > %s", shellEscapeArg(AgentCLIStartMsPath))
+
 	// Build the complete command with proper formatting.
 	// configFileSetup (if non-empty) writes the AWF config JSON immediately before the
 	// AWF invocation so the file is present when AWF parses --config.
@@ -193,9 +199,11 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
+			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
@@ -212,9 +220,11 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
+			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			arcDindPrefixProbe,
@@ -229,9 +239,11 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
+			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
 			arcDindPrefixProbe,
@@ -245,9 +257,11 @@ fi`,
 		command = fmt.Sprintf(`set -o pipefail
 %s
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
+			writeAgentCLIStartMs,
 			preCreateLog,
 			arcDindPrefixProbe,
 			awfCommand,
