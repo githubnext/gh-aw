@@ -164,14 +164,23 @@ var (
 
 	// TemplateIfPattern matches {{#if condition }} template conditionals
 	// Captures the condition expression (which may contain ${{ ... }})
-	TemplateIfPattern = regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
+	//
+	// Expression group: (?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*
+	//   - \$\{\{[^\}]*\}\}  — already-wrapped ${{ ... }} expression
+	//   - [^\}\{]           — any character that is not } or {
+	//   - \{[^\{]           — a { not immediately followed by another { (handles ${ env refs)
+	// Using [^\}\{] (instead of [^\}]) prevents the pattern from greedily consuming
+	// {{ sequences that start a nested template tag, which would embed a raw {{elseif
+	// or similar token inside the wrapped ${{ }} expression and confuse later validation.
+	TemplateIfPattern = regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*)\s*\}\}`)
 
 	// TemplateElseIfPattern matches elseif/else-if/else_if template conditionals in all supported
 	// syntax variants:
 	//   {{#elseif expr}}  {{#else-if expr}}  {{#else_if expr}}
 	//   {{elseif expr}}   {{else-if expr}}   {{else_if expr}}
 	// Captures the condition expression (which may contain ${{ ... }})
-	TemplateElseIfPattern = regexp.MustCompile(`\{\{#?else[-_]?if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
+	// See TemplateIfPattern for the expression group design rationale.
+	TemplateElseIfPattern = regexp.MustCompile(`\{\{#?else[-_]?if\s+((?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*)\s*\}\}`)
 )
 
 // Comparison and Literal Patterns
