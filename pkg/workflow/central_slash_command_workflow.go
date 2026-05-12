@@ -125,8 +125,7 @@ on:
 `)
 	writeCentralSlashEventsYAML(&b, mergedEvents)
 	b.WriteString(`
-permissions:
-  {}
+permissions: {}
 
 jobs:
   route:

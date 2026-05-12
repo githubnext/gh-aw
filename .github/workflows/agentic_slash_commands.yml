@@ -36,8 +36,7 @@ on:
   discussion_comment:
     types: [created, edited]
 
-permissions:
-  {}
+permissions: {}
 
 jobs:
   route:
