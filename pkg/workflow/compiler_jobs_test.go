@@ -1681,12 +1681,12 @@ func TestJobDependingOnPreActivation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "pre-activation-dep-test")
 
 	frontmatter := `---
-on: push
+on:
+  slash_command: test
 permissions:
   contents: read
 engine: copilot
 strict: false
-command: /test
 jobs:
   early_job:
     runs-on: ubuntu-latest
@@ -2263,12 +2263,12 @@ func TestJobManagerStateValidation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "job-manager-state-test")
 
 	frontmatter := `---
-on: push
+on:
+  slash_command: test
 permissions:
   contents: read
 engine: copilot
 strict: false
-command: /test
 jobs:
   custom1:
     runs-on: ubuntu-latest

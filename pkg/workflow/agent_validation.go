@@ -45,6 +45,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -181,11 +182,11 @@ func (c *Compiler) validatePiEngineRequirements(tools *ToolsConfig, engine Codin
 	}
 
 	if tools == nil || tools.GitHub == nil || tools.GitHub.Mode != "gh-proxy" {
-		return fmt.Errorf("engine 'pi' requires tools.github.mode: gh-proxy")
+		return errors.New("engine 'pi' requires tools.github.mode: gh-proxy")
 	}
 
 	if !tools.CLIProxy {
-		return fmt.Errorf("engine 'pi' requires tools.cli-proxy: true")
+		return errors.New("engine 'pi' requires tools.cli-proxy: true")
 	}
 
 	return nil
