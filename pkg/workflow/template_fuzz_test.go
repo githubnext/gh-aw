@@ -83,6 +83,7 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 	f.Add("}}")
 	f.Add("{{#if }}{{#if }}")
 	f.Add("{{elseif 0")
+	f.Add("{{#if{{elseif {}}")
 
 	// Nested braces
 	f.Add("{{#if ${{ ${{ github.actor }} }} }}content{{/if}}")
@@ -198,7 +199,7 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 						continue
 					}
 					expr := strings.TrimSpace(match[1])
-					if hasSkippableElseifExprPrefix(expr) || strings.Contains(expr, "{{") || strings.Contains(expr, "}}") {
+					if hasSkippableElseifExprPrefix(expr) || strings.ContainsAny(expr, "{}") {
 						continue
 					}
 					t.Errorf("Non-canonical elseif pattern %q still present in output, input: %q", pattern.String(), input)
