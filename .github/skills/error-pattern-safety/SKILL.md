@@ -6,11 +6,11 @@ description: Error Pattern Safety Guidelines for Agentic Engines
 
 # Error Pattern Safety Guidelines
 
-This document outlines the safety guidelines for error pattern regex in agentic engines to prevent infinite loops in JavaScript.
+Use these regex safety rules in agentic engines to prevent JavaScript infinite loops.
 
 ## The Problem
 
-When using regex patterns with the JavaScript global flag (`/pattern/g`), patterns that can match zero-width (empty strings) can cause infinite loops. This happens because:
+With the JavaScript global flag (`/pattern/g`), zero-width matches can cause infinite loops because:
 
 1. JavaScript's `regex.exec()` with the `g` flag uses `lastIndex` to track position
 2. When a pattern matches zero-width, `lastIndex` doesn't advance

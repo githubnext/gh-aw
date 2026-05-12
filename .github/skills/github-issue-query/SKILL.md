@@ -5,12 +5,12 @@ description: Query GitHub issues efficiently with jq argument support for filter
 
 # GitHub Issue Query Skill
 
-This skill provides efficient querying of GitHub issues with built-in jq filtering support.
+Query GitHub issues efficiently with built-in jq filtering.
 
 ## Important: jq Parameter is Optional
 
-The `--jq` parameter is **optional**. When called without `--jq`, this skill returns **schema and data size information** instead of the full data.
-This prevents overwhelming responses with large datasets and helps you understand the data structure before querying.
+The `--jq` parameter is **optional**. Without `--jq`, this skill returns **schema and data size information** instead of full data.
+Use this to avoid oversized responses and inspect structure before targeted queries.
 
 Use `--jq '.'` to get all data, or use a more specific filter for targeted results.
 

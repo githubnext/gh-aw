@@ -6,11 +6,11 @@ description: HTTP MCP Header Secret Support - Implementation Summary
 
 # HTTP MCP Header Secret Support - Implementation Summary
 
-This document demonstrates the complete implementation of HTTP MCP header secret support for the copilot engine.
+Use this reference for HTTP MCP header secret support in the copilot engine.
 
 ## Problem Statement
 
-When using HTTP MCP tools with headers containing GitHub Actions secrets, the generated mcp-config.json needs to:
+When HTTP MCP headers include GitHub Actions secrets, `mcp-config.json` must:
 
 1. Extract secrets from headers (e.g., `${{ secrets.DD_API_KEY }}`)
 2. Declare those env variables in the execution step

@@ -5,7 +5,7 @@ description: Instructions for using the struct tag-based console rendering syste
 
 # Console Rendering System Usage
 
-This skill provides instructions for using the struct tag-based console rendering system.
+Use this guide for the struct tag-based console rendering system.
 
 ## Struct Tag Support
 

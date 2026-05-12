@@ -5,7 +5,7 @@ description: Best practices for writing JavaScript code for GitHub Actions using
 
 # GitHub Action Script Best Practices
 
-This skill provides guidelines for writing JavaScript files that run using the GitHub Action `actions/github-script@v8`.
+Use these guidelines for JavaScript executed by `actions/github-script@v8`.
 
 ## Important Notes
 

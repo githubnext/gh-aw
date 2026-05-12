@@ -6,11 +6,11 @@ description: Plan for adding temporary ID support to safe output jobs
 
 # Adding Temporary ID Support to Safe Output Jobs
 
-This document outlines the implementation plan for adding temporary ID support to safe output jobs. Temporary IDs allow agents to reference newly created issues within the same workflow run before they have actual GitHub issue numbers.
+Use this implementation plan for temporary ID support in safe output jobs. Temporary IDs let agents reference newly created issues in the same run before real issue numbers exist.
 
 ## Problem Statement
 
-When an agent needs to create a parent issue and immediately link sub-issues to it in the same workflow run, the agent doesn't know the actual issue number until the `create_issue` job completes. Temporary IDs bridge this gap by allowing the agent to use placeholder IDs that are resolved to actual issue numbers at execution time.
+When an agent creates a parent issue and immediately links sub-issues in the same run, it does not know the real issue number until `create_issue` completes. Temporary IDs bridge this gap with placeholders resolved at execution time.
 
 ## Temporary ID Format
 

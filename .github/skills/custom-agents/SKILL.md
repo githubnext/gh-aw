@@ -6,15 +6,15 @@ description: GitHub Custom Agent File Format
 
 # GitHub Custom Agent File Format
 
-This document describes the GitHub custom agent file format used by GitHub Copilot to provide repository-specific or task-specific instructions to AI coding agents.
+Use this reference for the GitHub custom agent file format.
 
 ## Overview
 
-GitHub Copilot supports custom agent instructions through Markdown files with YAML frontmatter. These files allow you to define specialized agent behaviors, tool access, and custom workflows that tailor Copilot's behavior to your repository's needs.
+GitHub Copilot reads custom agent instructions from Markdown files with YAML frontmatter. Use them to define specialized behavior, tool access, and workflows for your repository.
 
 ## File Locations
 
-Custom agent files can be placed in several locations, each serving a different scope:
+Place custom agent files in these locations based on scope:
 
 ### 1. Repository-wide Instructions
 - **File**: `.github/copilot-instructions.md`

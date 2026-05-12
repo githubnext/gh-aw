@@ -6,7 +6,7 @@ description: Error Message Style Guide for Validation Errors
 
 # Error Message Style Guide
 
-This guide establishes the standard format for validation error messages in the gh-aw codebase. All validation errors should be clear, actionable, and include examples.
+Use this format for gh-aw validation errors. Keep messages clear, actionable, and example-driven.
 
 ## Error Message Template
 
@@ -14,7 +14,7 @@ This guide establishes the standard format for validation error messages in the 
 [what's wrong]. [what's expected]. [example of correct usage]
 ```
 
-Each error message should answer three questions:
+Make each error message answer three questions:
 1. **What's wrong?** - Clearly state the validation error
 2. **What's expected?** - Explain the valid format or values
 3. **How to fix it?** - Provide a concrete example of correct usage
