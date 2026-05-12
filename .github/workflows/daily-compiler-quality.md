@@ -53,6 +53,8 @@ strict: true
 features:
   copilot-requests: true
 
+firewall:
+  effective-token-steering: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

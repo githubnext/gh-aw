@@ -70,6 +70,8 @@ jobs:
     outputs:
       has_changes: ${{ steps.changes.outputs.has_changes }}
 
+firewall:
+  effective-token-steering: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

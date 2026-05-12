@@ -45,6 +45,8 @@ imports:
   - shared/otel.md
 
   - shared/observability-otlp.md
+firewall:
+  effective-token-steering: true
 ---
 
 # Daily AW Cross-Repo Compilation Agent

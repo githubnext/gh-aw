@@ -43,6 +43,8 @@ strict: true
 features:
   copilot-requests: true
 
+firewall:
+  effective-token-steering: true
 ---
 
 # Architecture Diagram Generator
