@@ -534,13 +534,29 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	// Compile the workflow
 	if tracker != nil {
 		if err := compileWorkflowWithTracking(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
+			printCompilationError(err, opts.Quiet)
 		}
 	} else {
 		if err := compileWorkflow(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
+			printCompilationError(err, opts.Quiet)
 		}
 	}
 
 	return nil
+}
+
+// printCompilationError formats and writes a compilation error to stderr.
+// Redirect-only workflow errors are treated as informational messages rather than errors,
+// since they occur when a redirect placeholder was downloaded without resolving to the full
+// workflow content. In that case the user is directed to run `gh aw update`.
+// All other errors are written using FormatErrorChain for standard error formatting.
+func printCompilationError(err error, quiet bool) {
+	var redirectErr *workflow.RedirectOnlyWorkflowError
+	if errors.As(err, &redirectErr) {
+		if !quiet {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(redirectErr.Error()))
+		}
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
 }
