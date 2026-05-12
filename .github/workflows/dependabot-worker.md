@@ -63,10 +63,11 @@ tools:
     mode: gh-proxy
     toolsets: [default]
   bash:
+    - "make dependabot && make build"
     - "make build"
     - "make dependabot"
     - "./gh-aw compile --dependabot"
-    - "npm install --package-lock-only"
+    - "cd .github/workflows && npm install --package-lock-only"
     - "git status"
     - "git diff *"
     - "cat *"
