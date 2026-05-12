@@ -758,12 +758,12 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/fork/repo.git").Run(); err != nil {
 			t.Fatalf("Failed to add origin remote: %v", err)
 		}
-		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+		t.Cleanup(func() { _ = exec.Command("git", "remote", "remove", "origin").Run() })
 
 		if err := exec.Command("git", "remote", "add", "upstream", "https://github.com/upstream/repo.git").Run(); err != nil {
 			t.Fatalf("Failed to add upstream remote: %v", err)
 		}
-		defer func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() }()
+		t.Cleanup(func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() })
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
 		if slug != "upstream/repo" {
@@ -772,10 +772,12 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 	})
 
 	t.Run("falls back to origin when upstream missing", func(t *testing.T) {
+		_ = exec.Command("git", "remote", "remove", "upstream").Run()
+
 		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/myorg/myrepo.git").Run(); err != nil {
 			t.Fatalf("Failed to add origin remote: %v", err)
 		}
-		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+		t.Cleanup(func() { _ = exec.Command("git", "remote", "remove", "origin").Run() })
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
 		if slug != "myorg/myrepo" {
