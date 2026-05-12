@@ -83,6 +83,7 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 	f.Add("}}")
 	f.Add("{{#if }}{{#if }}")
 	f.Add("{{elseif 0")
+	// Malformed nested braces that triggered CGO fuzz failure.
 	f.Add("{{#if{{elseif {}}")
 
 	// Nested braces
@@ -199,7 +200,10 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 						continue
 					}
 					expr := strings.TrimSpace(match[1])
-					if hasSkippableElseifExprPrefix(expr) || strings.ContainsAny(expr, "{}") {
+					if hasSkippableElseifExprPrefix(expr) ||
+						strings.Contains(expr, "{{") ||
+						strings.Contains(expr, "}}") ||
+						strings.Count(expr, "{") != strings.Count(expr, "}") {
 						continue
 					}
 					t.Errorf("Non-canonical elseif pattern %q still present in output, input: %q", pattern.String(), input)
