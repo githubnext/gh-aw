@@ -197,44 +197,42 @@ function sanitizeUrlProtocols(s) {
   }
   normalized = normalized.replace(/%3[Aa]/gi, ":"); // decode %3A -> :
 
-  // Allowlist approach for protocol:// URLs: redact every scheme EXCEPT https://.
-  // A negative lookbehind (?<![a-z0-9]) prevents matching a suffix of another
-  // protocol name (e.g. prevents matching "ttps://" inside "https://github.com").
-  // A negative lookahead (?!https://) then excludes the https:// scheme itself,
-  // which is intentionally passed through to sanitizeUrlDomains for domain-level
-  // filtering.  Any other scheme — including ws://, wss://, smb://, irc://,
-  // ldap://, ldaps://, rtsp://, feed://, ftp://, http://, ssh://, git://, etc. —
-  // is caught and redacted.  This allowlist approach avoids the class of
-  // blocklist-incompleteness bypasses described in the security issue.
+  // ── Step 1: allowlist-based protocol:// filtering ──────────────────────────
+  // Redact every scheme://  URL that is NOT https://.  This covers http://,
+  // ftp://, ssh://, git://, ws://, wss://, smb://, irc://, ldap://, ldaps://,
+  // rtsp://, feed://, and any future schemes — eliminating the class of
+  // blocklist-incompleteness bypasses.
   //
-  // For single-colon schemes (data:, javascript:, magnet:, etc.) that omit "//",
-  // a targeted blocklist is still used because a fully general single-colon
-  // pattern would produce too many false positives (e.g. "key:value" in YAML or
-  // "C:\path" on Windows).
-  return normalized.replace(/((?<![a-z0-9])(?!https:\/\/)[a-z][a-z0-9+.-]*:\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel|magnet):[^\s]+)/gi, (match, _fullMatch, domain) => {
-    // Extract domain for http/ftp/file/ssh/git protocols
-    if (domain) {
-      const domainLower = domain.toLowerCase();
-      const sanitized = sanitizeDomainName(domainLower);
-      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+  // Regex anchors that protect existing https:// URLs:
+  //   (?<![a-z0-9]) — negative lookbehind: ensures we do not match a suffix of
+  //                   another protocol name (e.g. "ttps://" inside "https://…").
+  //   (?!https://)  — negative lookahead: explicitly excludes https://, which is
+  //                   passed through to sanitizeUrlDomains for domain filtering.
+  let result = normalized.replace(/(?<![a-z0-9])(?!https:\/\/)([a-z][a-z0-9+.-]*)(:\/\/)([\w.-]*)([^\s]*)/gi, (_match, _scheme, _slashes, domain, _rest) => {
+    const fullMatch = _match;
+    const domainLower = domain.toLowerCase();
+    const sanitized = sanitizeDomainName(domainLower);
+    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+    core.info(`Redacted URL: ${truncated}`);
+    core.debug(`Redacted URL (full): ${fullMatch}`);
+    addRedactedDomain(domainLower);
+    return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
+  });
+
+  // ── Step 2: blocklist-based single-colon scheme filtering ───────────────────
+  // For schemes that do not use "//", a targeted blocklist is used because a
+  // fully general single-colon pattern produces too many false positives
+  // (e.g. "key:value" in YAML, "std::vector" in C++, "C:\path" on Windows).
+  return result.replace(/(?:data|javascript|vbscript|about|mailto|tel|magnet):[^\s]+/gi, match => {
+    const protocolMatch = match.match(/^([^:]+):/);
+    if (protocolMatch) {
+      const protocol = protocolMatch[1] + ":";
+      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
       core.info(`Redacted URL: ${truncated}`);
       core.debug(`Redacted URL (full): ${match}`);
-      addRedactedDomain(domainLower);
-      // Return sanitized domain format
-      return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
-    } else {
-      // For other protocols (data:, javascript:, etc.), track the protocol itself
-      const protocolMatch = match.match(/^([^:]+):/);
-      if (protocolMatch) {
-        const protocol = protocolMatch[1] + ":";
-        // Truncate the matched URL for logging (keep first 12 chars + "...")
-        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-        core.info(`Redacted URL: ${truncated}`);
-        core.debug(`Redacted URL (full): ${match}`);
-        addRedactedDomain(protocol);
-      }
-      return "(redacted)";
+      addRedactedDomain(protocol);
     }
+    return "(redacted)";
   });
 }
 
