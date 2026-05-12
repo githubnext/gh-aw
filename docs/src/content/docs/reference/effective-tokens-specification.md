@@ -353,8 +353,8 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 
 | Category | Count |
 |---|---|
-| Total tests defined | 11 |
-| Required tests | 11 |
+| Total tests defined | 12 |
+| Required tests | 12 |
 | Optional tests | 0 |
 
 | Requirement | Test ID | Level | Status |
