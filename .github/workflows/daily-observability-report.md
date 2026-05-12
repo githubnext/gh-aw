@@ -7,7 +7,9 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
-engine: codex
+engine:
+  id: codex
+  model: gpt-5.4
 strict: true
 tracker-id: daily-observability-report
 tools:

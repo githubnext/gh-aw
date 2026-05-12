@@ -13,7 +13,7 @@ permissions:
 tracker-id: daily-fact-thread
 engine:
   id: codex
-  model: gpt-5.4
+  model: gpt-5.4-mini
   bare: true
 strict: true
 experiments:
