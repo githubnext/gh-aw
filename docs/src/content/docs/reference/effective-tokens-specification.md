@@ -357,6 +357,8 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 | Required tests | 12 |
 | Optional tests | 0 |
 
+Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `010–012`, `020–022`, `030–031`).
+
 | Requirement | Test ID | Level | Status |
 |---|---|---|---|
 | Per-invocation base weighted tokens | T-ET-001–004 | 1 | Implemented |

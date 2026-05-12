@@ -47,9 +47,9 @@ Feedback should be filed as GitHub issues against the `github/gh-aw` repository.
 11. [Implementation Requirements](#11-implementation-requirements)
 12. [Compliance Testing](#12-compliance-testing)
 13. [Sync Notes](#13-sync-notes)
-14. [Appendices](#appendices)
-15. [References](#references)
-16. [Change Log](#change-log)
+14. [Appendices](#14-appendices)
+15. [References](#15-references)
+16. [Change Log](#16-change-log)
 
 ---
 
