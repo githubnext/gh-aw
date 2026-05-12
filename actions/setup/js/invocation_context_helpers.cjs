@@ -116,10 +116,10 @@ function parseJSONPayload(value) {
 function buildPayloadFromAwContext(awContext, eventName) {
   const itemType = typeof awContext.item_type === "string" ? awContext.item_type : "";
   const itemNumberRaw = awContext.item_number;
-  const commentIDRaw = awContext.comment_id;
-  const commentNodeID = typeof awContext.comment_node_id === "string" ? awContext.comment_node_id : "";
+  const commentIdRaw = awContext.comment_id;
+  const commentNodeId = typeof awContext.comment_node_id === "string" ? awContext.comment_node_id : "";
   const itemNumber = Number(itemNumberRaw);
-  const commentID = Number(commentIDRaw);
+  const commentId = Number(commentIdRaw);
 
   if (!itemType || !Number.isFinite(itemNumber) || itemNumber <= 0) {
     return null;
@@ -139,13 +139,13 @@ function buildPayloadFromAwContext(awContext, eventName) {
     payload.discussion = { number: itemNumber };
   }
 
-  if (Number.isFinite(commentID) && commentID > 0) {
-    payload.comment = { id: commentID };
-    if (commentNodeID) {
-      payload.comment.node_id = commentNodeID;
+  if (Number.isFinite(commentId) && commentId > 0) {
+    payload.comment = { id: commentId };
+    if (commentNodeId) {
+      payload.comment.node_id = commentNodeId;
     }
-  } else if (commentNodeID) {
-    payload.comment = { node_id: commentNodeID };
+  } else if (commentNodeId) {
+    payload.comment = { node_id: commentNodeId };
   }
 
   return Object.keys(payload).length > 0 ? payload : null;
