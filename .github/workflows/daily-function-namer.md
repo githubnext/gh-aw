@@ -41,6 +41,8 @@ tools:
 timeout-minutes: 30
 strict: true
 
+firewall:
+  effective-token-steering: true
 ---
 
 # Daily Go Function Namer

@@ -269,8 +269,134 @@ mcp-servers:
 	}
 }
 
-// TestMainWorkflowWithoutMarkdownContent tests that a main workflow
-// (with 'on' field) still requires markdown content
+// TestRedirectOnlyWorkflow tests that a workflow with a redirect field but no 'on' trigger
+// is detected as a redirect-only placeholder and returns a RedirectOnlyWorkflowError.
+// Regression: `gh aw add githubnext/agentics/daily-repo-status` downloads a file with only
+// redirect: and source: fields, which should give a helpful message directing the user to run
+// `gh aw update` rather than the confusing "Shared agentic workflow detected" error.
+func TestRedirectOnlyWorkflow(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-redirect-only-*")
+
+	// Simulate the content from the agentics repo's daily-repo-status.md
+	redirectPath := filepath.Join(tempDir, "daily-repo-status.md")
+	redirectContent := `---
+redirect: "githubnext/agentics/workflows/repo-status.md@main"
+source: githubnext/agentics/workflows/daily-repo-status.md@c7d030cd6d4607b90d9ac3ffc8b24aff4f251632
+---
+`
+	if err := os.WriteFile(redirectPath, []byte(redirectContent), 0644); err != nil {
+		t.Fatalf("Failed to write redirect-only workflow file: %v", err)
+	}
+
+	// Parse the workflow - it should return RedirectOnlyWorkflowError (not SharedWorkflowError)
+	compiler := workflow.NewCompiler()
+	_, err := compiler.ParseWorkflowFile(redirectPath)
+
+	if err == nil {
+		t.Fatal("Expected RedirectOnlyWorkflowError, got nil")
+	}
+
+	// Must be RedirectOnlyWorkflowError, NOT SharedWorkflowError
+	var redirectErr *workflow.RedirectOnlyWorkflowError
+	if !errors.As(err, &redirectErr) {
+		t.Fatalf("Expected *workflow.RedirectOnlyWorkflowError, got %T: %v", err, err)
+	}
+
+	if errors.As(err, new(*workflow.SharedWorkflowError)) {
+		t.Fatal("Should NOT return SharedWorkflowError for a redirect-only workflow")
+	}
+
+	// Verify the error message is helpful and mentions the redirect target
+	errMsg := redirectErr.Error()
+	if !strings.Contains(errMsg, "Redirect-only workflow") {
+		t.Errorf("Error message should mention 'Redirect-only workflow', got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "githubnext/agentics/workflows/repo-status.md@main") {
+		t.Errorf("Error message should include the redirect target, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "gh aw update") {
+		t.Errorf("Error message should suggest 'gh aw update', got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "Skipping compilation") {
+		t.Errorf("Error message should mention skipping compilation, got: %s", errMsg)
+	}
+
+	// Verify the path is set correctly
+	if redirectErr.Path != redirectPath {
+		t.Errorf("Expected path %s, got %s", redirectPath, redirectErr.Path)
+	}
+
+	// Verify the redirect target is set correctly
+	if redirectErr.Target != "githubnext/agentics/workflows/repo-status.md@main" {
+		t.Errorf("Expected target 'githubnext/agentics/workflows/repo-status.md@main', got %q", redirectErr.Target)
+	}
+}
+
+// TestRedirectOnlyWorkflowWithoutSourceField tests that a redirect-only file with only
+// a redirect field (no source field) is also correctly detected.
+func TestRedirectOnlyWorkflowWithoutSourceField(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-redirect-no-source-*")
+
+	redirectPath := filepath.Join(tempDir, "moved-workflow.md")
+	redirectContent := `---
+redirect: "owner/repo/workflows/new-location.md@main"
+---
+`
+	if err := os.WriteFile(redirectPath, []byte(redirectContent), 0644); err != nil {
+		t.Fatalf("Failed to write redirect-only workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	_, err := compiler.ParseWorkflowFile(redirectPath)
+
+	if err == nil {
+		t.Fatal("Expected RedirectOnlyWorkflowError, got nil")
+	}
+
+	var redirectErr *workflow.RedirectOnlyWorkflowError
+	if !errors.As(err, &redirectErr) {
+		t.Fatalf("Expected *workflow.RedirectOnlyWorkflowError, got %T: %v", err, err)
+	}
+
+	if redirectErr.Target != "owner/repo/workflows/new-location.md@main" {
+		t.Errorf("Expected redirect target to be set, got %q", redirectErr.Target)
+	}
+}
+
+// TestWorkflowWithRedirectAndOn tests that a workflow with both redirect and on fields
+// is NOT treated as a redirect-only file (it has an 'on' trigger so it's a valid main workflow).
+func TestWorkflowWithRedirectAndOn(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-redirect-and-on-*")
+
+	workflowPath := filepath.Join(tempDir, "workflow-with-redirect.md")
+	// A workflow with both 'on' and 'redirect' fields (valid: redirect is for update tracking)
+	workflowContent := `---
+on: issues
+redirect: "owner/repo/workflows/new.md@main"
+---
+
+# Workflow with redirect
+
+This is a main workflow that also has a redirect for update tracking.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	_, err := compiler.ParseWorkflowFile(workflowPath)
+
+	// Should NOT be a RedirectOnlyWorkflowError or SharedWorkflowError (it has 'on')
+	if errors.As(err, new(*workflow.RedirectOnlyWorkflowError)) {
+		t.Fatal("Should NOT return RedirectOnlyWorkflowError for a workflow with both redirect and on fields")
+	}
+	if errors.As(err, new(*workflow.SharedWorkflowError)) {
+		t.Fatal("Should NOT return SharedWorkflowError for a workflow with 'on' field")
+	}
+	// It may return a different error (e.g., if the workflow body is missing context), but not these two
+}
+
+
 func TestMainWorkflowWithoutMarkdownContent(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-main-no-markdown-*")
 

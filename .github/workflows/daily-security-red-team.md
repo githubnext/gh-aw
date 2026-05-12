@@ -22,6 +22,24 @@ safe-outputs:
     title-prefix: "🚨 [SECURITY]"
     labels: ["security", "red-team"]
     max: 5
+experiments:
+  reasoning_depth:
+    variants: [single_pass, iterative]
+    description: "Compare single-pass vs. iterative (re-evaluation) security analysis to measure false-positive rate, true-positive rate, and cost"
+    hypothesis: "H0: no change in finding quality. H1: iterative reduces false-positive rate by >=20% at <=30% token overhead"
+    metric: false_positive_rate
+    secondary_metrics: [run_duration_ms, issues_created, token_count]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.9"
+      - name: empty_output_rate
+        threshold: "<=0.05"
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-05-12"
+    analysis_type: proportion_test
+    tags: [security, cost-efficiency, quality]
+    issue: 31673
 timeout-minutes: 60
 imports:
   - shared/security-analysis-base.md
@@ -532,7 +550,22 @@ echo "Running all 6 techniques..."
 echo "✅ Full comprehensive scan complete"
 ```
 
-## Phase 5: Analyze and Report Findings
+## Phase 4b: Iterative Re-Evaluation (variant: iterative only)
+
+{{#if experiments.reasoning_depth iterative}}
+Before proceeding to Phase 5, perform a **second-pass validation** of every finding collected so far:
+
+1. For each finding in `FINDINGS[]`, re-read the exact file and line cited.
+2. Determine if the finding is a **confirmed true positive**, a **false positive**, or **needs more investigation**.
+3. Write a one-sentence justification for each decision.
+4. Remove false positives from `FINDINGS[]` and log them to `$CACHE_DIR/dismissed-findings-${TIMESTAMP}.json`.
+5. For "needs more investigation" items, run one additional targeted check (e.g., trace data flow or check call graph).
+6. Update `$CURRENT_SCAN` with `"re_evaluation_complete": true` and `"dismissed_count": <N>`.
+{{else}}
+<!-- single_pass: skip re-evaluation, proceed directly to Phase 5 -->
+{{/if}}
+
+## Phase 5: Compile and Report Findings
 
 ```bash
 #!/bin/bash

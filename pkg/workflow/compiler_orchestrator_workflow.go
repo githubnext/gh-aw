@@ -26,6 +26,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, &SharedWorkflowError{Path: parseResult.cleanPath}
 	}
 
+	// Handle redirect-only workflows (have a redirect field but no 'on' trigger).
+	// These are distinct from shared workflows: they are move placeholders, not importable components.
+	if parseResult.isRedirectOnly {
+		return nil, &RedirectOnlyWorkflowError{Path: parseResult.cleanPath, Target: parseResult.redirectTarget}
+	}
+
 	// Unpack parse result for convenience
 	cleanPath := parseResult.cleanPath
 	content := parseResult.content

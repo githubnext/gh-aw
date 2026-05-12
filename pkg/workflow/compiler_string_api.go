@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -89,9 +90,20 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 
 	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
 
-	// Check if shared workflow (no 'on' field)
+	// Check if "on" field is missing - distinguish redirect-only placeholders from shared workflows
 	_, hasOnField := frontmatterForValidation["on"]
 	if !hasOnField {
+		// Check if this is a redirect-only placeholder (has redirect field but no 'on' trigger).
+		// Redirect-only files are distinct from regular shared workflows: they are placeholders
+		// pointing to a workflow's new canonical location and should not be treated as importable components.
+		if redirectVal, hasRedirect := frontmatterForValidation["redirect"]; hasRedirect {
+			if redirectStr, ok := redirectVal.(string); ok {
+				if redirectTarget := strings.TrimSpace(redirectStr); redirectTarget != "" {
+					compilerStringAPILog.Printf("ParseWorkflowString: redirect-only workflow detected: redirect=%s", redirectTarget)
+					return nil, &RedirectOnlyWorkflowError{Path: cleanPath, Target: redirectTarget}
+				}
+			}
+		}
 		compilerStringAPILog.Printf("ParseWorkflowString: no 'on' field, treating as shared workflow: %s", cleanPath)
 		return nil, &SharedWorkflowError{Path: cleanPath}
 	}

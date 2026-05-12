@@ -117,6 +117,23 @@ func compileWorkflowFile(
 			return result
 		}
 
+		// Check if this is a redirect-only workflow (not an error, just info)
+		var redirectErr *workflow.RedirectOnlyWorkflowError
+		if errors.As(err, &redirectErr) {
+			if !jsonOutput {
+				// Print info message instead of error
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(redirectErr.Error()))
+			}
+			// Mark as valid but skipped
+			result.validationResult.Valid = true
+			result.validationResult.Warnings = append(result.validationResult.Warnings, CompileValidationError{
+				Type:    "redirect_only_workflow",
+				Message: "Skipped: Redirect-only workflow (missing 'on' field, has redirect)",
+			})
+			result.success = true // Consider it successful, just skipped
+			return result
+		}
+
 		// Don't print error here - it will be displayed in the compilation summary
 		// The error is stored in ValidationResult for JSON output and summary display
 		result.validationResult.Valid = false

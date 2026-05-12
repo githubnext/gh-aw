@@ -62,6 +62,12 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 			return nil
 		}
 
+		// Handle redirect-only workflow error separately (not a fatal error for inspection)
+		if errors.As(err, new(*workflow.RedirectOnlyWorkflowError)) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Cannot inspect redirect-only workflows directly - run 'gh aw update' to follow the redirect and get the full workflow"))
+			return nil
+		}
+
 		errMsg := fmt.Sprintf("failed to parse workflow file: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to parse workflow file: %w", err)

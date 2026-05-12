@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -21,11 +22,18 @@ type frontmatterParseResult struct {
 	frontmatterForValidation map[string]any
 	markdownDir              string
 	isSharedWorkflow         bool
+	// isRedirectOnly is true when the file has a redirect field but no 'on' trigger.
+	// Such files are redirect-only placeholders that point to a workflow's new location.
+	isRedirectOnly bool
+	// redirectTarget holds the redirect destination (workflow spec or URL) for informational messages.
+	redirectTarget string
 }
 
 // parseFrontmatterSection reads the workflow file and parses its frontmatter.
 // It returns a frontmatterParseResult containing the parsed data and validation information.
 // If the workflow is detected as a shared workflow (no 'on' field), isSharedWorkflow is set to true.
+// If the workflow is detected as a redirect-only file (has redirect but no 'on' field),
+// isRedirectOnly is set to true with the redirect target in redirectTarget.
 func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterParseResult, error) {
 	orchestratorFrontmatterLog.Printf("Starting frontmatter parsing: %s", markdownPath)
 	log.Printf("Reading file: %s", markdownPath)
@@ -81,6 +89,28 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	// Check if "on" field is missing - if so, treat as a shared/imported workflow
 	_, hasOnField := frontmatterForValidation["on"]
 	if !hasOnField {
+		// Check if this is a redirect-only placeholder (has a redirect field but no 'on' trigger).
+		// Redirect-only files are distinct from regular shared workflows: they are placeholders
+		// that point to a workflow's new canonical location and are not intended to be imported.
+		// They occur when `gh aw add` downloads a workflow that has been moved but the redirect
+		// was not resolved to the full content during download.
+		if redirectVal, hasRedirect := frontmatterForValidation["redirect"]; hasRedirect {
+			if redirectStr, ok := redirectVal.(string); ok {
+				if redirectTarget := strings.TrimSpace(redirectStr); redirectTarget != "" {
+					detectionLog.Printf("Redirect-only workflow detected: redirect=%s", redirectTarget)
+					return &frontmatterParseResult{
+						cleanPath:                cleanPath,
+						content:                  content,
+						frontmatterResult:        result,
+						frontmatterForValidation: frontmatterForValidation,
+						markdownDir:              filepath.Dir(cleanPath),
+						isRedirectOnly:           true,
+						redirectTarget:           redirectTarget,
+					}, nil
+				}
+			}
+		}
+
 		detectionLog.Printf("No 'on' field detected - treating as shared agentic workflow")
 
 		// Validate as an included/shared workflow (uses main_workflow_schema with forbidden field checks)

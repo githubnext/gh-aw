@@ -45,6 +45,8 @@ tools:
 
 timeout-minutes: 30
 
+firewall:
+  effective-token-steering: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

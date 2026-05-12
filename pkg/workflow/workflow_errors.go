@@ -6,6 +6,7 @@
 //   - OperationError - errors that occurred during an operation (e.g., fetching a resource)
 //   - ConfigurationError - errors in safe-outputs configuration
 //   - SharedWorkflowError - signal that a workflow is a shared/importable component
+//   - RedirectOnlyWorkflowError - signal that a workflow only has a redirect field and no trigger
 //
 // # Error Aggregation
 //
@@ -308,4 +309,36 @@ func (e *SharedWorkflowError) Error() string {
 // IsSharedWorkflow returns true, indicating this is a shared workflow
 func (e *SharedWorkflowError) IsSharedWorkflow() bool {
 	return true
+}
+
+// RedirectOnlyWorkflowError represents a workflow that has a redirect field but no 'on' trigger.
+// This typically occurs when `gh aw add` downloads a redirect-only placeholder that points to
+// the workflow's new canonical location. The redirect was not resolved to the full workflow
+// content during download.
+//
+// This is not an actual error - it is a signal that compilation should be skipped with an
+// informational message directing the user to run `gh aw update`.
+type RedirectOnlyWorkflowError struct {
+	Path   string // File path of the redirect-only workflow
+	Target string // The redirect target (workflow spec or URL)
+}
+
+// Error implements the error interface.
+// Returns an informational message explaining that the file is a redirect placeholder
+// and telling the user how to resolve it.
+func (e *RedirectOnlyWorkflowError) Error() string {
+	filename := filepath.Base(e.Path)
+
+	msg := fmt.Sprintf(
+		"Redirect-only workflow detected: %s\n\n"+
+			"This workflow file is a redirect placeholder and is missing the 'on' trigger field.\n"+
+			"The redirect was not resolved to the full workflow content during download.\n\n",
+		filename,
+	)
+	if e.Target != "" {
+		msg += fmt.Sprintf("This workflow redirects to: %s\n\n", e.Target)
+	}
+	msg += "Run 'gh aw update' to follow the redirect and get the full workflow.\n\n" +
+		"Skipping compilation."
+	return msg
 }

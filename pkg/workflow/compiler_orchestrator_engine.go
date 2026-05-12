@@ -41,9 +41,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// intentionally clear engineConfig while converting "engine: <id>" into an import.
 	preservedMaxEffectiveTokens := int64(0)
 	preservedMaxRuns := 0
+	preservedEffectiveTokenSteering := false
 	if engineConfig != nil {
 		preservedMaxEffectiveTokens = engineConfig.MaxEffectiveTokens
 		preservedMaxRuns = engineConfig.MaxRuns
+		preservedEffectiveTokenSteering = engineConfig.EnableTokenSteering
 	}
 
 	// Validate and register inline engine definitions (engine.runtime sub-object).
@@ -296,6 +298,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 	if preservedMaxRuns > 0 {
 		engineConfig.MaxRuns = preservedMaxRuns
+	}
+	if preservedEffectiveTokenSteering {
+		engineConfig.EnableTokenSteering = true
 	}
 	if engineConfig.MaxRuns <= 0 && importsResult.MergedMaxRuns != "" {
 		var importedMaxRuns any

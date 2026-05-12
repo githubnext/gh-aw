@@ -153,6 +153,9 @@ type AWFAPIProxyConfig struct {
 	// Maps to: --enable-api-proxy
 	Enabled bool `json:"enabled"`
 
+	// EnableTokenSteering enables budget-warning system message injection near ET budget exhaustion.
+	EnableTokenSteering bool `json:"enableTokenSteering,omitempty"`
+
 	// MaxRuns is the maximum number of LLM invocations allowed for a run.
 	MaxRuns int `json:"maxRuns,omitempty"`
 
@@ -257,10 +260,16 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
 
+	enableTokenSteering := extractEffectiveTokenSteering(config.WorkflowData)
 	apiProxy := &AWFAPIProxyConfig{
-		Enabled:            true,
-		MaxRuns:            maxRuns,
-		MaxEffectiveTokens: maxEffectiveTokens,
+		Enabled:             true,
+		MaxRuns:             maxRuns,
+		MaxEffectiveTokens:  maxEffectiveTokens,
+		EnableTokenSteering: enableTokenSteering && awfSupportsTokenSteering(firewallConfig),
+	}
+
+	if enableTokenSteering && !awfSupportsTokenSteering(firewallConfig) {
+		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFTokenSteeringMinVersion)
 	}
 
 	if modelMultipliers := extractModelMultipliers(config.WorkflowData); len(modelMultipliers) > 0 {
@@ -347,4 +356,10 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 		return nil
 	}
 	return workflowData.EngineConfig.TokenWeights.Multipliers
+}
+
+func extractEffectiveTokenSteering(workflowData *WorkflowData) bool {
+	return workflowData != nil &&
+		workflowData.EngineConfig != nil &&
+		workflowData.EngineConfig.EnableTokenSteering
 }
