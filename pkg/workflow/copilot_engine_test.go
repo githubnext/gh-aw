@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -2100,20 +2101,25 @@ func TestBuildEngineCommandScriptSetup(t *testing.T) {
 }
 
 func TestCopilotSupportsNoAskUser(t *testing.T) {
+	defaultSupported := semverutil.Compare(
+		string(constants.DefaultCopilotVersion),
+		string(constants.CopilotNoAskUserMinVersion),
+	) >= 0
+
 	tests := []struct {
 		name         string
 		engineConfig *EngineConfig
 		expected     bool
 	}{
 		{
-			name:         "nil config uses default (supported)",
+			name:         "nil config uses default version gate",
 			engineConfig: nil,
-			expected:     true,
+			expected:     defaultSupported,
 		},
 		{
-			name:         "empty version uses default (supported)",
+			name:         "empty version uses default version gate",
 			engineConfig: &EngineConfig{},
-			expected:     true,
+			expected:     defaultSupported,
 		},
 		{
 			name:         "latest is always supported",

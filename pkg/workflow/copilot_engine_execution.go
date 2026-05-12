@@ -535,7 +535,9 @@ func generateCopilotErrorDetectionStep() GitHubActionStep {
 // explicit version older than v1.0.19 must not emit --no-ask-user or the run will fail at startup.
 //
 // Special cases:
-//   - No version override (engineConfig is nil or has no Version): use DefaultCopilotVersion.
+//   - No version override (engineConfig is nil or has no Version): use
+//     DefaultCopilotVersion. This preserves existing behavior while avoiding drift if
+//     DefaultCopilotVersion is ever lowered below CopilotNoAskUserMinVersion.
 //   - "latest": always returns true (latest is always a new release).
 //   - Any semver string ≥ CopilotNoAskUserMinVersion: returns true.
 //   - Any semver string < CopilotNoAskUserMinVersion: returns false.
