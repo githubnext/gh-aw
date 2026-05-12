@@ -308,6 +308,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 							}
 						}
 					}
+					if queue, hasQueue := concurrencyObj["queue"]; hasQueue {
+						if queueStr, ok := queue.(string); ok && queueStr != "" {
+							if len(parts) > 0 {
+								parts[0] += fmt.Sprintf("\n  queue: %s", queueStr)
+							}
+						}
+					}
 					if len(parts) > 0 {
 						config.Concurrency = parts[0]
 					}
