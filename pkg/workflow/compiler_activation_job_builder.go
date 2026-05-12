@@ -502,6 +502,27 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 		ctx.statusCommentPRs,
 		ctx.statusCommentDiscussions,
 	)
+	// For centralized slash_command workflows, the compiled "on" section only contains
+	// workflow_dispatch, so addActivationInteractionPermissionsMap above cannot detect the
+	// original event types and skips write permissions. Supplement with a synthetic section
+	// built from the declared command events so reactions and status-comments work correctly.
+	if ctx.data.CommandCentralized && (ctx.hasReaction || ctx.hasStatusComment) {
+		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
+		if syntheticOn != "" {
+			addActivationInteractionPermissionsMap(
+				permsMap,
+				syntheticOn,
+				ctx.hasReaction,
+				ctx.reactionIssues,
+				ctx.reactionPullRequests,
+				ctx.reactionDiscussions,
+				ctx.hasStatusComment,
+				ctx.statusCommentIssues,
+				ctx.statusCommentPRs,
+				ctx.statusCommentDiscussions,
+			)
+		}
+	}
 	if ctx.data.LockForAgent {
 		permsMap[PermissionIssues] = PermissionWrite
 	}

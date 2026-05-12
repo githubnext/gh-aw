@@ -388,6 +388,121 @@ func TestActivationPermissionsIssueCommentReactionRequiresPullRequestsWrite(t *t
 	assert.False(t, hasDiscussions, "issue_comment reaction should not include discussions:write")
 }
 
+// TestActivationPermissionsCentralizedSlashCommandIssueCommentReaction verifies that a
+// centralized slash_command workflow with issue_comment events and a reaction gets
+// issues:write and pull-requests:write permissions on the activation job.
+// Centralized workflows compile to workflow_dispatch, so the compiler must derive permissions
+// from the declared command events rather than the "on" trigger section.
+func TestActivationPermissionsCentralizedSlashCommandIssueCommentReaction(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-centralized-slash-issue-comment")
+	testFile := filepath.Join(tmpDir, "centralized-issue-comment.md")
+	testContent := `---
+on:
+  slash_command:
+    name: plan
+    strategy: centralized
+    events: [issue_comment, discussion_comment]
+  reaction: eyes
+engine: copilot
+---
+
+# Plan
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "issues: write",
+		"centralized slash_command with issue_comment events should include issues:write for reactions")
+	assert.Contains(t, activationJobSection, "pull-requests: write",
+		"centralized slash_command with issue_comment events should include pull-requests:write (issue_comment fires for PR comments)")
+	assert.Contains(t, activationJobSection, "discussions: write",
+		"centralized slash_command with discussion_comment events should include discussions:write for reactions")
+}
+
+// TestActivationPermissionsCentralizedSlashCommandDiscussionOnlyReaction verifies that a
+// centralized slash_command workflow with only discussion events gets discussions:write but
+// not issues:write or pull-requests:write.
+func TestActivationPermissionsCentralizedSlashCommandDiscussionOnlyReaction(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-centralized-slash-discussion-only")
+	testFile := filepath.Join(tmpDir, "centralized-discussion-only.md")
+	testContent := `---
+on:
+  slash_command:
+    name: discuss
+    strategy: centralized
+    events: [discussion_comment]
+  reaction: eyes
+engine: copilot
+---
+
+# Discuss
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "discussions: write",
+		"centralized slash_command with discussion_comment events should include discussions:write for reactions")
+	assert.NotContains(t, activationJobSection, "issues: write",
+		"centralized slash_command with only discussion events should not include issues:write")
+	assert.NotContains(t, activationJobSection, "pull-requests: write",
+		"centralized slash_command with only discussion events should not include pull-requests:write")
+}
+
+// TestActivationPermissionsCentralizedSlashCommandNoReactionNoPermissions verifies that a
+// centralized slash_command workflow without reactions or status comments does not gain
+// unexpected write permissions.
+func TestActivationPermissionsCentralizedSlashCommandNoReactionNoPermissions(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-centralized-slash-no-reaction")
+	testFile := filepath.Join(tmpDir, "centralized-no-reaction.md")
+	testContent := `---
+on:
+  slash_command:
+    name: deploy
+    strategy: centralized
+    events: [issue_comment, discussion_comment]
+  reaction: none
+  status-comment: false
+engine: copilot
+---
+
+# Deploy
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.NotContains(t, activationJobSection, "issues: write",
+		"centralized slash_command without reactions or status-comments should not include issues:write")
+	assert.NotContains(t, activationJobSection, "discussions: write",
+		"centralized slash_command without reactions or status-comments should not include discussions:write")
+}
+
 // TestActivationPermissionsSlashCommandPRCommentReactionRequiresPullRequestsWrite verifies
 // end-to-end that a slash_command workflow with events:[pull_request_comment] produces an
 // activation job with pull-requests:write. slash_command compiles to issue_comment, and
