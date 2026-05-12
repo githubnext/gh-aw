@@ -241,6 +241,9 @@ func transformExperimentsExpression(expr string) string {
 	if m := experimentComparisonRegex.FindStringSubmatch(expr); m != nil {
 		// Convert double quotes to single quotes: GitHub Actions expressions only
 		// support single-quoted string literals, not double-quoted ones.
+		// This replacement is safe because experimentComparisonRegex guarantees
+		// that quotes only appear as delimiters around the string literal value;
+		// no embedded quotes of the same kind are allowed by the pattern.
 		remainder := strings.ReplaceAll(m[2], `"`, `'`)
 		return "steps.pick-experiment.outputs." + m[1] + remainder
 	}
