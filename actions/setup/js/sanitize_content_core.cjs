@@ -997,7 +997,7 @@ function decodeHtmlEntities(text) {
 
   // Decode named entities for invisible/formatting characters that are stripped in
   // hardenUnicodeText Step 3. Without this, the named-entity forms survive entity
-  // decoding and defeat neutralizeAllMentions (e.g. @­user passes the mention
+  // decoding and defeat neutralizeAllMentions (e.g. @&shy;user passes the mention
   // regex because "&" is not in [A-Za-z0-9], then renders as @user in GitHub).
   // Each entity is decoded to its actual Unicode code point so Step 3 can strip it.
   // &shy; and &amp;shy; → U+00AD (soft hyphen)
