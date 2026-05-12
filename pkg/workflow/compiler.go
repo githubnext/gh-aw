@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -394,10 +393,15 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		c.artifactManager.Reset()
 	}
 
-	// Enable GHES artifact compatibility when the feature flag is set.
-	// This makes c.getActionPin return v3.x artifact actions instead of v7/v8.
-	// The flag is scoped to this Compiler instance so concurrent compilations are unaffected.
-	c.ghesArtifactCompat = isFeatureEnabled(constants.GHESArtifactCompatFeatureFlag, workflowData)
+	// Enable GHES artifact compatibility from CLI flag or aw.json (CLI flag wins).
+	// c.ghesCompatFromCLI is set once per compiler instance via SetGHESCompat().
+	c.ghesArtifactCompat = c.ghesCompatFromCLI
+	if !c.ghesArtifactCompat {
+		// Fall back to aw.json ghes field when CLI flag was not passed.
+		if repoConfig, err := c.loadRepoConfig(); err == nil && repoConfig != nil {
+			c.ghesArtifactCompat = repoConfig.GHES
+		}
+	}
 	if c.ghesArtifactCompat {
 		actionPinsLog.Print("GHES artifact compatibility mode enabled: artifact actions will use v3.x pins")
 	}

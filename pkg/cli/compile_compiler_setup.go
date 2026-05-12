@@ -171,6 +171,13 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 		compileCompilerSetupLog.Print("Container image validation requires Docker (--validate-images flag)")
 	}
 
+	// Set GHES compatibility mode when the --ghes flag is passed.
+	// When enabled, the compiler emits v3.x artifact action pins for GHES compatibility.
+	compiler.SetGHESCompat(config.GHESCompat)
+	if config.GHESCompat {
+		compileCompilerSetupLog.Print("GHES compatibility mode enabled via --ghes flag: artifact actions will use v3.x pins")
+	}
+
 	// Load pre-cached manifests from file (written by MCP server at startup).
 	// These take precedence over git HEAD / filesystem reads for safe update enforcement.
 	if config.PriorManifestFile != "" {

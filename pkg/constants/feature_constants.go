@@ -72,14 +72,4 @@ const (
 	//	features:
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
-	// GHESArtifactCompatFeatureFlag enables GHES-compatible artifact action versions.
-	// When enabled, the compiler emits actions/upload-artifact@v3 and
-	// actions/download-artifact@v3 instead of the latest v7/v8, because GHES does not
-	// support @actions/artifact v2.0.0+ (upload-artifact@v4+ / download-artifact@v4+).
-	//
-	// Workflow frontmatter usage:
-	//
-	//	features:
-	//	  ghes-artifact-compat: true
-	GHESArtifactCompatFeatureFlag FeatureFlag = "ghes-artifact-compat"
 )
