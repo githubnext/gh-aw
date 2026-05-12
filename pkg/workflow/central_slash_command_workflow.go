@@ -53,7 +53,10 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 		return nil
 	}
 
-	content, err := buildCentralSlashCommandWorkflowYAML(routesByCommand, mergedEvents, resolveCentralSlashRunsOn(workflowDataList))
+	actionMode := DetectActionMode(GetVersion())
+	setupActionRef := ResolveSetupActionReference(actionMode, GetVersion(), "", nil)
+
+	content, err := buildCentralSlashCommandWorkflowYAML(routesByCommand, mergedEvents, resolveCentralSlashRunsOn(workflowDataList), setupActionRef)
 	if err != nil {
 		return err
 	}
@@ -133,7 +136,7 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 	return routesByCommand, mergedEvents
 }
 
-func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashCommandRoute, mergedEvents map[string]map[string]bool, runsOn string) (string, error) {
+func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashCommandRoute, mergedEvents map[string]map[string]bool, runsOn string, setupActionRef string) (string, error) {
 	routesJSON, err := json.Marshal(routesByCommand)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal centralized slash-command routes: %w", err)
@@ -169,15 +172,20 @@ jobs:
       - name: Checkout repository
         uses: ` + getActionPin("actions/checkout") + `
 
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ` + SetupActionDestination + `
+
       - name: Route slash command
         uses: ` + getActionPin("actions/github-script") + `
         env:
           GH_AW_SLASH_ROUTING: '` + escapeSingleQuotedYAMLString(string(routesJSON)) + `'
         with:
           script: |
-            const { setupGlobals } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/setup_globals.cjs");
+            const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/route_slash_command.cjs");
+            const { main } = require('` + SetupActionDestination + `/route_slash_command.cjs');
             await main();
 `)
 	return b.String(), nil

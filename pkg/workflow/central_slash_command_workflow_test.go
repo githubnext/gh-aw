@@ -15,6 +15,7 @@ import (
 
 func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "central-slash-workflow-test")
+	t.Setenv("GH_AW_ACTION_MODE", "dev")
 
 	data := []*WorkflowData{
 		{
@@ -60,15 +61,18 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, "permissions: {}")
 	require.Contains(t, text, "runs-on: ubuntu-slim")
 	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read")
+	require.Contains(t, text, "      - name: Setup Scripts")
+	require.Contains(t, text, "        uses: ./actions/setup")
+	require.Contains(t, text, "          destination: ${{ runner.temp }}/gh-aw/actions")
 	require.Contains(t, text, "issues:")
 	require.Contains(t, text, "issue_comment:")
 	require.Contains(t, text, "pull_request:")
 	require.Contains(t, text, "discussion_comment:")
 	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"]},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"]}]`)
 	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"]}]`)
-	require.Contains(t, text, `require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/setup_globals.cjs")`)
+	require.Contains(t, text, `require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs')`)
 	require.Contains(t, text, `setupGlobals(core, github, context, exec, io, getOctokit);`)
-	require.Contains(t, text, `require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/route_slash_command.cjs")`)
+	require.Contains(t, text, `require('${{ runner.temp }}/gh-aw/actions/route_slash_command.cjs')`)
 	require.NotContains(t, text, `const routeMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");`)
 	require.NotContains(t, text, `trustedAuthorAssociations`)
 	require.NotContains(t, text, `isForkBasedPullRequestEvent`)
