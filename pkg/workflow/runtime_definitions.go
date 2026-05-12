@@ -89,6 +89,16 @@ var knownRuntimes = []*Runtime{
 		ManifestFiles: []string{"go.mod", "go.sum"},
 	},
 	{
+		ID:             "gh-aw",
+		Name:           "gh-aw CLI",
+		ActionRepo:     "github/gh-aw/actions/setup-cli",
+		ActionVersion:  "main",
+		VersionField:   "version",
+		DefaultVersion: string(constants.DefaultGhAWVersion),
+		Commands:       []string{"gh-aw"},
+		ManifestFiles:  []string{},
+	},
+	{
 		ID:             "haskell",
 		Name:           "Haskell",
 		ActionRepo:     "haskell-actions/setup",

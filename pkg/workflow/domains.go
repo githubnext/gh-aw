@@ -380,6 +380,7 @@ var runtimeToEcosystem = map[string]string{
 	"ruby":    "ruby",
 	"dotnet":  "dotnet",
 	"haskell": "haskell",
+	"gh-aw":   "gh-aw",
 	"bun":     "node",   // bun.sh is in the node ecosystem
 	"deno":    "node",   // deno.land is in the node ecosystem
 	"uv":      "python", // uv is a Python package manager
