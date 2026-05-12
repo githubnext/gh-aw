@@ -27,6 +27,9 @@ describe("check_membership.cjs", () => {
         repos: {
           getCollaboratorPermissionLevel: vi.fn(),
         },
+        pulls: {
+          get: vi.fn(),
+        },
       },
     };
 
@@ -126,15 +129,17 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
     });
 
-    it("should skip check for workflow_dispatch when write role is allowed", async () => {
+    it("should validate workflow_dispatch when write role is allowed", async () => {
       mockContext.eventName = "workflow_dispatch";
       process.env.GH_AW_REQUIRED_ROLES = "write,read";
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
 
       await runScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_dispatch does not require validation (write role allowed)");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
+      expect(mockCore.info).toHaveBeenCalledWith("Event workflow_dispatch requires validation");
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
     });
 
     it("should validate workflow_dispatch when write role is not allowed", async () => {
@@ -147,8 +152,67 @@ describe("check_membership.cjs", () => {
 
       await runScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Event workflow_dispatch requires validation (write role not allowed)");
+      expect(mockCore.info).toHaveBeenCalledWith("Event workflow_dispatch requires validation");
       expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
+    });
+
+    it("should validate centralized workflow_dispatch using aw_context actor", async () => {
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.actor = "github-actions[bot]";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({
+            command_name: "triage",
+            actor: "octocat",
+          }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Validating centralized workflow_dispatch against originating actor 'octocat'");
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testorg",
+        repo: "testrepo",
+        username: "octocat",
+      });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
+
+    it("should deny centralized workflow_dispatch from fork-based pull requests", async () => {
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.actor = "github-actions[bot]";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({
+            command_name: "triage",
+            actor: "octocat",
+            item_type: "pull_request",
+            item_number: "42",
+          }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: {
+          head: { repo: { full_name: "someone/fork" } },
+          base: { repo: { full_name: "testorg/testrepo" } },
+        },
+      });
+
+      await runScript();
+
+      expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
+        owner: "testorg",
+        repo: "testrepo",
+        pull_number: 42,
+      });
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "fork_pull_request");
     });
   });
 

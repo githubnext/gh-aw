@@ -52,10 +52,8 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"]},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"]}]`)
 	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"]}]`)
 	require.Contains(t, text, `const routes = (routeMap[commandName] ?? []).filter(route => Array.isArray(route.events) && route.events.includes(identifier));`)
-	require.Contains(t, text, `const trustedAuthorAssociations = new Set(["MEMBER", "OWNER", "COLLABORATOR"]);`)
-	require.Contains(t, text, `if (!trustedAuthorAssociations.has(authorAssociation)) {`)
-	require.Contains(t, text, `async function isForkBasedPullRequestEvent() {`)
-	require.Contains(t, text, `if (await isForkBasedPullRequestEvent()) {`)
+	require.NotContains(t, text, `trustedAuthorAssociations`)
+	require.NotContains(t, text, `isForkBasedPullRequestEvent`)
 	require.Contains(t, text, `workflow_id: route.workflow + ".lock.yml"`)
 }
 

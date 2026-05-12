@@ -190,57 +190,6 @@ jobs:
               return;
             }
 
-            const trustedAuthorAssociations = new Set(["MEMBER", "OWNER", "COLLABORATOR"]);
-            const authorAssociationByEvent = {
-              issues: context.payload?.issue?.author_association ?? "",
-              pull_request: context.payload?.pull_request?.author_association ?? "",
-              issue_comment: context.payload?.comment?.author_association ?? "",
-              pull_request_review_comment: context.payload?.comment?.author_association ?? "",
-              discussion: context.payload?.discussion?.author_association ?? "",
-              discussion_comment: context.payload?.comment?.author_association ?? "",
-            };
-            if (!(context.eventName in authorAssociationByEvent)) {
-              core.info("Skipping centralized dispatch for unsupported event '" + context.eventName + "'.");
-              return;
-            }
-            const authorAssociation = String(authorAssociationByEvent[context.eventName] ?? "").toUpperCase();
-            if (!trustedAuthorAssociations.has(authorAssociation)) {
-              core.info("Skipping centralized dispatch due to untrusted author association '" + authorAssociation + "'.");
-              return;
-            }
-
-            async function isForkBasedPullRequestEvent() {
-              if (!(identifier === "pull_request" || identifier === "pull_request_comment")) {
-                return false;
-              }
-
-              let pullRequest = context.payload?.pull_request ?? null;
-              if (!pullRequest && identifier === "pull_request_comment") {
-                const pullNumber = context.payload?.issue?.number;
-                if (typeof pullNumber === "number") {
-                  const response = await github.rest.pulls.get({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    pull_number: pullNumber,
-                  });
-                  pullRequest = response?.data ?? null;
-                }
-              }
-
-              if (!pullRequest?.head?.repo) {
-                // Treat missing PR head repository as untrusted to avoid dispatching
-                // when fork provenance cannot be verified.
-                core.info("Skipping centralized dispatch because PR head repository metadata is unavailable.");
-                return true;
-              }
-              return pullRequest.head.repo.full_name !== pullRequest.base?.repo?.full_name;
-            }
-
-            if (await isForkBasedPullRequestEvent()) {
-              core.info("Skipping centralized dispatch for fork-based pull_request event.");
-              return;
-            }
-
             const { setupGlobals } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/setup_globals.cjs");
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { buildAwContext } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/aw_context.cjs");
