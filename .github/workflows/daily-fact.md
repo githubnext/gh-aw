@@ -99,7 +99,7 @@ Mine recent activity from the repository to find interesting facts. Focus on:
 ## Guidelines
 
 - **Check memory first**: Skip any PR, issue, or release that already appears in the palace results from Step 0
-{{#if experiments.reasoning_depth == "multi_candidate"}}
+{{#if experiments.reasoning_depth == 'multi_candidate'}}
 - **Multi-candidate deliberation**: Before writing, identify exactly **3 distinct candidate facts** (one PR, one issue or release, one contributor or pattern). For each candidate write one sentence on why it is novel today. Then score each candidate 1–5 on: (a) novelty vs palace memory, (b) intrinsic poetic potential. Select the highest-scoring candidate and write the verse for that one only.
 {{else}}
 - **Favor recent updates** but include variety - pick something interesting, not just the most recent
