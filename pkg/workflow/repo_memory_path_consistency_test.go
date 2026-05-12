@@ -92,7 +92,7 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 
 			// Test 2: Validate artifact upload path (no trailing slash)
 			var artifactUploadBuilder strings.Builder
-			generateRepoMemoryArtifactUpload(&artifactUploadBuilder, data)
+			generateRepoMemoryArtifactUpload(&artifactUploadBuilder, data, getActionPin)
 			artifactUploadOutput := artifactUploadBuilder.String()
 
 			assert.Contains(t, artifactUploadOutput,
@@ -239,7 +239,7 @@ func TestRepoMemoryArtifactPathNoTrailingSlash(t *testing.T) {
 
 	// Test artifact upload
 	var uploadBuilder strings.Builder
-	generateRepoMemoryArtifactUpload(&uploadBuilder, data)
+	generateRepoMemoryArtifactUpload(&uploadBuilder, data, getActionPin)
 	uploadOutput := uploadBuilder.String()
 
 	// Should have path without trailing slash
@@ -308,7 +308,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 
 			// Check artifact upload
 			var uploadBuilder strings.Builder
-			generateRepoMemoryArtifactUpload(&uploadBuilder, data)
+			generateRepoMemoryArtifactUpload(&uploadBuilder, data, getActionPin)
 			uploadOutput := uploadBuilder.String()
 
 			assert.Contains(t, uploadOutput, "name: "+tt.expectedName,
@@ -403,7 +403,7 @@ func TestRepoMemoryMultipleMemoriesPathConsistency(t *testing.T) {
 
 	// Test artifact upload
 	var uploadBuilder strings.Builder
-	generateRepoMemoryArtifactUpload(&uploadBuilder, data)
+	generateRepoMemoryArtifactUpload(&uploadBuilder, data, getActionPin)
 	uploadOutput := uploadBuilder.String()
 
 	assert.Contains(t, uploadOutput, "name: repo-memory-session",
@@ -469,7 +469,7 @@ func TestRepoMemoryPathComponentIsolation(t *testing.T) {
 	memoryList := section.EnvVars["GH_AW_MEMORY_LIST"]
 
 	var uploadBuilder strings.Builder
-	generateRepoMemoryArtifactUpload(&uploadBuilder, data)
+	generateRepoMemoryArtifactUpload(&uploadBuilder, data, getActionPin)
 
 	var cloneBuilder strings.Builder
 	generateRepoMemorySteps(&cloneBuilder, data)

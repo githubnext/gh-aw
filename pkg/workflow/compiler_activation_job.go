@@ -426,7 +426,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			activationToken,
-			getActionPin,
+			c.getActionPin,
 			extraPaths...,
 		)
 		// When no custom token is configured, GITHUB_TOKEN is scoped to the calling
@@ -446,7 +446,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// (plus actions/setup in dev mode). Root instruction files are excluded as they are not needed
 	// during activation. sparse-checkout-cone-mode: true ensures subdirectories are recursively included.
 	compilerActivationJobLog.Print("Adding .github, .agents, and engine-specific dirs to sparse checkout for activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, getActionPin, extraPaths...)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, c.getActionPin, extraPaths...)
 }
 
 // addSameRepoIfConditionToSteps injects an if: condition into each step that restricts

@@ -395,10 +395,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Enable GHES artifact compatibility when the feature flag is set.
-	// This makes getActionPin return v3.x artifact actions instead of v7/v8.
-	if isFeatureEnabled(constants.GHESArtifactCompatFeatureFlag, workflowData) {
-		SetGHESArtifactCompat(true)
-		defer SetGHESArtifactCompat(false)
+	// This makes c.getActionPin return v3.x artifact actions instead of v7/v8.
+	// The flag is scoped to this Compiler instance so concurrent compilations are unaffected.
+	c.ghesArtifactCompat = isFeatureEnabled(constants.GHESArtifactCompatFeatureFlag, workflowData)
+	if c.ghesArtifactCompat {
+		actionPinsLog.Print("GHES artifact compatibility mode enabled: artifact actions will use v3.x pins")
 	}
 
 	// Generate lock file name

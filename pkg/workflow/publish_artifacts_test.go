@@ -224,7 +224,7 @@ func TestGenerateSafeOutputsArtifactStagingUpload(t *testing.T) {
 				UploadArtifact: &UploadArtifactConfig{},
 			},
 		}
-		generateSafeOutputsArtifactStagingUpload(&b, data)
+		generateSafeOutputsArtifactStagingUpload(&b, data, getActionPin)
 		result := b.String()
 		assert.Contains(t, result, "safe-outputs-upload-artifacts", "should reference staging artifact name")
 		assert.Contains(t, result, artifactStagingDirExpr, "should reference staging directory")
@@ -236,14 +236,14 @@ func TestGenerateSafeOutputsArtifactStagingUpload(t *testing.T) {
 		data := &WorkflowData{
 			SafeOutputs: &SafeOutputsConfig{UploadArtifact: nil},
 		}
-		generateSafeOutputsArtifactStagingUpload(&b, data)
+		generateSafeOutputsArtifactStagingUpload(&b, data, getActionPin)
 		assert.Empty(t, b.String(), "should generate nothing when UploadArtifact is nil")
 	})
 
 	t.Run("generates nothing when SafeOutputs is nil", func(t *testing.T) {
 		var b strings.Builder
 		data := &WorkflowData{SafeOutputs: nil}
-		generateSafeOutputsArtifactStagingUpload(&b, data)
+		generateSafeOutputsArtifactStagingUpload(&b, data, getActionPin)
 		assert.Empty(t, b.String(), "should generate nothing when SafeOutputs is nil")
 	})
 }

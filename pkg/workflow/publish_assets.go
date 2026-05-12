@@ -153,7 +153,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	assetsArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 	preSteps = append(preSteps, "      - name: Download assets\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
-	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/download-artifact")))
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")))
 	preSteps = append(preSteps, "        with:\n")
 	preSteps = append(preSteps, fmt.Sprintf("          name: %ssafe-outputs-assets\n", assetsArtifactPrefix))
 	preSteps = append(preSteps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")
@@ -227,10 +227,11 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	})
 }
 
-// generateSafeOutputsAssetsArtifactUpload generates a step to upload safe-outputs assets as a separate artifact
+// generateSafeOutputsAssetsArtifactUpload generates a step to upload safe-outputs assets as a separate artifact.
 // This artifact is then downloaded by the upload_assets job to publish files to orphaned branches.
 // In workflow_call context, the artifact name is prefixed to avoid clashes.
-func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+// pinAction resolves the upload-artifact action reference; pass c.getActionPin from Compiler methods.
+func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *WorkflowData, pinAction func(string) string) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
 		return
 	}
@@ -243,7 +244,7 @@ func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *Wor
 	builder.WriteString("      # Upload safe-outputs assets for upload_assets job\n")
 	builder.WriteString("      - name: Upload Safe Outputs Assets\n")
 	builder.WriteString("        if: always()\n")
-	fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
+	fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          name: %ssafe-outputs-assets\n", prefix)
 	builder.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")

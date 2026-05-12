@@ -283,7 +283,7 @@ func TestGenerateRepoMemoryArtifactUpload(t *testing.T) {
 			}
 
 			var builder strings.Builder
-			generateRepoMemoryArtifactUpload(&builder, data)
+			generateRepoMemoryArtifactUpload(&builder, data, getActionPin)
 			output := builder.String()
 
 			sanitizeName := "Sanitize " + tt.wantSanitizeLabel + " filenames (" + tt.memory.ID + ")"

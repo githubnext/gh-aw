@@ -20,9 +20,10 @@ type ArtifactDownloadConfig struct {
 	StepID           string // Optional step ID; when set, the env-setup step is gated on this step's success
 }
 
-// buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact
-// This is a generalized helper that can be used across different contexts (safe-outputs, safe-jobs, threat-detection)
-func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
+// buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact.
+// pinAction is used to resolve the download-artifact action reference; callers inside
+// a Compiler method should pass c.getActionPin to honour the per-compilation GHES compat flag.
+func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(string) string) []string {
 	artifactsLog.Printf("Building artifact download steps: artifact=%s, path=%s, setupEnv=%v",
 		config.ArtifactName, config.DownloadPath, config.SetupEnvStep)
 
@@ -48,7 +49,7 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		artifactsLog.Printf("Added conditional: %s", config.IfCondition)
 	}
 	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/download-artifact")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
 	steps = append(steps, fmt.Sprintf("          path: %s\n", config.DownloadPath))

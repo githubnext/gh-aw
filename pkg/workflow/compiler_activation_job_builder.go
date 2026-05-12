@@ -456,7 +456,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName
 	ctx.steps = append(ctx.steps, "      - name: Upload activation artifact\n")
 	ctx.steps = append(ctx.steps, "        if: success()\n")
-	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")))
+	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")))
 	ctx.steps = append(ctx.steps, "        with:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          name: %s\n", activationArtifactName))
 	ctx.steps = append(ctx.steps, "          include-hidden-files: true\n")
