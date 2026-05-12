@@ -118,13 +118,13 @@ func TestCollectCentralSlashCommandRoutes_UnionizesMergedEvents(t *testing.T) {
 		{Workflow: "triage-pr", Events: []string{"pull_request", "pull_request_comment"}},
 	}, routesByCommand["triage"])
 
-	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, keys(mergedEvents["issues"]))
-	require.ElementsMatch(t, []string{"created", "edited"}, keys(mergedEvents["issue_comment"]))
-	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, keys(mergedEvents["pull_request"]))
+	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, typeSetKeys(mergedEvents["issues"]))
+	require.ElementsMatch(t, []string{"created", "edited"}, typeSetKeys(mergedEvents["issue_comment"]))
+	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, typeSetKeys(mergedEvents["pull_request"]))
 	require.NotContains(t, mergedEvents, "discussion")
 }
 
-func keys(typeSet map[string]bool) []string {
+func typeSetKeys(typeSet map[string]bool) []string {
 	out := make([]string, 0, len(typeSet))
 	for key := range typeSet {
 		out = append(out, key)
