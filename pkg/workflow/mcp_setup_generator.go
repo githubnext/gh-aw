@@ -531,7 +531,15 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	containerCmd := buildMCPGatewayContainerCommand(engine, workflowData, gatewayConfig, mcpEnvVars, payloadDir, payloadPathPrefix, hasGitHub, githubTool, tools)
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
-	yaml.WriteString("          DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')\n")
+	// Resolve the Docker socket path from DOCKER_HOST (supports ARC/dind custom socket paths).
+	// Only unix:// and bare absolute paths are treated as socket paths; all other schemes
+	// (tcp://, ssh://, npipe://, etc.) fall back to /var/run/docker.sock.
+	yaml.WriteString("          case \"${DOCKER_HOST:-}\" in\n")
+	yaml.WriteString("            unix://* ) DOCKER_SOCK_PATH=\"${DOCKER_HOST#unix://}\" ;;\n")
+	yaml.WriteString("            /* ) DOCKER_SOCK_PATH=\"$DOCKER_HOST\" ;;\n")
+	yaml.WriteString("            * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;\n")
+	yaml.WriteString("          esac\n")
+	yaml.WriteString("          DOCKER_SOCK_GID=$(stat -c '%g' \"$DOCKER_SOCK_PATH\" 2>/dev/null || echo '0')\n")
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")
@@ -640,7 +648,7 @@ func buildMCPGatewayContainerCommand(engine CodingAgentEngine, workflowData *Wor
 	containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
 	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
-	containerCmd.WriteString(" -v /var/run/docker.sock:/var/run/docker.sock")
+	containerCmd.WriteString(" -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock")
 	appendMCPGatewayBaseEnvFlags(&containerCmd, payloadPathPrefix)
 	appendMCPGatewayConditionalEnvFlags(&containerCmd, workflowData, engine, hasGitHub, githubTool, tools)
 	appendMCPGatewayCustomAndHTTPEnvFlags(&containerCmd, workflowData, gatewayConfig, mcpEnvVars, hasGitHub, githubTool, tools, engine)
@@ -672,6 +680,9 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 		containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_PATH_PREFIX")
 	}
 	containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD")
+	// Override DOCKER_HOST inside the gateway to match the fixed mount destination,
+	// regardless of what the runner's DOCKER_HOST was (custom path, tcp://, etc.).
+	containerCmd.WriteString(" -e DOCKER_HOST=unix:///var/run/docker.sock")
 	containerCmd.WriteString(" -e DEBUG")
 	containerCmd.WriteString(" -e MCP_GATEWAY_LOG_DIR")
 	containerCmd.WriteString(" -e GH_AW_MCP_LOG_DIR")
