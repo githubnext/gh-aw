@@ -726,6 +726,40 @@ func TestGenerateMainJobStepsWithDevMode(t *testing.T) {
 	}
 }
 
+func TestGenerateMainJobStepsWithDevMode_GhAwRuntimeBuildsFromSource(t *testing.T) {
+	originalRelease := IsRelease()
+	t.Cleanup(func() {
+		SetIsRelease(originalRelease)
+	})
+	SetIsRelease(false)
+
+	compiler := NewCompiler()
+	compiler.actionMode = ActionModeDev
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Test prompt",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		ParsedTools: NewTools(nil),
+		Runtimes: map[string]any{
+			"gh-aw": map[string]any{},
+		},
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err, "generateMainJobSteps should not error in dev mode with gh-aw runtime")
+
+	result := yaml.String()
+	assert.Contains(t, result, "- name: Build and install gh-aw CLI from source")
+	assert.Contains(t, result, "gh extension install .")
+	assert.NotContains(t, result, "uses: github/gh-aw/actions/setup-cli@")
+}
+
 // TestGenerateMainJobStepsStepOrdering tests step ordering validation
 func TestGenerateMainJobStepsStepOrdering(t *testing.T) {
 	compiler := NewCompiler()

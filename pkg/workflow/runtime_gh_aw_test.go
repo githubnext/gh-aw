@@ -87,7 +87,7 @@ func TestGetDomainsFromRuntimes_GhAw(t *testing.T) {
 	assert.Contains(t, domains, "raw.githubusercontent.com")
 }
 
-func TestGenerateRuntimeSetupSteps_GhAw_DefaultVersionUsesBuildVersion(t *testing.T) {
+func TestGenerateRuntimeSetupSteps_GhAw_DevBuildsFromSource(t *testing.T) {
 	originalVersion := GetVersion()
 	originalRelease := IsRelease()
 	t.Cleanup(func() {
@@ -108,6 +108,32 @@ func TestGenerateRuntimeSetupSteps_GhAw_DefaultVersionUsesBuildVersion(t *testin
 	require.NotEmpty(t, steps)
 
 	content := strings.Join(steps[0], "\n")
+	assert.Contains(t, content, "Build and install gh-aw CLI from source")
+	assert.Contains(t, content, "gh extension install .")
+	assert.NotContains(t, content, "github/gh-aw/actions/setup-cli@")
+}
+
+func TestGenerateRuntimeSetupSteps_GhAw_ReleaseUsesSetupCLI(t *testing.T) {
+	originalVersion := GetVersion()
+	originalRelease := IsRelease()
+	t.Cleanup(func() {
+		SetVersion(originalVersion)
+		SetIsRelease(originalRelease)
+	})
+
+	SetVersion("v0.72.1")
+	SetIsRelease(true)
+
+	ghAwRuntime := findRuntimeByID("gh-aw")
+	require.NotNil(t, ghAwRuntime)
+
+	steps := GenerateRuntimeSetupSteps([]RuntimeRequirement{{
+		Runtime: ghAwRuntime,
+		Version: "",
+	}})
+	require.NotEmpty(t, steps)
+
+	content := strings.Join(steps[0], "\n")
 	assert.Contains(t, content, "uses: github/gh-aw/actions/setup-cli@")
-	assert.Contains(t, content, "version: 'dev-build-sha'")
+	assert.Contains(t, content, "version: 'v0.72.1'")
 }
