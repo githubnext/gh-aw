@@ -120,12 +120,7 @@
     "productionresultssa18.blob.core.windows.net",
     "productionresultssa19.blob.core.windows.net"
   ],
-  "gh-aw": [
-    "codeload.github.com",
-    "github.com",
-    "github.github.com",
-    "raw.githubusercontent.com"
-  ],
+  "gh-aw": ["codeload.github.com", "github.com", "github.github.com", "raw.githubusercontent.com"],
   "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io", "storage.googleapis.com"],
   "haskell": ["haskell.org", "*.hackage.haskell.org", "get-ghcup.haskell.org", "downloads.haskell.org"],
   "java": [
