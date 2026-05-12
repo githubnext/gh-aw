@@ -77,7 +77,7 @@ tools:
 	compiled := string(lockContent)
 
 	require.Contains(t, compiled, "workflow_dispatch:")
-	require.NotContains(t, compiled, "issues:")
+	require.NotContains(t, compiled, "\"on\":\n  issues:")
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'triage'")
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 }

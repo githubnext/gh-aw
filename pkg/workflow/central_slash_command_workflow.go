@@ -159,6 +159,8 @@ jobs:
           GH_AW_SLASH_ROUTING: '` + escapeSingleQuotedYAMLString(string(routesJSON)) + `'
         with:
           script: |
+            const { setupGlobals } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/setup_globals.cjs");
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/route_slash_command.cjs");
             await main();
 `)

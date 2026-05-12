@@ -21,9 +21,7 @@ function resolveBodyText() {
 }
 
 function resolveDispatchRef() {
-  return process.env.GITHUB_HEAD_REF
-    ? `refs/heads/${process.env.GITHUB_HEAD_REF}`
-    : process.env.GITHUB_REF || context.ref || `refs/heads/${context.payload?.repository?.default_branch || "main"}`;
+  return process.env.GITHUB_HEAD_REF ? `refs/heads/${process.env.GITHUB_HEAD_REF}` : process.env.GITHUB_REF || context.ref || `refs/heads/${context.payload?.repository?.default_branch || "main"}`;
 }
 
 async function main() {
@@ -43,8 +41,6 @@ async function main() {
     return;
   }
 
-  const { setupGlobals } = require("./setup_globals.cjs");
-  setupGlobals(core, github, context, exec, io, getOctokit);
   const { buildAwContext } = require("./aw_context.cjs");
 
   const ref = resolveDispatchRef();

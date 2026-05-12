@@ -53,11 +53,13 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, "discussion_comment:")
 	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"]},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"]}]`)
 	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"]}]`)
+	require.Contains(t, text, `require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/setup_globals.cjs")`)
+	require.Contains(t, text, `setupGlobals(core, github, context, exec, io, getOctokit);`)
 	require.Contains(t, text, `require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/route_slash_command.cjs")`)
 	require.NotContains(t, text, `const routeMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");`)
 	require.NotContains(t, text, `trustedAuthorAssociations`)
 	require.NotContains(t, text, `isForkBasedPullRequestEvent`)
-	require.Contains(t, text, `workflow_id: route.workflow + ".lock.yml"`)
+	require.NotContains(t, text, `workflow_id: route.workflow + ".lock.yml"`)
 }
 
 func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {

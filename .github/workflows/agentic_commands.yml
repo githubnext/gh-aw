@@ -56,5 +56,7 @@ jobs:
           GH_AW_SLASH_ROUTING: '{"archie":[{"workflow":"archie","events":["issue_comment","issues","pull_request","pull_request_comment"]}],"cloclo":[{"workflow":"cloclo","events":["discussion","discussion_comment","issue_comment","issues","pull_request","pull_request_comment","pull_request_review_comment"]}]}'
         with:
           script: |
+            const { setupGlobals } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/setup_globals.cjs");
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/route_slash_command.cjs");
             await main();
