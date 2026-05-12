@@ -966,8 +966,10 @@ function applyTruncation(content, maxLength) {
 /**
  * Decodes HTML entities to prevent bypass of @mention detection and to ensure
  * HTML-encoded characters do not persist in sanitized output (e.g. &gt; in titles).
- * Handles named entities (e.g., &commat;, &gt;, &lt;, &amp;), decimal entities (e.g., &#64;),
- * and hex entities (e.g., &#x40;), including double-encoded variants (e.g., &amp;commat;).
+ * Handles named entities (e.g., &commat;, &gt;, &lt;, &amp;, &shy;, &zwnj;, &zwj;,
+ * &lrm;, &rlm;, &ZeroWidthSpace;, &NoBreak;, &af;/&ApplyFunction;, &it;/&InvisibleTimes;,
+ * &ic;/&InvisibleComma;), decimal entities (e.g., &#64;), and hex entities (e.g., &#x40;),
+ * including double-encoded variants (e.g., &amp;commat;).
  *
  * @param {string} text - Input text that may contain HTML entities
  * @returns {string} Text with HTML entities decoded
@@ -992,6 +994,32 @@ function decodeHtmlEntities(text) {
   result = result.replace(/&(?:amp;)?lt;/gi, "<");
   // &amp; and &amp;amp; → & (decoded after gt/lt so &amp;gt; is already handled above)
   result = result.replace(/&(?:amp;)?amp;/gi, "&");
+
+  // Decode named entities for invisible/formatting characters that are stripped in
+  // hardenUnicodeText Step 3. Without this, the named-entity forms survive entity
+  // decoding and defeat neutralizeAllMentions (e.g. @­user passes the mention
+  // regex because "&" is not in [A-Za-z0-9], then renders as @user in GitHub).
+  // Each entity is decoded to its actual Unicode code point so Step 3 can strip it.
+  // &shy; and &amp;shy; → U+00AD (soft hyphen)
+  result = result.replace(/&(?:amp;)?shy;/gi, "\u00AD");
+  // &zwnj; and &amp;zwnj; → U+200C (zero-width non-joiner)
+  result = result.replace(/&(?:amp;)?zwnj;/gi, "\u200C");
+  // &zwj; and &amp;zwj; → U+200D (zero-width joiner)
+  result = result.replace(/&(?:amp;)?zwj;/gi, "\u200D");
+  // &lrm; and &amp;lrm; → U+200E (left-to-right mark)
+  result = result.replace(/&(?:amp;)?lrm;/gi, "\u200E");
+  // &rlm; and &amp;rlm; → U+200F (right-to-left mark)
+  result = result.replace(/&(?:amp;)?rlm;/gi, "\u200F");
+  // &ZeroWidthSpace; and &amp;ZeroWidthSpace; → U+200B (zero-width space)
+  result = result.replace(/&(?:amp;)?ZeroWidthSpace;/gi, "\u200B");
+  // &NoBreak; and &amp;NoBreak; → U+2060 (word joiner)
+  result = result.replace(/&(?:amp;)?NoBreak;/gi, "\u2060");
+  // &af; / &ApplyFunction; and double-encoded variants → U+2061 (invisible function application)
+  result = result.replace(/&(?:amp;)?(?:af|ApplyFunction);/gi, "\u2061");
+  // &it; / &InvisibleTimes; and double-encoded variants → U+2062 (invisible times)
+  result = result.replace(/&(?:amp;)?(?:it|InvisibleTimes);/gi, "\u2062");
+  // &ic; / &InvisibleComma; and double-encoded variants → U+2063 (invisible separator)
+  result = result.replace(/&(?:amp;)?(?:ic|InvisibleComma);/gi, "\u2063");
 
   // Decode decimal entities (including double-encoded variants)
   // &#64; and &amp;#64; → @

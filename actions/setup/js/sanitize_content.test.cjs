@@ -2425,6 +2425,81 @@ describe("sanitize_content.cjs", () => {
       // Idempotency: a second pass on the decoded result should not re-introduce &gt;
       expect(twice).toBe(once);
     });
+
+    describe("named invisible-character entities — @mention bypass prevention", () => {
+      // These tests cover the bypass described in gh-aw#24154 / gh-aw-security#2086.
+      // Named entity forms of invisible characters must be decoded before Step 3
+      // strips the resulting code points, otherwise the "&" character prevents
+      // neutralizeAllMentions from matching the @ sign.
+
+      it("should decode &shy; (soft hyphen U+00AD) and neutralize @mention", () => {
+        expect(sanitizeContent("@&shy;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &amp;shy; (double-encoded soft hyphen) and neutralize @mention", () => {
+        expect(sanitizeContent("@&amp;shy;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &zwnj; (zero-width non-joiner U+200C) and neutralize @mention", () => {
+        expect(sanitizeContent("@&zwnj;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &zwj; (zero-width joiner U+200D) and neutralize @mention", () => {
+        expect(sanitizeContent("@&zwj;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &lrm; (left-to-right mark U+200E) and neutralize @mention", () => {
+        expect(sanitizeContent("@&lrm;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &rlm; (right-to-left mark U+200F) and neutralize @mention", () => {
+        expect(sanitizeContent("@&rlm;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &ZeroWidthSpace; (U+200B) and neutralize @mention", () => {
+        expect(sanitizeContent("@&ZeroWidthSpace;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &NoBreak; (word joiner U+2060) and neutralize @mention", () => {
+        expect(sanitizeContent("@&NoBreak;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &af; (invisible function application U+2061) and neutralize @mention", () => {
+        expect(sanitizeContent("@&af;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &ApplyFunction; (U+2061) and neutralize @mention", () => {
+        expect(sanitizeContent("@&ApplyFunction;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &it; (invisible times U+2062) and neutralize @mention", () => {
+        expect(sanitizeContent("@&it;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &InvisibleTimes; (U+2062) and neutralize @mention", () => {
+        expect(sanitizeContent("@&InvisibleTimes;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &ic; (invisible separator U+2063) and neutralize @mention", () => {
+        expect(sanitizeContent("@&ic;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &InvisibleComma; (U+2063) and neutralize @mention", () => {
+        expect(sanitizeContent("@&InvisibleComma;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode multiple named invisible entities between @ and username", () => {
+        expect(sanitizeContent("@&shy;&zwnj;&lrm;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode case-insensitive named invisible entities", () => {
+        expect(sanitizeContent("@&SHY;victim say hi")).toBe("`@victim` say hi");
+        expect(sanitizeContent("@&ZWNJ;victim say hi")).toBe("`@victim` say hi");
+        expect(sanitizeContent("@&ZWJ;victim say hi")).toBe("`@victim` say hi");
+        expect(sanitizeContent("@&LRM;victim say hi")).toBe("`@victim` say hi");
+        expect(sanitizeContent("@&RLM;victim say hi")).toBe("`@victim` say hi");
+      });
+    });
   });
 
   describe("template delimiter neutralization (T24)", () => {
