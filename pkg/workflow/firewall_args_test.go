@@ -44,10 +44,15 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Expected command to contain '--log-level'")
 		}
 
-		if !strings.Contains(stepContent, "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=") ||
-			!strings.Contains(stepContent, `DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$`) ||
-			!strings.Contains(stepContent, "--docker-host-path-prefix /tmp/gh-aw") {
-			t.Error("Expected command to include ARC/DinD probe variable, localhost TCP DOCKER_HOST probe, and docker-host-path-prefix flag")
+		initSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`
+		conditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]; then`
+		flagAssignmentSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`
+
+		initIdx := strings.Index(stepContent, initSnippet)
+		conditionIdx := strings.Index(stepContent, conditionSnippet)
+		flagIdx := strings.Index(stepContent, flagAssignmentSnippet)
+		if initIdx == -1 || conditionIdx == -1 || flagIdx == -1 || !(initIdx < conditionIdx && conditionIdx < flagIdx) {
+			t.Error("Expected command to initialize ARC/DinD probe variable, then evaluate DOCKER_HOST condition, then assign docker-host-path-prefix flag")
 		}
 
 		// Verify that --log-dir is included in copilot args for log collection

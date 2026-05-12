@@ -35,7 +35,10 @@ import (
 var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
-	awfArcDindPrefixArgsVarName  = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	// Bash regex used in [[ ... =~ ... ]] to detect localhost TCP Docker hosts.
+	// Keep this in bash-compatible syntax (escaped dots) because it is emitted directly
+	// into generated shell scripts.
 	awfArcDindDockerHostRegex    = `^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$`
 	awfArcDindHostPathPrefixFlag = "--docker-host-path-prefix /tmp/gh-aw"
 )
@@ -100,7 +103,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// --docker-host-path-prefix when supported by the selected AWF version.
 	// This avoids requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
 	arcDindPrefixProbe := ""
-	arcDindPrefixArgs := ""
+	arcDindPrefixArgsRef := ""
 	if awfSupportsDockerHostPathPrefix(firewallConfig) {
 		arcDindPrefixProbe = fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
@@ -110,7 +113,7 @@ fi`,
 			awfArcDindDockerHostRegex,
 			awfArcDindPrefixArgsVarName,
 			awfArcDindHostPathPrefixFlag)
-		arcDindPrefixArgs = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
+		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 	}
 
 	// Build the expandable args string for args that need shell variable expansion.
@@ -200,7 +203,7 @@ fi`,
 			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
-			arcDindPrefixArgs,
+			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -218,7 +221,7 @@ fi`,
 			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
-			arcDindPrefixArgs,
+			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -235,7 +238,7 @@ fi`,
 			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
-			arcDindPrefixArgs,
+			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
@@ -250,7 +253,7 @@ fi`,
 			arcDindPrefixProbe,
 			awfCommand,
 			expandableArgs,
-			arcDindPrefixArgs,
+			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
