@@ -2488,6 +2488,14 @@ describe("sanitize_content.cjs", () => {
         expect(sanitizeContent("@&InvisibleComma;victim say hi")).toBe("`@victim` say hi");
       });
 
+      it("should decode &ip; (invisible plus U+2064) and neutralize @mention", () => {
+        expect(sanitizeContent("@&ip;victim say hi")).toBe("`@victim` say hi");
+      });
+
+      it("should decode &InvisiblePlus; (U+2064) and neutralize @mention", () => {
+        expect(sanitizeContent("@&InvisiblePlus;victim say hi")).toBe("`@victim` say hi");
+      });
+
       it("should decode multiple named invisible entities between @ and username", () => {
         expect(sanitizeContent("@&shy;&zwnj;&lrm;victim say hi")).toBe("`@victim` say hi");
       });

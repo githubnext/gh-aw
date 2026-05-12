@@ -1020,6 +1020,9 @@ function decodeHtmlEntities(text) {
   result = result.replace(/&(?:amp;)?(?:it|InvisibleTimes);/gi, "\u2062");
   // &ic; / &InvisibleComma; and double-encoded variants → U+2063 (invisible separator)
   result = result.replace(/&(?:amp;)?(?:ic|InvisibleComma);/gi, "\u2063");
+  // &ip; / &InvisiblePlus; and double-encoded variants → U+2064 (invisible plus)
+  // Note: U+2064 is the upper bound of the \u2060-\u2064 range stripped in Step 3.
+  result = result.replace(/&(?:amp;)?(?:ip|InvisiblePlus);/gi, "\u2064");
 
   // Decode decimal entities (including double-encoded variants)
   // &#64; and &amp;#64; → @
