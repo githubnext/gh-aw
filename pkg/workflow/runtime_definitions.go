@@ -96,7 +96,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "version",
 		DefaultVersion: string(constants.DefaultGhAWVersion),
 		Commands:       []string{"gh-aw"},
-		ManifestFiles:  []string{},
+		ManifestFiles:  nil,
 	},
 	{
 		ID:             "haskell",
