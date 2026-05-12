@@ -502,6 +502,10 @@ jobs:
                         "description": "Shared campaign objective",
                         "type": "string"
                       },
+                      "payload": {
+                        "description": "Input parameter 'payload' for workflow dependabot-worker",
+                        "type": "string"
+                      },
                       "pr-numbers": {
                         "description": "Comma-separated selected Dependabot pull request numbers for the bundled batch",
                         "type": "string"
