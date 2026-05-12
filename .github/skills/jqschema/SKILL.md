@@ -1,6 +1,6 @@
 ---
 name: jqschema
-description: JSON schema discovery utility that extracts structure and type information from JSON data
+description: Infer JSON structure and types with jq-based schema discovery.
 tools:
   bash:
     - "jq *"

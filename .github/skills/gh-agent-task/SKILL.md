@@ -1,6 +1,6 @@
 ---
 name: gh-agent-task
-description: GitHub CLI Agent Task Extension
+description: Use gh agent-task commands to create, run, and monitor agent tasks.
 ---
 
 

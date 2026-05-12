@@ -1,5 +1,5 @@
 ---
-description: Daily telemetry-driven workflow optimization using AgentRx trajectory diagnostics
+description: Daily session-driven workflow optimization using AgentRx trajectory diagnostics
 on:
   schedule: daily on weekdays
 permissions:
@@ -30,19 +30,17 @@ imports:
     with:
       title-prefix: "[agentrx-optimizer] "
       expires: 7d
-  - shared/otel-queries.md
-  - shared/observability-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily AgentRx Trace Optimizer
 
-You are an observability and workflow optimization specialist using **AgentRx** to diagnose agent workflow failures from execution traces and recommend the highest-impact optimization.
+You are an observability and workflow optimization specialist using **AgentRx** to diagnose agent workflow failures from agent session run data and recommend the highest-impact optimization.
 
 ## Mission
 
-Every run, analyze the most recent gh-aw telemetry traces, process them with AgentRx, and create one actionable optimization issue.
+Every run, analyze the most recent gh-aw agent session run data, process it with AgentRx, and create one actionable optimization issue.
 
 Focus on:
 - identifying the critical failure step (or highest-cost bottleneck step)
@@ -55,7 +53,7 @@ Focus on:
    - Use `status` to list workflows/runs.
    - Use `logs` to download parsed logs for recent runs.
    - Use `audit` for selected failing or high-latency runs.
-2. Use only MCP-downloaded run data and logs as the telemetry source.
+2. Use only MCP-downloaded run data and logs as the telemetry source, prioritizing `runs[]` session fields over OTEL spans.
 3. Use Python in `/tmp/agentrx` to avoid polluting the repository.
 4. Install AgentRx from GitHub:
    - `python -m venv /tmp/agentrx/.venv`
@@ -67,12 +65,12 @@ Focus on:
 
 ### 1) Build AgentRx input trajectory
 
-Create `/tmp/agentrx/trajectory.json` from MCP-downloaded run data and logs by mapping spans to ordered workflow steps. Include:
+Create `/tmp/agentrx/trajectory.json` from MCP-downloaded run data and logs by mapping `runs[]` session records to ordered workflow steps. Include:
 - step index
-- span name
-- workflow/run identifiers (`github.workflow_ref`, `github.run_id`, trace ID)
+- workflow/run identifiers (`github.workflow_ref`, `github.run_id`)
 - status/error signal
-- duration/token-related fields when available
+- duration/token/cost fields when available (`duration`, `effective_tokens`, `estimated_cost`, `turns`)
+- behavior and diagnostics fields when available (`agentic_assessments`, `behavior_fingerprint`, `missing_tool_count`)
 
 Use the last 24h of data and prioritize runs with failures or high latency.
 
@@ -80,7 +78,7 @@ Use the last 24h of data and prioritize runs with failures or high latency.
 
 Run the pipeline in stages and preserve outputs under `/tmp/agentrx/runs/<run_name>/`:
 
-- `ir`: normalize raw spans into trajectory IR
+- `ir`: normalize raw session run records into trajectory IR
 - `static` / `dynamic`: generate invariants used for diagnosis
 - `check`: evaluate invariants and capture violations
 - `judge`: classify root-cause category for the critical step
@@ -126,7 +124,7 @@ Body structure:
 - Critical step (name/index)
 - Failure category
 - Frequency / impact
-- Representative run IDs and trace IDs
+- Representative run IDs
 
 <details>
 <summary>AgentRx Artifacts</summary>
@@ -134,7 +132,7 @@ Body structure:
 - IR summary
 - Invariant/checker highlights
 - Judge classification output (if available)
-- Known limitations (missing spans, missing attributes, auth-limited stages)
+- Known limitations (missing session fields, missing attributes, auth-limited stages)
 
 </details>
 
@@ -148,7 +146,7 @@ Body structure:
 - Expected success metric changes
 
 ### References
-- Up to three links to relevant workflow runs or trace contexts.
+- Up to three links to relevant workflow runs or session contexts.
 
 ## Guardrails
 

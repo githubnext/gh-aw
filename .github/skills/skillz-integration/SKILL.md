@@ -1,5 +1,5 @@
 ---
-description: Using Skillz MCP Server with Docker
+description: Run and integrate Skillz MCP server with Docker for skill execution.
 ---
 
 

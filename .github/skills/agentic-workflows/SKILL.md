@@ -1,6 +1,6 @@
 ---
 name: agentic-workflows
-description: Router skill for gh-aw workflow tasks. Load `.github/agents/agentic-workflows.agent.md` plus relevant prompts from `.github/aw/*.md`.
+description: Route gh-aw workflow create/debug/upgrade requests to the right prompts.
 ---
 
 # Agentic Workflows Router

@@ -1,6 +1,6 @@
 ---
 name: error-messages
-description: Error Message Style Guide for Validation Errors
+description: Write consistent, actionable validation error messages in gh-aw.
 ---
 
 

@@ -1,6 +1,6 @@
 ---
 name: github-issue-query
-description: Query GitHub issues efficiently with jq argument support for filtering
+description: Query GitHub issues with jq filtering and reusable selectors.
 ---
 
 # GitHub Issue Query Skill

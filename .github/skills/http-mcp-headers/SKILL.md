@@ -1,6 +1,6 @@
 ---
 name: http_mcp_headers
-description: HTTP MCP Header Secret Support - Implementation Summary
+description: Implement secret-safe HTTP headers for MCP transport in gh-aw.
 ---
 
 

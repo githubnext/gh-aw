@@ -1,6 +1,6 @@
 ---
 name: custom-agents
-description: GitHub Custom Agent File Format
+description: Define and validate GitHub custom agent files, prompts, and examples.
 ---
 
 

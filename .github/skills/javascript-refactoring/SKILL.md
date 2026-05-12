@@ -1,6 +1,6 @@
 ---
 name: javascript-refactoring
-description: Instructions for refactoring JavaScript code into separate files
+description: Split large JavaScript files into maintainable modules safely.
 ---
 
 
