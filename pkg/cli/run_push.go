@@ -117,7 +117,7 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 	runPushLog.Printf("Import collection completed")
 
 	// Convert map to slice
-	result := sliceutil.MapToSlice(files)
+	result := sliceutil.MapKeys(files)
 
 	// Sort files for stable output
 	sort.Strings(result)

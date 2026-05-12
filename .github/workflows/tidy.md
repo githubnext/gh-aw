@@ -6,6 +6,7 @@ on:
     - cron: 'daily around 7:00'  # ~7 AM UTC
   workflow_dispatch:
   slash_command:
+    strategy: centralized
     events: [pull_request_comment]
   reaction: "eyes"
   push:

@@ -201,11 +201,11 @@ var experimentNameRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9
 
 // experimentComparisonRegex matches experiments.<name> followed by a comparison operator and
 // a quoted string value, e.g. `experiments.prompt_style == "concise"` or
-// `experiments.prompt_style !== "detailed"`. The value must be enclosed in double quotes
-// with no embedded quotes. It captures:
+// `experiments.prompt_style !== "detailed"`. The value may be enclosed in double quotes or
+// single quotes, with no embedded quotes of the same kind. It captures:
 //   - group 1: the experiment name
 //   - group 2: the remainder of the expression (operator + quoted value), verbatim
-var experimentComparisonRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)([ \t]*(?:!==?|===?)[ \t]*"[^"]*"[ \t]*)$`)
+var experimentComparisonRegex = regexp.MustCompile(`^experiments\.([a-zA-Z_][a-zA-Z0-9_]*)([ \t]*(?:!==?|===?)[ \t]*(?:"[^"]*"|'[^']*')[ \t]*)$`)
 
 // ExperimentEnvVarName returns the env-var name used for the given experiment.
 // The name is uppercased; hyphens are converted to underscores; all other characters
@@ -221,7 +221,10 @@ func ExperimentEnvVarName(experimentName string) string {
 // placeholder substitution step reads the value from the pick_experiment step output.
 //
 // Simple form:     experiments.name          → steps.pick-experiment.outputs.name
-// Comparison form: experiments.name == "v"  → steps.pick-experiment.outputs.name == "v"
+// Comparison form: experiments.name == "v"  → steps.pick-experiment.outputs.name == 'v'
+//
+// Double quotes in the comparison value are converted to single quotes because GitHub
+// Actions expression syntax only supports single-quoted string literals.
 //
 // This is used for ${{ experiments.name }} and ${{ experiments.name == "value" }} expressions
 // that appear directly in the prompt body (mostly relevant in inline mode; in runtime-import
@@ -236,7 +239,13 @@ func transformExperimentsExpression(expr string) string {
 		return "steps.pick-experiment.outputs." + m[1]
 	}
 	if m := experimentComparisonRegex.FindStringSubmatch(expr); m != nil {
-		return "steps.pick-experiment.outputs." + m[1] + m[2]
+		// Convert double quotes to single quotes: GitHub Actions expressions only
+		// support single-quoted string literals, not double-quoted ones.
+		// This replacement is safe because experimentComparisonRegex guarantees
+		// that quotes only appear as delimiters around the string literal value;
+		// no embedded quotes of the same kind are allowed by the pattern.
+		remainder := strings.ReplaceAll(m[2], `"`, `'`)
+		return "steps.pick-experiment.outputs." + m[1] + remainder
 	}
 	return expr
 }

@@ -35,7 +35,7 @@ func writeHeadersToYAML(yaml *strings.Builder, headers map[string]string, indent
 	envLog.Printf("Writing %d headers to YAML", len(headers))
 
 	// Sort keys for deterministic output - using functional helper
-	keys := sliceutil.MapToSlice(headers)
+	keys := sliceutil.MapKeys(headers)
 	sort.Strings(keys)
 
 	// Write each header with proper comma placement

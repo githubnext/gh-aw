@@ -148,29 +148,29 @@ func TestDeduplicate(t *testing.T) {
 	}
 }
 
-func TestMapToSlice(t *testing.T) {
+func TestMapKeys(t *testing.T) {
 	t.Run("nil map returns empty slice", func(t *testing.T) {
-		result := MapToSlice[string, int](nil)
-		assert.Empty(t, result, "MapToSlice should return empty slice for nil map")
+		result := MapKeys[string, int](nil)
+		assert.Empty(t, result, "MapKeys should return empty slice for nil map")
 	})
 
 	t.Run("empty map returns empty slice", func(t *testing.T) {
-		result := MapToSlice(map[string]int{})
-		assert.Empty(t, result, "MapToSlice should return empty slice for empty map")
+		result := MapKeys(map[string]int{})
+		assert.Empty(t, result, "MapKeys should return empty slice for empty map")
 	})
 
 	t.Run("returns all keys in any order", func(t *testing.T) {
 		m := map[string]int{"apple": 1, "banana": 2, "cherry": 3}
-		result := MapToSlice(m)
+		result := MapKeys(m)
 		assert.ElementsMatch(t, []string{"apple", "banana", "cherry"}, result,
-			"MapToSlice should return all keys from map")
+			"MapKeys should return all keys from map")
 	})
 
 	t.Run("single entry map", func(t *testing.T) {
 		m := map[string]bool{"only": true}
-		result := MapToSlice(m)
+		result := MapKeys(m)
 		assert.Equal(t, []string{"only"}, result,
-			"MapToSlice should return the single key from a one-entry map")
+			"MapKeys should return the single key from a one-entry map")
 	})
 }
 

@@ -401,7 +401,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 
 	yaml.WriteString("      - name: Write MCP Scripts Tool Files\n")
 	yaml.WriteString("        run: |\n")
-	mcpScriptToolNames := sliceutil.MapToSlice(workflowData.MCPScripts.Tools)
+	mcpScriptToolNames := sliceutil.MapKeys(workflowData.MCPScripts.Tools)
 	sort.Strings(mcpScriptToolNames)
 	for _, toolName := range mcpScriptToolNames {
 		toolConfig := workflowData.MCPScripts.Tools[toolName]
@@ -436,7 +436,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_api_key }}\n")
 	mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
 	if len(mcpScriptsSecrets) > 0 {
-		envVarNames := sliceutil.MapToSlice(mcpScriptsSecrets)
+		envVarNames := sliceutil.MapKeys(mcpScriptsSecrets)
 		sort.Strings(envVarNames)
 		for _, envVarName := range envVarNames {
 			secretExpr := mcpScriptsSecrets[envVarName]
@@ -551,7 +551,7 @@ func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string)
 		return
 	}
 	yaml.WriteString("        env:\n")
-	envVarNames := sliceutil.MapToSlice(mcpEnvVars)
+	envVarNames := sliceutil.MapKeys(mcpEnvVars)
 	sort.Strings(envVarNames)
 	for _, envVarName := range envVarNames {
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, mcpEnvVars[envVarName])
@@ -624,7 +624,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, tools map[string]any, engine 
 		yaml.WriteString("          export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_MCP_SERVER_TOKEN\"\n")
 	}
 	if len(gatewayConfig.Env) > 0 {
-		envVarNames := sliceutil.MapToSlice(gatewayConfig.Env)
+		envVarNames := sliceutil.MapKeys(gatewayConfig.Env)
 		sort.Strings(envVarNames)
 		for _, envVarName := range envVarNames {
 			fmt.Fprintf(yaml, "          export %s=%s\n", envVarName, gatewayConfig.Env[envVarName])
@@ -745,7 +745,7 @@ func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflow
 
 func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool any, tools map[string]any, engine CodingAgentEngine) {
 	if len(gatewayConfig.Env) > 0 {
-		envVarNames := sliceutil.MapToSlice(gatewayConfig.Env)
+		envVarNames := sliceutil.MapKeys(gatewayConfig.Env)
 		sort.Strings(envVarNames)
 		for _, envVarName := range envVarNames {
 			containerCmd.WriteString(" -e " + envVarName)

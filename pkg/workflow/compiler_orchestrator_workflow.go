@@ -334,7 +334,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
 	// Extract and process mcp-scripts and safe-outputs
-	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
+	workflowData.Command, workflowData.CommandEvents, workflowData.CommandCentralized = c.extractCommandConfig(frontmatter)
 	workflowData.LabelCommand, workflowData.LabelCommandEvents, workflowData.LabelCommandRemoveLabel = c.extractLabelCommandConfig(frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
 

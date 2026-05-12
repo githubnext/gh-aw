@@ -14,7 +14,7 @@ All functions in this package are pure: they never modify their input. They are 
 |----------|-----------|-------------|
 | `Filter` | `func[T any](slice []T, predicate func(T) bool) []T` | Returns a new slice containing only elements for which `predicate` returns `true` |
 | `Map` | `func[T, U any](slice []T, transform func(T) U) []U` | Applies `transform` to every element and returns the results as a new slice |
-| `MapToSlice` | `func[K comparable, V any](m map[K]V) []K` | Converts the keys of a map into a slice; order is not guaranteed |
+| `MapKeys` | `func[K comparable, V any](m map[K]V) []K` | Converts the keys of a map into a slice; order is not guaranteed |
 | `FilterMapKeys` | `func[K comparable, V any](m map[K]V, predicate func(K, V) bool) []K` | Returns map keys for which `predicate(key, value)` is `true`; order is not guaranteed |
 | `Any` | `func[T any](slice []T, predicate func(T) bool) bool` | Returns `true` if at least one element satisfies `predicate`; returns `false` for nil or empty slices |
 | `Deduplicate` | `func[T comparable](slice []T) []T` | Returns a new slice with duplicate elements removed, preserving order of first occurrence |

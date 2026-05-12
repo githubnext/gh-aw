@@ -532,3 +532,79 @@ func TestValidateNoIncludesInTemplateRegions_SingleError(t *testing.T) {
 		t.Errorf("Error should contain violation: tools.md")
 	}
 }
+
+func TestDetectDoubleQuotedExperimentComparisons(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantWarnings int
+		wantContains string
+	}{
+		{
+			name:         "no experiment expressions - no warning",
+			input:        `{{#if github.event.issue.number}}content{{/if}}`,
+			wantWarnings: 0,
+		},
+		{
+			name:         "experiment with single quotes - no warning",
+			input:        `{{#if experiments.reasoning_depth == 'multi_candidate'}}content{{/if}}`,
+			wantWarnings: 0,
+		},
+		{
+			name:         "simple experiment name (no comparison) - no warning",
+			input:        `{{#if experiments.feature_flag}}content{{/if}}`,
+			wantWarnings: 0,
+		},
+		{
+			name:         "experiment with double-quoted value - warning",
+			input:        `{{#if experiments.reasoning_depth == "multi_candidate"}}content{{/if}}`,
+			wantWarnings: 1,
+			wantContains: "reasoning_depth",
+		},
+		{
+			name:         "experiment with != and double quotes - warning",
+			input:        `{{#if experiments.mode != "fast"}}content{{/if}}`,
+			wantWarnings: 1,
+			wantContains: "experiments.mode",
+		},
+		{
+			name:         "experiment with !== and double quotes - warning",
+			input:        `{{#if experiments.mode !== "fast"}}content{{/if}}`,
+			wantWarnings: 1,
+			wantContains: "experiments.mode",
+		},
+		{
+			name:         "elseif with double-quoted value - warning",
+			input:        `{{#if false}}a{{#elseif experiments.style == "detailed"}}b{{/if}}`,
+			wantWarnings: 1,
+			wantContains: "experiments.style",
+		},
+		{
+			name:         "multiple occurrences - multiple warnings",
+			input:        "{{#if experiments.a == \"x\"}}a{{/if}}\n{{#if experiments.b == \"y\"}}b{{/if}}",
+			wantWarnings: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warnings := detectDoubleQuotedExperimentComparisons(tt.input)
+			if len(warnings) != tt.wantWarnings {
+				t.Errorf("detectDoubleQuotedExperimentComparisons() = %d warning(s), want %d; got: %v",
+					len(warnings), tt.wantWarnings, warnings)
+			}
+			if tt.wantContains != "" {
+				found := false
+				for _, w := range warnings {
+					if strings.Contains(w, tt.wantContains) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("detectDoubleQuotedExperimentComparisons() warnings %v do not contain %q", warnings, tt.wantContains)
+				}
+			}
+		})
+	}
+}

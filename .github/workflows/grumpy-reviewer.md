@@ -2,6 +2,7 @@
 description: "⚠️ DEPRECATED: Use PR Code Quality Reviewer (pr-code-quality-reviewer) instead. Performs critical code review with a focus on edge cases, potential bugs, and code quality issues"
 on:
   slash_command:
+    strategy: centralized
     name: grumpy
     events: [pull_request_comment, pull_request_review_comment]
 engine: codex

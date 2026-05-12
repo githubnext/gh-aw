@@ -100,6 +100,25 @@ func generateMaintenanceWorkflowWrapper(
 	return nil
 }
 
+// generateCentralSlashCommandWorkflowWrapper generates a single centralized
+// slash-command trigger workflow for all participating workflows.
+func generateCentralSlashCommandWorkflowWrapper(
+	workflowDataList []*workflow.WorkflowData,
+	workflowsDir string,
+	strict bool,
+) error {
+	compilePostProcessingLog.Print("Generating centralized slash-command workflow")
+
+	if err := workflow.GenerateCentralSlashCommandWorkflow(workflowDataList, workflowsDir); err != nil {
+		if strict {
+			return fmt.Errorf("failed to generate centralized slash-command workflow: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate centralized slash-command workflow: %v", err)))
+	}
+
+	return nil
+}
+
 // purgeOrphanedLockFiles removes orphaned .lock.yml files
 // These are lock files that exist but don't have a corresponding .md file
 func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, verbose bool) error {
@@ -215,6 +234,38 @@ func displaySafeUpdateWarnings(compiler *workflow.Compiler, jsonOutput bool) {
 	for _, w := range warnings {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
 	}
+}
+
+// displayCentralizedSlashCommandRecommendation warns when a repository has many
+// slash commands still using non-centralized strategy.
+func displayCentralizedSlashCommandRecommendation(compiler *workflow.Compiler, workflowDataList []*workflow.WorkflowData, jsonOutput bool) {
+	if jsonOutput {
+		return
+	}
+
+	totalSlashCommands := 0
+	nonCentralizedSlashCommands := 0
+	for _, wd := range workflowDataList {
+		if wd == nil || len(wd.Command) == 0 {
+			continue
+		}
+		totalSlashCommands += len(wd.Command)
+		if !wd.CommandCentralized {
+			nonCentralizedSlashCommands += len(wd.Command)
+		}
+	}
+
+	if totalSlashCommands < 3 || nonCentralizedSlashCommands == 0 {
+		return
+	}
+
+	msg := fmt.Sprintf(
+		"Detected %d slash_command entries in this repository; %d are not using centralized routing. Consider setting `on.slash_command.strategy: centralized` to reduce duplicate triggers and route through `agentic_commands.yml`.",
+		totalSlashCommands,
+		nonCentralizedSlashCommands,
+	)
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+	compiler.IncrementWarningCount()
 }
 
 // pruneStaleActionCacheEntries removes stale gh-aw-actions entries from the

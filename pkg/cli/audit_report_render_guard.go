@@ -44,7 +44,7 @@ func renderGuardPolicySummary(summary *GuardPolicySummary) {
 
 	// Most frequently blocked tools
 	if len(summary.BlockedToolCounts) > 0 {
-		toolNames := sliceutil.MapToSlice(summary.BlockedToolCounts)
+		toolNames := sliceutil.MapKeys(summary.BlockedToolCounts)
 		sort.Slice(toolNames, func(i, j int) bool {
 			return summary.BlockedToolCounts[toolNames[i]] > summary.BlockedToolCounts[toolNames[j]]
 		})

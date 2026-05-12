@@ -1,0 +1,85 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCompileWorkflow_SlashCommandCentralizedStrategy(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-test")
+
+	markdownPath := filepath.Join(tmpDir, "deploy.md")
+	content := `---
+on:
+  slash_command:
+    name: deploy
+    strategy: centralized
+  push:
+    branches: [main]
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Deploy
+`
+	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(markdownPath))
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	compiled := string(lockContent)
+
+	require.Contains(t, compiled, "workflow_dispatch:")
+	require.Contains(t, compiled, "push:")
+	require.NotContains(t, compiled, "issue_comment:")
+	require.NotContains(t, compiled, "pull_request_review_comment:")
+	require.NotContains(t, compiled, "startsWith(github.event.comment.body")
+}
+
+func TestCompileWorkflow_SlashCommandCentralizedWithLabelCommand(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-label-test")
+
+	markdownPath := filepath.Join(tmpDir, "triage.md")
+	content := `---
+on:
+  slash_command:
+    name: triage
+    strategy: centralized
+  label_command:
+    name: triage
+    events: [issues]
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Triage
+`
+	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(markdownPath))
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	compiled := string(lockContent)
+
+	require.Contains(t, compiled, "\"on\":\n  workflow_dispatch:")
+	require.Contains(t, compiled, "workflow_dispatch:")
+	require.NotContains(t, compiled, "\n  issues:\n    types:")
+	require.NotContains(t, compiled, "github.event_name == 'workflow_dispatch'")
+	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'triage'")
+	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
+}

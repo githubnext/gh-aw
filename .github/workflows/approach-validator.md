@@ -6,6 +6,7 @@ on:
     names: [approach-proposal, needs-design]
     events: [issues, pull_request]
   slash_command:
+    strategy: centralized
     name: approach-validator
     events: [issue_comment, pull_request_comment]
 permissions:

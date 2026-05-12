@@ -5,6 +5,9 @@ package workflow
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseTimeDelta(t *testing.T) {
@@ -136,26 +139,14 @@ func TestParseTimeDelta(t *testing.T) {
 			result, err := parseTimeDelta(tt.input)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("parseTimeDelta(%q) expected error but got none", tt.input)
-					return
-				}
-				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
-					t.Errorf("parseTimeDelta(%q) error = %v, want to contain %v", tt.input, err.Error(), tt.errorMsg)
+				require.Error(t, err, "parseTimeDelta(%q) should return an error", tt.input)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "parseTimeDelta(%q) error message mismatch", tt.input)
 				}
 			} else {
-				if err != nil {
-					t.Errorf("parseTimeDelta(%q) unexpected error: %v", tt.input, err)
-					return
-				}
-				if result == nil {
-					t.Errorf("parseTimeDelta(%q) returned nil result", tt.input)
-					return
-				}
-				if result.Days != tt.expected.Days || result.Hours != tt.expected.Hours || result.Minutes != tt.expected.Minutes {
-					t.Errorf("parseTimeDelta(%q) = {Days: %d, Hours: %d, Minutes: %d}, want {Days: %d, Hours: %d, Minutes: %d}",
-						tt.input, result.Days, result.Hours, result.Minutes, tt.expected.Days, tt.expected.Hours, tt.expected.Minutes)
-				}
+				require.NoError(t, err, "parseTimeDelta(%q) unexpected error", tt.input)
+				require.NotNil(t, result, "parseTimeDelta(%q) returned nil result", tt.input)
+				assert.Equal(t, tt.expected, result, "parseTimeDelta(%q) result mismatch", tt.input)
 			}
 		})
 	}
@@ -270,29 +261,14 @@ func TestParseTimeDeltaForStopAfter(t *testing.T) {
 			result, err := parseTimeDeltaForStopAfter(tt.input)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("parseTimeDeltaForStopAfter(%q) expected error but got none", tt.input)
-					return
-				}
-				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
-					t.Errorf("parseTimeDeltaForStopAfter(%q) error = %v, want to contain %v", tt.input, err.Error(), tt.errorMsg)
+				require.Error(t, err, "parseTimeDeltaForStopAfter(%q) should return an error", tt.input)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "parseTimeDeltaForStopAfter(%q) error message mismatch", tt.input)
 				}
 			} else {
-				if err != nil {
-					t.Errorf("parseTimeDeltaForStopAfter(%q) unexpected error: %v", tt.input, err)
-					return
-				}
-				if result == nil {
-					t.Errorf("parseTimeDeltaForStopAfter(%q) returned nil result", tt.input)
-					return
-				}
-				if result.Days != tt.expected.Days || result.Hours != tt.expected.Hours ||
-					result.Minutes != tt.expected.Minutes || result.Weeks != tt.expected.Weeks ||
-					result.Months != tt.expected.Months {
-					t.Errorf("parseTimeDeltaForStopAfter(%q) = {Months: %d, Weeks: %d, Days: %d, Hours: %d, Minutes: %d}, want {Months: %d, Weeks: %d, Days: %d, Hours: %d, Minutes: %d}",
-						tt.input, result.Months, result.Weeks, result.Days, result.Hours, result.Minutes,
-						tt.expected.Months, tt.expected.Weeks, tt.expected.Days, tt.expected.Hours, tt.expected.Minutes)
-				}
+				require.NoError(t, err, "parseTimeDeltaForStopAfter(%q) unexpected error", tt.input)
+				require.NotNil(t, result, "parseTimeDeltaForStopAfter(%q) returned nil result", tt.input)
+				assert.Equal(t, tt.expected, result, "parseTimeDeltaForStopAfter(%q) result mismatch", tt.input)
 			}
 		})
 	}
@@ -339,9 +315,7 @@ func TestTimeDeltaString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.delta.String()
-			if result != tt.expected {
-				t.Errorf("TimeDelta.String() = %v, want %v", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "TimeDelta.String() mismatch for delta %+v", tt.delta)
 		})
 	}
 }
@@ -382,9 +356,7 @@ func TestIsRelativeStopTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isRelativeStopTime(tt.input)
-			if result != tt.expected {
-				t.Errorf("isRelativeStopTime(%q) = %v, want %v", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "isRelativeStopTime(%q) mismatch", tt.input)
 		})
 	}
 }
@@ -552,33 +524,19 @@ func TestParseAbsoluteDateTime(t *testing.T) {
 			result, err := parseAbsoluteDateTime(tt.input)
 
 			if tt.expectedErr {
-				if err == nil {
-					t.Errorf("parseAbsoluteDateTime(%q) expected error but got none", tt.input)
-				}
+				require.Error(t, err, "parseAbsoluteDateTime(%q) should return an error", tt.input)
 				return
 			}
 
-			if err != nil {
-				t.Errorf("parseAbsoluteDateTime(%q) unexpected error: %v", tt.input, err)
-				return
-			}
+			require.NoError(t, err, "parseAbsoluteDateTime(%q) unexpected error", tt.input)
 
 			// Parse the result to verify it's correct
 			parsed, err := time.Parse("2006-01-02 15:04:05", result)
-			if err != nil {
-				t.Errorf("parseAbsoluteDateTime(%q) result %q is not a valid timestamp: %v", tt.input, result, err)
-				return
-			}
+			require.NoError(t, err, "parseAbsoluteDateTime(%q) result %q is not a valid timestamp", tt.input, result)
 
-			if parsed.Day() != tt.expectedDay {
-				t.Errorf("parseAbsoluteDateTime(%q) day = %d, want %d", tt.input, parsed.Day(), tt.expectedDay)
-			}
-			if parsed.Month() != tt.expectedMonth {
-				t.Errorf("parseAbsoluteDateTime(%q) month = %v, want %v", tt.input, parsed.Month(), tt.expectedMonth)
-			}
-			if parsed.Year() != tt.expectedYear {
-				t.Errorf("parseAbsoluteDateTime(%q) year = %d, want %d", tt.input, parsed.Year(), tt.expectedYear)
-			}
+			assert.Equal(t, tt.expectedDay, parsed.Day(), "parseAbsoluteDateTime(%q) day mismatch", tt.input)
+			assert.Equal(t, tt.expectedMonth, parsed.Month(), "parseAbsoluteDateTime(%q) month mismatch", tt.input)
+			assert.Equal(t, tt.expectedYear, parsed.Year(), "parseAbsoluteDateTime(%q) year mismatch", tt.input)
 		})
 	}
 }
@@ -706,38 +664,16 @@ func TestResolveStopTime(t *testing.T) {
 			result, err := resolveStopTime(tt.stopTime, tt.compileTime)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("resolveStopTime(%q, %v) expected error but got none", tt.stopTime, tt.compileTime)
-					return
-				}
-				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
-					t.Errorf("resolveStopTime(%q, %v) error = %v, want to contain %v", tt.stopTime, tt.compileTime, err.Error(), tt.errorMsg)
+				require.Error(t, err, "resolveStopTime(%q) should return an error", tt.stopTime)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "resolveStopTime(%q) error message mismatch", tt.stopTime)
 				}
 			} else {
-				if err != nil {
-					t.Errorf("resolveStopTime(%q, %v) unexpected error: %v", tt.stopTime, tt.compileTime, err)
-					return
-				}
-				if result != tt.expected {
-					t.Errorf("resolveStopTime(%q, %v) = %v, want %v", tt.stopTime, tt.compileTime, result, tt.expected)
-				}
+				require.NoError(t, err, "resolveStopTime(%q) unexpected error", tt.stopTime)
+				assert.Equal(t, tt.expected, result, "resolveStopTime(%q) result mismatch", tt.stopTime)
 			}
 		})
 	}
-}
-
-// Helper function to check if a string contains a substring
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || containsSubstring(s, substr))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 func TestIsRelativeDate(t *testing.T) {
@@ -781,9 +717,7 @@ func TestIsRelativeDate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isRelativeDate(tt.input)
-			if result != tt.expected {
-				t.Errorf("isRelativeDate(%q) = %v, want %v", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "isRelativeDate(%q) mismatch", tt.input)
 		})
 	}
 }
@@ -858,40 +792,23 @@ func TestParseRelativeDate(t *testing.T) {
 			delta, isNeg, err := parseRelativeDate(tt.input)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("parseRelativeDate(%q) expected error but got none", tt.input)
-					return
-				}
-				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
-					t.Errorf("parseRelativeDate(%q) error = %v, want to contain %v", tt.input, err.Error(), tt.errorMsg)
+				require.Error(t, err, "parseRelativeDate(%q) should return an error", tt.input)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "parseRelativeDate(%q) error message mismatch", tt.input)
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("parseRelativeDate(%q) unexpected error: %v", tt.input, err)
-				return
-			}
+			require.NoError(t, err, "parseRelativeDate(%q) unexpected error", tt.input)
 
 			if !tt.expectDelta {
-				if delta != nil {
-					t.Errorf("parseRelativeDate(%q) expected no delta but got %v", tt.input, delta)
-				}
+				assert.Nil(t, delta, "parseRelativeDate(%q) expected no delta but got one", tt.input)
 				return
 			}
 
-			if delta == nil {
-				t.Errorf("parseRelativeDate(%q) expected delta but got nil", tt.input)
-				return
-			}
-
-			if isNeg != tt.expectNeg {
-				t.Errorf("parseRelativeDate(%q) isNegative = %v, want %v", tt.input, isNeg, tt.expectNeg)
-			}
-
-			if *delta != *tt.expectedDelta {
-				t.Errorf("parseRelativeDate(%q) delta = %v, want %v", tt.input, delta, tt.expectedDelta)
-			}
+			require.NotNil(t, delta, "parseRelativeDate(%q) expected delta but got nil", tt.input)
+			assert.Equal(t, tt.expectNeg, isNeg, "parseRelativeDate(%q) isNegative mismatch", tt.input)
+			assert.Equal(t, tt.expectedDelta, delta, "parseRelativeDate(%q) delta mismatch", tt.input)
 		})
 	}
 }
@@ -1005,24 +922,15 @@ func TestResolveRelativeDate(t *testing.T) {
 			result, err := ResolveRelativeDate(tt.input, tt.baseTime)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("ResolveRelativeDate(%q) expected error but got none", tt.input)
-					return
-				}
-				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
-					t.Errorf("ResolveRelativeDate(%q) error = %v, want to contain %v", tt.input, err.Error(), tt.errorMsg)
+				require.Error(t, err, "ResolveRelativeDate(%q) should return an error", tt.input)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "ResolveRelativeDate(%q) error message mismatch", tt.input)
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("ResolveRelativeDate(%q) unexpected error: %v", tt.input, err)
-				return
-			}
-
-			if result != tt.expected {
-				t.Errorf("ResolveRelativeDate(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
+			require.NoError(t, err, "ResolveRelativeDate(%q) unexpected error", tt.input)
+			assert.Equal(t, tt.expected, result, "ResolveRelativeDate(%q) result mismatch", tt.input)
 		})
 	}
 }
@@ -1178,9 +1086,7 @@ func TestParseRelativeTimeSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := parseRelativeTimeSpec(tt.input)
-			if result != tt.expected {
-				t.Errorf("parseRelativeTimeSpec(%q) = %d, expected %d", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "parseRelativeTimeSpec(%q) mismatch", tt.input)
 		})
 	}
 }
@@ -1276,9 +1182,7 @@ func TestParseExpiresFromConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := parseExpiresFromConfig(tt.config)
-			if result != tt.expected {
-				t.Errorf("parseExpiresFromConfig(%v) = %d, expected %d", tt.config, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "parseExpiresFromConfig(%v) mismatch", tt.config)
 		})
 	}
 }

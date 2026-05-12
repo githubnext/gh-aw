@@ -5,7 +5,7 @@ engine:
   description: Pi AI coding agent (experimental)
   runtime-id: pi
   provider:
-    name: pi
+    name: github
   auth:
     - role: api-key
       secret: COPILOT_GITHUB_TOKEN

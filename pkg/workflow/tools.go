@@ -82,29 +82,42 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		if isCommandTrigger {
 			toolsLog.Print("Workflow is command trigger, configuring command events")
 
-			// Get the filtered command events based on CommandEvents field
-			filteredEvents := FilterCommentEvents(data.CommandEvents)
-
-			// Merge events for YAML generation (combines pull_request_comment and issue_comment into issue_comment)
-			yamlEvents := MergeEventsForYAML(filteredEvents)
-
-			// Build command events map from merged events
 			commandEventsMap := make(map[string]any)
-			for _, event := range yamlEvents {
-				commandEventsMap[event.EventName] = map[string]any{
-					"types": event.Types,
+
+			// In centralized slash-command mode, compile slash workflows as
+			// workflow_dispatch-centric targets and preserve only non-slash events.
+			var filteredEvents []CommentEventMapping
+			if data.CommandCentralized {
+				if len(data.CommandOtherEvents) > 0 {
+					maps.Copy(commandEventsMap, data.CommandOtherEvents)
+				}
+				if _, hasWorkflowDispatch := commandEventsMap["workflow_dispatch"]; !hasWorkflowDispatch {
+					commandEventsMap["workflow_dispatch"] = nil
+				}
+			} else {
+				// Get the filtered command events based on CommandEvents field
+				filteredEvents = FilterCommentEvents(data.CommandEvents)
+
+				// Merge events for YAML generation (combines pull_request_comment and issue_comment into issue_comment)
+				yamlEvents := MergeEventsForYAML(filteredEvents)
+
+				// Build command events map from merged events
+				for _, event := range yamlEvents {
+					commandEventsMap[event.EventName] = map[string]any{
+						"types": event.Types,
+					}
+				}
+
+				// Check if there are other events to merge
+				if len(data.CommandOtherEvents) > 0 {
+					// Merge other events into command events
+					maps.Copy(commandEventsMap, data.CommandOtherEvents)
 				}
 			}
 
-			// Check if there are other events to merge
-			if len(data.CommandOtherEvents) > 0 {
-				// Merge other events into command events
-				maps.Copy(commandEventsMap, data.CommandOtherEvents)
-			}
-
-			// If label_command is also configured alongside slash_command, merge label events
-			// into the existing command events map to avoid duplicate YAML keys.
-			if len(data.LabelCommand) > 0 {
+			// If label_command is also configured alongside non-centralized slash_command, merge
+			// label events into the existing command events map to avoid duplicate YAML keys.
+			if len(data.LabelCommand) > 0 && !data.CommandCentralized {
 				labelEventNames := FilterLabelCommandEvents(data.LabelCommandEvents)
 				for _, eventName := range labelEventNames {
 					if existingAny, ok := commandEventsMap[eventName]; ok {
@@ -141,45 +154,42 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 				// Keep "on" quoted as it's a YAML boolean keyword
 				data.On = yamlStr
 			} else {
-				// If conversion fails, build a basic YAML string manually
-				var builder strings.Builder
-				builder.WriteString(`"on":`)
-				for _, event := range filteredEvents {
-					builder.WriteString("\n  ")
-					builder.WriteString(event.EventName)
-					builder.WriteString(":\n    types: [")
-					for i, t := range event.Types {
-						if i > 0 {
-							builder.WriteString(", ")
-						}
-						builder.WriteString(t)
-					}
-					builder.WriteString("]")
+				return fmt.Errorf("failed to marshal command events: %w", err)
+			}
+
+			// Add conditional logic for command workflows unless centralized mode is enabled.
+			if !data.CommandCentralized {
+				// Add conditional logic to check for command in issue content
+				// Use event-aware condition that only applies command checks to comment-related events
+				// Pass the filtered events to buildEventAwareCommandCondition
+				hasOtherEvents := len(data.CommandOtherEvents) > 0
+				commandConditionTree, err := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
+				if err != nil {
+					return fmt.Errorf("failed to build command condition: %w", err)
 				}
-				data.On = builder.String()
-			}
 
-			// Add conditional logic to check for command in issue content
-			// Use event-aware condition that only applies command checks to comment-related events
-			// Pass the filtered events to buildEventAwareCommandCondition
-			hasOtherEvents := len(data.CommandOtherEvents) > 0
-			commandConditionTree, err := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
-			if err != nil {
-				return fmt.Errorf("failed to build command condition: %w", err)
-			}
-
-			if data.If == "" {
-				if len(data.LabelCommand) > 0 {
-					// Combine: (slash_command condition) OR (label_command condition)
-					// This allows the workflow to activate via either mechanism.
-					labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
-					if err != nil {
-						return fmt.Errorf("failed to build combined label-command condition: %w", err)
+				if data.If == "" {
+					if len(data.LabelCommand) > 0 {
+						// Combine: (slash_command condition) OR (label_command condition)
+						// This allows the workflow to activate via either mechanism.
+						labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
+						if err != nil {
+							return fmt.Errorf("failed to build combined label-command condition: %w", err)
+						}
+						combined := &OrNode{Left: commandConditionTree, Right: labelConditionTree}
+						data.If = RenderCondition(combined)
+					} else {
+						data.If = RenderCondition(commandConditionTree)
 					}
-					combined := &OrNode{Left: commandConditionTree, Right: labelConditionTree}
-					data.If = RenderCondition(combined)
+				}
+			} else if data.If == "" && len(data.LabelCommand) > 0 {
+				// Centralized command mode compiles slash-command workflows as workflow_dispatch
+				// targets. Label checks for dispatches must be derived from aw_context metadata.
+				labelConditionTree, err := buildCentralizedLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
+				if err != nil {
+					return fmt.Errorf("failed to build label-command condition: %w", err)
 				} else {
-					data.If = RenderCondition(commandConditionTree)
+					data.If = RenderCondition(labelConditionTree)
 				}
 			}
 		} else if isLabelCommandTrigger {

@@ -3,6 +3,7 @@ name: ACE Editor Session
 description: Generates an ACE editor session link when invoked with /ace command on pull request comments
 on:
   slash_command:
+    strategy: centralized
     name: ace
     events: [pull_request_comment]
 strict: false
