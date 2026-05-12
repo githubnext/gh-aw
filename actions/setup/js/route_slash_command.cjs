@@ -55,7 +55,7 @@ async function main() {
   core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);
   const configuredRoutes = routeMap[commandName] ?? [];
   core.info(`Configured routes for '/${commandName}': ${configuredRoutes.length}.`);
-  const routes = (routeMap[commandName] ?? []).filter(route => Array.isArray(route.events) && route.events.includes(identifier));
+  const routes = configuredRoutes.filter(route => Array.isArray(route.events) && route.events.includes(identifier));
   if (routes.length === 0) {
     core.info(`No centralized routes matched command '/${commandName}' for event '${identifier}'.`);
     return;
