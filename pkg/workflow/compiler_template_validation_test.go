@@ -150,7 +150,7 @@ permissions:
 strict: false
 ---
 
-{{#if experiments.prompt_style == "detailed"}}
+{{#if experiments.prompt_style == 'detailed'}}
 detailed prompt
 {{else}}
 concise prompt

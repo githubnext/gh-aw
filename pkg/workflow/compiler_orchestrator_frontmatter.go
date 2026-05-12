@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -139,6 +140,15 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	if err := validateNoPreExpandedExperimentPlaceholders(result.Markdown); err != nil {
 		orchestratorFrontmatterLog.Printf("Pre-expanded experiment placeholder validation failed: %v", err)
 		return nil, fmt.Errorf("template condition validation failed: %w", err)
+	}
+
+	// Warn when experiment comparison expressions use double-quoted string literals.
+	// GitHub Actions expression syntax only supports single-quoted string literals, so
+	// the compiler converts double quotes to single quotes automatically — but authors
+	// should fix the source to use single quotes to keep it consistent with the output.
+	for _, w := range detectDoubleQuotedExperimentComparisons(result.Markdown) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+		c.IncrementWarningCount()
 	}
 
 	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))

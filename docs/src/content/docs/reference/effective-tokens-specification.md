@@ -222,6 +222,10 @@ Each node (invocation) MUST conform to:
   "derived": {
     "base_weighted_tokens": number,
     "effective_tokens": number
+  },
+  "flagged": {
+    "code": "string",
+    "reason": "string"
   }
 }
 ```
@@ -292,6 +296,15 @@ that capping occurred.
 streaming manner (incremental updates per invocation) and **SHOULD** emit an early warning when
 running totals exceed 80% of the ceiling.
 
+**R-SAFE-005**: For invocation nodes with incomplete usage payloads (unobservable sub-agents),
+implementations **MUST** serialize `usage.input_tokens`, `usage.cached_input_tokens`,
+`usage.output_tokens`, `usage.reasoning_tokens`, `derived.base_weighted_tokens`, and
+`derived.effective_tokens` as numeric zero (`0`) rather than omitting those fields.
+
+**R-SAFE-006**: For invocation nodes that are incomplete/unobservable, implementations **MUST**
+include a `flagged` object with schema `{ "code": "UNOBSERVABLE_INVOCATION", "reason": string }`.
+For fully observed invocation nodes, implementations **MAY** omit `flagged`.
+
 ---
 
 ## 9. Extensibility
@@ -335,6 +348,16 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 - **T-ET-031**: Summary values are consistent with per-invocation data
 
 ### 10.2 Compliance Checklist
+
+#### 10.2.1 Compliance Test Count Summary
+
+| Category | Count |
+|---|---|
+| Total tests defined | 12 |
+| Required tests | 12 |
+| Optional tests | 0 |
+
+Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `010–012`, `020–022`, `030–031`).
 
 | Requirement | Test ID | Level | Status |
 |---|---|---|---|

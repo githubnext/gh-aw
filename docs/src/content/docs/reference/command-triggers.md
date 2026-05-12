@@ -68,7 +68,21 @@ on:
   schedule: weekly on monday
 ```
 
-**Note**: You cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
+### Centralized trigger strategy
+
+Set `on.slash_command.strategy: centralized` to opt a workflow into centralized slash-command routing.
+When enabled, the workflow compiles as `workflow_dispatch`-centric, and the compiler generates one
+shared `agentic_commands.yml` workflow that listens to merged slash-command events and
+dispatches matching target workflows with `aw_context`.
+
+```yaml wrap
+on:
+  slash_command:
+    name: my-bot
+    strategy: centralized
+```
+
+**Note**: With default inline strategy, you cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` as they would conflict. With `strategy: centralized`, non-slash events are preserved because slash matching is handled in the generated central trigger workflow.
 
 **Exception for Label-Only Events**: You CAN combine `slash_command` with `issues` or `pull_request` if those events are configured for label-only triggers (`labeled` or `unlabeled` types only). This allows workflows to respond to slash commands while also reacting to label changes.
 

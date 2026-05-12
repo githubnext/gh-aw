@@ -346,6 +346,9 @@ func compileAllFilesInDirectory(
 		}
 	}
 
+	// Emit recommendation when many slash commands are present without centralized strategy.
+	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
+
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 
@@ -521,6 +524,11 @@ func runPostProcessingForDirectory(
 	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
 		if err := generateMaintenanceWorkflowWrapper(compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
+			if config.Strict {
+				return err
+			}
+		}
+		if err := generateCentralSlashCommandWorkflowWrapper(workflowDataList, absWorkflowDir, config.Strict); err != nil {
 			if config.Strict {
 				return err
 			}

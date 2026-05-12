@@ -361,7 +361,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)
 				// Using functional helper to extract map keys
-				envKeys := sliceutil.MapToSlice(mcpConfig.Env)
+				envKeys := sliceutil.MapKeys(mcpConfig.Env)
 				sort.Strings(envKeys)
 				for i, envKey := range envKeys {
 					if i > 0 {
@@ -454,7 +454,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if len(mcpConfig.Headers) > 0 {
 				fmt.Fprintf(yaml, "%shttp_headers = { ", renderer.IndentLevel)
 				// Using functional helper to extract map keys
-				headerKeys := sliceutil.MapToSlice(mcpConfig.Headers)
+				headerKeys := sliceutil.MapKeys(mcpConfig.Headers)
 				sort.Strings(headerKeys)
 				for i, headerKey := range headerKeys {
 					if i > 0 {
@@ -471,7 +471,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 			fmt.Fprintf(yaml, "%s\"headers\": {\n", renderer.IndentLevel)
 			// Using functional helper to extract map keys
-			headerKeys := sliceutil.MapToSlice(mcpConfig.Headers)
+			headerKeys := sliceutil.MapKeys(mcpConfig.Headers)
 			sort.Strings(headerKeys)
 			for headerIndex, headerKey := range headerKeys {
 				headerComma := ","

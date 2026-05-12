@@ -100,7 +100,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().Int("days", 30, "Historical window in days used to sample run history (7 or 30)")
+	cmd.Flags().Int("days", 30, "Historical window in days to sample run history; must be 7 or 30")
 	cmd.Flags().String("period", "month", "Aggregation period for projections: week or month")
 	cmd.Flags().Int("sample", 100, "Maximum number of completed runs to sample per workflow")
 	cmd.Flags().Bool("eval", false, "Evaluate forecast quality against past data (backtesting mode)")

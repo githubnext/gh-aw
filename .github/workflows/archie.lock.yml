@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"25e043a10b12ae51af58407610eb74c0d4d1505510e0ae0ee2a45da4550964b7","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e427885be33ad6455b1ebed0e9281d293ee3a8f441a448a2d6c355823d8c6ec8","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.43"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"ghcr.io/github/serena-mcp-server:latest","digest":"sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5","pinned_image":"ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -57,20 +57,13 @@
 
 name: "Archie"
 "on":
-  issue_comment:
-    types:
-    - created
-    - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
+  workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: Agent caller context (used internally by Agentic Workflows).
+        required: false
+        type: string
 
 permissions: {}
 
@@ -89,13 +82,11 @@ env:
 jobs:
   activation:
     needs: pre_activation
-    if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/archie ') || startsWith(github.event.issue.body, '/archie\n') || github.event.issue.body == '/archie') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/archie ') || startsWith(github.event.comment.body, '/archie\n') || github.event.comment.body == '/archie') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/archie ') || startsWith(github.event.comment.body, '/archie\n') || github.event.comment.body == '/archie') && github.event.issue.pull_request != null || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/archie ') || startsWith(github.event.pull_request.body, '/archie\n') || github.event.pull_request.body == '/archie'))"
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
-      issues: write
-      pull-requests: write
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -248,20 +239,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_2e7019d9465d12fb_EOF'
+          cat << 'GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF'
           <system>
-          GH_AW_PROMPT_2e7019d9465d12fb_EOF
+          GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_2e7019d9465d12fb_EOF'
+          cat << 'GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF'
           <safe-output-tools>
           Tools: add_comment, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_2e7019d9465d12fb_EOF
+          GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_2e7019d9465d12fb_EOF'
+          cat << 'GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -290,12 +281,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_2e7019d9465d12fb_EOF
+          GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_2e7019d9465d12fb_EOF'
+          cat << 'GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF'
           </system>
           ## Serena Code Analysis
           
@@ -332,7 +323,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/archie.md}}
-          GH_AW_PROMPT_2e7019d9465d12fb_EOF
+          GH_AW_PROMPT_dcd5b34c2b20e0e6_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -559,9 +550,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_756f1bb9f50d6955_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_ca474fdaea1f47af_EOF'
           {"add_comment":{"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_756f1bb9f50d6955_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_ca474fdaea1f47af_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -754,7 +745,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_0dc2d1bd00cd3635_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_d281e39c2bef3170_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -814,7 +805,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_0dc2d1bd00cd3635_EOF
+          GH_AW_MCP_CONFIG_d281e39c2bef3170_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1446,7 +1437,6 @@ jobs:
             }
 
   pre_activation:
-    if: "(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment' || contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event.comment.author_association)) && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/archie ') || startsWith(github.event.issue.body, '/archie\n') || github.event.issue.body == '/archie') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/archie ') || startsWith(github.event.comment.body, '/archie\n') || github.event.comment.body == '/archie') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/archie ') || startsWith(github.event.comment.body, '/archie\n') || github.event.comment.body == '/archie') && github.event.issue.pull_request != null || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/archie ') || startsWith(github.event.pull_request.body, '/archie\n') || github.event.pull_request.body == '/archie'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read

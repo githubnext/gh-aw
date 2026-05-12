@@ -35,6 +35,11 @@ var forecastMonteCarloLog = logger.New("cli:forecast_montecarlo")
 // for typical sample sizes.
 const monteCarloIterations = 10_000
 
+// poissonNormalApproximationThreshold is the normative λ crossover threshold:
+// Knuth's exact algorithm is used for λ ≤ threshold, and Normal approximation
+// is used only for λ > threshold.
+const poissonNormalApproximationThreshold = 15.0
+
 // minObservationsForReliableForecast is the minimum number of completed run
 // observations required for confidence intervals to be considered statistically
 // meaningful.  Forecasts based on fewer observations are returned but flagged
@@ -155,7 +160,7 @@ func poissonSample(rng *rand.Rand, lambda float64) int {
 	if lambda <= 0 {
 		return 0
 	}
-	if lambda <= 15 {
+	if !useNormalApproximationForPoisson(lambda) {
 		// Knuth's algorithm: O(lambda) per sample, exact.
 		L := math.Exp(-lambda)
 		k := 0
@@ -175,6 +180,10 @@ func poissonSample(rng *rand.Rand, lambda float64) int {
 		return 0
 	}
 	return int(math.Round(v))
+}
+
+func useNormalApproximationForPoisson(lambda float64) bool {
+	return lambda > poissonNormalApproximationThreshold
 }
 
 // gammaSample draws a random variate from Gamma(shape, scale=1) using the

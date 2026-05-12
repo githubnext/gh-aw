@@ -66,6 +66,42 @@ async function main() {
       text = context.payload.discussion?.body || "";
     } else if (eventName === "discussion_comment") {
       text = context.payload.comment?.body || "";
+    } else if (eventName === "workflow_dispatch") {
+      const rawAwContext = context.payload?.inputs?.aw_context ?? "";
+      let inboundCommandName = "";
+      if (typeof rawAwContext === "string" && rawAwContext.trim() !== "") {
+        try {
+          const parsed = JSON.parse(rawAwContext);
+          if (parsed && typeof parsed === "object" && typeof parsed.command_name === "string") {
+            inboundCommandName = parsed.command_name.trim();
+          }
+        } catch {
+          // ignore malformed aw_context and fall back to manual workflow_dispatch behavior
+        }
+      }
+
+      if (inboundCommandName) {
+        if (commands.includes(inboundCommandName)) {
+          core.info(`✓ command_name '${inboundCommandName}' resolved from workflow_dispatch aw_context`);
+          core.setOutput("command_position_ok", "true");
+          core.setOutput("matched_command", inboundCommandName);
+        } else {
+          core.warning(`⚠️ command_name '${inboundCommandName}' from aw_context is not in allowed commands list.`);
+          core.setOutput("command_position_ok", "false");
+          core.setOutput("matched_command", "");
+          await writeDenialSummary(
+            `Workflow dispatch aw_context.command_name '${inboundCommandName}' is not one of the configured commands.`,
+            "Ensure the centralized slash-command trigger dispatches only configured commands."
+          );
+        }
+        return;
+      }
+
+      // Manual workflow_dispatch without aw_context.command_name is still allowed.
+      core.info("workflow_dispatch without aw_context.command_name; skipping command position check");
+      core.setOutput("command_position_ok", "true");
+      core.setOutput("matched_command", "");
+      return;
     } else {
       // For non-comment events, pass the check
       core.info(`Event ${eventName} does not require command position check`);

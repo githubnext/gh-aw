@@ -2,6 +2,7 @@
 on:
   slash_command:
     name: cloclo
+    strategy: centralized
   label_command: cloclo
   status-comment: true
 permissions:

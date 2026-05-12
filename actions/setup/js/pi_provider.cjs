@@ -3,11 +3,12 @@
 /**
  * Pi Provider Extension for gh-aw
  *
- * Calls the AWF API proxy /reflect endpoint at session start to dynamically
- * discover the open LLM inference paths configured for this run.  This gives
- * operators runtime visibility into which provider/model combination is active
- * and verifies that the expected gateway port is reachable before the agent
- * starts working.
+ * Registers Pi providers from the AWF-injected environment and calls the AWF
+ * API proxy /reflect endpoint at session start to dynamically discover the
+ * open LLM inference paths configured for this run. This gives operators
+ * runtime visibility into which provider/model combination is active and
+ * verifies that the expected gateway port is reachable before the agent starts
+ * working.
  *
  * When the model uses provider/model format (e.g. "copilot/claude-sonnet-4"),
  * the extension logs the matched endpoint so failures can be diagnosed without
@@ -18,7 +19,10 @@
  * configuration is required.
  *
  * Configuration (read from environment variables):
- *   PI_MODEL   The engine.model value; may be "provider/model" or bare "model".
+ *   GH_AW_PI_MODEL   The original engine.model value; may be "provider/model"
+ *                    or bare "model". Preferred over PI_MODEL so gh-aw can pass
+ *                    model context to extensions without changing Pi CLI behavior.
+ *   PI_MODEL         Legacy fallback used when GH_AW_PI_MODEL is not set.
  */
 
 "use strict";
@@ -28,6 +32,18 @@ const { fetchAWFReflect, AWF_API_PROXY_REFLECT_URL, AWF_REFLECT_OUTPUT_PATH, AWF
 // Default logger: prefixed with "[gh-aw/pi-provider]" for easy grepping.
 // prettier-ignore
 const DEFAULT_LOGGER = /** @type {(msg: string) => void} */ (msg => process.stderr.write(`[gh-aw/pi-provider] ${new Date().toISOString()} ${msg}\n`));
+
+/**
+ * Return the workflow-configured model string exposed to Pi extensions.
+ * GH_AW_PI_MODEL takes precedence because gh-aw sets it explicitly for extensions
+ * while continuing to pass the CLI model via --model. PI_MODEL remains a legacy
+ * fallback for older callers.
+ *
+ * @returns {string}
+ */
+function getConfiguredModel() {
+  return process.env.GH_AW_PI_MODEL || process.env.PI_MODEL || "";
+}
 
 /**
  * Extract the provider prefix from a "provider/model" string.
@@ -67,13 +83,90 @@ function resolveGatewayUrl(provider) {
 }
 
 /**
+ * Register a Pi provider and any aliases.
+ *
+ * @param {any} pi
+ * @param {string[]} names
+ * @param {Record<string, any>} config
+ * @param {(msg: string) => void} logger
+ */
+function registerProviderAliases(pi, names, config, logger) {
+  for (const name of names) {
+    pi.registerProvider(name, config);
+    logger(`registered provider=${name}`);
+  }
+}
+
+/**
+ * Register all supported Pi providers discovered from the environment.
+ *
+ * @param {any} pi
+ * @param {(msg: string) => void} logger
+ * @returns {number}
+ */
+function registerConfiguredProviders(pi, logger) {
+  let registeredCount = 0;
+
+  const copilotToken = process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+  if (copilotToken) {
+    registerProviderAliases(
+      pi,
+      ["github-copilot", "copilot"],
+      {
+        apiKey: copilotToken,
+        api: "openai-completions",
+        ...(process.env.GITHUB_COPILOT_BASE_URL ? { baseUrl: process.env.GITHUB_COPILOT_BASE_URL } : {}),
+      },
+      logger
+    );
+    registeredCount += 2;
+  }
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    registerProviderAliases(
+      pi,
+      ["anthropic"],
+      {
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        api: "anthropic",
+        ...(process.env.ANTHROPIC_BASE_URL ? { baseUrl: process.env.ANTHROPIC_BASE_URL } : {}),
+      },
+      logger
+    );
+    registeredCount += 1;
+  }
+
+  const openAIKey = process.env.CODEX_API_KEY || process.env.OPENAI_API_KEY;
+  if (openAIKey) {
+    registerProviderAliases(
+      pi,
+      ["openai", "codex"],
+      {
+        apiKey: openAIKey,
+        api: "openai-completions",
+        ...(process.env.OPENAI_BASE_URL ? { baseUrl: process.env.OPENAI_BASE_URL } : {}),
+      },
+      logger
+    );
+    registeredCount += 2;
+  }
+
+  if (registeredCount === 0) {
+    logger("no provider credentials detected for Pi provider registration");
+  }
+
+  return registeredCount;
+}
+
+/**
  * Pi provider extension for gh-aw.
  *
- * Subscribes to the `agent_start` and `agent_end` Pi SDK events and calls the AWF /reflect
- * endpoint to discover and log the open LLM inference paths before the agent begins its
- * first turn and again after it finishes.  The post-run fetch is the authoritative snapshot
- * used by the step summary; the pre-run fetch captures the initial proxy state for diagnostics
- * in case the session exits unexpectedly before reaching `agent_end`.
+ * Registers providers immediately, then subscribes to the `agent_start` and `agent_end`
+ * Pi SDK events and calls the AWF /reflect endpoint to discover and log the open LLM
+ * inference paths before the agent begins its first turn and again after it finishes.
+ * The post-run fetch is the authoritative snapshot used by the step summary; the pre-run
+ * fetch captures the initial proxy state for diagnostics in case the session exits
+ * unexpectedly before reaching `agent_end`.
  * Both calls are best-effort: any network or parse error is logged but does not abort the
  * agent session.
  *
@@ -82,9 +175,10 @@ function resolveGatewayUrl(provider) {
  */
 function piProviderExtension(pi) {
   const log = DEFAULT_LOGGER;
+  registerConfiguredProviders(pi, log);
 
   pi.on("agent_start", async () => {
-    const model = process.env.PI_MODEL || "";
+    const model = getConfiguredModel();
     const provider = extractProviderFromModel(model);
 
     if (provider) {
@@ -123,5 +217,7 @@ function piProviderExtension(pi) {
 }
 
 module.exports = piProviderExtension;
+module.exports.getConfiguredModel = getConfiguredModel;
 module.exports.extractProviderFromModel = extractProviderFromModel;
 module.exports.resolveGatewayUrl = resolveGatewayUrl;
+module.exports.registerConfiguredProviders = registerConfiguredProviders;

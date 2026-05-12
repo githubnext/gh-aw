@@ -152,6 +152,14 @@ on:
     name: []
       # Array items: Command name without leading slash
 
+    # Trigger compilation strategy for slash commands.
+    # - "inline" (default): compile comment/body listeners directly in this workflow
+    # - "centralized" (experimental): compile this workflow as
+    #   workflow_dispatch-centric and route slash command events via the generated
+    #   central trigger workflow.
+    # (optional)
+    strategy: "centralized"
+
     # Events where the command should be active. Default is all comment-related events
     # ('*'). Use GitHub Actions event names.
     # (optional)

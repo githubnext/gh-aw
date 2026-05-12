@@ -4,15 +4,16 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestBuildFromAllowedForksEmptyList tests BuildFromAllowedForks with empty list
 func TestBuildFromAllowedForksEmptyList(t *testing.T) {
 	result := BuildFromAllowedForks([]string{})
 	expected := "github.event.pull_request.head.repo.id == github.repository_id"
-	if result.Render() != expected {
-		t.Errorf("BuildFromAllowedForks([]) = %v, expected %v", result.Render(), expected)
-	}
+	assert.Equal(t, expected, result.Render(), "BuildFromAllowedForks([]) rendered output mismatch")
 }
 
 // TestBuildFromAllowedForksSingleCondition tests BuildFromAllowedForks with single pattern
@@ -22,9 +23,8 @@ func TestBuildFromAllowedForksSingleCondition(t *testing.T) {
 	result := BuildFromAllowedForks([]string{})
 	rendered := result.Render()
 	// Should not have DisjunctionNode wrapping for single condition
-	if rendered != "github.event.pull_request.head.repo.id == github.repository_id" {
-		t.Errorf("BuildFromAllowedForks with empty list should return single condition without OR")
-	}
+	assert.Equal(t, "github.event.pull_request.head.repo.id == github.repository_id", rendered,
+		"BuildFromAllowedForks with empty list should return single condition without OR")
 }
 
 // TestBuildFromAllowedForksGlobPattern tests BuildFromAllowedForks with glob pattern
@@ -32,15 +32,12 @@ func TestBuildFromAllowedForksGlobPattern(t *testing.T) {
 	result := BuildFromAllowedForks([]string{"myorg/*"})
 	rendered := result.Render()
 	// Should include both the default condition AND the glob pattern with OR
-	if !containsSubstring(rendered, "github.event.pull_request.head.repo.id == github.repository_id") {
-		t.Errorf("BuildFromAllowedForks should include default condition")
-	}
-	if !containsSubstring(rendered, "startsWith(github.event.pull_request.head.repo.full_name, 'myorg/')") {
-		t.Errorf("BuildFromAllowedForks should include glob pattern condition")
-	}
-	if !containsSubstring(rendered, "||") {
-		t.Errorf("BuildFromAllowedForks with multiple conditions should use OR")
-	}
+	assert.Contains(t, rendered, "github.event.pull_request.head.repo.id == github.repository_id",
+		"BuildFromAllowedForks should include default condition")
+	assert.Contains(t, rendered, "startsWith(github.event.pull_request.head.repo.full_name, 'myorg/')",
+		"BuildFromAllowedForks should include glob pattern condition")
+	assert.Contains(t, rendered, "||",
+		"BuildFromAllowedForks with multiple conditions should use OR")
 }
 
 // TestBuildFromAllowedForksExactMatch tests BuildFromAllowedForks with exact match
@@ -48,15 +45,12 @@ func TestBuildFromAllowedForksExactMatch(t *testing.T) {
 	result := BuildFromAllowedForks([]string{"myorg/myrepo"})
 	rendered := result.Render()
 	// Should include both the default condition AND the exact match with OR
-	if !containsSubstring(rendered, "github.event.pull_request.head.repo.id == github.repository_id") {
-		t.Errorf("BuildFromAllowedForks should include default condition")
-	}
-	if !containsSubstring(rendered, "github.event.pull_request.head.repo.full_name == 'myorg/myrepo'") {
-		t.Errorf("BuildFromAllowedForks should include exact match condition")
-	}
-	if !containsSubstring(rendered, "||") {
-		t.Errorf("BuildFromAllowedForks with multiple conditions should use OR")
-	}
+	assert.Contains(t, rendered, "github.event.pull_request.head.repo.id == github.repository_id",
+		"BuildFromAllowedForks should include default condition")
+	assert.Contains(t, rendered, "github.event.pull_request.head.repo.full_name == 'myorg/myrepo'",
+		"BuildFromAllowedForks should include exact match condition")
+	assert.Contains(t, rendered, "||",
+		"BuildFromAllowedForks with multiple conditions should use OR")
 }
 
 // TestBuildFromAllowedForksMixedPatterns tests BuildFromAllowedForks with mixed patterns
@@ -65,9 +59,8 @@ func TestBuildFromAllowedForksMixedPatterns(t *testing.T) {
 	rendered := result.Render()
 
 	// Should include default condition
-	if !containsSubstring(rendered, "github.event.pull_request.head.repo.id == github.repository_id") {
-		t.Errorf("BuildFromAllowedForks should include default condition")
-	}
+	assert.Contains(t, rendered, "github.event.pull_request.head.repo.id == github.repository_id",
+		"BuildFromAllowedForks should include default condition")
 
 	// Should include all patterns
 	expectedPatterns := []string{
@@ -78,15 +71,11 @@ func TestBuildFromAllowedForksMixedPatterns(t *testing.T) {
 	}
 
 	for _, pattern := range expectedPatterns {
-		if !containsSubstring(rendered, pattern) {
-			t.Errorf("BuildFromAllowedForks should include pattern: %s", pattern)
-		}
+		assert.Contains(t, rendered, pattern, "BuildFromAllowedForks should include pattern")
 	}
 
 	// Should use DisjunctionNode with OR operators
-	if !containsSubstring(rendered, "||") {
-		t.Errorf("BuildFromAllowedForks with multiple conditions should use OR")
-	}
+	assert.Contains(t, rendered, "||", "BuildFromAllowedForks with multiple conditions should use OR")
 }
 
 // TestVisitExpressionTreeWithDifferentNodeTypes tests VisitExpressionTree with various node types
@@ -153,13 +142,8 @@ func TestVisitExpressionTreeWithDifferentNodeTypes(t *testing.T) {
 				return nil
 			})
 
-			if err != nil {
-				t.Errorf("VisitExpressionTree() unexpected error: %v", err)
-			}
-
-			if count != tt.expectedCount {
-				t.Errorf("VisitExpressionTree() visited %d nodes, expected %d: %s", count, tt.expectedCount, tt.description)
-			}
+			require.NoError(t, err, "VisitExpressionTree() unexpected error: %s", tt.description)
+			assert.Equal(t, tt.expectedCount, count, "VisitExpressionTree() visited node count mismatch: %s", tt.description)
 		})
 	}
 }
@@ -172,12 +156,8 @@ func TestExpressionParserCurrentWithEmptyTokens(t *testing.T) {
 	}
 
 	result := parser.current()
-	if result.kind != tokenEOF {
-		t.Errorf("current() with empty tokens should return EOF token, got %v", result.kind)
-	}
-	if result.pos != -1 {
-		t.Errorf("current() with empty tokens should return pos -1, got %d", result.pos)
-	}
+	assert.Equal(t, tokenEOF, result.kind, "current() with empty tokens should return EOF token")
+	assert.Equal(t, -1, result.pos, "current() with empty tokens should return pos -1")
 }
 
 // TestExpressionParserCurrentBeyondLength tests the current() method when pos >= len(tokens)
@@ -190,9 +170,7 @@ func TestExpressionParserCurrentBeyondLength(t *testing.T) {
 	}
 
 	result := parser.current()
-	if result.kind != tokenEOF {
-		t.Errorf("current() with pos beyond length should return EOF token, got %v", result.kind)
-	}
+	assert.Equal(t, tokenEOF, result.kind, "current() with pos beyond length should return EOF token")
 }
 
 // TestParseExpressionEmptyString tests ParseExpression with empty string
@@ -214,12 +192,9 @@ func TestParseExpressionEmptyString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := ParseExpression(tt.input)
-			if err == nil {
-				t.Error("ParseExpression() with empty/whitespace string should return error")
-			}
-			if err.Error() != "empty expression" {
-				t.Errorf("ParseExpression() error = %v, expected 'empty expression'", err)
-			}
+			require.Error(t, err, "ParseExpression() with empty/whitespace string should return error")
+			assert.ErrorContains(t, err, "empty expression",
+				"ParseExpression(%q) unexpected error message", tt.input)
 		})
 	}
 }

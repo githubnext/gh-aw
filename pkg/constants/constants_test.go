@@ -4,6 +4,7 @@ package constants
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -657,5 +658,28 @@ func TestGetAllEngineSecretNames(t *testing.T) {
 			t.Errorf("GetAllEngineSecretNames() returned duplicate secret: %q", s)
 		}
 		seen[s] = true
+	}
+}
+
+func TestEngineOptions_MultiProviderAlternatives(t *testing.T) {
+	tests := []struct {
+		engine string
+		want   []string
+	}{
+		{"opencode", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
+		{"crush", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
+		{"pi", []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.engine, func(t *testing.T) {
+			opt := GetEngineOption(tt.engine)
+			if opt == nil {
+				t.Fatalf("GetEngineOption(%q) returned nil", tt.engine)
+			}
+			if !reflect.DeepEqual(tt.want, opt.AlternativeSecrets) {
+				t.Fatalf("AlternativeSecrets = %#v, want %#v", opt.AlternativeSecrets, tt.want)
+			}
+		})
 	}
 }

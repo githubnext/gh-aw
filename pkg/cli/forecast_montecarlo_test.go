@@ -61,6 +61,11 @@ func TestPoissonSampleEdgeCases(t *testing.T) {
 	assert.Equal(t, 0, poissonSample(rng, -5), "negative lambda should return 0")
 }
 
+func TestUseNormalApproximationForPoissonThreshold(t *testing.T) {
+	assert.False(t, useNormalApproximationForPoisson(poissonNormalApproximationThreshold), "lambda at threshold should use Knuth exact branch")
+	assert.True(t, useNormalApproximationForPoisson(poissonNormalApproximationThreshold+0.0001), "lambda above threshold should use Normal approximation")
+}
+
 // TestPercentileInt checks the int variant of the percentile helper.
 func TestPercentileInt(t *testing.T) {
 	sorted := []int{10, 20, 30, 40, 50, 60, 70, 80, 90, 100}

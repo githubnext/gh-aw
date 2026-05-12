@@ -76,7 +76,19 @@ const mockCore = {
           (mockContext.payload = {}),
           await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`),
           expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true"),
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not require command position check")));
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("without aw_context.command_name")));
+      }),
+      it("should resolve command from workflow_dispatch aw_context", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["test-bot"]);
+        mockContext.eventName = "workflow_dispatch";
+        mockContext.payload = {
+          inputs: {
+            aw_context: JSON.stringify({ command_name: "test-bot" }),
+          },
+        };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", "test-bot");
       }),
       it("should handle pull_request event with command at start", async () => {
         ((process.env.GH_AW_COMMANDS = JSON.stringify(["review-bot"])),

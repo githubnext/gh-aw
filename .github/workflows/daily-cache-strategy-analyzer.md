@@ -13,6 +13,10 @@ permissions:
 tracker-id: daily-cache-strategy-analyzer
 engine: codex
 strict: true
+network:
+  allowed:
+    - "github.com"
+    - "api.github.com"
 tools:
   cache-memory: true
 safe-outputs:

@@ -7,6 +7,7 @@ on:
     - maintainer
   # Command trigger - responds to /poem-bot mentions
   slash_command:
+    strategy: centralized
     name: poem-bot
     events: [issues]
   

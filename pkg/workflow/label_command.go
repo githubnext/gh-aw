@@ -93,3 +93,37 @@ func buildLabelCommandCondition(labelNames []string, labelCommandEvents []string
 		Right: isNotLabelEvent,
 	}, nil
 }
+
+// buildCentralizedLabelCommandCondition builds label-command conditions for centralized
+// slash-command workflows that trigger through workflow_dispatch.
+// For workflow_dispatch events, label routing checks use aw_context fields rather than
+// github.event_name/github.event.label.
+func buildCentralizedLabelCommandCondition(labelNames []string, labelCommandEvents []string) (ConditionNode, error) {
+	if len(labelNames) == 0 {
+		return nil, errors.New("no label names provided for label-command trigger")
+	}
+	filteredEvents := FilterLabelCommandEvents(labelCommandEvents)
+	if len(filteredEvents) == 0 {
+		return nil, errors.New("no valid events specified for label-command trigger")
+	}
+
+	labelExpr := BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').trigger_label")
+	eventExpr := BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').event_type")
+
+	var labelChecks []ConditionNode
+	for _, labelName := range labelNames {
+		labelChecks = append(labelChecks, BuildEquals(labelExpr, BuildStringLiteral(labelName)))
+	}
+	labelNameMatch := BuildDisjunction(false, labelChecks...)
+
+	var eventChecks []ConditionNode
+	for _, event := range filteredEvents {
+		eventChecks = append(eventChecks, BuildEquals(eventExpr, BuildStringLiteral(event)))
+	}
+	isLabelSourceEvent := BuildDisjunction(false, eventChecks...)
+	dispatchLabelCondition := &OrNode{
+		Left:  &AndNode{Left: isLabelSourceEvent, Right: labelNameMatch},
+		Right: &NotNode{Child: isLabelSourceEvent},
+	}
+	return dispatchLabelCondition, nil
+}

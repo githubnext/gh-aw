@@ -450,7 +450,7 @@ Examples:
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Show gh aw extension version information",
+	Short: "Print the current version",
 	Long: `Show the installed version of the gh aw extension.
 
 Examples:
@@ -514,7 +514,7 @@ func init() {
 	}
 	rootCmd.InitDefaultVersionFlag()
 	if f := rootCmd.Flags().Lookup("version"); f != nil {
-		f.Usage = "Show version for " + string(constants.CLIExtensionPrefix)
+		f.Usage = "Print the current version"
 	}
 
 	// Fix usage lines so subcommands show "gh aw <cmd>" instead of "gh <cmd>".

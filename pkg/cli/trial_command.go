@@ -28,6 +28,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repeat 3                  # Run 4 times total (1 initial + 3 repeats)
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --delete-host-repo-after    # Delete the trial host repository when done
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --dry-run                   # Preview changes without executing
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --json                      # Output trial results in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --auto-merge-prs            # Auto-merge PRs created during the trial
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo .               # Use the current repository as the host
   ` + string(constants.CLIExtensionPrefix) + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2   # Run a local workflow against cloned contents
@@ -59,6 +60,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			forceDeleteHostRepo, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
 			yes, _ := cmd.Flags().GetBool("yes")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
 			timeout, _ := cmd.Flags().GetInt("timeout")
 			triggerContext, _ := cmd.Flags().GetString("trigger-context")
 			repeatCount, _ := cmd.Flags().GetInt("repeat")
@@ -91,6 +93,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 				ForceDelete:            forceDeleteHostRepo,
 				Quiet:                  yes,
 				DryRun:                 dryRun,
+				JSONOutput:             jsonOutput,
 				TimeoutMinutes:         timeout,
 				TriggerContext:         triggerContext,
 				RepeatCount:            repeatCount,
@@ -124,6 +127,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")
 	addEngineFlag(cmd)
+	addJSONFlag(cmd)
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.MarkFlagsMutuallyExclusive("host-repo", "repo")

@@ -27,10 +27,10 @@ func Map[T, U any](slice []T, transform func(T) U) []U {
 	return result
 }
 
-// MapToSlice converts a map's keys to a slice.
+// MapKeys converts a map's keys to a slice.
 // The order of elements is not guaranteed as map iteration order is undefined.
 // This is a pure function that does not modify the input map.
-func MapToSlice[K comparable, V any](m map[K]V) []K {
+func MapKeys[K comparable, V any](m map[K]V) []K {
 	result := make([]K, 0, len(m))
 	for key := range m {
 		result = append(result, key)

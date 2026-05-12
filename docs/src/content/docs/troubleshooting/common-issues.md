@@ -5,57 +5,28 @@ sidebar:
   order: 200
 ---
 
-This reference documents frequently encountered issues when working with GitHub Agentic Workflows, organized by workflow stage and component.
+Frequently encountered issues, organized by workflow stage and component.
 
 ## Installation Issues
 
 ### Extension Installation Fails
 
-If `gh extension install github/gh-aw` fails, use the standalone installer (works in Codespaces and restricted networks):
+If `gh extension install github/gh-aw` fails, use the standalone installer (works in Codespaces and restricted networks). Pass a tag as the second argument to pin a version ([releases](https://github.com/github/gh-aw/releases)). Verify with `gh extension list`.
 
 ```bash wrap
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
-```
-
-For specific versions, pass the tag as an argument ([see releases](https://github.com/github/gh-aw/releases)):
-
-```bash wrap
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s -- v0.40.0
 ```
-
-Verify with `gh extension list`.
 
 ## Organization Policy Issues
 
 ### Custom Actions Not Allowed in Enterprise Organizations
 
-**Error Message:**
+**Error:** `The action github/gh-aw/actions/setup@... is not allowed in {ORG} because all actions must be from a repository owned by your enterprise, created by GitHub, or verified in the GitHub Marketplace.`
 
-```text
-The action github/gh-aw/actions/setup@a933c835b5e2d12ae4dead665a0fdba420a2d421 is not allowed in {ORG} because all actions must be from a repository owned by your enterprise, created by GitHub, or verified in the GitHub Marketplace.
-```
+**Cause:** Enterprise policies restrict which GitHub Actions can be used.
 
-**Cause:** Enterprise policies restrict which GitHub Actions can be used. Workflows use `github/gh-aw/actions/setup` which may not be allowed.
-
-**Solution:** Enterprise administrators must allow `github/gh-aw` in the organization's action policies:
-
-#### Option 1: Allow Specific Repositories (Recommended)
-
-Add `github/gh-aw` to your organization's allowed actions list:
-
-1. Navigate to your organization's settings: `https://github.com/organizations/YOUR_ORG/settings/actions`
-2. Under **Policies**, select **Allow select actions and reusable workflows**
-3. In the **Allow specified actions and reusable workflows** section, add:
-   ```text
-   github/gh-aw@*
-   ```
-4. Save the changes
-
-See GitHub's docs on [managing Actions permissions](https://docs.github.com/en/organizations/managing-organization-settings/disabling-or-limiting-github-actions-for-your-organization#allowing-select-actions-and-reusable-workflows-to-run).
-
-#### Option 2: Configure Organization-Wide Policy File
-
-Add `github/gh-aw@*` to your centralized `policies/actions.yml` and commit to your organization's `.github` repository. See GitHub's docs on [community health files](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file).
+**Solution:** An admin must add `github/gh-aw@*` to the organization's allowed actions, either through Settings → Actions → Policies → "Allow select actions and reusable workflows" ([docs](https://docs.github.com/en/organizations/managing-organization-settings/disabling-or-limiting-github-actions-for-your-organization#allowing-select-actions-and-reusable-workflows-to-run)), or by editing a centralized `policies/actions.yml`:
 
 ```yaml
 allowed_actions:
@@ -63,12 +34,10 @@ allowed_actions:
   - "github/gh-aw@*"
 ```
 
-#### Verification
-
-Wait a few minutes for policy propagation, then re-run your workflow. If issues persist, verify at `https://github.com/organizations/YOUR_ORG/settings/actions`.
+Wait a few minutes for policy propagation, then re-run.
 
 > [!TIP]
-> The gh-aw actions are open source at [github.com/github/gh-aw/tree/main/actions](https://github.com/github/gh-aw/tree/main/actions) and pinned to specific SHAs for security.
+> The gh-aw actions are open source at [github.com/github/gh-aw/tree/main/actions](https://github.com/github/gh-aw/tree/main/actions) and pinned to specific SHAs.
 
 ## Repository Configuration Issues
 
@@ -102,31 +71,17 @@ If a frontmatter setting appears to be silently ignored, the field name may be m
 >
 > Run `gh aw compile --verbose` to confirm which settings were parsed. If your setting is missing from the output, check the [Frontmatter Reference](/gh-aw/reference/frontmatter/) for the correct field name.
 
-### Workflow Won't Compile
+### Compilation Failures
 
-Check YAML frontmatter syntax (indentation, colons with spaces), verify required fields (`on:`), and ensure types match the schema. Use `gh aw compile --verbose` for details.
-
-### Lock File Not Generated
-
-Fix compilation errors (`gh aw compile 2>&1 | grep -i error`) and verify write permissions on `.github/workflows/`.
-
-### Orphaned Lock Files
-
-Remove old `.lock.yml` files with `gh aw compile --purge` after deleting `.md` workflow files.
+- **Won't compile:** check YAML syntax (indentation, colons with spaces), required fields (`on:`), and types against the schema; use `gh aw compile --verbose`.
+- **Lock file not generated:** fix errors (`gh aw compile 2>&1 | grep -i error`) and check write permissions on `.github/workflows/`.
+- **Orphaned lock files:** clear stale `.lock.yml` files with `gh aw compile --purge` after deleting `.md` workflows.
 
 ## Import and Include Issues
 
-### Import File Not Found
-
-Import paths are relative to repository root. Verify with `git status` (e.g., `.github/workflows/shared/tools.md`).
-
-### Multiple Agent Files Error
-
-Import only one `.github/agents/` file per workflow.
-
-### Circular Import Dependencies
-
-Compilation hangs indicate circular imports. Remove circular references.
+- **Import file not found:** import paths are relative to the repository root (e.g., `.github/workflows/shared/tools.md`); verify with `git status`.
+- **Multiple agent files error:** import only one `.github/agents/` file per workflow.
+- **Circular dependencies:** compilation hangs indicate circular imports — remove the circular reference.
 
 ## Tool Configuration Issues
 
@@ -159,9 +114,7 @@ mcp-servers:
 
 ### OpenCode/Crush MCP Tools Not Being Called
 
-When integrating OpenCode-compatible engines (such as `crush`) in AWF workflows (including smoke tests), runs can complete while never calling MCP tools or file tools.
-
-Use this `.crush.json` structure. Port `10004` is the default local AWF API proxy port (used with `--enable-api-proxy` for OpenCode/Crush-compatible routing), while `MCP_GATEWAY_PORT` is a placeholder for the MCP gateway port.
+When integrating OpenCode-compatible engines (such as `crush`), runs can complete without ever invoking MCP or file tools. Use this `.crush.json`. Port `10004` is the local AWF API proxy port (with `--enable-api-proxy`); `MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are expanded from workflow env at runtime (substitute concrete values when running outside a workflow):
 
 ```json
 {
@@ -186,12 +139,8 @@ Use this `.crush.json` structure. Port `10004` is the default local AWF API prox
   "agent": {
     "build": {
       "permission": {
-        "bash": "allow",
-        "edit": "allow",
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow",
-        "write": "allow",
+        "bash": "allow", "edit": "allow", "read": "allow",
+        "glob": "allow", "grep": "allow", "write": "allow",
         "external_directory": "allow"
       }
     }
@@ -199,17 +148,13 @@ Use this `.crush.json` structure. Port `10004` is the default local AWF API prox
 }
 ```
 
-`MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are placeholders that are expanded from workflow environment variables when AWF renders the config at runtime. When running outside workflow context (such as local development), replace them with concrete values before writing `.crush.json`.
-
 Key gotchas:
 
-- Crush/OpenCode do not auto-discover MCP servers. Add an explicit top-level `mcp` section.
-- Use routed gateway URLs: `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`.
-- ⚠️ Use `agent.build.permission` (singular). Using `permissions` (plural) is silently ignored by OpenCode-compatible config loaders, which leaves tools unavailable even though the run continues.
-- In non-interactive mode (such as when running `crush run` in CI or AWF workflows), `external_directory` defaults to `ask`, which becomes an implicit deny without terminal prompts. Set it to `allow` only when the agent must access paths outside its primary workspace, such as `/tmp` or mounted external directories.
-- For direct Copilot-compatible endpoints (`api.githubcopilot.com`), do not append `/v1` to the base URL. For other OpenAI-compatible providers, use the provider's expected base path (for example `https://models.inference.ai.azure.com`) so the client can append `/chat/completions` correctly.
-- If you route through the local proxy (`http://host.docker.internal:10004`), keep the proxy URL as-is.
-- When running through AWF `--enable-api-proxy`, provide `COPILOT_GITHUB_TOKEN` in the same execute step `env:` so the proxy can authenticate.
+- Crush/OpenCode does not auto-discover MCP servers — declare an explicit top-level `mcp` block with routed URLs (`http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`).
+- Use `agent.build.permission` (singular) — `permissions` is silently ignored, leaving tools unavailable.
+- `external_directory` defaults to `ask` in non-interactive mode, which becomes an implicit deny. Set it to `allow` only when access outside the workspace (e.g., `/tmp`, mounted dirs) is required.
+- For direct Copilot endpoints (`api.githubcopilot.com`), do **not** append `/v1`. For other OpenAI-compatible providers, use the provider's documented base path so `/chat/completions` is appended correctly. Keep the local proxy URL (`http://host.docker.internal:10004`) as-is.
+- When using `--enable-api-proxy`, pass `COPILOT_GITHUB_TOKEN` in the execute step's `env:` so the proxy can authenticate:
 
 ```yaml wrap
 - name: Execute
@@ -232,15 +177,7 @@ network:
 
 ### Cannot Find Module 'playwright'
 
-**Error:**
-
-```text
-Error: Cannot find module 'playwright'
-```
-
-**Cause:** Playwright is provided as MCP tools, not as an npm package.
-
-**Solution:** Use MCP tools instead of `require('playwright')`:
+`Error: Cannot find module 'playwright'` — Playwright is provided as MCP tools, not as an npm package. Use the MCP tools instead of `require('playwright')`:
 
 ```javascript
 // ❌ Don't: const playwright = require('playwright')
@@ -253,29 +190,13 @@ See [Playwright Tool documentation](/gh-aw/reference/tools/#playwright-tool-play
 
 ### Playwright MCP Initialization Failure (EOF Error)
 
-**Error:**
-
-```text
-Failed to register tools error="initialize: EOF" name=playwright
-```
-
-**Cause:** Chromium crashes before tool registration completes due to missing Docker security flags.
-
-**Solution:** Upgrade to version 0.41.0+ which includes required Docker flags:
-
-```bash wrap
-gh extension upgrade gh-aw
-```
+`Failed to register tools error="initialize: EOF" name=playwright` — Chromium crashes before tool registration completes due to missing Docker security flags. Upgrade to 0.41.0+ with `gh extension upgrade gh-aw`.
 
 ## Permission Issues
 
 ### Write Operations Fail
 
-Agentic workflows cannot write to GitHub directly. All writes (issues, comments, PR updates)
-must go through the `safe-outputs` system, which validates and executes write operations on
-behalf of the workflow.
-
-Ensure your workflow frontmatter declares the safe output types it needs:
+All writes (issues, comments, PR updates) must go through the `safe-outputs` system — declare the types your workflow needs in frontmatter:
 
 ```yaml wrap
 safe-outputs:
@@ -286,9 +207,7 @@ safe-outputs:
   update-issue:     # no configuration required; uses defaults
 ```
 
-If the operation you need is not listed in the [Safe Outputs reference](/gh-aw/reference/safe-outputs/),
-it may not be supported yet. See the [Safe Outputs Specification](/gh-aw/reference/safe-outputs-specification/)
-for the full list of available output types and their configuration options.
+If your operation isn't in the [Safe Outputs reference](/gh-aw/reference/safe-outputs/), it may not be supported yet. See the [Safe Outputs Specification](/gh-aw/reference/safe-outputs-specification/) for the full list.
 
 ### Safe Outputs Not Creating Issues
 
@@ -319,31 +238,22 @@ Delete conflicting fields in Projects UI and recreate.
 
 ## Engine-Specific Issues
 
-### Copilot CLI Not Found
-
-Verify compilation succeeded. Compiled workflows include CLI installation steps.
-
-### Model Not Available
-
-Use default (`engine: copilot`) or specify available model (`engine: {id: copilot, model: gpt-4}`).
+- **Copilot CLI not found:** verify compilation succeeded — compiled workflows include CLI installation steps.
+- **Model not available:** use the default (`engine: copilot`) or specify an available model (`engine: {id: copilot, model: gpt-4}`).
 
 ### Copilot License or Inference Access Issues
 
-If your workflow fails during the Copilot inference step even though the `COPILOT_GITHUB_TOKEN` secret is configured correctly, the PAT owner's account may not have the necessary Copilot license or inference access.
-
-**Symptoms**: The workflow fails with authentication or quota errors when the Copilot CLI tries to generate a response.
-
-**Diagnosis**: Test locally by installing the [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) and running:
+If a workflow fails at the Copilot inference step despite a correctly configured `COPILOT_GITHUB_TOKEN` (authentication or quota errors), the PAT owner may lack a valid Copilot license or inference access. Test locally with the [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli):
 
 ```bash
 export COPILOT_GITHUB_TOKEN="<your-github-pat>"
 copilot -p "write a haiku"
 ```
 
-If this fails, the token owner lacks a valid Copilot license or inference access. Contact your organization administrator to enable it.
+If this fails, contact your organization administrator to enable Copilot for the token owner.
 
 > [!NOTE]
-> The `COPILOT_GITHUB_TOKEN` must belong to a user account with an active GitHub Copilot subscription. Organization-managed Copilot licenses may have additional restrictions on programmatic API access.
+> `COPILOT_GITHUB_TOKEN` must belong to a user account with an active Copilot subscription. Org-managed licenses may impose additional restrictions on programmatic API access.
 
 ## GitHub Enterprise Server Issues
 
@@ -352,28 +262,21 @@ If this fails, the token owner lacks a valid Copilot license or inference access
 
 ### Copilot Engine Prerequisites on GHES
 
-Before running Copilot-based workflows on GHES, verify the following:
+Before running Copilot-based workflows on GHES, verify:
 
-**Site admin requirements:**
-- **GitHub Connect** must be enabled — it connects GHES to github.com for Copilot cloud services.
-- **Copilot licensing** must be purchased and activated at the enterprise level.
-- The firewall must allow outbound HTTPS to `api.githubcopilot.com` and `api.enterprise.githubcopilot.com`.
+- **Site admin:** GitHub Connect enabled (links GHES to github.com for Copilot cloud services), enterprise-level Copilot licensing activated, and outbound HTTPS allowed to `api.githubcopilot.com` and `api.enterprise.githubcopilot.com`.
+- **Enterprise/org admin:** a Copilot seat assigned to the `COPILOT_GITHUB_TOKEN` owner, and the org Copilot policy permits usage.
+- **Workflow config:**
 
-**Enterprise/org admin requirements:**
-- Copilot seats must be assigned to the user whose PAT is used as `COPILOT_GITHUB_TOKEN`.
-- The organization's Copilot policy must allow Copilot usage.
-
-**Workflow configuration:**
-
-```aw wrap
-engine:
-  id: copilot
-  api-target: api.enterprise.githubcopilot.com
-network:
-  allowed:
-    - defaults
-    - api.enterprise.githubcopilot.com
-```
+  ```aw wrap
+  engine:
+    id: copilot
+    api-target: api.enterprise.githubcopilot.com
+  network:
+    allowed:
+      - defaults
+      - api.enterprise.githubcopilot.com
+  ```
 
 See [Enterprise API Endpoint](/gh-aw/reference/engines/#enterprise-api-endpoint-api-target) for GHEC/GHES `api-target` values.
 
@@ -403,38 +306,13 @@ network:
 
 ## Context Expression Issues
 
-### Unauthorized Expression
-
-Use only [allowed expressions](/gh-aw/reference/templating/) (`github.event.issue.number`, `github.repository`, `steps.sanitized.outputs.text`). Disallowed: `secrets.*`, `env.*`.
-
-### Sanitized Context Empty
-
-`steps.sanitized.outputs.text` requires issue/PR/comment events (`on: issues:`), not `push:` or similar triggers.
+- **Unauthorized expression:** use only [allowed expressions](/gh-aw/reference/templating/) (`github.event.issue.number`, `github.repository`, `steps.sanitized.outputs.text`). `secrets.*` and `env.*` are disallowed.
+- **Sanitized context empty:** `steps.sanitized.outputs.text` requires issue/PR/comment events (`on: issues:`), not `push:` or similar triggers.
 
 ## Build and Test Issues
 
-### Documentation Build Fails
-
-Clean install and rebuild:
-
-```bash wrap
-cd docs
-rm -rf node_modules package-lock.json
-npm install
-npm run build
-```
-
-Check for malformed frontmatter, MDX syntax errors, or broken links.
-
-### Tests Failing After Changes
-
-Format and lint before testing:
-
-```bash wrap
-make fmt
-make lint
-make test-unit
-```
+- **Documentation build fails:** clean install (`cd docs && rm -rf node_modules package-lock.json && npm install && npm run build`) and check for malformed frontmatter, MDX syntax errors, or broken links.
+- **Tests failing after changes:** run `make fmt && make lint && make test-unit` before iterating.
 
 ## Network and Connectivity Issues
 
@@ -452,52 +330,20 @@ network:
     - go          # Go modules
 ```
 
-### URLs Appearing as "(redacted)"
+### Other Network Issues
 
-Add domains to allowed list ([Network Permissions](/gh-aw/reference/network/)):
-
-```yaml wrap
-network:
-  allowed:
-    - defaults
-    - "api.example.com"
-```
-
-### Cannot Download Remote Imports
-
-Verify network (`curl -I https://raw.githubusercontent.com/github/gh-aw/main/README.md`) and auth (`gh auth status`).
-
-### MCP Server Connection Timeout
-
-Use local servers (`command: "node"`, `args: ["./server.js"]`).
+- **URLs appearing as `(redacted)`:** add domains to the allowed list ([Network Permissions](/gh-aw/reference/network/)) — e.g., `allowed: [defaults, "api.example.com"]`.
+- **Cannot download remote imports:** verify network (`curl -I https://raw.githubusercontent.com/github/gh-aw/main/README.md`) and auth (`gh auth status`).
+- **MCP server connection timeout:** use local servers (`command: "node"`, `args: ["./server.js"]`).
 
 ## Cache Issues
 
-### Cache Not Restoring
-
-Verify key patterns match (caches expire after 7 days):
-
-```yaml wrap
-cache:
-  key: deps-${{ hashFiles('package-lock.json') }}
-  restore-keys: deps-
-```
-
-### Cache Memory Not Persisting
-
-Configure cache for memory MCP server:
-
-```yaml wrap
-tools:
-  cache-memory:
-    key: memory-${{ github.workflow }}-${{ github.run_id }}
-```
+- **Cache not restoring:** verify key patterns match (caches expire after 7 days) — `cache: { key: deps-${{ hashFiles('package-lock.json') }}, restore-keys: deps- }`.
+- **Cache memory not persisting:** configure the cache-memory MCP server — `tools.cache-memory.key: memory-${{ github.workflow }}-${{ github.run_id }}`.
 
 ## Integrity Filtering Blocking Expected Content
 
-For public repositories, `min-integrity: approved` is applied automatically, restricting agent visibility to content from owners, members, and collaborators. This is intentional for sensitive operations.
-
-**Symptoms**: Workflows can't see issues/PRs/comments from external contributors, triage workflows don't process community contributions.
+On public repositories, `min-integrity: approved` is applied automatically — restricting agent visibility to content from owners, members, and collaborators. As a result, workflows can't see issues, PRs, or comments from external contributors, and triage workflows don't process community contributions.
 
 To allow all contributors (only safe when the workflow validates input and uses restrictive safe outputs):
 
@@ -535,9 +381,7 @@ max-continuations: 5     # Copilot: autopilot continuations
 
 ### Why Did My Workflow Fail?
 
-Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits.
-
-**Fastest path**: ask an agent with the run URL — it audits logs, identifies the root cause, and suggests fixes.
+Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits. The fastest path is to ask an agent with the run URL — it audits logs, identifies the root cause, and suggests fixes.
 
 Using Copilot Chat (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/#configuring-your-repository)):
 
@@ -556,7 +400,7 @@ For manual investigation: `gh aw audit <run-id>`, `gh aw logs`, inspect `.lock.y
 
 ### Enable Debug Logging
 
-Enable verbose mode (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, or check MCP config (`gh aw mcp inspect`). The `DEBUG` environment variable activates detailed internal logging for any `gh aw` command:
+Enable verbose mode (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, or inspect MCP config (`gh aw mcp inspect`). The `DEBUG` environment variable activates detailed internal logging for any `gh aw` command — output goes to `stderr` and each line shows the namespace (`workflow:compiler`), message, and time since the previous entry. Common namespaces: `cli:compile_command`, `workflow:compiler`, `workflow:expression_extraction`, `parser:frontmatter`. Wildcards match any suffix.
 
 ```bash
 DEBUG=* gh aw compile                              # all logs
@@ -565,8 +409,6 @@ DEBUG=workflow:*,cli:* gh aw compile my-workflow   # multiple packages
 DEBUG=*,-workflow:test gh aw compile my-workflow   # exclude a logger
 DEBUG_COLORS=0 DEBUG=* gh aw compile 2>&1 | tee debug.log  # capture to file
 ```
-
-Debug output goes to `stderr`. Each log line shows the namespace (`workflow:compiler`), message, and time elapsed since the previous entry. Common namespaces: `cli:compile_command`, `workflow:compiler`, `workflow:expression_extraction`, `parser:frontmatter`. Wildcards match any suffix (`workflow:*`).
 
 ## Operational Runbooks
 

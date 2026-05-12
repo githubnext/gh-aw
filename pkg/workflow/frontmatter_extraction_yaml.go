@@ -957,8 +957,9 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 	return ifString
 }
 
-// extractCommandConfig extracts command configuration from frontmatter including name and events
-func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandNames []string, commandEvents []string) {
+// extractCommandConfig extracts command configuration from frontmatter including name, events,
+// and centralized routing strategy for slash_command.
+func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandNames []string, commandEvents []string, commandCentralized bool) {
 	frontmatterLog.Print("Extracting command configuration from frontmatter")
 	// Check new format: on.slash_command or on.slash_command.name (preferred)
 	// Also check legacy format: on.command or on.command.name (deprecated)
@@ -990,12 +991,13 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 				// Check if command is a string (shorthand format)
 				if commandStr, ok := commandValue.(string); ok {
 					frontmatterLog.Printf("Extracted command name (shorthand): %s", commandStr)
-					return []string{commandStr}, nil // nil means default (all events)
+					return []string{commandStr}, nil, false // nil means default (all events)
 				}
 				// Check if command is a map with a name key (object format)
 				if commandMap, ok := commandValue.(map[string]any); ok {
 					var names []string
 					var events []string
+					centralized := false
 
 					if nameValue, hasName := commandMap["name"]; hasName {
 						// Handle string or array of strings
@@ -1015,14 +1017,20 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 						events = ParseCommandEvents(eventsValue)
 					}
 
-					frontmatterLog.Printf("Extracted command config: names=%v, events=%v", names, events)
-					return names, events
+					if strategyRaw, hasStrategy := commandMap["strategy"]; hasStrategy {
+						if strategy, ok := strategyRaw.(string); ok && strings.EqualFold(strings.TrimSpace(strategy), "centralized") {
+							centralized = true
+						}
+					}
+
+					frontmatterLog.Printf("Extracted command config: names=%v, events=%v, centralized=%v", names, events, centralized)
+					return names, events, centralized
 				}
 			}
 		}
 	}
 
-	return nil, nil
+	return nil, nil, false
 }
 
 // extractLabelCommandConfig extracts the label-command configuration from frontmatter

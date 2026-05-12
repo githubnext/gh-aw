@@ -395,6 +395,7 @@ on:
   slash_command:
     name: investigate
     events: [issues, issue_comment]  # Only respond in issue contexts
+    # strategy: centralized  # Optional: route via generated central trigger workflow
 ```
 
 See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation including event filtering, context text, reactions, and examples.

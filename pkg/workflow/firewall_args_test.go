@@ -53,7 +53,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		conditionIdx := strings.Index(stepContent, conditionSnippet)
 		flagIdx := strings.Index(stepContent, flagAssignmentSnippet)
 		argsRefIdx := strings.Index(stepContent, argsRefSnippet)
-		if initIdx == -1 || conditionIdx == -1 || flagIdx == -1 || argsRefIdx == -1 || !(initIdx < conditionIdx && conditionIdx < flagIdx && flagIdx < argsRefIdx) {
+		if initIdx == -1 || conditionIdx == -1 || flagIdx == -1 || argsRefIdx == -1 || initIdx >= conditionIdx || conditionIdx >= flagIdx || flagIdx >= argsRefIdx {
 			t.Error("Expected command to initialize probe variable, evaluate DOCKER_HOST condition, assign docker-host-path-prefix flag, then expand args variable in AWF invocation")
 		}
 

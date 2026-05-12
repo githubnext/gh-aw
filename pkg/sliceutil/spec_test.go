@@ -45,19 +45,19 @@ func TestSpec_PublicAPI_Map(t *testing.T) {
 	})
 }
 
-// TestSpec_PublicAPI_MapToSlice validates the documented behavior of MapToSlice
+// TestSpec_PublicAPI_MapKeys validates the documented behavior of MapKeys
 // as described in the sliceutil README.md specification.
-func TestSpec_PublicAPI_MapToSlice(t *testing.T) {
+func TestSpec_PublicAPI_MapKeys(t *testing.T) {
 	t.Run("returns all map keys as a slice", func(t *testing.T) {
 		m := map[string]int{"a": 1, "b": 2}
-		keys := MapToSlice(m)
-		assert.ElementsMatch(t, []string{"a", "b"}, keys, "MapToSlice should return all map keys (order not guaranteed)")
+		keys := MapKeys(m)
+		assert.ElementsMatch(t, []string{"a", "b"}, keys, "MapKeys should return all map keys (order not guaranteed)")
 	})
 
 	t.Run("returns empty slice for empty map", func(t *testing.T) {
 		m := map[string]int{}
-		keys := MapToSlice(m)
-		assert.Empty(t, keys, "MapToSlice of empty map should return empty slice")
+		keys := MapKeys(m)
+		assert.Empty(t, keys, "MapKeys of empty map should return empty slice")
 	})
 }
 
