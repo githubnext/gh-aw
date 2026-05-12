@@ -100,9 +100,9 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issues' && github.event.label.name == 'cloclo' ||
-      github.event_name == 'pull_request' && github.event.label.name == 'cloclo' || github.event_name == 'discussion' &&
-      github.event.label.name == 'cloclo')
+      needs.pre_activation.outputs.activated == 'true' && ((github.event_name == 'issues' || github.event_name == 'pull_request' ||
+      github.event_name == 'discussion') && github.event.label.name == 'cloclo' || (!(github.event_name == 'issues')) &&
+      (!(github.event_name == 'pull_request')) && (!(github.event_name == 'discussion')))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1744,8 +1744,9 @@ jobs:
 
   pre_activation:
     if: >
-      github.event_name == 'issues' && github.event.label.name == 'cloclo' || github.event_name == 'pull_request' &&
-      github.event.label.name == 'cloclo' || github.event_name == 'discussion' && github.event.label.name == 'cloclo'
+      (github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'discussion') &&
+      github.event.label.name == 'cloclo' || (!(github.event_name == 'issues')) && (!(github.event_name == 'pull_request')) &&
+      (!(github.event_name == 'discussion'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
