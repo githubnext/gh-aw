@@ -185,6 +185,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			} else if data.If == "" && len(data.LabelCommand) > 0 {
 				// Centralized command mode bypasses slash-command content checks.
 				// If label_command is also configured, keep label gating logic.
+				// hasOtherEvents=true keeps router workflow_dispatch runs eligible.
 				labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, true)
 				if err != nil {
 					return fmt.Errorf("failed to build label-command condition: %w", err)
