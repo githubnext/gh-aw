@@ -643,13 +643,11 @@ func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
 // If firewallConfig has no version set, DefaultFirewallVersion is used. "latest" always
 // returns true. Non-semver strings (e.g. branch names) return false (conservative).
 func awfVersionAtLeast(firewallConfig *FirewallConfig, minVersion constants.Version) bool {
-	var versionStr, defaultVersion string
+	var versionStr string
 	if firewallConfig != nil && firewallConfig.Version != "" {
 		versionStr = firewallConfig.Version
-	} else {
-		defaultVersion = string(constants.DefaultFirewallVersion)
 	}
-	return versionAtLeast(versionStr, defaultVersion, string(minVersion))
+	return versionAtLeast(versionStr, string(constants.DefaultFirewallVersion), string(minVersion))
 }
 
 // awfSupportsCliProxy returns true when the effective AWF version supports --difc-proxy-host
