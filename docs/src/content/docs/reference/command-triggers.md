@@ -72,7 +72,7 @@ on:
 
 Set `on.slash_command.strategy: centralized` to opt a workflow into centralized slash-command routing.
 When enabled, the workflow compiles as `workflow_dispatch`-centric, and the compiler generates one
-shared `agentic_slash_commands.yml` workflow that listens to merged slash-command events and
+shared `agentic_commands.yml` workflow that listens to merged slash-command events and
 dispatches matching target workflows with `aw_context`.
 
 ```yaml wrap

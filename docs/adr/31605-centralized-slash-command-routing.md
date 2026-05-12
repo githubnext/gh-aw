@@ -14,7 +14,7 @@ Each slash-command workflow in this repository previously registered its own lis
 
 ### Decision
 
-We will introduce a `centralized` strategy for `on.slash_command` and have the compiler generate a single shared router workflow at `.github/workflows/agentic_slash_commands.yml` that owns the merged set of slash-command events and dispatches matching target workflows via `workflow_dispatch` with an `aw_context` input. Participating workflows (those declaring `strategy: centralized`) compile to `workflow_dispatch`-only triggers, retaining their non-slash events (e.g. label-only triggers) but delegating slash detection to the central router. The compiler additionally emits a warning recommending `strategy: centralized` once three or more slash commands are detected and some remain non-centralized, so the convention scales as the fleet grows.
+We will introduce a `centralized` strategy for `on.slash_command` and have the compiler generate a single shared router workflow at `.github/workflows/agentic_commands.yml` that owns the merged set of slash-command events and dispatches matching target workflows via `workflow_dispatch` with an `aw_context` input. Participating workflows (those declaring `strategy: centralized`) compile to `workflow_dispatch`-only triggers, retaining their non-slash events (e.g. label-only triggers) but delegating slash detection to the central router. The compiler additionally emits a warning recommending `strategy: centralized` once three or more slash commands are detected and some remain non-centralized, so the convention scales as the fleet grows.
 
 ### Alternatives Considered
 
@@ -24,7 +24,7 @@ Each slash-command workflow continues to declare its own event listeners and inl
 
 #### Alternative 2: One static, hand-maintained router workflow
 
-Maintain `agentic_slash_commands.yml` by hand and require workflow authors to register their command in it manually. This avoids compiler complexity but reintroduces a long-running coordination problem: every new slash command requires editing a shared file, and the registry can drift from the per-workflow frontmatter. Rejected because compiler-generation of the router from frontmatter (`strategy: centralized`) preserves a single source of truth and avoids merge conflicts on the shared router.
+Maintain `agentic_commands.yml` by hand and require workflow authors to register their command in it manually. This avoids compiler complexity but reintroduces a long-running coordination problem: every new slash command requires editing a shared file, and the registry can drift from the per-workflow frontmatter. Rejected because compiler-generation of the router from frontmatter (`strategy: centralized`) preserves a single source of truth and avoids merge conflicts on the shared router.
 
 #### Alternative 3: Use a `repository_dispatch` or external broker
 
@@ -33,13 +33,13 @@ Forward slash events to an external service (or `repository_dispatch`) that then
 ### Consequences
 
 #### Positive
-- One shared workflow (`agentic_slash_commands.yml`) handles slash-event listening for all participating commands, replacing N copies of the same listener set.
+- One shared workflow (`agentic_commands.yml`) handles slash-event listening for all participating commands, replacing N copies of the same listener set.
 - Generated `if:` predicates on participating workflows shrink from large slash-text expressions to simple `workflow_dispatch`-gated activations, improving readability of lock files.
 - Workflow-level permissions on participating lock files are reduced (e.g. dropping `issues: write` / `pull-requests: write` from activation jobs that no longer need them) because routing logic lives in the central router with its own scoped `actions: write` job permission.
 - A compile-time warning nudges authors toward `strategy: centralized` once three or more slash commands exist, making the convention discoverable without a manual migration push.
 
 #### Negative
-- Adds a new generated file (`.github/workflows/agentic_slash_commands.yml`) whose lifecycle is owned by the compiler — contributors must understand it is regenerated and not edited by hand.
+- Adds a new generated file (`.github/workflows/agentic_commands.yml`) whose lifecycle is owned by the compiler — contributors must understand it is regenerated and not edited by hand.
 - Introduces an indirection: a slash command now arrives via `workflow_dispatch` triggered by another workflow, which complicates debugging (two runs to inspect instead of one) and shifts some auth context onto `aw_context`.
 - The router holds `actions: write` permission to dispatch other workflows; a bug in routing logic could dispatch the wrong workflow, so the route map and event-matching filter must remain trustworthy.
 - Legacy trigger-file handling for `agentics-slash-command-trigger.yml` was removed; any external references to that file name become stale.
@@ -59,7 +59,7 @@ Forward slash events to an external service (or `repository_dispatch`) that then
 
 1. A slash-command workflow **MAY** opt into centralized routing by setting `on.slash_command.strategy: centralized` in its frontmatter.
 2. The compiler **MUST** treat `strategy: centralized` as the participation flag — a workflow without that key **MUST NOT** be wired into the central router.
-3. When at least one workflow opts into `strategy: centralized`, the compiler **MUST** generate exactly one router workflow file at `.github/workflows/agentic_slash_commands.yml`.
+3. When at least one workflow opts into `strategy: centralized`, the compiler **MUST** generate exactly one router workflow file at `.github/workflows/agentic_commands.yml`.
 4. The generated router file **MUST** be regenerable from frontmatter alone and **MUST NOT** be hand-edited; contributors **SHOULD** treat it as compiler output.
 
 ### Router Workflow Structure
