@@ -20,6 +20,7 @@ safe-outputs:
     max: 1
 
 timeout-minutes: 30
+max-runs: 200
 strict: true
 
 imports:
