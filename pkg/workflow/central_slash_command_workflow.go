@@ -38,10 +38,8 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 		if err := removeIfExists(triggerFile); err != nil {
 			return fmt.Errorf("failed to delete centralized slash-command workflow: %w", err)
 		}
-		if legacyTriggerFile != triggerFile {
-			if err := removeIfExists(legacyTriggerFile); err != nil {
-				return fmt.Errorf("failed to delete legacy centralized slash-command workflow: %w", err)
-			}
+		if err := cleanupLegacyCentralSlashCommandWorkflow(legacyTriggerFile); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -54,12 +52,17 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 	if err := os.WriteFile(triggerFile, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write centralized slash-command workflow: %w", err)
 	}
-	if legacyTriggerFile != triggerFile {
-		if err := removeIfExists(legacyTriggerFile); err != nil {
-			return fmt.Errorf("failed to delete legacy centralized slash-command workflow: %w", err)
-		}
+	if err := cleanupLegacyCentralSlashCommandWorkflow(legacyTriggerFile); err != nil {
+		return err
 	}
 	centralSlashCommandWorkflowLog.Printf("Wrote centralized slash-command workflow: %s", triggerFile)
+	return nil
+}
+
+func cleanupLegacyCentralSlashCommandWorkflow(path string) error {
+	if err := removeIfExists(path); err != nil {
+		return fmt.Errorf("failed to delete legacy centralized slash-command workflow: %w", err)
+	}
 	return nil
 }
 
