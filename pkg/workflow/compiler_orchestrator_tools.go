@@ -229,6 +229,10 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, err
 	}
 
+	if err := c.validatePiEngineRequirements(NewTools(tools), agenticEngine); err != nil {
+		return nil, err
+	}
+
 	// Validate web-search support for the current engine (warning only)
 	c.validateWebSearchSupport(tools, agenticEngine)
 

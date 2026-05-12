@@ -48,8 +48,9 @@ func NewPiEngine() *PiEngine {
 	}
 }
 
-// GetModelEnvVarName returns the native environment variable name that the Pi CLI uses
-// for model selection. Setting PI_MODEL is equivalent to passing --model to the CLI.
+// GetModelEnvVarName returns the legacy Pi model env-var name exposed by gh-aw.
+// gh-aw passes the model to the Pi CLI via --model and separately exports the
+// original workflow model for extensions.
 func (e *PiEngine) GetModelEnvVarName() string {
 	return constants.PiCLIModelEnvVar
 }
@@ -275,7 +276,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		piArgs = append(piArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// Pi v0.72+ does not support a PI_MODEL env var; the model must be passed as
+	// Pi v0.72+ does not support a PI_MODEL env var for CLI model selection; the model must be passed as
 	// the --model CLI flag.  When the firewall is enabled we route LLM traffic
 	// through the AWF gateway sidecar by generating a temporary models.json that
 	// registers a custom "aw-gateway" provider pointing at the gateway port.  When
@@ -378,6 +379,9 @@ touch %s
 		"GITHUB_AW":           "true",
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+	}
+	if modelConfigured {
+		env["GH_AW_PI_MODEL"] = workflowData.EngineConfig.Model
 	}
 
 	// Inject provider-specific credentials from the backend profile.

@@ -174,6 +174,23 @@ func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any,
 	return nil
 }
 
+// validatePiEngineRequirements validates Pi's required tool configuration.
+func (c *Compiler) validatePiEngineRequirements(tools *ToolsConfig, engine CodingAgentEngine) error {
+	if engine.GetID() != "pi" {
+		return nil
+	}
+
+	if tools == nil || tools.GitHub == nil || tools.GitHub.Mode != "gh-proxy" {
+		return fmt.Errorf("engine 'pi' requires tools.github.mode: gh-proxy")
+	}
+
+	if !tools.CLIProxy {
+		return fmt.Errorf("engine 'pi' requires tools.cli-proxy: true")
+	}
+
+	return nil
+}
+
 // validateWebSearchSupport validates that web-search tool is only used with engines that support this feature
 func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) {
 	// Check if web-search tool is requested
