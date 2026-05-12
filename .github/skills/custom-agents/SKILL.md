@@ -1,13 +1,6 @@
 ---
 name: custom-agents
 description: GitHub Custom Agent File Format
-Brief description of agent's purpose
->                      # Multi-line description of agent's purpose
-Repository-wide coding standards
-Frontend development guidelines
-Agent specializing in creating and improving README files
-Specialized agent for writing comprehensive test suites
-Agent specialized in performing code reviews
 ---
 
 

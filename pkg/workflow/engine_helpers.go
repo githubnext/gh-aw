@@ -373,8 +373,8 @@ func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) ma
 //
 // Returns the normalized command and whether normalization was applied.
 func normalizeBashCommand(cmdStr string) (string, bool) {
-	if strings.HasSuffix(cmdStr, " *") {
-		return strings.TrimSuffix(cmdStr, " *"), true
+	if after, found := strings.CutSuffix(cmdStr, " *"); found {
+		return after, true
 	}
 	return cmdStr, false
 }

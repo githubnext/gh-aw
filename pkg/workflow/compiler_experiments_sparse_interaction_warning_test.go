@@ -22,8 +22,8 @@ func TestValidateToolConfigurationSparseInteractionWarning(t *testing.T) {
 			name: "warns for multiple experiments with weighted traffic",
 			workflowData: &WorkflowData{
 				Experiments: map[string][]string{
-					"prompt_style": []string{"concise", "verbose"},
-					"emoji":        []string{"none", "heavy"},
+					"prompt_style": {"concise", "verbose"},
+					"emoji":        {"none", "heavy"},
 				},
 				ExperimentConfigs: map[string]*ExperimentConfig{
 					"prompt_style": {
@@ -41,7 +41,7 @@ func TestValidateToolConfigurationSparseInteractionWarning(t *testing.T) {
 			name: "does not warn for single experiment even when weighted",
 			workflowData: &WorkflowData{
 				Experiments: map[string][]string{
-					"prompt_style": []string{"concise", "verbose"},
+					"prompt_style": {"concise", "verbose"},
 				},
 				ExperimentConfigs: map[string]*ExperimentConfig{
 					"prompt_style": {
@@ -56,8 +56,8 @@ func TestValidateToolConfigurationSparseInteractionWarning(t *testing.T) {
 			name: "does not warn for multiple experiments without weighted traffic",
 			workflowData: &WorkflowData{
 				Experiments: map[string][]string{
-					"prompt_style": []string{"concise", "verbose"},
-					"emoji":        []string{"none", "heavy"},
+					"prompt_style": {"concise", "verbose"},
+					"emoji":        {"none", "heavy"},
 				},
 				ExperimentConfigs: map[string]*ExperimentConfig{
 					"prompt_style": {

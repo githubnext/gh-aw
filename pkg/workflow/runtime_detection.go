@@ -135,7 +135,7 @@ func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRe
 	})
 
 	// Special handling for "gh aw" command pair.
-	for i := 0; i < len(words)-1; i++ {
+	for i := range len(words) - 1 {
 		if strings.EqualFold(words[i], "gh") && strings.EqualFold(words[i+1], "aw") {
 			if runtime := findRuntimeByID("gh-aw"); runtime != nil {
 				updateRequiredRuntime(runtime, getDefaultGhAWRuntimeVersion(), requirements)

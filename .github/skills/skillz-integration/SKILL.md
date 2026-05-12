@@ -1,7 +1,5 @@
 ---
-name: skills
 description: Using Skillz MCP Server with Docker
-Summarize documentation files
 ---
 
 

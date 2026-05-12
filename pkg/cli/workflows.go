@@ -28,7 +28,8 @@ const workflowTitleScannerBufferSize = 4 * 1024
 
 var workflowTitleScannerBufferPool = sync.Pool{
 	New: func() any {
-		return make([]byte, workflowTitleScannerBufferSize)
+		b := make([]byte, workflowTitleScannerBufferSize)
+		return &b
 	},
 }
 
@@ -346,13 +347,17 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
 	// Reuse the small initial scanner buffer across calls while still allowing
 	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
-	scannerBuffer := workflowTitleScannerBufferPool.Get().([]byte)
+	scannerBufferPtr := workflowTitleScannerBufferPool.Get().(*[]byte)
+	scannerBuffer := *scannerBufferPtr
 	if cap(scannerBuffer) != workflowTitleScannerBufferSize {
 		scannerBuffer = make([]byte, workflowTitleScannerBufferSize)
 	} else {
 		scannerBuffer = scannerBuffer[:workflowTitleScannerBufferSize]
 	}
-	defer workflowTitleScannerBufferPool.Put(scannerBuffer)
+	defer func() {
+		*scannerBufferPtr = scannerBuffer
+		workflowTitleScannerBufferPool.Put(scannerBufferPtr)
+	}()
 	scanner.Buffer(scannerBuffer, 1024*1024)
 	firstLine := true
 	inFrontmatter := false
