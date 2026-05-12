@@ -7,9 +7,12 @@ import path from "path";
 const require = createRequire(import.meta.url);
 const {
   appendSafeOutputLine,
+  buildMissingToolPermissionIssuePayload,
   buildInfrastructureIncompletePayload,
   buildPromptFileFallbackInstruction,
+  countPermissionDeniedIssues,
   emitInfrastructureIncomplete,
+  hasNumerousPermissionDeniedIssues,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
@@ -67,6 +70,7 @@ describe("copilot_harness.cjs", () => {
      */
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
+      if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -102,6 +106,12 @@ describe("copilot_harness.cjs", () => {
 
     it("does not retry on success", () => {
       const result = { exitCode: 0, hasOutput: true, output: "Done." };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("numerous permission-denied issues are treated as non-retryable", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "permission denied\npermission denied\npermission denied" };
+      expect(hasNumerousPermissionDeniedIssues(result.output)).toBe(true);
       expect(shouldRetry(result, 0)).toBe(false);
     });
   });
@@ -195,6 +205,29 @@ describe("copilot_harness.cjs", () => {
       });
       expect(writes).toHaveLength(0);
       expect(logs.some(message => message.includes("skipped"))).toBe(true);
+    });
+  });
+
+  describe("permission-denied classification helpers", () => {
+    it("counts repeated permission-denied signals", () => {
+      const output = "permission denied\nEACCES: permission denied\nEPERM operation not permitted\npermissions denied";
+      expect(countPermissionDeniedIssues(output)).toBe(5);
+    });
+
+    it("detects numerous permission-denied issues at threshold", () => {
+      const output = "permission denied\npermission denied\npermission denied";
+      expect(hasNumerousPermissionDeniedIssues(output)).toBe(true);
+    });
+
+    it("does not classify sparse permission-denied output as numerous", () => {
+      const output = "permission denied once";
+      expect(hasNumerousPermissionDeniedIssues(output)).toBe(false);
+    });
+
+    it("builds missing_tool payload for permission issues", () => {
+      const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
+      expect(payload.type).toBe("missing_tool");
+      expect(payload.reason).toContain("missing tool/permission issue");
     });
   });
 

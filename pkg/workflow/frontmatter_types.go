@@ -26,6 +26,7 @@ type RuntimesConfig struct {
 	Deno    *RuntimeConfig `json:"deno,omitempty"`    // Deno runtime
 	Dotnet  *RuntimeConfig `json:"dotnet,omitempty"`  // .NET runtime
 	Elixir  *RuntimeConfig `json:"elixir,omitempty"`  // Elixir runtime
+	GhAw    *RuntimeConfig `json:"gh-aw,omitempty"`   // gh-aw CLI runtime
 	Haskell *RuntimeConfig `json:"haskell,omitempty"` // Haskell runtime
 	Java    *RuntimeConfig `json:"java,omitempty"`    // Java runtime
 	Ruby    *RuntimeConfig `json:"ruby,omitempty"`    // Ruby runtime

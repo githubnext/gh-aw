@@ -160,6 +160,8 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			config.Dotnet = runtimeConfig
 		case "elixir":
 			config.Elixir = runtimeConfig
+		case "gh-aw":
+			config.GhAw = runtimeConfig
 		case "haskell":
 			config.Haskell = runtimeConfig
 		case "java":

@@ -94,6 +94,8 @@ const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 // re-injects the same broken history, producing the same 400 on every subsequent attempt.
 // A fresh restart is required to discard the poisoned history.
 const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
+const PERMISSION_DENIED_PATTERN = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/gi;
+const NUMEROUS_PERMISSION_DENIED_THRESHOLD = 3;
 
 /**
  * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} AppendFileSyncLike
@@ -164,6 +166,26 @@ function isNullTypeToolCallError(output) {
 }
 
 /**
+ * Count permission-denied indicators in process output.
+ * @param {string} output
+ * @returns {number}
+ */
+function countPermissionDeniedIssues(output) {
+  if (!output) return 0;
+  const matches = output.match(PERMISSION_DENIED_PATTERN);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Detect whether output contains numerous permission-denied issues.
+ * @param {string} output
+ * @returns {boolean}
+ */
+function hasNumerousPermissionDeniedIssues(output) {
+  return countPermissionDeniedIssues(output) >= NUMEROUS_PERMISSION_DENIED_THRESHOLD;
+}
+
+/**
  * Build a structured report_incomplete payload for infrastructure failures.
  * @param {string} details
  * @returns {string}
@@ -177,6 +199,19 @@ function buildInfrastructureIncompletePayload(details) {
 }
 
 /**
+ * Build a structured missing_tool payload for repeated permission-denied failures.
+ * @returns {string}
+ */
+function buildMissingToolPermissionIssuePayload() {
+  return JSON.stringify({
+    type: "missing_tool",
+    tool: "tool/permission",
+    reason: "missing tool/permission issue: numerous permission denied errors detected",
+    alternatives: "Verify token scopes, repository permissions, and MCP/tool access configuration.",
+  });
+}
+
+/**
  * Append one safe-output entry line.
  * @param {AppendFileSyncLike} appendFileSync
  * @param {string} safeOutputsPath
@@ -184,6 +219,33 @@ function buildInfrastructureIncompletePayload(details) {
  */
 function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
   appendFileSync(safeOutputsPath, payload + "\n", { encoding: "utf8" });
+}
+
+/**
+ * Emit a structured missing_tool signal for repeated permission-denied failures.
+ * @param {{
+ *   safeOutputsPath?: string,
+ *   appendFileSync?: AppendFileSyncLike,
+ *   logger?: (message: string) => void
+ * }=} options
+ */
+function emitMissingToolPermissionIssue(options) {
+  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
+  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
+  const logger = options && options.logger ? options.logger : log;
+
+  if (!safeOutputsPath) {
+    logger("missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
+    return;
+  }
+  try {
+    const payload = buildMissingToolPermissionIssuePayload();
+    appendSafeOutputLine(appendFileSync, safeOutputsPath, payload);
+    logger(`missing_tool emitted for permission issues: ${safeOutputsPath}`);
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    logger(`missing_tool emission failed: ${err.message}`);
+  }
 }
 
 /**
@@ -368,6 +430,8 @@ async function main() {
     const isModelNotSupported = isModelNotSupportedError(result.output);
     const isAuthErr = isNoAuthInfoError(result.output);
     const isNullTypeToolCall = isNullTypeToolCallError(result.output);
+    const permissionDeniedCount = countPermissionDeniedIssues(result.output);
+    const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
@@ -376,9 +440,17 @@ async function main() {
         ` isModelNotSupportedError=${isModelNotSupported}` +
         ` isNullTypeToolCallError=${isNullTypeToolCall}` +
         ` isAuthError=${isAuthErr}` +
+        ` permissionDeniedCount=${permissionDeniedCount}` +
+        ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
     );
+
+    if (hasNumerousPermissionDenied) {
+      emitMissingToolPermissionIssue();
+      log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
+      break;
+    }
 
     // MCP policy errors are persistent — retrying will not help.
     if (isMCPPolicy) {
@@ -481,10 +553,14 @@ if (typeof module !== "undefined" && module.exports) {
     buildPromptFileFallbackInstruction,
     buildInfrastructureIncompletePayload,
     emitInfrastructureIncomplete,
+    emitMissingToolPermissionIssue,
     enrichReflectModels,
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    countPermissionDeniedIssues,
+    hasNumerousPermissionDeniedIssues,
+    buildMissingToolPermissionIssuePayload,
     resolvePromptFileArgs,
   };
 }

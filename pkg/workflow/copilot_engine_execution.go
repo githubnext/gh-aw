@@ -30,7 +30,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
@@ -536,8 +535,9 @@ func generateCopilotErrorDetectionStep() GitHubActionStep {
 // explicit version older than v1.0.19 must not emit --no-ask-user or the run will fail at startup.
 //
 // Special cases:
-//   - No version override (engineConfig is nil or has no Version): use DefaultCopilotVersion
-//     which is always ≥ CopilotNoAskUserMinVersion → returns true.
+//   - No version override (engineConfig is nil or has no Version): use
+//     DefaultCopilotVersion. This preserves existing behavior while avoiding drift if
+//     DefaultCopilotVersion is ever lowered below CopilotNoAskUserMinVersion.
 //   - "latest": always returns true (latest is always a new release).
 //   - Any semver string ≥ CopilotNoAskUserMinVersion: returns true.
 //   - Any semver string < CopilotNoAskUserMinVersion: returns false.
@@ -546,18 +546,12 @@ func copilotSupportsNoAskUser(engineConfig *EngineConfig) bool {
 	var versionStr string
 	if engineConfig != nil && engineConfig.Version != "" {
 		versionStr = engineConfig.Version
-	} else {
-		// No override → use the default, which is always ≥ the minimum.
-		return true
 	}
-
-	// "latest" means the newest release — always supports the flag.
-	if strings.EqualFold(versionStr, "latest") {
-		return true
-	}
-
-	minVersion := string(constants.CopilotNoAskUserMinVersion)
-	return semverutil.Compare(versionStr, minVersion) >= 0
+	return versionAtLeast(
+		versionStr,
+		string(constants.DefaultCopilotVersion),
+		string(constants.CopilotNoAskUserMinVersion),
+	)
 }
 
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags

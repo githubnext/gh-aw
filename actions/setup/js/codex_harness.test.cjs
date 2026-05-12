@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveCodexPromptFileArgs, isRateLimitError, isServerError } = require("./codex_harness.cjs");
+const { resolveCodexPromptFileArgs, isRateLimitError, isServerError, countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, buildMissingToolPermissionIssuePayload } = require("./codex_harness.cjs");
 
 describe("codex_harness.cjs", () => {
   describe("resolveCodexPromptFileArgs", () => {
@@ -109,6 +109,28 @@ describe("codex_harness.cjs", () => {
     });
   });
 
+  describe("permission-denied classification helpers", () => {
+    it("counts repeated permission-denied signals", () => {
+      const output = "permission denied\npermissions denied\nEACCES: permission denied";
+      expect(countPermissionDeniedIssues(output)).toBe(4);
+    });
+
+    it("detects numerous permission-denied issues at threshold", () => {
+      const output = "permission denied\npermission denied\npermission denied";
+      expect(hasNumerousPermissionDeniedIssues(output)).toBe(true);
+    });
+
+    it("does not classify sparse permission-denied output as numerous", () => {
+      expect(hasNumerousPermissionDeniedIssues("permission denied")).toBe(false);
+    });
+
+    it("builds missing_tool payload for permission issues", () => {
+      const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
+      expect(payload.type).toBe("missing_tool");
+      expect(payload.reason).toContain("missing tool/permission issue");
+    });
+  });
+
   describe("retry policy: fresh run on partial execution", () => {
     const MAX_RETRIES = 3;
 
@@ -121,6 +143,7 @@ describe("codex_harness.cjs", () => {
       if (result.exitCode === 0) return false;
       const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
       const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
+      if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }
@@ -152,6 +175,11 @@ describe("codex_harness.cjs", () => {
 
     it("does not retry on success", () => {
       const result = { exitCode: 0, hasOutput: true, output: "Task complete" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when numerous permission-denied issues are present", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "permission denied\npermission denied\npermission denied" };
       expect(shouldRetry(result, 0)).toBe(false);
     });
   });
