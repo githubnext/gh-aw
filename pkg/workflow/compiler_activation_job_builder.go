@@ -165,6 +165,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 			ctx.reactionIssues,
 			ctx.reactionPullRequests,
 			ctx.reactionDiscussions,
+			data.CommandCentralized,
 		)
 		ctx.steps = append(ctx.steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
 		ctx.steps = append(ctx.steps, "        id: react\n")
@@ -285,6 +286,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 			ctx.statusCommentIssues,
 			ctx.statusCommentPRs,
 			ctx.statusCommentDiscussions,
+			data.CommandCentralized,
 		)
 		ctx.steps = append(ctx.steps, "      - name: Add comment with workflow run link\n")
 		ctx.steps = append(ctx.steps, "        id: add-comment\n")

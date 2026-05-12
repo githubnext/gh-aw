@@ -3,6 +3,7 @@
 
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /** @type {Record<string, string>} Maps REST reaction names to GraphQL ReactionContent enum values */
 const REACTION_MAP = {
@@ -36,16 +37,18 @@ async function main() {
   }
 
   // Determine the API endpoint based on the event type
-  const eventName = context.eventName;
-  const { owner, repo } = context.repo;
+  const invocationContext = resolveInvocationContext(context);
+  const eventName = invocationContext.eventName;
+  const { owner, repo } = invocationContext.eventRepo;
+  const payload = invocationContext.eventPayload;
 
   /** @type {string | null} */
-  const reactionEndpoint = resolveRestEndpoint(eventName, owner, repo);
+  const reactionEndpoint = resolveRestEndpoint(eventName, owner, repo, payload);
 
   if (reactionEndpoint === null) {
     // GraphQL paths are handled separately; REST validation failures already called setFailed.
     if (!isRestReactionEvent(eventName)) {
-      await handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction);
+      await handleGraphQLOrUnknownEvent(eventName, owner, repo, payload, reaction);
     }
     return;
   }
@@ -66,10 +69,10 @@ async function main() {
  * @param {string} repo
  * @returns {string | null}
  */
-function resolveRestEndpoint(eventName, owner, repo) {
+function resolveRestEndpoint(eventName, owner, repo, payload) {
   switch (eventName) {
     case "issues": {
-      const issueNumber = context.payload?.issue?.number;
+      const issueNumber = payload?.issue?.number;
       if (!issueNumber) {
         core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
         return null;
@@ -78,7 +81,7 @@ function resolveRestEndpoint(eventName, owner, repo) {
     }
 
     case "issue_comment": {
-      const commentId = context.payload?.comment?.id;
+      const commentId = payload?.comment?.id;
       if (!commentId) {
         core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
         return null;
@@ -87,7 +90,7 @@ function resolveRestEndpoint(eventName, owner, repo) {
     }
 
     case "pull_request": {
-      const prNumber = context.payload?.pull_request?.number;
+      const prNumber = payload?.pull_request?.number;
       if (!prNumber) {
         core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
         return null;
@@ -97,7 +100,7 @@ function resolveRestEndpoint(eventName, owner, repo) {
     }
 
     case "pull_request_review_comment": {
-      const reviewCommentId = context.payload?.comment?.id;
+      const reviewCommentId = payload?.comment?.id;
       if (!reviewCommentId) {
         core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
         return null;
@@ -125,10 +128,10 @@ function isRestReactionEvent(eventName) {
  * @param {string} repo
  * @param {string} reaction
  */
-async function handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction) {
+async function handleGraphQLOrUnknownEvent(eventName, owner, repo, payload, reaction) {
   switch (eventName) {
     case "discussion": {
-      const discussionNumber = context.payload?.discussion?.number;
+      const discussionNumber = payload?.discussion?.number;
       if (!discussionNumber) {
         core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
         return;
@@ -143,7 +146,7 @@ async function handleGraphQLOrUnknownEvent(eventName, owner, repo, reaction) {
     }
 
     case "discussion_comment": {
-      const commentNodeId = context.payload?.comment?.node_id;
+      const commentNodeId = payload?.comment?.node_id;
       if (!commentNodeId) {
         core.setFailed(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
         return;

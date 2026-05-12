@@ -429,6 +429,31 @@ describe("add_reaction", () => {
   });
 
   describe("unsupported events", () => {
+    it("supports workflow_dispatch with aw_context metadata", async () => {
+      global.context = {
+        eventName: "workflow_dispatch",
+        repo: { owner: "workflow-owner", repo: "workflow-repo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              event_type: "issue_comment",
+              item_type: "issue",
+              item_number: "123",
+              comment_id: "456",
+              repo: "target-owner/target-repo",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /repos/target-owner/target-repo/issues/comments/456/reactions",
+        expect.objectContaining({ content: "eyes" })
+      );
+    });
+
     it("should fail for unsupported event types", async () => {
       global.context = {
         eventName: "push",

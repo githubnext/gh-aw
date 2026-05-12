@@ -63,31 +63,33 @@ func BuildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 }
 
 // BuildReactionConditionForTargets creates a condition tree for reactions scoped to target groups.
-func BuildReactionConditionForTargets(includeIssues bool, includePullRequests bool, includeDiscussions bool) ConditionNode {
+func BuildReactionConditionForTargets(includeIssues bool, includePullRequests bool, includeDiscussions bool, includeWorkflowDispatch bool) ConditionNode {
 	expressionBuilderLog.Printf(
-		"Building reaction condition: includeIssues=%t includePullRequests=%t includeDiscussions=%t",
+		"Building reaction condition: includeIssues=%t includePullRequests=%t includeDiscussions=%t includeWorkflowDispatch=%t",
 		includeIssues,
 		includePullRequests,
 		includeDiscussions,
+		includeWorkflowDispatch,
 	)
-	return buildReactionLikeCondition(includeIssues, includePullRequests, includeDiscussions)
+	return buildReactionLikeCondition(includeIssues, includePullRequests, includeDiscussions, includeWorkflowDispatch)
 }
 
 // BuildStatusCommentCondition creates a condition tree for activation status comments.
 // When includeIssues is false, issues and issue_comment events are excluded.
 // When includePullRequests is false, pull_request, pull_request_review, and pull_request_review_comment events are excluded.
 // When includeDiscussions is false, discussion and discussion_comment events are excluded.
-func BuildStatusCommentCondition(includeIssues bool, includePullRequests bool, includeDiscussions bool) ConditionNode {
+func BuildStatusCommentCondition(includeIssues bool, includePullRequests bool, includeDiscussions bool, includeWorkflowDispatch bool) ConditionNode {
 	expressionBuilderLog.Printf(
-		"Building status comment condition: includeIssues=%t includePullRequests=%t includeDiscussions=%t",
+		"Building status comment condition: includeIssues=%t includePullRequests=%t includeDiscussions=%t includeWorkflowDispatch=%t",
 		includeIssues,
 		includePullRequests,
 		includeDiscussions,
+		includeWorkflowDispatch,
 	)
-	return buildReactionLikeCondition(includeIssues, includePullRequests, includeDiscussions)
+	return buildReactionLikeCondition(includeIssues, includePullRequests, includeDiscussions, includeWorkflowDispatch)
 }
 
-func buildReactionLikeCondition(includeIssues bool, includePullRequests bool, includeDiscussions bool) ConditionNode {
+func buildReactionLikeCondition(includeIssues bool, includePullRequests bool, includeDiscussions bool, includeWorkflowDispatch bool) ConditionNode {
 	// Build a list of event types that should trigger reactions/status-comments using expression nodes.
 	var terms []ConditionNode
 
@@ -121,13 +123,39 @@ func buildReactionLikeCondition(includeIssues bool, includePullRequests bool, in
 		terms = append(terms, pullRequestReviewCondition)
 	}
 
-	expressionBuilderLog.Printf("Created disjunction with %d event type terms", len(terms))
-	if len(terms) == 0 {
-		return BuildBooleanLiteral(false)
+	expressionBuilderLog.Printf("Created native disjunction with %d event type terms", len(terms))
+	nativeCondition := BuildDisjunction(false, terms...)
+
+	if !includeWorkflowDispatch {
+		return nativeCondition
 	}
 
-	// Use DisjunctionNode to avoid deep nesting
-	return &DisjunctionNode{Terms: terms}
+	dispatchSourceCondition := buildDispatchSourceEventCondition(includeIssues, includePullRequests, includeDiscussions)
+	dispatchCondition := BuildAnd(
+		BuildEventTypeEquals("workflow_dispatch"),
+		dispatchSourceCondition,
+	)
+	return BuildOr(nativeCondition, dispatchCondition)
+}
+
+func buildDispatchSourceEventCondition(includeIssues bool, includePullRequests bool, includeDiscussions bool) ConditionNode {
+	eventExpr := BuildPropertyAccess("fromJSON(github.event.inputs.aw_context || '{}').event_type")
+	var terms []ConditionNode
+
+	if includeIssues {
+		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("issues")))
+		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("issue_comment")))
+	}
+	if includePullRequests {
+		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("pull_request_review_comment")))
+		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("pull_request")))
+		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("pull_request_review")))
+	}
+	if includeDiscussions {
+		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("discussion")))
+		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("discussion_comment")))
+	}
+	return BuildDisjunction(false, terms...)
 }
 
 // Helper functions for building common GitHub Actions expression patterns
