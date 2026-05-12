@@ -4,6 +4,9 @@ description: Reusable worker that bundles open Dependabot PRs for generated work
 on:
   workflow_call:
     inputs:
+      payload:
+        type: string
+        required: false
       objective:
         description: Shared campaign objective
         type: string
