@@ -673,9 +673,17 @@ function convertXmlTags(s) {
 
   /**
    * Strips dangerous HTML attributes from an allowed tag's content string.
-   * Removes on* event handler attributes (e.g. onclick, ontoggle) and style
-   * attributes in all quoting forms (double-quoted, single-quoted, unquoted, bare).
-   * Safe attributes such as title, class, open, lang, id, etc. are preserved.
+   * Removes on* event handler attributes (e.g. onclick, ontoggle), style,
+   * title, and data-* attributes in all quoting forms (double-quoted,
+   * single-quoted, unquoted, bare).
+   *
+   * title= and data-* are stripped because their values are invisible in
+   * GitHub's rendered markdown (title= appears only as a hover-tooltip;
+   * data-* attributes are stripped by GFM's sanitizer) but arrive at the
+   * agent verbatim in raw text, creating a steganographic injection channel
+   * structurally identical to the one fixed for markdown link titles.
+   *
+   * Safe attributes such as class, open, lang, id, etc. are preserved.
    *
    * Note: `\s+` (requiring at least one whitespace before the attribute name) is
    * intentional — HTML attributes are always separated from the tag name and from
@@ -686,13 +694,13 @@ function convertXmlTags(s) {
    * @returns {string} Tag content with dangerous attributes removed
    */
   function stripDangerousAttributes(tagContent) {
-    // Match: one-or-more whitespace-or-slash + (on* | style) + optional =value
+    // Match: one-or-more whitespace-or-slash + (on* | style | title | data-*) + optional =value
     // Value forms: "...", '...', or unquoted (no whitespace / > / quote chars), or bare (no =)
     // The unquoted form excludes >, whitespace, and all quote characters (', ", `) so it
     // cannot consume the closing > of the tag or straddle other attribute values.
     // Using [\s/]+ (instead of \s+) also strips dangerous attributes that are immediately
     // preceded by a "/" with no space — e.g. the malformed <img/onerror=alert(1) src=x>.
-    return tagContent.replace(/[\s/]+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
+    return tagContent.replace(/[\s/]+(?:on\w+|style|title|data-[\w-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
   }
 
   // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
