@@ -52,6 +52,15 @@ async function main() {
       const itemType = typeof awContext?.item_type === "string" ? awContext.item_type.trim() : "";
       const rawItemNumber = typeof awContext?.item_number === "string" ? awContext.item_number.trim() : "";
       if (itemType === "pull_request") {
+        if (!/^\d+$/.test(rawItemNumber)) {
+          const errorMessage = "Access denied: centralized slash-command dispatch is missing a valid pull request number.";
+          core.warning(errorMessage);
+          core.setOutput("is_team_member", "false");
+          core.setOutput("result", "fork_pull_request");
+          core.setOutput("error_message", errorMessage);
+          await writeDenialSummary(errorMessage, "Dispatch metadata is incomplete. Re-run from the original PR event.");
+          return;
+        }
         const pullNumber = Number.parseInt(rawItemNumber, 10);
         if (!Number.isInteger(pullNumber) || pullNumber <= 0) {
           const errorMessage = "Access denied: centralized slash-command dispatch is missing a valid pull request number.";
@@ -72,7 +81,16 @@ async function main() {
           const pullRequest = response?.data;
           const headRepo = pullRequest?.head?.repo?.full_name;
           const baseRepo = pullRequest?.base?.repo?.full_name;
-          if (!headRepo || !baseRepo || headRepo !== baseRepo) {
+          if (!headRepo || !baseRepo) {
+            const errorMessage = "Access denied: centralized slash-command dispatch pull request repository metadata is unavailable.";
+            core.warning(errorMessage);
+            core.setOutput("is_team_member", "false");
+            core.setOutput("result", "fork_pull_request");
+            core.setOutput("error_message", errorMessage);
+            await writeDenialSummary(errorMessage, "Check the pre_activation log and ensure pull request repository metadata is present.");
+            return;
+          }
+          if (headRepo !== baseRepo) {
             const errorMessage = "Access denied: centralized slash-command dispatch from fork-based pull requests is not allowed.";
             core.warning(errorMessage);
             core.setOutput("is_team_member", "false");
