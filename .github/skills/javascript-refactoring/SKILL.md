@@ -6,18 +6,18 @@ description: Instructions for refactoring JavaScript code into separate files
 
 # JavaScript Code Refactoring Guide
 
-This guide explains how to refactor JavaScript code into a separate `.cjs` file in the gh-aw repository. Follow these steps when extracting shared functionality or creating new JavaScript modules.
+Use this guide to refactor JavaScript into separate `.cjs` files in gh-aw.
 
 ## Overview
 
-The gh-aw project uses CommonJS modules (`.cjs` files) for JavaScript code that runs in GitHub Actions workflows. These files are:
+gh-aw uses CommonJS modules (`.cjs`) for JavaScript in GitHub Actions workflows. These files are:
 - Embedded in the Go binary using `//go:embed` directives
 - Bundled using a custom JavaScript bundler that inlines local `require()` calls
 - Executed in GitHub Actions using `actions/github-script@v8`
 
 ### Top-Level Script Pattern
 
-Top-level `.cjs` scripts (those that are executed directly in workflows) follow a specific pattern:
+Top-level `.cjs` scripts executed directly in workflows follow this pattern:
 
 **✅ Correct Pattern - Export main, but don't call it:**
 ```javascript

@@ -16,11 +16,11 @@ steps:
 
 ## jqschema - JSON Schema Discovery
 
-A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+Use `/tmp/gh-aw/jqschema.sh` to discover complex JSON structure.
 
 ### Purpose
 
-Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+Generate a compact structural schema (keys + types) from JSON input. Use it when:
 - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
 - Exploring API responses with large payloads
 - Understanding the structure of unfamiliar data without verbose output

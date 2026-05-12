@@ -5,11 +5,11 @@ description: Documentation Brief description for SEO and navigation
 
 ### Documentation
 
-The documentation for this project is available in the `docs/` directory. It uses GitHub-flavored markdown with Astro Starlight for rendering and follows the Diátaxis framework for systematic documentation.
+Documentation lives in `docs/`, uses GitHub-flavored Markdown, renders with Astro Starlight, and follows Diátaxis.
 
 ## Diátaxis Framework
 
-Documentation must be organized into four distinct types, each serving a specific purpose:
+Organize documentation into four Diátaxis types:
 
 ### 1. Tutorials (Learning-Oriented)
 **Purpose**: Guide beginners through achieving a specific outcome to build confidence.

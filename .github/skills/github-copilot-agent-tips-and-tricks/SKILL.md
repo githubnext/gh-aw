@@ -6,13 +6,13 @@ description: Tips and Tricks for Working with GitHub Copilot Agent PRs
 
 # GitHub Copilot Agent Tips and Tricks
 
-This document provides guidance for discovering, reviewing, and working with pull requests created by the GitHub Copilot coding agent in the gh-aw repository.
+Use this guide to find, review, and work with Copilot coding agent pull requests in gh-aw.
 
 ## Identifying Copilot Agent PRs
 
 ### Branch Naming Convention
 
-The GitHub Copilot coding agent creates branches with the `copilot/` prefix. This makes them easy to identify and filter.
+Copilot coding agent branches use the `copilot/` prefix, which makes them easy to identify and filter.
 
 **Examples from this repository:**
 - `copilot/add-cache-for-imported-workflows`

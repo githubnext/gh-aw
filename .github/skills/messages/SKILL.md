@@ -6,11 +6,11 @@ description: Instructions for adding new message types to the safe-output messag
 
 # Adding New Message Types Guide
 
-This guide explains how to add a new message type to the GitHub Agentic Workflows safe-output messages system. Follow these steps to ensure the new message is available in frontmatter, parsed by the compiler, available in JavaScript, and properly bundled.
+Use this guide to add a new message type to the safe-output messages system so it works in frontmatter, compiler parsing, JavaScript, and bundling.
 
 ## Overview
 
-The messages system allows workflow authors to customize messages displayed in safe-output operations. Messages flow through:
+The messages system lets workflow authors customize safe-output messages. Message flow:
 
 1. **Frontmatter** (YAML) → 2. **JSON Schema** → 3. **Go Compiler** → 4. **JavaScript Modules** → 5. **Bundler**
 

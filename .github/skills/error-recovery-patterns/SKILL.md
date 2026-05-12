@@ -1,14 +1,14 @@
 ---
-description: This skill provides comprehensive guidance on error handling patterns, recovery strategies, and debugging techniques in GitHub Agentic Workflows (gh-aw).
+description: Error handling, recovery, and debugging patterns for GitHub Agentic Workflows (gh-aw).
 ---
 
 # Error Recovery Patterns Skill
 
-This skill provides comprehensive guidance on error handling patterns, recovery strategies, and debugging techniques in GitHub Agentic Workflows (gh-aw).
+Use this skill for error handling, recovery strategies, and debugging in gh-aw.
 
 ## Purpose
 
-Guide developers in implementing robust error recovery patterns to:
+Implement robust recovery patterns to:
 - Reduce retry loops in agent sessions (target: <10% vs current 23%)
 - Implement circuit breakers to prevent infinite retry loops
 - Add proactive recovery for installation, dependency, and API failures
@@ -16,7 +16,7 @@ Guide developers in implementing robust error recovery patterns to:
 
 ## When to Use This Skill
 
-Invoke this skill when:
+Use this skill when:
 - Implementing retry logic for network operations, installations, or API calls
 - Debugging retry loop issues in workflows or agent sessions
 - Adding error recovery patterns to new or existing code
