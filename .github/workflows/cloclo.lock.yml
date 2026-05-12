@@ -64,15 +64,6 @@
 
 name: "/cloclo"
 "on":
-  discussion:
-    types:
-    - labeled
-  issues:
-    types:
-    - labeled
-  pull_request:
-    types:
-    - labeled
   workflow_dispatch:
     inputs:
       aw_context:
@@ -100,16 +91,19 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name == 'issues' || github.event_name == 'pull_request' ||
-      github.event_name == 'discussion') && github.event.label.name == 'cloclo' || (!(github.event_name == 'issues')) &&
-      (!(github.event_name == 'pull_request')) && (!(github.event_name == 'discussion')))
+      needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'workflow_dispatch' && ((fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' ||
+      fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion') && fromJSON(github.event.inputs.aw_context ||
+      '{}').trigger_label == 'cloclo' || (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues')) &&
+      (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')) &&
+      (!(fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'discussion'))))
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -1752,9 +1746,11 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'discussion') &&
-      github.event.label.name == 'cloclo' || (!(github.event_name == 'issues')) && (!(github.event_name == 'pull_request')) &&
-      (!(github.event_name == 'discussion'))
+      github.event_name == 'workflow_dispatch' && ((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' ||
+      fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'discussion') && fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'cloclo' ||
+      (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues')) && (!(fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'pull_request')) && (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
