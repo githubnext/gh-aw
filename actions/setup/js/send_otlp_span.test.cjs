@@ -2267,7 +2267,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
     process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
 
-    // The CLI start time is earlier than the job start time passed as options.startMs,
+    // The CLI start time is later than the job start time passed as options.startMs,
     // simulating a realistic scenario where the audit and proxy startup took time.
     const jobStartMs = 1_700_000_000_000; // end of setup step
     const cliStartMs = 1_700_000_030_000; // 30 s later: start of Execute CLI step
