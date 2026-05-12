@@ -421,7 +421,7 @@ func hasWeightedTrafficExperiment(configs map[string]*ExperimentConfig) bool {
 		if cfg == nil || len(cfg.Variants) == 0 {
 			continue
 		}
-		if len(cfg.Weight) == len(cfg.Variants) && len(cfg.Weight) > 0 {
+		if len(cfg.Weight) == len(cfg.Variants) {
 			return true
 		}
 	}

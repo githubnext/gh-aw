@@ -31,10 +31,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 5. [Timezone Support](#5-timezone-support)
 6. [Scattering Algorithm](#6-scattering-algorithm)
 7. [Cron Expression Generation](#7-cron-expression-generation)
-8. [Safeguards](#safeguards)
-9. [Error Handling](#8-error-handling)
-10. [Compliance Testing](#9-compliance-testing)
-11. [Sync Notes](#sync-notes)
+- [Safeguards](#safeguards)
+8. [Error Handling](#8-error-handling)
+9. [Compliance Testing](#9-compliance-testing)
+10. [Sync Notes](#sync-notes)
 
 ---
 

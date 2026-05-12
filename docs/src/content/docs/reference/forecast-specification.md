@@ -889,7 +889,7 @@ Sync procedure:
 
 ---
 
-## Appendices
+## 14. Appendices
 
 ### Appendix A: Worked Example
 
@@ -958,7 +958,7 @@ For orchestrator workflows that primarily use `workflow_call` or `workflow_dispa
 
 ---
 
-## References
+## 15. References
 
 ### Normative References
 
@@ -975,7 +975,7 @@ For orchestrator workflows that primarily use `workflow_call` or `workflow_dispa
 
 ---
 
-## Change Log
+## 16. Change Log
 
 ### Version 0.1.0 (Experimental Draft)
 
