@@ -38,6 +38,10 @@ type EngineConfig struct {
 	// When set, overrides or extends the built-in model_multipliers.json values.
 	TokenWeights *types.TokenWeights
 
+	// EnableTokenSteering enables AWF apiProxy token-budget steering messages.
+	// Maps from frontmatter firewall.effective-token-steering.
+	EnableTokenSteering bool
+
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
 	InlineProviderID   string // engine.provider.id  (e.g. "openai", "anthropic")
@@ -164,10 +168,31 @@ func parseMaxRunsValue(raw any) int {
 	return 0
 }
 
+// parseEffectiveTokenSteering extracts firewall.effective-token-steering from frontmatter.
+func parseEffectiveTokenSteering(frontmatter map[string]any) bool {
+	firewallRaw, ok := frontmatter["firewall"]
+	if !ok {
+		return false
+	}
+	firewallObj, ok := firewallRaw.(map[string]any)
+	if !ok {
+		return false
+	}
+
+	if raw, exists := firewallObj["effective-token-steering"]; exists {
+		if enabled, ok := raw.(bool); ok {
+			return enabled
+		}
+	}
+
+	return false
+}
+
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
 func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
 	topLevelMaxEffectiveTokens := parseMaxEffectiveTokensValue(frontmatter["max-effective-tokens"])
 	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-runs"])
+	effectiveTokenSteering := parseEffectiveTokenSteering(frontmatter)
 
 	if engine, exists := frontmatter["engine"]; exists {
 		engineLog.Print("Extracting engine configuration from frontmatter")
@@ -176,9 +201,10 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		if engineStr, ok := engine.(string); ok {
 			engineLog.Printf("Found engine in string format: %s", engineStr)
 			return engineStr, &EngineConfig{
-				ID:                 engineStr,
-				MaxRuns:            topLevelMaxRuns,
-				MaxEffectiveTokens: topLevelMaxEffectiveTokens,
+				ID:                  engineStr,
+				MaxRuns:             topLevelMaxRuns,
+				MaxEffectiveTokens:  topLevelMaxEffectiveTokens,
+				EnableTokenSteering: effectiveTokenSteering,
 			}
 		}
 
@@ -244,6 +270,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
+				config.EnableTokenSteering = effectiveTokenSteering
 
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
 				return config.ID, config
@@ -462,13 +489,18 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Return the ID as the engineSetting for backwards compatibility
 			config.MaxRuns = topLevelMaxRuns
 			config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
+			config.EnableTokenSteering = effectiveTokenSteering
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)
 			return config.ID, config
 		}
 	}
 
-	if topLevelMaxEffectiveTokens > 0 || topLevelMaxRuns > 0 {
-		return "", &EngineConfig{MaxRuns: topLevelMaxRuns, MaxEffectiveTokens: topLevelMaxEffectiveTokens}
+	if topLevelMaxEffectiveTokens > 0 || topLevelMaxRuns > 0 || effectiveTokenSteering {
+		return "", &EngineConfig{
+			MaxRuns:             topLevelMaxRuns,
+			MaxEffectiveTokens:  topLevelMaxEffectiveTokens,
+			EnableTokenSteering: effectiveTokenSteering,
+		}
 	}
 
 	// No engine specified

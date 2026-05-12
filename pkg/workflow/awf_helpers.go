@@ -667,3 +667,9 @@ func awfSupportsAllowHostPorts(firewallConfig *FirewallConfig) bool {
 func awfSupportsDockerHostPathPrefix(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFDockerHostPathPrefixMinVersion)
 }
+
+// awfSupportsTokenSteering returns true when the effective AWF version supports
+// apiProxy.enableTokenSteering.
+func awfSupportsTokenSteering(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFTokenSteeringMinVersion)
+}

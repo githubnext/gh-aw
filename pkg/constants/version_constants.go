@@ -67,7 +67,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.0.3"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.25.43"
+const DefaultFirewallVersion Version = "v0.25.44"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -87,6 +87,10 @@ const AWFAllowHostPortsMinVersion Version = "v0.25.24"
 // --docker-host-path-prefix flag used for ARC/DinD split runner/daemon filesystems.
 // Workflows pinning an older AWF version must not emit this flag.
 const AWFDockerHostPathPrefixMinVersion Version = "v0.25.43"
+
+// AWFTokenSteeringMinVersion is the minimum AWF version that supports
+// apiProxy.enableTokenSteering (mapped from frontmatter firewall.effective-token-steering).
+const AWFTokenSteeringMinVersion Version = "v0.25.44"
 
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.

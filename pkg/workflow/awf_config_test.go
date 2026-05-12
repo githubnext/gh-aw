@@ -119,6 +119,49 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should emit configured maxEffectiveTokens")
 	})
 
+	t.Run("firewall effective-token-steering is emitted in apiProxy config", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:                  "copilot",
+					EnableTokenSteering: true,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"enableTokenSteering":true`, "apiProxy should emit enableTokenSteering when configured")
+	})
+
+	t.Run("firewall effective-token-steering is skipped for unsupported AWF versions", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:                  "copilot",
+					EnableTokenSteering: true,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.43",
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"enableTokenSteering"`, "apiProxy should omit enableTokenSteering for unsupported AWF versions")
+	})
+
 	t.Run("configured max-runs is emitted in apiProxy config", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
