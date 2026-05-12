@@ -211,7 +211,7 @@ The command will:
 		},
 	}
 
-	cmd.Flags().StringVar(&serverFilter, "server", "", "MCP server name to list tools for")
+	cmd.Flags().StringVar(&serverFilter, "server", "", "MCP server name to list tools for (required)")
 	_ = cmd.MarkFlagRequired("server")
 
 	return cmd

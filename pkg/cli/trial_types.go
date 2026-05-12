@@ -34,6 +34,7 @@ type TrialOptions struct {
 	ForceDelete            bool
 	Quiet                  bool
 	DryRun                 bool
+	JSONOutput             bool
 	TimeoutMinutes         int
 	TriggerContext         string
 	RepeatCount            int
