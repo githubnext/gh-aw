@@ -131,9 +131,20 @@ func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashComm
 		return "", fmt.Errorf("failed to marshal centralized slash-command routes: %w", err)
 	}
 
-	header := GenerateWorkflowHeader("", "gh-aw", "Compiler version: "+GetVersion())
+	commandsMetadata, err := json.Marshal(map[string]string{
+		"schema_version":   "v1",
+		"compiler_version": GetVersion(),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal centralized slash-command metadata: %w", err)
+	}
+
+	header := GenerateWorkflowHeader("", "gh-aw", "")
 
 	var b strings.Builder
+	b.WriteString("# gh-aw-commands: ")
+	b.Write(commandsMetadata)
+	b.WriteString("\n")
 	b.WriteString(header)
 	b.WriteString(`name: "Agentic Commands"
 

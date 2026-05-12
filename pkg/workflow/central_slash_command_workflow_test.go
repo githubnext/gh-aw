@@ -3,8 +3,10 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -41,9 +43,16 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	content, err := os.ReadFile(generatedPath)
 	require.NoError(t, err)
 	text := string(content)
+	lines := strings.Split(text, "\n")
+	require.NotEmpty(t, lines)
+	require.Contains(t, lines[0], "# gh-aw-commands: ")
+	metadataJSON := strings.TrimPrefix(lines[0], "# gh-aw-commands: ")
+	var metadata map[string]string
+	require.NoError(t, json.Unmarshal([]byte(metadataJSON), &metadata))
+	require.Equal(t, "v1", metadata["schema_version"])
+	require.NotEmpty(t, metadata["compiler_version"])
 
 	require.Contains(t, text, "name: \"Agentic Commands\"")
-	require.Contains(t, text, "Compiler version:")
 	require.Contains(t, text, "permissions: {}")
 	require.Contains(t, text, "runs-on: ubuntu-slim")
 	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read")
