@@ -70,6 +70,7 @@ describe("copilot_harness.cjs", () => {
      */
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
+      if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -111,6 +112,7 @@ describe("copilot_harness.cjs", () => {
     it("numerous permission-denied issues are treated as non-retryable", () => {
       const result = { exitCode: 1, hasOutput: true, output: "permission denied\npermission denied\npermission denied" };
       expect(hasNumerousPermissionDeniedIssues(result.output)).toBe(true);
+      expect(shouldRetry(result, 0)).toBe(false);
     });
   });
 

@@ -141,10 +141,9 @@ describe("codex_harness.cjs", () => {
      */
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
-      const PERMISSION_DENIED_PATTERN = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/gi;
       const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
       const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
-      if ((result.output.match(PERMISSION_DENIED_PATTERN) || []).length >= 3) return false;
+      if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }

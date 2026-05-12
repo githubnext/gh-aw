@@ -231,11 +231,6 @@ describe("claude_harness.cjs", () => {
       expect(payload.type).toBe("missing_tool");
       expect(payload.reason).toContain("missing tool/permission issue");
     });
-
-    it("marks repeated permission-denied output as non-retryable condition", () => {
-      const output = "permission denied\npermission denied\npermission denied";
-      expect(hasNumerousPermissionDeniedIssues(output)).toBe(true);
-    });
   });
 
   describe("shouldRetryWithContinue", () => {
