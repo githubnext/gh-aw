@@ -51,6 +51,8 @@ type AuditData struct {
 	ToolUsage               []ToolUsageInfo          `json:"tool_usage,omitempty"`
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`
 	CreatedItems            []CreatedItemReport      `json:"created_items,omitempty"`
+	Outcomes                []OutcomeReport          `json:"outcomes,omitempty"`
+	OutcomeSummary          *OutcomeSummary          `json:"outcome_summary,omitempty"`
 	Experiments             *ExperimentData          `json:"experiments,omitempty"`
 }
 
@@ -397,7 +399,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 			len(jobs), len(errors), len(toolUsage), len(findings), len(recommendations))
 	}
 
-	return AuditData{
+	auditData := AuditData{
 		Overview:                overview,
 		TaskDomain:              taskDomain,
 		BehaviorFingerprint:     behaviorFingerprint,
@@ -429,6 +431,16 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		CreatedItems:            createdItems,
 		Experiments:             expData,
 	}
+
+	// Evaluate outcomes for created items if any exist
+	if len(createdItems) > 0 {
+		outcomeReports := EvaluateOutcomes(createdItems, "")
+		auditData.Outcomes = outcomeReports
+		outcomeSummary := ComputeOutcomeSummary(outcomeReports, metricsData.EstimatedCost)
+		auditData.OutcomeSummary = &outcomeSummary
+	}
+
+	return auditData
 }
 
 // extractDownloadedFiles scans the logs directory and returns file information
