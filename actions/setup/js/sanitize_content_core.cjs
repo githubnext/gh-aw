@@ -713,7 +713,7 @@ function convertXmlTags(s) {
     if (tagNameMatch) {
       const tagName = tagNameMatch[1].toLowerCase();
       if (allowedTags.includes(tagName)) {
-        // Strip dangerous attributes (on* event handlers and style) before preserving
+        // Strip dangerous attributes (on* event handlers, style, title, data-*) before preserving
         const sanitizedContent = stripDangerousAttributes(tagContent);
         return `<${sanitizedContent}>`;
       }
