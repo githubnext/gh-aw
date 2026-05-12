@@ -50,26 +50,11 @@ describe("pi_provider.cjs", () => {
 
     expect(count).toBe(5);
     expect(calls).toEqual([
-      [
-        "github-copilot",
-        { apiKey: "copilot-token", api: "openai-completions", baseUrl: "https://copilot.example.test" },
-      ],
-      [
-        "copilot",
-        { apiKey: "copilot-token", api: "openai-completions", baseUrl: "https://copilot.example.test" },
-      ],
-      [
-        "anthropic",
-        { apiKey: "anthropic-token", api: "anthropic", baseUrl: "https://anthropic.example.test" },
-      ],
-      [
-        "openai",
-        { apiKey: "codex-token", api: "openai-completions", baseUrl: "https://openai.example.test" },
-      ],
-      [
-        "codex",
-        { apiKey: "codex-token", api: "openai-completions", baseUrl: "https://openai.example.test" },
-      ],
+      ["github-copilot", { apiKey: "copilot-token", api: "openai-completions", baseUrl: "https://copilot.example.test" }],
+      ["copilot", { apiKey: "copilot-token", api: "openai-completions", baseUrl: "https://copilot.example.test" }],
+      ["anthropic", { apiKey: "anthropic-token", api: "anthropic", baseUrl: "https://anthropic.example.test" }],
+      ["openai", { apiKey: "codex-token", api: "openai-completions", baseUrl: "https://openai.example.test" }],
+      ["codex", { apiKey: "codex-token", api: "openai-completions", baseUrl: "https://openai.example.test" }],
     ]);
   });
 
