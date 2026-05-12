@@ -754,16 +754,31 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 		t.Skip("Git not available")
 	}
 
-	t.Run("prefers upstream when both origin and upstream exist", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/fork/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add origin remote: %v", err)
+	removeRemoteIfExists := func(t *testing.T, name string) {
+		t.Helper()
+		if err := exec.Command("git", "remote", "get-url", name).Run(); err == nil {
+			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
+				t.Fatalf("Failed to remove existing %s remote: %v", name, err)
+			}
 		}
-		t.Cleanup(func() { _ = exec.Command("git", "remote", "remove", "origin").Run() })
+	}
 
-		if err := exec.Command("git", "remote", "add", "upstream", "https://github.com/upstream/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add upstream remote: %v", err)
+	addRemote := func(t *testing.T, name, remoteURL string) {
+		t.Helper()
+		removeRemoteIfExists(t, name)
+		if err := exec.Command("git", "remote", "add", name, remoteURL).Run(); err != nil {
+			t.Fatalf("Failed to add %s remote: %v", name, err)
 		}
-		t.Cleanup(func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() })
+		t.Cleanup(func() {
+			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
+				t.Logf("Warning: failed to remove %s remote during cleanup: %v", name, err)
+			}
+		})
+	}
+
+	t.Run("prefers upstream when both origin and upstream exist", func(t *testing.T) {
+		addRemote(t, "origin", "https://github.com/fork/repo.git")
+		addRemote(t, "upstream", "https://github.com/upstream/repo.git")
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
 		if slug != "upstream/repo" {
@@ -772,13 +787,8 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 	})
 
 	t.Run("falls back to origin when upstream missing", func(t *testing.T) {
-		_ = exec.Command("git", "remote", "remove", "upstream").Run()
-		_ = exec.Command("git", "remote", "remove", "origin").Run()
-
-		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/myorg/myrepo.git").Run(); err != nil {
-			t.Fatalf("Failed to add origin remote: %v", err)
-		}
-		t.Cleanup(func() { _ = exec.Command("git", "remote", "remove", "origin").Run() })
+		removeRemoteIfExists(t, "upstream")
+		addRemote(t, "origin", "https://github.com/myorg/myrepo.git")
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
 		if slug != "myorg/myrepo" {
