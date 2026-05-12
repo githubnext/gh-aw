@@ -35,9 +35,16 @@ function resolveDispatchRef() {
 }
 
 async function main() {
+  core.info("Starting centralized slash command routing.");
+  core.info(`Incoming event name: '${context.eventName}'.`);
+
   const routeMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");
+  core.info(`Configured centralized commands: ${Object.keys(routeMap).length}.`);
+
   const text = resolveBodyText();
+  core.info(`Resolved payload text length: ${String(text).length}.`);
   const firstWord = String(text).trim().split(/\s+/)[0] ?? "";
+  core.info(`First token in payload: '${firstWord || "<empty>"}'.`);
   if (!firstWord.startsWith("/")) {
     core.info("No slash command found at start of payload text; skipping dispatch.");
     return;
@@ -45,18 +52,24 @@ async function main() {
 
   const commandName = firstWord.slice(1);
   const identifier = eventIdentifier();
+  core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);
+  const configuredRoutes = routeMap[commandName] ?? [];
+  core.info(`Configured routes for '/${commandName}': ${configuredRoutes.length}.`);
   const routes = (routeMap[commandName] ?? []).filter(route => Array.isArray(route.events) && route.events.includes(identifier));
   if (routes.length === 0) {
     core.info(`No centralized routes matched command '/${commandName}' for event '${identifier}'.`);
     return;
   }
+  core.info(`Matched routes for '/${commandName}' on '${identifier}': ${routes.map(route => route.workflow).join(", ")}.`);
 
   const { buildAwContext } = require("./aw_context.cjs");
 
   const ref = resolveDispatchRef();
+  core.info(`Dispatch ref resolved to '${ref}'.`);
   for (const route of routes) {
     const awContext = buildAwContext();
     awContext.command_name = commandName;
+    core.info(`Dispatching workflow '${route.workflow}.lock.yml' for '/${commandName}'.`);
     await github.rest.actions.createWorkflowDispatch({
       owner: context.repo.owner,
       repo: context.repo.repo,
@@ -68,6 +81,7 @@ async function main() {
     });
     core.info(`Dispatched '${route.workflow}' for '/${commandName}'`);
   }
+  core.info(`Completed centralized routing for '/${commandName}'.`);
 }
 
 module.exports = { main, eventIdentifier, resolveBodyText, resolveDispatchRef };
