@@ -20,6 +20,8 @@ safe-outputs:
     max: 1
 
 timeout-minutes: 30
+max-runs: 200
+max-effective-tokens: 40000000
 strict: true
 
 imports:
