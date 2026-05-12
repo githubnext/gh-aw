@@ -754,18 +754,13 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 		t.Skip("Git not available")
 	}
 
-	removeRemoteIfExists := func(t *testing.T, name string) {
+	addRemote := func(t *testing.T, name, remoteURL string) {
 		t.Helper()
 		if err := exec.Command("git", "remote", "get-url", name).Run(); err == nil {
 			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
 				t.Fatalf("Failed to remove existing %s remote: %v", name, err)
 			}
 		}
-	}
-
-	addRemote := func(t *testing.T, name, remoteURL string) {
-		t.Helper()
-		removeRemoteIfExists(t, name)
 		if err := exec.Command("git", "remote", "add", name, remoteURL).Run(); err != nil {
 			t.Fatalf("Failed to add %s remote: %v", name, err)
 		}
@@ -787,7 +782,6 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 	})
 
 	t.Run("falls back to origin when upstream missing", func(t *testing.T) {
-		removeRemoteIfExists(t, "upstream")
 		addRemote(t, "origin", "https://github.com/myorg/myrepo.git")
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
