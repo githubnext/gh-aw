@@ -276,7 +276,11 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 								// Add individual bash commands with Bash() prefix
 								for _, cmd := range bashCommands {
 									if cmdStr, ok := cmd.(string); ok {
-										allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", cmdStr))
+										// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+										// all engines emit the canonical prefix form (Bash(jq)) regardless
+										// of whether the command was written with or without the wildcard.
+										normalized, _ := normalizeBashCommand(cmdStr)
+										allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", normalized))
 									}
 								}
 							} else {

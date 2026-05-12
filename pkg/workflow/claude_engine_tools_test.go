@@ -296,6 +296,29 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			},
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for",
 		},
+		// Wildcard normalization tests - "cmd *" should normalize to "Bash(cmd)"
+		{
+			name: "bash tool with trailing space-star is normalized to canonical Bash(cmd)",
+			tools: map[string]any{
+				"bash": []any{"jq *"},
+			},
+			expected: "Bash(jq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
+		{
+			name: "community-attribution-style wildcard entries normalize to canonical forms",
+			tools: map[string]any{
+				"bash": []any{"jq *", "sed *", "awk *"},
+			},
+			expected: "Bash(awk),Bash(jq),Bash(sed),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
+		{
+			name: "wildcard and non-wildcard forms of same command are both accepted",
+			tools: map[string]any{
+				"bash": []any{"jq *", "jq"},
+			},
+			// Claude does not deduplicate tool lists, so both resolve to Bash(jq)
+			expected: "Bash(jq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
 	}
 
 	for _, tt := range tests {
