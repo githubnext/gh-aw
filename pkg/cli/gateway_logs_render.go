@@ -156,7 +156,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			}
 
 			// Sort tools by call count
-			toolNames := sliceutil.MapToSlice(server.Tools)
+			toolNames := sliceutil.MapKeys(server.Tools)
 			sort.Slice(toolNames, func(i, j int) bool {
 				return server.Tools[toolNames[i]].CallCount > server.Tools[toolNames[j]].CallCount
 			})
@@ -186,7 +186,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 
 // getSortedServerNames returns server names sorted by request count
 func getSortedServerNames(metrics *GatewayMetrics) []string {
-	names := sliceutil.MapToSlice(metrics.Servers)
+	names := sliceutil.MapKeys(metrics.Servers)
 	sort.Slice(names, func(i, j int) bool {
 		return metrics.Servers[names[i]].RequestCount > metrics.Servers[names[j]].RequestCount
 	})
