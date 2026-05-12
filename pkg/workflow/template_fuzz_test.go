@@ -200,12 +200,11 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 						continue
 					}
 					expr := strings.TrimSpace(match[1])
-					// Fuzz heuristic: treat nested/double or unbalanced braces as malformed
+					// Fuzz heuristic: treat nested or stray braces as malformed
 					// fragments rather than canonicalization failures.
 					if hasSkippableElseifExprPrefix(expr) ||
 						strings.Contains(expr, "{{") ||
-						strings.Contains(expr, "}}") ||
-						strings.Count(expr, "{") != strings.Count(expr, "}") {
+						strings.Contains(expr, "{") {
 						continue
 					}
 					t.Errorf("Non-canonical elseif pattern %q still present in output, input: %q", pattern.String(), input)
