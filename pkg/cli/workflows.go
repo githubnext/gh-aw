@@ -24,13 +24,13 @@ import (
 
 var workflowsLog = logger.New("cli:workflows")
 
+const workflowTitleScannerBufferSize = 4 * 1024
+
 var workflowTitleScannerBufferPool = sync.Pool{
 	New: func() any {
-		return make([]byte, 4*1024)
+		return make([]byte, workflowTitleScannerBufferSize)
 	},
 }
-
-const workflowTitleScannerBufferSize = 4 * 1024
 
 func getWorkflowsDir() string {
 	return ".github/workflows"
