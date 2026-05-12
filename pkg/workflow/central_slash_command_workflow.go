@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -44,7 +45,7 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 		return nil
 	}
 
-	content, err := buildCentralSlashCommandWorkflowYAML(routesByCommand, mergedEvents)
+	content, err := buildCentralSlashCommandWorkflowYAML(routesByCommand, mergedEvents, resolveCentralSlashRunsOn(workflowDataList))
 	if err != nil {
 		return err
 	}
@@ -124,17 +125,17 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 	return routesByCommand, mergedEvents
 }
 
-func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashCommandRoute, mergedEvents map[string]map[string]bool) (string, error) {
+func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashCommandRoute, mergedEvents map[string]map[string]bool, runsOn string) (string, error) {
 	routesJSON, err := json.Marshal(routesByCommand)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal centralized slash-command routes: %w", err)
 	}
 
-	header := GenerateWorkflowHeader("", "pkg/workflow/central_slash_command_workflow.go", "")
+	header := GenerateWorkflowHeader("", "gh-aw", "Compiler version: "+GetVersion())
 
 	var b strings.Builder
 	b.WriteString(header)
-	b.WriteString(`name: "Agentic Slash Command Trigger"
+	b.WriteString(`name: "Agentic Commands"
 
 on:
 `)
@@ -144,7 +145,7 @@ permissions: {}
 
 jobs:
   route:
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOn + `
     permissions:
       actions: write
       contents: read
@@ -158,59 +159,37 @@ jobs:
           GH_AW_SLASH_ROUTING: '` + escapeSingleQuotedYAMLString(string(routesJSON)) + `'
         with:
           script: |
-            const routeMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");
-            const bodyByEvent = {
-              issues: context.payload?.issue?.body ?? "",
-              pull_request: context.payload?.pull_request?.body ?? "",
-              issue_comment: context.payload?.comment?.body ?? "",
-              pull_request_review_comment: context.payload?.comment?.body ?? "",
-              discussion: context.payload?.discussion?.body ?? "",
-              discussion_comment: context.payload?.comment?.body ?? "",
-            };
-
-            function eventIdentifier() {
-              if (context.eventName !== "issue_comment") {
-                return context.eventName;
-              }
-              return context.payload?.issue?.pull_request ? "pull_request_comment" : "issue_comment";
-            }
-
-            const text = bodyByEvent[context.eventName] ?? "";
-            const firstWord = String(text).trim().split(/\s+/)[0] ?? "";
-            if (!firstWord.startsWith("/")) {
-              core.info("No slash command found at start of payload text; skipping dispatch.");
-              return;
-            }
-
-            const commandName = firstWord.slice(1);
-            const identifier = eventIdentifier();
-            const routes = (routeMap[commandName] ?? []).filter(route => Array.isArray(route.events) && route.events.includes(identifier));
-            if (routes.length === 0) {
-              core.info("No centralized routes matched command '/" + commandName + "' for event '" + identifier + "'.");
-              return;
-            }
-
-            const { setupGlobals } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/setup_globals.cjs");
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { buildAwContext } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/aw_context.cjs");
-
-            const ref = process.env.GITHUB_HEAD_REF ? "refs/heads/" + process.env.GITHUB_HEAD_REF : (process.env.GITHUB_REF || context.ref || "refs/heads/" + (context.payload?.repository?.default_branch || "main"));
-            for (const route of routes) {
-              const awContext = buildAwContext();
-              awContext.command_name = commandName;
-              await github.rest.actions.createWorkflowDispatch({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: route.workflow + ".lock.yml",
-                ref,
-                inputs: {
-                  aw_context: JSON.stringify(awContext),
-                },
-              });
-              core.info("Dispatched '" + route.workflow + "' for '/" + commandName + "'");
-            }
+            const { main } = require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/route_slash_command.cjs");
+            await main();
 `)
 	return b.String(), nil
+}
+
+func resolveCentralSlashRunsOn(workflowDataList []*WorkflowData) string {
+	counts := map[string]int{}
+	for _, wd := range workflowDataList {
+		if wd == nil || !wd.CommandCentralized || len(wd.Command) == 0 {
+			continue
+		}
+
+		resolved := constants.DefaultActivationJobRunnerImage
+		if wd.SafeOutputs != nil && strings.TrimSpace(wd.SafeOutputs.RunsOn) != "" {
+			resolved = strings.TrimSpace(wd.SafeOutputs.RunsOn)
+		} else if strings.TrimSpace(wd.RunsOnSlim) != "" {
+			resolved = strings.TrimSpace(wd.RunsOnSlim)
+		}
+		counts[resolved]++
+	}
+
+	best := constants.DefaultActivationJobRunnerImage
+	bestCount := counts[best]
+	for candidate, count := range counts {
+		if count > bestCount || (count == bestCount && candidate < best) {
+			best = candidate
+			bestCount = count
+		}
+	}
+	return best
 }
 
 func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map[string]bool) {

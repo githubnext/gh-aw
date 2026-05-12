@@ -42,8 +42,10 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.NoError(t, err)
 	text := string(content)
 
-	require.Contains(t, text, "name: \"Agentic Slash Command Trigger\"")
+	require.Contains(t, text, "name: \"Agentic Commands\"")
+	require.Contains(t, text, "Compiler version:")
 	require.Contains(t, text, "permissions: {}")
+	require.Contains(t, text, "runs-on: ubuntu-slim")
 	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read")
 	require.Contains(t, text, "issues:")
 	require.Contains(t, text, "issue_comment:")
@@ -51,7 +53,8 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, "discussion_comment:")
 	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"]},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"]}]`)
 	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"]}]`)
-	require.Contains(t, text, `const routes = (routeMap[commandName] ?? []).filter(route => Array.isArray(route.events) && route.events.includes(identifier));`)
+	require.Contains(t, text, `require(process.env.GITHUB_WORKSPACE + "/actions/setup/js/route_slash_command.cjs")`)
+	require.NotContains(t, text, `const routeMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");`)
 	require.NotContains(t, text, `trustedAuthorAssociations`)
 	require.NotContains(t, text, `isForkBasedPullRequestEvent`)
 	require.Contains(t, text, `workflow_id: route.workflow + ".lock.yml"`)
@@ -124,6 +127,42 @@ func TestCollectCentralSlashCommandRoutes_UnionizesMergedEvents(t *testing.T) {
 	require.ElementsMatch(t, []string{"created", "edited"}, typeSetKeys(mergedEvents["issue_comment"]))
 	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, typeSetKeys(mergedEvents["pull_request"]))
 	require.NotContains(t, mergedEvents, "discussion")
+}
+
+func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-slash-workflow-runs-on-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "one",
+			Command:            []string{"one"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			RunsOnSlim:         "ubuntu-latest",
+		},
+		{
+			WorkflowID:         "two",
+			Command:            []string{"two"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			SafeOutputs: &SafeOutputsConfig{
+				RunsOn: "self-hosted",
+			},
+		},
+		{
+			WorkflowID:         "three",
+			Command:            []string{"three"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			SafeOutputs: &SafeOutputsConfig{
+				RunsOn: "self-hosted",
+			},
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(data, tmpDir))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	require.Contains(t, string(content), "runs-on: self-hosted")
 }
 
 func typeSetKeys(typeSet map[string]bool) []string {

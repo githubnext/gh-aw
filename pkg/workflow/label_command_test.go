@@ -199,6 +199,15 @@ func TestBuildLabelCommandCondition(t *testing.T) {
 	}
 }
 
+func TestBuildCentralizedLabelCommandCondition(t *testing.T) {
+	condition, err := buildCentralizedLabelCommandCondition([]string{"cloclo"}, []string{"issues"}, false)
+	require.NoError(t, err)
+	rendered := condition.Render()
+	assert.Contains(t, rendered, "github.event_name == 'workflow_dispatch'")
+	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
+	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'cloclo'")
+}
+
 // TestLabelCommandWorkflowCompile verifies that a workflow with label_command trigger
 // compiles to a valid GitHub Actions workflow with:
 //   - label-based events (issues, pull_request, discussion) in the on: section

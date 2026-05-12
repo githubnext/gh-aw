@@ -115,9 +115,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 				}
 			}
 
-			// If label_command is also configured alongside slash_command, merge label events
-			// into the existing command events map to avoid duplicate YAML keys.
-			if len(data.LabelCommand) > 0 {
+			// If label_command is also configured alongside non-centralized slash_command, merge
+			// label events into the existing command events map to avoid duplicate YAML keys.
+			if len(data.LabelCommand) > 0 && !data.CommandCentralized {
 				labelEventNames := FilterLabelCommandEvents(data.LabelCommandEvents)
 				for _, eventName := range labelEventNames {
 					if existingAny, ok := commandEventsMap[eventName]; ok {
@@ -183,10 +183,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 					}
 				}
 			} else if data.If == "" && len(data.LabelCommand) > 0 {
-				// Centralized command mode bypasses slash-command content checks.
-				// If label_command is also configured, keep label gating logic.
-				// hasOtherEvents=true keeps router workflow_dispatch runs eligible.
-				labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, true)
+				// Centralized command mode compiles slash-command workflows as workflow_dispatch
+				// targets. Label checks for dispatches must be derived from aw_context metadata.
+				labelConditionTree, err := buildCentralizedLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, len(data.CommandOtherEvents) > 0)
 				if err != nil {
 					return fmt.Errorf("failed to build label-command condition: %w", err)
 				} else {
