@@ -316,6 +316,7 @@ describe("git_helpers.cjs", () => {
       await ensureFullHistoryForBundle(execApi);
 
       expect(execApi.exec).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledTimes(1);
       expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: not a git repository");
     });
 
@@ -330,6 +331,7 @@ describe("git_helpers.cjs", () => {
       await ensureFullHistoryForBundle(execApi);
 
       expect(execApi.exec).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledTimes(1);
       expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: unknown failure");
     });
   });
