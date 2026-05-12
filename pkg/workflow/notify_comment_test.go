@@ -971,6 +971,14 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 			expectQueue:       false,
 			expectedGroup:     "gh-aw-conclusion-my-workflow",
 		},
+		{
+			name:              "empty string feature value keeps queue enabled",
+			workflowID:        "my-workflow",
+			features:          map[string]any{"group-concurrency-queue": ""},
+			expectConcurrency: true,
+			expectQueue:       true,
+			expectedGroup:     "gh-aw-conclusion-my-workflow",
+		},
 	}
 
 	for _, tt := range tests {

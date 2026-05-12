@@ -643,7 +643,7 @@ func parseGroupConcurrencyQueueFeatureValue(value any) bool {
 		case "false", "0", "off", "no":
 			return false
 		default:
-			return normalized != ""
+			return true
 		}
 	default:
 		return true
