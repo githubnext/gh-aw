@@ -222,6 +222,24 @@ func TestBuildStatusCommentConditionIncludesWorkflowDispatchForCentralized(t *te
 	}
 }
 
+func TestBuildReactionConditionForTargetsNoTargetsReturnsFalse(t *testing.T) {
+	result := BuildReactionConditionForTargets(false, false, false, false)
+	rendered := RenderCondition(result)
+
+	if rendered != "false" {
+		t.Errorf("Expected false condition when all reaction targets are disabled, got: %s", rendered)
+	}
+}
+
+func TestBuildStatusCommentConditionNoTargetsReturnsFalseWithDispatch(t *testing.T) {
+	result := BuildStatusCommentCondition(false, false, false, true)
+	rendered := RenderCondition(result)
+
+	if rendered != "false" {
+		t.Errorf("Expected false condition when all status-comment targets are disabled, got: %s", rendered)
+	}
+}
+
 func TestFunctionCallNode_Render(t *testing.T) {
 	tests := []struct {
 		name     string

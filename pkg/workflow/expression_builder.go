@@ -90,6 +90,10 @@ func BuildStatusCommentCondition(includeIssues bool, includePullRequests bool, i
 }
 
 func buildReactionLikeCondition(includeIssues bool, includePullRequests bool, includeDiscussions bool, includeWorkflowDispatch bool) ConditionNode {
+	if !includeIssues && !includePullRequests && !includeDiscussions {
+		return BuildBooleanLiteral(false)
+	}
+
 	// Build a list of event types that should trigger reactions/status-comments using expression nodes.
 	var terms []ConditionNode
 
@@ -154,6 +158,9 @@ func buildDispatchSourceEventCondition(includeIssues bool, includePullRequests b
 	if includeDiscussions {
 		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("discussion")))
 		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("discussion_comment")))
+	}
+	if len(terms) == 0 {
+		return BuildBooleanLiteral(false)
 	}
 	return BuildDisjunction(false, terms...)
 }

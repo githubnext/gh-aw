@@ -448,10 +448,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockGithub.request).toHaveBeenCalledWith(
-        "POST /repos/target-owner/target-repo/issues/comments/456/reactions",
-        expect.objectContaining({ content: "eyes" })
-      );
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/target-owner/target-repo/issues/comments/456/reactions", expect.objectContaining({ content: "eyes" }));
     });
 
     it("should fail for unsupported event types", async () => {

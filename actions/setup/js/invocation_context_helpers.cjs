@@ -224,12 +224,7 @@ function resolveInvocationContext(rawContext) {
           eventPayload = awPayload;
         }
       }
-      eventRepo =
-        eventRepo ||
-        parseRepoSlug(inputs.event_repo) ||
-        parseRepoSlug(inputs.eventRepo) ||
-        parseRepoSlug(typeof awContext?.repo === "string" ? awContext.repo : undefined) ||
-        targetRepo;
+      eventRepo = eventRepo || parseRepoSlug(inputs.event_repo) || parseRepoSlug(inputs.eventRepo) || parseRepoSlug(typeof awContext?.repo === "string" ? awContext.repo : undefined) || targetRepo;
     }
   }
 
