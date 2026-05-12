@@ -198,21 +198,6 @@
       "repo": "super-linter/super-linter",
       "version": "v8.6.0",
       "sha": "9e863354e3ff62e0727d37183162c4a88873df41"
-    },
-    "actions/upload-artifact@v3.2.2": {
-      "repo": "actions/upload-artifact",
-      "version": "v3.2.2",
-      "sha": "c6a366c94c3e0affe28c06c8df20a878f24da3cf"
-    },
-    "actions/download-artifact@v3.0.2": {
-      "repo": "actions/download-artifact",
-      "version": "v3.0.2",
-      "sha": "9bc31d5ccc31df68ecc42ccf4149144866c47d8a"
-    },
-    "actions/download-artifact@v3.1.0": {
-      "repo": "actions/download-artifact",
-      "version": "v3.1.0",
-      "sha": "a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59"
     }
   },
   "containers": {
