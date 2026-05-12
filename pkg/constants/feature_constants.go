@@ -72,4 +72,12 @@ const (
 	//	features:
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
+	// GroupConcurrencyQueueFeatureFlag controls whether compiler-generated group
+	// concurrency blocks include queue: max.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  group-concurrency-queue: false
+	GroupConcurrencyQueueFeatureFlag FeatureFlag = "group-concurrency-queue"
 )

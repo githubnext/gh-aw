@@ -2673,6 +2673,11 @@
               "type": "boolean",
               "description": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts. Default: false (queue new runs). Set to true for agentic workflows where only the latest run matters (e.g., PR analysis that becomes stale when new commits are pushed)."
             },
+            "queue": {
+              "type": "string",
+              "enum": ["single", "max"],
+              "description": "Pending run queue behavior for this concurrency group. 'single' (default) allows one pending run and replaces older pending runs. 'max' allows up to 100 pending runs in FIFO order."
+            },
             "job-discriminator": {
               "type": "string",
               "description": "Additional discriminator expression appended to compiler-generated job-level concurrency groups (agent, output jobs). Use this when multiple workflow instances are dispatched concurrently with different inputs (fan-out pattern) to prevent job-level concurrency groups from colliding. For example, '${{ inputs.finding_id }}' ensures each dispatched run gets a unique job-level group. Supports GitHub Actions expressions. This field is stripped from the compiled lock file (it is a gh-aw extension, not a GitHub Actions field).",
@@ -10186,6 +10191,11 @@
                     "cancel-in-progress": {
                       "type": "boolean",
                       "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agentic workflow runs."
+                    },
+                    "queue": {
+                      "type": "string",
+                      "enum": ["single", "max"],
+                      "description": "Pending run queue behavior for this concurrency group. 'single' (default) allows one pending run and replaces older pending runs. 'max' allows up to 100 pending runs in FIFO order."
                     }
                   },
                   "required": ["group"],

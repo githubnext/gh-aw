@@ -998,6 +998,7 @@ jobs:
     concurrency:
       group: "gh-aw-conclusion-dependabot-campaign"
       cancel-in-progress: false
+      queue: max
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
