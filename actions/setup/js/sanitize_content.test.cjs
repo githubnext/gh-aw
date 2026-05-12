@@ -921,6 +921,66 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("javascript%25253A");
     });
+
+    it("should redact ws:// URLs (WebSocket)", () => {
+      const result = sanitizeContent("Connect to ws://evil.com/socket");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("ws://");
+    });
+
+    it("should redact wss:// URLs (secure WebSocket)", () => {
+      const result = sanitizeContent("Connect to wss://evil.com/socket");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("wss://");
+    });
+
+    it("should redact smb:// URLs (SMB shares)", () => {
+      const result = sanitizeContent("[share](smb://attacker.com/share)");
+      expect(result).toContain("(attacker.com/redacted)");
+      expect(result).not.toContain("smb://");
+    });
+
+    it("should redact irc:// URLs", () => {
+      const result = sanitizeContent("Join irc://irc.libera.chat/#channel");
+      expect(result).toContain("(irc.libera.chat/redacted)");
+      expect(result).not.toContain("irc://");
+    });
+
+    it("should redact ldap:// URLs", () => {
+      const result = sanitizeContent("[x](ldap://evil.com/cn=admin)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("ldap://");
+    });
+
+    it("should redact ldaps:// URLs", () => {
+      const result = sanitizeContent("[x](ldaps://evil.com/cn=admin)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("ldaps://");
+    });
+
+    it("should redact rtsp:// URLs", () => {
+      const result = sanitizeContent("Stream rtsp://attacker.com/stream");
+      expect(result).toContain("(attacker.com/redacted)");
+      expect(result).not.toContain("rtsp://");
+    });
+
+    it("should redact magnet: URLs", () => {
+      const result = sanitizeContent("[torrent](magnet:?xt=urn:btih:abc123)");
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("magnet:");
+    });
+
+    it("should not redact https:// URLs in protocol sanitization step", () => {
+      const result = sanitizeContent("Visit https://github.com/repo");
+      expect(result).toBe("Visit https://github.com/repo");
+    });
+
+    it("should not corrupt https:// URLs by matching a suffix of the scheme", () => {
+      // Regression: the new allowlist regex must not match "ttps://" as a protocol
+      // within "https://github.com" and redact github.com.
+      const result = sanitizeContent("See https://github.com/org/repo for details");
+      expect(result).toBe("See https://github.com/org/repo for details");
+    });
   });
 
   describe("URL domain filtering", () => {

@@ -176,12 +176,12 @@ function sanitizeDomainName(domain) {
  * @returns {string} The string with non-https protocols redacted
  */
 function sanitizeUrlProtocols(s) {
-  // Normalize percent-encoded colons before applying the protocol blocklist.
+  // Normalize percent-encoded colons before applying the protocol filter.
   // This prevents bypasses via javascript%3Aalert(1) (single-encoded),
   // javascript%253Aalert(1) (double-encoded), or deeper nesting.
   // Strategy: iteratively decode %25 -> % (up to 4 passes, which handles
   // encodings up to 5 levels deep) until stable, then decode %3A -> :
-  // so the blocklist regex always sees literal colons.
+  // so the filter regex always sees literal colons.
   let normalized = s;
   // Iteratively decode %25XX (percent-encoded percent signs) one level at a
   // time. 4 passes handles up to 5 encoding levels, which is far beyond the
@@ -197,12 +197,21 @@ function sanitizeUrlProtocols(s) {
   }
   normalized = normalized.replace(/%3[Aa]/gi, ":"); // decode %3A -> :
 
-  // Match common non-https protocols
-  // This regex matches: protocol://domain or protocol:path or incomplete protocol://
-  // Examples: http://, ftp://, file://, data:, javascript:, mailto:, tel:, ssh://, git://
-  // The regex also matches incomplete protocols like "http://" or "ftp://" without a domain
-  // Note: No word boundary check to catch protocols even when preceded by word characters
-  return normalized.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+  // Allowlist approach for protocol:// URLs: redact every scheme EXCEPT https://.
+  // A negative lookbehind (?<![a-z0-9]) prevents matching a suffix of another
+  // protocol name (e.g. prevents matching "ttps://" inside "https://github.com").
+  // A negative lookahead (?!https://) then excludes the https:// scheme itself,
+  // which is intentionally passed through to sanitizeUrlDomains for domain-level
+  // filtering.  Any other scheme — including ws://, wss://, smb://, irc://,
+  // ldap://, ldaps://, rtsp://, feed://, ftp://, http://, ssh://, git://, etc. —
+  // is caught and redacted.  This allowlist approach avoids the class of
+  // blocklist-incompleteness bypasses described in the security issue.
+  //
+  // For single-colon schemes (data:, javascript:, magnet:, etc.) that omit "//",
+  // a targeted blocklist is still used because a fully general single-colon
+  // pattern would produce too many false positives (e.g. "key:value" in YAML or
+  // "C:\path" on Windows).
+  return normalized.replace(/((?<![a-z0-9])(?!https:\/\/)[a-z][a-z0-9+.-]*:\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel|magnet):[^\s]+)/gi, (match, _fullMatch, domain) => {
     // Extract domain for http/ftp/file/ssh/git protocols
     if (domain) {
       const domainLower = domain.toLowerCase();
