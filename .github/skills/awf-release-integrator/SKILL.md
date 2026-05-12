@@ -24,7 +24,7 @@ Consult these sources before editing anything:
    - `pkg/workflow/awf_helpers.go`
    - related AWF tests under `pkg/workflow/`
 
-For upstream spec review, compare the target release's:
+For upstream spec review, compare these files from the target `github/gh-aw-firewall` release or tag:
 
 - `docs/awf-config-spec.md`
 - `docs/awf-config.schema.json`
@@ -59,15 +59,14 @@ For upstream spec review, compare the target release's:
 
 ## Required validation
 
-After editing, run the full AWF rebuild flow exactly in this order:
+After editing, run the full AWF rebuild flow exactly in this order. The second
+`make recompile` is required to refresh image SHA pins resolved during the first pass.
 
 ```bash
 make build
 make recompile
 make recompile
 ```
-
-The second `make recompile` is required to refresh image SHA pins resolved during the first pass.
 
 Then run focused validation for any touched Go code or schema logic, especially AWF-related tests.
 
