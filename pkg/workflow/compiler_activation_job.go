@@ -329,9 +329,12 @@ func buildCentralizedCommandOnSection(commandEvents []string) string {
 	}
 	var b strings.Builder
 	b.WriteString("on:\n")
-	// Use stable ordering to match the rest of the codebase.
-	for _, name := range []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"} {
-		if eventSet[name] {
+	// Derive ordering from GetAllCommentEvents to stay consistent with the rest of the codebase.
+	seen := make(map[string]bool)
+	for _, mapping := range GetAllCommentEvents() {
+		name := GetActualGitHubEventName(mapping.EventName)
+		if eventSet[name] && !seen[name] {
+			seen[name] = true
 			b.WriteString("  " + name + ":\n    types: [created]\n")
 		}
 	}
