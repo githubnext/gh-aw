@@ -31,7 +31,7 @@ func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 	// from the ones we added. Only an empty label list is a clear rejection signal.
 	if len(labels) > 0 {
 		report.Result = OutcomePending
-		report.Detail = "cannot evaluate label retention (added labels not recorded)"
+		report.Detail = "cannot evaluate label retention (added labels not recorded; extend manifest to include label names)"
 	} else {
 		report.Result = OutcomeRejected
 		report.Detail = "all labels removed"
