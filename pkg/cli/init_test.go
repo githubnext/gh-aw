@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInitRepository(t *testing.T) {
@@ -294,29 +295,27 @@ This is a test workflow.
 }
 
 func TestIsGHESHost(t *testing.T) {
-tests := []struct {
-host     string
-expected bool
-}{
-{"github.com", false},
-{"acme.ghe.com", false},        // GHE Cloud tenant
-{"myorg.ghe.com", false},       // GHE Cloud tenant
-{"ghes.example.com", true},     // GHES instance
-{"github.mycompany.com", true}, // GHES custom domain
-{"", false},                    // empty host
-{"localhost", true},            // local dev instance counts as GHES
-{"ghes.example.com:8080", true}, // with port
-{"github.com:443", false},      // github.com with port
-}
+	tests := []struct {
+		Host     string
+		Expected bool
+	}{
+		{"github.com", false},
+		{"acme.ghe.com", false},         // GHE Cloud tenant
+		{"myorg.ghe.com", false},        // GHE Cloud tenant
+		{"ghes.example.com", true},      // GHES instance
+		{"github.mycompany.com", true},  // GHES custom domain
+		{"", false},                     // empty host
+		{"localhost", true},             // local dev instance counts as GHES
+		{"ghes.example.com:8080", true}, // with port
+		{"github.com:443", false},       // github.com with port
+	}
 
-for _, tt := range tests {
-t.Run(tt.host, func(t *testing.T) {
-got := isGHESHost(tt.host)
-if got != tt.expected {
-t.Errorf("isGHESHost(%q) = %v, want %v", tt.host, got, tt.expected)
-}
-})
-}
+	for _, tt := range tests {
+		t.Run(tt.Host, func(t *testing.T) {
+			got := isGHESHost(tt.Host)
+			assert.Equal(t, tt.Expected, got, "isGHESHost(%q) should return %v", tt.Host, tt.Expected)
+		})
+	}
 }
 
 func TestEnsureGHESRepoConfig_NoDetection(t *testing.T) {
