@@ -89,10 +89,7 @@ async function main() {
           core.warning(`⚠️ command_name '${inboundCommandName}' from aw_context is not in allowed commands list.`);
           core.setOutput("command_position_ok", "false");
           core.setOutput("matched_command", "");
-          await writeDenialSummary(
-            `Workflow dispatch aw_context.command_name '${inboundCommandName}' is not one of the configured commands.`,
-            "Ensure the centralized slash-command trigger dispatches only configured commands."
-          );
+          await writeDenialSummary(`Workflow dispatch aw_context.command_name '${inboundCommandName}' is not one of the configured commands.`, "Ensure the centralized slash-command trigger dispatches only configured commands.");
         }
         return;
       }

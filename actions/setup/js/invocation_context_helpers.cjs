@@ -108,6 +108,50 @@ function parseJSONPayload(value) {
 }
 
 /**
+ * Build a minimal event payload from aw_context metadata for centralized slash-command dispatches.
+ * @param {Record<string, any>} awContext
+ * @param {string} eventName
+ * @returns {Record<string, any>|null}
+ */
+function buildPayloadFromAwContext(awContext, eventName) {
+  const itemType = typeof awContext.item_type === "string" ? awContext.item_type : "";
+  const itemNumberRaw = awContext.item_number;
+  const commentIdRaw = awContext.comment_id;
+  const commentNodeId = typeof awContext.comment_node_id === "string" ? awContext.comment_node_id : "";
+  const itemNumber = Number(itemNumberRaw);
+  const commentId = Number(commentIdRaw);
+
+  if (!itemType || !Number.isFinite(itemNumber) || itemNumber <= 0) {
+    return null;
+  }
+
+  /** @type {Record<string, any>} */
+  const payload = {};
+
+  if (itemType === "issue") {
+    payload.issue = { number: itemNumber };
+  } else if (itemType === "pull_request") {
+    payload.pull_request = { number: itemNumber };
+    if (eventName === "issue_comment") {
+      payload.issue = { number: itemNumber, pull_request: {} };
+    }
+  } else if (itemType === "discussion") {
+    payload.discussion = { number: itemNumber };
+  }
+
+  if (Number.isFinite(commentId) && commentId > 0) {
+    payload.comment = { id: commentId };
+    if (commentNodeId) {
+      payload.comment.node_id = commentNodeId;
+    }
+  } else if (commentNodeId) {
+    payload.comment = { node_id: commentNodeId };
+  }
+
+  return Object.keys(payload).length > 0 ? payload : null;
+}
+
+/**
  * Validate workflow_dispatch target repository against allowlist configuration.
  * Enforces SEC-005 by rejecting disallowed cross-repository target overrides.
  * @param {RepoRef} workflowRepo
@@ -162,17 +206,25 @@ function resolveInvocationContext(rawContext) {
     if (inputs && typeof inputs === "object") {
       const inputsEventName = typeof inputs.event_name === "string" ? inputs.event_name : typeof inputs.eventName === "string" ? inputs.eventName : "";
       const parsedPayload = parseJSONPayload(inputs.event_payload) || parseJSONPayload(inputs.eventPayload);
+      const awContext = parseJSONPayload(inputs.aw_context) || parseJSONPayload(inputs.awContext);
       const targetRepo = parseRepoSlug(inputs.target_repo) || parseRepoSlug(inputs.targetRepo);
       if (targetRepo) {
         checkAllowedRepo(workflowRepo, targetRepo);
       }
       if (inputsEventName) {
         eventName = inputsEventName;
+      } else if (typeof awContext?.event_type === "string" && awContext.event_type.trim()) {
+        eventName = awContext.event_type.trim();
       }
       if (parsedPayload) {
         eventPayload = parsedPayload;
+      } else if (awContext && typeof awContext === "object") {
+        const awPayload = buildPayloadFromAwContext(awContext, eventName);
+        if (awPayload) {
+          eventPayload = awPayload;
+        }
       }
-      eventRepo = eventRepo || parseRepoSlug(inputs.event_repo) || parseRepoSlug(inputs.eventRepo) || targetRepo;
+      eventRepo = eventRepo || parseRepoSlug(inputs.event_repo) || parseRepoSlug(inputs.eventRepo) || parseRepoSlug(typeof awContext?.repo === "string" ? awContext.repo : undefined) || targetRepo;
     }
   }
 

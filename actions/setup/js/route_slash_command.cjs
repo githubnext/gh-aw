@@ -67,8 +67,7 @@ async function main() {
   const ref = resolveDispatchRef();
   core.info(`Dispatch ref resolved to '${ref}'.`);
   for (const route of routes) {
-    const awContext = buildAwContext();
-    awContext.command_name = commandName;
+    const awContext = { ...buildAwContext(), command_name: commandName };
     core.info(`Dispatching workflow '${route.workflow}.lock.yml' for '/${commandName}'.`);
     await github.rest.actions.createWorkflowDispatch({
       owner: context.repo.owner,

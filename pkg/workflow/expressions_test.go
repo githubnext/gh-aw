@@ -145,7 +145,7 @@ func TestBuildConditionTree(t *testing.T) {
 }
 
 func TestBuildReactionConditionForTargetsExcludesPullRequests(t *testing.T) {
-	result := BuildReactionConditionForTargets(true, false, true)
+	result := BuildReactionConditionForTargets(true, false, true, false)
 	rendered := result.Render()
 
 	if strings.Contains(rendered, "github.event_name == 'pull_request'") {
@@ -163,7 +163,7 @@ func TestBuildReactionConditionForTargetsExcludesPullRequests(t *testing.T) {
 }
 
 func TestBuildReactionConditionForTargetsIncludesPullRequestReview(t *testing.T) {
-	result := BuildReactionConditionForTargets(true, true, true)
+	result := BuildReactionConditionForTargets(true, true, true, false)
 	rendered := result.Render()
 
 	// Assert the combined sub-expression for pull_request_review with its fork guard,
@@ -175,7 +175,7 @@ func TestBuildReactionConditionForTargetsIncludesPullRequestReview(t *testing.T)
 }
 
 func TestBuildStatusCommentConditionIncludesPullRequestReview(t *testing.T) {
-	result := BuildStatusCommentCondition(true, true, true)
+	result := BuildStatusCommentCondition(true, true, true, false)
 	rendered := result.Render()
 
 	// Assert the combined sub-expression for pull_request_review with its fork guard,
@@ -187,11 +187,56 @@ func TestBuildStatusCommentConditionIncludesPullRequestReview(t *testing.T) {
 }
 
 func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
-	result := BuildStatusCommentCondition(true, false, true)
+	result := BuildStatusCommentCondition(true, false, true, false)
 	rendered := result.Render()
 
 	if strings.Contains(rendered, "github.event_name == 'pull_request_review'") {
 		t.Errorf("Expected pull_request_review event to be excluded when includePullRequests is false, got: %s", rendered)
+	}
+}
+
+func TestBuildReactionConditionForTargetsIncludesWorkflowDispatchForCentralized(t *testing.T) {
+	result := BuildReactionConditionForTargets(true, false, true, true)
+	rendered := result.Render()
+
+	if !strings.Contains(rendered, "github.event_name == 'workflow_dispatch'") {
+		t.Errorf("Expected workflow_dispatch branch for centralized reaction condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issue_comment'") {
+		t.Errorf("Expected aw_context source event condition for issue_comment, got: %s", rendered)
+	}
+	if strings.Contains(rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request'") {
+		t.Errorf("Did not expect pull_request aw_context condition when includePullRequests is false, got: %s", rendered)
+	}
+}
+
+func TestBuildStatusCommentConditionIncludesWorkflowDispatchForCentralized(t *testing.T) {
+	result := BuildStatusCommentCondition(true, true, true, true)
+	rendered := result.Render()
+
+	if !strings.Contains(rendered, "github.event_name == 'workflow_dispatch'") {
+		t.Errorf("Expected workflow_dispatch branch for centralized status-comment condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request_review'") {
+		t.Errorf("Expected aw_context pull_request_review source event condition, got: %s", rendered)
+	}
+}
+
+func TestBuildReactionConditionForTargetsNoTargetsReturnsFalse(t *testing.T) {
+	result := BuildReactionConditionForTargets(false, false, false, false)
+	rendered := RenderCondition(result)
+
+	if rendered != "false" {
+		t.Errorf("Expected false condition when all reaction targets are disabled, got: %s", rendered)
+	}
+}
+
+func TestBuildStatusCommentConditionNoTargetsReturnsFalseWithDispatch(t *testing.T) {
+	result := BuildStatusCommentCondition(false, false, false, true)
+	rendered := RenderCondition(result)
+
+	if rendered != "false" {
+		t.Errorf("Expected false condition when all status-comment targets are disabled, got: %s", rendered)
 	}
 }
 

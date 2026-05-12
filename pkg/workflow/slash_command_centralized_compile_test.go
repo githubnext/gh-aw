@@ -79,7 +79,8 @@ tools:
 	require.Contains(t, compiled, "\"on\":\n  workflow_dispatch:")
 	require.Contains(t, compiled, "workflow_dispatch:")
 	require.NotContains(t, compiled, "\n  issues:\n    types:")
-	require.NotContains(t, compiled, "github.event_name == 'workflow_dispatch'")
+	require.Contains(t, compiled, "github.event_name == 'workflow_dispatch'")
+	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issue_comment'")
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'triage'")
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 }

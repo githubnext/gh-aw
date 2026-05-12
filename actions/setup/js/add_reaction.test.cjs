@@ -429,6 +429,28 @@ describe("add_reaction", () => {
   });
 
   describe("unsupported events", () => {
+    it("supports workflow_dispatch with aw_context metadata", async () => {
+      global.context = {
+        eventName: "workflow_dispatch",
+        repo: { owner: "workflow-owner", repo: "workflow-repo" },
+        payload: {
+          inputs: {
+            aw_context: JSON.stringify({
+              event_type: "issue_comment",
+              item_type: "issue",
+              item_number: "123",
+              comment_id: "456",
+              repo: "target-owner/target-repo",
+            }),
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/target-owner/target-repo/issues/comments/456/reactions", expect.objectContaining({ content: "eyes" }));
+    });
+
     it("should fail for unsupported event types", async () => {
       global.context = {
         eventName: "push",
@@ -656,59 +678,59 @@ describe("add_reaction", () => {
     it("should return issues endpoint", async () => {
       global.context = { eventName: "issues", repo: { owner: "o", repo: "r" }, payload: { issue: { number: 1 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("issues", "o", "r")).toBe("/repos/o/r/issues/1/reactions");
+      expect(resolveRestEndpoint("issues", "o", "r", global.context.payload)).toBe("/repos/o/r/issues/1/reactions");
     });
 
     it("should return null and setFailed when issue number is missing", async () => {
       global.context = { eventName: "issues", repo: { owner: "o", repo: "r" }, payload: {} };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("issues", "o", "r")).toBeNull();
+      expect(resolveRestEndpoint("issues", "o", "r", global.context.payload)).toBeNull();
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Issue number not found"));
     });
 
     it("should return issue_comment endpoint", async () => {
       global.context = { eventName: "issue_comment", repo: { owner: "o", repo: "r" }, payload: { comment: { id: 42 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("issue_comment", "o", "r")).toBe("/repos/o/r/issues/comments/42/reactions");
+      expect(resolveRestEndpoint("issue_comment", "o", "r", global.context.payload)).toBe("/repos/o/r/issues/comments/42/reactions");
     });
 
     it("should return null and setFailed when comment id is missing", async () => {
       global.context = { eventName: "issue_comment", repo: { owner: "o", repo: "r" }, payload: {} };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("issue_comment", "o", "r")).toBeNull();
+      expect(resolveRestEndpoint("issue_comment", "o", "r", global.context.payload)).toBeNull();
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Comment ID not found"));
     });
 
     it("should return pull_request endpoint using issues path", async () => {
       global.context = { eventName: "pull_request", repo: { owner: "o", repo: "r" }, payload: { pull_request: { number: 7 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("pull_request", "o", "r")).toBe("/repos/o/r/issues/7/reactions");
+      expect(resolveRestEndpoint("pull_request", "o", "r", global.context.payload)).toBe("/repos/o/r/issues/7/reactions");
     });
 
     it("should return null and setFailed when PR number is missing", async () => {
       global.context = { eventName: "pull_request", repo: { owner: "o", repo: "r" }, payload: {} };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("pull_request", "o", "r")).toBeNull();
+      expect(resolveRestEndpoint("pull_request", "o", "r", global.context.payload)).toBeNull();
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Pull request number not found"));
     });
 
     it("should return pull_request_review_comment endpoint", async () => {
       global.context = { eventName: "pull_request_review_comment", repo: { owner: "o", repo: "r" }, payload: { comment: { id: 55 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("pull_request_review_comment", "o", "r")).toBe("/repos/o/r/pulls/comments/55/reactions");
+      expect(resolveRestEndpoint("pull_request_review_comment", "o", "r", global.context.payload)).toBe("/repos/o/r/pulls/comments/55/reactions");
     });
 
     it("should return null for discussion events (handled via GraphQL)", async () => {
       global.context = { eventName: "discussion", repo: { owner: "o", repo: "r" }, payload: { discussion: { number: 3 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("discussion", "o", "r")).toBeNull();
+      expect(resolveRestEndpoint("discussion", "o", "r", global.context.payload)).toBeNull();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should return null for unknown events", async () => {
       global.context = { eventName: "push", repo: { owner: "o", repo: "r" }, payload: {} };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("push", "o", "r")).toBeNull();
+      expect(resolveRestEndpoint("push", "o", "r", global.context.payload)).toBeNull();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
@@ -726,7 +748,7 @@ describe("add_reaction", () => {
     it("should handle discussion event with GraphQL", async () => {
       global.context = { eventName: "discussion", repo: { owner: "o", repo: "r" }, payload: { discussion: { number: 5 } } };
       const { handleGraphQLOrUnknownEvent } = await importHelpers();
-      await handleGraphQLOrUnknownEvent("discussion", "o", "r", "eyes");
+      await handleGraphQLOrUnknownEvent("discussion", "o", "r", global.context.payload, "eyes");
       expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "R_xyz");
     });
@@ -734,28 +756,28 @@ describe("add_reaction", () => {
     it("should setFailed when discussion number missing", async () => {
       global.context = { eventName: "discussion", repo: { owner: "o", repo: "r" }, payload: {} };
       const { handleGraphQLOrUnknownEvent } = await importHelpers();
-      await handleGraphQLOrUnknownEvent("discussion", "o", "r", "eyes");
+      await handleGraphQLOrUnknownEvent("discussion", "o", "r", global.context.payload, "eyes");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Discussion number not found"));
     });
 
     it("should handle discussion_comment event with GraphQL", async () => {
       global.context = { eventName: "discussion_comment", repo: { owner: "o", repo: "r" }, payload: { comment: { node_id: "DC_abc" } } };
       const { handleGraphQLOrUnknownEvent } = await importHelpers();
-      await handleGraphQLOrUnknownEvent("discussion_comment", "o", "r", "heart");
+      await handleGraphQLOrUnknownEvent("discussion_comment", "o", "r", global.context.payload, "heart");
       expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation"), expect.objectContaining({ content: "HEART" }));
     });
 
     it("should setFailed when discussion_comment node_id missing", async () => {
       global.context = { eventName: "discussion_comment", repo: { owner: "o", repo: "r" }, payload: {} };
       const { handleGraphQLOrUnknownEvent } = await importHelpers();
-      await handleGraphQLOrUnknownEvent("discussion_comment", "o", "r", "eyes");
+      await handleGraphQLOrUnknownEvent("discussion_comment", "o", "r", global.context.payload, "eyes");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Discussion comment node ID not found"));
     });
 
     it("should setFailed for unknown event types", async () => {
       global.context = { eventName: "push", repo: { owner: "o", repo: "r" }, payload: {} };
       const { handleGraphQLOrUnknownEvent } = await importHelpers();
-      await handleGraphQLOrUnknownEvent("push", "o", "r", "eyes");
+      await handleGraphQLOrUnknownEvent("push", "o", "r", global.context.payload, "eyes");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Unsupported event type: push"));
     });
   });

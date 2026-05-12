@@ -132,4 +132,54 @@ describe("invocation_context_helpers", () => {
     expect(resolved.eventName).toBe("issues");
     expect(resolved.eventRepo).toEqual({ owner: "side-owner", repo: "side-repo" });
   });
+
+  it("derives workflow_dispatch event context from aw_context", () => {
+    const awContext = {
+      event_type: "issue_comment",
+      item_type: "pull_request",
+      item_number: "42",
+      comment_id: "99",
+      repo: "target-owner/target-repo",
+    };
+    const resolved = resolveInvocationContext({
+      eventName: "workflow_dispatch",
+      repo: { owner: "side-owner", repo: "side-repo" },
+      payload: {
+        inputs: {
+          aw_context: JSON.stringify(awContext),
+        },
+      },
+    });
+
+    expect(resolved.source).toBe("workflow_dispatch");
+    expect(resolved.eventName).toBe("issue_comment");
+    expect(resolved.eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
+    expect(resolved.eventPayload.issue.number).toBe(42);
+    expect(resolved.eventPayload.issue.pull_request).toEqual({});
+    expect(resolved.eventPayload.comment.id).toBe(99);
+  });
+
+  it("derives discussion_comment node_id payload from aw_context", () => {
+    const awContext = {
+      event_type: "discussion_comment",
+      item_type: "discussion",
+      item_number: "8",
+      comment_id: "15",
+      comment_node_id: "DC_kwDOexample",
+    };
+    const resolved = resolveInvocationContext({
+      eventName: "workflow_dispatch",
+      repo: { owner: "side-owner", repo: "side-repo" },
+      payload: {
+        inputs: {
+          aw_context: JSON.stringify(awContext),
+        },
+      },
+    });
+
+    expect(resolved.eventName).toBe("discussion_comment");
+    expect(resolved.eventPayload.discussion.number).toBe(8);
+    expect(resolved.eventPayload.comment.id).toBe(15);
+    expect(resolved.eventPayload.comment.node_id).toBe("DC_kwDOexample");
+  });
 });
