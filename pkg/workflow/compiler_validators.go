@@ -298,6 +298,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: experiments"))
 		c.IncrementWarningCount()
 	}
+	if shouldWarnSparseInteractionCells(workflowData) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"experiments: potential sparse interaction cells detected (multiple active experiments with weighted traffic). "+
+				"Reporting should include factorial K1×K2 cell diagnostics before recommending promotion."))
+		c.IncrementWarningCount()
+	}
 
 	// Emit experimental warning for centralized slash-command routing strategy
 	if workflowData.CommandCentralized {
@@ -400,4 +406,30 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	}
 
 	return nil
+}
+
+// shouldWarnSparseInteractionCells reports whether the compiler should emit a
+// sparse-cell interaction warning.
+func shouldWarnSparseInteractionCells(workflowData *WorkflowData) bool {
+	if workflowData == nil || len(workflowData.Experiments) <= 1 {
+		return false
+	}
+	return hasWeightedTrafficExperiment(workflowData.ExperimentConfigs)
+}
+
+// hasWeightedTrafficExperiment returns true when any declared experiment config
+// includes a well-formed weight vector (same length as variants, at least one value).
+func hasWeightedTrafficExperiment(configs map[string]*ExperimentConfig) bool {
+	if len(configs) == 0 {
+		return false
+	}
+	for _, cfg := range configs {
+		if cfg == nil || len(cfg.Variants) == 0 {
+			continue
+		}
+		if len(cfg.Weight) == len(cfg.Variants) {
+			return true
+		}
+	}
+	return false
 }

@@ -424,7 +424,7 @@ func (c *Compiler) generateExperimentArtifactUploadStep(data *WorkflowData, sani
 	return []string{
 		"      - name: Upload experiment artifact\n",
 		"        if: always()\n",
-		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s\n", experimentArtifactName),
 		fmt.Sprintf("          path: %s\n", experimentsCacheDir),
@@ -547,7 +547,8 @@ func experimentArtifactDownloadName(data *WorkflowData) string {
 // The artifact is downloaded to experimentsCacheDir so the detection agent can read the
 // current variant assignments from state.json.
 // The step is a no-op when no experiments are declared.
-func buildExperimentArtifactDownloadSteps(data *WorkflowData) []string {
+// pinAction resolves the download-artifact action reference; pass c.getActionPin from Compiler methods.
+func buildExperimentArtifactDownloadSteps(data *WorkflowData, pinAction func(string) string) []string {
 	if len(data.Experiments) == 0 {
 		return nil
 	}
@@ -556,7 +557,7 @@ func buildExperimentArtifactDownloadSteps(data *WorkflowData) []string {
 		ArtifactName: artifactName,
 		DownloadPath: experimentsCacheDir + "/",
 		StepName:     "Download experiment artifact",
-	})
+	}, pinAction)
 }
 
 // buildPushExperimentsStateJob creates a job that downloads the experiment-state artifact and
@@ -596,7 +597,7 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	artifactName := experimentArtifactDownloadName(data)
 	var downloadStep strings.Builder
 	downloadStep.WriteString("      - name: Download experiment artifact\n")
-	fmt.Fprintf(&downloadStep, "        uses: %s\n", getActionPin("actions/download-artifact"))
+	fmt.Fprintf(&downloadStep, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 	downloadStep.WriteString("        continue-on-error: true\n")
 	downloadStep.WriteString("        with:\n")
 	fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)

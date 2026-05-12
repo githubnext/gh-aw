@@ -200,7 +200,8 @@ func TestPiEngine_GetExecutionSteps_WithModel(t *testing.T) {
 	assert.Contains(t, stepText, "--model", "Step should pass --model flag to Pi CLI")
 	assert.Contains(t, stepText, "github-copilot", "Non-firewall copilot model should use github-copilot/ provider prefix")
 	assert.Contains(t, stepText, "claude-sonnet-4", "Step should include the model ID portion")
-	assert.NotContains(t, stepText, "PI_MODEL", "Step should not set the unsupported PI_MODEL env var")
+	assert.Contains(t, stepText, "GH_AW_PI_MODEL", "Step should expose the original workflow model to Pi extensions")
+	assert.NotContains(t, stepText, "\n          PI_MODEL:", "Step should not set PI_MODEL in the environment when the CLI model is passed via --model")
 }
 
 func TestPiEngine_GetExecutionSteps_ProviderPrefixCopilot(t *testing.T) {

@@ -315,6 +315,10 @@ This section maps the frontmatter hash specification to the source files that im
 
 **Runtime behavior**: text-based approach is authoritative (see Implementation Notes § Resolution).
 
+**Resolution log (2026-05-12)**: Sync status re-verified after SPDD review. Approach retained:
+text-based canonicalization remains authoritative at runtime, and Section 2 field-selection stays
+documented as future-state design intent only.
+
 ---
 
 ## Security Considerations

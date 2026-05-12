@@ -5,7 +5,7 @@ engine:
   description: Crush CLI with headless mode and multi-provider LLM support
   runtime-id: crush
   provider:
-    name: crush
+    name: github
   auth:
     - role: api-key
       secret: COPILOT_GITHUB_TOKEN

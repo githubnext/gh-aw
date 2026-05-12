@@ -5,7 +5,7 @@ engine:
   description: OpenCode CLI with headless mode and multi-provider LLM support
   runtime-id: opencode
   provider:
-    name: opencode
+    name: github
   auth:
     - role: api-key
       secret: COPILOT_GITHUB_TOKEN

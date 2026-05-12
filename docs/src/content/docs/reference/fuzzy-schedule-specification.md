@@ -31,8 +31,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 5. [Timezone Support](#5-timezone-support)
 6. [Scattering Algorithm](#6-scattering-algorithm)
 7. [Cron Expression Generation](#7-cron-expression-generation)
-8. [Error Handling](#8-error-handling)
-9. [Compliance Testing](#9-compliance-testing)
+8. [Safeguards](#8-safeguards)
+9. [Error Handling](#9-error-handling)
+10. [Compliance Testing](#10-compliance-testing)
+11. [Sync Notes](#11-sync-notes)
 
 ---
 
@@ -833,57 +835,81 @@ Generated cron expressions MUST conform to GitHub Actions cron syntax:
 
 ---
 
-## 8. Error Handling
+## 8. Safeguards
 
-### 8.1 Syntax Errors
+The following safeguards are normative and apply to all scattering implementations.
+
+**R-SAFE-001**: Implementations **MUST** enforce finite scatter windows. For `around` schedules,
+the effective jitter window **MUST NOT** exceed ±60 minutes from the requested anchor time. For
+`between` schedules, the scattered time **MUST** remain inside the declared closed interval.
+
+**R-SAFE-002**: Implementations **MUST** apply collision-avoidance normalization before returning
+the final minute value. At minimum, the implementation **MUST** avoid hour-boundary hotspots and
+known quarter-hour peaks as defined by Section 6.4. This guarantee is deterministic for a given
+workflow identifier and schedule expression.
+
+**R-SAFE-003**: If hash input material is empty (for example, missing workflow identifier), the
+implementation **MUST** fail with a descriptive error and **MUST NOT** fall back to random
+scattering.
+
+**R-SAFE-004**: If non-unique hash input causes repeated collisions across workflows, the
+implementation **MUST** preserve deterministic behavior and **SHOULD** emit a warning indicating
+reduced distribution quality. Implementations **MUST NOT** silently switch to non-deterministic
+fallbacks to hide collisions.
+
+---
+
+## 9. Error Handling
+
+### 9.1 Syntax Errors
 
 An implementation MUST reject invalid expressions with clear error messages:
 
-#### 8.1.1 Invalid Schedule Type
+#### 9.1.1 Invalid Schedule Type
 
 ```
 Error: Unknown schedule type 'monthly'
 Valid types: daily, weekly, hourly, bi-weekly, tri-weekly, every
 ```
 
-#### 8.1.2 Invalid Time Format
+#### 9.1.2 Invalid Time Format
 
 ```
 Error: Invalid time format '25:00' in 'daily around 25:00'
 Time must be in 24-hour format (HH:MM, 0-23 hours) or 12-hour format with am/pm
 ```
 
-#### 8.1.3 Invalid Weekday
+#### 9.1.3 Invalid Weekday
 
 ```
 Error: Unknown weekday 'mondey' in 'weekly on mondey'
 Valid weekdays: sunday, monday, tuesday, wednesday, thursday, friday, saturday
 ```
 
-#### 8.1.4 Invalid Interval
+#### 9.1.4 Invalid Interval
 
 ```
 Error: Invalid interval '5' in 'every 5h'
 Valid hour intervals: 1h, 2h, 3h, 4h, 6h, 8h, 12h
 ```
 
-### 8.2 Semantic Errors
+### 9.2 Semantic Errors
 
-#### 8.2.1 Missing Required Components
+#### 9.2.1 Missing Required Components
 
 ```
 Error: 'around' requires a time specification
 Example: daily around 14:00
 ```
 
-#### 8.2.2 Unsupported Syntax
+#### 9.2.2 Unsupported Syntax
 
 ```
 Error: 'daily at <time>' syntax is not supported
 Use 'daily around <time>' for fuzzy scheduling within ±1 hour window
 ```
 
-### 8.3 Warning Messages
+### 9.3 Warning Messages
 
 An implementation SHOULD issue warnings for valid but suboptimal patterns:
 
@@ -892,13 +918,13 @@ Warning: Consider using 'every 2h' instead of fixed interval
 Fixed intervals create load spikes when many workflows run simultaneously
 ```
 
-### 8.4 Error Recovery
+### 9.4 Error Recovery
 
 An implementation SHOULD NOT attempt to correct syntax errors automatically. All errors MUST be reported to the user with actionable correction guidance.
 
-### 8.5 Edge-Case Conformance Requirements
+### 9.5 Edge-Case Conformance Requirements
 
-The following edge-case norms are mandatory in addition to §§8.1–8.4:
+The following edge-case norms are mandatory in addition to §§9.1–9.4:
 
 1. **Invalid scatter seed**: If seed derivation produces an empty, negative, or non-integer
    value, the implementation **MUST** fail compilation with a descriptive error and
@@ -914,15 +940,15 @@ The following edge-case norms are mandatory in addition to §§8.1–8.4:
 
 ---
 
-## 9. Compliance Testing
+## 10. Compliance Testing
 
-### 9.1 Test Suite Requirements
+### 10.1 Test Suite Requirements
 
 A conforming implementation MUST pass all Level 1 tests. Implementations claiming Level 2 or Level 3 conformance MUST pass all tests for their claimed level and all lower levels.
 
-### 9.2 Test Categories
+### 10.2 Test Categories
 
-#### 9.2.1 Syntax Parsing Tests (Level 1)
+#### 10.2.1 Syntax Parsing Tests (Level 1)
 
 - **T-SYNTAX-001**: Parse `daily` to `FUZZY:DAILY * * *`
 - **T-SYNTAX-002**: Parse `weekly` to `FUZZY:WEEKLY * * *`
@@ -932,7 +958,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-SYNTAX-006**: Reject invalid weekday names
 - **T-SYNTAX-007**: Parse case-insensitive tokens
 
-#### 9.2.2 Time Format Tests (Level 2)
+#### 10.2.2 Time Format Tests (Level 2)
 
 - **T-TIME-001**: Parse 24-hour format `14:00`
 - **T-TIME-002**: Parse 12-hour format `3pm`
@@ -945,7 +971,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-TIME-009**: Reject invalid minutes (>59 or <0)
 - **T-TIME-010**: Handle missing leading zeros (e.g., `9:30`)
 
-#### 9.2.3 Time Constraint Tests (Level 2)
+#### 10.2.3 Time Constraint Tests (Level 2)
 
 - **T-CONSTRAINT-001**: Parse `daily around 14:00`
 - **T-CONSTRAINT-002**: Parse `daily between 9:00 and 17:00`
@@ -955,7 +981,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-CONSTRAINT-006**: Reject `between` with only one time
 - **T-CONSTRAINT-007**: Reject `daily at <time>` syntax
 
-#### 9.2.4 Timezone Tests (Level 3)
+#### 10.2.4 Timezone Tests (Level 3)
 
 - **T-TZ-001**: Parse `utc+9` offset
 - **T-TZ-002**: Parse `utc-5` offset
@@ -966,7 +992,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-TZ-007**: Handle >24:00 UTC conversion (wrap to next day)
 - **T-TZ-008**: Reject invalid offsets (e.g., `utc+25`)
 
-#### 9.2.5 Hourly and Interval Tests (Level 2/3)
+#### 10.2.5 Hourly and Interval Tests (Level 2/3)
 
 - **T-HOURLY-001**: Parse `hourly` to `FUZZY:HOURLY * * *`
 - **T-HOURLY-002**: Parse `every 2h` to `FUZZY:HOURLY:2 * * *`
@@ -977,7 +1003,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-INTERVAL-004**: Parse `bi-weekly` to `FUZZY:BI-WEEKLY * * *`
 - **T-INTERVAL-005**: Parse `tri-weekly` to `FUZZY:TRI-WEEKLY * * *`
 
-#### 9.2.6 Scattering Algorithm Tests (Level 1-3)
+#### 10.2.6 Scattering Algorithm Tests (Level 1-3)
 
 - **T-SCATTER-001**: Hash produces same output for same input
 - **T-SCATTER-002**: Different inputs produce different outputs
@@ -996,7 +1022,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-SCATTER-015**: Weekly schedule uses weighted daily time pool (preferred windows)
 - **T-SCATTER-016**: Bi-weekly and tri-weekly schedules use weighted daily time pool
 
-#### 9.2.7 Cron Generation Tests (Level 1-3)
+#### 10.2.7 Cron Generation Tests (Level 1-3)
 
 - **T-CRON-001**: Generated cron has exactly 5 fields
 - **T-CRON-002**: Minute field is in range 0-59
@@ -1005,7 +1031,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-CRON-005**: Month and day-of-month are valid
 - **T-CRON-006**: Interval expressions use valid `*/N` syntax
 
-### 9.3 Compliance Checklist
+### 10.3 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
@@ -1036,7 +1062,7 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 | Peak avoidance (US business hours) | T-SCATTER-014 | 2-3 | Required |
 | Generate valid cron | T-CRON-001-006 | 1-3 | Required |
 
-### 9.4 Test Execution
+### 10.4 Test Execution
 
 Implementations SHOULD provide:
 
@@ -1182,6 +1208,24 @@ Implementations MUST validate all user inputs before processing:
 - Time values MUST be within valid ranges
 - Interval values MUST be positive integers
 - All string inputs MUST be sanitized to prevent injection attacks
+
+---
+
+## 11. Sync Notes
+
+This section maps the fuzzy schedule specification to implementation files.
+
+| Normative Area | Implementation File(s) |
+|---|---|
+| Frontmatter schedule parsing and grammar handling | `pkg/parser/schedule_parser.go` |
+| Deterministic fuzzy scattering and peak-minute avoidance | `pkg/parser/schedule_fuzzy_scatter.go` |
+| Parser/scatter conformance tests | `pkg/parser/schedule_parser_test.go`, `pkg/parser/schedule_fuzzy_scatter_test.go` |
+| Calendar/cron visualization support for compile tooling | `pkg/cli/compile_schedule_calendar.go` |
+
+After changing fuzzy schedule semantics:
+1. Update this specification section and any affected normative clauses.
+2. Update parser/scatter implementation in the mapped files.
+3. Re-run parser/scatter tests to verify behavior remains deterministic.
 
 ---
 

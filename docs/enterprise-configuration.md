@@ -225,6 +225,62 @@ In GitHub Actions workflow runs:
 2. Verify the GitHub token has appropriate scopes for your enterprise tenant
 3. Use `mode: remote` for the GitHub MCP server when on GHEC/GHES
 
+## GHES Artifact Compatibility
+
+GitHub Enterprise Server (GHES) does not support `@actions/artifact` v2.0.0+, which means
+`actions/upload-artifact@v4+` and `actions/download-artifact@v4+` fail with a
+`GHESNotSupportedError` on enterprise instances.
+
+### Automatic Detection (Recommended)
+
+When you run `gh aw init` inside a repository whose git remote points to a GHES instance,
+the CLI automatically detects the deployment and writes `ghes: true` to
+`.github/workflows/aw.json`:
+
+```bash
+gh aw init
+```
+
+Output:
+
+```
+GHES deployment detected (ghes.example.com): set ghes: true in .github/workflows/aw.json for artifact compatibility
+```
+
+### Manual Configuration
+
+**Option 1: aw.json (repo-wide default)**
+
+Add `ghes: true` to `.github/workflows/aw.json` to enable GHES compatibility for all
+workflows compiled in the repository:
+
+```json
+{
+  "ghes": true
+}
+```
+
+**Option 2: --ghes compile flag**
+
+Pass `--ghes` to `gh aw compile` for a one-off compilation without modifying `aw.json`:
+
+```bash
+gh aw compile --ghes my-workflow.md
+```
+
+The CLI flag takes precedence over the `aw.json` setting.
+
+### What Changes
+
+When GHES compatibility mode is active, the compiler emits:
+
+| Action | Default | GHES compatible |
+|--------|---------|-----------------|
+| `actions/upload-artifact` | `@v7` (latest) | `@v3.2.2` |
+| `actions/download-artifact` | `@v4` (latest) | `@v3.1.0` |
+
+All other actions are unaffected.
+
 ## Related Documentation
 
 - [AWF Firewall Configuration](https://github.com/github/gh-aw-firewall) - Detailed AWF documentation

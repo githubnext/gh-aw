@@ -134,7 +134,7 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 		ArtifactName: agentArtifactPrefix + constants.SarifArtifactName,
 		DownloadPath: constants.SarifArtifactDownloadPath,
 		StepName:     "Download SARIF artifact",
-	})
+	}, c.getActionPin)
 	steps = append(steps, sarifDownloadSteps...)
 
 	// The local SARIF file path after the artifact download completes.

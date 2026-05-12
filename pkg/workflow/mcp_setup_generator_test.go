@@ -516,11 +516,14 @@ tools:
 	userSnippet := `--user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"'`
 	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
 	addHostSnippet := `--add-host host.docker.internal:127.0.0.1`
-	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
+	mountSnippet := `-v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock`
 	defaultGatewayPortSnippet := `export MCP_GATEWAY_PORT="8080"`
 	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
 	runnerGIDComputeSnippet := `MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')`
-	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')`
+	socketPathSnippet := `case "${DOCKER_HOST:-}" in`
+	socketPathUnixSnippet := `unix://* ) DOCKER_SOCK_PATH="${DOCKER_HOST#unix://}"`
+	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')`
+	dockerHostEnvSnippet := `-e DOCKER_HOST=unix:///var/run/docker.sock`
 	require.Contains(t, yamlStr, defaultGatewayPortSnippet,
 		"Default MCP gateway port should be exported as 8080")
 	require.Contains(t, yamlStr, uidComputeSnippet,
@@ -531,12 +534,18 @@ tools:
 		"Docker command should map host.docker.internal to host-gateway")
 	require.Contains(t, yamlStr, userSnippet,
 		"Docker command should include runner UID/GID user mapping")
+	require.Contains(t, yamlStr, socketPathSnippet,
+		"Shell should resolve DOCKER_SOCK_PATH via case statement")
+	require.Contains(t, yamlStr, socketPathUnixSnippet,
+		"Shell should handle unix:// DOCKER_HOST scheme")
 	require.Contains(t, yamlStr, socketGIDComputeSnippet,
-		"Shell should compute DOCKER_SOCK_GID before docker command")
+		"Shell should compute DOCKER_SOCK_GID from resolved socket path")
 	require.Contains(t, yamlStr, groupAddSnippet,
 		"Docker command should include docker socket supplementary group mapping")
 	require.Contains(t, yamlStr, mountSnippet,
-		"Docker command should mount the Docker socket")
+		"Docker command should mount the resolved Docker socket path")
+	require.Contains(t, yamlStr, dockerHostEnvSnippet,
+		"Docker command should set DOCKER_HOST to the fixed mount destination inside the gateway")
 	require.Less(t, strings.Index(yamlStr, uidComputeSnippet), strings.Index(yamlStr, userSnippet),
 		"MCP_GATEWAY_UID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, runnerGIDComputeSnippet), strings.Index(yamlStr, userSnippet),

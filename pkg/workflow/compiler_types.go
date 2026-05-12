@@ -101,6 +101,8 @@ type Compiler struct {
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
 	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
+	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
+	ghesArtifactCompat      bool                     // If true, emit GHES-compatible v3.x pins for artifact actions instead of the latest v7/v8
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -196,6 +198,14 @@ func (c *Compiler) SetStrictMode(strict bool) {
 // When false (default), unresolved action refs are compiler errors.
 func (c *Compiler) SetAllowActionRefs(allow bool) {
 	c.allowActionRefs = allow
+}
+
+// SetGHESCompat enables GHES artifact compatibility mode via the --ghes CLI flag.
+// When true, the compiler emits GHES-compatible v3.x artifact action pins
+// (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8.
+// This flag takes precedence over the aw.json ghes field.
+func (c *Compiler) SetGHESCompat(enabled bool) {
+	c.ghesCompatFromCLI = enabled
 }
 
 // SetRefreshStopTime configures whether to force regeneration of stop-after times

@@ -1434,3 +1434,99 @@ func TestSliceToStepsErrorHandling(t *testing.T) {
 		})
 	}
 }
+
+// TestGetActionPinGHESArtifactCompat tests that GHES artifact compat mode returns v3 pins
+func TestGetActionPinGHESArtifactCompat(t *testing.T) {
+	// Verify default (compat disabled) returns latest (v7/v8)
+	defaultCompiler := NewCompiler()
+	uploadPin := defaultCompiler.getActionPin("actions/upload-artifact")
+	if uploadPin == "" {
+		t.Fatal("getActionPin(actions/upload-artifact) returned empty")
+	}
+	if strings.Contains(uploadPin, "# v3") {
+		t.Errorf("Without GHES compat, expected latest upload-artifact pin, got v3: %s", uploadPin)
+	}
+
+	downloadPin := defaultCompiler.getActionPin("actions/download-artifact")
+	if downloadPin == "" {
+		t.Fatal("getActionPin(actions/download-artifact) returned empty")
+	}
+	if strings.Contains(downloadPin, "# v3") {
+		t.Errorf("Without GHES compat, expected latest download-artifact pin, got v3: %s", downloadPin)
+	}
+
+	// Capture checkout pin before compat to assert it is unchanged after
+	checkoutPinBefore := defaultCompiler.getActionPin("actions/checkout")
+	if checkoutPinBefore == "" {
+		t.Fatal("getActionPin(actions/checkout) returned empty")
+	}
+
+	// Enable GHES compat via a separate Compiler instance
+	compatCompiler := NewCompiler()
+	compatCompiler.ghesArtifactCompat = true
+
+	uploadPinGHES := compatCompiler.getActionPin("actions/upload-artifact")
+	if !strings.Contains(uploadPinGHES, "# v3.2.2") {
+		t.Errorf("With GHES compat, expected upload-artifact v3.2.2, got: %s", uploadPinGHES)
+	}
+	if !strings.Contains(uploadPinGHES, "c6a366c94c3e0affe28c06c8df20a878f24da3cf") {
+		t.Errorf("With GHES compat, expected upload-artifact v3.2.2 SHA, got: %s", uploadPinGHES)
+	}
+
+	downloadPinGHES := compatCompiler.getActionPin("actions/download-artifact")
+	if !strings.Contains(downloadPinGHES, "# v3.1.0") {
+		t.Errorf("With GHES compat, expected download-artifact v3.1.0, got: %s", downloadPinGHES)
+	}
+	if !strings.Contains(downloadPinGHES, "a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59") {
+		t.Errorf("With GHES compat, expected download-artifact v3.1.0 SHA, got: %s", downloadPinGHES)
+	}
+
+	// Non-artifact actions should be unaffected by GHES compat
+	checkoutPinAfter := compatCompiler.getActionPin("actions/checkout")
+	if checkoutPinAfter != checkoutPinBefore {
+		t.Errorf("GHES compat should not affect non-artifact actions: before=%s after=%s", checkoutPinBefore, checkoutPinAfter)
+	}
+}
+
+// TestGHESArtifactCompatReset tests that two Compiler instances with different compat
+// settings return different pins, confirming state is per-instance, not global.
+func TestGHESArtifactCompatReset(t *testing.T) {
+	// Default compiler returns latest pin
+	defaultCompiler := NewCompiler()
+	defaultPin := defaultCompiler.getActionPin("actions/upload-artifact")
+
+	// Compat compiler returns v3 pin
+	compatCompiler := NewCompiler()
+	compatCompiler.ghesArtifactCompat = true
+	compatPin := compatCompiler.getActionPin("actions/upload-artifact")
+
+	if defaultPin == compatPin {
+		t.Error("GHES compat pin should differ from default pin")
+	}
+
+	// Default compiler is unchanged after compat compiler was used
+	if defaultCompiler.getActionPin("actions/upload-artifact") != defaultPin {
+		t.Error("Default compiler pin changed after compat compiler was used — state leaked")
+	}
+}
+
+// TestGHESArtifactCompatPinsExist verifies that the hardcoded GHES compat pins are valid.
+func TestGHESArtifactCompatPinsExist(t *testing.T) {
+	c := NewCompiler()
+	c.ghesArtifactCompat = true
+	for repo, pin := range ghesArtifactCompatPins {
+		if pin.sha == "" {
+			t.Errorf("ghesArtifactCompatPins[%s] has empty SHA", repo)
+		}
+		if pin.version == "" {
+			t.Errorf("ghesArtifactCompatPins[%s] has empty version", repo)
+		}
+		result := c.getActionPin(repo)
+		if result == "" {
+			t.Errorf("getActionPin(%s) returned empty with GHES compat enabled", repo)
+		}
+		if !strings.Contains(result, pin.sha) {
+			t.Errorf("getActionPin(%s) did not contain expected SHA %s, got: %s", repo, pin.sha, result)
+		}
+	}
+}

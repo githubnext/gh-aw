@@ -7,6 +7,10 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "ghes": {
+      "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. When true, the compiler emits GHES-compatible artifact action versions (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8 which are not supported on GHES.",
+      "type": "boolean"
+    },
     "maintenance": {
       "description": "Configuration for the agentic-maintenance workflow. Set to false to disable maintenance entirely, or provide an object to configure it.",
       "oneOf": [

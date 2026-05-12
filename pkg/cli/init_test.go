@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInitRepository(t *testing.T) {
@@ -290,5 +291,145 @@ This is a test workflow.
 				}
 			}
 		})
+	}
+}
+
+func TestIsGHESHost(t *testing.T) {
+	tests := []struct {
+		Host     string
+		Expected bool
+	}{
+		{"github.com", false},
+		{"acme.ghe.com", false},         // GHE Cloud tenant
+		{"myorg.ghe.com", false},        // GHE Cloud tenant
+		{"ghes.example.com", true},      // GHES instance
+		{"github.mycompany.com", true},  // GHES custom domain
+		{"", false},                     // empty host
+		{"localhost", true},             // local dev instance counts as GHES
+		{"ghes.example.com:8080", true}, // with port
+		{"github.com:443", false},       // github.com with port
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Host, func(t *testing.T) {
+			got := isGHESHost(tt.Host)
+			assert.Equal(t, tt.Expected, got, "isGHESHost(%q) should return %v", tt.Host, tt.Expected)
+		})
+	}
+}
+
+func TestEnsureGHESRepoConfig_NoDetection(t *testing.T) {
+	// Without GH_HOST or GITHUB_SERVER_URL pointing to GHES, and without a git remote,
+	// ensureGHESRepoConfig should do nothing (detection fails gracefully).
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	// Set up a git repo with a github.com remote (not GHES)
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git")
+	cmd.Dir = tempDir
+	_ = cmd.Run()
+
+	// Unset any env vars that might signal GHES
+	t.Setenv("GH_HOST", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+
+	updated, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("ensureGHESRepoConfig returned unexpected error: %v", err)
+	}
+	if updated {
+		t.Error("ensureGHESRepoConfig should not update aw.json when not on GHES")
+	}
+}
+
+func TestEnsureGHESRepoConfig_GHHostEnvVar(t *testing.T) {
+	// When GH_HOST points to a GHES host, ensureGHESRepoConfig should write aw.json.
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	// Init a git repo so gitutil.FindGitRoot works
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	// Point GH_HOST at a GHES instance
+	t.Setenv("GH_HOST", "ghes.example.com")
+	t.Setenv("GITHUB_SERVER_URL", "")
+
+	updated, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("ensureGHESRepoConfig returned unexpected error: %v", err)
+	}
+	if !updated {
+		t.Fatal("ensureGHESRepoConfig should have updated aw.json for GHES GH_HOST")
+	}
+
+	// Verify aw.json was written with ghes: true
+	awJSONPath := filepath.Join(tempDir, ".github", "workflows", "aw.json")
+	data, err := os.ReadFile(awJSONPath)
+	if err != nil {
+		t.Fatalf("Failed to read aw.json: %v", err)
+	}
+	if !strings.Contains(string(data), `"ghes": true`) {
+		t.Errorf("aw.json should contain ghes: true, got: %s", string(data))
+	}
+}
+
+func TestEnsureGHESRepoConfig_Idempotent(t *testing.T) {
+	// Calling ensureGHESRepoConfig twice should not overwrite existing ghes: true.
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	t.Setenv("GH_HOST", "ghes.example.com")
+	t.Setenv("GITHUB_SERVER_URL", "")
+
+	// First call should write aw.json
+	updated1, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("First call returned error: %v", err)
+	}
+	if !updated1 {
+		t.Error("First call should have updated aw.json")
+	}
+
+	// Second call should be a no-op
+	updated2, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("Second call returned error: %v", err)
+	}
+	if updated2 {
+		t.Error("Second call should be idempotent (no update when ghes: true already set)")
 	}
 }

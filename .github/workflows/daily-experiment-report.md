@@ -243,6 +243,31 @@ recommendation (regardless of p-value) and show the per-variant progress toward 
 from `analyses[].variants[].min_samples_reached`. Only proceed with `PROMOTE` or `ABANDON` when
 the CLI returns `READY_FOR_ANALYSIS`.
 
+### Factorial Interaction Helper (K₁×K₂ cell diagnostics)
+
+When two or more experiments are active in the same workflow, compute pairwise interaction cells
+from run-level assignment vectors before issuing a recommendation.
+
+Implement and use a helper with this behavior:
+
+```text
+buildFactorialInteractionCells(outcomes, experimentA, experimentB):
+  group runs by (assignment[experimentA], assignment[experimentB])
+  emit one row per observed cell with:
+    cell_key, n, success_rate, mean_duration_ms
+  compute a chi-square independence p-value for the 2D contingency table
+  return:
+    cells[], p_value, sparse_cells (cells where n < min_samples), is_sparse
+```
+
+Required report output for each experiment pair:
+
+- A compact K₁×K₂ cell table (`n`, success rate) in the discussion body
+- `interaction_p_value` from the contingency test
+- `interaction_risk_status` set to `SPARSE_CELL_RISK` when any cell has `n < min_samples`
+
+If `interaction_risk_status = SPARSE_CELL_RISK`, do **not** recommend `PROMOTE`.
+
 ## Step 5 — Generate Bar Charts
 
 For each experiment, generate two bar charts using Python (libraries and directories are already set
@@ -483,4 +508,3 @@ not removed automatically; the person concluding the experiment can remove them 
 Use the `add-labels` safe-output tool to apply labels to the tracking issue.
 If a label does not exist in the repository, create it with `create_label` GitHub MCP tool
 before applying it, using a neutral gray color (e.g. `#808080`) and a short description.
-

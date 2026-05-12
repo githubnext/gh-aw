@@ -176,12 +176,12 @@ function sanitizeDomainName(domain) {
  * @returns {string} The string with non-https protocols redacted
  */
 function sanitizeUrlProtocols(s) {
-  // Normalize percent-encoded colons before applying the protocol blocklist.
+  // Normalize percent-encoded colons before applying the protocol filter.
   // This prevents bypasses via javascript%3Aalert(1) (single-encoded),
   // javascript%253Aalert(1) (double-encoded), or deeper nesting.
   // Strategy: iteratively decode %25 -> % (up to 4 passes, which handles
   // encodings up to 5 levels deep) until stable, then decode %3A -> :
-  // so the blocklist regex always sees literal colons.
+  // so the filter regex always sees literal colons.
   let normalized = s;
   // Iteratively decode %25XX (percent-encoded percent signs) one level at a
   // time. 4 passes handles up to 5 encoding levels, which is far beyond the
@@ -197,35 +197,52 @@ function sanitizeUrlProtocols(s) {
   }
   normalized = normalized.replace(/%3[Aa]/gi, ":"); // decode %3A -> :
 
-  // Match common non-https protocols
-  // This regex matches: protocol://domain or protocol:path or incomplete protocol://
-  // Examples: http://, ftp://, file://, data:, javascript:, mailto:, tel:, ssh://, git://
-  // The regex also matches incomplete protocols like "http://" or "ftp://" without a domain
-  // Note: No word boundary check to catch protocols even when preceded by word characters
-  return normalized.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-    // Extract domain for http/ftp/file/ssh/git protocols
-    if (domain) {
-      const domainLower = domain.toLowerCase();
-      const sanitized = sanitizeDomainName(domainLower);
-      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+  // ── Step 1: allowlist-based protocol:// filtering ──────────────────────────
+  // Redact every scheme://  URL that is NOT https://.  This covers http://,
+  // ftp://, ssh://, git://, ws://, wss://, smb://, irc://, ldap://, ldaps://,
+  // rtsp://, feed://, and any future schemes — eliminating the class of
+  // blocklist-incompleteness bypasses.
+  //
+  // Regex anchors that protect existing https:// URLs:
+  //   (?<![a-z0-9]) — negative lookbehind: ensures we do not match a suffix of
+  //                   another protocol name (e.g. "ttps://" inside "https://…").
+  //   (?!https://)  — negative lookahead: explicitly excludes https://, which is
+  //                   passed through to sanitizeUrlDomains for domain filtering.
+  let result = normalized.replace(/(?<![a-z0-9])(?!https:\/\/)([a-z][a-z0-9+.-]*)(:\/\/)([\w.-]*)([^\s]*)/gi, (_match, scheme, _slashes, domain, _rest) => {
+    const fullMatch = _match;
+    if (!domain) {
+      // No host present (e.g. "file:///path" or bare "http://"). Use the scheme
+      // (e.g. "file://") as the redacted-domain token so the redaction summary
+      // remains useful without recording an empty-string entry.
+      const truncated = fullMatch.length > 12 ? fullMatch.substring(0, 12) + "..." : fullMatch;
       core.info(`Redacted URL: ${truncated}`);
-      core.debug(`Redacted URL (full): ${match}`);
-      addRedactedDomain(domainLower);
-      // Return sanitized domain format
-      return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
-    } else {
-      // For other protocols (data:, javascript:, etc.), track the protocol itself
-      const protocolMatch = match.match(/^([^:]+):/);
-      if (protocolMatch) {
-        const protocol = protocolMatch[1] + ":";
-        // Truncate the matched URL for logging (keep first 12 chars + "...")
-        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-        core.info(`Redacted URL: ${truncated}`);
-        core.debug(`Redacted URL (full): ${match}`);
-        addRedactedDomain(protocol);
-      }
+      core.debug(`Redacted URL (full): ${fullMatch}`);
+      addRedactedDomain(scheme.toLowerCase() + "://");
       return "(redacted)";
     }
+    const domainLower = domain.toLowerCase();
+    const sanitized = sanitizeDomainName(domainLower);
+    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+    core.info(`Redacted URL: ${truncated}`);
+    core.debug(`Redacted URL (full): ${fullMatch}`);
+    addRedactedDomain(domainLower);
+    return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
+  });
+
+  // ── Step 2: blocklist-based single-colon scheme filtering ───────────────────
+  // For schemes that do not use "//", a targeted blocklist is used because a
+  // fully general single-colon pattern produces too many false positives
+  // (e.g. "key:value" in YAML, "std::vector" in C++, "C:\path" on Windows).
+  return result.replace(/(?:data|javascript|vbscript|about|mailto|tel|magnet):[^\s]+/gi, match => {
+    const protocolMatch = match.match(/^([^:]+):/);
+    if (protocolMatch) {
+      const protocol = protocolMatch[1] + ":";
+      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+      core.info(`Redacted URL: ${truncated}`);
+      core.debug(`Redacted URL (full): ${match}`);
+      addRedactedDomain(protocol);
+    }
+    return "(redacted)";
   });
 }
 
@@ -673,9 +690,17 @@ function convertXmlTags(s) {
 
   /**
    * Strips dangerous HTML attributes from an allowed tag's content string.
-   * Removes on* event handler attributes (e.g. onclick, ontoggle) and style
-   * attributes in all quoting forms (double-quoted, single-quoted, unquoted, bare).
-   * Safe attributes such as title, class, open, lang, id, etc. are preserved.
+   * Removes on* event handler attributes (e.g. onclick, ontoggle), style,
+   * title, and data-* attributes in all quoting forms (double-quoted,
+   * single-quoted, unquoted, bare).
+   *
+   * title= and data-* are stripped because their values are invisible in
+   * GitHub's rendered markdown (title= appears only as a hover-tooltip;
+   * data-* attributes are stripped by GFM's sanitizer) but arrive at the
+   * agent verbatim in raw text, creating a steganographic injection channel
+   * structurally identical to the one fixed for markdown link titles.
+   *
+   * Safe attributes such as class, open, lang, id, etc. are preserved.
    *
    * Note: `\s+` (requiring at least one whitespace before the attribute name) is
    * intentional — HTML attributes are always separated from the tag name and from
@@ -686,13 +711,13 @@ function convertXmlTags(s) {
    * @returns {string} Tag content with dangerous attributes removed
    */
   function stripDangerousAttributes(tagContent) {
-    // Match: one-or-more whitespace-or-slash + (on* | style) + optional =value
+    // Match: one-or-more whitespace-or-slash + (on* | style | title | data-*) + optional =value
     // Value forms: "...", '...', or unquoted (no whitespace / > / quote chars), or bare (no =)
     // The unquoted form excludes >, whitespace, and all quote characters (', ", `) so it
     // cannot consume the closing > of the tag or straddle other attribute values.
     // Using [\s/]+ (instead of \s+) also strips dangerous attributes that are immediately
     // preceded by a "/" with no space — e.g. the malformed <img/onerror=alert(1) src=x>.
-    return tagContent.replace(/[\s/]+(?:on\w+|style)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
+    return tagContent.replace(/[\s/]+(?:on\w+|style|title|data-[\w-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
   }
 
   // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
@@ -705,7 +730,7 @@ function convertXmlTags(s) {
     if (tagNameMatch) {
       const tagName = tagNameMatch[1].toLowerCase();
       if (allowedTags.includes(tagName)) {
-        // Strip dangerous attributes (on* event handlers and style) before preserving
+        // Strip dangerous attributes (on* event handlers, style, title, data-*) before preserving
         const sanitizedContent = stripDangerousAttributes(tagContent);
         return `<${sanitizedContent}>`;
       }
@@ -966,8 +991,10 @@ function applyTruncation(content, maxLength) {
 /**
  * Decodes HTML entities to prevent bypass of @mention detection and to ensure
  * HTML-encoded characters do not persist in sanitized output (e.g. &gt; in titles).
- * Handles named entities (e.g., &commat;, &gt;, &lt;, &amp;), decimal entities (e.g., &#64;),
- * and hex entities (e.g., &#x40;), including double-encoded variants (e.g., &amp;commat;).
+ * Handles named entities (e.g., &commat;, &gt;, &lt;, &amp;, &shy;, &zwnj;, &zwj;,
+ * &lrm;, &rlm;, &ZeroWidthSpace;, &NoBreak;, &af;/&ApplyFunction;, &it;/&InvisibleTimes;,
+ * &ic;/&InvisibleComma;), decimal entities (e.g., &#64;), and hex entities (e.g., &#x40;),
+ * including double-encoded variants (e.g., &amp;commat;).
  *
  * @param {string} text - Input text that may contain HTML entities
  * @returns {string} Text with HTML entities decoded
@@ -992,6 +1019,35 @@ function decodeHtmlEntities(text) {
   result = result.replace(/&(?:amp;)?lt;/gi, "<");
   // &amp; and &amp;amp; → & (decoded after gt/lt so &amp;gt; is already handled above)
   result = result.replace(/&(?:amp;)?amp;/gi, "&");
+
+  // Decode named entities for invisible/formatting characters that are stripped in
+  // hardenUnicodeText Step 3. Without this, the named-entity forms survive entity
+  // decoding and defeat neutralizeAllMentions (e.g. @&shy;user passes the mention
+  // regex because "&" is not in [A-Za-z0-9], then renders as @user in GitHub).
+  // Each entity is decoded to its actual Unicode code point so Step 3 can strip it.
+  // &shy; and &amp;shy; → U+00AD (soft hyphen)
+  result = result.replace(/&(?:amp;)?shy;/gi, "\u00AD");
+  // &zwnj; and &amp;zwnj; → U+200C (zero-width non-joiner)
+  result = result.replace(/&(?:amp;)?zwnj;/gi, "\u200C");
+  // &zwj; and &amp;zwj; → U+200D (zero-width joiner)
+  result = result.replace(/&(?:amp;)?zwj;/gi, "\u200D");
+  // &lrm; and &amp;lrm; → U+200E (left-to-right mark)
+  result = result.replace(/&(?:amp;)?lrm;/gi, "\u200E");
+  // &rlm; and &amp;rlm; → U+200F (right-to-left mark)
+  result = result.replace(/&(?:amp;)?rlm;/gi, "\u200F");
+  // &ZeroWidthSpace; and &amp;ZeroWidthSpace; → U+200B (zero-width space)
+  result = result.replace(/&(?:amp;)?ZeroWidthSpace;/gi, "\u200B");
+  // &NoBreak; and &amp;NoBreak; → U+2060 (word joiner)
+  result = result.replace(/&(?:amp;)?NoBreak;/gi, "\u2060");
+  // &af; / &ApplyFunction; and double-encoded variants → U+2061 (invisible function application)
+  result = result.replace(/&(?:amp;)?(?:af|ApplyFunction);/gi, "\u2061");
+  // &it; / &InvisibleTimes; and double-encoded variants → U+2062 (invisible times)
+  result = result.replace(/&(?:amp;)?(?:it|InvisibleTimes);/gi, "\u2062");
+  // &ic; / &InvisibleComma; and double-encoded variants → U+2063 (invisible separator)
+  result = result.replace(/&(?:amp;)?(?:ic|InvisibleComma);/gi, "\u2063");
+  // &ip; / &InvisiblePlus; and double-encoded variants → U+2064 (invisible plus)
+  // Note: U+2064 is the upper bound of the \u2060-\u2064 range stripped in Step 3.
+  result = result.replace(/&(?:amp;)?(?:ip|InvisiblePlus);/gi, "\u2064");
 
   // Decode decimal entities (including double-encoded variants)
   // &#64; and &amp;#64; → @
