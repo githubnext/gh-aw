@@ -100,6 +100,25 @@ func generateMaintenanceWorkflowWrapper(
 	return nil
 }
 
+// generateCentralSlashCommandWorkflowWrapper generates a single centralized
+// slash-command trigger workflow for all participating workflows.
+func generateCentralSlashCommandWorkflowWrapper(
+	workflowDataList []*workflow.WorkflowData,
+	workflowsDir string,
+	strict bool,
+) error {
+	compilePostProcessingLog.Print("Generating centralized slash-command workflow")
+
+	if err := workflow.GenerateCentralSlashCommandWorkflow(workflowDataList, workflowsDir); err != nil {
+		if strict {
+			return fmt.Errorf("failed to generate centralized slash-command workflow: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate centralized slash-command workflow: %v", err)))
+	}
+
+	return nil
+}
+
 // purgeOrphanedLockFiles removes orphaned .lock.yml files
 // These are lock files that exist but don't have a corresponding .md file
 func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, verbose bool) error {

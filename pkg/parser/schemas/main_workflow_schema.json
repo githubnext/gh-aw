@@ -459,6 +459,11 @@
                           "maxItems": 25
                         }
                       ]
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "description": "Slash command trigger compilation strategy. 'inline' (default) compiles direct comment listeners in this workflow. 'centralized' compiles this workflow as workflow_dispatch-centric and routes slash events via the generated central trigger workflow.",
+                      "enum": ["inline", "centralized"]
                     }
                   },
                   "additionalProperties": false
@@ -9900,9 +9905,24 @@
               {
                 "properties": {
                   "slash_command": {
-                    "not": {
-                      "type": "null"
-                    }
+                    "allOf": [
+                      {
+                        "not": {
+                          "type": "null"
+                        }
+                      },
+                      {
+                        "not": {
+                          "type": "object",
+                          "properties": {
+                            "strategy": {
+                              "const": "centralized"
+                            }
+                          },
+                          "required": ["strategy"]
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": ["slash_command"]

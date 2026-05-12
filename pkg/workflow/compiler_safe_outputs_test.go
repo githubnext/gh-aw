@@ -21,6 +21,7 @@ func TestParseOnSection(t *testing.T) {
 		expectedReaction    string
 		expectedLockAgent   bool
 		expectedOn          string
+		expectedCentralized bool
 		checkCommandEvents  bool
 		expectedOtherEvents map[string]any
 	}{
@@ -128,6 +129,26 @@ func TestParseOnSection(t *testing.T) {
 			workflowData:  &WorkflowData{},
 			markdownPath:  "/path/to/test.md",
 			expectedError: true,
+		},
+		{
+			name: "slash_command centralized strategy allows non-slash events",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"slash_command": map[string]any{
+						"strategy": "centralized",
+					},
+					"issue_comment": map[string]any{
+						"types": []string{"created"},
+					},
+				},
+			},
+			workflowData:        &WorkflowData{CommandCentralized: true},
+			markdownPath:        "/path/to/test.md",
+			expectedError:       false,
+			expectedCommand:     []string{"test"},
+			expectedReaction:    "eyes",
+			expectedCentralized: true,
+			checkCommandEvents:  true,
 		},
 		{
 			name: "slash_command conflicts with issues",
@@ -277,6 +298,7 @@ func TestParseOnSection(t *testing.T) {
 				if tt.expectedReaction != "" {
 					assert.Equal(t, tt.expectedReaction, tt.workflowData.AIReaction, "Reaction mismatch")
 				}
+				assert.Equal(t, tt.expectedCentralized, tt.workflowData.CommandCentralized, "CommandCentralized mismatch")
 				assert.Equal(t, tt.expectedLockAgent, tt.workflowData.LockForAgent, "LockForAgent mismatch")
 				if tt.checkCommandEvents {
 					assert.NotNil(t, tt.workflowData.CommandOtherEvents, "CommandOtherEvents should be set")
@@ -367,6 +389,23 @@ func TestCompilerMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {
+	c := &Compiler{}
+	names, events, centralized := c.extractCommandConfig(map[string]any{
+		"on": map[string]any{
+			"slash_command": map[string]any{
+				"name":     "deploy",
+				"events":   []any{"issue_comment"},
+				"strategy": "centralized",
+			},
+		},
+	})
+
+	assert.Equal(t, []string{"deploy"}, names)
+	assert.Equal(t, []string{"issue_comment"}, events)
+	assert.True(t, centralized)
 }
 
 // TestApplyDefaultTools tests default tool application logic

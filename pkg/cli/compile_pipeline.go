@@ -525,6 +525,11 @@ func runPostProcessingForDirectory(
 				return err
 			}
 		}
+		if err := generateCentralSlashCommandWorkflowWrapper(workflowDataList, absWorkflowDir, config.Strict); err != nil {
+			if config.Strict {
+				return err
+			}
+		}
 	}
 
 	// Prune stale gh-aw-actions entries before saving

@@ -150,15 +150,19 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 					workflowData.Command = []string{baseName}
 				}
-				// Check for conflicting events (but allow issues/pull_request with non-conflicting types: labeled/unlabeled/ready_for_review)
-				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
-				for _, eventName := range conflictingEvents {
-					if eventValue, hasConflict := onMap[eventName]; hasConflict {
-						// Special case: allow issues/pull_request with non-conflicting types
-						if (eventName == "issues" || eventName == "pull_request") && parser.IsNonConflictingCommandEvent(eventValue) {
-							continue // Allow this - it doesn't conflict with command triggers
+				// In centralized mode slash_command no longer compiles broad comment listeners,
+				// so slash/non-slash event co-existence is allowed.
+				if !workflowData.CommandCentralized {
+					// Check for conflicting events (but allow issues/pull_request with non-conflicting types: labeled/unlabeled/ready_for_review)
+					conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
+					for _, eventName := range conflictingEvents {
+						if eventValue, hasConflict := onMap[eventName]; hasConflict {
+							// Special case: allow issues/pull_request with non-conflicting types
+							if (eventName == "issues" || eventName == "pull_request") && parser.IsNonConflictingCommandEvent(eventValue) {
+								continue // Allow this - it doesn't conflict with command triggers
+							}
+							return fmt.Errorf("cannot use 'slash_command' with '%s' in the same workflow", eventName)
 						}
-						return fmt.Errorf("cannot use 'slash_command' with '%s' in the same workflow", eventName)
 					}
 				}
 
