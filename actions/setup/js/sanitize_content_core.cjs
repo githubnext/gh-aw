@@ -208,8 +208,18 @@ function sanitizeUrlProtocols(s) {
   //                   another protocol name (e.g. "ttps://" inside "https://…").
   //   (?!https://)  — negative lookahead: explicitly excludes https://, which is
   //                   passed through to sanitizeUrlDomains for domain filtering.
-  let result = normalized.replace(/(?<![a-z0-9])(?!https:\/\/)([a-z][a-z0-9+.-]*)(:\/\/)([\w.-]*)([^\s]*)/gi, (_match, _scheme, _slashes, domain, _rest) => {
+  let result = normalized.replace(/(?<![a-z0-9])(?!https:\/\/)([a-z][a-z0-9+.-]*)(:\/\/)([\w.-]*)([^\s]*)/gi, (_match, scheme, _slashes, domain, _rest) => {
     const fullMatch = _match;
+    if (!domain) {
+      // No host present (e.g. "file:///path" or bare "http://"). Track the
+      // scheme so the redaction summary is still useful, but skip
+      // addRedactedDomain to avoid recording an empty-string entry.
+      const truncated = fullMatch.length > 12 ? fullMatch.substring(0, 12) + "..." : fullMatch;
+      core.info(`Redacted URL: ${truncated}`);
+      core.debug(`Redacted URL (full): ${fullMatch}`);
+      addRedactedDomain(scheme.toLowerCase() + "://");
+      return "(redacted)";
+    }
     const domainLower = domain.toLowerCase();
     const sanitized = sanitizeDomainName(domainLower);
     const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;

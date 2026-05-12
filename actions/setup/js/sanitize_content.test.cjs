@@ -981,6 +981,13 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("See https://github.com/org/repo for details");
       expect(result).toBe("See https://github.com/org/repo for details");
     });
+
+    it("should redact protocol:// URLs with no host (empty domain)", () => {
+      // e.g. file:///etc/passwd — domain capture group is empty
+      const result = sanitizeContent("file:///etc/passwd");
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("file://");
+    });
   });
 
   describe("URL domain filtering", () => {
