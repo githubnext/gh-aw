@@ -45,7 +45,9 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "central-slash-workflow-delete-test")
 	generatedPath := filepath.Join(tmpDir, centralSlashCommandWorkflowFilename)
+	legacyGeneratedPath := filepath.Join(tmpDir, legacySlashCommandWorkflowFilename)
 	require.NoError(t, os.WriteFile(generatedPath, []byte("stale"), 0644))
+	require.NoError(t, os.WriteFile(legacyGeneratedPath, []byte("stale"), 0644))
 
 	data := []*WorkflowData{
 		{
@@ -58,6 +60,9 @@ func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
 
 	require.NoError(t, GenerateCentralSlashCommandWorkflow(data, tmpDir))
 	_, err := os.Stat(generatedPath)
+	require.Error(t, err)
+	require.True(t, os.IsNotExist(err))
+	_, err = os.Stat(legacyGeneratedPath)
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
 }

@@ -14,7 +14,10 @@ import (
 
 var centralSlashCommandWorkflowLog = logger.New("workflow:central_slash_command_workflow")
 
-const centralSlashCommandWorkflowFilename = "agentics-slash-command-trigger.yml"
+const (
+	centralSlashCommandWorkflowFilename       = "agentic_slash_commands.yml"
+	legacySlashCommandWorkflowFilename        = "agentics-slash-command-trigger.yml"
+)
 
 type slashCommandRoute struct {
 	Workflow string   `json:"workflow"`
@@ -29,12 +32,14 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 	routesByCommand, mergedEvents := collectCentralSlashCommandRoutes(workflowDataList)
 
 	triggerFile := filepath.Join(workflowDir, centralSlashCommandWorkflowFilename)
+	legacyTriggerFile := filepath.Join(workflowDir, legacySlashCommandWorkflowFilename)
 	if len(routesByCommand) == 0 || len(mergedEvents) == 0 {
 		centralSlashCommandWorkflowLog.Print("No centralized slash-command participants found")
-		if _, err := os.Stat(triggerFile); err == nil {
-			if err := os.Remove(triggerFile); err != nil {
-				return fmt.Errorf("failed to delete centralized slash-command workflow: %w", err)
-			}
+		if err := removeIfExists(triggerFile); err != nil {
+			return fmt.Errorf("failed to delete centralized slash-command workflow: %w", err)
+		}
+		if err := removeIfExists(legacyTriggerFile); err != nil {
+			return fmt.Errorf("failed to delete legacy centralized slash-command workflow: %w", err)
 		}
 		return nil
 	}
@@ -47,7 +52,19 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 	if err := os.WriteFile(triggerFile, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write centralized slash-command workflow: %w", err)
 	}
+	if err := removeIfExists(legacyTriggerFile); err != nil {
+		return fmt.Errorf("failed to delete legacy centralized slash-command workflow: %w", err)
+	}
 	centralSlashCommandWorkflowLog.Printf("Wrote centralized slash-command workflow: %s", triggerFile)
+	return nil
+}
+
+func removeIfExists(path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return os.Remove(path)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
 	return nil
 }
 
