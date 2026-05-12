@@ -55,12 +55,13 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	version := req.Version
 	runtimeStepGeneratorLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
 	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
-	// Use default version if none specified
+	// Use default version if none specified.
 	if version == "" {
-		version = runtime.DefaultVersion
-	}
-	if runtime.ID == "gh-aw" && version == "" {
-		version = getDefaultGhAWRuntimeVersion()
+		if runtime.ID == "gh-aw" {
+			version = getDefaultGhAWRuntimeVersion()
+		} else {
+			version = runtime.DefaultVersion
+		}
 	}
 
 	// Use SHA-pinned action reference for security if available
