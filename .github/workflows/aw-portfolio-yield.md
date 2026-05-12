@@ -28,6 +28,7 @@ safe-outputs:
     close-older-issues: true
     expires: 30d
 imports:
+  - shared/observability-otlp.md
   - shared/otel-queries.md
 pre-agent-steps:
   - name: Collect workflow telemetry snapshot

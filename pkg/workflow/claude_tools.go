@@ -276,7 +276,11 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 								// Add individual bash commands with Bash() prefix
 								for _, cmd := range bashCommands {
 									if cmdStr, ok := cmd.(string); ok {
-										allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", cmdStr))
+										// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+										// all engines emit the canonical prefix form (Bash(jq)) regardless
+										// of whether the command was written with or without the wildcard.
+										normalized, _ := normalizeBashCommand(cmdStr)
+										allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", normalized))
 									}
 								}
 							} else {
@@ -504,6 +508,21 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	// --permission-mode acceptEdits its tools must be explicitly listed in --allowed-tools.
 	if HasMCPScripts(mcpScripts) {
 		allowedTools = append(allowedTools, "mcp__"+string(constants.MCPScriptsMCPServerID))
+	}
+
+	// Deduplicate tools before sorting/joining to avoid duplicate Bash(...) entries
+	// when equivalent wildcard/non-wildcard bash commands normalize to the same form.
+	if len(allowedTools) > 1 {
+		seen := make(map[string]struct{}, len(allowedTools))
+		deduped := make([]string, 0, len(allowedTools))
+		for _, tool := range allowedTools {
+			if _, ok := seen[tool]; ok {
+				continue
+			}
+			seen[tool] = struct{}{}
+			deduped = append(deduped, tool)
+		}
+		allowedTools = deduped
 	}
 
 	// Sort the allowed tools alphabetically for consistent output

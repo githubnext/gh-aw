@@ -88,6 +88,10 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			// Add specific shell commands
 			for _, cmd := range bashCommands {
 				if cmdStr, ok := cmd.(string); ok {
+					// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+					// all engines emit the canonical prefix form (shell(jq)) regardless
+					// of whether the command was written with or without the wildcard.
+					cmdStr, _ = normalizeBashCommand(cmdStr)
 					// For stem commands (like dotnet, npm, cargo), Copilot CLI uses
 					// subcommand matching. When the user specifies just the base command
 					// (e.g., "dotnet"), append :* so "dotnet build", "dotnet test", etc.

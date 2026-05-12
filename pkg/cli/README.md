@@ -53,6 +53,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw experiments` | `NewExperimentsCommand` | Explore ongoing A/B experiments in the repository (hidden) |
 | `gh aw experiments list` | `NewExperimentsListSubcommand` | List all experiment workflow branches |
 | `gh aw experiments analyze` | `NewExperimentsAnalyzeSubcommand` | Analyze a specific experiment workflow in detail |
+| `gh aw forecast` | `NewForecastCommand` | Forecast token usage and costs for agentic workflows (experimental) |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
 | `gh aw version` | `versionCmd` (main.go) | Show version information |
@@ -89,6 +90,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `RepeatOptions` | `retry.go` | Options for `ExecuteWithRepeat` polling loop |
 | `PollOptions` | `signal_aware_poll.go` | Options for `PollWithSignalHandling` |
 | `FixConfig` | `fix_command.go` | Configuration for `RunFix` codemods |
+| `ForecastConfig` | `forecast_command.go` | Configuration for `NewForecastCommand` (experimental token usage forecasting) |
 | `TrialOptions` | `trial_types.go` | Options for `RunWorkflowTrials` |
 | `WorkflowTrialResult` | `trial_types.go` | Result of a trial run |
 | `UpgradeConfig` | `upgrade_command.go` | Configuration for `NewUpgradeCommand` |

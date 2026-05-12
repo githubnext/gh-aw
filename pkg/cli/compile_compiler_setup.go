@@ -241,7 +241,7 @@ func setupRepositoryContext(compiler *workflow.Compiler, config CompileConfig) {
 	}
 
 	// Set repository slug for schedule scattering
-	repoSlug := getRepositorySlugFromRemote()
+	repoSlug := getRepositorySlugFromRemotePreferringUpstream()
 	if repoSlug != "" {
 		compiler.SetRepositorySlug(repoSlug)
 		compileCompilerSetupLog.Printf("Repository slug set: %s", repoSlug)

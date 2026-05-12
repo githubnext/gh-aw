@@ -16,6 +16,14 @@ Use the `runs-on` frontmatter field to target a self-hosted runner instead of th
 >
 For these reasons, a non-sudo mode is not supported, including ARC configurations with `allowPrivilegeEscalation: false`.
 
+## ARC with Docker-in-Docker (DinD)
+
+Actions Runner Controller (ARC) deployments that use a Docker-in-Docker sidecar split the runner container and the Docker daemon container across separate filesystems, so bind mounts constructed from the runner's perspective fail inside the daemon.
+
+`gh aw compile` emits a runtime probe in generated workflows that inspects `DOCKER_HOST` and appends `--docker-host-path-prefix /tmp/gh-aw` to the AWF invocation when the value matches `tcp://localhost:<port>` or `tcp://127.0.0.1:<port>`. No workflow-level configuration is required.
+
+The probe is gated on AWF `v0.25.43` or newer. Workflows pinned to an older AWF version, or running on GitHub-hosted runners (where `DOCKER_HOST` is unset or points at a Unix socket), are unaffected.
+
 ## runs-on formats
 
 **String** — single runner label:

@@ -89,6 +89,14 @@ def test_declared_observability_without_telemetry_stays_low_evidence(tmp_path: P
     assert "telemetry not observed" in record["notes"]
 
 
+def test_portfolio_yield_workflow_imports_otel_observability() -> None:
+    workflow = ROOT / ".github" / "workflows" / "aw-portfolio-yield.md"
+    frontmatter, _ = pre.read_workflow(workflow)
+    imports = pre.normalize_import_paths(workflow, frontmatter)
+    assert workflow.parent / "shared" / "observability-otlp.md" in imports
+    assert pre.has_imported_observability(workflow, frontmatter) is True
+
+
 def test_telemetry_prefers_repo_relative_path_over_name_collisions(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     first = workflows / "foo" / "alpha.md"

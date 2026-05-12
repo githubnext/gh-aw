@@ -132,6 +132,133 @@ describe("create_pull_request - draft policy enforcement", () => {
   });
 });
 
+describe("create_pull_request - bundle transport shallow checkout", () => {
+  let tempDir;
+  let originalEnv;
+  let pushSignedSpy;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    delete process.env.GITHUB_TOKEN;
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-bundle-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test-owner/test-repo/pull/42" } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+          return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+        }
+        if (cmd === "git" && args[0] === "rev-list") {
+          return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+        }
+        if (cmd === "git" && args && args[0] === "ls-remote") {
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+    pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    if (pushSignedSpy) {
+      pushSignedSpy.mockRestore();
+    }
+
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should unshallow before fetching a bundle", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/feature/test:refs/heads/feature/test"]);
+    const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
+    const bundleFetchCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
+    expect(bundleFetchCallIndex).toBeGreaterThan(unshallowCallIndex);
+  });
+});
+
 describe("create_pull_request - fallback-as-issue configuration", () => {
   describe("configuration parsing", () => {
     it("should default fallback_as_issue to true when not specified", () => {

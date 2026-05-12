@@ -515,6 +515,10 @@ steps:
 
 tools:
   cli-proxy: true
+  bash:
+    - jq
+    - awk
+    - sed
 
 
 ---

@@ -3,6 +3,7 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "@sentry/mcp-server": "0.33.0"
+    "@sentry/mcp-server": "0.33.0",
+    "@your-org/otel-query-mcp": "latest"
   }
 }
