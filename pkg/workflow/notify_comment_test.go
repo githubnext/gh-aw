@@ -922,13 +922,16 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 		name              string
 		workflowID        string
 		discriminator     string
+		features          map[string]any
 		expectConcurrency bool
+		expectQueue       bool
 		expectedGroup     string
 	}{
 		{
 			name:              "concurrency group set when workflow ID is present",
 			workflowID:        "my-workflow",
 			expectConcurrency: true,
+			expectQueue:       true,
 			expectedGroup:     "gh-aw-conclusion-my-workflow",
 		},
 		{
@@ -941,6 +944,7 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 			workflowID:        "my-workflow",
 			discriminator:     "${{ github.event.issue.number || github.run_id }}",
 			expectConcurrency: true,
+			expectQueue:       true,
 			expectedGroup:     "gh-aw-conclusion-my-workflow-${{ github.event.issue.number || github.run_id }}",
 		},
 		{
@@ -948,7 +952,32 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 			workflowID:        "pentest-triage",
 			discriminator:     "${{ github.run_id }}",
 			expectConcurrency: true,
+			expectQueue:       true,
 			expectedGroup:     "gh-aw-conclusion-pentest-triage-${{ github.run_id }}",
+		},
+		{
+			name:              "queue can be disabled with feature flag",
+			workflowID:        "my-workflow",
+			features:          map[string]any{"group-concurrency-queue": false},
+			expectConcurrency: true,
+			expectQueue:       false,
+			expectedGroup:     "gh-aw-conclusion-my-workflow",
+		},
+		{
+			name:              "queue can be disabled with string false feature flag",
+			workflowID:        "my-workflow",
+			features:          map[string]any{"group-concurrency-queue": "false"},
+			expectConcurrency: true,
+			expectQueue:       false,
+			expectedGroup:     "gh-aw-conclusion-my-workflow",
+		},
+		{
+			name:              "empty string feature value keeps queue enabled",
+			workflowID:        "my-workflow",
+			features:          map[string]any{"group-concurrency-queue": ""},
+			expectConcurrency: true,
+			expectQueue:       true,
+			expectedGroup:     "gh-aw-conclusion-my-workflow",
 		},
 	}
 
@@ -959,6 +988,7 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 				Name:                        "Test Workflow",
 				WorkflowID:                  tt.workflowID,
 				ConcurrencyJobDiscriminator: tt.discriminator,
+				Features:                    tt.features,
 				SafeOutputs: &SafeOutputsConfig{
 					MissingTool: &MissingToolConfig{},
 				},
@@ -981,6 +1011,12 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 				}
 				if !strings.Contains(job.Concurrency, "cancel-in-progress: false") {
 					t.Errorf("Expected concurrency group to have cancel-in-progress: false, got: %s", job.Concurrency)
+				}
+				if tt.expectQueue && !strings.Contains(job.Concurrency, "queue: max") {
+					t.Errorf("Expected concurrency group to have queue: max, got: %s", job.Concurrency)
+				}
+				if !tt.expectQueue && strings.Contains(job.Concurrency, "queue: max") {
+					t.Errorf("Expected concurrency group to not include queue: max, got: %s", job.Concurrency)
 				}
 			} else {
 				if job.Concurrency != "" {

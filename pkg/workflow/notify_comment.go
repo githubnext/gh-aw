@@ -590,7 +590,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			notifyCommentLog.Printf("Appending job discriminator to conclusion job concurrency group: %s", data.ConcurrencyJobDiscriminator)
 			group = fmt.Sprintf("%s-%s", group, data.ConcurrencyJobDiscriminator)
 		}
-		concurrency = c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", group), "    ")
+		concurrencyValue := fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", group)
+		if isGroupConcurrencyQueueEnabled(data) {
+			concurrencyValue += "\n  queue: max"
+		}
+		concurrency = c.indentYAMLLines(concurrencyValue, "    ")
 		notifyCommentLog.Printf("Configuring conclusion job concurrency group: %s", group)
 	}
 
@@ -612,6 +616,38 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	return job, nil
+}
+
+// isGroupConcurrencyQueueEnabled reports whether compiler-generated concurrency groups
+// should include queue: max. The feature is enabled by default and can be disabled
+// with features.group-concurrency-queue: false.
+func isGroupConcurrencyQueueEnabled(data *WorkflowData) bool {
+	flag := strings.ToLower(strings.TrimSpace(string(constants.GroupConcurrencyQueueFeatureFlag)))
+	if data != nil && data.Features != nil {
+		for key, value := range data.Features {
+			if strings.ToLower(key) == flag {
+				return parseGroupConcurrencyQueueFeatureValue(value)
+			}
+		}
+	}
+	return true
+}
+
+func parseGroupConcurrencyQueueFeatureValue(value any) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		normalized := strings.ToLower(strings.TrimSpace(v))
+		switch normalized {
+		case "false", "0", "off", "no":
+			return false
+		default:
+			return true
+		}
+	default:
+		return true
+	}
 }
 
 // systemSafeOutputJobNames contains job names that are built-in system jobs and should not be

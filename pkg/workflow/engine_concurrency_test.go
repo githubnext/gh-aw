@@ -68,6 +68,35 @@ func TestExtractEngineConcurrencyField(t *testing.T) {
 			description:         "Object with cancel-in-progress false should not include it",
 		},
 		{
+			name: "Object format concurrency with queue max",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"concurrency": map[string]any{
+						"group": "custom-group",
+						"queue": "max",
+					},
+				},
+			},
+			expectedConcurrency: "concurrency:\n  group: \"custom-group\"\n  queue: max",
+			description:         "Object with queue should include queue setting in YAML",
+		},
+		{
+			name: "Object format concurrency with cancel-in-progress and queue",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"concurrency": map[string]any{
+						"group":              "custom-group",
+						"cancel-in-progress": true,
+						"queue":              "single",
+					},
+				},
+			},
+			expectedConcurrency: "concurrency:\n  group: \"custom-group\"\n  cancel-in-progress: true\n  queue: single",
+			description:         "Object with cancel-in-progress and queue should include both",
+		},
+		{
 			name: "No concurrency field",
 			frontmatter: map[string]any{
 				"engine": map[string]any{

@@ -288,6 +288,8 @@ func TestSpec_FeatureFlags_Values(t *testing.T) {
 		{name: "CliProxyFeatureFlag", constant: constants.CliProxyFeatureFlag, expected: "cli-proxy"},
 		// From spec: IntegrityReactionsFeatureFlag // "integrity-reactions"
 		{name: "IntegrityReactionsFeatureFlag", constant: constants.IntegrityReactionsFeatureFlag, expected: "integrity-reactions"},
+		// From spec: GroupConcurrencyQueueFeatureFlag // "group-concurrency-queue"
+		{name: "GroupConcurrencyQueueFeatureFlag", constant: constants.GroupConcurrencyQueueFeatureFlag, expected: "group-concurrency-queue"},
 	}
 
 	for _, tt := range tests {

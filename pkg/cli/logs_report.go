@@ -80,6 +80,16 @@ type LogsSummary struct {
 	// lock files, which contain the word "copilot" in allowed-domains and workflow-source paths
 	// regardless of which engine the workflow actually uses.
 	EngineCounts map[string]int `json:"engine_counts,omitempty" console:"-"`
+
+	// Outcome metrics (populated when outcome evaluation is enabled)
+	OutcomeAccepted        int     `json:"outcome_accepted,omitempty" console:"-"`
+	OutcomeRejected        int     `json:"outcome_rejected,omitempty" console:"-"`
+	OutcomeIgnored         int     `json:"outcome_ignored,omitempty" console:"-"`
+	OutcomePending         int     `json:"outcome_pending,omitempty" console:"-"`
+	OutcomeAcceptanceRate  float64 `json:"outcome_acceptance_rate,omitempty" console:"-"`
+	OutcomeWasteRate       float64 `json:"outcome_waste_rate,omitempty" console:"-"`
+	OutcomeZeroTouchRate   float64 `json:"outcome_zero_touch_rate,omitempty" console:"-"`
+	OutcomeCostPerAccepted float64 `json:"outcome_cost_per_accepted,omitempty" console:"-"`
 }
 
 // RunData contains information about a single workflow run
