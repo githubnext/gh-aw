@@ -128,7 +128,7 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		artifactManager:   NewArtifactManager(),
 		actionPinWarnings: make(map[string]bool), // Initialize warning cache
 		priorManifests:    make(map[string]*GHAWManifest),
-		gitRoot:           gitRoot,               // Auto-detected git root
+		gitRoot:           gitRoot, // Auto-detected git root
 	}
 
 	// Apply functional options
