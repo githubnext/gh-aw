@@ -40,6 +40,8 @@ imports:
   - shared/observability-otlp.md
 tools:
   cli-proxy: true
+firewall:
+  effective-token-steering: true
 
 ---
 

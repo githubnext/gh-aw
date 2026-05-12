@@ -29,6 +29,8 @@ tools:
     - "mkdir:*"
     - "tee:*"
     - "date:*"
+firewall:
+  effective-token-steering: true
 safe-outputs:
   add-comment:
     max: 2
