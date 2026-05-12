@@ -46,9 +46,10 @@ Feedback should be filed as GitHub issues against the `github/gh-aw` repository.
 10. [Error Handling](#10-error-handling)
 11. [Implementation Requirements](#11-implementation-requirements)
 12. [Compliance Testing](#12-compliance-testing)
-13. [Appendices](#appendices)
-14. [References](#references)
-15. [Change Log](#change-log)
+13. [Sync Notes](#13-sync-notes)
+14. [Appendices](#appendices)
+15. [References](#references)
+16. [Change Log](#change-log)
 
 ---
 
@@ -402,6 +403,7 @@ The implementation MUST use:
   ```
 
 - **R-MC-001**: For `λ = 0`, the implementation MUST return a projected token total of 0 for that trial without invoking either algorithm.
+- **R-FC-060**: Implementations MUST use `λ = 15` as the crossover threshold: Knuth's exact algorithm for `λ ≤ 15`, and Normal approximation only for `λ > 15`. Implementations MUST NOT raise this threshold above 15 without a specification revision, because the documented error and comparability assumptions are calibrated to this crossover.
 
 #### 7.2.2 Per-Run Token Usage (Bootstrap Resampling)
 
@@ -823,6 +825,8 @@ Because the forecast command is marked **Experimental**:
 - **T-FC-035**: 10,000 trials are executed per workflow.
 - **T-FC-036**: P10 ≤ P50 ≤ P90 for all non-zero projections.
 - **T-FC-037**: `projected_effective_tokens` equals `p50_projected_effective_tokens`.
+- **T-FC-038**: Boundary crossover: `λ = 15` uses Knuth's exact branch.
+- **T-FC-039**: Boundary crossover: `λ > 15` uses Normal approximation branch.
 
 #### 12.1.5 Episode Analysis Tests
 
@@ -858,11 +862,30 @@ Because the forecast command is marked **Experimental**:
 | 10,000 trial count | T-FC-035 | 1 | Required |
 | Percentile ordering | T-FC-036 | 1 | Required |
 | P50 field consistency | T-FC-037 | 1 | Required |
+| λ crossover threshold enforcement | T-FC-038–039 | 1 | Required |
 | Episode grouping | T-FC-040–041 | 2 | Required |
 | Episode table display logic | T-FC-042–043 | 2 | Required |
 | Console output columns | T-FC-050 | 1 | Required |
 | JSON schema conformance | T-FC-051–054 | 2 | Required |
 | Experimental status warning | T-FC-055 | 1 | Required |
+
+---
+
+## 13. Sync Notes
+
+This section maps normative forecast requirements to implementation files.
+
+| Normative Area | Implementation File(s) |
+|---|---|
+| Monte Carlo engine (Poisson/Bootstrap/Bernoulli) | `pkg/cli/forecast_montecarlo.go` |
+| Forecast command orchestration and output fields | `pkg/cli/forecast.go`, `pkg/cli/forecast_command.go` |
+| Workflow/run sampling and API handling | `pkg/cli/forecast.go` |
+| Monte Carlo compliance tests (including λ threshold) | `pkg/cli/forecast_montecarlo_test.go` |
+
+Sync procedure:
+1. Update this specification when changing projection algorithms or thresholds.
+2. Update corresponding Go implementation/tests in the files above in the same change.
+3. Re-run forecast tests to verify normative parity.
 
 ---
 

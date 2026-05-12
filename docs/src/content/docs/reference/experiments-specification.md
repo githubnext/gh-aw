@@ -1160,12 +1160,18 @@ This appendix itemizes corrective follow-ups referenced in the abstract.
 - **FR-002 (implemented via R-STAT-001/R-STAT-002)**: Reporting uses `state.runs` assignment records instead of count-delta inference.
 - **FR-003 (implemented via R-STAT-011/R-STAT-012)**: Reporting workflows that write issues/discussions declare explicit write permissions.
 - **FR-004 (implemented via R-MULTI-005)**: Concurrent-experiment interaction effects are explicitly detected and bounded before promotion decisions.
-- **TODO(experiments, owner: @gh-aw-maintainers, target: v1.1.0)**: Add factorial-interaction analysis helpers to reporting workflows for K₁×K₂ cell significance output.
-- **TODO(experiments, owner: @gh-aw-maintainers, target: v1.1.0)**: Add compiler diagnostics for sparse interaction cells when >1 experiment is active and weighted traffic is configured.
+- **FR-005 (implemented via daily-experiment-report workflow update)**: Reporting guidance now includes a factorial-interaction helper for K₁×K₂ cell-level significance output and sparse-cell risk surfacing.
+- **FR-006 (implemented via compiler diagnostics)**: The compiler now emits a warning when more than one experiment is active and weighted traffic is configured, indicating potential sparse interaction cells.
 
 ---
 
 ## Change Log
+
+### Version 1.1.0 (Draft) — 2026-05-12
+
+- **Added**: Daily reporting helper guidance for factorial K₁×K₂ interaction cell significance output.
+- **Added**: Compiler warning requirement for sparse interaction-cell risk when multiple experiments and weighted traffic are configured.
+- **Updated**: Sync Follow-ups appendix to replace v1.1.0 TODOs with implemented corrective items.
 
 ### Version 1.0.1 (Draft) — 2026-05-07
 

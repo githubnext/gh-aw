@@ -31,8 +31,10 @@ This document is governed by the GitHub Agentic Workflows project specifications
 5. [Timezone Support](#5-timezone-support)
 6. [Scattering Algorithm](#6-scattering-algorithm)
 7. [Cron Expression Generation](#7-cron-expression-generation)
-8. [Error Handling](#8-error-handling)
-9. [Compliance Testing](#9-compliance-testing)
+8. [Safeguards](#safeguards)
+9. [Error Handling](#8-error-handling)
+10. [Compliance Testing](#9-compliance-testing)
+11. [Sync Notes](#sync-notes)
 
 ---
 
@@ -833,6 +835,30 @@ Generated cron expressions MUST conform to GitHub Actions cron syntax:
 
 ---
 
+## Safeguards
+
+The following safeguards are normative and apply to all scattering implementations.
+
+**R-SAFE-001**: Implementations **MUST** enforce finite scatter windows. For `around` schedules,
+the effective jitter window **MUST NOT** exceed ±60 minutes from the requested anchor time. For
+`between` schedules, the scattered time **MUST** remain inside the declared closed interval.
+
+**R-SAFE-002**: Implementations **MUST** apply collision-avoidance normalization before returning
+the final minute value. At minimum, the implementation **MUST** avoid hour-boundary hotspots and
+known quarter-hour peaks as defined by Section 6.4. This guarantee is deterministic for a given
+workflow identifier and schedule expression.
+
+**R-SAFE-003**: If hash input material is empty (for example, missing workflow identifier), the
+implementation **MUST** fail with a descriptive error and **MUST NOT** fall back to random
+scattering.
+
+**R-SAFE-004**: If non-unique hash input causes repeated collisions across workflows, the
+implementation **MUST** preserve deterministic behavior and **SHOULD** emit a warning indicating
+reduced distribution quality. Implementations **MUST NOT** silently switch to non-deterministic
+fallbacks to hide collisions.
+
+---
+
 ## 8. Error Handling
 
 ### 8.1 Syntax Errors
@@ -1182,6 +1208,24 @@ Implementations MUST validate all user inputs before processing:
 - Time values MUST be within valid ranges
 - Interval values MUST be positive integers
 - All string inputs MUST be sanitized to prevent injection attacks
+
+---
+
+## Sync Notes
+
+This section maps the fuzzy schedule specification to implementation files.
+
+| Normative Area | Implementation File(s) |
+|---|---|
+| Frontmatter schedule parsing and grammar handling | `pkg/parser/schedule_parser.go` |
+| Deterministic fuzzy scattering and peak-minute avoidance | `pkg/parser/schedule_fuzzy_scatter.go` |
+| Parser/scatter conformance tests | `pkg/parser/schedule_parser_test.go`, `pkg/parser/schedule_fuzzy_scatter_test.go` |
+| Calendar/cron visualization support for compile tooling | `pkg/cli/compile_schedule_calendar.go` |
+
+After changing fuzzy schedule semantics:
+1. Update this specification section and any affected normative clauses.
+2. Update parser/scatter implementation in the mapped files.
+3. Re-run parser/scatter tests to verify behavior remains deterministic.
 
 ---
 
