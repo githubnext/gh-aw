@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f0e2b9ca53ece508cd0e03786c49cd085def5948e8e459222078d1b6dfd01af4","strict":true,"agent_id":"copilot","agent_model":"gpt-5.4-mini"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"7c28e78979ba45f2956c14a26fafbd2699d3542efb97e61330093e74e3c81184","strict":true,"agent_id":"copilot","agent_model":"gpt-5.4-mini"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.43"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.43"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -204,20 +204,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_23ea40a689687f30_EOF'
+          cat << 'GH_AW_PROMPT_bdf9ee697bca4c58_EOF'
           <system>
-          GH_AW_PROMPT_23ea40a689687f30_EOF
+          GH_AW_PROMPT_bdf9ee697bca4c58_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_23ea40a689687f30_EOF'
+          cat << 'GH_AW_PROMPT_bdf9ee697bca4c58_EOF'
           <safe-output-tools>
           Tools: call_workflow, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_23ea40a689687f30_EOF
+          GH_AW_PROMPT_bdf9ee697bca4c58_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_23ea40a689687f30_EOF'
+          cat << 'GH_AW_PROMPT_bdf9ee697bca4c58_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -246,14 +246,14 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_23ea40a689687f30_EOF
+          GH_AW_PROMPT_bdf9ee697bca4c58_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_23ea40a689687f30_EOF'
+          cat << 'GH_AW_PROMPT_bdf9ee697bca4c58_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/dependabot-campaign.md}}
-          GH_AW_PROMPT_23ea40a689687f30_EOF
+          GH_AW_PROMPT_bdf9ee697bca4c58_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -404,7 +404,7 @@ jobs:
         name: Compute dependabot campaign scoreboard
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
         with:
-          script: "const fs = require('fs');\nconst path = require('path');\n\nconst objective = (process.env.CAMPAIGN_OBJECTIVE || '').trim() || 'Close open Dependabot PRs for generated workflow manifests by updating source workflow markdown and recompiling.';\nconst baselinePath = '/tmp/gh-aw/cache-memory/campaigns/dependabot/baseline.json';\nconst scoreboardPath = '/tmp/gh-aw/agent/campaigns/dependabot-scoreboard.json';\nconst manifestTargets = new Set([\n  '.github/workflows/package.json',\n  '.github/workflows/package-lock.json',\n  '.github/workflows/requirements.txt',\n  '.github/workflows/go.mod',\n]);\n\nfunction readJson(filePath, fallback) {\n  if (!fs.existsSync(filePath)) {\n    return fallback;\n  }\n  return JSON.parse(fs.readFileSync(filePath, 'utf8'));\n}\n\nfunction writeJson(filePath, value) {\n  fs.mkdirSync(path.dirname(filePath), { recursive: true });\n  fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + '\\n', 'utf8');\n}\n\nfunction parseBumpTitle(title) {\n  const match = String(title || '').match(/^Bump\\s+(.+?)\\s+from\\s+([^\\s]+)\\s+to\\s+([^\\s]+)$/i);\n  if (!match) {\n    return { dependency_name: '', current_version: '', target_version: '' };\n  }\n  return {\n    dependency_name: match[1],\n    current_version: match[2],\n    target_version: match[3],\n  };\n}\n\nasync function listOpenDependabotPRs() {\n  const pulls = await github.paginate(github.rest.pulls.list, {\n    owner: context.repo.owner,\n    repo: context.repo.repo,\n    state: 'open',\n    per_page: 100,\n  });\n\n  const candidates = [];\n  for (const pull of pulls) {\n    const author = pull.user?.login || '';\n    if (author !== 'dependabot[bot]' && author !== 'app/dependabot') {\n      continue;\n    }\n\n    const files = await github.paginate(github.rest.pulls.listFiles, {\n      owner: context.repo.owner,\n      repo: context.repo.repo,\n      pull_number: pull.number,\n      per_page: 100,\n    });\n\n    const touchedManifestFiles = files\n      .map((file) => file.filename)\n      .filter((filename) => manifestTargets.has(filename));\n\n    if (touchedManifestFiles.length === 0) {\n      continue;\n    }\n\n    const parsed = parseBumpTitle(pull.title);\n    candidates.push({\n      number: pull.number,\n      title: pull.title,\n      dependency_name: parsed.dependency_name,\n      current_version: parsed.current_version,\n      target_version: parsed.target_version,\n      manifest_files: touchedManifestFiles,\n      created_at: pull.created_at,\n      updated_at: pull.updated_at,\n      url: pull.html_url,\n    });\n  }\n\n  return candidates.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());\n}\n\nconst openPRs = await listOpenDependabotPRs();\n\nlet baseline;\nif (fs.existsSync(baselinePath)) {\n  baseline = readJson(baselinePath, null);\n} else {\n  baseline = {\n    open_pr_count: openPRs.length,\n  };\n  writeJson(baselinePath, baseline);\n}\n\nconst baselineCount = Math.max(Number(baseline.open_pr_count || openPRs.length), 1);\nconst score = Math.round(((baselineCount - openPRs.length) * 1000) / baselineCount) / 10;\nconst scoreboard = {\n  campaign_id: 'dependabot',\n  objective,\n  metric: 'open_dependabot_manifest_prs_remaining',\n  baseline_open_pr_count: baseline.open_pr_count ?? openPRs.length,\n  current_open_pr_count: openPRs.length,\n  goal_met: openPRs.length === 0,\n  score,\n  selected_batch_pr_numbers: openPRs.map((pull) => pull.number),\n  selected_batch_dependencies: openPRs.map((pull) => ({\n    pr_number: pull.number,\n    dependency_name: pull.dependency_name,\n    current_version: pull.current_version,\n    target_version: pull.target_version,\n    manifest_files: pull.manifest_files,\n    title: pull.title,\n  })),\n  selection_reason: openPRs.length > 0 ? 'bundle-all-open-manifest-prs' : 'goal-met',\n  open_prs: openPRs.slice(0, 20),\n};\n\nwriteJson(scoreboardPath, scoreboard);\nconsole.log(JSON.stringify(scoreboard, null, 2));\n"
+          script: "const fs = require('fs');\nconst path = require('path');\n\nconst objective = (process.env.CAMPAIGN_OBJECTIVE || '').trim() || 'Close open Dependabot PRs for generated workflow manifests by updating source workflow markdown and recompiling.';\nconst baselinePath = '/tmp/gh-aw/cache-memory/campaigns/dependabot/baseline.json';\nconst scoreboardPath = '/tmp/gh-aw/agent/campaigns/dependabot-scoreboard.json';\nconst manifestTargets = new Set([\n  '.github/workflows/package.json',\n  '.github/workflows/package-lock.json',\n  '.github/workflows/requirements.txt',\n  '.github/workflows/go.mod',\n]);\n\nfunction readJson(filePath, fallback) {\n  if (!fs.existsSync(filePath)) {\n    return fallback;\n  }\n  return JSON.parse(fs.readFileSync(filePath, 'utf8'));\n}\n\nfunction writeJson(filePath, value) {\n  fs.mkdirSync(path.dirname(filePath), { recursive: true });\n  fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + '\\n', 'utf8');\n}\n\nfunction normalizeBaseline(value) {\n  if (!value || typeof value !== 'object') {\n    return null;\n  }\n  const openPRCount = Number(value.open_pr_count);\n  if (!Number.isFinite(openPRCount)) {\n    return null;\n  }\n  return { open_pr_count: openPRCount };\n}\n\nfunction parseBumpTitle(title) {\n  const match = String(title || '').match(/^Bump\\s+(.+?)\\s+from\\s+([^\\s]+)\\s+to\\s+([^\\s]+)$/i);\n  if (!match) {\n    return { dependency_name: '', current_version: '', target_version: '' };\n  }\n  return {\n    dependency_name: match[1],\n    current_version: match[2],\n    target_version: match[3],\n  };\n}\n\nasync function listOpenDependabotPRs() {\n  const pulls = await github.paginate(github.rest.pulls.list, {\n    owner: context.repo.owner,\n    repo: context.repo.repo,\n    state: 'open',\n    per_page: 100,\n  });\n\n  const candidates = [];\n  for (const pull of pulls) {\n    const author = pull.user?.login || '';\n    if (author !== 'dependabot[bot]' && author !== 'app/dependabot') {\n      continue;\n    }\n\n    const files = await github.paginate(github.rest.pulls.listFiles, {\n      owner: context.repo.owner,\n      repo: context.repo.repo,\n      pull_number: pull.number,\n      per_page: 100,\n    });\n\n    const touchedManifestFiles = files\n      .map((file) => file.filename)\n      .filter((filename) => manifestTargets.has(filename));\n\n    if (touchedManifestFiles.length === 0) {\n      continue;\n    }\n\n    const parsed = parseBumpTitle(pull.title);\n    candidates.push({\n      number: pull.number,\n      title: pull.title,\n      dependency_name: parsed.dependency_name,\n      current_version: parsed.current_version,\n      target_version: parsed.target_version,\n      manifest_files: touchedManifestFiles,\n      created_at: pull.created_at,\n      updated_at: pull.updated_at,\n      url: pull.html_url,\n    });\n  }\n\n  return candidates.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());\n}\n\nconst openPRs = await listOpenDependabotPRs();\n\nlet baseline = {\n  open_pr_count: openPRs.length,\n};\nif (fs.existsSync(baselinePath)) {\n  const parsedBaseline = normalizeBaseline(readJson(baselinePath, null));\n  if (parsedBaseline) {\n    baseline = parsedBaseline;\n  } else {\n    writeJson(baselinePath, baseline);\n  }\n} else {\n  writeJson(baselinePath, baseline);\n}\n\nconst baselineCount = Math.max(Number(baseline.open_pr_count ?? openPRs.length), 1);\nconst score = Math.round(((baselineCount - openPRs.length) * 1000) / baselineCount) / 10;\nconst scoreboard = {\n  campaign_id: 'dependabot',\n  objective,\n  metric: 'open_dependabot_manifest_prs_remaining',\n  baseline_open_pr_count: baseline.open_pr_count ?? openPRs.length,\n  current_open_pr_count: openPRs.length,\n  goal_met: openPRs.length === 0,\n  score,\n  selected_batch_pr_numbers: openPRs.map((pull) => pull.number),\n  selected_batch_dependencies: openPRs.map((pull) => ({\n    pr_number: pull.number,\n    dependency_name: pull.dependency_name,\n    current_version: pull.current_version,\n    target_version: pull.target_version,\n    manifest_files: pull.manifest_files,\n    title: pull.title,\n  })),\n  selection_reason: openPRs.length > 0 ? 'bundle-all-open-manifest-prs' : 'goal-met',\n  open_prs: openPRs.slice(0, 20),\n};\n\nwriteJson(scoreboardPath, scoreboard);\nconsole.log(JSON.stringify(scoreboard, null, 2));\n"
 
       - name: Configure Git credentials
         env:
@@ -472,9 +472,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_c15fe249022006f2_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_032d6a7c946fb317_EOF'
           {"call_workflow":{"max":1,"workflow_files":{"dependabot-worker":"./.github/workflows/dependabot-worker.lock.yml"},"workflows":["dependabot-worker"]},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_c15fe249022006f2_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_032d6a7c946fb317_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -672,7 +672,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_2f811c49b63abef2_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_8b7d821be3028527_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -703,7 +703,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_2f811c49b63abef2_EOF
+          GH_AW_MCP_CONFIG_8b7d821be3028527_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

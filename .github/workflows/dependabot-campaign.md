@@ -75,6 +75,17 @@ steps:
           fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n', 'utf8');
         }
 
+        function normalizeBaseline(value) {
+          if (!value || typeof value !== 'object') {
+            return null;
+          }
+          const openPRCount = Number(value.open_pr_count);
+          if (!Number.isFinite(openPRCount)) {
+            return null;
+          }
+          return { open_pr_count: openPRCount };
+        }
+
         function parseBumpTitle(title) {
           const match = String(title || '').match(/^Bump\s+(.+?)\s+from\s+([^\s]+)\s+to\s+([^\s]+)$/i);
           if (!match) {
@@ -136,17 +147,21 @@ steps:
 
         const openPRs = await listOpenDependabotPRs();
 
-        let baseline;
+        let baseline = {
+          open_pr_count: openPRs.length,
+        };
         if (fs.existsSync(baselinePath)) {
-          baseline = readJson(baselinePath, null);
+          const parsedBaseline = normalizeBaseline(readJson(baselinePath, null));
+          if (parsedBaseline) {
+            baseline = parsedBaseline;
+          } else {
+            writeJson(baselinePath, baseline);
+          }
         } else {
-          baseline = {
-            open_pr_count: openPRs.length,
-          };
           writeJson(baselinePath, baseline);
         }
 
-        const baselineCount = Math.max(Number(baseline.open_pr_count || openPRs.length), 1);
+        const baselineCount = Math.max(Number(baseline.open_pr_count ?? openPRs.length), 1);
         const score = Math.round(((baselineCount - openPRs.length) * 1000) / baselineCount) / 10;
         const scoreboard = {
           campaign_id: 'dependabot',
