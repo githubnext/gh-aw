@@ -2633,4 +2633,43 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("\\{\\{"); // template escaped
     });
   });
+
+  describe("parity: sanitizeContent alias-branch vs sanitizeContentCore for template syntax (regression)", () => {
+    // Regression guard: sanitizeContent with allowedAliases must produce the same
+    // template-delimiter escaping as sanitizeContentCore.  In v0.68.3 this parity was
+    // broken because the alias branch did not call neutralizeTemplateDelimiters.
+    //
+    // Parity verification is the right level of abstraction here: if the alias branch
+    // ever stops calling neutralizeTemplateDelimiters (or any equivalent escaping step),
+    // its output will contain raw template syntax while sanitizeContentCore output will
+    // have it escaped, causing these tests to fail and exposing the regression.
+    let sanitizeContentCore;
+
+    beforeEach(async () => {
+      const coreModule = await import("./sanitize_content_core.cjs");
+      sanitizeContentCore = coreModule.sanitizeContentCore;
+    });
+
+    const templateParityInputs = [
+      { name: "Jinja2/Liquid double braces", input: "Result: {{ secret.token }}" },
+      { name: "JavaScript template literal", input: "Value: ${ expression }" },
+      { name: "Jekyll/Liquid directive", input: "{% if condition %}value{% endif %}" },
+      { name: "ERB delimiter", input: "<%= config.adminToken %>" },
+      { name: "Jinja2 comment", input: "{# this is a comment #}" },
+      {
+        name: "all five patterns together",
+        input: "{{ var }}, ${ js }, {% tag %}, <%= erb %>, {# comment #}",
+      },
+    ];
+
+    for (const { name, input } of templateParityInputs) {
+      it(`alias-branch and core produce identical template escaping for: ${name}`, async () => {
+        // Use an alias that will never match any mention in the input so the alias
+        // branch code-path is exercised without altering mention escaping.
+        const aliasResult = sanitizeContent(input, { allowedAliases: ["nobody"] });
+        const coreResult = sanitizeContentCore(input);
+        expect(aliasResult).toBe(coreResult);
+      });
+    }
+  });
 });
