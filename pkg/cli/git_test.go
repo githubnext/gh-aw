@@ -773,6 +773,7 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 
 	t.Run("falls back to origin when upstream missing", func(t *testing.T) {
 		_ = exec.Command("git", "remote", "remove", "upstream").Run()
+		_ = exec.Command("git", "remote", "remove", "origin").Run()
 
 		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/myorg/myrepo.git").Run(); err != nil {
 			t.Fatalf("Failed to add origin remote: %v", err)
