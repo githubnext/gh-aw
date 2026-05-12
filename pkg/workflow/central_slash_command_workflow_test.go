@@ -53,6 +53,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.NotEmpty(t, metadata["compiler_version"])
 
 	require.Contains(t, text, "name: \"Agentic Commands\"")
+	require.NotContains(t, text, "Compiler version:")
 	require.Contains(t, text, "permissions: {}")
 	require.Contains(t, text, "runs-on: ubuntu-slim")
 	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read")
