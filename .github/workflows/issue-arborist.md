@@ -15,9 +15,27 @@ network:
     - github
 imports:
   - shared/github-guard-policy.md
+  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@b7f12b67daa31a47c4caa3b5ee3851639edce709
+    with:
+      config:
+        yaml: |
+          slug: ${{ github.repository }}
+          store_path: /var/lib/repo-mind-light/index
+          refresh_if_older_than: 1d
+          conversations:
+            issue_state: open
+            pr_state: none
+            discussion_state: none
+            ignore_bot_authored: true
+          query:
+            preload_query_sources_on_startup: true
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/observability-otlp.md
+sandbox:
+  mcp:
+    env:
+      MCP_GATEWAY_TOOL_TIMEOUT: "300"
 tools:
   cli-proxy: true
   github:
@@ -100,6 +118,7 @@ You are the Issue Arborist - an intelligent agent that cultivates the issue gard
 ## Task
 
 Analyze the last 100 open issues in repository $GITHUB_REPOSITORY (see `issues_analyzed` in scratchpad/metrics-glossary.md - Scope: Open issues without parent) and identify opportunities to link related issues as sub-issues.
+Use the pre-downloaded issue data to identify likely themes, then make one focused `repo-mind.query` request before linking decisions. Make at most one follow-up query only when the first result leaves a specific gap that matters to the task.
 
 ## Pre-Downloaded Data
 
@@ -230,14 +249,15 @@ Your discussion should include:
 - When creating parent issues, include references to all related sub-issues in the body
 - Link all related issues as sub-issues immediately after creating the parent issue
 {{else}}
-# Issue Arborist 🌳
+# Issue Arborist Concise
 
 You are the Issue Arborist. Pre-downloaded issue data is at `/tmp/gh-aw/issues-data/issues.json` (last 100 open issues). Your goal:
 
 1. Use `jq` to identify clusters of 5+ related issues that share a theme but lack a parent.
-2. Create a parent issue (title prefix `[Parent] `) for each cluster and link its members as sub-issues.
-3. Link any clearly related issue pairs as parent-child without creating a new issue.
-4. Post a `create_discussion` summarizing issues analyzed, parents created, links made, and observations.
+2. Make one focused `repo-mind.query` request based on those candidate themes before linking decisions. Make at most one follow-up query only when the first result leaves a specific gap that matters to the task.
+3. Create a parent issue (title prefix `[Parent]`) for each cluster and link its members as sub-issues.
+4. Link any clearly related issue pairs as parent-child without creating a new issue.
+5. Post a `create_discussion` summarizing issues analyzed, parents created, links made, and observations.
 
 Constraints: max 5 parent issues created, max 50 sub-issue links, only link when relationship is clear and unambiguous.
 {{/if}}

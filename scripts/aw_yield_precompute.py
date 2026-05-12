@@ -113,6 +113,22 @@ def normalize_text(value: Any) -> str:
     return str(value).strip()
 
 
+def coerce_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "yes", "1", "observed", "validated"}:
+            return True
+        if lowered in {"false", "no", "0", "missing", "absent"}:
+            return False
+    return default
+
+
 def split_frontmatter(text: str) -> tuple[str, str]:
     if not text.startswith("---"):
         return "", text
@@ -743,10 +759,15 @@ def score_risk(
     return round_score(score)
 
 
-def evidence_quality_for_workflow(observability_score: float, telemetry_metrics: dict[str, Any]) -> str:
-    if observability_score >= 0.9 and len(telemetry_metrics) >= 5:
+def evidence_quality_for_workflow(
+    observability_declared: bool,
+    telemetry_observed: bool,
+    telemetry_validated: bool,
+    telemetry_metrics: dict[str, Any],
+) -> str:
+    if observability_declared and telemetry_validated and len(telemetry_metrics) >= 3:
         return "high"
-    if observability_score >= 0.5 or len(telemetry_metrics) >= 2:
+    if telemetry_validated or (telemetry_observed and len(telemetry_metrics) >= 2):
         return "medium"
     return "low"
 
@@ -777,7 +798,21 @@ def normalize_telemetry_entry(entry: dict[str, Any]) -> dict[str, Any]:
             if key in entry:
                 normalized[target] = entry[key]
                 break
-    return {key: value for key, value in normalized.items() if key in TELEMETRY_KEYS}
+    metrics = {key: value for key, value in normalized.items() if key in TELEMETRY_KEYS}
+    observed = coerce_bool(
+        entry.get("telemetry_observed", entry.get("observed")),
+        default=bool(metrics),
+    )
+    validated = coerce_bool(
+        entry.get("telemetry_validated", entry.get("validated")),
+        default=False,
+    )
+    return {
+        "metrics": metrics,
+        "observed": observed and bool(metrics),
+        "validated": validated and bool(metrics),
+        "source": normalize_text(entry.get("source")),
+    }
 
 
 def load_otel_summary(path: str | None) -> dict[str, dict[str, Any]]:
@@ -811,7 +846,7 @@ def load_otel_summary(path: str | None) -> dict[str, dict[str, Any]]:
     index: dict[str, dict[str, Any]] = {}
     for entry in entries:
         normalized = normalize_telemetry_entry(entry)
-        if not normalized:
+        if not normalized.get("metrics"):
             continue
         keys = {
             normalize_text(entry.get("path")),
@@ -827,17 +862,21 @@ def load_otel_summary(path: str | None) -> dict[str, dict[str, Any]]:
     return index
 
 
-def telemetry_for_workflow(workflow_path: Path, frontmatter: dict[str, Any], telemetry_index: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def telemetry_for_workflow(
+    workflow_path: Path,
+    relative_path: str,
+    frontmatter: dict[str, Any],
+    telemetry_index: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     candidates = [
-        workflow_path.as_posix(),
+        normalize_text(relative_path),
         workflow_path.name,
-        workflow_path.stem,
         normalize_text(frontmatter.get("name")),
     ]
     for key in candidates:
         if key in telemetry_index:
             return dict(telemetry_index[key])
-    return {}
+    return {"metrics": {}, "observed": False, "validated": False, "source": ""}
 
 
 def build_workflow_record(workflow_path: Path, workflows_root: Path, telemetry_index: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -848,9 +887,13 @@ def build_workflow_record(workflow_path: Path, workflows_root: Path, telemetry_i
     timeout_minutes = infer_timeout_minutes(frontmatter.get("timeout-minutes"))
     safe_outputs = frontmatter.get("safe-outputs") or {}
     has_safe_outputs = isinstance(safe_outputs, dict) and bool(safe_outputs)
-    telemetry_metrics = telemetry_for_workflow(workflow_path, frontmatter, telemetry_index)
+    telemetry_entry = telemetry_for_workflow(workflow_path, relative_path, frontmatter, telemetry_index)
+    telemetry_metrics = telemetry_entry.get("metrics", {})
+    telemetry_observed = coerce_bool(telemetry_entry.get("observed"), default=bool(telemetry_metrics)) and bool(telemetry_metrics)
+    telemetry_validated = coerce_bool(telemetry_entry.get("validated"), default=False) and bool(telemetry_metrics)
     has_direct_observability = has_observability_config(frontmatter)
     has_imported = has_imported_observability(workflow_path, frontmatter)
+    observability_declared = has_direct_observability or has_imported
     observability_score = score_observability(has_direct_observability, has_imported, telemetry_metrics)
     safe_output_score = score_safe_outputs(safe_outputs)
     agentic_fraction, deterministic_fraction = estimate_agentic_fraction(frontmatter, body)
@@ -866,8 +909,12 @@ def build_workflow_record(workflow_path: Path, workflows_root: Path, telemetry_i
         notes.append("missing timeout")
     if not has_safe_outputs:
         notes.append("missing safe outputs")
-    if observability_score < 0.4:
-        notes.append("missing telemetry")
+    if not observability_declared:
+        notes.append("observability not declared")
+    elif not telemetry_observed:
+        notes.append("telemetry not observed")
+    elif not telemetry_validated:
+        notes.append("telemetry not validated")
     network = frontmatter.get("network")
     usefulness = score_usefulness(frontmatter, body, safe_output_score, telemetry_metrics)
     adoption = score_adoption(frontmatter, telemetry_metrics)
@@ -901,6 +948,10 @@ def build_workflow_record(workflow_path: Path, workflows_root: Path, telemetry_i
         "has_safe_outputs": has_safe_outputs,
         "has_observability": has_direct_observability,
         "has_imported_observability": has_imported,
+        "observability_declared": observability_declared,
+        "telemetry_observed": telemetry_observed,
+        "telemetry_validated": telemetry_validated,
+        "telemetry_source": normalize_text(telemetry_entry.get("source")),
         "strict": strict,
         "timeout_minutes": timeout_minutes,
         "permissions_risk": permission_score,
@@ -919,7 +970,12 @@ def build_workflow_record(workflow_path: Path, workflows_root: Path, telemetry_i
         "yield": 0.0,
         "intent_text": build_intent_text(workflow_path, frontmatter, body),
         "recommendation_seed": "Instrument" if observability_score < 0.4 else "Revise",
-        "evidence_quality": evidence_quality_for_workflow(observability_score, telemetry_metrics),
+        "evidence_quality": evidence_quality_for_workflow(
+            observability_declared,
+            telemetry_observed,
+            telemetry_validated,
+            telemetry_metrics,
+        ),
         "notes": notes,
         "telemetry_metrics": telemetry_metrics,
     }
@@ -1104,10 +1160,14 @@ def compute_organizational_health(workflows: list[dict[str, Any]], overlap_drag_
     }
 
 
-def portfolio_evidence_quality(workflows: list[dict[str, Any]], telemetry_coverage: float) -> str:
-    if telemetry_coverage >= 0.75 and all(workflow["evidence_quality"] != "low" for workflow in workflows):
+def portfolio_evidence_quality(
+    workflows: list[dict[str, Any]],
+    telemetry_observed_coverage: float,
+    telemetry_validated_coverage: float,
+) -> str:
+    if telemetry_validated_coverage >= 0.75 and all(workflow["evidence_quality"] != "low" for workflow in workflows):
         return "high"
-    if telemetry_coverage >= 0.35:
+    if telemetry_validated_coverage >= 0.35 or (telemetry_observed_coverage >= 0.5 and telemetry_validated_coverage > 0.0):
         return "medium"
     return "low"
 
@@ -1130,14 +1190,16 @@ def compute_portfolio_metrics(workflows: list[dict[str, Any]], overlap_drag_valu
             "portfolio_maintenance_drag": 0.0,
             "average_agentic_fraction": 0.0,
             "average_deterministic_fraction": 0.0,
+            "observability_declared_coverage": 0.0,
+            "telemetry_observed_coverage": 0.0,
+            "telemetry_validated_coverage": 0.0,
             "telemetry_coverage": 0.0,
             "evidence_quality": "low",
         }
     average_yield = sum(workflow["yield"] for workflow in workflows) / len(workflows)
-    telemetry_coverage = sum(
-        1.0 if workflow["telemetry_metrics"] else 0.5 if workflow["has_observability"] or workflow["has_imported_observability"] else 0.0
-        for workflow in workflows
-    ) / len(workflows)
+    observability_declared_coverage = sum(1.0 for workflow in workflows if workflow.get("observability_declared")) / len(workflows)
+    telemetry_observed_coverage = sum(1.0 for workflow in workflows if workflow.get("telemetry_observed")) / len(workflows)
+    telemetry_validated_coverage = sum(1.0 for workflow in workflows if workflow.get("telemetry_validated")) / len(workflows)
     return {
         "workflow_count": len(workflows),
         "portfolio_yield": round(average_yield - LAMBDA * overlap_drag_value, 4),
@@ -1147,8 +1209,11 @@ def compute_portfolio_metrics(workflows: list[dict[str, Any]], overlap_drag_valu
         "portfolio_maintenance_drag": round(sum(workflow["maintenance_drag"] for workflow in workflows) / len(workflows), 4),
         "average_agentic_fraction": round(sum(workflow["agentic_fraction"] for workflow in workflows) / len(workflows), 4),
         "average_deterministic_fraction": round(sum(workflow["deterministic_fraction"] for workflow in workflows) / len(workflows), 4),
-        "telemetry_coverage": round(telemetry_coverage, 4),
-        "evidence_quality": portfolio_evidence_quality(workflows, telemetry_coverage),
+        "observability_declared_coverage": round(observability_declared_coverage, 4),
+        "telemetry_observed_coverage": round(telemetry_observed_coverage, 4),
+        "telemetry_validated_coverage": round(telemetry_validated_coverage, 4),
+        "telemetry_coverage": round(telemetry_validated_coverage, 4),
+        "evidence_quality": portfolio_evidence_quality(workflows, telemetry_observed_coverage, telemetry_validated_coverage),
     }
 
 
@@ -1185,17 +1250,26 @@ def precompute(workflows_root: Path, otel_summary_path: str | None = None) -> di
     overlap_drag_value = portfolio_overlap_drag(similarities)
     portfolio_metrics = compute_portfolio_metrics(workflows, overlap_drag_value)
     telemetry_coverage = {
-        "coverage": portfolio_metrics["telemetry_coverage"],
-        "covered_workflows": [workflow["path"] for workflow in workflows if workflow["telemetry_metrics"]],
-        "instrumented_without_evidence": [
+        "observability_declared_coverage": portfolio_metrics["observability_declared_coverage"],
+        "telemetry_observed_coverage": portfolio_metrics["telemetry_observed_coverage"],
+        "telemetry_validated_coverage": portfolio_metrics["telemetry_validated_coverage"],
+        "observability_declared_workflows": [workflow["path"] for workflow in workflows if workflow.get("observability_declared")],
+        "observed_workflows": [workflow["path"] for workflow in workflows if workflow.get("telemetry_observed")],
+        "validated_workflows": [workflow["path"] for workflow in workflows if workflow.get("telemetry_validated")],
+        "declared_without_observation": [
             workflow["path"]
             for workflow in workflows
-            if not workflow["telemetry_metrics"] and (workflow["has_observability"] or workflow["has_imported_observability"])
+            if workflow.get("observability_declared") and not workflow.get("telemetry_observed")
+        ],
+        "observed_without_validation": [
+            workflow["path"]
+            for workflow in workflows
+            if workflow.get("telemetry_observed") and not workflow.get("telemetry_validated")
         ],
         "missing_workflows": [
             workflow["path"]
             for workflow in workflows
-            if not workflow["telemetry_metrics"] and not workflow["has_observability"] and not workflow["has_imported_observability"]
+            if not workflow.get("observability_declared")
         ],
     }
     episode_metrics = compute_episode_metrics(workflows, similarities)

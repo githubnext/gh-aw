@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -573,7 +574,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					CLIProxy: true,
 				},
 			},
-			expected: []string{"--allow-tool", "mcpscripts", "--allow-tool", "shell(mcpscripts:*)", "--allow-tool", "shell(python3 *)"},
+			expected: []string{"--allow-tool", "mcpscripts", "--allow-tool", "shell(mcpscripts:*)", "--allow-tool", "shell(python3)"},
 		},
 		{
 			name: "cli-proxy with restricted bash allows all mounted mcp clis",
@@ -765,6 +766,41 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				},
 			},
 			// All three sanitize to "jq" → deduplication yields exactly one shell(jq)
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		// Wildcard normalization tests - "cmd *" is normalized to canonical "cmd" form
+		{
+			name: "bash tool with trailing space-star is normalized to canonical prefix",
+			tools: map[string]any{
+				"bash": []any{"jq *"},
+			},
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		{
+			name: "bash tool with trailing space-star on multi-word command is normalized",
+			tools: map[string]any{
+				"bash": []any{"gh issue list *"},
+			},
+			expected: []string{"--allow-tool", "shell(gh issue list)"},
+		},
+		{
+			name: "community-attribution-style wildcard entries are normalized to canonical forms",
+			tools: map[string]any{
+				"bash": []any{"jq *", "sed *", "awk *", "cat *"},
+			},
+			expected: []string{
+				"--allow-tool", "shell(awk)",
+				"--allow-tool", "shell(cat)",
+				"--allow-tool", "shell(jq)",
+				"--allow-tool", "shell(sed)",
+			},
+		},
+		{
+			name: "wildcard and non-wildcard forms of same command are deduplicated",
+			tools: map[string]any{
+				"bash": []any{"jq *", "jq"},
+			},
+			// Both normalize to shell(jq); deduplication yields exactly one entry.
 			expected: []string{"--allow-tool", "shell(jq)"},
 		},
 	}
@@ -2065,20 +2101,25 @@ func TestBuildEngineCommandScriptSetup(t *testing.T) {
 }
 
 func TestCopilotSupportsNoAskUser(t *testing.T) {
+	defaultSupported := semverutil.Compare(
+		string(constants.DefaultCopilotVersion),
+		string(constants.CopilotNoAskUserMinVersion),
+	) >= 0
+
 	tests := []struct {
 		name         string
 		engineConfig *EngineConfig
 		expected     bool
 	}{
 		{
-			name:         "nil config uses default (supported)",
+			name:         "nil config uses default version gate",
 			engineConfig: nil,
-			expected:     true,
+			expected:     defaultSupported,
 		},
 		{
-			name:         "empty version uses default (supported)",
+			name:         "empty version uses default version gate",
 			engineConfig: &EngineConfig{},
-			expected:     true,
+			expected:     defaultSupported,
 		},
 		{
 			name:         "latest is always supported",

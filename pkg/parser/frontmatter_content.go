@@ -32,7 +32,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}
 
 	// Check if file starts with frontmatter delimiter.
-	if strings.TrimSpace(firstLine) != "---" {
+	if !isFrontmatterDelimiterLine(firstLine) {
 		log.Print("No frontmatter delimiter found, returning content as markdown")
 		// No frontmatter, return entire content as markdown
 		return &FrontmatterResult{
@@ -62,7 +62,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 			}
 		}
 
-		if strings.TrimSpace(content[lineStart:lineEnd]) == "---" {
+		if isFrontmatterDelimiterLine(content[lineStart:lineEnd]) {
 			frontmatterEndStart = lineStart
 			markdownStart = nextCursor
 			break
@@ -120,6 +120,44 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		FrontmatterLines: frontmatterLines,
 		FrontmatterStart: 2, // Line 2 is where frontmatter content starts (after opening ---)
 	}, nil
+}
+
+// isFrontmatterDelimiterLine returns true when a line consists of "---" with optional surrounding whitespace.
+func isFrontmatterDelimiterLine(line string) bool {
+	// Fast path for common delimiters.
+	if line == "---" || line == "---\r" {
+		return true
+	}
+
+	// Fast path for ASCII-trimmable whitespace.
+	start, end := 0, len(line)
+	for start < end {
+		switch line[start] {
+		case ' ', '\t', '\n', '\r', '\v', '\f':
+			start++
+		default:
+			goto leftTrimmed
+		}
+	}
+leftTrimmed:
+	if start >= end {
+		return false
+	}
+	for end > start {
+		switch line[end-1] {
+		case ' ', '\t', '\n', '\r', '\v', '\f':
+			end--
+		default:
+			goto rightTrimmed
+		}
+	}
+rightTrimmed:
+	if end-start == 3 && line[start] == '-' && line[start+1] == '-' && line[start+2] == '-' {
+		return true
+	}
+
+	// Fallback keeps previous behavior for uncommon Unicode whitespace.
+	return strings.TrimSpace(line) == "---"
 }
 
 // ExtractFrontmatterFromBuiltinFile is a caching wrapper around ExtractFrontmatterFromContent

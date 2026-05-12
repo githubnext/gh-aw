@@ -66,9 +66,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 		assert.Equal(t, 2, summary.ByModel["claude-sonnet-4-6"].Requests, "sonnet requests")
 		assert.Equal(t, 1, summary.ByModel["claude-haiku-4-5"].Requests, "haiku requests")
 
-		// Check cache efficiency
-		expectedEfficiency := float64(55028) / float64(775+55028)
-		assert.InDelta(t, expectedEfficiency, summary.CacheEfficiency, 0.001, "cache efficiency")
+		assert.InDelta(t, 0.0, summary.CacheEfficiency, 0.001, "cache efficiency is not computed from raw token counts")
 	})
 
 	t.Run("extracts ambient context from first chronological invocation", func(t *testing.T) {
@@ -327,19 +325,7 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 }
 
 func TestCacheEfficiency(t *testing.T) {
-	t.Run("zero when no cache reads", func(t *testing.T) {
-		tmpDir := testutil.TempDir(t, "cache-eff")
-		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
-		content := `{"provider":"anthropic","model":"sonnet","input_tokens":100,"output_tokens":50,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":100}`
-		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
-
-		summary, err := parseTokenUsageFile(filePath, nil)
-		require.NoError(t, err)
-		require.NotNil(t, summary)
-		assert.InDelta(t, 0.0, summary.CacheEfficiency, 0.001, "cache efficiency should be 0 with no cache reads")
-	})
-
-	t.Run("high efficiency with mostly cache reads", func(t *testing.T) {
+	t.Run("remains zero to avoid transforming raw token counts", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "cache-eff")
 		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
 		content := `{"provider":"anthropic","model":"sonnet","input_tokens":100,"output_tokens":50,"cache_read_tokens":9900,"cache_write_tokens":0,"duration_ms":100}`
@@ -348,6 +334,6 @@ func TestCacheEfficiency(t *testing.T) {
 		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err)
 		require.NotNil(t, summary)
-		assert.InDelta(t, 0.99, summary.CacheEfficiency, 0.001, "cache efficiency should be ~99%")
+		assert.InDelta(t, 0.0, summary.CacheEfficiency, 0.001, "cache efficiency should remain unset")
 	})
 }

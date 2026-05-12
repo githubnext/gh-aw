@@ -17,7 +17,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { getGitAuthEnv } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, getGitAuthEnv } = require("./git_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 
 /**
@@ -599,6 +599,11 @@ async function main(config = {}) {
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         const bundleRef = `refs/bundles/push-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         try {
+          await ensureFullHistoryForBundle(exec, {
+            env: { ...process.env, ...gitAuthEnv },
+            ...baseGitOpts,
+          });
+
           // Fetch from bundle into a temporary ref
           await exec.exec("git", ["fetch", bundleFilePath, `refs/heads/${message.branch}:${bundleRef}`], baseGitOpts);
           core.info(`Fetched bundle to ${bundleRef}`);

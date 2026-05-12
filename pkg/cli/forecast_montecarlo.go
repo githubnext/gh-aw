@@ -247,20 +247,6 @@ func meanStdDevInt(xs []int) (mean int, stddev float64) {
 	return
 }
 
-// percentileFloat64 returns the p-th percentile of an already-sorted float64 slice
-// using the nearest-rank method.  p must be in [1, 100].
-func percentileFloat64(sorted []float64, p int) float64 {
-	if len(sorted) == 0 {
-		return 0
-	}
-	idx := int(math.Ceil(float64(p)/100*float64(len(sorted)))) - 1
-	idx = max(idx, 0)
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	return sorted[idx]
-}
-
 // percentileInt returns the p-th percentile of an already-sorted int slice
 // using the nearest-rank method.  p must be in [1, 100].
 func percentileInt(sorted []int, p int) int {

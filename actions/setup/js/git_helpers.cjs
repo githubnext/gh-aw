@@ -150,8 +150,37 @@ function hasMergeCommitsInRange(baseRef, headRef, options = {}) {
   }
 }
 
+/**
+ * Ensure the current repository has full history before fetching a git bundle.
+ *
+ * Bundles generated from a commit range can declare prerequisite commits. A
+ * depth-1 checkout may not contain those prerequisites, and `git fetch <bundle>`
+ * rejects the bundle before the caller can update refs. Unshallowing first makes
+ * the prerequisites available while avoiding a no-op network fetch for full
+ * checkouts.
+ *
+ * @param {{ getExecOutput: Function, exec: Function }} execApi - Exec API to run git commands.
+ * @param {Object} [options] - Options passed through to exec calls.
+ * @returns {Promise<void>}
+ */
+async function ensureFullHistoryForBundle(execApi, options = {}) {
+  let stdout;
+  try {
+    ({ stdout } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], options));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    core.warning(`Could not determine shallow repository status; skipping unshallow: ${message}`);
+    return;
+  }
+  if (stdout.trim() === "true") {
+    core.info("Repository is shallow; fetching full history before applying bundle");
+    await execApi.exec("git", ["fetch", "--unshallow", "origin"], options);
+  }
+}
+
 module.exports = {
   execGitSync,
+  ensureFullHistoryForBundle,
   getGitAuthEnv,
   hasMergeCommitsInRange,
 };

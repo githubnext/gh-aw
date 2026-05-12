@@ -6,7 +6,18 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveClaudePromptFileArgs, stripPromptFileArgs, isRateLimitError, isMaxTurnsExit, isNoDeferredMarkerError, isSignalTerminationExitCode, shouldRetryWithContinue } = require("./claude_harness.cjs");
+const {
+  resolveClaudePromptFileArgs,
+  stripPromptFileArgs,
+  isRateLimitError,
+  isMaxTurnsExit,
+  isNoDeferredMarkerError,
+  isSignalTerminationExitCode,
+  shouldRetryWithContinue,
+  countPermissionDeniedIssues,
+  hasNumerousPermissionDeniedIssues,
+  buildMissingToolPermissionIssuePayload,
+} = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
 
@@ -197,6 +208,28 @@ describe("claude_harness.cjs", () => {
     it("returns false for non-signal exit codes", () => {
       expect(isSignalTerminationExitCode(1)).toBe(false);
       expect(isSignalTerminationExitCode(2)).toBe(false);
+    });
+  });
+
+  describe("permission-denied classification helpers", () => {
+    it("counts repeated permission-denied signals", () => {
+      const output = "permission denied\nEACCES: permission denied\npermissions denied";
+      expect(countPermissionDeniedIssues(output)).toBe(4);
+    });
+
+    it("detects numerous permission-denied issues at threshold", () => {
+      const output = "permission denied\npermission denied\npermission denied";
+      expect(hasNumerousPermissionDeniedIssues(output)).toBe(true);
+    });
+
+    it("does not classify sparse permission-denied output as numerous", () => {
+      expect(hasNumerousPermissionDeniedIssues("permission denied")).toBe(false);
+    });
+
+    it("builds missing_tool payload for permission issues", () => {
+      const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
+      expect(payload.type).toBe("missing_tool");
+      expect(payload.reason).toContain("missing tool/permission issue");
     });
   });
 

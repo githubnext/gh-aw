@@ -174,8 +174,13 @@ async function writeSafeOutputSummaries(results, messages) {
 
   // Generate summary for each result
   for (const result of results) {
-    // Skip if this was handled by a standalone step
-    if (result.skipped) {
+    // Skip only if this was explicitly delegated to a standalone step or custom safe output job.
+    // `result.reason` is set (e.g. "Handled by standalone step") only when processMessages
+    // decides that a different step is responsible for the message; it is NOT set when a
+    // handler itself returns { success: false, skipped: true } for a handler-side condition
+    // (e.g. "no issue fields available"). Handler-returned skips still appear in the summary
+    // so their diagnostic signal is preserved without the job failing.
+    if (result.skipped && result.reason) {
       continue;
     }
 

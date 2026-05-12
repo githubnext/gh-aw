@@ -62,6 +62,8 @@ const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|Rate
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
+const PERMISSION_DENIED_PATTERN = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/gi;
+const NUMEROUS_PERMISSION_DENIED_THRESHOLD = 3;
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -90,6 +92,65 @@ function isRateLimitError(output) {
  */
 function isServerError(output) {
   return SERVER_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Count permission-denied indicators in process output.
+ * @param {string} output
+ * @returns {number}
+ */
+function countPermissionDeniedIssues(output) {
+  if (!output) return 0;
+  const matches = output.match(PERMISSION_DENIED_PATTERN);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Detect whether output contains numerous permission-denied issues.
+ * @param {string} output
+ * @returns {boolean}
+ */
+function hasNumerousPermissionDeniedIssues(output) {
+  return countPermissionDeniedIssues(output) >= NUMEROUS_PERMISSION_DENIED_THRESHOLD;
+}
+
+/**
+ * Build a structured missing_tool payload for repeated permission-denied failures.
+ * @returns {string}
+ */
+function buildMissingToolPermissionIssuePayload() {
+  return JSON.stringify({
+    type: "missing_tool",
+    tool: "tool/permission",
+    reason: "missing tool/permission issue: numerous permission denied errors detected",
+    alternatives: "Verify token scopes, repository permissions, and MCP/tool access configuration.",
+  });
+}
+
+/**
+ * Emit a structured missing_tool signal for repeated permission-denied failures.
+ * @param {{
+ *   safeOutputsPath?: string,
+ *   appendFileSync?: (path: import('node:fs').PathOrFileDescriptor, data: string, options?: import('node:fs').WriteFileOptions) => void,
+ *   logger?: (message: string) => void
+ * }=} options
+ */
+function emitMissingToolPermissionIssue(options) {
+  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
+  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
+  const logger = options && options.logger ? options.logger : log;
+
+  if (!safeOutputsPath) {
+    logger("missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
+    return;
+  }
+  try {
+    appendFileSync(safeOutputsPath, buildMissingToolPermissionIssuePayload() + "\n", { encoding: "utf8" });
+    logger(`missing_tool emitted for permission issues: ${safeOutputsPath}`);
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    logger(`missing_tool emission failed: ${err.message}`);
+  }
 }
 
 /**
@@ -204,7 +265,24 @@ async function main() {
 
     const isRateLimit = isRateLimitError(result.output);
     const isServer = isServerError(result.output);
-    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isRateLimitError=${isRateLimit}` + ` isServerError=${isServer}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+    const permissionDeniedCount = countPermissionDeniedIssues(result.output);
+    const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
+    log(
+      `attempt ${attempt + 1} failed:` +
+        ` exitCode=${result.exitCode}` +
+        ` isRateLimitError=${isRateLimit}` +
+        ` isServerError=${isServer}` +
+        ` permissionDeniedCount=${permissionDeniedCount}` +
+        ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
+        ` hasOutput=${result.hasOutput}` +
+        ` retriesRemaining=${MAX_RETRIES - attempt}`
+    );
+
+    if (hasNumerousPermissionDenied) {
+      emitMissingToolPermissionIssue();
+      log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
+      break;
+    }
 
     // Retry when the session was partially executed (has output) or on well-known
     // transient errors (rate limit, server error) even without output.
@@ -236,6 +314,10 @@ if (typeof module !== "undefined" && module.exports) {
     resolveCodexPromptFileArgs,
     isRateLimitError,
     isServerError,
+    countPermissionDeniedIssues,
+    hasNumerousPermissionDeniedIssues,
+    buildMissingToolPermissionIssuePayload,
+    emitMissingToolPermissionIssue,
   };
 }
 

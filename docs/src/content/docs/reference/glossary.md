@@ -388,9 +388,19 @@ Optional workflow metadata for categorization and organization. Enables filterin
 
 A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/reference/model-alias-specification/).
 
+### Max Effective Tokens (`max-effective-tokens`)
+
+A top-level frontmatter field that caps the total effective-token (ET) budget the AWF proxy will spend within a single workflow run. Effective tokens are weighted by model multipliers and are the primary cost proxy for Copilot. Applies to all engines and maps to `apiProxy.maxEffectiveTokens` in the compiled lock file. Defaults to `25000000` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
+
+```aw wrap
+max-effective-tokens: 5000000
+```
+
+See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) and [Cost Management](/gh-aw/reference/cost-management/).
+
 ### Max Runs (`max-runs`)
 
-A top-level frontmatter field that caps the number of times the AWF proxy will invoke the AI engine within a single workflow run. Applies to all engines and maps to `apiProxy.maxRuns` in the compiled lock file. Replaces the deprecated `engine.max-runs` field. Example:
+A top-level frontmatter field that caps the number of times the AWF proxy will invoke the AI engine within a single workflow run. Applies to all engines and maps to `apiProxy.maxRuns` in the compiled lock file. Replaces the deprecated `engine.max-runs` field. Defaults to `100` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
 max-runs: 10
@@ -605,9 +615,17 @@ A compilation target allowing the gh-aw compiler to run in browser environments 
 
 A GitHub Next project that builds on GitHub Agentic Workflows to enable continuous, metric-driven optimization. Define a goal, a set of files the agent may modify, and an evaluation command that outputs a numeric metric — Autoloop runs on a schedule, proposes changes, and retains only those that improve the metric. Useful for continuously improving test coverage, bundle size, build times, or custom research objectives. See [Autoloop on GitHub](https://github.com/githubnext/autoloop).
 
+### ARC (Actions Runner Controller)
+
+A Kubernetes operator that manages GitHub Actions self-hosted runners as pods. When combined with the Docker-in-Docker (DinD) sidecar pattern, the runner container and the Docker daemon container have separate `/tmp` filesystems. AWF detects this topology at runtime by inspecting `DOCKER_HOST` and automatically passes `--docker-host-path-prefix` to bridge the split mount paths. No manual configuration is required for `v0.25.43`+ of AWF. See the [AWF sandbox reference](/gh-aw/reference/sandbox/).
+
 ### AWF (Agent Workflow Firewall)
 
 The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). Use `sandbox.agent.version` to pin a specific AWF release for reproducible builds. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+
+### AWF Reflect Route (`/reflect`)
+
+A runtime HTTP endpoint exposed by the AWF API proxy at `http://api-proxy:10000/reflect`. Returns the currently configured inference providers and their model availability for the active run. Use this route in shared workflows or tools that need to discover gateway endpoints, check provider availability, or select a model dynamically at runtime without hardcoding upstream API URLs. The response includes an `endpoints` array (with `provider`, `base_url`, `configured`, and `models` fields) and a `models_fetch_complete` flag. See [AWF Reflect Route](/gh-aw/reference/awf-reflect/).
 
 ### Bridge Pattern
 

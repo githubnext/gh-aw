@@ -27,6 +27,29 @@ Consult this file when designing a workflow that needs to **persist state across
 
 ---
 
+## Built-in Memory via GitHub Graph and Git History
+
+Before writing new persistent files, check whether GitHub and Git already expose the state you need.
+
+### Practical strategies
+
+| Goal | Built-in source | Caching strategy |
+|---|---|---|
+| Skip stale files in docs/code scans | Git history (`git log` / last modified commit per file) | Cache either a single repo watermark SHA or per-file SHAs, then compare changed paths in newer commits |
+| Avoid reopening known incidents | Issue/PR history (recent open + closed items by label/title prefix) | Cache only canonical identifiers (issue numbers, advisory IDs), not full issue payloads |
+| Process incrementally across repo activity | PR merge history (`merged_at`, base branch) | Cache the last merged PR number or merge timestamp and fetch only newer merges |
+| Keep nightly triage focused | Issue timeline (`updated_at`, comments) | Cache the last scan cursor (`updated_at` watermark) and only inspect newer updates |
+| Reuse expensive relationship lookups | GitHub graph links (issue ↔ PR ↔ commit references) | Cache normalized link maps keyed by stable node IDs and refresh selectively |
+
+### Design guidance
+
+- Prefer **stable identifiers** from GitHub graph data (`node_id`, issue/PR number, commit SHA) over mutable text fields.
+- Persist **watermarks** (last seen timestamp, commit SHA, PR number) instead of full snapshots when possible.
+- Use built-in history as the source of truth; use memory tools to store only incremental state needed to resume efficiently.
+- If history queries are cheap and deterministic (for example, bounded to recent activity like the latest 20-100 items), recompute from GitHub/git instead of storing large derived datasets.
+
+---
+
 ## `cache-memory` — First Choice
 
 Uses GitHub Actions cache (`actions/cache`) to persist a local filesystem directory populated by the `@modelcontextprotocol/server-memory` MCP server. The directory lives at `/tmp/gh-aw/cache-memory/`.

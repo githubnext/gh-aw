@@ -85,6 +85,7 @@ on:
           - 'clean_cache_memories'
           - 'update_pull_request_branches'
           - 'validate'
+          - 'forecast'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
         required: false
@@ -93,7 +94,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, update_pull_request_branches, validate)'
+        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, update_pull_request_branches, validate, forecast)'
         required: false
         type: string
         default: ''
@@ -218,8 +219,8 @@ jobs:
 `)
 
 	// Add unified run_operation job for all dispatch operations except those with dedicated jobs
-	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, update_pull_request_branches, validate)
-	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "update_pull_request_branches", "validate")
+	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, update_pull_request_branches, validate, forecast)
+	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "update_pull_request_branches", "validate", "forecast")
 	yaml.WriteString(`
   run_operation:
     if: ${{ ` + RenderCondition(runOperationCondition) + ` }}
@@ -526,6 +527,82 @@ jobs:
               labels: ['agentic-workflows'],
             });
             core.info('Created issue #' + createdIssue.data.number + ': ' + createdIssue.data.html_url);
+`)
+
+	// Add forecast_report job for workflow_dispatch with operation == 'forecast'
+	yaml.WriteString(`
+  forecast_report:
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("forecast")) + ` }}
+    runs-on: ` + runsOnValue + `
+    timeout-minutes: 60
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: ` + getActionPin("actions/checkout") + `
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+`)
+
+	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(`      - name: Restore forecast report logs cache
+        id: forecast_report_logs_cache
+        uses: ` + getActionPin("actions/cache/restore") + `
+        with:
+          path: .github/aw/logs
+          key: ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-forecast-report-logs-${{ github.repository }}-
+            ${{ runner.os }}-forecast-report-logs-
+
+      - name: Generate forecast report
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
+        run: |
+          mkdir -p ./.cache/gh-aw/forecast
+          ${GH_AW_CMD_PREFIX} logs --repo "${{ github.repository }}" --start-date -30d --count 1500 > /dev/null
+          if ! compgen -G ".github/aw/logs/run-*/run_summary.json" > /dev/null; then
+            echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
+            exit 1
+          fi
+          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
+
+      - name: Save forecast report logs cache
+        if: ${{ always() }}
+        uses: ` + getActionPin("actions/cache/save") + `
+        with:
+          path: .github/aw/logs
+          key: ${{ steps.forecast_report_logs_cache.outputs.cache-primary-key }}
+
+      - name: Generate forecast issue
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/create_forecast_issue.cjs');
+            await main();
 `)
 
 	// Add close_agentic_workflows_issues job for workflow_dispatch with operation == 'close_agentic_workflows_issues'

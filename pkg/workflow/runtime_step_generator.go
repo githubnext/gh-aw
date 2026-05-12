@@ -55,9 +55,30 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	version := req.Version
 	runtimeStepGeneratorLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
 	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
-	// Use default version if none specified
+
+	// In dev mode, install gh-aw from the checked-out source tree instead of
+	// using setup-cli (which installs released tags).
+	if runtime.ID == "gh-aw" && !IsRelease() {
+		step := GitHubActionStep{"      - name: Build and install gh-aw CLI from source"}
+		if req.IfCondition != "" {
+			step = append(step, "        if: "+req.IfCondition)
+		}
+		step = append(step,
+			"        run: |",
+			"          gh extension remove gh-aw || true",
+			"          gh extension install .",
+			"          gh aw version",
+		)
+		return step
+	}
+
+	// Use default version if none specified.
 	if version == "" {
-		version = runtime.DefaultVersion
+		if runtime.ID == "gh-aw" {
+			version = getDefaultGhAWRuntimeVersion()
+		} else {
+			version = runtime.DefaultVersion
+		}
 	}
 
 	// Use SHA-pinned action reference for security if available

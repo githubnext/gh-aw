@@ -68,7 +68,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var githubConfigLog = logger.New("workflow:mcp_github_config")
@@ -392,18 +391,12 @@ func mcpgSupportsIntegrityReactions(gatewayConfig *MCPGatewayRuntimeConfig) bool
 	var version string
 	if gatewayConfig != nil && gatewayConfig.Version != "" {
 		version = gatewayConfig.Version
-	} else {
-		// No override → use the default version for comparison.
-		version = string(constants.DefaultMCPGatewayVersion)
 	}
-
-	// "latest" means the newest release — always supports the field.
-	if strings.EqualFold(version, "latest") {
-		return true
-	}
-
-	minVersion := string(constants.MCPGIntegrityReactionsMinVersion)
-	return semverutil.Compare(version, minVersion) >= 0
+	return versionAtLeast(
+		version,
+		string(constants.DefaultMCPGatewayVersion),
+		string(constants.MCPGIntegrityReactionsMinVersion),
+	)
 }
 
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.

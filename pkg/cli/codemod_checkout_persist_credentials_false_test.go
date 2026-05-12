@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -123,5 +124,93 @@ post-steps:
 		assert.True(t, applied)
 		assert.Contains(t, result, "pre-steps:\n  - uses: actions/checkout@v5\n    with:\n      persist-credentials: false")
 		assert.Contains(t, result, "uses: actions/checkout@v5\n    with:\n      persist-credentials: false")
+	})
+
+	t.Run("applies to jobs.agent but not custom jobs", func(t *testing.T) {
+		content := `---
+on: workflow_dispatch
+jobs:
+  agent:
+    pre-steps:
+      - uses: actions/checkout@v5
+  build:
+    steps:
+      - uses: actions/checkout@v5
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"jobs": map[string]any{
+				"agent": map[string]any{
+					"pre-steps": []any{
+						map[string]any{"uses": "actions/checkout@v5"},
+					},
+				},
+				"build": map[string]any{
+					"steps": []any{
+						map[string]any{"uses": "actions/checkout@v5"},
+					},
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "agent:\n    pre-steps:\n      - uses: actions/checkout@v5\n        with:\n          persist-credentials: false")
+		assert.Equal(t, 1, strings.Count(result, "persist-credentials: false"))
+		assert.Contains(t, result, "build:\n    steps:\n      - uses: actions/checkout@v5")
+	})
+
+	t.Run("applies to jobs.agent with wider indentation", func(t *testing.T) {
+		content := `---
+on: workflow_dispatch
+jobs:
+    agent:
+        pre-steps:
+            - uses: actions/checkout@v5
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"jobs": map[string]any{
+				"agent": map[string]any{
+					"pre-steps": []any{
+						map[string]any{"uses": "actions/checkout@v5"},
+					},
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "agent:\n        pre-steps:\n            - uses: actions/checkout@v5\n              with:\n                persist-credentials: false")
+	})
+
+	t.Run("does not apply to checkout in non-agent custom job only", func(t *testing.T) {
+		content := `---
+on: workflow_dispatch
+jobs:
+  build:
+    steps:
+      - uses: actions/checkout@v5
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"jobs": map[string]any{
+				"build": map[string]any{
+					"steps": []any{
+						map[string]any{"uses": "actions/checkout@v5"},
+					},
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.False(t, applied)
+		assert.Equal(t, content, result)
 	})
 }

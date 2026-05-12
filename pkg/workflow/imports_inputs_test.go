@@ -189,9 +189,10 @@ Consumer workflow.
 	}
 	lockContent := string(lockFileContent)
 
-	// The leaf workflow's tools (bash) should be merged
-	if !strings.Contains(lockContent, "git *") {
-		t.Error("Expected lock file to contain bash tool from leaf workflow (git *)")
+	// The leaf workflow's tools (bash) should be merged.
+	// "git *" normalizes to the canonical stem form shell(git:*) at compile time.
+	if !strings.Contains(lockContent, "git:*") {
+		t.Error("Expected lock file to contain bash tool from leaf workflow (normalized to git:*)")
 	}
 
 	// The substituted branch-name value should appear in the compiled output

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("git_helpers.cjs", () => {
   let originalCore;
@@ -21,6 +21,11 @@ describe("git_helpers.cjs", () => {
   afterEach(() => {
     global.core = originalCore;
   });
+
+  function mockCoreWarning() {
+    global.core.warning = vi.fn();
+    return global.core.warning;
+  }
 
   describe("execGitSync", () => {
     it("should export execGitSync function", async () => {
@@ -274,6 +279,64 @@ describe("git_helpers.cjs", () => {
       const env = getGitAuthEnv("test-token");
 
       expect(env.GIT_CONFIG_KEY_0).toBe("http.https://github.example.com/.extraheader");
+    });
+  });
+
+  describe("ensureFullHistoryForBundle", () => {
+    it("should fetch full history when the repository is shallow", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: "true\n" }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+      const options = { cwd: "/tmp/repo" };
+
+      await ensureFullHistoryForBundle(execApi, options);
+
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["rev-parse", "--is-shallow-repository"], options);
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], options);
+    });
+
+    it("should not fetch full history when the repository is not shallow", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: "false\n" }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      await ensureFullHistoryForBundle(execApi);
+
+      expect(execApi.exec).not.toHaveBeenCalled();
+    });
+
+    it("should skip unshallow when shallow status cannot be determined", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const warning = mockCoreWarning();
+      const execApi = {
+        getExecOutput: vi.fn().mockRejectedValue(new Error("not a git repository")),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      await ensureFullHistoryForBundle(execApi);
+
+      expect(execApi.exec).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledTimes(1);
+      expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: not a git repository");
+    });
+
+    it("should warn with stringified non-error shallow status failures", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const warning = mockCoreWarning();
+      const execApi = {
+        getExecOutput: vi.fn().mockRejectedValue("unknown failure"),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      await ensureFullHistoryForBundle(execApi);
+
+      expect(execApi.exec).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledTimes(1);
+      expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: unknown failure");
     });
   });
 });

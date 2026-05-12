@@ -61,15 +61,6 @@ func TestPoissonSampleEdgeCases(t *testing.T) {
 	assert.Equal(t, 0, poissonSample(rng, -5), "negative lambda should return 0")
 }
 
-// TestPercentileFloat64 checks the nearest-rank percentile helper.
-func TestPercentileFloat64(t *testing.T) {
-	sorted := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	assert.InDelta(t, 1.0, percentileFloat64(sorted, 10), 0, "P10")
-	assert.InDelta(t, 5.0, percentileFloat64(sorted, 50), 0, "P50")
-	assert.InDelta(t, 9.0, percentileFloat64(sorted, 90), 0, "P90")
-	assert.InDelta(t, 0.0, percentileFloat64(nil, 50), 0, "empty slice")
-}
-
 // TestPercentileInt checks the int variant of the percentile helper.
 func TestPercentileInt(t *testing.T) {
 	sorted := []int{10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
@@ -189,13 +180,6 @@ func TestRunMonteCarloDistributionShape(t *testing.T) {
 
 	assert.GreaterOrEqual(t, mc.MeanProjectedEffectiveTokens, mc.P10ProjectedEffectiveTokens, "mean ≥ P10")
 	assert.LessOrEqual(t, mc.MeanProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens, "mean ≤ P90")
-}
-
-// TestPercentileSingleElement ensures percentile works for a length-1 slice.
-func TestPercentileSingleElement(t *testing.T) {
-	sorted := []float64{42.0}
-	assert.InDelta(t, 42.0, percentileFloat64(sorted, 10), 0)
-	assert.InDelta(t, 42.0, percentileFloat64(sorted, 90), 0)
 }
 
 // TestGammaSampleMeanVariance verifies that gammaSample produces the expected mean

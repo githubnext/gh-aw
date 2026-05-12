@@ -170,19 +170,13 @@ func renderSafeOutputSummary(summary *SafeOutputSummary) {
 
 // renderTokenUsage displays token usage data from the firewall proxy
 func renderTokenUsage(summary *TokenUsageSummary) {
-	totalTokens := summary.TotalTokens()
-	cacheTokens := summary.TotalCacheReadTokens + summary.TotalCacheWriteTokens
-
-	fmt.Fprintf(os.Stderr, "  Total:      %s tokens (%s input, %s output, %s cache)\n",
-		console.FormatNumber(totalTokens),
+	fmt.Fprintf(os.Stderr, "  Tokens:     %s input, %s output, %s cache read, %s cache write\n",
 		console.FormatNumber(summary.TotalInputTokens),
 		console.FormatNumber(summary.TotalOutputTokens),
-		console.FormatNumber(cacheTokens))
+		console.FormatNumber(summary.TotalCacheReadTokens),
+		console.FormatNumber(summary.TotalCacheWriteTokens))
 	fmt.Fprintf(os.Stderr, "  Requests:   %d (avg %s)\n",
 		summary.TotalRequests, timeutil.FormatDurationMs(summary.AvgDurationMs()))
-	if summary.CacheEfficiency > 0 {
-		fmt.Fprintf(os.Stderr, "  Cache hit:  %.1f%%\n", summary.CacheEfficiency*100)
-	}
 	fmt.Fprintln(os.Stderr)
 
 	rows := summary.ModelRows()

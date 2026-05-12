@@ -360,3 +360,21 @@ func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) ma
 	engineHelpersLog.Printf("Filtered environment variables: kept=%d, removed=%d", len(filtered), secretsRemoved)
 	return filtered
 }
+
+// normalizeBashCommand strips the trailing " *" wildcard suffix from a bash
+// tool command, converting patterns like "jq *" or "gh issue list *" to their
+// canonical prefix form ("jq", "gh issue list"). All agentic engines use the
+// canonical form so that their respective prefix-matching semantics permit any
+// invocation of the command (e.g. shell(jq), Bash(jq), run_shell_command(jq)).
+//
+// The full-wildcard sentinels "*" and ":*" are handled separately by each
+// engine before reaching this function, so only per-command entries of the
+// form "<cmd> *" arrive here.
+//
+// Returns the normalized command and whether normalization was applied.
+func normalizeBashCommand(cmdStr string) (string, bool) {
+	if strings.HasSuffix(cmdStr, " *") {
+		return strings.TrimSuffix(cmdStr, " *"), true
+	}
+	return cmdStr, false
+}

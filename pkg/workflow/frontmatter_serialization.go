@@ -24,6 +24,9 @@ func countRuntimes(config *RuntimesConfig) int {
 	if config.Deno != nil {
 		count++
 	}
+	if config.GhAw != nil {
+		count++
+	}
 	return count
 }
 
@@ -267,6 +270,7 @@ func runtimesConfigToMap(config *RuntimesConfig) map[string]any {
 		{"deno", config.Deno},
 		{"dotnet", config.Dotnet},
 		{"elixir", config.Elixir},
+		{"gh-aw", config.GhAw},
 		{"haskell", config.Haskell},
 		{"java", config.Java},
 		{"ruby", config.Ruby},

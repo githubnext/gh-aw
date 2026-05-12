@@ -83,6 +83,11 @@ const AWFCliProxyMinVersion Version = "v0.25.17"
 // --allow-host-ports or the run will fail at startup with an unknown flag error.
 const AWFAllowHostPortsMinVersion Version = "v0.25.24"
 
+// AWFDockerHostPathPrefixMinVersion is the minimum AWF version that supports the
+// --docker-host-path-prefix flag used for ARC/DinD split runner/daemon filesystems.
+// Workflows pinning an older AWF version must not emit this flag.
+const AWFDockerHostPathPrefixMinVersion Version = "v0.25.43"
+
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
 // Workflows using an older Copilot CLI version must not emit --no-ask-user or the run will fail.

@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -25,6 +26,50 @@ import (
 )
 
 var logsGitHubAPILog = logger.New("cli:logs_github_api")
+
+// buildCreatedFilter constructs a single --created filter value from the provided date
+// bounds.  Using a single --created flag is required because gh run list treats --created
+// as a single string flag; supplying it multiple times only keeps the last value, silently
+// discarding earlier bounds (see https://github.com/cli/cli/blob/trunk/pkg/cmd/run/list/list.go).
+//
+// When both a lower bound (startDate) and an upper bound are present the function uses
+// GitHub's range syntax ("start..end") so that both bounds are enforced in one expression.
+//
+// beforeDate is an exclusive upper bound used for cursor-based pagination.  Because the
+// range syntax is inclusive on both ends, one second is subtracted from beforeDate so that
+// the run at the cursor position is not returned again on the next page.
+func buildCreatedFilter(startDate, endDate, beforeDate string) string {
+	// Determine the effective inclusive upper bound.
+	var upper string
+	if beforeDate != "" {
+		// beforeDate is exclusive (< beforeDate); convert to inclusive by subtracting 1 s.
+		t, err := time.Parse(time.RFC3339, beforeDate)
+		if err == nil {
+			upper = t.Add(-time.Second).Format(time.RFC3339)
+		} else {
+			// Unparseable beforeDate: use it as-is and treat as inclusive best-effort.
+			// Log a warning so the caller knows the exact exclusive bound may be missed.
+			logsGitHubAPILog.Printf("buildCreatedFilter: could not parse beforeDate %q as RFC3339, using as-is: %v", beforeDate, err)
+			upper = beforeDate
+		}
+	} else if endDate != "" {
+		upper = endDate
+	}
+
+	switch {
+	case startDate != "" && upper != "":
+		return startDate + ".." + upper
+	case startDate != "":
+		return ">=" + startDate
+	case beforeDate != "":
+		// No startDate, but we have a pagination cursor: keep the original < form.
+		return "<" + beforeDate
+	case endDate != "":
+		return "<=" + endDate
+	default:
+		return ""
+	}
+}
 
 // fetchJobStatuses gets job information for a workflow run and counts failed jobs
 func fetchJobStatuses(runID int64, verbose bool) (int, error) {
@@ -123,9 +168,9 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 type ListWorkflowRunsOptions struct {
 	WorkflowName   string // filter by specific workflow (if empty, fetches all agentic workflows)
 	Limit          int    // maximum number of runs to fetch in this API call (batch size)
-	StartDate      string // filter by creation date (>=)
-	EndDate        string // filter by creation date (<=)
-	BeforeDate     string // used for pagination (fetch runs created before this date)
+	StartDate      string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
+	EndDate        string // filter by creation date (<=); combined with StartDate into a single --created range
+	BeforeDate     string // exclusive upper bound used for pagination (<); combined with StartDate into a single --created range
 	Ref            string // filter by branch or tag name
 	BeforeRunID    int64  // filter by run database ID (< this ID)
 	AfterRunID     int64  // filter by run database ID (> this ID)
@@ -163,15 +208,13 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	if opts.Limit > 0 {
 		args = append(args, "--limit", strconv.Itoa(opts.Limit))
 	}
-	if opts.StartDate != "" {
-		args = append(args, "--created", ">="+opts.StartDate)
-	}
-	if opts.EndDate != "" {
-		args = append(args, "--created", "<="+opts.EndDate)
-	}
-	// Add beforeDate filter for pagination
-	if opts.BeforeDate != "" {
-		args = append(args, "--created", "<"+opts.BeforeDate)
+	// Build a single --created filter that covers the full date range.
+	// gh run list's --created flag is a single string (not a slice); passing it
+	// multiple times only keeps the last value and silently drops earlier bounds.
+	// buildCreatedFilter combines all bounds into one expression so that every
+	// bound is honoured.
+	if createdFilter := buildCreatedFilter(opts.StartDate, opts.EndDate, opts.BeforeDate); createdFilter != "" {
+		args = append(args, "--created", createdFilter)
 	}
 	// Add ref filter (uses --branch flag which also works for tags)
 	if opts.Ref != "" {

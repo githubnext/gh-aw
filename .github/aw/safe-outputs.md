@@ -190,13 +190,19 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
       target: "*"                     # Optional: "triggering" (default), "*", or number
       target-repo: "owner/repo"       # Optional: cross-repository
+  ```
+
+- `submit-pull-request-review:` - Submit a PR review with status (APPROVE, REQUEST_CHANGES, COMMENT)
+
+  ```yaml
+  safe-outputs:
     submit-pull-request-review:
       max: 1                          # Optional: maximum number of reviews to submit (default: 1)
       footer: "if-body"               # Optional: footer control ("always", "none", "if-body", default: "always")
       allowed-events: [COMMENT, REQUEST_CHANGES]  # Optional: restrict allowed review event types; omit to allow all (APPROVE, COMMENT, REQUEST_CHANGES)
   ```
 
-  **Footer Control**: The `footer` field on `submit-pull-request-review` controls when AI-generated footers appear in the PR review body. Values: `"always"` (default, always include footer), `"none"` (never include footer), `"if-body"` (only include footer when review body is non-empty). Boolean values are also supported: `true` maps to `"always"`, `false` maps to `"none"`. This is useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
+  **Footer Control**: The `footer` field controls when AI-generated footers appear in the PR review body. Values: `"always"` (default), `"none"`, `"if-body"` (only when body is non-empty). Boolean values supported: `true` → `"always"`, `false` → `"none"`. Useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
 
 - `reply-to-pull-request-review-comment:` - Reply to existing review comments on PRs
 

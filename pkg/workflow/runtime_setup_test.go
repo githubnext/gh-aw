@@ -65,6 +65,11 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 			expected: []string{"go"},
 		},
 		{
+			name:     "gh aw command",
+			command:  "gh aw add githubnext/agentics",
+			expected: []string{"gh-aw"},
+		},
+		{
 			name:     "ruby command",
 			command:  "ruby script.rb",
 			expected: []string{"ruby"},
@@ -179,6 +184,12 @@ func TestDetectFromCustomSteps(t *testing.T) {
   - run: npm install
   - run: python test.py`,
 			expected: []string{"node", "python"},
+		},
+		{
+			name: "detects gh-aw from gh aw command",
+			customSteps: `steps:
+  - run: gh aw add githubnext/agentics`,
+			expected: []string{"gh-aw"},
 		},
 		{
 			name: "detects node even when setup-node exists (filtering happens later)",
