@@ -623,10 +623,36 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 // with features.group-concurrency-queue: false.
 func isGroupConcurrencyQueueEnabled(data *WorkflowData) bool {
 	flag := strings.ToLower(strings.TrimSpace(string(constants.GroupConcurrencyQueueFeatureFlag)))
-	if enabled, found := getFeatureValueFromFrontmatter(flag, data, false); found {
-		return enabled
+	if data != nil && data.Features != nil {
+		if value, exists := data.Features[flag]; exists {
+			return parseGroupConcurrencyQueueFeatureValue(value)
+		}
+		for key, value := range data.Features {
+			if strings.ToLower(key) == flag {
+				return parseGroupConcurrencyQueueFeatureValue(value)
+			}
+		}
 	}
 	return true
+}
+
+func parseGroupConcurrencyQueueFeatureValue(value any) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		normalized := strings.ToLower(strings.TrimSpace(v))
+		switch normalized {
+		case "false", "0", "off", "no":
+			return false
+		case "":
+			return false
+		default:
+			return true
+		}
+	default:
+		return true
+	}
 }
 
 // systemSafeOutputJobNames contains job names that are built-in system jobs and should not be
