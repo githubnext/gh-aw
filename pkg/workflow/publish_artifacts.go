@@ -168,7 +168,8 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 // generateSafeOutputsArtifactStagingUpload generates a step in the main agent job that uploads
 // the artifact staging directory so the safe_outputs job can download it for inline processing.
 // This step only appears when upload-artifact is configured in safe-outputs.
-func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *WorkflowData) {
+// pinAction resolves the upload-artifact action reference; pass c.getActionPin from Compiler methods.
+func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *WorkflowData, pinAction func(string) string) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadArtifact == nil {
 		return
 	}
@@ -180,7 +181,7 @@ func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *Wo
 	builder.WriteString("      # Upload safe-outputs upload-artifact staging for the upload_artifact job\n")
 	builder.WriteString("      - name: Upload upload-artifact staging\n")
 	builder.WriteString("        if: always()\n")
-	fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
+	fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          name: %s%s\n", prefix, SafeOutputsUploadArtifactStagingArtifactName)
 	fmt.Fprintf(builder, "          path: %s\n", artifactStagingDirExpr)

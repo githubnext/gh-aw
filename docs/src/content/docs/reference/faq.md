@@ -425,6 +425,28 @@ macOS runners (`macos-*`) are not currently supported in agentic workflows. Agen
 
 Use `ubuntu-latest` (the default) or another Linux-based runner instead. For tasks that genuinely require macOS-specific tooling, consider running those steps in a regular GitHub Actions job that coordinates with your agentic workflow.
 
+### Can I use agentic workflows on GitHub Enterprise Server (GHES)?
+
+Yes, but you may need to enable GHES compatibility mode to avoid artifact errors. GHES instances that predate `@actions/artifact` v2.0.0 support cannot run `actions/upload-artifact@v4+` or `actions/download-artifact@v4+`. On those instances, compiled workflows fail with a `GHESNotSupportedError` because the compiler emits v4+ artifact actions by default.
+
+Enable GHES compatibility mode so the compiler emits `upload-artifact@v3.2.2` and `download-artifact@v3.1.0` instead:
+
+**`aw.json` (recommended — applies to all workflows in the repository):**
+
+```json
+{
+  "ghes": true
+}
+```
+
+**`--ghes` flag (one-off compilation):**
+
+```bash
+gh aw compile --ghes my-workflow.md
+```
+
+Running `gh aw init` inside a GHES repository automatically detects the deployment and writes `ghes: true` to `.github/workflows/aw.json` for you. For `gh` CLI host setup and Copilot prerequisites on GHES, see [Enterprise Configuration](/gh-aw/reference/enterprise-configuration/).
+
 ### I'm not using a supported AI Engine (coding agent). What should I do?
 
 If you want to use a coding agent that isn't currently supported (Copilot, Claude, Codex, Gemini, or Crush), you can contribute support to the [gh-aw repository](https://github.com/github/gh-aw), or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).

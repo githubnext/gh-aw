@@ -181,10 +181,10 @@ func TestExperimentExpressionMappings(t *testing.T) {
 // ── buildExperimentArtifactDownloadSteps ──────────────────────────────────
 
 func TestBuildExperimentArtifactDownloadStep_Empty(t *testing.T) {
-	steps := buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf"})
+	steps := buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf"}, getActionPin)
 	assert.Empty(t, steps, "no steps when experiments is nil")
 
-	steps = buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf", Experiments: map[string][]string{}})
+	steps = buildExperimentArtifactDownloadSteps(&WorkflowData{WorkflowID: "test-wf", Experiments: map[string][]string{}}, getActionPin)
 	assert.Empty(t, steps, "no steps when experiments is empty")
 }
 
@@ -195,7 +195,7 @@ func TestBuildExperimentArtifactDownloadStep_Generated(t *testing.T) {
 		Experiments: map[string][]string{"caveman": {"yes", "no"}},
 		On:          "workflow_call:",
 	}
-	steps := buildExperimentArtifactDownloadSteps(data)
+	steps := buildExperimentArtifactDownloadSteps(data, getActionPin)
 	require.NotEmpty(t, steps, "steps should be generated when experiments are declared")
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, "Download experiment artifact", "should include download step name")
@@ -211,7 +211,7 @@ func TestBuildExperimentArtifactDownloadStep_NoPrefix(t *testing.T) {
 		WorkflowID:  "smoke-copilot",
 		Experiments: map[string][]string{"style": {"A", "B"}},
 	}
-	steps := buildExperimentArtifactDownloadSteps(data)
+	steps := buildExperimentArtifactDownloadSteps(data, getActionPin)
 	require.NotEmpty(t, steps, "steps should be generated")
 	joined := strings.Join(steps, "")
 	// Artifact name should include the sanitized workflow ID as prefix.

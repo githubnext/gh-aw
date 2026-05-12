@@ -42,7 +42,7 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	// These steps are used in jobs that depend on the agent job (not activation), so use
 	// the agent-downstream prefix expression.
-	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data))...)
+	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data), c.getActionPin)...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -151,7 +151,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	// These steps are used in jobs that depend on the agent job (not activation), so use
 	// the agent-downstream prefix expression.
-	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data))...)
+	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data), c.getActionPin)...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -259,7 +259,8 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 // and set the GH_AW_AGENT_OUTPUT environment variable for safe-output jobs.
 // GH_AW_AGENT_OUTPUT is only set when the artifact was actually downloaded successfully.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
-func buildAgentOutputDownloadSteps(prefix string) []string {
+// pinAction resolves the download-artifact action reference; pass c.getActionPin from Compiler methods.
+func buildAgentOutputDownloadSteps(prefix string, pinAction func(string) string) []string {
 	safeOutputsStepsLog.Printf("Building agent output download steps with prefix: %q", prefix)
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName:     prefix + constants.AgentArtifactName, // Unified agent artifact (prefixed in workflow_call)
@@ -269,5 +270,5 @@ func buildAgentOutputDownloadSteps(prefix string) []string {
 		EnvVarName:       "GH_AW_AGENT_OUTPUT",
 		StepName:         "Download agent output artifact",
 		StepID:           "download-agent-output",
-	})
+	}, pinAction)
 }

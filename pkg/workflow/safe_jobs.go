@@ -244,7 +244,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			DownloadPath: "${{ runner.temp }}/gh-aw/safe-jobs/",
 			SetupEnvStep: false, // We'll handle env vars separately to add job-specific ones
 			StepName:     "Download agent output artifact",
-		})
+		}, c.getActionPin)
 		steps = append(steps, downloadSteps...)
 
 		// the download artifacts always creates a folder, then unpacks in that folder

@@ -602,7 +602,7 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 // into /tmp/gh-aw/ before upload, so the artifact LCA is always /tmp/gh-aw/
 // and the hardcoded path is reliable.
 func TestBuildAgentOutputDownloadSteps(t *testing.T) {
-	steps := buildAgentOutputDownloadSteps("")
+	steps := buildAgentOutputDownloadSteps("", getActionPin)
 	stepsStr := strings.Join(steps, "")
 
 	// Verify expected steps are present

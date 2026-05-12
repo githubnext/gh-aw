@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -48,6 +50,13 @@ func InitRepository(opts InitOptions) error {
 		return errors.New("not in a git repository")
 	}
 	initLog.Print("Verified git repository")
+
+	// Auto-detect GHES deployment and configure aw.json ghes: true when needed.
+	if _, err := ensureGHESRepoConfig(opts.Verbose); err != nil {
+		initLog.Printf("Failed to configure GHES repo config: %v", err)
+		// Non-fatal: continue with the rest of init
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to configure GHES repo config: %v", err)))
+	}
 
 	// Configure .gitattributes
 	initLog.Print("Configuring .gitattributes")
@@ -247,4 +256,135 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 	}
 
 	return nil
+}
+
+// isGHESHost returns true when the given host is a GitHub Enterprise Server instance,
+// i.e. it is neither the public github.com nor a GitHub Enterprise Cloud tenant
+// (which uses the *.ghe.com domain).
+func isGHESHost(host string) bool {
+	// Strip optional port (e.g. "ghes.example.com:8080" → "ghes.example.com")
+	if idx := strings.LastIndex(host, ":"); idx >= 0 {
+		host = host[:idx]
+	}
+	if host == "" {
+		return false
+	}
+	if host == "github.com" {
+		return false
+	}
+	// GitHub Enterprise Cloud tenants end with .ghe.com — not GHES
+	if strings.HasSuffix(host, ".ghe.com") {
+		return false
+	}
+	return true
+}
+
+// detectGHESDeployment returns the GHES host if the current repository's git
+// remote points to a GitHub Enterprise Server instance, or "" if it does not.
+// Detection uses the following sources in priority order:
+//  1. GITHUB_SERVER_URL environment variable (set automatically inside GitHub Actions)
+//  2. GH_HOST environment variable (set by the gh CLI)
+//  3. The hostname extracted from the git origin remote URL
+func detectGHESDeployment() string {
+	// Check GITHUB_SERVER_URL first (set inside GitHub Actions runners)
+	if serverURL := os.Getenv("GITHUB_SERVER_URL"); serverURL != "" {
+		// serverURL is like "https://ghes.example.com", extract just the host.
+		host := serverURL
+		for _, scheme := range []string{"https://", "http://"} {
+			host = strings.TrimPrefix(host, scheme)
+		}
+		host = strings.TrimSuffix(host, "/")
+		if isGHESHost(host) {
+			initLog.Printf("Detected GHES deployment from GITHUB_SERVER_URL: %s", host)
+			return host
+		}
+	}
+
+	// Check GH_HOST (set when using the gh CLI against an enterprise instance)
+	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
+		if isGHESHost(ghHost) {
+			initLog.Printf("Detected GHES deployment from GH_HOST: %s", ghHost)
+			return ghHost
+		}
+	}
+
+	// Fall back to detecting the host from the git origin remote
+	host := getHostFromOriginRemote()
+	if isGHESHost(host) {
+		initLog.Printf("Detected GHES deployment from git remote: %s", host)
+		return host
+	}
+
+	return ""
+}
+
+// ensureGHESRepoConfig writes or updates .github/workflows/aw.json to set
+// "ghes": true when running on a GHES deployment.  The function is a no-op
+// if GHES is not detected or if "ghes": true is already present.
+// Returns (updated bool, err).
+func ensureGHESRepoConfig(verbose bool) (bool, error) {
+	ghesHost := detectGHESDeployment()
+	if ghesHost == "" {
+		initLog.Print("No GHES deployment detected, skipping aw.json ghes configuration")
+		return false, nil
+	}
+
+	initLog.Printf("GHES deployment detected (%s): configuring aw.json ghes: true", ghesHost)
+
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return false, fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	configPath := filepath.Join(gitRoot, workflow.RepoConfigFileName)
+
+	// Read existing content or start with an empty document.
+	var doc map[string]any
+	if data, readErr := os.ReadFile(configPath); readErr == nil {
+		if jsonErr := json.Unmarshal(data, &doc); jsonErr != nil {
+			return false, fmt.Errorf("failed to parse %s: %w", workflow.RepoConfigFileName, jsonErr)
+		}
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return false, fmt.Errorf("failed to read %s: %w", workflow.RepoConfigFileName, readErr)
+	}
+
+	if doc == nil {
+		doc = make(map[string]any)
+	}
+
+	// Nothing to do if ghes is already true.
+	if existing, ok := doc["ghes"].(bool); ok && existing {
+		initLog.Print("aw.json already has ghes: true, nothing to update")
+		return false, nil
+	}
+
+	doc["ghes"] = true
+
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return false, fmt.Errorf("failed to serialise %s: %w", workflow.RepoConfigFileName, err)
+	}
+	data = append(data, '\n')
+
+	// Ensure the parent directory exists.
+	if mkdirErr := os.MkdirAll(filepath.Dir(configPath), 0755); mkdirErr != nil {
+		return false, fmt.Errorf("failed to create directory for %s: %w", workflow.RepoConfigFileName, mkdirErr)
+	}
+
+	if writeErr := os.WriteFile(configPath, data, 0644); writeErr != nil {
+		return false, fmt.Errorf("failed to write %s: %w", workflow.RepoConfigFileName, writeErr)
+	}
+
+	initLog.Printf("Wrote ghes: true to %s", configPath)
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+			fmt.Sprintf("Configured %s with ghes: true (GHES deployment detected: %s)", workflow.RepoConfigFileName, ghesHost),
+		))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			fmt.Sprintf("GHES deployment detected (%s): set ghes: true in %s for artifact compatibility", ghesHost, workflow.RepoConfigFileName),
+		))
+	}
+	return true, nil
 }

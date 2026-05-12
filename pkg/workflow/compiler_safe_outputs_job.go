@@ -90,7 +90,7 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 
 	// Add artifact download steps after setup.
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
-	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix)...)
+	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
 
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
 	// Both of these safe outputs require the patch file to apply changes
@@ -102,7 +102,7 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 			DownloadPath: "/tmp/gh-aw/",
 			SetupEnvStep: false, // No environment variable needed, the script checks the file directly
 			StepName:     "Download patch artifact",
-		})
+		}, c.getActionPin)
 		steps = append(steps, patchDownloadSteps...)
 
 		// Extract the base branch from the agent output so the checkout step can use it
@@ -232,7 +232,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 		steps = append(steps,
 			"      - name: Download upload-artifact staging\n",
 			"        continue-on-error: true\n",
-			fmt.Sprintf("        uses: %s\n", getActionPin("actions/download-artifact")),
+			fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
 			"        with:\n",
 			fmt.Sprintf("          name: %s\n", stagingArtifactName),
 			fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
@@ -329,7 +329,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 
 		// Upload the SARIF file as an artifact so the upload_code_scanning_sarif job
 		// (which runs in a separate, fresh workspace) can download and process it.
-		steps = append(steps, buildSarifArtifactUploadStep(agentArtifactPrefix)...)
+		steps = append(steps, buildSarifArtifactUploadStep(agentArtifactPrefix, c.getActionPin)...)
 	}
 
 	// 3. Custom action steps — compiler-generated steps for each configured safe-output action.
@@ -436,7 +436,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		}
 
 		// Add artifact download steps count
-		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix))
+		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin))
 
 		// Add upload-artifact staging download step count.
 		// The step has 6 YAML string entries: name, continue-on-error, uses, with:, name: <artifact>, path: <dir>
@@ -452,7 +452,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 				DownloadPath: "/tmp/gh-aw/",
 				SetupEnvStep: false,
 				StepName:     "Download patch artifact",
-			})
+			}, c.getActionPin)
 			insertIndex += len(patchDownloadSteps)
 		}
 
@@ -478,7 +478,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	// In staged mode, no items are actually created in GitHub so there is nothing to record.
 	isStaged := c.trialMode || data.SafeOutputs.Staged
 	if !isStaged {
-		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix)...)
+		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix, c.getActionPin)...)
 	}
 
 	// Append OTLP conclusion span step (no-op when endpoint is not configured).
@@ -734,11 +734,12 @@ func buildDetectionPassedCondition() ConditionNode {
 // "agent" artifact) to avoid a 409 Conflict when both the agent job and safe_outputs job
 // try to upload an artifact with the same name in the same workflow run.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
-func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
+// pinAction resolves the upload-artifact action reference; pass c.getActionPin from Compiler methods.
+func buildSafeOutputItemsManifestUploadStep(prefix string, pinAction func(string) string) []string {
 	return []string{
 		"      - name: Upload Safe Outputs Items\n",
 		"        if: always()\n",
-		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SafeOutputItemsArtifactName),
 		"          path: |\n",
@@ -759,11 +760,12 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 // The step is conditional on the sarif_file output being non-empty (i.e. the handler
 // actually produced findings), so it is skipped on clean runs.
 // prefix is prepended to the artifact name for workflow_call contexts.
-func buildSarifArtifactUploadStep(prefix string) []string {
+// pinAction resolves the upload-artifact action reference; pass c.getActionPin from Compiler methods.
+func buildSarifArtifactUploadStep(prefix string, pinAction func(string) string) []string {
 	return []string{
 		"      - name: Upload SARIF artifact\n",
 		"        if: steps.process_safe_outputs.outputs.sarif_file != ''\n",
-		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", pinAction("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SarifArtifactName),
 		"          path: ${{ steps.process_safe_outputs.outputs.sarif_file }}\n",
