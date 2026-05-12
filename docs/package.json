@@ -33,7 +33,7 @@
     "yaml": "^2.8.4"
   },
   "devDependencies": {
-    "@marp-team/marp-cli": "^4.3.1",
+    "@marp-team/marp-cli": "^4.4.0",
     "@playwright/test": "^1.60.0",
     "@types/primer__octicons": "^19.21.0",
     "http-server": "^14.1.1",
