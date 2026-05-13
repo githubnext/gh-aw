@@ -69,10 +69,7 @@ Use the compile tool with workflow_name: "my-workflow"
 > [!IMPORTANT]
 > **Always prefer `gh aw run` over `gh workflow run <file>.lock.yml`** — it handles workflow resolution by short name, validates inputs, and enables correct run-tracking with `gh aw audit` and `gh aw logs`.
 
-Trigger a workflow on demand using `workflow_dispatch`. Capabilities:
-- Workflow resolution by short name (no need to remember `.lock.yml`)
-- Input parsing and validation against declared inputs
-- Correct run-tracking so `gh aw audit` and `gh aw logs` work immediately after
+Trigger a workflow on demand using `workflow_dispatch`.
 
 ```bash
 gh aw run                           # Interactive mode — pick workflow and fill inputs

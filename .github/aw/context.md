@@ -4,7 +4,7 @@ description: GitHub context expression variables and Handlebars-style template c
 
 ## GitHub Context Expression Interpolation
 
-Use GitHub Actions context expressions throughout the workflow content. **Note: For security reasons, only specific expressions are allowed.**
+**For security reasons, only specific expressions are allowed.**
 
 ### Allowed Context Variables
 
@@ -108,10 +108,6 @@ Analyze this content: "${{ steps.sanitized.outputs.text }}"
 Issue number: ${{ github.event.issue.number }}
 Repository: ${{ github.repository }}
 ```
-
-### Accessing Individual Context Fields
-
-While `steps.sanitized.outputs.text` is recommended for content access, you can still use individual context fields for metadata:
 
 ### Security Validation
 

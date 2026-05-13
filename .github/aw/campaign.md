@@ -4,8 +4,6 @@ Shared reference for **campaign workflows**: coordinated, time-bounded pushes wi
 
 ## Design principles
 
-Treat campaigns as a **workflow design pattern**, not a separate feature.
-
 ### Minimum viable campaign spec
 
 1. **Goal**: What is the measurable success criteria (metric, source, target, deadline)?
