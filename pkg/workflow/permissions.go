@@ -19,6 +19,9 @@ var validPermissionScopes = func() map[string]struct{} {
 	for _, scope := range appOnlyScopes {
 		m[string(scope)] = struct{}{}
 	}
+	// copilot-requests is intentionally excluded from GetAllPermissionScopes()
+	// because read-all should not grant this write-capable scope, but it must still
+	// be recognized when explicitly set in frontmatter.
 	m[string(PermissionCopilotRequests)] = struct{}{}
 
 	return m
