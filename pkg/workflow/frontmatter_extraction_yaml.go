@@ -163,7 +163,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// `issues:` event trigger, incorrectly entering the inIssues state and suppressing
 		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
-			if lineIndent >= 2 && trimmedLine == "pull_request:" {
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "pull_request:" {
 				inPullRequest = true
 				inIssues = false
 				inDiscussion = false
@@ -178,7 +178,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if lineIndent >= 2 && trimmedLine == "issues:" {
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issues:" {
 				inIssues = true
 				inPullRequest = false
 				inDiscussion = false
@@ -193,7 +193,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if lineIndent >= 2 && trimmedLine == "discussion:" {
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "discussion:" {
 				inDiscussion = true
 				inPullRequest = false
 				inIssues = false
@@ -208,7 +208,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if lineIndent >= 2 && trimmedLine == "issue_comment:" {
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issue_comment:" {
 				inIssueComment = true
 				inPullRequest = false
 				inIssues = false
@@ -223,7 +223,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if lineIndent >= 2 && trimmedLine == "deployment_status:" {
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "deployment_status:" {
 				inDeploymentStatus = true
 				inWorkflowRun = false
 				inPullRequest = false
@@ -237,7 +237,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if lineIndent >= 2 && trimmedLine == "workflow_run:" {
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "workflow_run:" {
 				inWorkflowRun = true
 				inDeploymentStatus = false
 				inPullRequest = false
