@@ -10,6 +10,58 @@ const main = createEngineLogParser({
   supportsDirectories: true,
 });
 
+const AWF_TOKEN_WARNING_RE = /\[AWF TOKEN WARNING\][^\n\r]+/g;
+
+/**
+ * Extracts AWF token steering warnings from parsed Copilot log entries.
+ * Handles several structured log shapes defensively because steering notices
+ * may appear as system entries, text blocks, or plain message strings.
+ * @param {Array<any>} logEntries
+ * @returns {string[]}
+ */
+function extractAwfTokenWarnings(logEntries) {
+  /** @type {string[]} */
+  const warnings = [];
+  const seen = new Set();
+
+  const addMatches = value => {
+    if (typeof value !== "string") return;
+    const matches = value.match(AWF_TOKEN_WARNING_RE);
+    if (!matches) return;
+    for (const match of matches) {
+      const normalized = match.trim();
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      warnings.push(normalized);
+    }
+  };
+
+  const visit = value => {
+    if (!value) return;
+    if (typeof value === "string") {
+      addMatches(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (typeof value !== "object") return;
+
+    if (typeof value.text === "string") addMatches(value.text);
+    if (typeof value.message === "string") addMatches(value.message);
+    if (typeof value.content === "string") addMatches(value.content);
+    if (typeof value.system === "string") addMatches(value.system);
+
+    if (Array.isArray(value.content)) visit(value.content);
+    if (Array.isArray(value.message?.content)) visit(value.message.content);
+    if (Array.isArray(value.system)) visit(value.system);
+  };
+
+  for (const entry of logEntries) visit(entry);
+  return warnings;
+}
+
 /**
  * Extracts the premium request count from the log content using regex
  * @param {string} logContent - The raw log content as a string
@@ -119,6 +171,15 @@ function parseCopilotLog(logContent) {
   });
 
   let markdown = conversationResult.markdown;
+  const awfTokenWarnings = extractAwfTokenWarnings(logEntries);
+
+  if (awfTokenWarnings.length > 0) {
+    markdown += "## ⚠️ Firewall Steering\n\n";
+    for (const warning of awfTokenWarnings) {
+      markdown += `- ${warning}\n`;
+    }
+    markdown += "\n";
+  }
 
   // Add Information section
   const lastEntry = logEntries[logEntries.length - 1];

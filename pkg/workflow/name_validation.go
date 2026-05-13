@@ -41,7 +41,7 @@ func validateNpmPackageName(pkg string) error {
 	nameValidationLog.Printf("Validating npm package name: %s", pkg)
 	if !npmPackageNameRE.MatchString(pkg) {
 		nameValidationLog.Printf("Invalid npm package name: %s", pkg)
-		return fmt.Errorf("invalid npm package name: %q", pkg)
+		return fmt.Errorf("invalid npm package name: %q — npm names must be lowercase alphanumeric and may include hyphens, dots, and underscores (e.g. \"my-package\" or \"@scope/name\")", pkg)
 	}
 	return nil
 }
@@ -52,7 +52,7 @@ func validatePipPackageName(pkgName string) error {
 	nameValidationLog.Printf("Validating pip package name: %s", pkgName)
 	if !pypiPackageNameRE.MatchString(pkgName) {
 		nameValidationLog.Printf("Invalid pip package name: %s", pkgName)
-		return fmt.Errorf("invalid pip package name: %q", pkgName)
+		return fmt.Errorf("invalid pip package name: %q — PyPI names must start and end with a letter or digit, with hyphens, underscores, or dots allowed inside (e.g. \"requests\" or \"my-package\")", pkgName)
 	}
 	return nil
 }
