@@ -58,6 +58,9 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 				dispatchWorkflowConfig.TargetRef = targetRef
 			}
 
+			// Parse target-repo (optional cross-repo dispatch target)
+			dispatchWorkflowConfig.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
+
 			// Cap max at 50 (absolute maximum allowed) – only for literal integer values
 			if maxVal := templatableIntValue(dispatchWorkflowConfig.Max); maxVal > 50 {
 				dispatchWorkflowLog.Printf("Max value %d exceeds limit, capping at 50", maxVal)

@@ -1087,12 +1087,12 @@ safe-outputs:
 
 #### Configuration
 
-- **`workflows`** (required) - List of workflow names (without `.md` extension) that the agent is allowed to dispatch. Each workflow must exist in the same repository and support the `workflow_dispatch` trigger.
+- **`workflows`** (required) - List of workflow names (without `.md` extension) that the agent is allowed to dispatch. For same-repo dispatch, each workflow must exist locally and support the `workflow_dispatch` trigger.
 - **`max`** (optional) - Maximum number of workflow dispatches allowed (default: 1, maximum: 50). This prevents excessive workflow triggering.
 
 #### Validation Rules
 
-At compile time, the compiler validates that each workflow exists (`.md`, `.lock.yml`, or `.yml`), declares `workflow_dispatch` in its `on:` section, does not self-reference, and resolves the correct file extension.
+At compile time, for same-repo dispatch (`target-repo` unset or `${{ github.repository }}`), the compiler validates that each workflow exists (`.md`, `.lock.yml`, or `.yml`), declares `workflow_dispatch` in its `on:` section, does not self-reference, and resolves the correct file extension. For cross-repo dispatch (`target-repo` set to another repository), local workflow file validation is skipped and GitHub enforces existence at dispatch time.
 
 #### Defining Workflow Inputs
 

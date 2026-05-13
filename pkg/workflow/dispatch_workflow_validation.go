@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 )
@@ -24,6 +25,11 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 
 	if len(config.Workflows) == 0 {
 		return errors.New("dispatch-workflow: must specify at least one workflow in the list\n\nExample configuration in workflow frontmatter:\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [workflow-name-1, workflow-name-2]\n\nWorkflow names should match the filename without the .md extension")
+	}
+
+	if shouldSkipLocalDispatchWorkflowValidation(config.TargetRepoSlug) {
+		dispatchWorkflowValidationLog.Printf("Skipping local dispatch-workflow validation because target-repo is cross-repo: %q", config.TargetRepoSlug)
+		return nil
 	}
 
 	currentWorkflowName := getCurrentWorkflowName(workflowPath)
@@ -136,6 +142,16 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	dispatchWorkflowValidationLog.Printf("Dispatch workflow validation completed: error_count=%d, total_workflows=%d", collector.Count(), len(config.Workflows))
 
 	return collector.FormattedError("dispatch-workflow")
+}
+
+func shouldSkipLocalDispatchWorkflowValidation(targetRepoSlug string) bool {
+	trimmed := strings.TrimSpace(targetRepoSlug)
+	if trimmed == "" {
+		return false
+	}
+
+	normalized := strings.ReplaceAll(trimmed, " ", "")
+	return normalized != "${{github.repository}}"
 }
 
 // extractWorkflowDispatchInputs parses a workflow file and extracts the workflow_dispatch inputs schema
