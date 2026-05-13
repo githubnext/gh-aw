@@ -60,8 +60,8 @@ strict: true
 features:
   copilot-requests: true
 
-sandbox:
-  agent: awf
+firewall:
+  effective-token-steering: true
 ---
 
 # Architecture Diagram Generator
