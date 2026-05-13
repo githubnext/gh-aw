@@ -296,4 +296,4 @@ async function main() {
   core.info(`Completed centralized routing for '/${commandName}'.`);
 }
 
-module.exports = { main, eventIdentifier, resolveBodyText, resolveDispatchRef };
+module.exports = { main, eventIdentifier, resolveBodyText, resolveDispatchRef, GITHUB_API_VERSION };

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const globals = /** @type {any} */ global;
-const { main } = require("./route_slash_command.cjs");
+const { main, GITHUB_API_VERSION } = require("./route_slash_command.cjs");
 
 describe("route_slash_command", () => {
   /** @type {{ core: any, github: any, context: any, exec: any, io: any, getOctokit: any }} */
@@ -84,7 +84,7 @@ describe("route_slash_command", () => {
     await main();
     expect(dispatchCalls).toHaveLength(1);
     expect(dispatchCalls[0].workflow_id).toBe("archie.lock.yml");
-    expect(dispatchCalls[0].request?.headers?.["X-GitHub-Api-Version"]).toBe("2022-11-28");
+    expect(dispatchCalls[0].request?.headers?.["X-GitHub-Api-Version"]).toBe(GITHUB_API_VERSION);
     expect(reactionCalls).toHaveLength(1);
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.command_name).toBe("archie");
