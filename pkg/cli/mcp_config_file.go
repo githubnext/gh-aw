@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 
@@ -78,7 +79,7 @@ func ensureMCPConfig(verbose bool) error {
 	}
 	config.MCPServers[ghAwServerName] = ghAwConfig
 
-	if err := os.MkdirAll(filepath.Dir(mcpConfigPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(mcpConfigPath), constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create mcp config directory: %w", err)
 	}
 
@@ -88,7 +89,7 @@ func ensureMCPConfig(verbose bool) error {
 		return fmt.Errorf("failed to marshal mcp.json: %w", err)
 	}
 
-	if err := os.WriteFile(mcpConfigPath, data, 0644); err != nil {
+	if err := os.WriteFile(mcpConfigPath, data, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write mcp.json: %w", err)
 	}
 	mcpConfigLog.Printf("Created new file: %s", mcpConfigPath)

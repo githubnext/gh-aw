@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -291,7 +292,7 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 	// Add newline at end for POSIX compliance
 	jsonData = append(jsonData, '\n')
 
-	if err := os.WriteFile(path, jsonData, 0644); err != nil {
+	if err := os.WriteFile(path, jsonData, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write package.json: %w", err)
 	}
 
@@ -402,7 +403,7 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 		return fmt.Errorf("failed to marshal dependabot.yml: %w", err)
 	}
 
-	if err := os.WriteFile(path, yamlData, 0644); err != nil {
+	if err := os.WriteFile(path, yamlData, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write dependabot.yml: %w", err)
 	}
 
@@ -521,7 +522,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 	if bytes.Equal(original, updated) {
 		return nil
 	}
-	if err := os.WriteFile(path, updated, 0644); err != nil {
+	if err := os.WriteFile(path, updated, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write dependabot.yml: %w", err)
 	}
 	return nil
@@ -789,7 +790,7 @@ func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, fo
 
 	content := strings.Join(lines, "\n") + "\n"
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write requirements.txt: %w", err)
 	}
 
@@ -927,7 +928,7 @@ func (c *Compiler) generateGoMod(path string, deps []GoDependency, forceOverwrit
 
 	content := strings.Join(lines, "\n") + "\n"
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write go.mod: %w", err)
 	}
 

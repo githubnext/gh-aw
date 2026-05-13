@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,7 +49,7 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 	}()
 
 	// Step 4: Create trials directory
-	if err := os.MkdirAll("trials", 0755); err != nil {
+	if err := os.MkdirAll("trials", constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create trials directory: %w", err)
 	}
 
@@ -259,7 +260,7 @@ func saveTrialResult(filename string, result any, verbose bool) error {
 		return fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	if err := os.WriteFile(filename, jsonBytes, 0644); err != nil {
+	if err := os.WriteFile(filename, jsonBytes, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write result file: %w", err)
 	}
 
@@ -279,7 +280,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 
 	// Create trials directory in the host repository
 	trialsDir := filepath.Join(tempDir, "trials")
-	if err := os.MkdirAll(trialsDir, 0755); err != nil {
+	if err := os.MkdirAll(trialsDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create trials directory in repository: %w", err)
 	}
 

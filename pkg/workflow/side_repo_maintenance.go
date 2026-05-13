@@ -3,6 +3,7 @@ package workflow
 import (
 	_ "embed"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -568,7 +569,7 @@ jobs:
 
 	content := yaml.String()
 	maintenanceLog.Printf("Writing side-repo maintenance workflow to %s", outPath)
-	if err := os.WriteFile(outPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(outPath, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write side-repo maintenance workflow: %w", err)
 	}
 	return nil

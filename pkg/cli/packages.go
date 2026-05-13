@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -114,7 +115,7 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 
 		// Create target directory if it doesn't exist
 		targetDir := filepath.Dir(targetPath)
-		if err := os.MkdirAll(targetDir, 0755); err != nil {
+		if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", targetDir, err)
 		}
 
@@ -165,7 +166,7 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 		}
 
 		// Write to target
-		if err := os.WriteFile(targetPath, sourceContent, 0644); err != nil {
+		if err := os.WriteFile(targetPath, sourceContent, constants.FilePermPublic); err != nil {
 			return fmt.Errorf("failed to write include file %s: %w", targetPath, err)
 		}
 

@@ -251,7 +251,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 
 	// Create .github/workflows directory if it doesn't exist
 	githubWorkflowsDir := filepath.Join(workingDir, constants.GetWorkflowDir())
-	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
+	if err := os.MkdirAll(githubWorkflowsDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
 	}
 
@@ -284,7 +284,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 	content := b.generateWorkflowContent()
 
 	// Write the workflow to file with owner-only read/write permissions (0600) for security best practices
-	if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(destFile, []byte(content), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 

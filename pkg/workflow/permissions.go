@@ -8,116 +8,38 @@ import (
 
 var permissionsLog = logger.New("workflow:permissions")
 
+var validPermissionScopes = func() map[string]struct{} {
+	scopes := GetAllPermissionScopes()
+	appOnlyScopes := GetAllGitHubAppOnlyScopes()
+
+	m := make(map[string]struct{}, len(scopes)+len(appOnlyScopes))
+	for _, scope := range scopes {
+		m[string(scope)] = struct{}{}
+	}
+	for _, scope := range appOnlyScopes {
+		m[string(scope)] = struct{}{}
+	}
+	// copilot-requests is intentionally excluded from GetAllPermissionScopes()
+	// because read-all should not grant this write-capable scope, but it must still
+	// be recognized when explicitly set in frontmatter.
+	m[string(PermissionCopilotRequests)] = struct{}{}
+
+	return m
+}()
+
 // convertStringToPermissionScope converts a string key to a PermissionScope
 func convertStringToPermissionScope(key string) PermissionScope {
-	switch key {
-	// GitHub Actions permission scopes (supported by GITHUB_TOKEN)
-	case "actions":
-		return PermissionActions
-	case "attestations":
-		return PermissionAttestations
-	case "checks":
-		return PermissionChecks
-	case "contents":
-		return PermissionContents
-	case "deployments":
-		return PermissionDeployments
-	case "discussions":
-		return PermissionDiscussions
-	case "id-token":
-		return PermissionIdToken
-	case "issues":
-		return PermissionIssues
-	case "metadata":
-		return PermissionMetadata
-	case "models":
-		return PermissionModels
-	case "packages":
-		return PermissionPackages
-	case "pages":
-		return PermissionPages
-	case "pull-requests":
-		return PermissionPullRequests
-	case "repository-projects":
-		return PermissionRepositoryProj
-	case "security-events":
-		return PermissionSecurityEvents
-	case "statuses":
-		return PermissionStatuses
-	case "copilot-requests":
-		return PermissionCopilotRequests
-	case "vulnerability-alerts":
-		return PermissionVulnerabilityAlerts
-	// GitHub App-only permission scopes (not supported by GITHUB_TOKEN, require a GitHub App)
-	// organization-projects is included here because it is a GitHub App-only scope
-	// (it is excluded from GetAllPermissionScopes() and skipped in YAML rendering).
-	case "organization-projects":
-		return PermissionOrganizationProj
-	case "administration":
-		return PermissionAdministration
-	case "members":
-		return PermissionMembers
-	case "organization-administration":
-		return PermissionOrganizationAdministration
-	case "environments":
-		return PermissionEnvironments
-	case "git-signing":
-		return PermissionGitSigning
-	case "team-discussions":
-		return PermissionTeamDiscussions
-	case "workflows":
-		return PermissionWorkflows
-	case "repository-hooks":
-		return PermissionRepositoryHooks
-	case "organization-hooks":
-		return PermissionOrganizationHooks
-	case "organization-members":
-		return PermissionOrganizationMembers
-	case "organization-packages":
-		return PermissionOrganizationPackages
-	case "organization-self-hosted-runners":
-		return PermissionOrganizationSelfHostedRunners
-	case "single-file":
-		return PermissionSingleFile
-	case "codespaces":
-		return PermissionCodespaces
-	case "email-addresses":
-		return PermissionEmailAddresses
-	case "repository-custom-properties":
-		return PermissionRepositoryCustomProperties
-	case "organization-custom-org-roles":
-		return PermissionOrganizationCustomOrgRoles
-	case "organization-custom-properties":
-		return PermissionOrganizationCustomProperties
-	case "organization-custom-repository-roles":
-		return PermissionOrganizationCustomRepositoryRoles
-	case "organization-announcement-banners":
-		return PermissionOrganizationAnnouncementBanners
-	case "organization-events":
-		return PermissionOrganizationEvents
-	case "organization-plan":
-		return PermissionOrganizationPlan
-	case "organization-user-blocking":
-		return PermissionOrganizationUserBlocking
-	case "organization-personal-access-token-requests":
-		return PermissionOrganizationPersonalAccessTokenReqs
-	case "organization-personal-access-tokens":
-		return PermissionOrganizationPersonalAccessTokens
-	case "organization-copilot":
-		return PermissionOrganizationCopilot
-	case "organization-codespaces":
-		return PermissionOrganizationCodespaces
-	case "codespaces-lifecycle-admin":
-		return PermissionCodespacesLifecycleAdmin
-	case "codespaces-metadata":
-		return PermissionCodespacesMetadata
-	case "all":
+	if key == "all" {
 		// "all" is a meta-key handled at the parser level; it is not a real scope
 		return ""
-	default:
+	}
+
+	if _, exists := validPermissionScopes[key]; !exists {
 		permissionsLog.Printf("Unknown permission scope key: %s", key)
 		return ""
 	}
+
+	return PermissionScope(key)
 }
 
 // PermissionLevel represents the level of access (read, write, none)

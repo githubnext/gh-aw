@@ -44,7 +44,7 @@ func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, e
 		return fmt.Errorf("invalid workflows directory path: %w", err)
 	}
 
-	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
+	if err := os.MkdirAll(githubWorkflowsDir, constants.DirPermPublic); err != nil {
 		commandsLog.Printf("Failed to create workflows directory: %v", err)
 		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
 	}
@@ -70,7 +70,7 @@ func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, e
 	template := createWorkflowTemplate(workflowName, engine)
 
 	// Write the template to file with restrictive permissions (owner-only)
-	if err := os.WriteFile(destFile, []byte(template), 0600); err != nil {
+	if err := os.WriteFile(destFile, []byte(template), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 

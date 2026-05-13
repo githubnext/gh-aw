@@ -112,6 +112,7 @@ func TestGenerateRuntimeSetupSteps_GhAw_DevBuildsFromSource(t *testing.T) {
 	assert.Contains(t, content, "gh extension remove gh-aw || true")
 	assert.Contains(t, content, "gh extension install .")
 	assert.Contains(t, content, "gh aw version")
+	assert.Contains(t, content, "GH_TOKEN: ${{ github.token }}")
 	assert.NotContains(t, content, "github/gh-aw/actions/setup-cli@")
 }
 

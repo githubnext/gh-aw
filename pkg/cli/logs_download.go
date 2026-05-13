@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"io"
 	"os"
 	"path/filepath"
@@ -171,13 +172,13 @@ func flattenArtifactTree(sourceDir, artifactDir, outputDir, label string, verbos
 
 		if info.IsDir() {
 			// Create directory in destination with world-readable permissions (0755)
-			if err := os.MkdirAll(destPath, 0755); err != nil {
+			if err := os.MkdirAll(destPath, constants.DirPermPublic); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
 			}
 			logsDownloadLog.Printf("Created directory: %s", destPath)
 		} else {
 			// Ensure parent directory exists with world-readable permissions (0755)
-			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(destPath), constants.DirPermPublic); err != nil {
 				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
 			}
 
@@ -321,13 +322,13 @@ func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string,
 	}
 
 	// Write the downloaded zip content to temporary file
-	if err := os.WriteFile(tmpZip, output, 0644); err != nil {
+	if err := os.WriteFile(tmpZip, output, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write logs zip file: %w", err)
 	}
 
 	// Create a subdirectory for workflow logs to keep the run directory organized
 	workflowLogsDir := filepath.Join(outputDir, "workflow-logs")
-	if err := os.MkdirAll(workflowLogsDir, 0755); err != nil {
+	if err := os.MkdirAll(workflowLogsDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create workflow-logs directory: %w", err)
 	}
 
@@ -386,7 +387,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 
 	// Create directory if it's a directory entry
 	if f.FileInfo().IsDir() {
-		return os.MkdirAll(filePath, 0755)
+		return os.MkdirAll(filePath, constants.DirPermPublic)
 	}
 
 	// Decompression bomb protection - limit individual file size to 1GB
@@ -397,7 +398,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	}
 
 	// Create parent directory if needed
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -677,7 +678,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 		}
 	}
 
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create run output directory: %w", err)
 	}
 	if verbose {

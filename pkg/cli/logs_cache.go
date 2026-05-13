@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -172,7 +173,7 @@ func saveRunSummary(outputDir string, summary *RunSummary, verbose bool) error {
 	}
 
 	// Write to file
-	if err := os.WriteFile(summaryPath, data, 0644); err != nil {
+	if err := os.WriteFile(summaryPath, data, constants.FilePermPublic); err != nil {
 		logsCacheLog.Printf("Failed to write run summary to disk: %v", err)
 		return fmt.Errorf("failed to write run summary: %w", err)
 	}

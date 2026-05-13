@@ -316,7 +316,7 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 	fileName := filepath.Base(filePath)
 	if write {
 		// Write the file with owner-only read/write permissions (0600) for security best practices
-		if err := os.WriteFile(filePath, []byte(currentContent), 0600); err != nil {
+		if err := os.WriteFile(filePath, []byte(currentContent), constants.FilePermSensitive); err != nil {
 			return false, nil, fmt.Errorf("failed to write file: %w", err)
 		}
 
@@ -377,11 +377,11 @@ func scaffoldSerenaSharedWorkflowIfNeeded(filePath string, appliedCodemods []str
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(serenaPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(serenaPath), constants.DirPermPublic); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(serenaPath, []byte(scaffoldedSerenaSharedWorkflow), 0600); err != nil {
+	if err := os.WriteFile(serenaPath, []byte(scaffoldedSerenaSharedWorkflow), constants.FilePermSensitive); err != nil {
 		return err
 	}
 

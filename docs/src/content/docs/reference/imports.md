@@ -363,6 +363,8 @@ Shared workflow files (without `on:` field) can define:
 - `runtimes:` - Runtime version overrides (node, python, go, etc.)
 - `secret-masking:` - Secret masking steps
 - `env:` - Workflow-level environment variables
+- `pre-agent-steps:` - Steps that run after artifacts are downloaded and before engine execution
+- `post-steps:` - Steps that run after engine execution
 - `github-app:` - GitHub App credentials for token minting (centralize shared app config)
 - `checkout:` - Checkout configuration for the agent job (centralize side-repo checkout setup)
 - `engine.mcp` (without engine identifier) - MCP gateway settings (`tool-timeout`, `session-timeout`) that consumers inherit; the engine itself is always inherited from the importing workflow
@@ -391,6 +393,8 @@ Imports are processed using breadth-first traversal: direct imports first, then 
 | `checkout:` | Imported checkout entries are appended after the main workflow's entries. For duplicate (repository, path) pairs, the main workflow's entry takes precedence: first-seen wins for `ref`, and auth is mutually exclusive — once `github-token` or `github-app` is set by the main workflow, an imported duplicate cannot add the other auth method. `checkout: false` in the main workflow disables all checkout including imported entries. |
 | `engine.mcp` | First-wins across imports. Shared files may define `engine:` with only `mcp.tool-timeout` and/or `mcp.session-timeout` (no engine identifier). The importing workflow's own engine setting always takes precedence; the first imported value fills in if the main workflow does not set a value. |
 | `steps:` | Imported steps prepended to main; concatenated in import order. |
+| `pre-agent-steps:` | Imported pre-agent-steps prepended to main; concatenated in import order. |
+| `post-steps:` | Imported post-steps appended after main; concatenated in import order. |
 | `jobs:` | Not merged — define only in the main workflow. Use `safe-outputs.jobs` for importable jobs. |
 | `safe-outputs.jobs` | Names must be unique; duplicates fail. Order determined by `needs:` dependencies. |
 | `env:` | Main workflow env vars take precedence over imports. Duplicate keys across different imports fail compilation — move to the main workflow to override imported values. |
