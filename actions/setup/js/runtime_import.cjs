@@ -848,8 +848,8 @@ function wrapExpressionsInTemplateConditionals(content) {
     // template tag injection: if the resolved value contained "}}" it would prematurely
     // close the {{#if ...}} tag and corrupt the rendered output.
     const evaluated = evaluateExpression(trimmed);
-    const resolved = !evaluated.startsWith("${{") && isTruthy(evaluated);
-    return resolved ? `{{#if true}}` : `{{#if }}`;
+    const shouldRenderBlock = !evaluated.startsWith("${{") && isTruthy(evaluated);
+    return shouldRenderBlock ? `{{#if true}}` : `{{#if }}`;
   });
 }
 
