@@ -42,20 +42,6 @@ gh aw compile --ghes my-workflow.md
 > [!NOTE]
 > The `--ghes` flag only affects the current compilation. Use `aw.json` to apply GHES compatibility permanently across all workflows in the repository.
 
-#### Enable per workflow via `features`
-
-Set `features.ghes-artifact-compat: true` in workflow frontmatter to opt a single workflow into artifact-compat mode without changing the repository-wide setting:
-
-```aw wrap
-features:
-  ghes-artifact-compat: true
-```
-
-Equivalently, set the `GH_AW_FEATURES=ghes-artifact-compat` environment variable when invoking `gh aw compile`. When the flag is active the compiler pins `actions/upload-artifact@v3.2.2` and `actions/download-artifact@v3.1.0`; compilation fails fast if the required v3 pin is missing rather than silently emitting an incompatible v4+ reference.
-
-> [!TIP]
-> To apply GHES artifact compatibility to every workflow in the repository, use the `--ghes` CLI flag or set `ghes: true` in `aw.json` instead. See [Enable via CLI flag](#enable-via-cli-flag) and [Enable via `aw.json`](#enable-via-awjson-recommended) above.
-
 ## GitHub Enterprise Server CLI Setup
 
 For `gh` CLI configuration, host authentication, and `GH_HOST` setup on GHES, see [GitHub Enterprise Server Support](/gh-aw/setup/cli/#github-enterprise-server-support) in the CLI reference.
