@@ -214,28 +214,28 @@ jobs:
           cat << 'GH_AW_PROMPT_35382c7d3934d712_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          {{#if github.actor}}
           - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          {{#if github.repository}}
           - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          {{#if github.workspace}}
           - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if __GH_AW_EXPR_8D6616B0__ }}
+          {{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}
           - **issue-number**: #__GH_AW_EXPR_8D6616B0__
           {{/if}}
-          {{#if __GH_AW_EXPR_38BB2AB6__ }}
+          {{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}
           - **discussion-number**: #__GH_AW_EXPR_38BB2AB6__
           {{/if}}
-          {{#if __GH_AW_EXPR_911BC891__ }}
+          {{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}
           - **pull-request-number**: #__GH_AW_EXPR_911BC891__
           {{/if}}
-          {{#if __GH_AW_EXPR_1BF7760D__ }}
+          {{#if github.event.comment.id || github.aw.context.comment_id}}
           - **comment-id**: __GH_AW_EXPR_1BF7760D__
           {{/if}}
-          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          {{#if github.run_id}}
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
@@ -755,7 +755,7 @@ jobs:
         timeout-minutes: 45
         run: |
           set -o pipefail
-          printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          printf '%%s' "$(date +%%s%%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
@@ -1253,7 +1253,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          printf '%%s' "$(date +%%s%%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
