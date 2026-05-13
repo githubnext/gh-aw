@@ -878,7 +878,16 @@ Based on the parsed requirements, determine:
 4. **Safe Outputs**: For any write operations:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`
-   - Creating PRs → `safe-outputs: create-pull-request:`
+   - Creating PRs → `safe-outputs: create-pull-request:` — **always specify `allowed-files`** scoped to the file extensions or paths the workflow is meant to touch. This is the primary guardrail; omitting it allows the agent to modify any file in the repository. Example:
+     ```yaml
+     safe-outputs:
+       create-pull-request:
+         allowed-files:
+           - "docs/**/*.md"       # restrict to Markdown files under docs/
+           - "src/**/*.ts"        # or restrict to TypeScript source files
+         excluded-files:
+           - "**/*.lock"          # always strip lock files
+     ```
    - **Applying labels** → `safe-outputs: add-labels:` — use a dedicated `add-labels` safe output, **not** `update-issue` with a `labels` array and **not** `gh issue edit --add-label` in bash (both bypass allow-list enforcement and audit trails). Example:
      ```yaml
      safe-outputs:
