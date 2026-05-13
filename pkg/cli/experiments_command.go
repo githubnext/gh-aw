@@ -94,8 +94,8 @@ experiments/my-workflow). Each branch stores a state.json file written by the
 workflow's pick_experiment step, containing variant counts and run history.
 
 Available subcommands:
-  • list    - List all experiment workflow branches (default)
-  • analyze - Analyze a specific experiment workflow in detail
+  - list    - List all experiment workflow branches (default)
+  - analyze - Analyze a specific experiment workflow in detail
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` experiments                        # List all experiments (default)

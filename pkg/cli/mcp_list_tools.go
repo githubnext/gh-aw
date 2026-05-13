@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -194,6 +195,17 @@ The command will:
 - Display available tools with their descriptions and allowance status`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if serverFilter == "" {
+				return errors.New(console.FormatErrorWithSuggestions(
+					"missing required flag: --server",
+					[]string{
+						"Specify an MCP server name, for example: gh aw mcp list-tools --server github",
+						"Optionally provide a workflow: gh aw mcp list-tools <workflow> --server github",
+						"Use 'gh aw mcp list <workflow>' to see available MCP servers in a workflow",
+					},
+				))
+			}
+
 			var workflowFile string
 			if len(args) > 0 {
 				workflowFile = args[0]
@@ -212,7 +224,6 @@ The command will:
 	}
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "MCP server name to list tools for (required)")
-	_ = cmd.MarkFlagRequired("server")
 
 	return cmd
 }

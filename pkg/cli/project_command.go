@@ -43,7 +43,7 @@ This command allows you to create new projects owned by users or organizations
 and optionally link them to specific repositories.
 
 Available subcommands:
-  • new - Create a new GitHub Project V2 board
+  - new - Create a new GitHub Project V2 board
 
 Examples:
   gh aw project new "My Project" --owner @me                      # Create user project

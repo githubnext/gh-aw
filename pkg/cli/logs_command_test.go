@@ -78,6 +78,8 @@ func TestNewLogsCommand(t *testing.T) {
 	// Check after flag (cache maintenance)
 	afterFlag := flags.Lookup("after")
 	assert.NotNil(t, afterFlag, "Should have 'after' flag")
+	assert.Contains(t, afterFlag.Usage, "-1d", "after flag should document day deltas")
+	assert.Contains(t, afterFlag.Usage, "-30d", "after flag should document explicit day-count deltas")
 }
 
 func TestLogsCommandFlagDefaults(t *testing.T) {

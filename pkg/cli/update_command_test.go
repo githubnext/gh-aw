@@ -82,6 +82,15 @@ This is the base content.`
 	}
 }
 
+func TestNewUpdateCommand_HasDisableSecurityScannerFlag(t *testing.T) {
+	cmd := NewUpdateCommand(func(string) error { return nil })
+	require.NotNil(t, cmd, "update command should be created")
+
+	flag := cmd.Flags().Lookup("disable-security-scanner")
+	require.NotNil(t, flag, "update command should register --disable-security-scanner")
+	assert.Equal(t, "Disable security scanning of workflow markdown content", flag.Usage, "flag help text should match add/trial wording")
+}
+
 // TestMergeWorkflowContent_WithConflicts tests a merge with conflicts
 func TestMergeWorkflowContent_WithConflicts(t *testing.T) {
 	base := `---

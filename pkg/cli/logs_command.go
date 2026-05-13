@@ -297,7 +297,7 @@ Examples:
 	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: pretty, markdown (generates security audit report instead of default metrics table)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
-	logsCmd.Flags().String("after", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1w, -1mo, or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
+	logsCmd.Flags().String("after", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1d, -1w, -1mo (or explicit day counts like -30d), or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
 	logsCmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of discovering runs via the GitHub API")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 

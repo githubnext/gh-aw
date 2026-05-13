@@ -21,24 +21,25 @@ import (
 
 // UpdateWorkflowsOptions configures workflow update behavior.
 type UpdateWorkflowsOptions struct {
-	WorkflowNames      []string
-	AllowMajor         bool
-	Force              bool
-	Verbose            bool
-	EngineOverride     string
-	WorkflowsDir       string
-	NoStopAfter        bool
-	StopAfter          string
-	NoMerge            bool
-	DisableReleaseBump bool
-	NoCompile          bool
-	NoRedirect         bool
-	CoolDown           time.Duration
+	WorkflowNames          []string
+	AllowMajor             bool
+	Force                  bool
+	Verbose                bool
+	EngineOverride         string
+	WorkflowsDir           string
+	NoStopAfter            bool
+	StopAfter              string
+	NoMerge                bool
+	DisableReleaseBump     bool
+	DisableSecurityScanner bool
+	NoCompile              bool
+	NoRedirect             bool
+	CoolDown               time.Duration
 }
 
 // UpdateWorkflows updates workflows from their source repositories
 func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v, noRedirect=%v, coolDown=%v", opts.WorkflowsDir, opts.WorkflowNames, opts.NoMerge, opts.NoCompile, opts.NoRedirect, opts.CoolDown)
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v, noRedirect=%v, disableSecurityScanner=%v, coolDown=%v", opts.WorkflowsDir, opts.WorkflowNames, opts.NoMerge, opts.NoCompile, opts.NoRedirect, opts.DisableSecurityScanner, opts.CoolDown)
 
 	// Use provided workflows directory or default
 	workflowsDir := opts.WorkflowsDir
@@ -599,6 +600,20 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Set stop-after field to: "+opts.StopAfter))
 			}
 		}
+	}
+
+	// Security scan: reject workflows containing malicious or dangerous content
+	if !opts.DisableSecurityScanner {
+		if findings := workflow.ScanMarkdownSecurity(finalContent); len(findings) > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Security scan failed for workflow"))
+			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings, wf.Path))
+			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", wf.Name, len(findings))
+		}
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Security scan passed"))
+		}
+	} else if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Security scanning disabled"))
 	}
 
 	// Write updated content

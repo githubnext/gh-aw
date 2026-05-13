@@ -48,3 +48,22 @@ func TestUpdateDocsIncludeCoolDownOption(t *testing.T) {
 	updateSection := text[updateIndex:]
 	assert.Contains(t, updateSection, "`--cool-down`", "update docs options should include --cool-down")
 }
+
+func TestSubcommandListingsUseHyphenBullets(t *testing.T) {
+	tests := []struct {
+		name    string
+		longDoc string
+	}{
+		{name: "mcp", longDoc: NewMCPCommand().Long},
+		{name: "project", longDoc: NewProjectCommand().Long},
+		{name: "secrets", longDoc: NewSecretsCommand().Long},
+		{name: "experiments", longDoc: NewExperimentsCommand().Long},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Contains(t, tt.longDoc, "Available subcommands:", "command should document available subcommands")
+			assert.NotContains(t, tt.longDoc, "  • ", "subcommand list should use '-' bullet style consistently")
+		})
+	}
+}

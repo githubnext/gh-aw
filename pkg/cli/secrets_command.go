@@ -19,8 +19,8 @@ This command provides tools for managing secrets required by agentic workflows, 
 AI API keys (Anthropic, OpenAI, GitHub Copilot) and GitHub tokens for workflow execution.
 
 Available subcommands:
-  • set       - Create or update individual secrets
-  • bootstrap - Validate and configure all required secrets for workflows
+  - set       - Create or update individual secrets
+  - bootstrap - Validate and configure all required secrets for workflows
 
 Examples:
   gh aw secrets set MY_SECRET --value "secret123"    # Set a secret directly

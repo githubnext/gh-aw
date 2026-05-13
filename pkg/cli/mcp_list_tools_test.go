@@ -16,6 +16,8 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestListToolsForMCP(t *testing.T) {
@@ -333,8 +335,8 @@ func TestNewMCPListToolsSubcommand(t *testing.T) {
 	serverFlag := cmd.Flags().Lookup("server")
 	if serverFlag == nil {
 		t.Error("Expected 'server' flag to be defined")
-	} else if serverFlag.Annotations == nil || len(serverFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]) == 0 {
-		t.Error("Expected 'server' flag to be marked as required")
+	} else if !strings.Contains(serverFlag.Usage, "(required)") {
+		t.Error("Expected 'server' flag usage to indicate requirement")
 	}
 }
 
@@ -376,4 +378,13 @@ func TestMCPListToolsValidArgsFunction(t *testing.T) {
 			t.Error("Expected at least one completion for first positional arg when workflows exist")
 		}
 	})
+}
+
+func TestMCPListToolsRequiresServerFlagWithGuidance(t *testing.T) {
+	cmd := NewMCPListToolsSubcommand()
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	require.Error(t, err, "mcp list-tools without --server should fail")
+	assert.Contains(t, err.Error(), "missing required flag: --server", "error should clearly identify the missing required flag")
+	assert.Contains(t, err.Error(), "gh aw mcp list-tools --server github", "error should include guidance with a concrete example")
 }

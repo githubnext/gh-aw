@@ -63,6 +63,7 @@ Examples:
 			disableReleaseBump, _ := cmd.Flags().GetBool("disable-release-bump")
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
 			noRedirect, _ := cmd.Flags().GetBool("no-redirect")
+			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
@@ -84,19 +85,20 @@ Examples:
 			}
 
 			opts := UpdateWorkflowsOptions{
-				WorkflowNames:      args,
-				AllowMajor:         majorFlag,
-				Force:              forceFlag,
-				Verbose:            verbose,
-				EngineOverride:     engineOverride,
-				WorkflowsDir:       workflowDir,
-				NoStopAfter:        noStopAfter,
-				StopAfter:          stopAfter,
-				NoMerge:            noMergeFlag,
-				DisableReleaseBump: disableReleaseBump,
-				NoCompile:          noCompile,
-				NoRedirect:         noRedirect,
-				CoolDown:           coolDown,
+				WorkflowNames:          args,
+				AllowMajor:             majorFlag,
+				Force:                  forceFlag,
+				Verbose:                verbose,
+				EngineOverride:         engineOverride,
+				WorkflowsDir:           workflowDir,
+				NoStopAfter:            noStopAfter,
+				StopAfter:              stopAfter,
+				NoMerge:                noMergeFlag,
+				DisableReleaseBump:     disableReleaseBump,
+				NoCompile:              noCompile,
+				NoRedirect:             noRedirect,
+				DisableSecurityScanner: disableSecurityScanner,
+				CoolDown:               coolDown,
 			}
 
 			if err := RunUpdateWorkflows(cmd.Context(), opts); err != nil {
@@ -121,6 +123,7 @@ Examples:
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("no-merge", false, "Override local changes with upstream version instead of merging")
 	cmd.Flags().Bool("disable-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
+	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
