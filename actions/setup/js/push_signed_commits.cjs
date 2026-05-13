@@ -5,9 +5,11 @@ const { ERR_API } = require("./error_codes.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
- *  (merge commit, symlink mode 120000, submodule mode 160000, or executable
- *  bit mode 100755).  The catch block uses this to avoid silently falling
- *  back to an unsigned `git push` for these permanent, structural refusals.
+ *  (merge commit, symlink mode 120000, or submodule mode 160000).  The catch
+ *  block uses this to avoid silently falling back to an unsigned `git push`
+ *  for these permanent, structural refusals.  Executable bit (mode 100755) is
+ *  not included here because it only triggers a warning and continues with the
+ *  GraphQL path (the bit is silently dropped by the mutation).
  */
 class PushSignedCommitsUnsupportedShape extends Error {
   /** @param {string} message */
@@ -179,13 +181,13 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   try {
     // Pre-flight check: detect merge commits. Each --parents output line is "<sha> <parent1> [<parent2> ...]".
     // A line with 3+ space-separated fields means the commit has 2+ parents (i.e. a merge commit).
-    // The GitHub GraphQL createCommitOnBranch mutation does not support multiple parents, so fall back
-    // to git push for the entire series if any merge commit is found.
+    // The GitHub GraphQL createCommitOnBranch mutation does not support multiple parents, so refuse
+    // the unsigned push fallback if any merge commit is found.
     for (const line of revListLines) {
       const fields = line.split(" ");
       if (fields.length > 2) {
         const sha = fields[0];
-        core.warning(`pushSignedCommits: merge commit ${sha} detected, falling back to git push`);
+        core.warning(`pushSignedCommits: merge commit ${sha} detected, refusing unsigned push fallback`);
         throw new PushSignedCommitsUnsupportedShape("merge commit detected");
       }
     }
@@ -238,7 +240,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         if (status === "D") {
           // mode 160000 = gitlink (submodule); GitHub GraphQL createCommitOnBranch does not support submodules
           if (srcMode === "160000") {
-            core.warning(`pushSignedCommits: submodule change detected in ${filePath}, falling back to git push`);
+            core.warning(`pushSignedCommits: submodule change detected in ${filePath}, refusing unsigned push fallback`);
             throw new PushSignedCommitsUnsupportedShape("submodule change detected");
           }
           deletions.push({ path: filePath });
@@ -251,11 +253,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           }
           deletions.push({ path: filePath });
           if (srcMode === "160000" || dstMode === "160000") {
-            core.warning(`pushSignedCommits: submodule change detected in ${filePath} -> ${renamedPath}, falling back to git push`);
+            core.warning(`pushSignedCommits: submodule change detected in ${filePath} -> ${renamedPath}, refusing unsigned push fallback`);
             throw new PushSignedCommitsUnsupportedShape("submodule change detected");
           }
           if (dstMode === "120000") {
-            core.warning(`pushSignedCommits: symlink ${renamedPath} cannot be pushed as a signed commit, falling back to git push`);
+            core.warning(`pushSignedCommits: symlink ${renamedPath} cannot be pushed as a signed commit, refusing unsigned push fallback`);
             throw new PushSignedCommitsUnsupportedShape("symlink file mode requires git push fallback");
           }
           if (dstMode === "100755") {
@@ -270,11 +272,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
             continue;
           }
           if (dstMode === "160000") {
-            core.warning(`pushSignedCommits: submodule change detected in ${copiedPath}, falling back to git push`);
+            core.warning(`pushSignedCommits: submodule change detected in ${copiedPath}, refusing unsigned push fallback`);
             throw new PushSignedCommitsUnsupportedShape("submodule change detected");
           }
           if (dstMode === "120000") {
-            core.warning(`pushSignedCommits: symlink ${copiedPath} cannot be pushed as a signed commit, falling back to git push`);
+            core.warning(`pushSignedCommits: symlink ${copiedPath} cannot be pushed as a signed commit, refusing unsigned push fallback`);
             throw new PushSignedCommitsUnsupportedShape("symlink file mode requires git push fallback");
           }
           if (dstMode === "100755") {
@@ -284,11 +286,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         } else {
           // Added or Modified
           if (dstMode === "160000") {
-            core.warning(`pushSignedCommits: submodule change detected in ${filePath}, falling back to git push`);
+            core.warning(`pushSignedCommits: submodule change detected in ${filePath}, refusing unsigned push fallback`);
             throw new PushSignedCommitsUnsupportedShape("submodule change detected");
           }
           if (dstMode === "120000") {
-            core.warning(`pushSignedCommits: symlink ${filePath} cannot be pushed as a signed commit, falling back to git push`);
+            core.warning(`pushSignedCommits: symlink ${filePath} cannot be pushed as a signed commit, refusing unsigned push fallback`);
             throw new PushSignedCommitsUnsupportedShape("symlink file mode requires git push fallback");
           }
           if (dstMode === "100755") {
@@ -400,7 +402,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
         `submodule entries (mode 160000), or executable bits (mode 100755). ` +
         `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
-        `or set push-signed-commits: false if the repository does not require signed commits.`
+        `or set push-signed-commits: false if the repository does not require signed commits.`,
+        { cause: err }
       );
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${err instanceof Error ? err.message : String(err)}`);
@@ -414,4 +417,4 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   }
 }
 
-module.exports = { pushSignedCommits, unquoteCPath, PushSignedCommitsUnsupportedShape };
+module.exports = { pushSignedCommits, unquoteCPath };

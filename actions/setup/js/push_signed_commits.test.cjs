@@ -23,7 +23,7 @@ import os from "os";
 const require = createRequire(import.meta.url);
 
 // Import module once – globals are resolved at call time, not import time.
-const { pushSignedCommits, unquoteCPath, PushSignedCommitsUnsupportedShape } = require("./push_signed_commits.cjs");
+const { pushSignedCommits, unquoteCPath } = require("./push_signed_commits.cjs");
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Unit tests for unquoteCPath
@@ -104,8 +104,9 @@ function execGit(args, options = {}) {
       ...process.env,
       GIT_CONFIG_NOSYSTEM: "1",
       HOME: os.tmpdir(),
-      // Allow git commands to run inside bare repositories (git 2.36+ defaults to "explicit"
-      // which prevents running commands in a bare repo unless --git-dir is explicit).
+      // Allow git commands to run inside bare repositories. git 2.36+ changed the
+      // default safe.bareRepository from "all" to "explicit", which prevents running
+      // commands in a bare repo unless --git-dir is set explicitly.
       GIT_CONFIG_COUNT: "1",
       GIT_CONFIG_KEY_0: "safe.bareRepository",
       GIT_CONFIG_VALUE_0: "all",
@@ -745,7 +746,7 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("file mode handling", () => {
-    it("should throw PushSignedCommitsUnsupportedShape and not fall back to git push when commit contains a symlink", async () => {
+    it("should refuse unsigned push and not fall back to git push when commit contains a symlink", async () => {
       execGit(["checkout", "-b", "symlink-branch"], { cwd: workDir });
 
       // Create a regular file to serve as symlink target
@@ -814,7 +815,7 @@ describe("push_signed_commits integration tests", () => {
       expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toContain("echo hello");
     });
 
-    it("should throw PushSignedCommitsUnsupportedShape and not fall back to git push when commit contains a submodule entry", async () => {
+    it("should refuse unsigned push and not fall back to git push when commit contains a submodule entry", async () => {
       execGit(["checkout", "-b", "submodule-branch"], { cwd: workDir });
 
       // Create a gitlink (mode 160000) entry directly via update-index so we don't
@@ -1083,7 +1084,7 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("merge commit fallback", () => {
-    it("should throw PushSignedCommitsUnsupportedShape and not fall back to git push when the commit range contains a merge commit", async () => {
+    it("should refuse unsigned push and not fall back to git push when the commit range contains a merge commit", async () => {
       // Set up: main already has an initial commit. Create a side branch with an extra commit,
       // then merge it back into a feature branch to produce a merge commit in the range.
       execGit(["checkout", "-b", "side-branch"], { cwd: workDir });
@@ -1343,7 +1344,7 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("deleted submodule fallback", () => {
-    it("should throw PushSignedCommitsUnsupportedShape and not fall back to git push when a submodule entry is deleted", async () => {
+    it("should refuse unsigned push and not fall back to git push when a submodule entry is deleted", async () => {
       // The existing submodule test only covers ADDING a submodule.
       // This test covers the D-status + srcMode=160000 code path at line 226,
       // where a previously-committed gitlink entry is removed in a new commit.
