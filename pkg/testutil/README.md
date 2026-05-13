@@ -39,6 +39,11 @@ func TestMyFunction(t *testing.T) {
 }
 ```
 
+## Dependencies
+
+**Internal**:
+- `github.com/github/gh-aw/pkg/constants` — shared filesystem permission constants for temp directory creation
+
 ## Design Notes
 
 - `GetTestRunDir` uses `sync.Once` so the directory is created exactly once per process even when multiple test packages run concurrently.
