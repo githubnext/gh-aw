@@ -6,10 +6,8 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var bashSingleQuotedArgsCodemodLog = logger.New("cli:codemod_bash_single_quoted_args")
@@ -68,7 +66,7 @@ func getBashSingleQuotedArgsCodemod() Codemod {
 
 			for _, cmd := range unsafeCommands {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-					fmt.Sprintf("tools.bash entry %q contains unmatched single quotes and could not be safely rewritten; left unchanged", cmd)))
+					fmt.Sprintf("tools.bash entry %q contains an unclosed single-quoted segment and could not be safely rewritten; left unchanged", cmd)))
 			}
 
 			if !changed {
@@ -83,27 +81,12 @@ func getBashSingleQuotedArgsCodemod() Codemod {
 				return content, false, fmt.Errorf("failed to parse frontmatter for rewrite: %w", err)
 			}
 
-			updatedFrontmatter, err := workflow.MarshalWithFieldOrder(frontmatter, constants.PriorityWorkflowFields)
-			if err != nil {
-				return content, false, fmt.Errorf("failed to marshal frontmatter after rewrite: %w", err)
-			}
-
-			frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
-			frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
-
-			var lines []string
-			lines = append(lines, "---")
-			if frontmatterStr != "" {
-				lines = append(lines, strings.Split(frontmatterStr, "\n")...)
-			}
-			lines = append(lines, "---")
-			if result.Markdown != "" {
-				lines = append(lines, "")
-				lines = append(lines, result.Markdown)
-			}
-
 			bashSingleQuotedArgsCodemodLog.Print("Rewrote single-quoted tools.bash arguments to safe double-quoted forms")
-			return strings.Join(lines, "\n"), true, nil
+			updatedContent, err := reconstructWorkflowFileFromMap(frontmatter, result.Markdown)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to reconstruct workflow content after rewrite: %w", err)
+			}
+			return updatedContent, true, nil
 		},
 	}
 }
@@ -119,35 +102,68 @@ func rewriteSingleQuotedBashArgs(cmd string) (string, bool, bool) {
 	var b strings.Builder
 	b.Grow(len(cmd) + 8)
 	changed := false
+	inDoubleQuotes := false
+	escaped := false
 
-	for i := 0; i < len(cmd); {
-		if cmd[i] != '\'' {
-			b.WriteByte(cmd[i])
-			i++
+	for i := 0; i < len(cmd); i++ {
+		ch := cmd[i]
+		if inDoubleQuotes {
+			b.WriteByte(ch)
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inDoubleQuotes = false
+			}
 			continue
 		}
 
-		j := i + 1
-		for j < len(cmd) && cmd[j] != '\'' {
-			j++
-		}
-		if j >= len(cmd) {
-			return cmd, false, false
+		if escaped {
+			b.WriteByte(ch)
+			escaped = false
+			continue
 		}
 
-		content := cmd[i+1 : j]
-		b.WriteByte('"')
-		for k := 0; k < len(content); k++ {
-			switch content[k] {
-			case '\\', '"', '$', '`':
-				b.WriteByte('\\')
+		switch ch {
+		case '\\':
+			b.WriteByte(ch)
+			escaped = true
+			continue
+		case '"':
+			b.WriteByte(ch)
+			inDoubleQuotes = true
+			continue
+		case '\'':
+			j := i + 1
+			for j < len(cmd) && cmd[j] != '\'' {
+				j++
 			}
-			b.WriteByte(content[k])
-		}
-		b.WriteByte('"')
+			if j >= len(cmd) {
+				return cmd, false, false
+			}
 
-		changed = true
-		i = j + 1
+			content := cmd[i+1 : j]
+			b.WriteByte('"')
+			for _, contentCh := range []byte(content) {
+				switch contentCh {
+				case '\\', '"', '$', '`':
+					b.WriteByte('\\')
+				}
+				b.WriteByte(contentCh)
+			}
+			b.WriteByte('"')
+
+			changed = true
+			i = j
+			continue
+		default:
+			b.WriteByte(ch)
+		}
 	}
 
 	rewritten := b.String()

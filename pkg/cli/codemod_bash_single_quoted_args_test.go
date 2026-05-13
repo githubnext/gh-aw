@@ -46,6 +46,7 @@ body`
 	tools := parsed.Frontmatter["tools"].(map[string]any)
 	bash := tools["bash"].([]any)
 	assert.Equal(t, `grep -rn "pattern"`, bash[0])
+	assert.Equal(t, "body", parsed.Markdown)
 }
 
 func TestBashSingleQuotedArgsCodemod_RewritesGlobPatterns(t *testing.T) {
@@ -157,6 +158,27 @@ func TestRewriteSingleQuotedBashArgs(t *testing.T) {
 			want:      "grep -rn 'pattern",
 			wantSafe:  false,
 			wantApply: false,
+		},
+		{
+			name:      "apostrophe inside double quotes remains unchanged",
+			input:     `echo "it's fine"`,
+			want:      `echo "it's fine"`,
+			wantSafe:  true,
+			wantApply: false,
+		},
+		{
+			name:      "escaped apostrophe outside quotes remains unchanged",
+			input:     `echo it\'s fine`,
+			want:      `echo it\'s fine`,
+			wantSafe:  true,
+			wantApply: false,
+		},
+		{
+			name:      "embedded quote pattern rewrites only single-quoted segments",
+			input:     `'foo'\''bar'`,
+			want:      `"foo"\'"bar"`,
+			wantSafe:  true,
+			wantApply: true,
 		},
 	}
 
