@@ -51,19 +51,34 @@ steps:
           continue
         fi
 
-        checks_state="$(gh aw checks "$pr_number" --repo "${{ github.repository }}" --json 2>/dev/null | jq -r '.required_state // .state // "unknown"' 2>/dev/null || echo "unknown")"
+        checks_state="$(
+          {
+            gh aw checks "$pr_number" --repo "${{ github.repository }}" --json \
+              | jq -r '.required_state // .state // "unknown"'
+          } 2>/dev/null || echo "unknown"
+        )"
         if [ "$checks_state" = "pending" ]; then
           filtered_checks_pending=$((filtered_checks_pending + 1))
           continue
         fi
 
-        last_comment_is_sous_chef="$(gh api "repos/${{ github.repository }}/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" --jq 'if length == 0 then false else (((.[0].user.login // "" | ascii_downcase | contains("pr-sous-chef")) or ((.[0].body // "" | ascii_downcase | contains("pr-sous-chef")))) end' 2>/dev/null || echo "false")"
+        last_comment_is_sous_chef="$(
+          gh api "repos/${{ github.repository }}/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" \
+            --jq '
+              if length == 0 then false
+              else (
+                ((.[0].user.login // "" | ascii_downcase | contains("pr-sous-chef")) or
+                 ((.[0].body // "" | ascii_downcase | contains("pr-sous-chef")))
+              ) end
+            ' 2>/dev/null || echo "false"
+        )"
         if [ "$last_comment_is_sous_chef" = "true" ]; then
           filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))
           continue
         fi
 
         jq --argjson pr "$pr" '. + [$pr]' "$eligible_file" > "${eligible_file}.tmp" && mv "${eligible_file}.tmp" "$eligible_file"
+      # Process substitution keeps the loop in the current shell so counters persist.
       done < <(jq -c '.[]' "$candidate_file")
 
       jq --argjson filtered_checks_pending "$filtered_checks_pending" \
