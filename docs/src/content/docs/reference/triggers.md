@@ -400,7 +400,7 @@ Omit `types:` (or set it to `[*]`) to fire on any `event_type`.
 
 Call the GitHub dispatch API with a `repo`-scoped PAT (classic) or a token with `contents: write` permission:
 
-```
+```http
 POST https://api.github.com/repos/<owner>/<repo>/dispatches
 Authorization: Bearer <token>
 Content-Type: application/json

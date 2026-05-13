@@ -91,7 +91,7 @@ Access the caller's payload in your workflow markdown via `${{ github.event.clie
 
 **2. Send a `POST` request to the GitHub dispatch API from the external system:**
 
-```
+```http
 POST https://api.github.com/repos/<owner>/<repo>/dispatches
 Authorization: Bearer <token>
 Content-Type: application/json
