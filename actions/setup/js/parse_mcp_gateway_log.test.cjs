@@ -6,7 +6,9 @@ const {
   generatePlainTextGatewaySummary,
   generatePlainTextLegacySummary,
   parseGatewayJsonlForDifcFiltered,
+  parseGatewayJsonlForTokenSteering,
   generateDifcFilteredSummary,
+  generateTokenSteeringSummary,
   parseRpcMessagesJsonl,
   getRpcRequestLabel,
   generateRpcMessagesSummary,
@@ -724,6 +726,42 @@ Some content here.`;
     });
   });
 
+  describe("parseGatewayJsonlForTokenSteering", () => {
+    test("extracts token_steering events from gateway.jsonl content", () => {
+      const jsonlContent = [
+        JSON.stringify({
+          timestamp: "2026-03-18T17:30:00.123456789Z",
+          level: "info",
+          event: "token_steering",
+          request_id: "req-123",
+          provider: "copilot",
+          message: "[AWF TOKEN WARNING] You have used 90% of your effective token budget. Complete your current task and prepare final output.",
+        }),
+        JSON.stringify({ timestamp: "2026-03-18T17:30:01Z", level: "info", event: "request_start", request_id: "req-124" }),
+        JSON.stringify({
+          timestamp: "2026-03-18T17:30:02Z",
+          type: "token_steering",
+          request_id: "req-125",
+          provider: "anthropic",
+          message: "[AWF TOKEN WARNING] You have used 95% of your effective token budget. Finalize and submit your work now.",
+        }),
+      ].join("\n");
+
+      const events = parseGatewayJsonlForTokenSteering(jsonlContent);
+
+      expect(events).toHaveLength(2);
+      expect(events[0].request_id).toBe("req-123");
+      expect(events[0].provider).toBe("copilot");
+      expect(events[1].provider).toBe("anthropic");
+    });
+
+    test("returns empty array when no token steering events are present", () => {
+      const jsonlContent = [JSON.stringify({ event: "request_start" }), JSON.stringify({ type: "RESPONSE" })].join("\n");
+
+      expect(parseGatewayJsonlForTokenSteering(jsonlContent)).toHaveLength(0);
+    });
+  });
+
   describe("generateDifcFilteredSummary", () => {
     const sampleEvents = [
       {
@@ -818,6 +856,30 @@ Some content here.`;
       ];
       const summary = generateDifcFilteredSummary(multiEvents);
       expect(summary).toContain("DIFC Filtered Events (3)");
+    });
+  });
+
+  describe("generateTokenSteeringSummary", () => {
+    test("returns empty string for empty events array", () => {
+      expect(generateTokenSteeringSummary([])).toBe("");
+    });
+
+    test("renders a token steering summary table", () => {
+      const summary = generateTokenSteeringSummary([
+        {
+          timestamp: "2026-03-18T17:30:00.123456789Z",
+          provider: "copilot",
+          request_id: "req-123",
+          message: "[AWF TOKEN WARNING] You have used 90% of your effective token budget. Complete your current task and prepare final output.",
+        },
+      ]);
+
+      expect(summary).toContain("Token Steering Events (1)");
+      expect(summary).toContain("| Time | Provider | Request ID | Message |");
+      expect(summary).toContain("2026-03-18 17:30:00Z");
+      expect(summary).toContain("copilot");
+      expect(summary).toContain("req-123");
+      expect(summary).toContain("[AWF TOKEN WARNING] You have used 90% of your effective token budget.");
     });
   });
 

@@ -287,6 +287,30 @@ describe("parse_copilot_log.cjs", () => {
 
       expect(result.markdown).not.toContain("**Premium Requests:**");
     });
+
+    it("renders AWF token steering warnings from structured log entries", () => {
+      const structuredLog = JSON.stringify([
+        { type: "system", subtype: "init", session_id: "steering-test", tools: ["Bash"], model: "gpt-5" },
+        {
+          type: "system",
+          subtype: "event",
+          message: {
+            content: [
+              {
+                type: "text",
+                text: "[AWF TOKEN WARNING] You have used 90% of your effective token budget. Complete your current task and prepare final output.",
+              },
+            ],
+          },
+        },
+        { type: "result", num_turns: 1, usage: { input_tokens: 120, output_tokens: 40 } },
+      ]);
+
+      const result = parseCopilotLog(structuredLog);
+
+      expect(result.markdown).toContain("Firewall Steering");
+      expect(result.markdown).toContain("[AWF TOKEN WARNING] You have used 90% of your effective token budget.");
+    });
   });
 
   describe("extractPremiumRequestCount function", () => {
