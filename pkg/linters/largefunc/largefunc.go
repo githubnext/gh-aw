@@ -18,7 +18,7 @@ const DefaultMaxLines = 60
 var Analyzer = &analysis.Analyzer{
 	Name:     "largefunc",
 	Doc:      "reports functions whose body exceeds the line limit (default 60 lines)",
-	URL:      "https://github.com/github/gh-aw/pkg/linters/largefunc",
+	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/largefunc",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -58,7 +58,8 @@ func run(pass *analysis.Pass) (any, error) {
 
 		start := pass.Fset.Position(body.Lbrace)
 		end := pass.Fset.Position(body.Rbrace)
-		lines := end.Line - start.Line
+		// Subtract 1 to exclude the closing brace line itself, counting only body lines.
+		lines := end.Line - start.Line - 1
 
 		if lines > maxLines {
 			pass.Reportf(

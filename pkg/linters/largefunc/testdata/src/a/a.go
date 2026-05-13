@@ -8,7 +8,7 @@ func smallFunc() {
 }
 
 // largeFunc has more than 60 lines and should be flagged.
-func largeFunc() { // want `largeFunc is \d+ lines long \(limit: 60\); consider breaking it up`
+func largeFunc() { // want `largeFunc is 61 lines long \(limit: 60\); consider breaking it up`
 	_ = 1
 	_ = 2
 	_ = 3
