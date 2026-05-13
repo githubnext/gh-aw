@@ -22,7 +22,7 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 		return report
 	}
 
-	data, err := ghAPIGet(fmt.Sprintf("issues/comments/%s", commentID), repo)
+	data, err := ghAPIGet("issues/comments/"+commentID, repo)
 	if err != nil {
 		// 404 means deleted
 		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
@@ -89,8 +89,8 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 //	https://github.com/owner/repo/issues/123#issuecomment-456789
 //	https://github.com/owner/repo/pull/123#issuecomment-456789
 func extractCommentID(url string) string {
-	if idx := strings.Index(url, "#issuecomment-"); idx >= 0 {
-		return url[idx+len("#issuecomment-"):]
+	if _, after, found := strings.Cut(url, "#issuecomment-"); found {
+		return after
 	}
 	// Fallback: look for /comments/ID pattern
 	const commentsPrefix = "/comments/"
