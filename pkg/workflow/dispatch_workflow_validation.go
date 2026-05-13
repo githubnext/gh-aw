@@ -173,7 +173,7 @@ func (c *Compiler) shouldSkipLocalDispatchWorkflowValidation(targetRepoSlug stri
 }
 
 func parseRepoSlugLiteral(slug string) (string, string, bool) {
-	// Reject internal whitespace even when callers already trim leading/trailing spaces.
+	// Reject any whitespace to keep target-repo parsing strict and unambiguous.
 	if slug == "" || strings.ContainsAny(slug, " \t\r\n") {
 		return "", "", false
 	}
