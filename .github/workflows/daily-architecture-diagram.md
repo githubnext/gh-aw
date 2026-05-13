@@ -11,6 +11,23 @@ permissions:
 
 engine: copilot
 
+experiments:
+  detail_level:
+    variants: [brief, comprehensive]
+    description: "Tests whether a leaner output format (diagram + brief change log only) delivers equivalent reader value vs. the full report with Package Reference table and verbose summaries."
+    hypothesis: "H0: no change in run success rate or issue engagement. H1: brief variant reduces token usage ≥20% and run duration ≥15% with no drop in success rate."
+    metric: run_duration_ms
+    secondary_metrics: [output_issue_body_length, run_success_rate]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.85"
+    min_samples: 10
+    weight: [50, 50]
+    start_date: "2026-05-19"
+    analysis_type: mann_whitney
+    tags: [output-format, cost, latency]
+    issue: 31926
+
 tools:
   cli-proxy: true
   edit:
@@ -164,13 +181,14 @@ Use a filesystem-safe filename: `architecture-state.json` (no colons or special 
 
 Create an issue with this structure:
 
-### Summary
-
-State whether this is a **full rebuild** or an **incremental update**, and list which packages changed (if incremental).
-
 ### Architecture Diagram
 
 Post the ASCII diagram inside a code block (triple backticks) so it renders with monospace font.
+
+{{#if experiments.detail_level == 'comprehensive' }}
+### Summary
+
+State whether this is a **full rebuild** or an **incremental update**, and list which packages changed.
 
 ### Change Log (incremental only)
 
@@ -188,6 +206,11 @@ A compact table of all packages with their layer and one-line description:
 | cli | Core | Command implementations |
 | workflow | Core | Workflow compilation engine |
 | ... | ... | ... |
+{{else}}
+### Changes (incremental only)
+
+If this was an incremental update, list changed packages in a brief bullet list (max 5 items).
+{{/if}}
 
 ## Scratchpad File
 

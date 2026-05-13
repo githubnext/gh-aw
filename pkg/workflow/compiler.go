@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,7 +133,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err), err)
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return "", nil, nil, formattedErr
@@ -199,7 +200,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 				fmt.Sprintf("invalid workflow: %v", schemaErr), schemaErr)
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 			}
 			return "", nil, nil, formattedErr
@@ -260,7 +261,7 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 
 		// Only write if content has changed
 		if !contentUnchanged {
-			if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
+			if err := os.WriteFile(lockFile, []byte(yamlContent), constants.FilePermPublic); err != nil {
 				return formatCompilerError(lockFile, "error", fmt.Sprintf("failed to write lock file: %v", err), err)
 			}
 			log.Print("Lock file written successfully")
@@ -339,7 +340,7 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		formattedErr := formatCompilerError(markdownPath, "error", templateErr.Error(), templateErr)
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return formattedErr

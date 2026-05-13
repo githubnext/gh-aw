@@ -12,6 +12,7 @@
 //  1. In strict mode: always emit a warning that pull_request_target is a very
 //     dangerous trigger, even when checkout: false is set, because the workflow
 //     still runs with full write permissions and secret access.
+//     Workflows can opt out by setting strict: false in frontmatter.
 //
 //  2. When checkout is NOT explicitly disabled (checkout: false not set):
 //     - In strict mode: return a hard error (extremely insecure).
@@ -51,6 +52,7 @@ var pullRequestTargetLog = newValidationLogger("pull_request_target")
 //
 // In strict mode, a warning is always emitted that pull_request_target is inherently dangerous
 // even with checkout disabled, since the workflow still runs with elevated permissions.
+// This strict behavior is disabled when the workflow frontmatter explicitly sets strict: false.
 func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, markdownPath string) error {
 	// Fast path: skip expensive YAML parsing when the On field cannot possibly contain
 	// a pull_request_target trigger. This avoids yaml.Unmarshal on every
@@ -87,10 +89,18 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		return nil
 	}
 
+	effectiveStrictMode := c.strictMode
+	if workflowData.RawFrontmatter != nil {
+		if strictBool, ok := workflowData.RawFrontmatter["strict"].(bool); ok && !strictBool {
+			pullRequestTargetLog.Print("Frontmatter strict: false detected, disabling strict mode error for pull_request_target validation")
+			effectiveStrictMode = false
+		}
+	}
+
 	// In strict mode, always emit a warning that pull_request_target is a very dangerous trigger,
 	// regardless of whether checkout is disabled. The workflow still runs with full write
 	// permissions and has access to all repository secrets.
-	if c.strictMode {
+	if effectiveStrictMode {
 		pullRequestTargetLog.Print("Emitting strict mode warning: pull_request_target is a very dangerous trigger")
 		warningMsg := "pull_request_target is a very dangerous trigger.\n" +
 			"This event runs with full write permissions and access to all repository secrets.\n" +
@@ -122,7 +132,7 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"checkout: false\n\n" +
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
 
-	if c.strictMode {
+	if effectiveStrictMode {
 		return formatCompilerError(markdownPath, "error", message, nil)
 	}
 

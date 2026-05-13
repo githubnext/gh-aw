@@ -37,9 +37,9 @@ import (
 
 var playwrightValidationLog = logger.New("workflow:playwright_validation")
 
-// validatePlaywrightMode warns (non-strict) or errors (strict) when the
-// playwright tool is configured in MCP mode. MCP mode is deprecated; use
-// mode: cli instead for token-efficient, container-free browser automation.
+// validatePlaywrightMode warns when the playwright tool is configured in MCP
+// mode. MCP mode is deprecated; use mode: cli instead for token-efficient,
+// container-free browser automation.
 func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.Tools == nil {
 		return nil
@@ -63,10 +63,6 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 		"is more token-efficient, and lets you use `localhost` to reach local dev servers. " +
 		"Update your prompts to run `playwright-cli <command>` in bash instead of using MCP browser tools. " +
 		"See: https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/playwright.md"
-
-	if c.strictMode {
-		return fmt.Errorf("strict mode: %s", warningMsg)
-	}
 
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()

@@ -55,18 +55,16 @@ func TestValidatePlaywrightMode(t *testing.T) {
 			expectWarn: false,
 		},
 		{
-			name:        "playwright mcp mode in strict mode returns error",
-			tools:       map[string]any{"playwright": map[string]any{"mode": "mcp"}},
-			strictMode:  true,
-			expectError: true,
-			errorSubstr: "strict mode",
+			name:       "playwright mcp mode in strict mode warns only",
+			tools:      map[string]any{"playwright": map[string]any{"mode": "mcp"}},
+			strictMode: true,
+			expectWarn: true,
 		},
 		{
-			name:        "playwright nil (default MCP) in strict mode returns error",
-			tools:       map[string]any{"playwright": nil},
-			strictMode:  true,
-			expectError: true,
-			errorSubstr: "strict mode",
+			name:       "playwright nil (default MCP) in strict mode warns only",
+			tools:      map[string]any{"playwright": nil},
+			strictMode: true,
+			expectWarn: true,
 		},
 	}
 

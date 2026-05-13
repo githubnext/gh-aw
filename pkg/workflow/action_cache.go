@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"sort"
@@ -160,7 +161,7 @@ func (c *ActionCache) Save() error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(c.path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, constants.DirPermPublic); err != nil {
 		actionCacheLog.Printf("Failed to create cache directory: %v", err)
 		return err
 	}
@@ -175,7 +176,7 @@ func (c *ActionCache) Save() error {
 	// Add trailing newline for prettier compliance
 	data = append(data, '\n')
 
-	if err := os.WriteFile(c.path, data, 0644); err != nil {
+	if err := os.WriteFile(c.path, data, constants.FilePermPublic); err != nil {
 		actionCacheLog.Printf("Failed to write cache file: %v", err)
 		return err
 	}

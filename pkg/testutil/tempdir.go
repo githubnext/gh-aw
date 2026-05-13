@@ -3,6 +3,7 @@ package testutil
 import (
 	"bytes"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ func GetTestRunDir() string {
 
 		// Create gh-aw-test-runs directory in system temp
 		testRunsDir := filepath.Join(systemTempDir, "gh-aw-test-runs")
-		if err := os.MkdirAll(testRunsDir, 0755); err != nil {
+		if err := os.MkdirAll(testRunsDir, constants.DirPermPublic); err != nil {
 			panic(fmt.Sprintf("failed to create test-runs directory: %v", err))
 		}
 
@@ -36,7 +37,7 @@ func GetTestRunDir() string {
 		pid := os.Getpid()
 		testRunDir = filepath.Join(testRunsDir, fmt.Sprintf("%s-%d", timestamp, pid))
 
-		if err := os.MkdirAll(testRunDir, 0755); err != nil {
+		if err := os.MkdirAll(testRunDir, constants.DirPermPublic); err != nil {
 			panic(fmt.Sprintf("failed to create test run directory: %v", err))
 		}
 	})

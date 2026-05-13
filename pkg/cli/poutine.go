@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,7 +63,7 @@ rulesConfig:
 `
 
 	// Write the config file
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write .poutine.yml: %w", err)
 	}
 

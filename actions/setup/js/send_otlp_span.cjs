@@ -152,6 +152,21 @@ function readContextString(value) {
 }
 
 /**
+ * Resolve the engine identifier from aw_info.json, aw_context propagation, or env vars.
+ *
+ * Priority:
+ * 1. `awInfo.engine_id` – set by generate_aw_info.cjs on the agent job
+ * 2. `awInfo.context.engine_id` – propagated via aw_context for auxiliary / dispatched jobs
+ * 3. `process.env.GH_AW_INFO_ENGINE_ID` – workflow-injected env var fallback
+ *
+ * @param {object} awInfo
+ * @returns {string}
+ */
+function resolveEngineId(awInfo) {
+  return readContextString(awInfo.engine_id) || readContextString(awInfo.context?.engine_id) || process.env.GH_AW_INFO_ENGINE_ID || "";
+}
+
+/**
  * Resolve live episode correlation attributes directly from runtime context.
  *
  * Prefer the canonical lineage fields propagated in aw_context: episode_id for
@@ -312,12 +327,34 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
  *   sha?: string,
  *   job?: string,
  *   workflowRef?: string,
+ *   actorId?: string,
+ *   runnerOs?: string,
+ *   runnerArch?: string,
+ *   runnerName?: string,
+ *   runnerEnvironment?: string,
  *   staged: boolean,
  *   runAttempt?: string,
  * }} ctx
  * @returns {Array<{key: string, value: object}>}
  */
-function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "", ref = "", refName = "", headRef = "", sha = "", job = "", workflowRef = "", staged, runAttempt = "1" }) {
+function buildGitHubActionsResourceAttributes({
+  repository,
+  runId,
+  eventName = "",
+  ref = "",
+  refName = "",
+  headRef = "",
+  sha = "",
+  job = "",
+  workflowRef = "",
+  actorId = "",
+  runnerOs = "",
+  runnerArch = "",
+  runnerName = "",
+  runnerEnvironment = "",
+  staged,
+  runAttempt = "1",
+}) {
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId), buildAttr("github.run_attempt", runAttempt)];
   if (repository && runId && repository.includes("/")) {
     const [owner, repo] = repository.split("/");
@@ -343,6 +380,21 @@ function buildGitHubActionsResourceAttributes({ repository, runId, eventName = "
   }
   if (workflowRef) {
     resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
+  }
+  if (actorId) {
+    resourceAttributes.push(buildAttr("github.actor_id", actorId));
+  }
+  if (runnerOs) {
+    resourceAttributes.push(buildAttr("runner.os", runnerOs));
+  }
+  if (runnerArch) {
+    resourceAttributes.push(buildAttr("runner.arch", runnerArch));
+  }
+  if (runnerName) {
+    resourceAttributes.push(buildAttr("runner.name", runnerName));
+  }
+  if (runnerEnvironment) {
+    resourceAttributes.push(buildAttr("runner.environment", runnerEnvironment));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
   return resourceAttributes;
@@ -889,7 +941,7 @@ async function sendJobSetupSpan(options = {}) {
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GH_AW_SETUP_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
-  const engineId = process.env.GH_AW_INFO_ENGINE_ID || "";
+  const engineId = resolveEngineId(awInfo);
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
@@ -901,6 +953,11 @@ async function sendJobSetupSpan(options = {}) {
   const sha = process.env.GITHUB_SHA || "";
   const job = process.env.GITHUB_JOB || "";
   const workflowRef = process.env.GH_AW_CURRENT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "";
+  const actorId = process.env.GITHUB_ACTOR_ID || "";
+  const runnerOs = process.env.RUNNER_OS || "";
+  const runnerArch = process.env.RUNNER_ARCH || "";
+  const runnerName = process.env.RUNNER_NAME || "";
+  const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -941,7 +998,24 @@ async function sendJobSetupSpan(options = {}) {
   attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
 
-  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, job, workflowRef, staged, runAttempt });
+  const resourceAttributes = buildGitHubActionsResourceAttributes({
+    repository,
+    runId,
+    eventName,
+    ref,
+    refName,
+    headRef,
+    sha,
+    job,
+    workflowRef,
+    actorId,
+    runnerOs,
+    runnerArch,
+    runnerName,
+    runnerEnvironment,
+    staged,
+    runAttempt,
+  });
 
   const payload = buildOTLPPayload({
     traceId,
@@ -1245,7 +1319,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const parentSpanId = isValidSpanId(rawParentSpanId) ? rawParentSpanId : "";
 
   const workflowName = awInfo.workflow_name || process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
-  const engineId = awInfo.engine_id || "";
+  const engineId = resolveEngineId(awInfo);
   const model = awInfo.model || "";
   const staged = awInfo.staged === true;
   const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
@@ -1265,6 +1339,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const sha = process.env.GITHUB_SHA || "";
   const job = process.env.GITHUB_JOB || "";
   const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
+  const actorId = process.env.GITHUB_ACTOR_ID || "";
+  const runnerOs = process.env.RUNNER_OS || "";
+  const runnerArch = process.env.RUNNER_ARCH || "";
+  const runnerName = process.env.RUNNER_NAME || "";
+  const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
@@ -1417,7 +1496,24 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, job, workflowRef, staged, runAttempt });
+  const resourceAttributes = buildGitHubActionsResourceAttributes({
+    repository,
+    runId,
+    eventName,
+    ref,
+    refName,
+    headRef,
+    sha,
+    job,
+    workflowRef,
+    actorId,
+    runnerOs,
+    runnerArch,
+    runnerName,
+    runnerEnvironment,
+    staged,
+    runAttempt,
+  });
   // OpenTelemetry semantic convention for exceptions.  Each event has
   // name="exception" with "exception.type" and "exception.message" attributes,
   // making individual errors queryable and classifiable in backends like
@@ -1621,6 +1717,7 @@ module.exports = {
   readLastRateLimitEntry,
   buildCurrentWorkflowCallId,
   buildEpisodeAttributesFromContext,
+  resolveEngineId,
   GITHUB_RATE_LIMITS_JSONL_PATH,
   sendJobSetupSpan,
   sendJobConclusionSpan,

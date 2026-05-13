@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +32,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	targetPath := filepath.Join(targetDir, "agentic-workflows.agent.md")
 
 	// Ensure the target directory exists
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create .github/agents directory: %w", err)
 	}
 
@@ -60,7 +61,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 
 	// Write the file with restrictive permissions (0600) to follow security best practices
 	// Agent files may contain sensitive configuration
-	if err := os.WriteFile(targetPath, []byte(agentContent), 0600); err != nil {
+	if err := os.WriteFile(targetPath, []byte(agentContent), constants.FilePermSensitive); err != nil {
 		copilotAgentsLog.Printf("Failed to write dispatcher agent: %s, error: %v", targetPath, err)
 		return fmt.Errorf("failed to write dispatcher agent: %w", err)
 	}

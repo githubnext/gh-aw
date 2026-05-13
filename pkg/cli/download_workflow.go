@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -91,13 +92,13 @@ func downloadWorkflowContentViaGitClone(ctx context.Context, repo, path, ref str
 
 	// Set sparse-checkout pattern to only include the file we need
 	sparseInfoDir := filepath.Join(tmpDir, ".git", "info")
-	if err := os.MkdirAll(sparseInfoDir, 0755); err != nil {
+	if err := os.MkdirAll(sparseInfoDir, constants.DirPermPublic); err != nil {
 		return nil, fmt.Errorf("failed to create sparse-checkout directory: %w", err)
 	}
 
 	sparseCheckoutFile := filepath.Join(sparseInfoDir, "sparse-checkout")
 	// Use owner-only read/write permissions (0600) for security best practices
-	if err := os.WriteFile(sparseCheckoutFile, []byte(path+"\n"), 0600); err != nil {
+	if err := os.WriteFile(sparseCheckoutFile, []byte(path+"\n"), constants.FilePermSensitive); err != nil {
 		return nil, fmt.Errorf("failed to write sparse-checkout file: %w", err)
 	}
 

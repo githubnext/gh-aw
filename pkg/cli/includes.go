@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path"
 	"path/filepath"
@@ -340,7 +341,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		}
 
 		// Create the parent directory if needed
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(targetPath), constants.DirPermPublic); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for import %s: %v", remoteFilePath, err)))
 			}
@@ -348,7 +349,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		}
 
 		// Write the file
-		if err := os.WriteFile(targetPath, importContent, 0600); err != nil {
+		if err := os.WriteFile(targetPath, importContent, constants.FilePermSensitive); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write import %s: %v", remoteFilePath, err)))
 			}
@@ -435,7 +436,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}
 
 		// Create target directory if needed
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(targetPath), constants.DirPermPublic); err != nil {
 			return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
 		}
 
@@ -452,7 +453,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}
 
 		// Write the include file
-		if err := os.WriteFile(targetPath, includeContent, 0600); err != nil {
+		if err := os.WriteFile(targetPath, includeContent, constants.FilePermSensitive); err != nil {
 			return fmt.Errorf("failed to write include file %s: %w", targetPath, err)
 		}
 

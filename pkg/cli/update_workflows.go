@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -600,7 +601,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 	}
 
 	// Write updated content
-	if err := os.WriteFile(wf.Path, []byte(finalContent), 0644); err != nil {
+	if err := os.WriteFile(wf.Path, []byte(finalContent), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write updated workflow: %w", err)
 	}
 

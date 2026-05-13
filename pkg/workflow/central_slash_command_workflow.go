@@ -62,7 +62,7 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 		return err
 	}
 
-	if err := os.WriteFile(triggerFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(triggerFile, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write centralized slash-command workflow: %w", err)
 	}
 	if err := cleanupLegacyCentralSlashCommandWorkflow(legacyTriggerFile); err != nil {

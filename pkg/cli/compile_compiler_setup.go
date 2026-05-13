@@ -30,6 +30,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,7 +71,7 @@ func resetActionPinsFile() error {
 	data = append(data, '\n')
 
 	// Write the file
-	if err := os.WriteFile(actionPinsPath, data, 0644); err != nil {
+	if err := os.WriteFile(actionPinsPath, data, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write action_pins.json: %w", err)
 	}
 
@@ -135,6 +136,7 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	// Set strict mode if specified
 	compiler.SetStrictMode(config.Strict)
 	compiler.SetAllowActionRefs(config.AllowActionRefs)
+	compiler.SetForceStaged(config.Staged)
 
 	// Set trial mode if specified
 	if config.TrialMode {

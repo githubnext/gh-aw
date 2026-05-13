@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"net/http"
 	"os"
 	"path"
@@ -301,7 +302,7 @@ func updateCompileUpdateCheckTime() {
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	if err := os.WriteFile(lastCheckFile, []byte(timestamp), 0600); err != nil {
+	if err := os.WriteFile(lastCheckFile, []byte(timestamp), constants.FilePermSensitive); err != nil {
 		compileUpdateCheckLog.Printf("Error writing compile update check time: %v", err)
 	}
 }

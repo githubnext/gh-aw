@@ -1,6 +1,7 @@
 package constants
 
 import (
+	"io/fs"
 	"path/filepath"
 	"time"
 )
@@ -67,6 +68,28 @@ const MaxExpressionLineLength LineLength = 120
 
 // ExpressionBreakThreshold is the threshold for breaking long lines at logical points.
 const ExpressionBreakThreshold LineLength = 100
+
+// File-permission policy for files and directories written by gh-aw.
+const (
+	// FilePermSensitive is owner-only read/write (0o600). Use for files that may
+	// contain secrets, credentials, downloaded remote content, or audit/log output.
+	FilePermSensitive fs.FileMode = 0o600
+
+	// FilePermPublic is owner read/write + world read (0o644). Use for files that
+	// are intentionally world-readable (e.g. generated files for inspection).
+	FilePermPublic fs.FileMode = 0o644
+
+	// FilePermExecutable is owner/group/world executable (0o755). Use for generated
+	// scripts or binaries that must be executed.
+	FilePermExecutable fs.FileMode = 0o755
+
+	// DirPermSensitive is owner+group access (0o750). Use for directories that
+	// contain sensitive files.
+	DirPermSensitive fs.FileMode = 0o750
+
+	// DirPermPublic is standard non-sensitive directory access (0o755).
+	DirPermPublic fs.FileMode = 0o755
+)
 
 // Network port constants
 //

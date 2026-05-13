@@ -89,7 +89,16 @@ Examples:
 				repo = parts[1]
 			}
 
-			return RunAuditDiff(cmd.Context(), baseRunID, compareRunIDs, owner, repo, hostname, outputDir, verbose, jsonOutput, format, artifacts)
+			return RunAuditDiff(cmd.Context(), baseRunID, compareRunIDs, AuditOptions{
+				Owner:        owner,
+				Repo:         repo,
+				Hostname:     hostname,
+				OutputDir:    outputDir,
+				Verbose:      verbose,
+				JSONOutput:   jsonOutput,
+				Format:       format,
+				ArtifactSets: artifacts,
+			})
 		},
 	}
 
@@ -104,7 +113,15 @@ Examples:
 
 // RunAuditDiff compares behavior between a base workflow run and one or more comparison runs.
 // The base run is the reference point; each comparison run is diffed against it independently.
-func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, owner, repo, hostname, outputDir string, verbose, jsonOutput bool, format string, artifactSets []string) error {
+func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, opts AuditOptions) error {
+	owner := opts.Owner
+	repo := opts.Repo
+	hostname := opts.Hostname
+	outputDir := opts.OutputDir
+	verbose := opts.Verbose
+	format := opts.Format
+	artifactSets := opts.ArtifactSets
+
 	auditDiffLog.Printf("Starting audit diff: base=%d, compare=%v", baseRunID, compareRunIDs)
 
 	// Validate and resolve artifact sets into a concrete filter.
@@ -184,7 +201,7 @@ func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, o
 	}
 
 	// Render output
-	if jsonOutput || format == "json" {
+	if opts.JSONOutput || format == "json" {
 		return renderAuditDiffJSON(diffs)
 	}
 

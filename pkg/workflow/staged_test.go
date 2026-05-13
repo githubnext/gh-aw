@@ -81,6 +81,41 @@ func TestStagedFlagFalse(t *testing.T) {
 	}
 }
 
+func TestStagedFlagForcedByCompiler(t *testing.T) {
+	c := NewCompiler()
+	c.SetForceStaged(true)
+
+	config := c.extractSafeOutputsConfig(map[string]any{
+		"safe-outputs": map[string]any{
+			"create-issue": nil,
+			"staged":       false,
+		},
+	})
+	if config == nil {
+		t.Fatal("Expected config to be parsed")
+	}
+	if !config.Staged {
+		t.Fatal("Expected compiler force-staged flag to override frontmatter staged: false")
+	}
+}
+
+func TestStagedFlagForcedByCompilerWhenUnset(t *testing.T) {
+	c := NewCompiler()
+	c.SetForceStaged(true)
+
+	config := c.extractSafeOutputsConfig(map[string]any{
+		"safe-outputs": map[string]any{
+			"create-issue": nil,
+		},
+	})
+	if config == nil {
+		t.Fatal("Expected config to be parsed")
+	}
+	if !config.Staged {
+		t.Fatal("Expected compiler force-staged flag to set staged mode when frontmatter omits it")
+	}
+}
+
 func TestClaudeEngineWithStagedFlag(t *testing.T) {
 	engine := NewClaudeEngine()
 

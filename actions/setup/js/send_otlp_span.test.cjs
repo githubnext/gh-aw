@@ -32,6 +32,7 @@ const {
   buildCurrentWorkflowCallId,
   buildEpisodeAttributesFromContext,
   buildExperimentAttributes,
+  resolveEngineId,
 } = await import("./send_otlp_span.cjs");
 
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
@@ -1075,6 +1076,11 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
     "GITHUB_JOB",
+    "GITHUB_ACTOR_ID",
+    "RUNNER_OS",
+    "RUNNER_ARCH",
+    "RUNNER_NAME",
+    "RUNNER_ENVIRONMENT",
     "GITHUB_WORKFLOW_REF",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_STAGED",
@@ -1369,6 +1375,45 @@ describe("sendJobSetupSpan", () => {
     expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "1" } });
   });
 
+  it("includes runner.* and github.actor_id as resource attributes when available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_ACTOR_ID = "4175913";
+    process.env.RUNNER_OS = "Linux";
+    process.env.RUNNER_ARCH = "X64";
+    process.env.RUNNER_NAME = "GitHub Actions 1187452382";
+    process.env.RUNNER_ENVIRONMENT = "github-hosted";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.actor_id", value: { stringValue: "4175913" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.os", value: { stringValue: "Linux" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.arch", value: { stringValue: "X64" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.name", value: { stringValue: "GitHub Actions 1187452382" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.environment", value: { stringValue: "github-hosted" } });
+  });
+
+  it("omits runner.* and github.actor_id resource attributes when unavailable", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceKeys = body.resourceSpans[0].resource.attributes.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.actor_id");
+    expect(resourceKeys).not.toContain("runner.os");
+    expect(resourceKeys).not.toContain("runner.arch");
+    expect(resourceKeys).not.toContain("runner.name");
+    expect(resourceKeys).not.toContain("runner.environment");
+  });
+
   it("includes github.event_name as resource attribute when GITHUB_EVENT_NAME is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -1634,6 +1679,93 @@ describe("sendJobSetupSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
     expect(keys).not.toContain("gh-aw.engine.id");
+  });
+
+  describe("engine ID resolution in setup span", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("reads gh-aw.engine.id from aw_info.json when env var is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ engine_id: "claude" });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
+      expect(attrs["gh-aw.engine.id"]).toBe("claude");
+    });
+
+    it("reads gh-aw.engine.id from aw_context when aw_info.json has no engine_id", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+      process.env.GH_AW_SETUP_AW_CONTEXT = JSON.stringify({ engine_id: "copilot" });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
+      expect(attrs["gh-aw.engine.id"]).toBe("copilot");
+    });
+
+    it("prefers aw_info.json engine_id over aw_context engine_id", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+      process.env.GH_AW_SETUP_AW_CONTEXT = JSON.stringify({ engine_id: "copilot" });
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ engine_id: "claude" });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
+      expect(attrs["gh-aw.engine.id"]).toBe("claude");
+    });
+
+    it("falls back to GH_AW_INFO_ENGINE_ID env var when aw_info.json and aw_context have no engine_id", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+      process.env.GH_AW_INFO_ENGINE_ID = "codex";
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
+      expect(attrs["gh-aw.engine.id"]).toBe("codex");
+    });
   });
 
   describe("cross-job parent span propagation via aw_context", () => {
@@ -2122,6 +2254,11 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
     "GITHUB_JOB",
+    "GITHUB_ACTOR_ID",
+    "RUNNER_OS",
+    "RUNNER_ARCH",
+    "RUNNER_NAME",
+    "RUNNER_ENVIRONMENT",
     "GITHUB_WORKFLOW_REF",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
@@ -3132,6 +3269,28 @@ describe("sendJobConclusionSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "1" } });
+  });
+
+  it("includes runner.* and github.actor_id as resource attributes when available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_ACTOR_ID = "4175913";
+    process.env.RUNNER_OS = "Linux";
+    process.env.RUNNER_ARCH = "X64";
+    process.env.RUNNER_NAME = "GitHub Actions 1187452382";
+    process.env.RUNNER_ENVIRONMENT = "github-hosted";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.actor_id", value: { stringValue: "4175913" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.os", value: { stringValue: "Linux" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.arch", value: { stringValue: "X64" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.name", value: { stringValue: "GitHub Actions 1187452382" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.environment", value: { stringValue: "github-hosted" } });
   });
 
   it("includes github.event_name as resource attribute when GITHUB_EVENT_NAME is set", async () => {
@@ -4728,5 +4887,56 @@ describe("sendOTLPToAllEndpoints", () => {
 
     await sendOTLPToAllEndpoints([], payload, { skipJSONL: true });
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveEngineId
+// ---------------------------------------------------------------------------
+
+describe("resolveEngineId", () => {
+  const savedEnv = {};
+
+  beforeEach(() => {
+    savedEnv.GH_AW_INFO_ENGINE_ID = process.env.GH_AW_INFO_ENGINE_ID;
+    delete process.env.GH_AW_INFO_ENGINE_ID;
+  });
+
+  afterEach(() => {
+    if (savedEnv.GH_AW_INFO_ENGINE_ID !== undefined) {
+      process.env.GH_AW_INFO_ENGINE_ID = savedEnv.GH_AW_INFO_ENGINE_ID;
+    } else {
+      delete process.env.GH_AW_INFO_ENGINE_ID;
+    }
+  });
+
+  it("returns engine_id from awInfo when set", () => {
+    expect(resolveEngineId({ engine_id: "claude" })).toBe("claude");
+  });
+
+  it("falls back to context.engine_id when awInfo.engine_id is absent", () => {
+    expect(resolveEngineId({ context: { engine_id: "copilot" } })).toBe("copilot");
+  });
+
+  it("falls back to env var when both awInfo fields are absent", () => {
+    process.env.GH_AW_INFO_ENGINE_ID = "codex";
+    expect(resolveEngineId({})).toBe("codex");
+  });
+
+  it("prefers awInfo.engine_id over context.engine_id", () => {
+    expect(resolveEngineId({ engine_id: "claude", context: { engine_id: "copilot" } })).toBe("claude");
+  });
+
+  it("prefers context.engine_id over env var", () => {
+    process.env.GH_AW_INFO_ENGINE_ID = "codex";
+    expect(resolveEngineId({ context: { engine_id: "copilot" } })).toBe("copilot");
+  });
+
+  it("returns empty string when no source provides engine_id", () => {
+    expect(resolveEngineId({})).toBe("");
+  });
+
+  it("ignores whitespace-only awInfo.engine_id and falls back to context", () => {
+    expect(resolveEngineId({ engine_id: "  ", context: { engine_id: "gemini" } })).toBe("gemini");
   });
 });
