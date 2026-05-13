@@ -410,6 +410,84 @@ Some content here.`;
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    test("renders token steering from rpc-messages.jsonl when gateway.md is absent", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      try {
+        fs.writeFileSync(
+          rpcMessagesPath,
+          [
+            JSON.stringify({
+              timestamp: "2026-03-18T17:30:00.123456789Z",
+              direction: "OUT",
+              type: "REQUEST",
+              server_id: "github",
+              payload: { method: "tools/call", params: { name: "list_issues", arguments: {} } },
+            }),
+            JSON.stringify({
+              timestamp: "2026-03-18T17:30:01.123456789Z",
+              type: "token_steering",
+              request_id: "req-123",
+              provider: "copilot",
+              message: "[AWF TOKEN WARNING] You have used 90% of your effective token budget. Complete your current task and prepare final output.",
+            }),
+          ].join("\n")
+        );
+
+        const mockCore = {
+          info: vi.fn(),
+          debug: vi.fn(),
+          startGroup: vi.fn(),
+          endGroup: vi.fn(),
+          notice: vi.fn(),
+          warning: vi.fn(),
+          error: vi.fn(),
+          setFailed: vi.fn(),
+          exportVariable: vi.fn(),
+          setOutput: vi.fn(),
+          summary: {
+            addRaw: vi.fn().mockReturnThis(),
+            addDetails: vi.fn().mockReturnThis(),
+            write: vi.fn(),
+          },
+        };
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return false;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.jsonl") return false;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") {
+            return originalReadFileSync(rpcMessagesPath, encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        global.core = mockCore;
+
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        const summaryOutput = mockCore.summary.addRaw.mock.calls.map(call => call[0]).join("\n");
+        expect(summaryOutput).toContain("MCP Gateway Activity (1 request, 1 token_steering)");
+        expect(summaryOutput).toContain("Token Steering Events (1)");
+        expect(summaryOutput).toContain("req-123");
+        expect(summaryOutput).toContain("[AWF TOKEN WARNING]");
+        expect(mockCore.summary.write).toHaveBeenCalled();
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("printAllGatewayFiles", () => {

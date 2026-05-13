@@ -712,12 +712,16 @@ async function main() {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
       core.info(`Found rpc-messages.jsonl (${rpcMessagesContent.length} bytes)`);
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
+      tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
       effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([rpcMessagesContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
+      if (tokenSteeringEvents.length > 0) {
+        core.info(`Found ${tokenSteeringEvents.length} token_steering event(s) in rpc-messages.jsonl`);
+      }
     } else {
-      core.info(`No gateway.jsonl or rpc-messages.jsonl found for DIFC_FILTERED scanning`);
+      core.info(`No gateway.jsonl or rpc-messages.jsonl found for steering or DIFC_FILTERED scanning`);
     }
 
     // Try to read gateway.md if it exists (preferred for general gateway summary)
@@ -730,7 +734,7 @@ async function main() {
         // Write the markdown directly to the step summary
         core.summary.addRaw(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
 
-        // Append DIFC_FILTERED section if any events found
+        // Append any proxy-side steering or DIFC_FILTERED sections after the gateway summary
         if (tokenSteeringEvents.length > 0) {
           const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
           core.summary.addRaw(steeringSummary);
