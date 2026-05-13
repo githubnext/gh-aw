@@ -157,7 +157,7 @@ function readContextString(value) {
  * Priority:
  * 1. `awInfo.engine_id` – set by generate_aw_info.cjs on the agent job
  * 2. `awInfo.context.engine_id` – propagated via aw_context for auxiliary / dispatched jobs
- * 3. `process.env.GH_AW_INFO_ENGINE_ID` – compile-time env var fallback
+ * 3. `process.env.GH_AW_INFO_ENGINE_ID` – workflow-injected env var fallback
  *
  * @param {object} awInfo
  * @returns {string}
