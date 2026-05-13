@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"net/http"
 	"os"
 	"path"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"golang.org/x/mod/semver"
 
 	"github.com/github/gh-aw/pkg/console"

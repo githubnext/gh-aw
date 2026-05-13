@@ -3,12 +3,13 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/logger"
 )

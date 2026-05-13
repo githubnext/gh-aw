@@ -4,11 +4,12 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"

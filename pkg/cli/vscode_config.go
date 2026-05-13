@@ -3,10 +3,11 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"maps"
 	"os"
 	"path/filepath"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/logger"
 )

@@ -2,9 +2,10 @@ package cli
 
 import (
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -93,7 +94,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 		}
 
 		toolPath := filepath.Join(dir, toolName+extension)
-		mode := os.FileMode(constants.FilePermPublic)
+		mode := constants.FilePermPublic
 		if extension == ".sh" || extension == ".py" {
 			mode = constants.FilePermExecutable
 		}

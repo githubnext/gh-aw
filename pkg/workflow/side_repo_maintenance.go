@@ -3,11 +3,12 @@ package workflow
 import (
 	_ "embed"
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/stringutil"
 )

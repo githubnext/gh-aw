@@ -72,7 +72,7 @@ func TestNoRawOctalPermissionLiteralsInOSCalls(t *testing.T) {
 				return true
 			}
 
-			argIndex := -1
+			var argIndex int
 			switch sel.Sel.Name {
 			case "MkdirAll", "Mkdir", "Chmod":
 				argIndex = 1

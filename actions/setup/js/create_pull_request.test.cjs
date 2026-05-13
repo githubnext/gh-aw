@@ -282,13 +282,7 @@ index 0000000..abc1234
     fs.writeFileSync(bundlePath, "bundle content");
 
     global.exec.exec.mockImplementation((cmd, args) => {
-      if (
-        cmd === "git" &&
-        Array.isArray(args) &&
-        args[0] === "fetch" &&
-        args[1] === bundlePath &&
-        args[2] === "refs/heads/ops-review-may09-2026:refs/heads/ops-review-may09-2026"
-      ) {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && args[2] === "refs/heads/ops-review-may09-2026:refs/heads/ops-review-may09-2026") {
         throw new Error("fatal: couldn't find remote ref refs/heads/ops-review-may09-2026");
       }
       return Promise.resolve(0);
