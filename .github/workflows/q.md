@@ -5,6 +5,8 @@ on:
   roles: [admin, maintainer, write]
   slash_command:
     name: q
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment, pull_request_review_comment, discussion, discussion_comment]
   reaction: rocket
   status-comment: true
 permissions:

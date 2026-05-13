@@ -5,6 +5,8 @@ on:
   roles: [admin, maintainer, write]
   slash_command:
     name: scout
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment, pull_request_review_comment, discussion, discussion_comment]
   workflow_dispatch:
     inputs:
       topic:
