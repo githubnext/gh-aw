@@ -298,9 +298,10 @@ tools:
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
     - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
-    - "curl -sS http://api-proxy:10000/reflect | jq ."
-    - "curl -sS http://api-proxy:10000/reflect | jq \".endpoints[] | select(.provider == \\\"copilot\\\")\""
-    - "curl -sS http://api-proxy:10000/reflect | jq \".endpoints[] | select(.provider == \\\"copilot\\\") | .models\""
+    - "mkdir -p /tmp/gh-aw/model-inventory && curl -sS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json"
+    - "jq . /tmp/gh-aw/model-inventory/reflect.json"
+    - "jq \".endpoints[] | select(.provider == \\\"copilot\\\")\" /tmp/gh-aw/model-inventory/reflect.json"
+    - "jq \".endpoints[] | select(.provider == \\\"copilot\\\") | .models\" /tmp/gh-aw/model-inventory/reflect.json"
     - "cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
     - "jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
     - "jq '.models[]' /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
@@ -340,8 +341,8 @@ them into:
 - Combined inventory: `/tmp/gh-aw/model-inventory/inventory.json`
 - Individual provider files: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
-- Copilot live provider metadata: `http://api-proxy:10000/reflect` (query and filter for
-  `provider == "copilot"`)
+- Copilot live provider metadata: available via `http://api-proxy:10000/reflect` (filter
+  `.endpoints[]` where `provider == "copilot"`)
 
 Each enriched `models.json` entry has the form (fields vary by provider):
 ```json
