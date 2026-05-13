@@ -82,7 +82,7 @@ function validateBody(body, fieldName = "body", required = false) {
 /**
  * Validate and sanitize an array of labels
  * @param {any} labels - The labels to validate
- * @param {string[]|undefined} allowedLabels - Optional list of allowed labels
+ * @param {string[]|undefined} allowedLabels - Optional list of allowed label patterns (supports glob patterns like "team-*", "area/*")
  * @param {number} maxCount - Maximum number of labels allowed
  * @param {string[]|undefined} blockedPatterns - Optional list of blocked label patterns (supports glob patterns like "~*", "*[bot]")
  * @returns {{valid: boolean, value?: string[], error?: string}} Validation result
@@ -119,7 +119,11 @@ function validateLabels(labels, allowedLabels = undefined, maxCount = 3, blocked
 
   // Filter labels based on allowed list if provided
   if (allowedLabels && allowedLabels.length > 0) {
-    validLabels = validLabels.filter(label => allowedLabels.includes(label));
+    const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+    validLabels = validLabels.filter(label => {
+      const labelStr = String(label).trim();
+      return allowedLabels.some(pattern => matchesSimpleGlob(labelStr, pattern));
+    });
   }
 
   // Sanitize and deduplicate labels

@@ -301,12 +301,12 @@ safe-outputs:
 
 ### Add Labels (`add-labels:`)
 
-Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels, or `blocked` to deny specific label patterns regardless of the allow list.
+Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels or glob patterns, or `blocked` to deny specific label patterns regardless of the allow list.
 
 ```yaml wrap
 safe-outputs:
   add-labels:
-    allowed: [bug, enhancement]  # restrict to specific labels
+    allowed: [bug, team-*, area/*] # restrict to specific labels or glob patterns
     blocked: ["~*", "*[bot]"]   # deny labels matching these glob patterns
     max: 3                       # max labels (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
@@ -316,7 +316,11 @@ safe-outputs:
 
 #### Blocked Label Patterns
 
-The `blocked` field accepts glob patterns that are evaluated before the `allowed` list. Any label matching a blocked pattern is rejected, even if it also appears in the allowed list. This provides infrastructure-level protection against prompt injection attacks in repositories with many labels where maintaining an exhaustive allowlist is impractical.
+Both `allowed` and `blocked` accept glob patterns and are evaluated in this order:
+1. `blocked` patterns first (security boundary)
+2. `allowed` patterns second (if provided)
+
+Any label matching a blocked pattern is rejected, even if it also matches an allowed pattern. This provides infrastructure-level protection against prompt injection attacks in repositories with many labels where maintaining an exhaustive allowlist is impractical.
 
 Common patterns:
 
@@ -329,19 +333,19 @@ Common patterns:
 ```yaml wrap
 safe-outputs:
   add-labels:
-    blocked: ["~*", "*[bot]"]    # Blocked patterns evaluated first
-    allowed: [bug, enhancement]  # Allowed list applied after blocked check
+    blocked: ["~*", "*[bot]"]         # Blocked patterns evaluated first
+    allowed: [bug, team-*, area/*]    # Allowed patterns applied after blocked check
     max: 5
 ```
 
 ### Remove Labels (`remove-labels:`)
 
-Removes labels from issues or PRs. Specify `allowed` to restrict which labels can be removed, or `blocked` to prevent removal of specific label patterns. If a label is not present on the item, it will be silently skipped.
+Removes labels from issues or PRs. Specify `allowed` to restrict which labels can be removed (specific labels or glob patterns), or `blocked` to prevent removal of specific label patterns. If a label is not present on the item, it will be silently skipped.
 
 ```yaml wrap
 safe-outputs:
   remove-labels:
-    allowed: [automated, stale]  # restrict to specific labels (optional)
+    allowed: [automated, team-*] # restrict to specific labels or glob patterns (optional)
     blocked: ["~*"]              # deny removal of labels matching these glob patterns
     max: 3                       # max operations (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
@@ -351,7 +355,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires issue/PR event), `"*"` (any issue/PR), or number (specific issue/PR).
 
-When `allowed` is omitted or set to `null`, any labels can be removed. Use `allowed` to restrict removal to specific labels only, providing control over which labels agents can manipulate. The `blocked` field takes precedence over `allowed`.
+When `allowed` is omitted or set to `null`, any labels can be removed. Use `allowed` to restrict removal to specific labels or glob patterns, providing control over which labels agents can manipulate. The `blocked` field takes precedence over `allowed`.
 
 **Example use case**: Label lifecycle management where agents add temporary labels during triage and remove them once processed.
 

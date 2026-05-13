@@ -192,6 +192,21 @@ describe("safe_output_validator.cjs", () => {
       expect(result.value).not.toContain("custom");
     });
 
+    it("should filter labels based on allowed glob patterns", () => {
+      const result = validator.validateLabels(
+        ["team-backend", "priority-high", "area/ui", "bug"],
+        ["team-*", "priority-*", "area/*"],
+        10
+      );
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toHaveLength(3);
+      expect(result.value).toContain("team-backend");
+      expect(result.value).toContain("priority-high");
+      expect(result.value).toContain("area/ui");
+      expect(result.value).not.toContain("bug");
+    });
+
     it("should limit labels to max count", () => {
       const result = validator.validateLabels(["a", "b", "c", "d", "e"], undefined, 3);
 
