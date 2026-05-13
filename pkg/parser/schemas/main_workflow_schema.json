@@ -3755,8 +3755,8 @@
           "description": "Maximum number of LLM invocations allowed per run as a numeric string or GitHub Actions expression."
         }
       ],
-      "default": 100,
-      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 100 when omitted."
+      "default": 500,
+      "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted."
     },
     "firewall": {
       "type": "object",

@@ -408,7 +408,7 @@ See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specifica
 
 ### Max Runs (`max-runs`)
 
-A top-level frontmatter field that caps the number of times the AWF proxy will invoke the AI engine within a single workflow run. Applies to all engines and maps to `apiProxy.maxRuns` in the compiled lock file. Replaces the deprecated `engine.max-runs` field. Defaults to `100` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
+A top-level frontmatter field that caps the number of times the AWF proxy will invoke the AI engine within a single workflow run. Applies to all engines and maps to `apiProxy.maxRuns` in the compiled lock file. Replaces the deprecated `engine.max-runs` field. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
 max-runs: 10
