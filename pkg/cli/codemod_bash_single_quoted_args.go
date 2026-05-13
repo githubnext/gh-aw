@@ -149,7 +149,8 @@ func rewriteSingleQuotedBashArgs(cmd string) (string, bool, bool) {
 
 			content := cmd[i+1 : j]
 			b.WriteByte('"')
-			for _, contentCh := range []byte(content) {
+			for k := range len(content) {
+				contentCh := content[k]
 				switch contentCh {
 				case '\\', '"', '$', '`':
 					b.WriteByte('\\')

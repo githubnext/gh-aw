@@ -28,7 +28,7 @@ tools:
   bash:
     - grep -rn 'pattern'
 ---
-body`
+Test workflow body`
 
 	frontmatter := map[string]any{
 		"name": "test",
@@ -46,7 +46,7 @@ body`
 	tools := parsed.Frontmatter["tools"].(map[string]any)
 	bash := tools["bash"].([]any)
 	assert.Equal(t, `grep -rn "pattern"`, bash[0])
-	assert.Equal(t, "body", parsed.Markdown)
+	assert.Equal(t, "Test workflow body", parsed.Markdown)
 }
 
 func TestBashSingleQuotedArgsCodemod_RewritesGlobPatterns(t *testing.T) {
@@ -174,7 +174,7 @@ func TestRewriteSingleQuotedBashArgs(t *testing.T) {
 			wantApply: false,
 		},
 		{
-			name:      "embedded quote pattern rewrites only single-quoted segments",
+			name:      "embedded quote pattern rewrites segments and preserves escaped apostrophe between them",
 			input:     `'foo'\''bar'`,
 			want:      `"foo"\'"bar"`,
 			wantSafe:  true,
