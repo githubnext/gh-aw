@@ -199,8 +199,8 @@ func TestBuildLabelCommandCondition(t *testing.T) {
 	}
 }
 
-func TestBuildCentralizedLabelCommandCondition(t *testing.T) {
-	condition, err := buildCentralizedLabelCommandCondition([]string{"cloclo"}, []string{"issues"})
+func TestBuildDispatchLabelCommandCondition(t *testing.T) {
+	condition, err := buildDispatchLabelCommandCondition([]string{"cloclo"}, []string{"issues"})
 	require.NoError(t, err)
 	rendered := condition.Render()
 	assert.NotContains(t, rendered, "github.event_name")
@@ -574,4 +574,40 @@ Deploy the application because label "deploy" was added.
 	// The remove_trigger_label step should be present (default behavior)
 	assert.Contains(t, lockStr, "remove_trigger_label",
 		"compiled workflow should contain remove_trigger_label step when remove_label is not specified (default true)")
+}
+
+func TestLabelCommandWorkflowCompileDecentralizedStrategy(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowContent := `---
+name: Label Command Decentralized
+on:
+  label_command:
+    name: ci-doctor
+    events: [pull_request]
+    strategy: decentralized
+  pull_request:
+    types: [opened]
+engine: copilot
+---
+
+Run CI diagnostics.
+`
+
+	workflowPath := filepath.Join(tempDir, "label-command-decentralized.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	require.Contains(t, lockStr, "pull_request:\n    types:\n    - opened")
+	require.Contains(t, lockStr, "workflow_dispatch:")
+	require.Contains(t, lockStr, "item_number:")
+	require.NotContains(t, lockStr, "pull_request:\n    types: [labeled]")
+	require.Contains(t, lockStr, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request'")
+	require.Contains(t, lockStr, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'ci-doctor'")
 }

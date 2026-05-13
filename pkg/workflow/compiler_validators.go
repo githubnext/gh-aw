@@ -310,6 +310,10 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: slash_command.strategy: centralized"))
 		c.IncrementWarningCount()
 	}
+	if workflowData.LabelCommandDecentralized {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: label_command.strategy: decentralized"))
+		c.IncrementWarningCount()
+	}
 
 	// Warn when slash_command and bots are both configured: if a bot listed in bots: posts
 	// a comment that starts with the slash command text (e.g. /command-name), the

@@ -221,6 +221,8 @@ gh aw run research --ref feature/improve-workflow          # runs against live r
 
 **Scheduled workflow testing:** Combine `schedule` with `workflow_dispatch` to test scheduled workflows immediately rather than waiting for the cron schedule.
 
+**External system integration:** When an external system (Jira, PagerDuty, Slack, custom API) needs to supply a custom `client_payload` or route by event type, prefer `repository_dispatch` over `workflow_dispatch`. Both can be triggered via API, but `repository_dispatch` is purpose-built for external callers: it carries an arbitrary `client_payload`, routes by `event_type`, and does not require knowledge of a specific workflow file or ref. See [Repository Dispatch Trigger](/gh-aw/reference/triggers/#repository-dispatch-trigger-repository_dispatch) for setup details.
+
 ## Troubleshooting
 
 **Workflow not listed in GitHub UI:** Verify `workflow_dispatch:` exists in the `on:` section, compile the workflow (`gh aw compile workflow`), and push both `.md` and `.lock.yml` files. The Actions page may need a refresh.

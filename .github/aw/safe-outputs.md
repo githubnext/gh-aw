@@ -158,9 +158,9 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       auto-close-issue: false         # Optional: when true (default), adds "Fixes #N" closing keyword when triggered from an issue; set to false to prevent auto-closing the triggering issue on merge. Accepts a boolean or GitHub Actions expression.
       target-repo: "owner/repo"       # Optional: cross-repository
       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
-      allowed-files:                  # Optional: exclusive allowlist of glob patterns for eligible files
-        - "src/**"
-        - "docs/**"
+      allowed-files:                  # Recommended: always restrict to specific paths or extensions to limit agent scope
+        - "src/**/*.ts"               # e.g. restrict to TypeScript source files
+        - "docs/**/*.md"              # e.g. restrict to Markdown docs
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
       protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
@@ -171,7 +171,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   **Dynamic Base Branch**: When `allowed-base-branches` is set, the agent can provide a `base` field in its output to override the default base branch for a single run — but only if the value matches one of the configured glob patterns. Without `allowed-base-branches`, only the static `base-branch:` is used. Accepts a literal array or a GitHub Actions expression resolving to a comma-separated list (e.g. `${{ inputs.allowed-base-branches }}`).
 
-  **File Restrictions**: Use `allowed-files` as an **exclusive allowlist** — every file touched must match at least one pattern or the operation is refused. Use `excluded-files` to strip files (e.g. lock files) from the patch before any checks. The `protected-files` field controls handling of sensitive files (package manifests, CI configs, agent instruction files): `blocked` (default, hard-block), `fallback-to-issue` (push branch and create a review issue), or `allowed` (no restriction — use only when the workflow is explicitly designed to manage these files). Object form is also supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
+  **File Restrictions**: **Always specify `allowed-files`** — this is the primary guardrail for `create-pull-request`. Scope it to specific file extensions (e.g., `"**/*.md"`, `"**/*.ts"`) or directory paths (e.g., `"src/**"`, `"docs/**"`) matching the workflow's purpose. Omitting `allowed-files` allows the agent to touch any file in the repository, which significantly expands blast radius. Use `excluded-files` to additionally strip specific files (e.g. lock files) from the patch before any checks. The `protected-files` field controls handling of sensitive files (package manifests, CI configs, agent instruction files): `blocked` (default, hard-block), `fallback-to-issue` (push branch and create a review issue), or `allowed` (no restriction — use only when the workflow is explicitly designed to manage these files). Object form is also supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
   **Auto-Expiration**: The `expires` field auto-closes PRs after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Minimum duration: 2 hours. Only for same-repo PRs without target-repo. Generates `agentics-maintenance.yml` workflow.
 
@@ -471,7 +471,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
       staged: true                    # Optional: preview mode (default: follows global staged)
       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on pushed commits
-      allowed-files:                  # Optional: exclusive allowlist of glob patterns for eligible files
+      allowed-files:                  # Recommended: always restrict to specific paths or extensions to limit agent scope
         - "src/**"
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
@@ -480,7 +480,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
 
   Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
 
-  **File Restrictions**: Same as `create-pull-request`: `allowed-files` is an exclusive allowlist, `excluded-files` strips files before all checks, and `protected-files` controls handling of sensitive files. Object form supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
+  **File Restrictions**: Same as `create-pull-request`: **always specify `allowed-files`** scoped to specific file extensions or paths to limit the agent's reach. `excluded-files` strips files before all checks, and `protected-files` controls handling of sensitive files. Object form supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
   **Compile-time warnings for `target: "*"`**: When `target: "*"` is set, the compiler emits warnings if:
   1. The checkout configuration does not include a wildcard fetch pattern — add `fetch: ["*"]` with `fetch-depth: 0` so the agent can access all PR branches at runtime

@@ -94,11 +94,11 @@ func buildLabelCommandCondition(labelNames []string, labelCommandEvents []string
 	}, nil
 }
 
-// buildCentralizedLabelCommandCondition builds label-command conditions for centralized
-// slash-command workflows that trigger through workflow_dispatch.
+// buildDispatchLabelCommandCondition builds label-command conditions for dispatch-routed
+// workflows that trigger through workflow_dispatch.
 // For workflow_dispatch events, label routing checks use aw_context fields rather than
 // github.event_name/github.event.label.
-func buildCentralizedLabelCommandCondition(labelNames []string, labelCommandEvents []string) (ConditionNode, error) {
+func buildDispatchLabelCommandCondition(labelNames []string, labelCommandEvents []string) (ConditionNode, error) {
 	if len(labelNames) == 0 {
 		return nil, errors.New("no label names provided for label-command trigger")
 	}

@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"93f606ec4137ce1d4e464dfc3e2a005b05697bcf07b216a065d1ae25e8c43455","agent_id":"pi","agent_model":"claude-sonnet-4-20250514"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5fb344d19348c4fa439747a7a8614c4668c5079998253f4dc24e959f72bf0e7c","agent_id":"pi","agent_model":"claude-sonnet-4-20250514"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.44"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -55,15 +55,6 @@
 
 name: "Dev"
 "on":
-  discussion:
-    types:
-    - labeled
-  issues:
-    types:
-    - labeled
-  pull_request:
-    types:
-    - labeled
   schedule:
   - cron: "42 8 * * *"
   workflow_dispatch:
@@ -97,16 +88,17 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name == 'issues' || github.event_name == 'pull_request' ||
-      github.event_name == 'discussion') && github.event.label.name == 'dev' || (!(github.event_name == 'issues')) &&
-      (!(github.event_name == 'pull_request')) && (!(github.event_name == 'discussion')))
+      needs.pre_activation.outputs.activated == 'true' && ((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' ||
+      fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'discussion') && fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'dev' ||
+      (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues')) && (!(fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'pull_request')) && (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion')))
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     outputs:
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
       comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
@@ -258,20 +250,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_477b040d2fd91ec8_EOF'
+          cat << 'GH_AW_PROMPT_f2846c422f178935_EOF'
           <system>
-          GH_AW_PROMPT_477b040d2fd91ec8_EOF
+          GH_AW_PROMPT_f2846c422f178935_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_477b040d2fd91ec8_EOF'
+          cat << 'GH_AW_PROMPT_f2846c422f178935_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_477b040d2fd91ec8_EOF
+          GH_AW_PROMPT_f2846c422f178935_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_477b040d2fd91ec8_EOF'
+          cat << 'GH_AW_PROMPT_f2846c422f178935_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -300,14 +292,14 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_477b040d2fd91ec8_EOF
+          GH_AW_PROMPT_f2846c422f178935_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_477b040d2fd91ec8_EOF'
+          cat << 'GH_AW_PROMPT_f2846c422f178935_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/dev.md}}
-          GH_AW_PROMPT_477b040d2fd91ec8_EOF
+          GH_AW_PROMPT_f2846c422f178935_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -518,9 +510,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_bd7f9d4e4dd0c216_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_030e08db261422ef_EOF'
           {"create_issue":{"expires":168,"max":1,"title_prefix":"[Daily Report] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_bd7f9d4e4dd0c216_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_030e08db261422ef_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1312,9 +1304,11 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'discussion') &&
-      github.event.label.name == 'dev' || (!(github.event_name == 'issues')) && (!(github.event_name == 'pull_request')) &&
-      (!(github.event_name == 'discussion'))
+      (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion') &&
+      fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'dev' || (!(fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'issues')) && (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')) &&
+      (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion'))
     runs-on: ubuntu-slim
     permissions:
       contents: read

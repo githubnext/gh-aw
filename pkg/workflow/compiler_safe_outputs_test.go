@@ -12,18 +12,19 @@ import (
 // TestParseOnSection tests command, reaction, and stop-after parsing from frontmatter
 func TestParseOnSection(t *testing.T) {
 	tests := []struct {
-		name                string
-		frontmatter         map[string]any
-		workflowData        *WorkflowData
-		markdownPath        string
-		expectedError       bool
-		expectedCommand     []string
-		expectedReaction    string
-		expectedLockAgent   bool
-		expectedOn          string
-		expectedCentralized bool
-		checkCommandEvents  bool
-		expectedOtherEvents map[string]any
+		name                       string
+		frontmatter                map[string]any
+		workflowData               *WorkflowData
+		markdownPath               string
+		expectedError              bool
+		expectedCommand            []string
+		expectedReaction           string
+		expectedLockAgent          bool
+		expectedOn                 string
+		expectedCentralized        bool
+		expectedLabelDecentralized bool
+		checkCommandEvents         bool
+		expectedOtherEvents        map[string]any
 	}{
 		{
 			name: "slash_command trigger with default command from filename",
@@ -149,6 +150,25 @@ func TestParseOnSection(t *testing.T) {
 			expectedReaction:    "eyes",
 			expectedCentralized: true,
 			checkCommandEvents:  true,
+		},
+		{
+			name: "label_command decentralized strategy allows non-label events",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"label_command": map[string]any{
+						"name":     "ci-doctor",
+						"strategy": "decentralized",
+					},
+					"pull_request": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			workflowData:               &WorkflowData{LabelCommandDecentralized: true},
+			markdownPath:               "/path/to/test.md",
+			expectedError:              false,
+			expectedReaction:           "eyes",
+			expectedLabelDecentralized: true,
 		},
 		{
 			name: "slash_command conflicts with issues",
@@ -299,6 +319,7 @@ func TestParseOnSection(t *testing.T) {
 					assert.Equal(t, tt.expectedReaction, tt.workflowData.AIReaction, "Reaction mismatch")
 				}
 				assert.Equal(t, tt.expectedCentralized, tt.workflowData.CommandCentralized, "CommandCentralized mismatch")
+				assert.Equal(t, tt.expectedLabelDecentralized, tt.workflowData.LabelCommandDecentralized, "LabelCommandDecentralized mismatch")
 				assert.Equal(t, tt.expectedLockAgent, tt.workflowData.LockForAgent, "LockForAgent mismatch")
 				if tt.checkCommandEvents {
 					assert.NotNil(t, tt.workflowData.CommandOtherEvents, "CommandOtherEvents should be set")

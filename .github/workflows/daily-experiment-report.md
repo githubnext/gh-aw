@@ -17,6 +17,13 @@ tools:
   github:
     toolsets: [default, actions]
 
+steps:
+  - name: Pre-install chart deps for PyPy runtime
+    run: |
+      if command -v pypy3 >/dev/null 2>&1; then
+        pypy3 -m pip install --quiet numpy matplotlib
+      fi
+
 imports:
   - uses: shared/daily-audit-charts.md
     with:

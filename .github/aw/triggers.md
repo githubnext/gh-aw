@@ -132,6 +132,7 @@ on:
   label_command:
     name: ai-review        # Single label name (or use names: [...] for multiple)
     events: [pull_request] # Optional: restrict to issues, pull_request, discussion (default: all three)
+    strategy: decentralized # Optional: route labeled events via generated agentic_commands.yml
     remove_label: false    # Optional: remove triggering label after activation (default: true)
 ```
 
@@ -162,4 +163,3 @@ on:
     branches: [main]
   workflow_dispatch:
 ```
-

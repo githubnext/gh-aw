@@ -5,6 +5,7 @@ on:
   label_command:
     names: [approach-proposal, needs-design]
     events: [issues, pull_request]
+    strategy: decentralized
   slash_command:
     strategy: centralized
     name: approach-validator

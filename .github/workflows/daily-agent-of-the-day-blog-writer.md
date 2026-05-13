@@ -55,6 +55,8 @@ safe-outputs:
     labels: [blog]
     reviewers: [copilot]
     draft: false
+    allowed-files:
+      - "docs/**"
   upload-asset:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]

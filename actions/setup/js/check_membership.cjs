@@ -33,16 +33,17 @@ async function main() {
   if (eventName === "workflow_dispatch") {
     const awContext = readWorkflowDispatchAwContext(context.payload);
     const commandName = typeof awContext?.command_name === "string" ? awContext.command_name.trim() : "";
+    const triggerLabel = typeof awContext?.trigger_label === "string" ? awContext.trigger_label.trim() : "";
     const propagatedActor = typeof awContext?.actor === "string" ? awContext.actor.trim() : "";
 
-    if (commandName && actor === "github-actions[bot]") {
+    if ((commandName || triggerLabel) && actor === "github-actions[bot]") {
       if (!propagatedActor) {
-        const errorMessage = "Access denied: workflow_dispatch aw_context.actor is required for centralized slash-command dispatches.";
+        const errorMessage = "Access denied: workflow_dispatch aw_context.actor is required for centralized command dispatches.";
         core.warning(errorMessage);
         core.setOutput("is_team_member", "false");
         core.setOutput("result", "config_error");
         core.setOutput("error_message", errorMessage);
-        await writeDenialSummary(errorMessage, "Ensure centralized slash-command dispatches include aw_context.actor.");
+        await writeDenialSummary(errorMessage, "Ensure centralized command dispatches include aw_context.actor.");
         return;
       }
 

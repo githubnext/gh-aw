@@ -501,6 +501,7 @@ type WorkflowData struct {
 	CommandOtherEvents             map[string]any                  // for merging command with other events
 	LabelCommand                   []string                        // for label-command trigger support - label names that act as commands
 	LabelCommandEvents             []string                        // events where label-command should be active (nil = all: issues, pull_request, discussion)
+	LabelCommandDecentralized      bool                            // when true, label_command uses decentralized dispatch routing via agentic_commands.yml
 	LabelCommandOtherEvents        map[string]any                  // for merging label-command with other events
 	LabelCommandRemoveLabel        bool                            // whether to automatically remove the triggering label (default: true)
 	AIReaction                     string                          // AI reaction type like "eyes", "heart", etc.

@@ -5,6 +5,7 @@ on:
   label_command:
     name: necromancer
     events: [pull_request]
+    strategy: decentralized
   status-comment: true
 permissions:
   contents: read

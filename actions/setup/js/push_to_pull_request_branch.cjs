@@ -47,6 +47,56 @@ function looksLikeMissingRemoteBranchError(value) {
 }
 
 /**
+ * @param {unknown} rawAwContext
+ * @returns {{ item_type: string, item_number: number | null } | null}
+ */
+function parseAwContext(rawAwContext) {
+  /**
+   * @param {unknown} parsed
+   * @returns {{ item_type: string, item_number: number | null } | null}
+   */
+  function validateAndNormalizeParsedContext(parsed) {
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return null;
+    }
+    const itemType = typeof parsed.item_type === "string" ? parsed.item_type : "";
+    const itemNumber = parsePositiveInteger(parsed.item_number);
+    return { item_type: itemType, item_number: itemNumber };
+  }
+
+  if (rawAwContext == null) {
+    return null;
+  }
+  if (typeof rawAwContext === "string") {
+    const trimmed = rawAwContext.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      return validateAndNormalizeParsedContext(parsed);
+    } catch {
+      return null;
+    }
+  }
+  return validateAndNormalizeParsedContext(rawAwContext);
+}
+
+/**
+ * Parses a value into a positive integer.
+ *
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+function parsePositiveInteger(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
  * Main handler factory for push_to_pull_request_branch
  * Returns a message handler function that processes individual push_to_pull_request_branch messages
  * @type {HandlerFactoryFunction}
@@ -316,6 +366,15 @@ async function main(config = {}) {
     let pullNumber;
     if (target === "triggering") {
       pullNumber = typeof context !== "undefined" ? context.payload?.pull_request?.number || context.payload?.issue?.number : undefined;
+      if (!pullNumber) {
+        const awContext = typeof context !== "undefined" ? parseAwContext(context.payload?.inputs?.aw_context) : null;
+        const awItemType = awContext?.item_type.trim() ?? "";
+        const awItemNumber = awContext?.item_number ?? null;
+        if (awItemType === "pull_request" && awItemNumber !== null) {
+          pullNumber = awItemNumber;
+          core.info(`Resolved triggering pull request number '${pullNumber}' from aw_context.`);
+        }
+      }
 
       if (!pullNumber) {
         return { success: false, error: 'push-to-pull-request-branch with target "triggering" requires pull request context' };
