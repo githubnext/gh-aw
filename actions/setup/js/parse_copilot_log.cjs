@@ -10,7 +10,7 @@ const main = createEngineLogParser({
   supportsDirectories: true,
 });
 
-const AWF_TOKEN_WARNING_RE = /\[AWF TOKEN WARNING\][^\n\r]*/g;
+const AWF_TOKEN_WARNING_RE = /\[AWF TOKEN WARNING\][^\n\r]+/g;
 
 /**
  * Extracts AWF token steering warnings from parsed Copilot log entries.
