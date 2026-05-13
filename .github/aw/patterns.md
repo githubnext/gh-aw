@@ -108,4 +108,4 @@ Pattern docs base path (relative to this file): `../../docs/src/content/docs/pat
 - Prefer documented patterns over ad hoc architecture when a strong match exists.
 - Pattern links are relative to this file (`.github/aw/patterns.md`); if this file is moved, update all pattern paths accordingly.
 - When relevant, combine pattern guidance with core workflow rules from:
-  - github-agentic-workflows.md
+  - .github/aw/github-agentic-workflows.md
