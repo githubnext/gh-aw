@@ -335,8 +335,8 @@ func TestNewMCPListToolsSubcommand(t *testing.T) {
 	serverFlag := cmd.Flags().Lookup("server")
 	if serverFlag == nil {
 		t.Error("Expected 'server' flag to be defined")
-	} else if !strings.Contains(serverFlag.Usage, "(required)") {
-		t.Error("Expected 'server' flag usage to indicate requirement")
+	} else if serverFlag.Usage != "MCP server name to list tools for (required)" {
+		t.Errorf("Expected 'server' flag usage to match documented required wording, got: %q", serverFlag.Usage)
 	}
 }
 
