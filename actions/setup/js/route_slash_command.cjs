@@ -50,12 +50,17 @@ function normalizeReaction(reaction) {
     return "";
   }
   const trimmed = reaction.trim();
-  if (!trimmed || trimmed === "none" || !Object.prototype.hasOwnProperty.call(REACTION_MAP, trimmed)) {
+  if (!trimmed || trimmed === "none" || !Object.hasOwn(REACTION_MAP, trimmed)) {
     return "";
   }
   return trimmed;
 }
 
+/**
+ * Returns the first valid non-"none" ai_reaction configured on matching routes.
+ * @param {Array<{ai_reaction?: unknown}>} routes
+ * @returns {string}
+ */
 function resolveImmediateReaction(routes) {
   for (const route of routes) {
     const reaction = normalizeReaction(route?.ai_reaction);
