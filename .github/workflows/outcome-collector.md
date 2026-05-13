@@ -43,6 +43,15 @@ safe-outputs:
 imports:
   - shared/observability-otlp.md
 pre-agent-steps:
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      gh extension install github/gh-aw --force 2>&1 || {
+        echo "Failed to install gh-aw CLI extension"
+        exit 1
+      }
+      gh aw version
   - name: Evaluate outcomes for recent runs
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

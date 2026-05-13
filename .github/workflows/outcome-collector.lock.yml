@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"75fdcb084ae898b17db1a93285c857d1e3308dbc5a8b5f49c598394bb5ad901c","strict":true,"agent_id":"copilot","agent_model":"claude-haiku-4.5"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"a499e0b662433de6733d4bef710f713a43a6d356bc9abc062027bc2da271ab34","strict":true,"agent_id":"copilot","agent_model":"claude-haiku-4.5"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.44"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -197,20 +197,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_273c0ee61d0a116c_EOF'
+          cat << 'GH_AW_PROMPT_e215d33eb94d53c5_EOF'
           <system>
-          GH_AW_PROMPT_273c0ee61d0a116c_EOF
+          GH_AW_PROMPT_e215d33eb94d53c5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_273c0ee61d0a116c_EOF'
+          cat << 'GH_AW_PROMPT_e215d33eb94d53c5_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_273c0ee61d0a116c_EOF
+          GH_AW_PROMPT_e215d33eb94d53c5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_273c0ee61d0a116c_EOF'
+          cat << 'GH_AW_PROMPT_e215d33eb94d53c5_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -239,13 +239,13 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_273c0ee61d0a116c_EOF
+          GH_AW_PROMPT_e215d33eb94d53c5_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_273c0ee61d0a116c_EOF'
+          cat << 'GH_AW_PROMPT_e215d33eb94d53c5_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/outcome-collector.md}}
-          GH_AW_PROMPT_273c0ee61d0a116c_EOF
+          GH_AW_PROMPT_e215d33eb94d53c5_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -454,6 +454,15 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Install gh-aw CLI
+        run: |
+          gh extension install github/gh-aw --force 2>&1 || {
+            echo "Failed to install gh-aw CLI extension"
+            exit 1
+          }
+          gh aw version
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Evaluate outcomes for recent runs
         run: "echo \"Evaluating safe output outcomes for recent workflow runs...\"\n\n# Get recent workflow runs from the last 3 days that had safe outputs\nRUNS=$(gh run list --limit 100 --json databaseId,conclusion,createdAt,workflowName \\\n  --jq '[.[] | select(.conclusion == \"success\")] | .[0:50] | .[].databaseId' 2>/dev/null)\n\nif [ -z \"$RUNS\" ]; then\n  echo \"No recent successful runs found\"\n  echo '{\"runs_checked\": 0, \"total_outcomes\": 0}' > /tmp/gh-aw/outcome-summary.json\n  exit 0\nfi\n\nmkdir -p /tmp/gh-aw/outcomes\n\nCHECKED=0\nACCEPTED=0\nREJECTED=0\nIGNORED=0\nPENDING=0\nTOTAL=0\n\nfor RUN_ID in $RUNS; do\n  echo \"Checking run $RUN_ID...\"\n  RESULT=$(gh aw outcomes \"$RUN_ID\" --json 2>/dev/null) || continue\n\n  ITEMS=$(echo \"$RESULT\" | jq '.summary.total // 0')\n  if [ \"$ITEMS\" = \"0\" ] || [ \"$ITEMS\" = \"null\" ]; then\n    continue\n  fi\n\n  CHECKED=$((CHECKED + 1))\n  TOTAL=$((TOTAL + ITEMS))\n  ACCEPTED=$((ACCEPTED + $(echo \"$RESULT\" | jq '.summary.accepted // 0')))\n  REJECTED=$((REJECTED + $(echo \"$RESULT\" | jq '.summary.rejected // 0')))\n  IGNORED=$((IGNORED + $(echo \"$RESULT\" | jq '.summary.ignored // 0')))\n  PENDING=$((PENDING + $(echo \"$RESULT\" | jq '.summary.pending // 0')))\n\n  # Save per-run outcome\n  WORKFLOW=$(echo \"$RESULT\" | jq -r '.workflow // \"unknown\"')\n  echo \"$RESULT\" | jq --arg wf \"$WORKFLOW\" '. + {workflow: $wf}' \\\n    > \"/tmp/gh-aw/outcomes/run-${RUN_ID}.json\"\ndone\n\n# Compute fleet summary\nRESOLVED=$((ACCEPTED + REJECTED))\nif [ \"$RESOLVED\" -gt 0 ]; then\n  ACCEPTANCE_RATE=$(echo \"scale=4; $ACCEPTED / $RESOLVED\" | bc)\nelse\n  ACCEPTANCE_RATE=\"0\"\nfi\nif [ \"$TOTAL\" -gt 0 ]; then\n  WASTE_RATE=$(echo \"scale=4; $REJECTED / $TOTAL\" | bc)\nelse\n  WASTE_RATE=\"0\"\nfi\n\njq -n \\\n  --argjson checked \"$CHECKED\" \\\n  --argjson total \"$TOTAL\" \\\n  --argjson accepted \"$ACCEPTED\" \\\n  --argjson rejected \"$REJECTED\" \\\n  --argjson ignored \"$IGNORED\" \\\n  --argjson pending \"$PENDING\" \\\n  --arg acceptance_rate \"$ACCEPTANCE_RATE\" \\\n  --arg waste_rate \"$WASTE_RATE\" \\\n  '{\n    runs_checked: $checked,\n    total_outcomes: $total,\n    accepted: $accepted,\n    rejected: $rejected,\n    ignored: $ignored,\n    pending: $pending,\n    acceptance_rate: ($acceptance_rate | tonumber),\n    waste_rate: ($waste_rate | tonumber),\n    date: (now | strftime(\"%Y-%m-%d\"))\n  }' > /tmp/gh-aw/outcome-summary.json\n\necho \"✓ Checked $CHECKED runs, $TOTAL outcomes\"\necho \"  Accepted: $ACCEPTED, Rejected: $REJECTED, Ignored: $IGNORED, Pending: $PENDING\"\necho \"  Acceptance rate: $ACCEPTANCE_RATE\"\ncat /tmp/gh-aw/outcome-summary.json\n"
@@ -465,9 +474,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_02efa24db5119831_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_805b5b4914b58d3a_EOF'
           {"create_issue":{"close_older_issues":true,"expires":168,"group_by_day":true,"labels":["automation","observability","outcomes"],"max":1,"title_prefix":"[Outcome Report]"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_02efa24db5119831_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_805b5b4914b58d3a_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -672,7 +681,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_9d79fb2862e63b9f_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_0cc41c5bdfb893ef_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -703,7 +712,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_9d79fb2862e63b9f_EOF
+          GH_AW_MCP_CONFIG_0cc41c5bdfb893ef_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
