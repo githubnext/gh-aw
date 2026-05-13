@@ -312,6 +312,20 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
             - opened`,
 			description: "Should leave unchanged when no draft field in pull_request",
 		},
+		{
+			name: "issues with two-space indentation names",
+			input: `on:
+  issues:
+    names:
+      - bug
+  workflow_dispatch:`,
+			expected: `on:
+  issues:
+    # names: # Label filtering applied via job conditions
+      # - bug # Label filtering applied via job conditions
+  workflow_dispatch:`,
+			description: "Should comment out names in issues section with two-space indentation style",
+		},
 	}
 
 	for _, tt := range tests {

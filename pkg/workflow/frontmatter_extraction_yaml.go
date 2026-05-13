@@ -152,6 +152,37 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	currentSectionIndent := -1
 	deploymentStatusIndent := -1
 	workflowRunIndent := -1
+	enterOnSection := func(section string, indent int, resetWorkflowRunConclusionArray bool) {
+		inPullRequest = section == "pull_request"
+		inIssues = section == "issues"
+		inDiscussion = section == "discussion"
+		inIssueComment = section == "issue_comment"
+		inDeploymentStatus = section == "deployment_status"
+		inWorkflowRun = section == "workflow_run"
+		if resetWorkflowRunConclusionArray {
+			inWorkflowRunConclusionArray = false
+		}
+
+		switch section {
+		case "pull_request", "issues", "discussion", "issue_comment":
+			currentSection = section
+			currentSectionIndent = indent
+		default:
+			currentSection = ""
+			currentSectionIndent = -1
+		}
+
+		if section == "deployment_status" {
+			deploymentStatusIndent = indent
+		} else {
+			deploymentStatusIndent = -1
+		}
+		if section == "workflow_run" {
+			workflowRunIndent = indent
+		} else {
+			workflowRunIndent = -1
+		}
+	}
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -164,90 +195,32 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "pull_request:" {
-				inPullRequest = true
-				inIssues = false
-				inDiscussion = false
-				inIssueComment = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "pull_request"
-				currentSectionIndent = lineIndent
-				deploymentStatusIndent = -1
-				workflowRunIndent = -1
+				enterOnSection("pull_request", lineIndent, true)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issues:" {
-				inIssues = true
-				inPullRequest = false
-				inDiscussion = false
-				inIssueComment = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "issues"
-				currentSectionIndent = lineIndent
-				deploymentStatusIndent = -1
-				workflowRunIndent = -1
+				enterOnSection("issues", lineIndent, true)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "discussion:" {
-				inDiscussion = true
-				inPullRequest = false
-				inIssues = false
-				inIssueComment = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "discussion"
-				currentSectionIndent = lineIndent
-				deploymentStatusIndent = -1
-				workflowRunIndent = -1
+				enterOnSection("discussion", lineIndent, true)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issue_comment:" {
-				inIssueComment = true
-				inPullRequest = false
-				inIssues = false
-				inDiscussion = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "issue_comment"
-				currentSectionIndent = lineIndent
-				deploymentStatusIndent = -1
-				workflowRunIndent = -1
+				enterOnSection("issue_comment", lineIndent, true)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "deployment_status:" {
-				inDeploymentStatus = true
-				inWorkflowRun = false
-				inPullRequest = false
-				inIssues = false
-				inDiscussion = false
-				inIssueComment = false
-				currentSection = ""
-				currentSectionIndent = -1
-				deploymentStatusIndent = lineIndent
-				workflowRunIndent = -1
+				enterOnSection("deployment_status", lineIndent, false)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "workflow_run:" {
-				inWorkflowRun = true
-				inDeploymentStatus = false
-				inPullRequest = false
-				inIssues = false
-				inDiscussion = false
-				inIssueComment = false
-				currentSection = ""
-				currentSectionIndent = -1
-				deploymentStatusIndent = -1
-				workflowRunIndent = lineIndent
+				enterOnSection("workflow_run", lineIndent, false)
 				result = append(result, line)
 				continue
 			}
