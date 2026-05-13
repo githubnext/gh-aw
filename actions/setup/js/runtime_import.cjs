@@ -496,8 +496,8 @@ function evaluateExpression(expr) {
       // Slash-command workflows run as workflow_dispatch events; the triggering
       // issue/discussion/PR number lives in inputs.aw_context, not in the event
       // payload (context.payload.issue is undefined for workflow_dispatch).
-      const awCtxStr = /** @type {string | undefined} */ (context?.payload?.inputs?.aw_context) || "";
-      if (awCtxStr) {
+      const awCtxStr = context?.payload?.inputs?.aw_context;
+      if (awCtxStr && typeof awCtxStr === "string") {
         try {
           /** @type {{ item_type?: string, item_number?: number|string, comment_id?: number|string }} */
           const awCtx = JSON.parse(awCtxStr);
