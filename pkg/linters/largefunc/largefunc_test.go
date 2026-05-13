@@ -1,3 +1,5 @@
+//go:build !integration
+
 // Package largefunc_test provides tests for the largefunc analyzer.
 package largefunc_test
 
