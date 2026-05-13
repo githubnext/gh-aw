@@ -364,9 +364,10 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
+printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s 2>&1 | tee -a %s`, AgentStepSummaryPath, logFile, piCommand, logFile)
+%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, piCommand, logFile)
 	}
 
 	// Build the environment map.  Provider-specific credentials are injected via

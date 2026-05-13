@@ -2258,6 +2258,110 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
   });
 
+  it("uses agent_cli_start_ms.txt as agent span start time when file is present", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
+
+    // The CLI start time is later than the job start time passed as options.startMs,
+    // simulating a realistic scenario where the audit and proxy startup took time.
+    const jobStartMs = 1_700_000_000_000; // end of setup step
+    const cliStartMs = 1_700_000_030_000; // 30 s later: start of Execute CLI step
+    const endMs = 1_700_000_090_000;
+
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/agent_cli_start_ms.txt") {
+        return String(cliStartMs);
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: jobStartMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    // Agent span must start from the CLI-step timestamp, not the job start time.
+    expect(agentSpan.startTimeUnixNano).toBe(toNanoString(cliStartMs));
+    expect(agentSpan.endTimeUnixNano).toBe(toNanoString(endMs));
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    // Conclusion span still starts from the job start time (options.startMs).
+    expect(conclusionSpan.startTimeUnixNano).toBe(toNanoString(jobStartMs));
+  });
+
+  it("falls back to options.startMs as agent span start when agent_cli_start_ms.txt is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      // Simulate all files absent (no agent_cli_start_ms.txt)
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    // Must fall back to options.startMs when the file is absent.
+    expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
+  });
+
+  it("falls back to options.startMs when agent_cli_start_ms.txt contains an invalid value", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/agent_cli_start_ms.txt") {
+        return "not-a-number"; // invalid content
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    // Must fall back to options.startMs for invalid file content.
+    expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
+  });
+
   it("does not emit a dedicated agent span when agent_output mtime is unavailable", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);

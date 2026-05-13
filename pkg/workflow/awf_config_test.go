@@ -674,3 +674,63 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 	assert.Less(t, pathSetupIdx, configWriteIdx, "path setup must precede config file write")
 	assert.Less(t, configWriteIdx, awfIdx, "config file write must precede AWF invocation")
 }
+
+// TestBuildAWFCommand_WritesAgentCLIStartTimestamp verifies that BuildAWFCommand
+// always emits a printf command that writes the epoch-ms timestamp to
+// AgentCLIStartMsPath at the very beginning of the run block, before any
+// PathSetup or config-file write, so sendJobConclusionSpan can use it as the
+// true start time of the Execute Agent CLI step.
+func TestBuildAWFCommand_WritesAgentCLIStartTimestamp(t *testing.T) {
+	tests := []struct {
+		name      string
+		pathSetup string
+	}{
+		{"with PathSetup", "touch " + AgentStepSummaryPath},
+		{"without PathSetup", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			config := AWFCommandConfig{
+				EngineName:     "claude",
+				EngineCommand:  "claude --print",
+				LogFile:        "/tmp/gh-aw/agent-stdio.log",
+				AllowedDomains: "api.anthropic.com",
+				PathSetup:      tc.pathSetup,
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "claude"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+				},
+			}
+
+			command := BuildAWFCommand(config)
+
+			// The timestamp write must appear in the command.
+			assert.Contains(t, command, AgentCLIStartMsPath,
+				"command must write agent CLI start timestamp to %s", AgentCLIStartMsPath)
+			assert.Contains(t, command, "date +%s%3N",
+				"command must use date +%%s%%3N to capture epoch milliseconds")
+
+			// The timestamp write must appear before the AWF invocation so it captures
+			// the step start time rather than the time after AWF container setup.
+			tsIdx := strings.Index(command, AgentCLIStartMsPath)
+			awfIdx := strings.Index(command, "sudo -E awf")
+			assert.Less(t, tsIdx, awfIdx,
+				"timestamp write must appear before AWF invocation")
+
+			// The timestamp write must be the first substantive line after set -o pipefail.
+			pipefailIdx := strings.Index(command, "set -o pipefail")
+			assert.Less(t, pipefailIdx, tsIdx,
+				"set -o pipefail must appear before timestamp write")
+			// Nothing between set -o pipefail and the timestamp write should reference
+			// PathSetup content (timestamp must come first).
+			if tc.pathSetup != "" {
+				pathSetupIdx := strings.Index(command, tc.pathSetup)
+				assert.Greater(t, pathSetupIdx, tsIdx,
+					"timestamp write must appear before PathSetup content")
+			}
+		})
+	}
+}

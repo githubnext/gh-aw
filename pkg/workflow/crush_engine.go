@@ -197,7 +197,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			AllowedDomains: allowedDomains,
 		})
 	} else {
-		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", crushCommand, logFile)
+		command = fmt.Sprintf("set -o pipefail\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s", AgentCLIStartMsPath, crushCommand, logFile)
 	}
 
 	env := map[string]string{

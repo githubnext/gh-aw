@@ -17,6 +17,13 @@ const RedactedURLsLogPath = "/tmp/gh-aw/redacted-urls.log"
 // real $GITHUB_STEP_SUMMARY after secret redaction.
 const AgentStepSummaryPath = "/tmp/gh-aw/agent-step-summary.md"
 
+// AgentCLIStartMsPath is the path where the epoch-millisecond timestamp of the
+// "Execute Agent CLI" step start is written on the host (before the AWF container
+// launches). It is read by sendJobConclusionSpan to set the start time of the
+// dedicated gh-aw.<job>.agent span, excluding pre-agent overhead such as the
+// workspace audit and CLI proxy startup.
+const AgentCLIStartMsPath = "/tmp/gh-aw/agent_cli_start_ms.txt"
+
 // generateCleanupStep generates the cleanup step YAML for workspace files, excluding /tmp/gh-aw/ files
 // Returns the YAML string and whether a cleanup step was generated
 func generateCleanupStep(outputFiles []string) (string, bool) {
