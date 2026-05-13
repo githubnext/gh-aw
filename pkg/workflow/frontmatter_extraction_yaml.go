@@ -139,6 +139,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inSkipIfMatch := false
 	inSkipIfNoMatch := false
 	inSkipIfCheckFailing := false
+	inSkipAuthorAssociations := false
 	inSkipRolesArray := false
 	inSkipBotsArray := false
 	inRolesArray := false
@@ -150,13 +151,16 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
 
 	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
 		// Check if we're entering a pull_request, issues, discussion, or issue_comment section.
 		// Skip these checks when inside on.permissions or on.steps to avoid false matches.
 		// Example: `    issues: read` inside on.permissions was previously matched as the
 		// `issues:` event trigger, incorrectly entering the inIssues state and suppressing
 		// the permission comment-out logic.
-		if !inOnPermissions && !inOnSteps {
-			if strings.Contains(line, "pull_request:") {
+		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
+			if lineIndent == 2 && trimmedLine == "pull_request:" {
 				inPullRequest = true
 				inIssues = false
 				inDiscussion = false
@@ -168,7 +172,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if strings.Contains(line, "issues:") {
+			if lineIndent == 2 && trimmedLine == "issues:" {
 				inIssues = true
 				inPullRequest = false
 				inDiscussion = false
@@ -180,7 +184,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if strings.Contains(line, "discussion:") {
+			if lineIndent == 2 && trimmedLine == "discussion:" {
 				inDiscussion = true
 				inPullRequest = false
 				inIssues = false
@@ -192,7 +196,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if strings.Contains(line, "issue_comment:") {
+			if lineIndent == 2 && trimmedLine == "issue_comment:" {
 				inIssueComment = true
 				inPullRequest = false
 				inIssues = false
@@ -204,7 +208,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if strings.Contains(line, "deployment_status:") {
+			if lineIndent == 2 && trimmedLine == "deployment_status:" {
 				inDeploymentStatus = true
 				inWorkflowRun = false
 				inPullRequest = false
@@ -215,7 +219,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				result = append(result, line)
 				continue
 			}
-			if strings.Contains(line, "workflow_run:") {
+			if lineIndent == 2 && trimmedLine == "workflow_run:" {
 				inWorkflowRun = true
 				inDeploymentStatus = false
 				inPullRequest = false
@@ -251,9 +255,6 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			inWorkflowRun = false
 			inWorkflowRunConclusionArray = false
 		}
-
-		trimmedLine := strings.TrimSpace(line)
-		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 
 		// Skip marker lines in the YAML output
 		if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.Contains(trimmedLine, "__gh_aw_native_label_filter__:") {
@@ -337,6 +338,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
+		// Check if we're entering skip-author-associations object
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipAuthorAssociations {
+			if strings.HasPrefix(trimmedLine, "skip-author-associations:") && trimmedLine == "skip-author-associations:" {
+				inSkipAuthorAssociations = true
+			}
+		}
+
 		// Check if we're entering github-app object
 		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inGitHubApp {
 			// Check both uncommented and commented forms
@@ -382,6 +390,16 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			// If this is a field at same level as skip-if-check-failing (2 spaces) and not a comment, we're out
 			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
 				inSkipIfCheckFailing = false
+			}
+		}
+
+		// Check if we're leaving skip-author-associations object (encountering another top-level field)
+		if inSkipAuthorAssociations && strings.TrimSpace(line) != "" &&
+			!strings.HasPrefix(trimmedLine, "skip-author-associations:") &&
+			!strings.HasPrefix(trimmedLine, "# skip-author-associations:") {
+			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			if currentIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
+				inSkipAuthorAssociations = false
 			}
 		}
 
@@ -514,6 +532,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				commentReason = " # Skip-if-check-failing processed as check status gate in pre-activation job"
 			} else if inSkipIfCheckFailing && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "allow-pending:") || strings.HasPrefix(trimmedLine, "-")) {
 				// Comment out nested fields and list items in skip-if-check-failing object
+				shouldComment = true
+				commentReason = ""
+			} else if strings.HasPrefix(trimmedLine, "skip-author-associations:") {
+				shouldComment = true
+				commentReason = " # Skip-author-associations compiled into pre-activation job if condition"
+			} else if inSkipAuthorAssociations && lineIndent > 2 {
 				shouldComment = true
 				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "skip-roles:") {

@@ -478,6 +478,7 @@ type WorkflowData struct {
 	SkipIfCheckFailing             *SkipIfCheckFailingConfig       // skip-if-check-failing configuration
 	SkipRoles                      []string                        // roles to skip workflow for (e.g., [admin, maintainer, write])
 	SkipBots                       []string                        // users to skip workflow for (e.g., [user1, user2])
+	SkipAuthorAssociations         map[string][]string             // author associations to skip by event name (on.skip-author-associations)
 	AllowBotAuthoredTriggerComment bool                            // allow bot-posted-menu / user-checks-box pattern (on.allow-bot-authored-trigger-comment)
 	OnSteps                        []map[string]any                // steps to inject into the pre-activation job from on.steps
 	OnPermissions                  *Permissions                    // additional permissions for the pre-activation job from on.permissions

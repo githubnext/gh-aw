@@ -1803,6 +1803,28 @@
               ],
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
+            "skip-author-associations": {
+              "type": "object",
+              "description": "Skip workflow execution when an event-specific payload author_association field (for example: github.event.comment.author_association, github.event.issue.author_association, github.event.pull_request.author_association) matches configured associations for specific events. Keys are event names (for example: issue_comment, pull_request_review_comment, issues, pull_request). Values accept a single string or an array of strings. Association values are case-insensitive in frontmatter.",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Single author association to skip for this event (e.g., 'contributor' or 'CONTRIBUTOR')."
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "description": "List of author associations to skip for this event (case-insensitive)."
+                  }
+                ]
+              }
+            },
             "roles": {
               "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [

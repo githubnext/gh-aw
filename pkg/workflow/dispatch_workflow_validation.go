@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 )
@@ -24,6 +25,11 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 
 	if len(config.Workflows) == 0 {
 		return errors.New("dispatch-workflow: must specify at least one workflow in the list\n\nExample configuration in workflow frontmatter:\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [workflow-name-1, workflow-name-2]\n\nWorkflow names should match the filename without the .md extension")
+	}
+
+	if c.shouldSkipLocalDispatchWorkflowValidation(config.TargetRepoSlug) {
+		dispatchWorkflowValidationLog.Printf("Skipping local dispatch-workflow validation because target-repo is cross-repo: %q", config.TargetRepoSlug)
+		return nil
 	}
 
 	currentWorkflowName := getCurrentWorkflowName(workflowPath)
@@ -136,6 +142,48 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	dispatchWorkflowValidationLog.Printf("Dispatch workflow validation completed: error_count=%d, total_workflows=%d", collector.Count(), len(config.Workflows))
 
 	return collector.FormattedError("dispatch-workflow")
+}
+
+func (c *Compiler) shouldSkipLocalDispatchWorkflowValidation(targetRepoSlug string) bool {
+	trimmed := strings.TrimSpace(targetRepoSlug)
+	if trimmed == "" {
+		return false
+	}
+
+	normalized := strings.ReplaceAll(trimmed, " ", "")
+	if normalized == "${{github.repository}}" {
+		return false
+	}
+
+	if strings.Contains(normalized, "${{") || strings.Contains(normalized, "}}") {
+		return false
+	}
+
+	targetOwner, targetRepo, ok := parseRepoSlugLiteral(trimmed)
+	if !ok {
+		return false
+	}
+
+	currentOwner, currentRepo, ok := parseRepoSlugLiteral(strings.TrimSpace(c.GetRepositorySlug()))
+	if ok && strings.EqualFold(targetOwner, currentOwner) && strings.EqualFold(targetRepo, currentRepo) {
+		return false
+	}
+
+	return true
+}
+
+func parseRepoSlugLiteral(slug string) (string, string, bool) {
+	// Reject any whitespace to keep target-repo parsing strict and unambiguous.
+	if slug == "" || strings.ContainsAny(slug, " \t\r\n") {
+		return "", "", false
+	}
+
+	owner, repo, found := strings.Cut(slug, "/")
+	if !found || owner == "" || repo == "" || strings.Contains(repo, "/") {
+		return "", "", false
+	}
+
+	return owner, repo, true
 }
 
 // extractWorkflowDispatchInputs parses a workflow file and extracts the workflow_dispatch inputs schema

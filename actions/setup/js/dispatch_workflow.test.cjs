@@ -235,6 +235,32 @@ describe("dispatch_workflow handler factory", () => {
     expect(result.error).toContain("not found in configuration");
   });
 
+  it("should default to .lock.yml when extension mapping is missing for cross-repo dispatch", async () => {
+    const handler = await main({
+      workflows: ["missing-workflow"],
+      workflow_files: {},
+      "target-repo": "other-org/target-repo",
+      allowed_repos: ["other-org/target-repo"],
+    });
+
+    const message = {
+      type: "dispatch_workflow",
+      workflow_name: "missing-workflow",
+      inputs: {},
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "other-org",
+        repo: "target-repo",
+        workflow_id: "missing-workflow.lock.yml",
+      })
+    );
+  });
+
   it("should convert input values to strings", async () => {
     const config = {
       workflows: ["test-workflow"],

@@ -568,6 +568,54 @@ func (c *Compiler) extractSkipBots(frontmatter map[string]any) []string {
 	return extractSkipField(frontmatter, "skip-bots")
 }
 
+// extractSkipAuthorAssociations extracts the 'skip-author-associations' field from the 'on:' section.
+// The field is an object keyed by event name with values as a string or string array.
+func (c *Compiler) extractSkipAuthorAssociations(frontmatter map[string]any) map[string][]string {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	rawValue, exists := onMap["skip-author-associations"]
+	if !exists || rawValue == nil {
+		return nil
+	}
+
+	rawMap, ok := rawValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	result := make(map[string][]string)
+	for eventName, associationsValue := range rawMap {
+		associations := parseOptionalStringSliceField(associationsValue, "on.skip-author-associations."+eventName)
+		if len(associations) == 0 {
+			continue
+		}
+		normalizedAssociations := make([]string, 0, len(associations))
+		for _, association := range associations {
+			normalized := strings.ToUpper(strings.TrimSpace(association))
+			if normalized != "" {
+				normalizedAssociations = append(normalizedAssociations, normalized)
+			}
+		}
+		if len(normalizedAssociations) == 0 {
+			continue
+		}
+		result[eventName] = sliceutil.Deduplicate(normalizedAssociations)
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 // extractAllowBotAuthoredTriggerComment extracts the 'allow-bot-authored-trigger-comment' boolean
 // from the 'on:' section of frontmatter. When true, the confused-deputy mismatch check is skipped
 // for issue_comment:edited events where the comment was authored by a bot — the bot-posted-menu /

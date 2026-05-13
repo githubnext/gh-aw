@@ -36,6 +36,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `forks:` - Configure fork filtering for pull_request triggers
 - `skip-roles:` - Skip workflow execution for specific repository roles
 - `skip-bots:` - Skip workflow execution for specific GitHub actors
+- `skip-author-associations:` - Skip execution for configured event + `author_association` combinations
 - `skip-if-match:` - Skip execution when a search query has matches (supports `scope: none`; use top-level `on.github-token` / `on.github-app` for custom auth)
 - `skip-if-no-match:` - Skip execution when a search query has no matches (supports `scope: none`; use top-level `on.github-token` / `on.github-app` for custom auth)
 - `steps:` - Inject custom deterministic steps into the pre-activation job (saves one workflow job vs. multi-job pattern)
@@ -351,6 +352,28 @@ skip-bots: [github-actions, copilot, renovate]
 - Skip AI workflows when triggered by automation bots to avoid bot-to-bot interactions
 - Prevent workflow loops where one workflow's output triggers another
 - Exempt specific known bots from content checks or policy enforcement
+
+### Skip Author Associations (`on.skip-author-associations`)
+
+Skip workflow execution at the pre-activation job level when a specific event is triggered by an author with a matching event payload `author_association` field (for example `github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`).
+
+```yaml wrap
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  skip-author-associations:
+    issue_comment: contributor
+    pull_request_review_comment: [first_time_contributor, none]
+```
+
+**Behavior**:
+
+- Compiles to a job-level `if` expression (no pre-activation script step cost for matched skips)
+- Uses the event-specific payload field (`github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`)
+- Values are case-insensitive in frontmatter (`contributor` and `CONTRIBUTOR` are treated the same)
+- Supports a single string or an array of strings per event key
 
 ### Strict Mode (`strict:`)
 
