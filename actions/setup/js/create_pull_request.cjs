@@ -1276,19 +1276,20 @@ async function main(config = {}) {
         } catch (initialFetchError) {
           // Fallback: resolve the source ref directly from the bundle contents.
           // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
-          core.warning(`Bundle fetch with ${bundleBranchRef} failed; resolving branch ref from bundle heads`);
+          const initialFetchErrorMessage = initialFetchError instanceof Error ? initialFetchError.message : String(initialFetchError);
+          core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
           const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
           const branchRefs = bundleHeadsOutput
             .split("\n")
             .map(line => line.trim().split(/\s+/)[1] || "")
-            .filter(ref => /^refs\/heads\/[A-Za-z0-9._/-]+$/.test(ref));
+            .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
 
           if (branchRefs.length === 1) {
             bundleBranchRef = branchRefs[0];
             core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
             await exec.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:refs/heads/${branchName}`]);
           } else {
-            throw initialFetchError;
+            throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, { cause: initialFetchError });
           }
         }
         core.info(`Created local branch ${branchName} from bundle`);
