@@ -89,18 +89,18 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		return nil
 	}
 
-	strictMode := c.strictMode
-	if strictVal, exists := workflowData.RawFrontmatter["strict"]; exists {
-		if strictBool, ok := strictVal.(bool); ok && !strictBool {
-			pullRequestTargetLog.Print("Frontmatter strict: false detected, disabling strict-mode error for pull_request_target validation")
-			strictMode = false
+	effectiveStrictMode := c.strictMode
+	if workflowData.RawFrontmatter != nil {
+		if strictBool, ok := workflowData.RawFrontmatter["strict"].(bool); ok && !strictBool {
+			pullRequestTargetLog.Print("Frontmatter strict: false detected, disabling strict mode error for pull_request_target validation")
+			effectiveStrictMode = false
 		}
 	}
 
 	// In strict mode, always emit a warning that pull_request_target is a very dangerous trigger,
 	// regardless of whether checkout is disabled. The workflow still runs with full write
 	// permissions and has access to all repository secrets.
-	if strictMode {
+	if effectiveStrictMode {
 		pullRequestTargetLog.Print("Emitting strict mode warning: pull_request_target is a very dangerous trigger")
 		warningMsg := "pull_request_target is a very dangerous trigger.\n" +
 			"This event runs with full write permissions and access to all repository secrets.\n" +
@@ -132,7 +132,7 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"checkout: false\n\n" +
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
 
-	if strictMode {
+	if effectiveStrictMode {
 		return formatCompilerError(markdownPath, "error", message, nil)
 	}
 
