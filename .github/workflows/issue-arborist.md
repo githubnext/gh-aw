@@ -15,8 +15,9 @@ network:
     - github
 imports:
   - shared/github-guard-policy.md
-  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@b7f12b67daa31a47c4caa3b5ee3851639edce709
+  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@ca993f50371e3fc138e672335bfc5879e60f3e98
     with:
+      copilot-github-token: ${{ secrets.GH_AW_REPO_MIND_LIGHT_TOKEN }}
       config:
         yaml: |
           slug: ${{ github.repository }}
@@ -50,14 +51,14 @@ tools:
 steps:
   - name: Fetch issues
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     run: |
       # Create output directory
       mkdir -p /tmp/gh-aw/issues-data
-      
+
       echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
-      
+
       # Fetch the last 100 open issues that don't have a parent issue
       # Using search filter to exclude issues that are already sub-issues
       gh issue list --repo "$GITHUB_REPOSITORY" \
@@ -110,7 +111,7 @@ experiments:
 
 ---
 
-{{#if experiments.prompt_style == "detailed"}}
+{{#if experiments.prompt_style == 'detailed'}}
 # Issue Arborist 🌳
 
 You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
