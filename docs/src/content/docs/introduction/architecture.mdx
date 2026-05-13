@@ -178,7 +178,7 @@ Thus, AWF separates two concerns:
 ```mermaid
 flowchart TB
     subgraph Agent["AI Agent Process"]
-        COPILOT["Copilot CLI"]
+        COPILOT["Agent CLI"]
         WEB["WebFetch Tool"]
         SEARCH["WebSearch Tool"]
     end
@@ -249,7 +249,7 @@ flowchart LR
     end
 
     subgraph AWFNet["AWF network namespace"]
-        AGENT["Agent container\nCopilot CLI + MCP client\n172.30.0.20"]
+        AGENT["Agent container\nAgent CLI + MCP client\n172.30.0.20"]
         PROXY["Squid proxy\n172.30.0.10"]
     end
 
