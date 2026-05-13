@@ -44,6 +44,7 @@ describe("emit_outcome_spans.cjs", () => {
   let currentSummary;
   /** @type {{ main: () => Promise<void> }} */
   let moduleUnderTest;
+  let spanCounter;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,13 +60,17 @@ describe("emit_outcome_spans.cjs", () => {
 
     currentAwInfo = null;
     currentSummary = null;
+    spanCounter = 0;
 
     mockGenerateTraceId.mockReturnValue("trace-generated-1234567890abcdef");
-    mockGenerateSpanId.mockReturnValueOnce("summary-span-id").mockReturnValueOnce("item-span-id-1").mockReturnValueOnce("item-span-id-2");
+    mockGenerateSpanId.mockImplementation(() => `span-id-${++spanCounter}`);
     mockBuildAttr.mockImplementation((key, value) => ({ key, value }));
     mockBuildOTLPSpan.mockImplementation(opts => ({ ...opts }));
     mockBuildOTLPBatchPayload.mockImplementation(opts => ({ payload: true, ...opts }));
-    mockBuildGitHubActionsResourceAttributes.mockImplementation(({ staged }) => [{ key: "deployment.environment", value: staged ? "staging" : "production" }]);
+    mockBuildGitHubActionsResourceAttributes.mockImplementation(({ repository, staged }) => [
+      { key: "github.repository", value: repository },
+      { key: "deployment.environment", value: staged ? "staging" : "production" },
+    ]);
     mockParseOTLPEndpoints.mockReturnValue([]);
     mockSendOTLPToAllEndpoints.mockResolvedValue(undefined);
     mockAppendToOTLPJSONL.mockReturnValue(undefined);
@@ -209,13 +214,17 @@ describe("emit_outcome_spans.cjs", () => {
       expect.objectContaining({
         serviceName: "gh-aw",
         scopeVersion: "v9.9.9",
-        resourceAttributes: [{ key: "deployment.environment", value: "staging" }],
+        resourceAttributes: [
+          { key: "github.repository", value: "github/gh-aw" },
+          { key: "deployment.environment", value: "staging" },
+        ],
       })
     );
 
     const { spans } = mockBuildOTLPBatchPayload.mock.calls[0][0];
+    const summarySpan = spans[0];
     expect(spans).toHaveLength(3);
-    expect(spans[0]).toEqual(
+    expect(summarySpan).toEqual(
       expect.objectContaining({
         spanName: "gh-aw.outcome.summary",
         parentSpanId: "cafebabecafebabe",
@@ -225,20 +234,20 @@ describe("emit_outcome_spans.cjs", () => {
     expect(spans[1]).toEqual(
       expect.objectContaining({
         spanName: "gh-aw.outcome.evaluation",
-        parentSpanId: "summary-span-id",
+        parentSpanId: summarySpan.spanId,
         statusCode: 1,
       })
     );
     expect(spans[2]).toEqual(
       expect.objectContaining({
         spanName: "gh-aw.outcome.evaluation",
-        parentSpanId: "summary-span-id",
+        parentSpanId: summarySpan.spanId,
         statusCode: 2,
       })
     );
 
-    expect(spans[0].attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
-    expect(spans[0].attributes).toContainEqual({ key: "gh-aw.outcome.date", value: "2026-05-13" });
+    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
+    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.date", value: "2026-05-13" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.url", value: "https://github.com/github/gh-aw/issues/1" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.detail", value: "created item" });
