@@ -332,7 +332,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	}
 
 	// Ensure the target directory exists
-	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
+	if err := os.MkdirAll(githubWorkflowsDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create workflow directory %s: %w", githubWorkflowsDir, err)
 	}
 
@@ -498,7 +498,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	}
 
 	// Write the file
-	if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(destFile, []byte(content), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 	}
 	// Read back the just-written file to ensure downstream processing (including

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -367,11 +368,11 @@ func ensureGHESRepoConfig(verbose bool) (bool, error) {
 	data = append(data, '\n')
 
 	// Ensure the parent directory exists.
-	if mkdirErr := os.MkdirAll(filepath.Dir(configPath), 0755); mkdirErr != nil {
+	if mkdirErr := os.MkdirAll(filepath.Dir(configPath), constants.DirPermPublic); mkdirErr != nil {
 		return false, fmt.Errorf("failed to create directory for %s: %w", workflow.RepoConfigFileName, mkdirErr)
 	}
 
-	if writeErr := os.WriteFile(configPath, data, 0644); writeErr != nil {
+	if writeErr := os.WriteFile(configPath, data, constants.FilePermPublic); writeErr != nil {
 		return false, fmt.Errorf("failed to write %s: %w", workflow.RepoConfigFileName, writeErr)
 	}
 

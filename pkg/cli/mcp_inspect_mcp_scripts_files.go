@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 
@@ -15,7 +16,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 
 	// Create logs directory
 	logsDir := filepath.Join(dir, "logs")
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
+	if err := os.MkdirAll(logsDir, constants.DirPermPublic); err != nil {
 		errMsg := fmt.Sprintf("failed to create logs directory: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to create logs directory: %w", err)
@@ -39,7 +40,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 
 	for _, jsFile := range jsFiles {
 		filePath := filepath.Join(dir, jsFile.name)
-		if err := os.WriteFile(filePath, []byte(jsFile.content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(jsFile.content), constants.FilePermPublic); err != nil {
 			errMsg := fmt.Sprintf("failed to write %s: %v", jsFile.name, err)
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 			return fmt.Errorf("failed to write %s: %w", jsFile.name, err)
@@ -52,7 +53,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 	// Generate and write tools.json
 	toolsJSON := workflow.GenerateMCPScriptsToolsConfig(mcpScriptsConfig)
 	toolsPath := filepath.Join(dir, "tools.json")
-	if err := os.WriteFile(toolsPath, []byte(toolsJSON), 0644); err != nil {
+	if err := os.WriteFile(toolsPath, []byte(toolsJSON), constants.FilePermPublic); err != nil {
 		errMsg := fmt.Sprintf("failed to write tools.json: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to write tools.json: %w", err)
@@ -64,7 +65,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 	// Generate and write mcp-server.cjs entry point
 	mcpServerScript := workflow.GenerateMCPScriptsMCPServerScript(mcpScriptsConfig)
 	mcpServerPath := filepath.Join(dir, "mcp-server.cjs")
-	if err := os.WriteFile(mcpServerPath, []byte(mcpServerScript), 0755); err != nil {
+	if err := os.WriteFile(mcpServerPath, []byte(mcpServerScript), constants.FilePermExecutable); err != nil {
 		errMsg := fmt.Sprintf("failed to write mcp-server.cjs: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to write mcp-server.cjs: %w", err)
@@ -92,9 +93,9 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 		}
 
 		toolPath := filepath.Join(dir, toolName+extension)
-		mode := os.FileMode(0644)
+		mode := os.FileMode(constants.FilePermPublic)
 		if extension == ".sh" || extension == ".py" {
-			mode = 0755
+			mode = constants.FilePermExecutable
 		}
 		if err := os.WriteFile(toolPath, []byte(content), mode); err != nil {
 			errMsg := fmt.Sprintf("failed to write tool %s: %v", toolName, err)

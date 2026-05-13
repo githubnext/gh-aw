@@ -370,7 +370,7 @@ func writeWorkflowToTrialDir(tempDir string, workflowName string, content []byte
 	if err != nil {
 		return nil, fmt.Errorf("invalid workflows directory path: %w", err)
 	}
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+	if err := os.MkdirAll(workflowsDir, constants.DirPermPublic); err != nil {
 		return nil, fmt.Errorf("failed to create workflows directory: %w", err)
 	}
 
@@ -392,7 +392,7 @@ func writeWorkflowToTrialDir(tempDir string, workflowName string, content []byte
 	}
 
 	// Write the content to the destination
-	if err := os.WriteFile(destPath, content, 0644); err != nil {
+	if err := os.WriteFile(destPath, content, constants.FilePermPublic); err != nil {
 		return nil, fmt.Errorf("failed to write workflow to destination: %w", err)
 	}
 
@@ -458,7 +458,7 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 	}
 
 	// Write the modified content back
-	if err := os.WriteFile(workflowPath, []byte(modifiedContent), 0644); err != nil {
+	if err := os.WriteFile(workflowPath, []byte(modifiedContent), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write modified workflow: %w", err)
 	}
 

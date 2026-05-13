@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -466,7 +467,7 @@ func writeSummaryFile(path string, data LogsData, verbose bool) error {
 
 	// Create parent directory if it doesn't exist
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create directory for summary file: %w", err)
 	}
 
@@ -477,7 +478,7 @@ func writeSummaryFile(path string, data LogsData, verbose bool) error {
 	}
 
 	// Write to file
-	if err := os.WriteFile(path, jsonData, 0644); err != nil {
+	if err := os.WriteFile(path, jsonData, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write summary file: %w", err)
 	}
 

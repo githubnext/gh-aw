@@ -11,6 +11,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -215,7 +216,7 @@ originalMain();
 
 	// Write the Node.js script
 	nodeFile := filepath.Join(tempDir, "parser.js")
-	if err := os.WriteFile(nodeFile, []byte(nodeScript), 0644); err != nil {
+	if err := os.WriteFile(nodeFile, []byte(nodeScript), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write node script: %w", err)
 	}
 
@@ -231,7 +232,7 @@ originalMain();
 
 	// Write the output to firewall.md in the run directory
 	firewallMdPath := filepath.Join(runDir, "firewall.md")
-	if err := os.WriteFile(firewallMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
+	if err := os.WriteFile(firewallMdPath, []byte(strings.TrimSpace(string(output))), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write firewall.md: %w", err)
 	}
 

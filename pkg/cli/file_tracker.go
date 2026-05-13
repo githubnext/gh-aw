@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -160,7 +161,7 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 		// Restore original content if we have it
 		if originalContent, exists := ft.OriginalContent[file]; exists {
 			// Use owner-only read/write permissions (0600) for security best practices
-			if err := os.WriteFile(file, originalContent, 0600); err != nil {
+			if err := os.WriteFile(file, originalContent, constants.FilePermSensitive); err != nil {
 				errors = append(errors, fmt.Sprintf("failed to restore %s: %v", file, err))
 			}
 		} else {

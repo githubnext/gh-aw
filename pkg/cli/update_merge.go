@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -152,13 +153,13 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 	currentFile := filepath.Join(tmpDir, "current.md")
 	newFile := filepath.Join(tmpDir, "new.md")
 
-	if err := os.WriteFile(baseFile, []byte(baseNormalized), 0644); err != nil {
+	if err := os.WriteFile(baseFile, []byte(baseNormalized), constants.FilePermPublic); err != nil {
 		return "", false, fmt.Errorf("failed to write base file: %w", err)
 	}
-	if err := os.WriteFile(currentFile, []byte(currentNormalized), 0644); err != nil {
+	if err := os.WriteFile(currentFile, []byte(currentNormalized), constants.FilePermPublic); err != nil {
 		return "", false, fmt.Errorf("failed to write current file: %w", err)
 	}
-	if err := os.WriteFile(newFile, []byte(newNormalized), 0644); err != nil {
+	if err := os.WriteFile(newFile, []byte(newNormalized), constants.FilePermPublic); err != nil {
 		return "", false, fmt.Errorf("failed to write new file: %w", err)
 	}
 

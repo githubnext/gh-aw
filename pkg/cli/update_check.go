@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,7 +126,7 @@ func getLastCheckFilePathFor(fileName string) string {
 
 	// Create a gh-aw subdirectory in temp
 	ghAwTmpDir := filepath.Join(tmpDir, "gh-aw")
-	if err := os.MkdirAll(ghAwTmpDir, 0755); err != nil {
+	if err := os.MkdirAll(ghAwTmpDir, constants.DirPermPublic); err != nil {
 		updateCheckLog.Printf("Error creating gh-aw temp directory: %v", err)
 		return ""
 	}
@@ -141,7 +142,7 @@ func updateLastCheckTime() {
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	if err := os.WriteFile(lastCheckFile, []byte(timestamp), 0644); err != nil {
+	if err := os.WriteFile(lastCheckFile, []byte(timestamp), constants.FilePermPublic); err != nil {
 		updateCheckLog.Printf("Error writing last check time: %v", err)
 	}
 }

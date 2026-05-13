@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"regexp"
 	"strings"
@@ -54,7 +55,7 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 	}
 
 	// Write the updated content back to the file
-	if err := os.WriteFile(workflowPath, []byte(updatedContent), 0644); err != nil {
+	if err := os.WriteFile(workflowPath, []byte(updatedContent), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write updated workflow file: %w", err)
 	}
 
