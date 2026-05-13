@@ -47,6 +47,35 @@ function looksLikeMissingRemoteBranchError(value) {
 }
 
 /**
+ * @param {unknown} rawAwContext
+ * @returns {{ item_type?: unknown, item_number?: unknown } | null}
+ */
+function parseAwContext(rawAwContext) {
+  if (rawAwContext == null) {
+    return null;
+  }
+  if (typeof rawAwContext === "string") {
+    const trimmed = rawAwContext.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (typeof rawAwContext === "object" && !Array.isArray(rawAwContext)) {
+    return rawAwContext;
+  }
+  return null;
+}
+
+/**
  * Main handler factory for push_to_pull_request_branch
  * Returns a message handler function that processes individual push_to_pull_request_branch messages
  * @type {HandlerFactoryFunction}
@@ -316,6 +345,15 @@ async function main(config = {}) {
     let pullNumber;
     if (target === "triggering") {
       pullNumber = typeof context !== "undefined" ? context.payload?.pull_request?.number || context.payload?.issue?.number : undefined;
+      if (!pullNumber) {
+        const awContext = typeof context !== "undefined" ? parseAwContext(context.payload?.inputs?.aw_context) : null;
+        const awItemType = typeof awContext?.item_type === "string" ? awContext.item_type.trim() : "";
+        const awItemNumber = typeof awContext?.item_number === "string" || typeof awContext?.item_number === "number" ? Number.parseInt(String(awContext.item_number), 10) : NaN;
+        if (awItemType === "pull_request" && Number.isInteger(awItemNumber) && awItemNumber > 0) {
+          pullNumber = awItemNumber;
+          core.info(`Resolved triggering pull request number '${pullNumber}' from aw_context.`);
+        }
+      }
 
       if (!pullNumber) {
         return { success: false, error: 'push-to-pull-request-branch with target "triggering" requires pull request context' };

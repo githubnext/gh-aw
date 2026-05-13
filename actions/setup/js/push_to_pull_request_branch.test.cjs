@@ -396,6 +396,33 @@ index 0000000..abc1234
         pull_number: 789,
       });
     });
+
+    it('should resolve target "triggering" from workflow_dispatch aw_context pull_request metadata', async () => {
+      mockContext.eventName = "workflow_dispatch";
+      delete mockContext.payload.pull_request;
+      delete mockContext.payload.issue;
+      mockContext.payload.inputs = {
+        aw_context: JSON.stringify({
+          item_type: "pull_request",
+          item_number: "456",
+          trigger_label: "necromancer",
+        }),
+      };
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ target: "triggering" });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        pull_number: 456,
+      });
+    });
   });
 
   // ──────────────────────────────────────────────────────
