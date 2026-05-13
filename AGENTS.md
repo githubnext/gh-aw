@@ -68,8 +68,10 @@ make build && make fmt   # Catch compile errors and formatting issues early
 **🚨 DO NOT call `report_progress` (which creates/updates the PR) until this passes:**
 
 ```bash
-make agent-report-progress  # build + fmt + test-unit (<30s) — fast pre-PR gate
+make agent-report-progress  # build + fmt + lint + test-unit — fast pre-PR gate
 ```
+
+Then verify the lint phase reported zero errors before calling `report_progress`.
 
 When more time is available, prefer the full suite:
 
@@ -86,7 +88,7 @@ make agent-finish  # Runs build, test, recompile, fmt, lint (full validation)
 
 **If you're in a hurry** and `make agent-finish` takes too long, use the dedicated fast gate:
 ```bash
-make agent-report-progress   # build + fmt + test-unit (~30s)
+make agent-report-progress   # build + fmt + lint + test-unit
 ```
 
 **After making Go code changes (*.go files):**
@@ -1161,7 +1163,7 @@ Use the mcpscripts-make tool with args: "build"     ← may fail with context ca
 Use the mcpscripts-go tool with args: "test ./..."  ← may fail with context canceled
 ```
 
-**Additional rule**: Follow the **two-checkpoint validation strategy** (see Critical Requirements): run `make build && make fmt` after the first major code edit (Checkpoint 1), and run `make agent-report-progress` before every `report_progress` call (Checkpoint 2). Both checkpoints must use direct `bash` commands, not MCP tools.
+**Additional rule**: Follow the **two-checkpoint validation strategy** (see Critical Requirements): run `make build && make fmt` after the first major code edit (Checkpoint 1), and run `make agent-report-progress` (with zero lint errors) before every `report_progress` call (Checkpoint 2). Both checkpoints must use direct `bash` commands, not MCP tools.
 
 **When `mcpscripts-*` tools are safe to use:**
 - Early in a session, before any long exploration phase
@@ -1237,9 +1239,10 @@ Use **report_progress** to commit, push, and update the PR. Never leave changes 
 2. ✅ Fix any compile errors or formatting issues before proceeding
 
 **Checkpoint 2** — Before every `report_progress` call (creates/updates PR):
-1. ✅ Run `make agent-report-progress` (build + fmt + test-unit, <30s)
+1. ✅ Run `make agent-report-progress` (build + fmt + lint + test-unit)
 2. ✅ Verify no errors from the above command
-3. ✅ Only then call `report_progress`
+3. ✅ Confirm lint reported zero errors
+4. ✅ Only then call `report_progress`
 
 **This is NOT optional** — PRs that fail CI immediately after opening are closed without merging, wasting the entire agent session.
 

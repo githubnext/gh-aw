@@ -1647,7 +1647,7 @@ oh-my-opencode and GitHub Agentic Workflows represent two complementary approach
 - Rapid local development (oh-my-opencode)
 - Safe CI/CD automation (gh-aw)
 - Clear separation of concerns
-- Best tool for each job
+- Tool selection driven by use case rather than overlap
 
 The future likely involves both approaches: developers using AI agents locally for implementation, and teams using automated workflows for integration, security, and coordination.
 
