@@ -16,6 +16,14 @@ import (
 func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "central-slash-workflow-test")
 	t.Setenv("GH_AW_ACTION_MODE", "dev")
+	originalVersion := compilerVersion
+	originalIsRelease := isReleaseBuild
+	t.Cleanup(func() {
+		compilerVersion = originalVersion
+		isReleaseBuild = originalIsRelease
+	})
+	SetVersion("c610c2a")
+	SetIsRelease(false)
 
 	data := []*WorkflowData{
 		{
@@ -52,7 +60,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(metadataJSON), &metadata))
 	require.Equal(t, "v1", metadata.PayloadVersion)
 	require.Equal(t, "v1", metadata.SchemaVersion)
-	require.NotEmpty(t, metadata.Compiler)
+	require.Equal(t, "dev", metadata.Compiler)
 	require.Equal(t, []string{"cloclo", "triage"}, metadata.Commands)
 	require.Equal(t, []string{"cloclo", "triage-issue", "triage-pr"}, metadata.Workflows)
 
@@ -182,6 +190,31 @@ func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	require.Contains(t, string(content), "runs-on: self-hosted")
+}
+
+func TestBuildCommandsHeaderMetadata_UsesReleaseVersionOnlyForReleaseBuilds(t *testing.T) {
+	originalVersion := compilerVersion
+	originalIsRelease := isReleaseBuild
+	t.Cleanup(func() {
+		compilerVersion = originalVersion
+		isReleaseBuild = originalIsRelease
+	})
+
+	routesByCommand := map[string][]slashCommandRoute{
+		"triage": {
+			{Workflow: "triage-issue", Events: []string{"issues"}},
+		},
+	}
+
+	SetVersion("abc1234")
+	SetIsRelease(false)
+	metadata := buildCommandsHeaderMetadata(routesByCommand)
+	require.Equal(t, "dev", metadata.Compiler)
+
+	SetVersion("v1.2.3")
+	SetIsRelease(true)
+	metadata = buildCommandsHeaderMetadata(routesByCommand)
+	require.Equal(t, "v1.2.3", metadata.Compiler)
 }
 
 func typeSetKeys(typeSet map[string]bool) []string {

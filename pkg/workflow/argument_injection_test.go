@@ -6,6 +6,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -265,25 +266,25 @@ func TestValidateNpmPackageName(t *testing.T) {
 			name:        "name starting with hyphen is rejected",
 			pkg:         "--registry=https://attacker.example",
 			expectError: true,
-			errContains: "invalid npm package name",
+			errContains: "npm names must be lowercase alphanumeric and may include hyphens, dots, and underscores (e.g. \"my-package\" or \"@scope/name\")",
 		},
 		{
 			name:        "name with equals sign is rejected",
 			pkg:         "pkg=https://attacker.example",
 			expectError: true,
-			errContains: "invalid npm package name",
+			errContains: "npm names must be lowercase alphanumeric and may include hyphens, dots, and underscores (e.g. \"my-package\" or \"@scope/name\")",
 		},
 		{
 			name:        "name with spaces is rejected",
 			pkg:         "my package",
 			expectError: true,
-			errContains: "invalid npm package name",
+			errContains: "npm names must be lowercase alphanumeric and may include hyphens, dots, and underscores (e.g. \"my-package\" or \"@scope/name\")",
 		},
 		{
 			name:        "uppercase name is rejected",
 			pkg:         "MyPackage",
 			expectError: true,
-			errContains: "invalid npm package name",
+			errContains: "npm names must be lowercase alphanumeric and may include hyphens, dots, and underscores (e.g. \"my-package\" or \"@scope/name\")",
 		},
 	}
 
@@ -294,6 +295,10 @@ func TestValidateNpmPackageName(t *testing.T) {
 				if err == nil {
 					t.Errorf("expected error for package %q but got none", tt.pkg)
 					return
+				}
+				expectedPrefix := fmt.Sprintf("invalid npm package name: %q", tt.pkg)
+				if !strings.Contains(err.Error(), expectedPrefix) {
+					t.Errorf("expected error to contain %q, got: %v", expectedPrefix, err)
 				}
 				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got: %v", tt.errContains, err)
@@ -351,19 +356,19 @@ func TestValidatePipPackageName(t *testing.T) {
 			name:        "name starting with hyphen is rejected",
 			pkg:         "--index-url=https://attacker.example",
 			expectError: true,
-			errContains: "invalid pip package name",
+			errContains: "PyPI names must start and end with a letter or digit, with hyphens, underscores, or dots allowed inside (e.g. \"requests\" or \"my-package\")",
 		},
 		{
 			name:        "name with equals sign is rejected",
 			pkg:         "pkg=https://attacker.example",
 			expectError: true,
-			errContains: "invalid pip package name",
+			errContains: "PyPI names must start and end with a letter or digit, with hyphens, underscores, or dots allowed inside (e.g. \"requests\" or \"my-package\")",
 		},
 		{
 			name:        "name with spaces is rejected",
 			pkg:         "my package",
 			expectError: true,
-			errContains: "invalid pip package name",
+			errContains: "PyPI names must start and end with a letter or digit, with hyphens, underscores, or dots allowed inside (e.g. \"requests\" or \"my-package\")",
 		},
 	}
 
@@ -374,6 +379,10 @@ func TestValidatePipPackageName(t *testing.T) {
 				if err == nil {
 					t.Errorf("expected error for package %q but got none", tt.pkg)
 					return
+				}
+				expectedPrefix := fmt.Sprintf("invalid pip package name: %q", tt.pkg)
+				if !strings.Contains(err.Error(), expectedPrefix) {
+					t.Errorf("expected error to contain %q, got: %v", expectedPrefix, err)
 				}
 				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got: %v", tt.errContains, err)

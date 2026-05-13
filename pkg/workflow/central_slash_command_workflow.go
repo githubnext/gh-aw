@@ -208,10 +208,14 @@ func buildCommandsHeaderMetadata(routesByCommand map[string][]slashCommandRoute)
 		workflows = append(workflows, workflowID)
 	}
 	sort.Strings(workflows)
+	metadataCompilerVersion := "dev"
+	if IsRelease() && strings.TrimSpace(GetVersion()) != "" {
+		metadataCompilerVersion = GetVersion()
+	}
 	return commandsHeaderMetadata{
 		PayloadVersion: "v1",
 		SchemaVersion:  "v1",
-		Compiler:       GetVersion(),
+		Compiler:       metadataCompilerVersion,
 		Commands:       commands,
 		Workflows:      workflows,
 	}

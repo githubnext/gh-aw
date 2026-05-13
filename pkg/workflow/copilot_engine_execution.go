@@ -297,9 +297,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			preCommandSetup = customCommandScriptSetup + "\n" + preCommandSetup
 		}
 		command = fmt.Sprintf(`set -o pipefail
+printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
 	}
 
 	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
