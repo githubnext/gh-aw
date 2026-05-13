@@ -45,20 +45,36 @@ const sendOtlpSpan = require("./send_otlp_span.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
 
 /**
+ * Build the OTLP span name from an optional job name.
+ * @param {string | undefined} jobName
+ * @returns {string}
+ */
+function buildSpanName(jobName) {
+  return jobName ? `gh-aw.${jobName}.conclusion` : "gh-aw.job.conclusion";
+}
+
+/**
+ * Parse a positive finite epoch-ms value from an env var string.
+ * Returns undefined when the string is absent, non-numeric, zero, or negative.
+ * @param {string | undefined} raw
+ * @returns {number | undefined}
+ */
+function parseJobStartMs(raw) {
+  const ms = Number(raw);
+  return Number.isFinite(ms) && ms > 0 ? ms : undefined;
+}
+
+/**
  * Send the OTLP job-conclusion span.  Non-fatal: all errors are silently
  * swallowed.
  * @returns {Promise<void>}
  */
 async function run() {
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
-
-  const jobName = getActionInput("JOB_NAME");
-  const spanName = jobName ? `gh-aw.${jobName}.conclusion` : "gh-aw.job.conclusion";
-
-  // Read the job-start timestamp written by action_setup_otlp so the conclusion
-  // span duration covers the actual job execution window, not just this step's overhead.
-  const jobStartMs = Number(process.env.GITHUB_AW_OTEL_JOB_START_MS);
-  const startMs = Number.isFinite(jobStartMs) && jobStartMs > 0 ? jobStartMs : undefined;
+  const spanName = buildSpanName(getActionInput("JOB_NAME"));
+  // Use the job-start timestamp set by action_setup_otlp so the conclusion span
+  // duration covers the actual job execution window, not just this step's overhead.
+  const startMs = parseJobStartMs(process.env.GITHUB_AW_OTEL_JOB_START_MS);
 
   if (endpoints) {
     console.log(`[otlp] sending conclusion span "${spanName}" to configured endpoints`);
@@ -73,7 +89,7 @@ async function run() {
   }
 }
 
-module.exports = { run };
+module.exports = { run, buildSpanName, parseJobStartMs };
 
 // When invoked directly (node action_conclusion_otlp.cjs) from clean.sh,
 // run immediately.  Non-fatal: errors are silently swallowed.

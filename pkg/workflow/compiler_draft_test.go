@@ -229,6 +229,18 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			description: "Should comment out draft but keep paths",
 		},
 		{
+			name: "pull_request with two-space indentation",
+			input: `on:
+  pull_request:
+    draft: false
+  workflow_dispatch:`,
+			expected: `on:
+  pull_request:
+    # draft: false # Draft filtering applied via job conditions
+  workflow_dispatch:`,
+			description: "Should comment out draft with two-space indentation style",
+		},
+		{
 			name: "pull_request with draft and types",
 			input: `on:
     pull_request:
@@ -299,6 +311,60 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
         types:
             - opened`,
 			description: "Should leave unchanged when no draft field in pull_request",
+		},
+		{
+			name: "issues names after pull_request forks array",
+			input: `on:
+  pull_request:
+    forks:
+      - trusted/*
+  issues:
+    names:
+      - bug
+  workflow_dispatch:`,
+			expected: `on:
+  pull_request:
+    # forks: # Fork filtering applied via job conditions
+      # - trusted/* # Fork filtering applied via job conditions
+  issues:
+    # names: # Label filtering applied via job conditions
+      # - bug # Label filtering applied via job conditions
+  workflow_dispatch:`,
+			description: "Should reset forks array tracker when entering a new event section",
+		},
+		{
+			name: "issues names after workflow_run conclusion array",
+			input: `on:
+  workflow_run:
+    conclusion:
+      - failure
+  issues:
+    names:
+      - bug
+  workflow_dispatch:`,
+			expected: `on:
+  workflow_run:
+    # conclusion: # Conclusion filtering compiled into if condition
+      # - failure # Conclusion filtering compiled into if condition
+  issues:
+    # names: # Label filtering applied via job conditions
+      # - bug # Label filtering applied via job conditions
+  workflow_dispatch:`,
+			description: "Should reset workflow_run conclusion tracker when entering a new event section",
+		},
+		{
+			name: "issues with two-space indentation names",
+			input: `on:
+  issues:
+    names:
+      - bug
+  workflow_dispatch:`,
+			expected: `on:
+  issues:
+    # names: # Label filtering applied via job conditions
+      # - bug # Label filtering applied via job conditions
+  workflow_dispatch:`,
+			description: "Should comment out names in issues section with two-space indentation style",
 		},
 	}
 

@@ -149,6 +149,40 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inOnSteps := false
 	inOnPermissions := false
 	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
+	currentSectionIndent := -1
+	deploymentStatusIndent := -1
+	workflowRunIndent := -1
+	// activateEventSection resets all event-section flags and then activates the selected section.
+	activateEventSection := func(section string, indent int) {
+		inPullRequest = section == "pull_request"
+		inIssues = section == "issues"
+		inDiscussion = section == "discussion"
+		inIssueComment = section == "issue_comment"
+		inDeploymentStatus = section == "deployment_status"
+		inWorkflowRun = section == "workflow_run"
+		inWorkflowRunConclusionArray = false
+		inForksArray = false
+
+		switch section {
+		case "pull_request", "issues", "discussion", "issue_comment":
+			currentSection = section
+			currentSectionIndent = indent
+		default:
+			currentSection = ""
+			currentSectionIndent = -1
+		}
+
+		if section == "deployment_status" {
+			deploymentStatusIndent = indent
+		} else {
+			deploymentStatusIndent = -1
+		}
+		if section == "workflow_run" {
+			workflowRunIndent = indent
+		} else {
+			workflowRunIndent = -1
+		}
+	}
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -160,73 +194,33 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// `issues:` event trigger, incorrectly entering the inIssues state and suppressing
 		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
-			if lineIndent == 2 && trimmedLine == "pull_request:" {
-				inPullRequest = true
-				inIssues = false
-				inDiscussion = false
-				inIssueComment = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "pull_request"
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "pull_request:" {
+				activateEventSection("pull_request", lineIndent)
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "issues:" {
-				inIssues = true
-				inPullRequest = false
-				inDiscussion = false
-				inIssueComment = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "issues"
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issues:" {
+				activateEventSection("issues", lineIndent)
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "discussion:" {
-				inDiscussion = true
-				inPullRequest = false
-				inIssues = false
-				inIssueComment = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "discussion"
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "discussion:" {
+				activateEventSection("discussion", lineIndent)
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "issue_comment:" {
-				inIssueComment = true
-				inPullRequest = false
-				inIssues = false
-				inDiscussion = false
-				inDeploymentStatus = false
-				inWorkflowRun = false
-				inWorkflowRunConclusionArray = false
-				currentSection = "issue_comment"
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issue_comment:" {
+				activateEventSection("issue_comment", lineIndent)
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "deployment_status:" {
-				inDeploymentStatus = true
-				inWorkflowRun = false
-				inPullRequest = false
-				inIssues = false
-				inDiscussion = false
-				inIssueComment = false
-				currentSection = ""
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "deployment_status:" {
+				activateEventSection("deployment_status", lineIndent)
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "workflow_run:" {
-				inWorkflowRun = true
-				inDeploymentStatus = false
-				inPullRequest = false
-				inIssues = false
-				inDiscussion = false
-				inIssueComment = false
-				currentSection = ""
+			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "workflow_run:" {
+				activateEventSection("workflow_run", lineIndent)
 				result = append(result, line)
 				continue
 			}
@@ -234,26 +228,32 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 
 		// Check if we're leaving the pull_request, issues, discussion, or issue_comment section (new top-level key or end of indent)
 		if inPullRequest || inIssues || inDiscussion || inIssueComment {
-			// If line is not indented or is a new top-level key, we're out of the section
-			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+			// If line is at or above section indentation, we're out of the section.
+			if strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
+				currentSectionIndent >= 0 && lineIndent <= currentSectionIndent {
 				inPullRequest = false
 				inIssues = false
 				inDiscussion = false
 				inIssueComment = false
 				inForksArray = false
 				currentSection = ""
+				currentSectionIndent = -1
 			}
 		}
 
 		// Check if we're leaving the deployment_status section
-		if inDeploymentStatus && strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+		if inDeploymentStatus && strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
+			deploymentStatusIndent >= 0 && lineIndent <= deploymentStatusIndent {
 			inDeploymentStatus = false
+			deploymentStatusIndent = -1
 		}
 
 		// Check if we're leaving the workflow_run section
-		if inWorkflowRun && strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+		if inWorkflowRun && strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
+			workflowRunIndent >= 0 && lineIndent <= workflowRunIndent {
 			inWorkflowRun = false
 			inWorkflowRunConclusionArray = false
+			workflowRunIndent = -1
 		}
 
 		// Skip marker lines in the YAML output

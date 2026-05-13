@@ -23,10 +23,10 @@
       },
       "action_description": "Add labels to an issue or a pull request."
     },
-    "actions/ai-inference@v2.0.8": {
+    "actions/ai-inference@v2.1.0": {
       "repo": "actions/ai-inference",
-      "version": "v2.0.8",
-      "sha": "af6ad2c4ac4edf01884054fc3a6caa6d2567c13a"
+      "version": "v2.1.0",
+      "sha": "17ff458cb182449bbb2e43701fcd98f6af8f6570"
     },
     "actions/attest-build-provenance@v4.1.0": {
       "repo": "actions/attest-build-provenance",
@@ -58,10 +58,10 @@
       "version": "v6.0.2",
       "sha": "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
     },
-    "actions/create-github-app-token@v3.1.1": {
+    "actions/create-github-app-token@v3.2.0": {
       "repo": "actions/create-github-app-token",
-      "version": "v3.1.1",
-      "sha": "1b10c78c7865c340bc4f6099eb2f838309f1e8c3"
+      "version": "v3.2.0",
+      "sha": "bcd2ba49218906704ab6c1aa796996da409d3eb1"
     },
     "actions/download-artifact@v8.0.1": {
       "repo": "actions/download-artifact",
@@ -158,41 +158,35 @@
       "version": "v4.35.4",
       "sha": "68bde559dea0fdcac2102bfdf6230c5f70eb485e"
     },
+    "github/stale-repos@v9.0.11": {
+      "repo": "github/stale-repos",
+      "version": "v9.0.11",
+      "sha": "56718cc2bafc8c0fc5fd66751e0b32a33ed36c22"
+    },
     "github/stale-repos@v9.0.8": {
       "repo": "github/stale-repos",
       "version": "v9.0.8",
       "sha": "5f2e18fc5432823f96c1feb69327f665c2acab59"
-    },
-    "github/stale-repos@v9.0.9": {
-      "repo": "github/stale-repos",
-      "version": "v9.0.9",
-      "sha": "7a69b364e2f8b1fed65af73b418aa6475782ca53"
     },
     "haskell-actions/setup@v2.11.0": {
       "repo": "haskell-actions/setup",
       "version": "v2.11.0",
       "sha": "cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553"
     },
-    "microsoft/apm-action@v1.6.0": {
+    "microsoft/apm-action@v1.7.3": {
       "repo": "microsoft/apm-action",
-      "version": "v1.6.0",
-      "sha": "275e67418e97c26025852c7e91730cf4c11baf30"
-    },
-    "microsoft/apm-action@v1.7.2": {
-      "repo": "microsoft/apm-action",
-      "version": "v1.7.2",
-      "sha": "",
-      "released_at": "2026-05-07T11:38:31Z"
+      "version": "v1.7.3",
+      "sha": "a7806d88ce4e4fd0e86b907570fcd94ad25d0c82"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.2.0",
       "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
     },
-    "ruby/setup-ruby@v1.306.0": {
+    "ruby/setup-ruby@v1.307.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.306.0",
-      "sha": "c4e5b1316158f92e3d49443a9d58b31d25ac0f8f"
+      "version": "v1.307.0",
+      "sha": "6aaa311d81eba98ae12eaffbcb63296ace0efcde"
     },
     "super-linter/super-linter@v8.6.0": {
       "repo": "super-linter/super-linter",

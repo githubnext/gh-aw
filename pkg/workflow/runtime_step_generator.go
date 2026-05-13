@@ -68,6 +68,8 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 			"          gh extension remove gh-aw || true",
 			"          gh extension install .",
 			"          gh aw version",
+			"        env:",
+			"          GH_TOKEN: ${{ github.token }}",
 		)
 		return step
 	}

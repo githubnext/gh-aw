@@ -300,6 +300,17 @@ func TestGetAllGitHubAppOnlyScopes(t *testing.T) {
 	}
 }
 
+func TestConvertStringToPermissionScope_RoundTrip(t *testing.T) {
+	allScopes := append(GetAllPermissionScopes(), GetAllGitHubAppOnlyScopes()...)
+	for _, scope := range allScopes {
+		key := string(scope)
+		got := convertStringToPermissionScope(key)
+		if got != scope {
+			t.Errorf("convertStringToPermissionScope(%q) = %q, want %q", key, got, scope)
+		}
+	}
+}
+
 func TestGitHubAppOnlyPermissionsRenderToYAML(t *testing.T) {
 	tests := []struct {
 		name          string

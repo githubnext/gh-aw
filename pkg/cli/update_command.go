@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -84,7 +83,23 @@ Examples:
 				}
 			}
 
-			if err := RunUpdateWorkflows(cmd.Context(), args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump, noCompile, noRedirect, coolDown); err != nil {
+			opts := UpdateWorkflowsOptions{
+				WorkflowNames:      args,
+				AllowMajor:         majorFlag,
+				Force:              forceFlag,
+				Verbose:            verbose,
+				EngineOverride:     engineOverride,
+				WorkflowsDir:       workflowDir,
+				NoStopAfter:        noStopAfter,
+				StopAfter:          stopAfter,
+				NoMerge:            noMergeFlag,
+				DisableReleaseBump: disableReleaseBump,
+				NoCompile:          noCompile,
+				NoRedirect:         noRedirect,
+				CoolDown:           coolDown,
+			}
+
+			if err := RunUpdateWorkflows(cmd.Context(), opts); err != nil {
 				return err
 			}
 
@@ -123,27 +138,27 @@ Examples:
 
 // RunUpdateWorkflows updates workflows from their source repositories.
 // Each workflow is compiled immediately after update.
-func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool, noCompile bool, noRedirect bool, coolDown time.Duration) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v", workflowNames, allowMajor, force, noMerge, disableReleaseBump, noCompile, noRedirect, coolDown)
+func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v", opts.WorkflowNames, opts.AllowMajor, opts.Force, opts.NoMerge, opts.DisableReleaseBump, opts.NoCompile, opts.NoRedirect, opts.CoolDown)
 
 	var firstErr error
 
-	if err := UpdateWorkflows(ctx, workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge, noCompile, noRedirect, coolDown); err != nil {
+	if err := UpdateWorkflows(ctx, opts); err != nil {
 		firstErr = fmt.Errorf("workflow update failed: %w", err)
 	}
 
 	// Update GitHub Actions versions in actions-lock.json.
 	// By default all actions are updated to the latest major version.
 	// Pass --disable-release-bump to revert to only forcing updates for core (actions/*) actions.
-	updateLog.Printf("Updating GitHub Actions versions in actions-lock.json: allowMajor=%v, disableReleaseBump=%v", allowMajor, disableReleaseBump)
-	if err := UpdateActions(ctx, allowMajor, verbose, disableReleaseBump, coolDown); err != nil {
+	updateLog.Printf("Updating GitHub Actions versions in actions-lock.json: allowMajor=%v, disableReleaseBump=%v", opts.AllowMajor, opts.DisableReleaseBump)
+	if err := UpdateActions(ctx, opts.AllowMajor, opts.Verbose, opts.DisableReleaseBump, opts.CoolDown); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
 	}
 
 	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
 	updateLog.Print("Updating container image digest pins")
-	if err := UpdateContainerPins(ctx, workflowsDir, verbose); err != nil {
+	if err := UpdateContainerPins(ctx, opts.WorkflowsDir, opts.Verbose); err != nil {
 		// Non-fatal: Docker may not be available in all environments.
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
 	}
@@ -151,7 +166,7 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
 	updateLog.Print("Updating action references in workflow .md files")
-	if err := UpdateActionsInWorkflowFiles(ctx, workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile, coolDown); err != nil {
+	if err := UpdateActionsInWorkflowFiles(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.DisableReleaseBump, opts.NoCompile, opts.CoolDown); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
 	}

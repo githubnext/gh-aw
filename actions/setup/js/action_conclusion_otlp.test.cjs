@@ -10,7 +10,7 @@ const sendOtlpModule = req("./send_otlp_span.cjs");
 const originalSendJobConclusionSpan = sendOtlpModule.sendJobConclusionSpan;
 
 // Load the module under test — it holds a reference to the same sendOtlpModule object
-const { run } = req("./action_conclusion_otlp.cjs");
+const { run, buildSpanName, parseJobStartMs } = req("./action_conclusion_otlp.cjs");
 
 // Shared mock function — patched onto the module exports in beforeEach
 const mockSendJobConclusionSpan = vi.fn();
@@ -186,5 +186,61 @@ describe("action_conclusion_otlp.cjs", () => {
       // run() propagates the error; callers swallow it via .catch(() => {})
       await expect(run()).rejects.toThrow("Network error");
     });
+  });
+});
+
+describe("buildSpanName", () => {
+  it("returns default span name when jobName is undefined", () => {
+    expect(buildSpanName(undefined)).toBe("gh-aw.job.conclusion");
+  });
+
+  it("returns default span name when jobName is empty string", () => {
+    expect(buildSpanName("")).toBe("gh-aw.job.conclusion");
+  });
+
+  it("returns namespaced span name when jobName is provided", () => {
+    expect(buildSpanName("agent")).toBe("gh-aw.agent.conclusion");
+  });
+
+  it("handles job names with hyphens", () => {
+    expect(buildSpanName("my-job")).toBe("gh-aw.my-job.conclusion");
+  });
+
+  it("handles job names with dots", () => {
+    expect(buildSpanName("setup.v2")).toBe("gh-aw.setup.v2.conclusion");
+  });
+});
+
+describe("parseJobStartMs", () => {
+  it("returns undefined when input is undefined", () => {
+    expect(parseJobStartMs(undefined)).toBeUndefined();
+  });
+
+  it("returns undefined when input is empty string", () => {
+    expect(parseJobStartMs("")).toBeUndefined();
+  });
+
+  it("returns undefined when input is '0'", () => {
+    expect(parseJobStartMs("0")).toBeUndefined();
+  });
+
+  it("returns undefined when input is negative", () => {
+    expect(parseJobStartMs("-1000")).toBeUndefined();
+  });
+
+  it("returns undefined when input is non-numeric", () => {
+    expect(parseJobStartMs("not-a-number")).toBeUndefined();
+  });
+
+  it("returns undefined when input is 'Infinity'", () => {
+    expect(parseJobStartMs("Infinity")).toBeUndefined();
+  });
+
+  it("returns the numeric value for a valid timestamp string", () => {
+    expect(parseJobStartMs("1700000000000")).toBe(1700000000000);
+  });
+
+  it("returns the numeric value for a small positive number", () => {
+    expect(parseJobStartMs("1")).toBe(1);
   });
 });

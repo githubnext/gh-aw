@@ -94,6 +94,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"features-byok-copilot-removal",
 		"features-inline-agents-removal",
 		"mount-as-clis-to-cli-proxy",
+		"bash-single-quoted-args-rewrite",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -145,6 +146,7 @@ func expectedCodemodOrder() []string {
 		"mcp-mode-to-type-migration",
 		"install-script-url-migration",
 		"bash-anonymous-removal",
+		"bash-single-quoted-args-rewrite",
 		"activation-outputs-to-sanitized-step",
 		"roles-to-on-roles",
 		"bots-to-on-bots",

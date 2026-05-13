@@ -104,6 +104,12 @@ function execGit(args, options = {}) {
       ...process.env,
       GIT_CONFIG_NOSYSTEM: "1",
       HOME: os.tmpdir(),
+      // Allow git commands to run inside bare repositories. git 2.36+ changed the
+      // default safe.bareRepository from "all" to "explicit", which prevents running
+      // commands in a bare repo unless --git-dir is set explicitly.
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "safe.bareRepository",
+      GIT_CONFIG_VALUE_0: "all",
     },
     ...options,
   });
@@ -740,7 +746,7 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("file mode handling", () => {
-    it("should fall back to git push and warn when commit contains a symlink", async () => {
+    it("should refuse unsigned push and not fall back to git push when commit contains a symlink", async () => {
       execGit(["checkout", "-b", "symlink-branch"], { cwd: workDir });
 
       // Create a regular file to serve as symlink target
@@ -758,27 +764,22 @@ describe("push_signed_commits integration tests", () => {
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "symlink-branch",
-        // Only replay the symlink commit
-        baseRef: "symlink-branch^",
-        cwd: workDir,
-      });
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "symlink-branch",
+          // Only replay the symlink commit
+          baseRef: "symlink-branch^",
+          cwd: workDir,
+        })
+      ).rejects.toThrow("refusing unsigned push for branch 'symlink-branch'");
 
-      // GraphQL should NOT have been called – symlink triggers fallback before mutation
+      // GraphQL should NOT have been called – symlink is detected pre-flight
       expect(githubClient.graphql).not.toHaveBeenCalled();
-      // Warning about symlink must be emitted
+      // Warning about symlink must be emitted (diagnostic log value preserved)
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("symlink link.txt cannot be pushed as a signed commit"));
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
-
-      // The commit should be present on the remote via git push fallback
-      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/symlink-branch"], { cwd: workDir });
-      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
-      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
-      expect(remoteOid).toBe(localOid);
     });
 
     it("should warn about executable bit loss but continue with GraphQL signed commit", async () => {
@@ -814,7 +815,7 @@ describe("push_signed_commits integration tests", () => {
       expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toContain("echo hello");
     });
 
-    it("should fall back to git push and warn when commit contains a submodule entry", async () => {
+    it("should refuse unsigned push and not fall back to git push when commit contains a submodule entry", async () => {
       execGit(["checkout", "-b", "submodule-branch"], { cwd: workDir });
 
       // Create a gitlink (mode 160000) entry directly via update-index so we don't
@@ -828,27 +829,22 @@ describe("push_signed_commits integration tests", () => {
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "submodule-branch",
-        // Only replay the submodule commit
-        baseRef: "submodule-branch^",
-        cwd: workDir,
-      });
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "submodule-branch",
+          // Only replay the submodule commit
+          baseRef: "submodule-branch^",
+          cwd: workDir,
+        })
+      ).rejects.toThrow("refusing unsigned push for branch 'submodule-branch'");
 
-      // GraphQL should NOT have been called – submodule triggers fallback before mutation
+      // GraphQL should NOT have been called – submodule is detected pre-flight
       expect(githubClient.graphql).not.toHaveBeenCalled();
-      // Warning about submodule must be emitted
+      // Warning about submodule must be emitted (diagnostic log value preserved)
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("submodule change detected in mysubmodule"));
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
-
-      // The commit should be present on the remote via git push fallback
-      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/submodule-branch"], { cwd: workDir });
-      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
-      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
-      expect(remoteOid).toBe(localOid);
     });
 
     it("should not warn for regular files (mode 100644)", async () => {
@@ -1088,7 +1084,7 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("merge commit fallback", () => {
-    it("should fall back to git push and warn when the commit range contains a merge commit", async () => {
+    it("should refuse unsigned push and not fall back to git push when the commit range contains a merge commit", async () => {
       // Set up: main already has an initial commit. Create a side branch with an extra commit,
       // then merge it back into a feature branch to produce a merge commit in the range.
       execGit(["checkout", "-b", "side-branch"], { cwd: workDir });
@@ -1106,33 +1102,28 @@ describe("push_signed_commits integration tests", () => {
       // Merge side-branch – this creates a merge commit with two parents
       execGit(["merge", "--no-ff", "side-branch", "-m", "Merge side-branch into merge-test-branch"], { cwd: workDir });
 
-      // Push so ls-remote can resolve the OID
+      // Push initial state so ls-remote has a base
       execGit(["push", "-u", "origin", "merge-test-branch"], { cwd: workDir });
 
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "merge-test-branch",
-        baseRef: "origin/main",
-        cwd: workDir,
-      });
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "merge-test-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+        })
+      ).rejects.toThrow("refusing unsigned push for branch 'merge-test-branch'");
 
-      // GraphQL must NOT have been called – merge commit triggers git push fallback
+      // GraphQL must NOT have been called – merge commit is detected pre-flight
       expect(githubClient.graphql).not.toHaveBeenCalled();
 
-      // Warning about the merge commit must be emitted
+      // Warning about the merge commit must be emitted (diagnostic log value preserved)
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/merge commit [0-9a-f]{7,40} detected/));
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
-
-      // All commits (including the merge commit) must be present on the remote via git push
-      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/merge-test-branch"], { cwd: workDir });
-      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
-      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
-      expect(remoteOid).toBe(localOid);
     });
 
     it("should not trigger merge-commit fallback for a commit message that starts with 'parent '", async () => {
@@ -1353,7 +1344,7 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("deleted submodule fallback", () => {
-    it("should fall back to git push and warn when a submodule entry is deleted", async () => {
+    it("should refuse unsigned push and not fall back to git push when a submodule entry is deleted", async () => {
       // The existing submodule test only covers ADDING a submodule.
       // This test covers the D-status + srcMode=160000 code path at line 226,
       // where a previously-committed gitlink entry is removed in a new commit.
@@ -1373,27 +1364,22 @@ describe("push_signed_commits integration tests", () => {
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "submodule-delete-branch",
-        // Only replay the delete commit
-        baseRef: "submodule-delete-branch^",
-        cwd: workDir,
-      });
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "submodule-delete-branch",
+          // Only replay the delete commit
+          baseRef: "submodule-delete-branch^",
+          cwd: workDir,
+        })
+      ).rejects.toThrow("refusing unsigned push for branch 'submodule-delete-branch'");
 
-      // GraphQL must NOT be called – deleted submodule triggers git push fallback
+      // GraphQL must NOT be called – deleted submodule is detected pre-flight
       expect(githubClient.graphql).not.toHaveBeenCalled();
-      // Warning about submodule detection
+      // Warning about submodule detection (diagnostic log value preserved)
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("submodule change detected in mysubmodule"));
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
-
-      // All commits must be present on the remote via git push fallback
-      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/submodule-delete-branch"], { cwd: workDir });
-      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
-      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
-      expect(remoteOid).toBe(localOid);
     });
   });
 });

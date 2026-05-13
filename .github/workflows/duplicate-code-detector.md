@@ -9,6 +9,11 @@ permissions:
   issues: read
   pull-requests: read
 engine: codex
+network:
+  allowed:
+    - defaults
+    - github.com
+    - api.github.com
 imports:
   - shared/go-source-analysis.md
   - shared/observability-otlp.md
