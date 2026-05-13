@@ -1763,6 +1763,13 @@ describe("runtime_import", () => {
       it("should leave plain identifier {{#if condition}} unchanged (no dot)", () => {
         expect(wrapExpressionsInTemplateConditionals("{{#if condition}}body{{/if}}")).toBe("{{#if condition}}body{{/if}}");
       });
+      it("should leave experiments.foo unchanged (not a GitHub Actions root — handled by interpolate_prompt.cjs)", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if experiments.foo}}body{{/if}}")).toBe("{{#if experiments.foo}}body{{/if}}");
+      });
+      it("should leave experiments.prompt_style == \"concise\" unchanged (experiment equality expression)", () => {
+        const input = '{{#if experiments.prompt_style == "concise"}}body{{/if}}';
+        expect(wrapExpressionsInTemplateConditionals(input)).toBe(input);
+      });
     });
 
     describe("GitHub Actions expressions — without context — produce falsy condition", () => {
@@ -1777,7 +1784,7 @@ describe("runtime_import", () => {
       });
     });
 
-    describe("GitHub Actions expressions — with context — produce evaluated value", () => {
+    describe("GitHub Actions expressions — with context — produce boolean sentinel", () => {
       beforeEach(() => {
         global.context = {
           actor: "testuser",
@@ -1793,23 +1800,23 @@ describe("runtime_import", () => {
       afterEach(() => {
         delete global.context;
       });
-      it("should inline evaluate {{#if github.actor}} to the actor value", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if github.actor}}body{{/if}}")).toBe("{{#if testuser }}body{{/if}}");
+      it("should produce {{#if true}} (truthy sentinel) for github.actor when actor is set", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.actor}}body{{/if}}")).toBe("{{#if true}}body{{/if}}");
       });
       it("should produce {{#if }} (falsy) for github.event.issue.number when event has no issue", () => {
         expect(wrapExpressionsInTemplateConditionals("{{#if github.event.issue.number}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
       });
-      it("should inline evaluate github.event.issue.number from aw_context when item_type is issue", () => {
+      it("should produce {{#if true}} (truthy) for github.event.issue.number when aw_context item_type is issue", () => {
         global.context.payload.inputs.aw_context = JSON.stringify({ item_type: "issue", item_number: 42 });
-        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.issue.number}}body{{/if}}")).toBe("{{#if 42 }}body{{/if}}");
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.issue.number}}body{{/if}}")).toBe("{{#if true}}body{{/if}}");
       });
       it("should produce {{#if }} (falsy) for github.event.issue.number when aw_context item_type is discussion", () => {
         global.context.payload.inputs.aw_context = JSON.stringify({ item_type: "discussion", item_number: 99 });
         expect(wrapExpressionsInTemplateConditionals("{{#if github.event.issue.number}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
       });
-      it("should inline evaluate github.event.discussion.number from aw_context when item_type is discussion", () => {
+      it("should produce {{#if true}} (truthy) for github.event.discussion.number when aw_context item_type is discussion", () => {
         global.context.payload.inputs.aw_context = JSON.stringify({ item_type: "discussion", item_number: 99 });
-        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.discussion.number}}body{{/if}}")).toBe("{{#if 99 }}body{{/if}}");
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.discussion.number}}body{{/if}}")).toBe("{{#if true}}body{{/if}}");
       });
     });
 
@@ -1854,7 +1861,7 @@ describe("runtime_import", () => {
       try {
         const input = "{{#if github.actor}}A{{/if}} and {{#if ...}}B{{/if}}";
         const result = wrapExpressionsInTemplateConditionals(input);
-        expect(result).toContain("{{#if testuser }}");
+        expect(result).toContain("{{#if true}}");
         expect(result).toContain("{{#if ...}}");
       } finally {
         delete global.context;
@@ -1943,7 +1950,7 @@ describe("runtime_import", () => {
         const content = "{{#if github.actor}}present{{/if}}";
         fs.writeFileSync(path.join(workflowsDir2, "actor.md"), content);
         const result = await processRuntimeImport("actor.md", false, tempDir2);
-        expect(result).toContain("{{#if testuser }}");
+        expect(result).toContain("{{#if true}}");
         expect(result).not.toContain("{{#if github.actor}}");
       } finally {
         delete global.context;

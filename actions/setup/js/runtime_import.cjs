@@ -8,6 +8,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { isTruthy } = require("./is_truthy.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -823,12 +824,16 @@ function wrapExpressionsInTemplateConditionals(content) {
       return match;
     }
 
-    // Only process expressions that look like GitHub Actions expressions
-    // GitHub Actions expressions typically start with a letter and contain dots
-    // (e.g., github.actor, github.event.issue.number).
-    // Expressions starting with non-alphabetic characters (e.g., "...") are NOT GitHub expressions.
+    // Only process expressions whose root matches a known GitHub Actions namespace.
+    // Restricting to explicit prefixes prevents non-GH dotted identifiers such as
+    // `experiments.foo` (resolved later by interpolate_prompt.cjs via experiment
+    // substitution) from being incorrectly collapsed to {{#if }} (falsy) here.
     const looksLikeGitHubExpr =
-      (/^[a-zA-Z]/.test(trimmed) && trimmed.includes(".")) || trimmed.startsWith("github.") || trimmed.startsWith("needs.") || trimmed.startsWith("steps.") || trimmed.startsWith("env.") || trimmed.startsWith("inputs.");
+      trimmed.startsWith("github.") ||
+      trimmed.startsWith("needs.") ||
+      trimmed.startsWith("steps.") ||
+      trimmed.startsWith("env.") ||
+      trimmed.startsWith("inputs.");
 
     if (!looksLikeGitHubExpr) {
       // Not a GitHub Actions expression, leave as-is
@@ -836,20 +841,15 @@ function wrapExpressionsInTemplateConditionals(content) {
     }
 
     // Evaluate the condition inline so that the template renderer (renderMarkdownTemplate /
-    // isTruthy) receives the actual runtime value rather than an __GH_AW__ placeholder string.
+    // isTruthy) receives a concrete boolean sentinel rather than a raw value string or an
+    // always-truthy __GH_AW__ placeholder.
     //
-    // If we had instead produced `{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}`, the
-    // placeholder literal (a non-empty string) would always be truthy when evaluated by
-    // isTruthy() because substitute_placeholders.cjs runs *after* template rendering.
-    // Evaluating inline here ensures:
-    //   • a known number  → truthy  (block kept when issue is present)
-    //   • "" or undefined → falsy   (block removed when there is no issue/discussion)
+    // We emit "{{#if true}}" / "{{#if }}" rather than the raw resolved value to prevent
+    // template tag injection: if the resolved value contained "}}" it would prematurely
+    // close the {{#if ...}} tag and corrupt the rendered output.
     const evaluated = evaluateExpression(trimmed);
-    if (evaluated.startsWith("${{")) {
-      // Expression could not be resolved — treat as falsy (empty condition)
-      return `{{#if }}`;
-    }
-    return `{{#if ${evaluated} }}`;
+    const resolved = !evaluated.startsWith("${{") && isTruthy(evaluated);
+    return resolved ? `{{#if true}}` : `{{#if }}`;
   });
 }
 
