@@ -257,6 +257,71 @@ index 0000000..abc1234
     expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
     expect(bundleFetchCallIndex).toBeGreaterThan(unshallowCallIndex);
   });
+
+  it("should resolve bundle source ref from list-heads when JSONL branch ref is missing in bundle", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (
+        cmd === "git" &&
+        Array.isArray(args) &&
+        args[0] === "fetch" &&
+        args[1] === bundlePath &&
+        args[2] === "refs/heads/ops-review-may09-2026:refs/heads/ops-review-may09-2026"
+      ) {
+        throw new Error("fatal: couldn't find remote ref refs/heads/ops-review-may09-2026");
+      }
+      return Promise.resolve(0);
+    });
+
+    global.exec.getExecOutput.mockImplementation((cmd, args) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && args[2] === bundlePath) {
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa refs/heads/main\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n",
+          stderr: "",
+        });
+      }
+      if (cmd === "git" && args && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "ops-review-may09-2026", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/main:refs/heads/ops-review-may09-2026"]);
+  });
 });
 
 describe("create_pull_request - fallback-as-issue configuration", () => {

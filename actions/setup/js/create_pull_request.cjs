@@ -1265,13 +1265,33 @@ async function main(config = {}) {
       // This preserves merge commit topology and per-commit metadata (messages, authorship)
       // unlike git format-patch which flattens history and drops merge resolution content.
       core.info(`Applying changes from bundle: ${bundleFilePath}`);
-      const bundleBranchRef = originalAgentBranch || branchName;
+      let bundleBranchRef = `refs/heads/${originalAgentBranch || branchName}`;
       try {
         await ensureFullHistoryForBundle(exec);
 
         // Fetch from bundle: creates a local branch pointing to the bundle's tip commit.
-        // The bundle contains refs/heads/<bundleBranchRef> which was the agent's working branch.
-        await exec.exec("git", ["fetch", bundleFilePath, `refs/heads/${bundleBranchRef}:refs/heads/${branchName}`]);
+        // bundleBranchRef is the source ref inside the bundle (typically refs/heads/<agent-branch>).
+        try {
+          await exec.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:refs/heads/${branchName}`]);
+        } catch (initialFetchError) {
+          // Fallback: resolve the source ref directly from the bundle contents.
+          // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
+          const initialFetchErrorMessage = initialFetchError instanceof Error ? initialFetchError.message : String(initialFetchError);
+          core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
+          const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
+          const branchRefs = bundleHeadsOutput
+            .split("\n")
+            .map(line => line.trim().split(/\s+/)[1] || "")
+            .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
+
+          if (branchRefs.length === 1) {
+            bundleBranchRef = branchRefs[0];
+            core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
+            await exec.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:refs/heads/${branchName}`]);
+          } else {
+            throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, { cause: initialFetchError });
+          }
+        }
         core.info(`Created local branch ${branchName} from bundle`);
         await exec.exec("git", ["checkout", branchName]);
         core.info(`Checked out branch ${branchName} from bundle`);
@@ -1334,7 +1354,7 @@ To create a pull request with the changes:
 gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
 # Fetch the bundle into a local branch
-git fetch /tmp/agent-${runId}/${artifactFileName} refs/heads/${bundleBranchRef}:refs/heads/${branchName}
+git fetch /tmp/agent-${runId}/${artifactFileName} ${bundleBranchRef}:refs/heads/${branchName}
 git checkout ${branchName}
 
 # Push the branch to origin

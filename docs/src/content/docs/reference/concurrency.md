@@ -68,6 +68,28 @@ When set, the `safe_outputs` job uses `cancel-in-progress: false` — meaning qu
 
 See [Safe Outputs](/gh-aw/reference/safe-outputs/#safe-outputs-job-concurrency-concurrency-group) for details.
 
+## Queue Behavior (`queue`)
+
+GitHub Actions concurrency groups accept an optional `queue` field that controls how multiple pending runs in the same group are handled. The gh-aw compiler preserves this field in both top-level and per-engine concurrency blocks:
+
+| Value | Behavior |
+|---|---|
+| `single` (Actions default) | Only the latest pending run is kept; earlier pending runs are discarded. |
+| `max` | All pending runs queue and run in arrival order. |
+
+```yaml wrap
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  queue: max
+```
+
+Compiler-generated concurrency groups (agent, output, and conclusion jobs) emit `queue: max` by default so back-to-back triggers run sequentially rather than being dropped. Set `features.group-concurrency-queue: false` to omit `queue` from generated groups and revert to the Actions default:
+
+```yaml wrap
+features:
+  group-concurrency-queue: false
+```
+
 ## Conclusion Job Concurrency
 
 The `conclusion` job — which handles reporting and post-agent cleanup — automatically receives a workflow-specific concurrency group derived from the workflow filename:
@@ -77,9 +99,10 @@ conclusion:
   concurrency:
     group: "gh-aw-conclusion-my-workflow"
     cancel-in-progress: false
+    queue: max
 ```
 
-This prevents conclusion jobs from colliding when multiple agents run the same workflow concurrently. The group uses `cancel-in-progress: false` so queued conclusion runs complete in order rather than being discarded.
+This prevents conclusion jobs from colliding when multiple agents run the same workflow concurrently. The group uses `cancel-in-progress: false` so queued conclusion runs complete in order rather than being discarded, and `queue: max` preserves arrival order for queued runs (see [Queue Behavior](#queue-behavior-queue)).
 
 This concurrency group is set automatically during compilation and requires no manual configuration.
 
