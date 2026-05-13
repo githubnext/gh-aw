@@ -394,7 +394,7 @@ on:
     types: [jira-issue-created]
 ```
 
-Omit `types:` (or set it to `[*]`) to fire on any `event_type`.
+Omit `types:` to fire on any `event_type`.
 
 #### Sending the Dispatch Request
 

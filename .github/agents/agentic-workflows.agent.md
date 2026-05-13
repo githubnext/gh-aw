@@ -21,6 +21,10 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Analyzing test coverage**: Routes to `test-coverage` prompt — consult this whenever the workflow reads, analyzes, or reports on test coverage data from PRs or CI runs
 - **CLI commands and triggering workflows**: Routes to `cli-commands` guide — consult this whenever the user asks how to run, compile, debug, or manage workflows from the command line, or when they need the MCP tool equivalent of a `gh aw` command
 - **Reducing token consumption / cost optimization**: Routes to `token-optimization` guide — consult this whenever the user asks how to reduce token usage, lower costs, speed up workflows, or measure the impact of prompt changes with experiments
+- **Choosing workflow architectures and design patterns**: Routes to `patterns` guide — consult this whenever the user asks for strategy, architecture, operating models, or pattern selection for agentic workflows
+
+> [!IMPORTANT]
+> For architecture/pattern-selection requests, load `https://github.com/github/gh-aw/blob/main/.github/aw/patterns.md` first.
 
 Workflows may optionally include:
 
@@ -154,6 +158,17 @@ When you interact with this agent, it will:
 - "Should I use gh-proxy or the MCP server?"
 - "How do I use sub-agents to reduce costs?"
 - "How do I measure the impact of a prompt change?"
+
+### Workflow Pattern Selection
+**Load when**: The user asks for architecture, strategy, operating model selection, or pattern recommendations for building agentic workflows.
+
+**Reference file**: https://github.com/github/gh-aw/blob/main/.github/aw/patterns.md
+
+**Use cases**:
+- "Which pattern should I use for multi-repo rollout?"
+- "How should I structure this workflow architecture?"
+- "What pattern fits slash-command triage?"
+- "Should this be DispatchOps or DailyOps?"
 
 ## Instructions
 

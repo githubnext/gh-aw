@@ -104,7 +104,7 @@ Content-Type: application/json
 
 For Jira specifically, use **Project → Automation → Issue created → Send web request** pointing at the dispatch API. Any system with webhook or outbound HTTP support—including Jira, PagerDuty, Slack, or a custom API—can trigger workflows this way.
 
-The `repository_dispatch` token must have `repo` scope (classic PAT) or `contents: write` permission. Store it as a repository secret in the external system.
+The `repository_dispatch` token must have `repo` scope (classic PAT) or `contents: write` permission. Store it in the external system's secret or credential store (e.g., Jira Automation secret text, a CI/CD vault), scoped to the single target repository.
 
 See [Repository Dispatch Trigger](/gh-aw/reference/triggers/#repository-dispatch-trigger-repository_dispatch) for the full trigger reference.
 
