@@ -422,6 +422,26 @@ index 0000000..abc1234
         pull_number: 456,
       });
     });
+
+    it('should fail when workflow_dispatch aw_context item_number is not a positive integer for target "triggering"', async () => {
+      mockContext.eventName = "workflow_dispatch";
+      delete mockContext.payload.pull_request;
+      delete mockContext.payload.issue;
+      mockContext.payload.inputs = {
+        aw_context: JSON.stringify({
+          item_type: "pull_request",
+          item_number: "0",
+        }),
+      };
+      const patchPath = createPatchFile();
+
+      const module = await loadModule();
+      const handler = await module.main({ target: "triggering" });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("pull request context");
+    });
   });
 
   // ──────────────────────────────────────────────────────

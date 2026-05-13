@@ -55,7 +55,7 @@ function parseAwContext(rawAwContext) {
    * @param {unknown} parsed
    * @returns {{ item_type: string, item_number: number | null } | null}
    */
-  function normalizeAwContext(parsed) {
+  function validateAndNormalizeParsedContext(parsed) {
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
@@ -74,12 +74,12 @@ function parseAwContext(rawAwContext) {
     }
     try {
       const parsed = JSON.parse(trimmed);
-      return normalizeAwContext(parsed);
+      return validateAndNormalizeParsedContext(parsed);
     } catch {
       return null;
     }
   }
-  return normalizeAwContext(rawAwContext);
+  return validateAndNormalizeParsedContext(rawAwContext);
 }
 
 /**
@@ -368,7 +368,7 @@ async function main(config = {}) {
       pullNumber = typeof context !== "undefined" ? context.payload?.pull_request?.number || context.payload?.issue?.number : undefined;
       if (!pullNumber) {
         const awContext = typeof context !== "undefined" ? parseAwContext(context.payload?.inputs?.aw_context) : null;
-        const awItemType = typeof awContext?.item_type === "string" ? awContext.item_type.trim() : "";
+        const awItemType = awContext?.item_type.trim() ?? "";
         const awItemNumber = awContext?.item_number ?? null;
         if (awItemType === "pull_request" && awItemNumber !== null) {
           pullNumber = awItemNumber;
