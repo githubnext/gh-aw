@@ -178,9 +178,11 @@ async function addImmediateReaction(reaction) {
 }
 
 /**
+ * Dispatches a workflow with the API version header required by GitHub REST.
  * @param {string} workflowId
  * @param {string} ref
  * @param {Record<string, string>} inputs
+ * @returns {Promise<void>}
  */
 async function dispatchWorkflow(workflowId, ref, inputs) {
   await github.rest.actions.createWorkflowDispatch({
