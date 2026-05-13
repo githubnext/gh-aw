@@ -39,6 +39,7 @@ func GetAllCodemods() []Codemod {
 		getMCPModeToTypeCodemod(),
 		getInstallScriptURLCodemod(),
 		getBashAnonymousRemovalCodemod(),              // Replace bash: with bash: false
+		getBashSingleQuotedArgsCodemod(),              // Rewrite single-quoted bash args to double-quoted form
 		getActivationOutputsCodemod(),                 // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
 		getRolesToOnRolesCodemod(),                    // Move top-level roles to on.roles
 		getBotsToOnBotsCodemod(),                      // Move top-level bots to on.bots
