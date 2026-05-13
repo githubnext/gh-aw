@@ -3,13 +3,14 @@ package testutil
 import (
 	"bytes"
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 var (

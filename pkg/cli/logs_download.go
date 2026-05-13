@@ -15,12 +15,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/fileutil"

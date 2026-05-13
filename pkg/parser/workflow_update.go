@@ -2,10 +2,11 @@ package parser
 
 import (
 	"fmt"
-	"github.com/github/gh-aw/pkg/constants"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"

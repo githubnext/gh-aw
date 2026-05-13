@@ -4,7 +4,6 @@ package largefunc
 
 import (
 	"go/ast"
-	"go/token"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -63,7 +62,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 		if lines > maxLines {
 			pass.Reportf(
-				token.Pos(body.Lbrace),
+				body.Lbrace,
 				"%s is %d lines long (limit: %d); consider breaking it up",
 				name, lines, maxLines,
 			)
