@@ -1075,6 +1075,11 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
     "GITHUB_JOB",
+    "GITHUB_ACTOR_ID",
+    "RUNNER_OS",
+    "RUNNER_ARCH",
+    "RUNNER_NAME",
+    "RUNNER_ENVIRONMENT",
     "GITHUB_WORKFLOW_REF",
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_STAGED",
@@ -1367,6 +1372,45 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "1" } });
+  });
+
+  it("includes runner.* and github.actor_id as resource attributes when available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_ACTOR_ID = "4175913";
+    process.env.RUNNER_OS = "Linux";
+    process.env.RUNNER_ARCH = "X64";
+    process.env.RUNNER_NAME = "GitHub Actions 1187452382";
+    process.env.RUNNER_ENVIRONMENT = "github-hosted";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.actor_id", value: { stringValue: "4175913" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.os", value: { stringValue: "Linux" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.arch", value: { stringValue: "X64" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.name", value: { stringValue: "GitHub Actions 1187452382" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.environment", value: { stringValue: "github-hosted" } });
+  });
+
+  it("omits runner.* and github.actor_id resource attributes when unavailable", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceKeys = body.resourceSpans[0].resource.attributes.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.actor_id");
+    expect(resourceKeys).not.toContain("runner.os");
+    expect(resourceKeys).not.toContain("runner.arch");
+    expect(resourceKeys).not.toContain("runner.name");
+    expect(resourceKeys).not.toContain("runner.environment");
   });
 
   it("includes github.event_name as resource attribute when GITHUB_EVENT_NAME is set", async () => {
@@ -2122,6 +2166,11 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_HEAD_REF",
     "GITHUB_SHA",
     "GITHUB_JOB",
+    "GITHUB_ACTOR_ID",
+    "RUNNER_OS",
+    "RUNNER_ARCH",
+    "RUNNER_NAME",
+    "RUNNER_ENVIRONMENT",
     "GITHUB_WORKFLOW_REF",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
@@ -3132,6 +3181,28 @@ describe("sendJobConclusionSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "github.run_attempt", value: { stringValue: "1" } });
+  });
+
+  it("includes runner.* and github.actor_id as resource attributes when available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_ACTOR_ID = "4175913";
+    process.env.RUNNER_OS = "Linux";
+    process.env.RUNNER_ARCH = "X64";
+    process.env.RUNNER_NAME = "GitHub Actions 1187452382";
+    process.env.RUNNER_ENVIRONMENT = "github-hosted";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.actor_id", value: { stringValue: "4175913" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.os", value: { stringValue: "Linux" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.arch", value: { stringValue: "X64" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.name", value: { stringValue: "GitHub Actions 1187452382" } });
+    expect(resourceAttrs).toContainEqual({ key: "runner.environment", value: { stringValue: "github-hosted" } });
   });
 
   it("includes github.event_name as resource attribute when GITHUB_EVENT_NAME is set", async () => {

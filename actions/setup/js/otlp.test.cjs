@@ -102,6 +102,11 @@ describe("otlp.cjs", () => {
       GITHUB_HEAD_REF: process.env.GITHUB_HEAD_REF,
       GITHUB_SHA: process.env.GITHUB_SHA,
       GITHUB_JOB: process.env.GITHUB_JOB,
+      GITHUB_ACTOR_ID: process.env.GITHUB_ACTOR_ID,
+      RUNNER_OS: process.env.RUNNER_OS,
+      RUNNER_ARCH: process.env.RUNNER_ARCH,
+      RUNNER_NAME: process.env.RUNNER_NAME,
+      RUNNER_ENVIRONMENT: process.env.RUNNER_ENVIRONMENT,
       GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
       GH_AW_CURRENT_WORKFLOW_REF: process.env.GH_AW_CURRENT_WORKFLOW_REF,
       GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
@@ -422,6 +427,26 @@ describe("otlp.cjs", () => {
       await otlp.logSpan("my-scanner", {});
 
       expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(expect.objectContaining({ job: "agent" }));
+    });
+
+    it("passes runner.* and GITHUB_ACTOR_ID to buildGitHubActionsResourceAttributes when set", async () => {
+      process.env.GITHUB_ACTOR_ID = "4175913";
+      process.env.RUNNER_OS = "Linux";
+      process.env.RUNNER_ARCH = "X64";
+      process.env.RUNNER_NAME = "GitHub Actions 1187452382";
+      process.env.RUNNER_ENVIRONMENT = "github-hosted";
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "4175913",
+          runnerOs: "Linux",
+          runnerArch: "X64",
+          runnerName: "GitHub Actions 1187452382",
+          runnerEnvironment: "github-hosted",
+        })
+      );
     });
   });
 
