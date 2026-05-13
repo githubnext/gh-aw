@@ -191,6 +191,70 @@ describe("interpolate_prompt", () => {
         it("should handle template conditionals that depend on interpolated values", () => {
           let result = interpolateVariables("${GH_AW_EXPR_CONDITION}\n{{#if ${GH_AW_EXPR_CONDITION}}}\nShow this\n{{/if}}", { GH_AW_EXPR_CONDITION: "true" });
           (expect(result).toBe("true\n{{#if true}}\nShow this\n{{/if}}"), (result = renderMarkdownTemplate(result)), expect(result).toBe("true\nShow this\n"));
+        }),
+        it("should render github context prompt for workflow_dispatch and repository_dispatch aw_context fallbacks", () => {
+          const githubContextTemplate = fs.readFileSync(path.join(__dirname, "../../../pkg/workflow/prompts/github_context_prompt.md"), "utf8");
+          const issueExpr = "github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)";
+          const discussionExpr = "github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)";
+          const pullRequestExpr = "github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)";
+          const commentExpr = "github.event.comment.id || github.aw.context.comment_id";
+          const renderWithValues = (conditionValues, expressionValues) => {
+            const withEvaluatedConditions = githubContextTemplate.replace(/{{#if\s+([^}]+)}}/g, (_, conditionExpr) => `{{#if ${conditionValues[conditionExpr.trim()] || ""}}}`);
+            const withEvaluatedExpressions = withEvaluatedConditions.replace(/\${{\s*(.*?)\s*}}/g, (_, expression) => expressionValues[expression.trim()] || "");
+            return renderMarkdownTemplate(withEvaluatedExpressions);
+          };
+          const workflowDispatchRendered = renderWithValues(
+            {
+              "github.actor": "octocat",
+              "github.repository": "github/gh-aw",
+              "github.workspace": "/home/runner/work/gh-aw/gh-aw",
+              [issueExpr]: "456",
+              [discussionExpr]: "",
+              [pullRequestExpr]: "",
+              [commentExpr]: "999",
+              "github.run_id": "111",
+            },
+            {
+              "github.actor": "octocat",
+              "github.repository": "github/gh-aw",
+              "github.workspace": "/home/runner/work/gh-aw/gh-aw",
+              [issueExpr]: "456",
+              [discussionExpr]: "",
+              [pullRequestExpr]: "",
+              [commentExpr]: "999",
+              "github.run_id": "111",
+            }
+          );
+          expect(workflowDispatchRendered).toContain("- **issue-number**: #456");
+          expect(workflowDispatchRendered).toContain("- **comment-id**: 999");
+          expect(workflowDispatchRendered).not.toContain("discussion-number");
+          expect(workflowDispatchRendered).not.toContain("pull-request-number");
+          const repositoryDispatchRendered = renderWithValues(
+            {
+              "github.actor": "octocat",
+              "github.repository": "github/gh-aw",
+              "github.workspace": "/home/runner/work/gh-aw/gh-aw",
+              [issueExpr]: "",
+              [discussionExpr]: "",
+              [pullRequestExpr]: "789",
+              [commentExpr]: "31415",
+              "github.run_id": "222",
+            },
+            {
+              "github.actor": "octocat",
+              "github.repository": "github/gh-aw",
+              "github.workspace": "/home/runner/work/gh-aw/gh-aw",
+              [issueExpr]: "",
+              [discussionExpr]: "",
+              [pullRequestExpr]: "789",
+              [commentExpr]: "31415",
+              "github.run_id": "222",
+            }
+          );
+          expect(repositoryDispatchRendered).toContain("- **pull-request-number**: #789");
+          expect(repositoryDispatchRendered).toContain("- **comment-id**: 31415");
+          expect(repositoryDispatchRendered).not.toContain("issue-number");
+          expect(repositoryDispatchRendered).not.toContain("discussion-number");
         }));
     }),
     describe("main function integration", () => {
