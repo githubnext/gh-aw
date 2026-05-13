@@ -160,6 +160,28 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
+			name: "pull_request_target with checkout enabled - strict CLI + frontmatter strict false - warning only",
+			frontmatter: `---
+strict: false
+on:
+  pull_request_target:
+    types: [opened]
+tools:
+  github:
+    toolsets: [pull_requests]
+permissions:
+  pull-requests: read
+---
+
+# PR Target Strict Opt-Out
+Test workflow content.`,
+			filename:      "prt-checkout-enabled-strict-frontmatter-opt-out.md",
+			strictMode:    true,
+			expectError:   false,
+			expectWarning: true,
+			warningCount:  1, // insecure-checkout warning only
+		},
+		{
 			name: "pull_request trigger (not target) - strict - no diagnostic",
 			frontmatter: `---
 on:
