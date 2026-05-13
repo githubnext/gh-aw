@@ -103,6 +103,12 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantCount:       1,
 			wantExpressions: []string{"github.event.issue.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || '{}').item_number)"},
 		},
+		{
+			name:            "aw context syntax sugar with hyphenated field does not transform",
+			markdown:        "Issue: ${{ github.aw.context.item-number }}",
+			wantCount:       1,
+			wantExpressions: []string{"github.aw.context.item-number"},
+		},
 	}
 
 	for _, tt := range tests {

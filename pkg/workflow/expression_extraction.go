@@ -22,7 +22,7 @@ var (
 	// expressionExtractionRegex matches GitHub Actions expressions: ${{ ... }}
 	// Uses (?s) flag for dotall mode, non-greedy matching
 	expressionExtractionRegex = regexp.MustCompile(`\$\{\{(.*?)\}\}`)
-	awContextExpressionRegex  = regexp.MustCompile(`github\.aw\.context\.([a-zA-Z0-9_-]+)`)
+	awContextExpressionRegex  = regexp.MustCompile(`github\.aw\.context\.([a-zA-Z0-9_]+)([^a-zA-Z0-9_-]|$)`)
 )
 
 // ExpressionMapping represents a mapping between a GitHub expression and its environment variable
@@ -264,7 +264,7 @@ func transformExperimentsExpression(expr string) string {
 //
 //	github.aw.context.item_number -> fromJSON(github.event.inputs.aw_context || '{}').item_number
 func transformAwContextExpression(expr string) string {
-	return awContextExpressionRegex.ReplaceAllString(expr, "fromJSON(github.event.inputs.aw_context || '{}').$1")
+	return awContextExpressionRegex.ReplaceAllString(expr, "fromJSON(github.event.inputs.aw_context || '{}').$1$2")
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like
