@@ -48,9 +48,22 @@ function looksLikeMissingRemoteBranchError(value) {
 
 /**
  * @param {unknown} rawAwContext
- * @returns {{ item_type?: string, item_number?: string | number } | null}
+ * @returns {{ item_type: string, item_number: string | number | null } | null}
  */
 function parseAwContext(rawAwContext) {
+  /**
+   * @param {unknown} parsed
+   * @returns {{ item_type: string, item_number: string | number | null } | null}
+   */
+  function normalizeAwContext(parsed) {
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return null;
+    }
+    const itemType = typeof parsed.item_type === "string" ? parsed.item_type : "";
+    const itemNumber = typeof parsed.item_number === "string" || typeof parsed.item_number === "number" ? parsed.item_number : null;
+    return { item_type: itemType, item_number: itemNumber };
+  }
+
   if (rawAwContext == null) {
     return null;
   }
@@ -61,18 +74,24 @@ function parseAwContext(rawAwContext) {
     }
     try {
       const parsed = JSON.parse(trimmed);
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        return parsed;
-      }
+      return normalizeAwContext(parsed);
     } catch {
       return null;
     }
+  }
+  return normalizeAwContext(rawAwContext);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+function parsePositiveInteger(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
     return null;
   }
-  if (typeof rawAwContext === "object" && !Array.isArray(rawAwContext)) {
-    return rawAwContext;
-  }
-  return null;
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 /**
@@ -348,8 +367,8 @@ async function main(config = {}) {
       if (!pullNumber) {
         const awContext = typeof context !== "undefined" ? parseAwContext(context.payload?.inputs?.aw_context) : null;
         const awItemType = typeof awContext?.item_type === "string" ? awContext.item_type.trim() : "";
-        const awItemNumber = typeof awContext?.item_number === "string" || typeof awContext?.item_number === "number" ? Number.parseInt(String(awContext.item_number), 10) : NaN;
-        if (awItemType === "pull_request" && Number.isInteger(awItemNumber) && awItemNumber > 0) {
+        const awItemNumber = parsePositiveInteger(awContext?.item_number);
+        if (awItemType === "pull_request" && awItemNumber !== null) {
           pullNumber = awItemNumber;
           core.info(`Resolved triggering pull request number '${pullNumber}' from aw_context.`);
         }
