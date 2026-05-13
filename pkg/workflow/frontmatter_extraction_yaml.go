@@ -153,16 +153,15 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	deploymentStatusIndent := -1
 	workflowRunIndent := -1
 	// activateEventSection resets all event-section flags and then activates the selected section.
-	activateEventSection := func(section string, indent int, shouldClearWorkflowRunConclusion bool) {
+	activateEventSection := func(section string, indent int) {
 		inPullRequest = section == "pull_request"
 		inIssues = section == "issues"
 		inDiscussion = section == "discussion"
 		inIssueComment = section == "issue_comment"
 		inDeploymentStatus = section == "deployment_status"
 		inWorkflowRun = section == "workflow_run"
-		if shouldClearWorkflowRunConclusion {
-			inWorkflowRunConclusionArray = false
-		}
+		inWorkflowRunConclusionArray = false
+		inForksArray = false
 
 		switch section {
 		case "pull_request", "issues", "discussion", "issue_comment":
@@ -196,32 +195,32 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "pull_request:" {
-				activateEventSection("pull_request", lineIndent, true)
+				activateEventSection("pull_request", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issues:" {
-				activateEventSection("issues", lineIndent, true)
+				activateEventSection("issues", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "discussion:" {
-				activateEventSection("discussion", lineIndent, true)
+				activateEventSection("discussion", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issue_comment:" {
-				activateEventSection("issue_comment", lineIndent, true)
+				activateEventSection("issue_comment", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "deployment_status:" {
-				activateEventSection("deployment_status", lineIndent, false)
+				activateEventSection("deployment_status", lineIndent)
 				result = append(result, line)
 				continue
 			}
 			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "workflow_run:" {
-				activateEventSection("workflow_run", lineIndent, false)
+				activateEventSection("workflow_run", lineIndent)
 				result = append(result, line)
 				continue
 			}
