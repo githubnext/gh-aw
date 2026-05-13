@@ -183,6 +183,33 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
     });
 
+    it("should validate centralized label workflow_dispatch using aw_context actor", async () => {
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.actor = "github-actions[bot]";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({
+            trigger_label: "necromancer",
+            actor: "octocat",
+          }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Validating centralized workflow_dispatch against originating actor 'octocat'");
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testorg",
+        repo: "testrepo",
+        username: "octocat",
+      });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
+    });
+
     it("should deny centralized workflow_dispatch from fork-based pull requests", async () => {
       mockContext.eventName = "workflow_dispatch";
       mockContext.actor = "github-actions[bot]";
