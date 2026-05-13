@@ -403,7 +403,8 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 			// Estimate token count (rough approximation: 1 token = ~4 characters)
 			outputSize := len(contentStr) / 4
 
-			// Find corresponding tool call to update max output size
+			// tool_use_id confirms this tool_result corresponds to a tool invocation.
+			// We currently do not map IDs back to a single tool, so we still update all tools.
 			if _, ok := typeutil.LookupString(contentMap, "tool_use_id"); !ok {
 				continue
 			}
