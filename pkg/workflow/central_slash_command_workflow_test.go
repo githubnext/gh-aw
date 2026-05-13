@@ -31,18 +31,21 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 			Command:            []string{"triage"},
 			CommandEvents:      []string{"issue_comment", "issues"},
 			CommandCentralized: true,
+			AIReaction:         "eyes",
 		},
 		{
 			WorkflowID:         "triage-pr",
 			Command:            []string{"triage"},
 			CommandEvents:      []string{"pull_request", "pull_request_comment"},
 			CommandCentralized: true,
+			AIReaction:         "rocket",
 		},
 		{
 			WorkflowID:         "cloclo",
 			Command:            []string{"cloclo"},
 			CommandEvents:      []string{"discussion_comment"},
 			CommandCentralized: true,
+			AIReaction:         "heart",
 		},
 	}
 
@@ -68,7 +71,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.NotContains(t, text, "Compiler version:")
 	require.Contains(t, text, "permissions: {}")
 	require.Contains(t, text, "runs-on: ubuntu-slim")
-	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read")
+	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write")
 	require.Contains(t, text, "      - name: Setup Scripts")
 	require.Contains(t, text, "        uses: ./actions/setup")
 	require.Contains(t, text, "          destination: ${{ runner.temp }}/gh-aw/actions")
@@ -76,8 +79,8 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, "issue_comment:")
 	require.Contains(t, text, "pull_request:")
 	require.Contains(t, text, "discussion_comment:")
-	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"]},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"]}]`)
-	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"]}]`)
+	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"],"ai_reaction":"eyes"},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"],"ai_reaction":"rocket"}]`)
+	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"],"ai_reaction":"heart"}]`)
 	require.Contains(t, text, `require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs')`)
 	require.Contains(t, text, `setupGlobals(core, github, context, exec, io, getOctokit);`)
 	require.Contains(t, text, `require('${{ runner.temp }}/gh-aw/actions/route_slash_command.cjs')`)
@@ -154,6 +157,56 @@ func TestCollectCentralSlashCommandRoutes_UnionizesMergedEvents(t *testing.T) {
 	require.ElementsMatch(t, []string{"created", "edited"}, typeSetKeys(mergedEvents["issue_comment"]))
 	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, typeSetKeys(mergedEvents["pull_request"]))
 	require.NotContains(t, mergedEvents, "discussion")
+}
+
+func TestCollectCentralSlashCommandRoutes_RespectsReactionEventTargets(t *testing.T) {
+	disable := false
+	enable := true
+	data := []*WorkflowData{
+		{
+			WorkflowID:           "issue-only",
+			Command:              []string{"triage"},
+			CommandEvents:        []string{"issue_comment", "pull_request_comment"},
+			CommandCentralized:   true,
+			AIReaction:           "eyes",
+			ReactionIssues:       &enable,
+			ReactionPullRequests: &disable,
+		},
+		{
+			WorkflowID:           "pr-only-disabled",
+			Command:              []string{"triage"},
+			CommandEvents:        []string{"pull_request_comment"},
+			CommandCentralized:   true,
+			AIReaction:           "rocket",
+			ReactionPullRequests: &disable,
+		},
+		{
+			WorkflowID:          "discussion-enabled",
+			Command:             []string{"triage"},
+			CommandEvents:       []string{"discussion_comment"},
+			CommandCentralized:  true,
+			AIReaction:          "heart",
+			ReactionDiscussions: &enable,
+		},
+		{
+			WorkflowID:         "none-reaction",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			AIReaction:         "none",
+		},
+	}
+
+	routesByCommand, _ := collectCentralSlashCommandRoutes(data)
+	require.Len(t, routesByCommand["triage"], 5)
+	routeReactions := map[string][]string{}
+	for _, route := range routesByCommand["triage"] {
+		routeReactions[route.Workflow] = append(routeReactions[route.Workflow], route.AIReaction+"|"+strings.Join(route.Events, ","))
+	}
+	require.ElementsMatch(t, []string{"eyes|issue_comment", "|pull_request_comment"}, routeReactions["issue-only"])
+	require.Equal(t, []string{"|pull_request_comment"}, routeReactions["pr-only-disabled"])
+	require.Equal(t, []string{"heart|discussion_comment"}, routeReactions["discussion-enabled"])
+	require.Equal(t, []string{"|issue_comment"}, routeReactions["none-reaction"])
 }
 
 func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *testing.T) {

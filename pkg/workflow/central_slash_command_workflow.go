@@ -21,8 +21,9 @@ const (
 )
 
 type slashCommandRoute struct {
-	Workflow string   `json:"workflow"`
-	Events   []string `json:"events"`
+	Workflow   string   `json:"workflow"`
+	Events     []string `json:"events"`
+	AIReaction string   `json:"ai_reaction,omitempty"`
 }
 
 type commandsHeaderMetadata struct {
@@ -118,22 +119,77 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 		}
 
 		for _, commandName := range wd.Command {
-			route := slashCommandRoute{
-				Workflow: wd.WorkflowID,
-				Events:   slices.Clone(routeEvents),
+			for _, route := range buildCentralizedRoutes(wd, routeEvents) {
+				routesByCommand[commandName] = append(routesByCommand[commandName], route)
 			}
-			routesByCommand[commandName] = append(routesByCommand[commandName], route)
 		}
 	}
 
 	// Stable ordering for deterministic output.
 	for commandName := range routesByCommand {
 		sort.Slice(routesByCommand[commandName], func(i, j int) bool {
-			return routesByCommand[commandName][i].Workflow < routesByCommand[commandName][j].Workflow
+			left := routesByCommand[commandName][i]
+			right := routesByCommand[commandName][j]
+			if left.Workflow != right.Workflow {
+				return left.Workflow < right.Workflow
+			}
+			leftEvents := strings.Join(left.Events, ",")
+			rightEvents := strings.Join(right.Events, ",")
+			if leftEvents != rightEvents {
+				return leftEvents < rightEvents
+			}
+			return left.AIReaction < right.AIReaction
 		})
 	}
 
 	return routesByCommand, mergedEvents
+}
+
+func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string) []slashCommandRoute {
+	if wd == nil {
+		return nil
+	}
+	eventGroups := map[string][]string{}
+	groupOrder := make([]string, 0, len(routeEvents))
+	for _, eventName := range routeEvents {
+		reaction := resolveCentralizedEventReaction(wd, eventName)
+		if _, exists := eventGroups[reaction]; !exists {
+			groupOrder = append(groupOrder, reaction)
+		}
+		eventGroups[reaction] = append(eventGroups[reaction], eventName)
+	}
+	routes := make([]slashCommandRoute, 0, len(groupOrder))
+	for _, reaction := range groupOrder {
+		routes = append(routes, slashCommandRoute{
+			Workflow:   wd.WorkflowID,
+			Events:     slices.Clone(eventGroups[reaction]),
+			AIReaction: reaction,
+		})
+	}
+	return routes
+}
+
+func resolveCentralizedEventReaction(wd *WorkflowData, eventName string) string {
+	if wd == nil || wd.AIReaction == "" || wd.AIReaction == "none" {
+		return ""
+	}
+
+	switch eventName {
+	case "issues", "issue_comment":
+		if shouldIncludeIssueReactions(wd) {
+			return wd.AIReaction
+		}
+	case "pull_request", "pull_request_comment", "pull_request_review_comment":
+		if shouldIncludePullRequestReactions(wd) {
+			return wd.AIReaction
+		}
+	case "discussion", "discussion_comment":
+		if shouldIncludeDiscussionReactions(wd) {
+			return wd.AIReaction
+		}
+	}
+
+	return ""
 }
 
 func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashCommandRoute, mergedEvents map[string]map[string]bool, runsOn string, setupActionRef string) (string, error) {
@@ -165,9 +221,9 @@ permissions: {}
 jobs:
   route:
     runs-on: ` + runsOn + `
-    permissions:
-      actions: write
-      contents: read
+`)
+	writeCentralSlashRoutePermissions(&b, mergedEvents)
+	b.WriteString(`
     steps:
       - name: Checkout repository
         uses: ` + getActionPin("actions/checkout") + `
@@ -189,6 +245,22 @@ jobs:
             await main();
 `)
 	return b.String(), nil
+}
+
+func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[string]map[string]bool) {
+	b.WriteString(`    permissions:
+      actions: write
+      contents: read
+`)
+	if mergedEvents["issues"] != nil || mergedEvents["issue_comment"] != nil || mergedEvents["pull_request"] != nil {
+		b.WriteString("      issues: write\n")
+	}
+	if mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil {
+		b.WriteString("      pull-requests: write\n")
+	}
+	if mergedEvents["discussion"] != nil || mergedEvents["discussion_comment"] != nil {
+		b.WriteString("      discussions: write\n")
+	}
 }
 
 func buildCommandsHeaderMetadata(routesByCommand map[string][]slashCommandRoute) commandsHeaderMetadata {

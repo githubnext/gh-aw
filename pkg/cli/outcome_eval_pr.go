@@ -5,14 +5,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var outcomeEvalPRLog = logger.New("cli:outcome_eval_pr")
 
 // findPRByTimestamp searches for a PR created by github-actions[bot] around the given timestamp.
 // This is a fallback for when the manifest doesn't record the PR number.
 func findPRByTimestamp(repo string, timestamp string) int {
+	outcomeEvalPRLog.Printf("Searching for PR by timestamp: repo=%s, timestamp=%s", repo, timestamp)
 	ts, err := time.Parse(time.RFC3339, timestamp)
 	if err != nil {
+		outcomeEvalPRLog.Printf("Failed to parse timestamp %q: %v", timestamp, err)
 		return 0
 	}
 	// Search in a 5-minute window around the timestamp
@@ -44,6 +49,7 @@ func findPRByTimestamp(repo string, timestamp string) int {
 func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
+	outcomeEvalPRLog.Printf("Evaluating create_pull_request: repo=%s, num=%d, url=%s", repo, num, item.URL)
 	report := OutcomeReport{
 		Type:         item.Type,
 		ObjectURL:    item.URL,
@@ -55,6 +61,7 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 	if num == 0 && repo != "" {
 		found := findPRByTimestamp(repo, item.Timestamp)
 		if found > 0 {
+			outcomeEvalPRLog.Printf("Resolved missing PR number via timestamp search: num=%d", found)
 			num = found
 			report.ObjectNumber = num
 		}

@@ -3,12 +3,17 @@ package cli
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var outcomeEvalAgentLog = logger.New("cli:outcome_eval_agent")
 
 // evalAssignToAgent checks whether an agent assignment led to a PR that was merged.
 func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
+	outcomeEvalAgentLog.Printf("Evaluating assign_to_agent: repo=%s, num=%d, url=%s", repo, num, item.URL)
 	report := OutcomeReport{
 		Type:         item.Type,
 		ObjectURL:    item.URL,
@@ -16,6 +21,7 @@ func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeRepor
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
+		outcomeEvalAgentLog.Printf("Missing issue number or repo: num=%d, repo=%s", num, repo)
 		report.Result = OutcomeError
 		report.EvalError = "missing issue number or repo"
 		return report
@@ -67,6 +73,7 @@ func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeRepor
 		if n, ok := agentPR["number"].(float64); ok {
 			prNumber = int(n)
 		}
+		outcomeEvalAgentLog.Printf("Found agent-linked PR for issue #%d: pr=%d", num, prNumber)
 
 		// Fetch the actual PR to check merge status
 		if prNumber > 0 {
