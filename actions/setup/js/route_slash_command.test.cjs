@@ -106,4 +106,65 @@ describe("route_slash_command", () => {
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.desired_ai_reaction).toBeUndefined();
   });
+
+  it("adds immediate reaction for issues events using issue number", async () => {
+    globals.context.eventName = "issues";
+    globals.context.payload = { issue: { number: 42, body: "/archie please" } };
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["issues"], ai_reaction: "eyes" }],
+    });
+    await main();
+    expect(dispatchCalls).toHaveLength(1);
+    expect(reactionCalls).toHaveLength(1);
+    expect(reactionCalls[0][0]).toBe("POST /repos/github/gh-aw/issues/42/reactions");
+  });
+
+  it("adds immediate reaction for pull_request events using PR number", async () => {
+    globals.context.eventName = "pull_request";
+    globals.context.payload = { pull_request: { number: 7, body: "/archie please" } };
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["pull_request"], ai_reaction: "eyes" }],
+    });
+    await main();
+    expect(dispatchCalls).toHaveLength(1);
+    expect(reactionCalls).toHaveLength(1);
+    expect(reactionCalls[0][0]).toBe("POST /repos/github/gh-aw/issues/7/reactions");
+  });
+
+  it("adds immediate reaction for pull_request_review_comment events using comment id", async () => {
+    globals.context.eventName = "pull_request_review_comment";
+    globals.context.payload = { comment: { id: 99, body: "/archie please" } };
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["pull_request_review_comment"], ai_reaction: "eyes" }],
+    });
+    await main();
+    expect(dispatchCalls).toHaveLength(1);
+    expect(reactionCalls).toHaveLength(1);
+    expect(reactionCalls[0][0]).toBe("POST /repos/github/gh-aw/pulls/comments/99/reactions");
+  });
+
+  it("adds immediate reaction for discussion_comment events using node_id", async () => {
+    globals.context.eventName = "discussion_comment";
+    globals.context.payload = { comment: { node_id: "DC_node", body: "/archie please" } };
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["discussion_comment"], ai_reaction: "eyes" }],
+    });
+    await main();
+    expect(dispatchCalls).toHaveLength(1);
+    expect(globals.github.graphql).toHaveBeenCalledOnce();
+    expect(globals.github.graphql.mock.calls[0][1]).toEqual({ subjectId: "DC_node", content: "EYES" });
+  });
+
+  it("adds immediate reaction for discussion events by resolving discussion id", async () => {
+    globals.context.eventName = "discussion";
+    globals.context.payload = { discussion: { number: 3, body: "/archie please" } };
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["discussion"], ai_reaction: "eyes" }],
+    });
+    await main();
+    expect(dispatchCalls).toHaveLength(1);
+    expect(globals.github.graphql).toHaveBeenCalledTimes(2);
+    expect(globals.github.graphql.mock.calls[0][1]).toEqual({ owner: "github", repo: "gh-aw", num: 3 });
+    expect(globals.github.graphql.mock.calls[1][1]).toEqual({ subjectId: "D_node", content: "EYES" });
+  });
 });

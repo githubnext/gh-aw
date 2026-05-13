@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { REACTION_MAP } = require("./add_reaction.cjs");
+
 function eventIdentifier() {
   if (context.eventName !== "issue_comment") {
     return context.eventName;
@@ -33,17 +35,6 @@ function resolveDispatchRef() {
   const defaultBranch = context.payload?.repository?.default_branch || "main";
   return `refs/heads/${defaultBranch}`;
 }
-
-const REACTION_MAP = {
-  "+1": "THUMBS_UP",
-  "-1": "THUMBS_DOWN",
-  laugh: "LAUGH",
-  confused: "CONFUSED",
-  heart: "HEART",
-  hooray: "HOORAY",
-  rocket: "ROCKET",
-  eyes: "EYES",
-};
 
 function normalizeReaction(reaction) {
   if (typeof reaction !== "string") {
