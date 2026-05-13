@@ -104,5 +104,6 @@ Use this router when a user asks for a workflow architecture, strategy, operatin
 ## Notes
 
 - Prefer documented patterns over ad hoc architecture when a strong match exists.
+- Pattern links are relative to `.github/aw/`; if this file is moved, update all pattern paths.
 - When relevant, combine pattern guidance with core workflow rules from:
   - ./github-agentic-workflows.md
