@@ -45,7 +45,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		}
 
 		initSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`
-		conditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]; then`
+		conditionSnippet := `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`
 		flagAssignmentSnippet := `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`
 		argsRefSnippet := `${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS}`
 
@@ -245,7 +245,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""`) {
 			t.Error("Expected command to skip docker-host-path-prefix probe variable initialization for unsupported AWF versions")
 		}
-		if strings.Contains(stepContent, `if [[ "${DOCKER_HOST:-}" =~ ^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]; then`) {
+		if strings.Contains(stepContent, `if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then`) {
 			t.Error("Expected command to skip docker-host-path-prefix DOCKER_HOST probe for unsupported AWF versions")
 		}
 		if strings.Contains(stepContent, `GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"`) {

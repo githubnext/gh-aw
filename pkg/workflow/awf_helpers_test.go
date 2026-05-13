@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -1211,6 +1213,54 @@ func TestAWFSupportsDockerHostPathPrefix(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := awfSupportsDockerHostPathPrefix(tt.firewallConfig)
 			assert.Equal(t, tt.want, got, "awfSupportsDockerHostPathPrefix result")
+		})
+	}
+}
+
+// TestArcDindDockerHostDetection exercises the generated shell snippet that probes
+// DOCKER_HOST and sets --docker-host-path-prefix. It runs the snippet in a real
+// bash subprocess with various DOCKER_HOST values to verify runtime behavior.
+func TestArcDindDockerHostDetection(t *testing.T) {
+	tests := []struct {
+		name       string
+		dockerHost string
+		wantSet    bool
+	}{
+		{"tcp://localhost:2375", "tcp://localhost:2375", true},
+		{"tcp://127.0.0.1:2375", "tcp://127.0.0.1:2375", true},
+		{"tcp://dind:2375 (K8s service name)", "tcp://dind:2375", true},
+		{"tcp://172.30.0.5:2375 (pod IP)", "tcp://172.30.0.5:2375", true},
+		{"tcp://dind-sidecar.default.svc:2376", "tcp://dind-sidecar.default.svc:2376", true},
+		{"unix socket (not tcp)", "unix:///var/run/docker.sock", false},
+		{"bare path", "/var/run/docker.sock", false},
+		{"empty (unset)", "", false},
+	}
+
+	// Build the shell snippet from the constant (same code the compiler emits).
+	scriptTemplate := fmt.Sprintf(`#!/bin/bash
+export DOCKER_HOST="%%s"
+GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
+if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
+  GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="%s"
+fi
+echo "$GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+`, awfArcDindDockerHostRegex, awfArcDindHostPathPrefixFlag)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			script := fmt.Sprintf(scriptTemplate, tt.dockerHost)
+			cmd := exec.Command("bash", "-c", script)
+			out, err := cmd.Output()
+			require.NoError(t, err, "bash script should succeed")
+
+			got := strings.TrimSpace(string(out))
+			if tt.wantSet {
+				assert.Equal(t, awfArcDindHostPathPrefixFlag, got,
+					"expected --docker-host-path-prefix to be set for DOCKER_HOST=%s", tt.dockerHost)
+			} else {
+				assert.Empty(t, got,
+					"expected --docker-host-path-prefix to NOT be set for DOCKER_HOST=%s", tt.dockerHost)
+			}
 		})
 	}
 }

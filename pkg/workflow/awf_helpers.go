@@ -35,10 +35,12 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
-	// Bash regex used in [[ ... =~ ... ]] to detect localhost TCP Docker hosts.
-	// Keep this in bash-compatible syntax (escaped dots) because it is emitted directly
-	// into generated shell scripts.
-	awfArcDindDockerHostRegex    = `^tcp://(localhost|127\.0\.0\.1)(:[0-9]+)?$`
+	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
+	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
+	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
+	// This covers localhost, pod IPs, K8s service names (e.g., tcp://dind:2375), and
+	// any other TCP Docker daemon configuration.
+	awfArcDindDockerHostRegex    = `^tcp://`
 	awfArcDindHostPathPrefixFlag = "--docker-host-path-prefix /tmp/gh-aw"
 )
 
