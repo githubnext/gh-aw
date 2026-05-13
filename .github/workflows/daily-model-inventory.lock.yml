@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"203e7d78f42ce4a75446fc9dd1aa788367dc2c766d4de740f0b88ec1561e5e46","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c898e26b9d7d118370c1a1c1df0a8aae8b5eb2e46bf9c09eb3c0e3293f24d087","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","COPILOT_GITHUB_TOKEN","GEMINI_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN","OPENAI_API_KEY"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.44"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.44"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.6","digest":"sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.6@sha256:2bb8eef86006a4c5963c55616a9c51c32f27bfdecb023b8aa6f91f6718d9171c"},{"image":"ghcr.io/github/github-mcp-server:v1.0.3","digest":"sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.3@sha256:2ac27ef03461ef2b877031b838a7d1fd7f12b12d4ace7796d8cad91446d55959"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -22,7 +22,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Queries model lists from OpenAI, Anthropic, Google, and Copilot APIs daily, then analyzes the combined inventory to propose updates to the builtin model alias mapping
+# Queries model lists from OpenAI, Anthropic, and Google APIs daily, uses AWF /reflect for Copilot models, then analyzes the combined inventory to propose updates to the builtin model alias mapping
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -200,21 +200,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_30fa567a2484c7c7_EOF'
+          cat << 'GH_AW_PROMPT_5a0c6dcd533aca0c_EOF'
           <system>
-          GH_AW_PROMPT_30fa567a2484c7c7_EOF
+          GH_AW_PROMPT_5a0c6dcd533aca0c_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_30fa567a2484c7c7_EOF'
+          cat << 'GH_AW_PROMPT_5a0c6dcd533aca0c_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_30fa567a2484c7c7_EOF
+          GH_AW_PROMPT_5a0c6dcd533aca0c_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_30fa567a2484c7c7_EOF'
+          cat << 'GH_AW_PROMPT_5a0c6dcd533aca0c_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -243,15 +243,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_30fa567a2484c7c7_EOF
+          GH_AW_PROMPT_5a0c6dcd533aca0c_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_30fa567a2484c7c7_EOF'
+          cat << 'GH_AW_PROMPT_5a0c6dcd533aca0c_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otel.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-model-inventory.md}}
-          GH_AW_PROMPT_30fa567a2484c7c7_EOF
+          GH_AW_PROMPT_5a0c6dcd533aca0c_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -332,7 +332,6 @@ jobs:
       - activation
       - collect_anthropic_models
       - collect_copilot_billing_multipliers
-      - collect_copilot_models
       - collect_gemini_models
       - collect_openai_models
     runs-on: ubuntu-latest
@@ -486,9 +485,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_fbef23dc486dee90_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_51876261fd60be86_EOF'
           {"create_issue":{"close_older_issues":true,"expires":168,"labels":["automation","models"],"max":1,"title_prefix":"[model-inventory] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_fbef23dc486dee90_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_51876261fd60be86_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -698,7 +697,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ae13290301099cd8_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_a2c8ca5b4158ccb3_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -745,7 +744,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_ae13290301099cd8_EOF
+          GH_AW_MCP_CONFIG_a2c8ca5b4158ccb3_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -782,12 +781,15 @@ jobs:
         # --allow-tool shell(find /tmp/gh-aw/model-inventory -type f)
         # --allow-tool shell(grep)
         # --allow-tool shell(head)
+        # --allow-tool shell(jq ".endpoints[] | select(.provider == \"copilot\") | .models" /tmp/gh-aw/model-inventory/reflect.json)
         # --allow-tool shell(jq . /tmp/gh-aw/model-inventory/artifacts/*/models.json)
         # --allow-tool shell(jq . /tmp/gh-aw/model-inventory/artifacts/*/raw.json)
         # --allow-tool shell(jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json)
         # --allow-tool shell(jq . /tmp/gh-aw/model-inventory/inventory.json)
+        # --allow-tool shell(jq . /tmp/gh-aw/model-inventory/reflect.json)
         # --allow-tool shell(jq)
         # --allow-tool shell(ls)
+        # --allow-tool shell(mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf "%s" "{\"endpoints\":[],\"error\":\"reflect endpoint unavailable\"}" > /tmp/gh-aw/model-inventory/reflect.json))
         # --allow-tool shell(playwright-cli:*)
         # --allow-tool shell(printf)
         # --allow-tool shell(pwd)
@@ -801,7 +803,7 @@ jobs:
         timeout-minutes: 30
         run: |
           set -o pipefail
-          printf '%%s' "$(date +%%s%%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
@@ -813,7 +815,7 @@ jobs:
           fi
           # shellcheck disable=SC1003
           sudo -E awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS} --env-all --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --skip-pull \
-            -- /bin/bash -c 'export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json)'\'' --allow-tool '\''shell(cat /tmp/gh-aw/model-inventory/inventory.json)'\'' --allow-tool '\''shell(cat pkg/cli/data/model_multipliers.json)'\'' --allow-tool '\''shell(cat pkg/workflow/data/model_aliases.json)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find /tmp/gh-aw/model-inventory -type f)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/artifacts/*/models.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/artifacts/*/raw.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/inventory.json)'\'' --allow-tool '\''shell(jq)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(playwright-cli:*)'\'' --allow-tool '\''shell(printf)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(safeoutputs:*)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c 'export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json)'\'' --allow-tool '\''shell(cat /tmp/gh-aw/model-inventory/inventory.json)'\'' --allow-tool '\''shell(cat pkg/cli/data/model_multipliers.json)'\'' --allow-tool '\''shell(cat pkg/workflow/data/model_aliases.json)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find /tmp/gh-aw/model-inventory -type f)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(jq ".endpoints[] | select(.provider == \"copilot\") | .models" /tmp/gh-aw/model-inventory/reflect.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/artifacts/*/models.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/artifacts/*/raw.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/inventory.json)'\'' --allow-tool '\''shell(jq . /tmp/gh-aw/model-inventory/reflect.json)'\'' --allow-tool '\''shell(jq)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf "%s" "{\"endpoints\":[],\"error\":\"reflect endpoint unavailable\"}" > /tmp/gh-aw/model-inventory/reflect.json))'\'' --allow-tool '\''shell(playwright-cli:*)'\'' --allow-tool '\''shell(printf)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(safeoutputs:*)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -1175,71 +1177,6 @@ jobs:
           path: /tmp/gh-aw/model-inventory/copilot-billing/multipliers.json
           retention-days: 7
 
-  collect_copilot_models:
-    needs: activation
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Configure GH_HOST for enterprise compatibility
-        id: ghes-host-config
-        shell: bash
-        run: |
-          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
-          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
-          GH_HOST="${GITHUB_SERVER_URL#https://}"
-          GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      - name: Fetch Copilot models
-        id: fetch
-        run: |
-          set -euo pipefail
-          OUT="/tmp/gh-aw/model-inventory/copilot"
-          mkdir -p "$OUT"
-          if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
-            echo '{"provider":"copilot","error":"COPILOT_GITHUB_TOKEN not set","models":[]}' > "$OUT/models.json"
-            echo '{"provider":"copilot","error":"COPILOT_GITHUB_TOKEN not set"}' > "$OUT/raw.json"
-            echo "status=skipped" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
-            -H "Authorization: Bearer $COPILOT_GITHUB_TOKEN" \
-            -H "Copilot-Integration-Id: copilot-chat" \
-            https://api.githubcopilot.com/models) || true
-          if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            jq '{
-              provider: "copilot",
-              models: [
-                .data[] | {
-                  id,
-                  name: (.name // .id),
-                  vendor: (.vendor // null),
-                  version: (.version // null),
-                  capabilities: .capabilities,
-                  billing: .billing
-                }
-              ] | sort_by(.id)
-            }' "$OUT/raw.json" > "$OUT/models.json"
-            echo "status=ok" >> "$GITHUB_OUTPUT"
-          else
-            echo "{\"provider\":\"copilot\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
-            echo "status=error" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-        shell: bash
-      - name: Upload Copilot artifacts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          if-no-files-found: error
-          name: copilot-models
-          path: |
-            /tmp/gh-aw/model-inventory/copilot/models.json
-            /tmp/gh-aw/model-inventory/copilot/raw.json
-          retention-days: 7
-
   collect_gemini_models:
     needs: activation
     runs-on: ubuntu-latest
@@ -1371,7 +1308,6 @@ jobs:
       - agent
       - collect_anthropic_models
       - collect_copilot_billing_multipliers
-      - collect_copilot_models
       - collect_gemini_models
       - collect_openai_models
       - detection
@@ -1627,7 +1563,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "Daily Model Inventory Checker"
-          WORKFLOW_DESCRIPTION: "Queries model lists from OpenAI, Anthropic, Google, and Copilot APIs daily, then analyzes the combined inventory to propose updates to the builtin model alias mapping"
+          WORKFLOW_DESCRIPTION: "Queries model lists from OpenAI, Anthropic, and Google APIs daily, uses AWF /reflect for Copilot models, then analyzes the combined inventory to propose updates to the builtin model alias mapping"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1659,7 +1595,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          printf '%%s' "$(date +%%s%%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN

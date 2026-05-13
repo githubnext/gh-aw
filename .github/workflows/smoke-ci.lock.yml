@@ -1005,7 +1005,7 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          printf '%%s' "$(date +%%s%%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
+          printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           mkdir -p /tmp/gh-aw
           umask 0177
           cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'
