@@ -53,6 +53,9 @@ features:
 
 Equivalently, set the `GH_AW_FEATURES=ghes-artifact-compat` environment variable when invoking `gh aw compile`. When the flag is active the compiler pins `actions/upload-artifact@v3.2.2` and `actions/download-artifact@v3.1.0`; compilation fails fast if the required v3 pin is missing rather than silently emitting an incompatible v4+ reference.
 
+> [!TIP]
+> To apply GHES artifact compatibility to every workflow in the repository, use the `--ghes` CLI flag or set `ghes: true` in `aw.json` instead. See [Enable via CLI flag](#enable-via-cli-flag) and [Enable via `aw.json`](#enable-via-awjson-recommended) above.
+
 ## GitHub Enterprise Server CLI Setup
 
 For `gh` CLI configuration, host authentication, and `GH_HOST` setup on GHES, see [GitHub Enterprise Server Support](/gh-aw/setup/cli/#github-enterprise-server-support) in the CLI reference.
