@@ -1170,6 +1170,55 @@ Verify that global staged mode removes all write permissions from the safe_outpu
 	}
 }
 
+func TestCompileFlagForcesStagedSafeOutputs(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflow := `---
+name: Forced Staged Via Flag
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  staged: false
+  create-issue:
+    max: 1
+---
+
+Verify that --staged forces staged mode regardless of frontmatter.
+`
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "forced-staged-flag.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", "--staged", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "forced-staged-flag.lock.yml")
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContentStr := string(lockContent)
+	safeOutputsJobSection := extractYAMLJobSection(lockContentStr, "safe_outputs")
+	if safeOutputsJobSection == "" {
+		t.Fatalf("Could not find safe_outputs job in lock file\nLock file content:\n%s", lockContentStr)
+	}
+
+	if !strings.Contains(lockContentStr, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`) {
+		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\nLock file content:\n%s", lockContentStr)
+	}
+	if strings.Contains(safeOutputsJobSection, "issues: write") {
+		t.Errorf("Forced staged lock file should not request write permissions in safe_outputs job\nLock file content:\n%s", lockContentStr)
+	}
+}
+
 // TestCompileStagedSafeOutputsPermissionsPerHandler verifies that when only specific
 // safe-output handlers have staged: true, only those handlers' write permissions are
 // omitted. Non-staged handlers still contribute their required permissions.

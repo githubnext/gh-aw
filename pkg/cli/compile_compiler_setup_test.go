@@ -82,3 +82,11 @@ func TestSetupRepositoryContext_ScheduleSeedTakesPrecedenceOverPerFileRemote(t *
 		t.Fatalf("--schedule-seed should take precedence over per-file remote; expected upstream/repo, got %q", got)
 	}
 }
+
+func TestCreateAndConfigureCompiler_ForceStaged(t *testing.T) {
+	compiler := createAndConfigureCompiler(CompileConfig{Staged: true})
+
+	if !compiler.IsForceStaged() {
+		t.Fatal("expected --staged compiler configuration to force staged mode")
+	}
+}
