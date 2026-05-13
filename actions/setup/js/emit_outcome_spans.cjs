@@ -22,17 +22,7 @@
 const fs = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 
-const {
-  generateTraceId,
-  generateSpanId,
-  buildAttr,
-  buildOTLPBatchPayload,
-  buildOTLPSpan,
-  buildGitHubActionsResourceAttributes,
-  parseOTLPEndpoints,
-  sendOTLPToAllEndpoints,
-  appendToOTLPJSONL,
-} = require("./send_otlp_span.cjs");
+const { generateTraceId, generateSpanId, buildAttr, buildOTLPBatchPayload, buildOTLPSpan, buildGitHubActionsResourceAttributes, parseOTLPEndpoints, sendOTLPToAllEndpoints, appendToOTLPJSONL } = require("./send_otlp_span.cjs");
 
 const EVALUATIONS_PATH = "/tmp/gh-aw/outcome-evaluations.jsonl";
 const SUMMARY_PATH = "/tmp/gh-aw/outcome-summary.json";
