@@ -9,6 +9,8 @@ describe("route_slash_command", () => {
   let savedGlobals;
   /** @type {any[]} */
   let dispatchCalls;
+  /** @type {any[]} */
+  let reactionCalls;
 
   beforeEach(() => {
     savedGlobals = {
@@ -20,10 +22,17 @@ describe("route_slash_command", () => {
       getOctokit: globals.getOctokit,
     };
     dispatchCalls = [];
+    reactionCalls = [];
     globals.core = {
       info: vi.fn(),
+      warning: vi.fn(),
     };
     globals.github = {
+      request: vi.fn(async (...args) => {
+        reactionCalls.push(args);
+        return { data: { id: 1 } };
+      }),
+      graphql: vi.fn(async () => ({ repository: { discussion: { id: "D_node" } }, addReaction: { reaction: { id: "R_1" } } })),
       rest: {
         actions: {
           createWorkflowDispatch: vi.fn(async params => {
@@ -36,13 +45,13 @@ describe("route_slash_command", () => {
       eventName: "issue_comment",
       ref: "refs/heads/main",
       repo: { owner: "github", repo: "gh-aw" },
-      payload: { issue: {}, comment: {} },
+      payload: { issue: {}, comment: { id: 123456 } },
     };
     globals.exec = {};
     globals.io = {};
     globals.getOctokit = vi.fn();
     process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
-      archie: [{ workflow: "archie", events: ["issue_comment", "pull_request_comment"] }],
+      archie: [{ workflow: "archie", events: ["issue_comment", "pull_request_comment"], ai_reaction: "eyes" }],
     });
     process.env.GITHUB_WORKSPACE = `${process.cwd()}`;
   });
@@ -73,6 +82,10 @@ describe("route_slash_command", () => {
     await main();
     expect(dispatchCalls).toHaveLength(1);
     expect(dispatchCalls[0].workflow_id).toBe("archie.lock.yml");
+    expect(reactionCalls).toHaveLength(1);
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("archie");
+    expect(awContext.desired_ai_reaction).toBe("eyes");
   });
 
   it("treats issue_comment on pull requests as pull_request_comment", async () => {
@@ -80,5 +93,17 @@ describe("route_slash_command", () => {
     globals.context.payload.comment.body = "/archie please";
     await main();
     expect(dispatchCalls).toHaveLength(1);
+  });
+
+  it("does not add immediate reaction when no valid route reaction is configured", async () => {
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["issue_comment"], ai_reaction: "none" }],
+    });
+    globals.context.payload.comment.body = "/archie please";
+    await main();
+    expect(dispatchCalls).toHaveLength(1);
+    expect(reactionCalls).toHaveLength(0);
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.desired_ai_reaction).toBeUndefined();
   });
 });

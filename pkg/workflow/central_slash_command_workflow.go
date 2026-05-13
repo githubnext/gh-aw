@@ -21,8 +21,9 @@ const (
 )
 
 type slashCommandRoute struct {
-	Workflow string   `json:"workflow"`
-	Events   []string `json:"events"`
+	Workflow   string   `json:"workflow"`
+	Events     []string `json:"events"`
+	AIReaction string   `json:"ai_reaction,omitempty"`
 }
 
 type commandsHeaderMetadata struct {
@@ -119,8 +120,9 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 
 		for _, commandName := range wd.Command {
 			route := slashCommandRoute{
-				Workflow: wd.WorkflowID,
-				Events:   slices.Clone(routeEvents),
+				Workflow:   wd.WorkflowID,
+				Events:     slices.Clone(routeEvents),
+				AIReaction: resolveCentralizedRouteReaction(wd, routeEvents),
 			}
 			routesByCommand[commandName] = append(routesByCommand[commandName], route)
 		}
@@ -134,6 +136,31 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 	}
 
 	return routesByCommand, mergedEvents
+}
+
+func resolveCentralizedRouteReaction(wd *WorkflowData, routeEvents []string) string {
+	if wd == nil || wd.AIReaction == "" || wd.AIReaction == "none" {
+		return ""
+	}
+
+	for _, eventName := range routeEvents {
+		switch eventName {
+		case "issues", "issue_comment":
+			if shouldIncludeIssueReactions(wd) {
+				return wd.AIReaction
+			}
+		case "pull_request", "pull_request_comment", "pull_request_review_comment":
+			if shouldIncludePullRequestReactions(wd) {
+				return wd.AIReaction
+			}
+		case "discussion", "discussion_comment":
+			if shouldIncludeDiscussionReactions(wd) {
+				return wd.AIReaction
+			}
+		}
+	}
+
+	return ""
 }
 
 func buildCentralSlashCommandWorkflowYAML(routesByCommand map[string][]slashCommandRoute, mergedEvents map[string]map[string]bool, runsOn string, setupActionRef string) (string, error) {
