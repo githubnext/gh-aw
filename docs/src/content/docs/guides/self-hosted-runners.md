@@ -152,7 +152,7 @@ This setting applies to every job in `agentics-maintenance.yml` (close-expired-e
 - [Network Access](/gh-aw/reference/network/) — configuring outbound network permissions
 - [Sandbox](/gh-aw/reference/sandbox/) — container and Docker requirements
 - [Ephemerals](/gh-aw/guides/ephemerals/#maintenance-configuration) — full `aw.json` maintenance configuration reference
-- [Enterprise Configuration](/gh-aw/enterprise-configuration/) — custom API endpoints for GHEC/GHES
+- [Enterprise Configuration](/gh-aw/reference/enterprise-configuration/) — custom API endpoints for GHEC/GHES
 
 ## Runner environment requirements
 
@@ -162,13 +162,13 @@ Self-hosted runners must meet these requirements for agentic workflows to run re
 
 A working Docker daemon is required. The MCP gateway and sandbox run as containers.
 
-- **Unix socket**: Docker must be accessible via a Unix socket (typically `/var/run/docker.sock`). The gateway resolves the socket path from `DOCKER_HOST` if set.
+- **Unix socket**: Docker must be accessible via a Unix socket (typically `/var/run/docker.sock`). If `DOCKER_HOST` is set, the gateway only treats `unix://...` or bare absolute paths as socket paths; other schemes (for example `tcp://...`) fall back to `/var/run/docker.sock`.
 - **Docker group**: The runner user must be in the `docker` group, or the socket must be world-readable.
 - **ARC/Kubernetes**: If using [actions-runner-controller](https://github.com/actions/actions-runner-controller) with Docker-in-Docker (dind), the dind sidecar must share the Docker socket via an `emptyDir` volume. The gateway will retry the socket check for up to 10 seconds to handle startup race conditions.
 
 ### Filesystem
 
-- **Use `RUNNER_TEMP` for transient state.** All job-scoped temporary files (sandbox state, tool downloads, intermediate outputs) should go to `$RUNNER_TEMP`, which is cleaned between jobs. Never write to `/tmp` on shared runners — it persists across jobs.
+- **Use `RUNNER_TEMP` for transient state.** All job-scoped temporary files (sandbox state, tool downloads, intermediate outputs) should go to `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs. The `/tmp/gh-aw` prefix is reserved for gh-aw/AWF ARC DinD path rewriting and should be cleaned by runner maintenance between jobs.
 - **No root or sudo assumption.** The runner user may not have root or `sudo` access (except for the initial iptables setup, which requires `sudo`). Tool installs, file operations, and sandbox setup should work as the unprivileged runner user.
 - **No global installs.** Do not install packages to `/usr/local/`, `/opt/hostedtoolcache/`, or other system-wide paths. These may be read-only, shared across runners, or bind-mounted read-only inside the sandbox. Use job-scoped writable locations instead.
 - **No hardcoded `HOME` paths.** The runner's home directory may not be `/home/runner`. Use `$HOME` or `$RUNNER_TEMP` instead of hardcoded paths.
@@ -198,29 +198,25 @@ Agentic workflows can run on GHES with some additional configuration.
 
 GHES does not support the `@actions/artifact` v2.0.0+ backend used by `upload-artifact@v4+` and `download-artifact@v4+`. Compiled workflows use the latest artifact action versions by default, which fail on GHES with `GHESNotSupportedError`.
 
-Enable the `ghes-artifact-compat` feature flag to use compatible v3.x artifact actions:
+Enable GHES compatibility mode in `.github/workflows/aw.json` to use compatible v3.x artifact actions:
 
-```aw
----
-on: workflow_dispatch
-runs-on: [self-hosted, linux]
-features:
-  ghes-artifact-compat: true
-engine: copilot
----
+```json
+{
+  "ghes": true
+}
 ```
 
-Or set the environment variable globally:
+Or compile with `--ghes` for one-off workflow generation:
 
 ```bash
-GH_AW_FEATURES=ghes-artifact-compat gh aw compile
+gh aw compile --ghes my-workflow.md
 ```
 
 This makes the compiler emit `upload-artifact@v3.2.2` and `download-artifact@v3.1.0` instead of the latest versions, which are compatible with all GHES versions.
 
 ### API endpoint
 
-GHES instances need the `api-target` engine configuration. See [Enterprise Configuration](/gh-aw/enterprise-configuration/) for full setup instructions.
+GHES instances need the `api-target` engine configuration. See [Enterprise Configuration](/gh-aw/reference/enterprise-configuration/) for full setup instructions.
 
 ```aw
 ---
