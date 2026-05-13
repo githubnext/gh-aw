@@ -17,95 +17,94 @@ Use this router when a user asks for a workflow architecture, strategy, operatin
 
 ## Pattern Index
 
-Pattern docs base path (relative to this file): `../../docs/src/content/docs/patterns/`
+Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/`
 
 ### Agentic Ops
 - **Load when:** The user needs repository-wide workflow observability, trend reporting, and escalation for recurring failures or token waste.
-- **Pattern doc:** agentic-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/agentic-ops.md
 
 ### BatchOps
 - **Load when:** The user needs to process large worksets in shards/chunks with throttling and aggregation.
-- **Pattern doc:** batch-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/batch-ops.md
 
 ### CentralRepoOps
 - **Load when:** The user needs a private control repository that coordinates rollouts across many target repositories.
-- **Pattern doc:** central-repo-ops.mdx
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/central-repo-ops.mdx
 
 ### ChatOps
 - **Load when:** The user wants slash-command driven, human-in-the-loop automation in issues or pull requests.
-- **Pattern doc:** chat-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/chat-ops.md
 
 ### CorrectionOps
 - **Load when:** The user wants to improve workflow behavior from trusted human corrections without retraining the model.
-- **Pattern doc:** correction-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/correction-ops.md
 
 ### DailyOps
 - **Load when:** The user wants scheduled, small, recurring improvements that compound over time.
-- **Pattern doc:** daily-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/daily-ops.md
 
 ### DataOps
 - **Load when:** The user needs deterministic data collection steps followed by agentic analysis and reporting.
-- **Pattern doc:** data-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/data-ops.md
 
 ### DispatchOps
 - **Load when:** The user needs manual trigger flows (`workflow_dispatch`) with custom inputs for testing or controlled runs.
-- **Pattern doc:** dispatch-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/dispatch-ops.md
 
 ### ExpertOps
 - **Load when:** The user needs scheduled domain-expert agents that file recommendations and monitor impact over time.
-- **Pattern doc:** expert-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/expert-ops.md
 
 ### IssueOps
 - **Load when:** The user needs fully automated issue triage, categorization, and responses on issue events.
-- **Pattern doc:** issue-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/issue-ops.md
 
 ### LabelOps
 - **Load when:** The user needs label-driven workflow behavior when specific labels are added or removed.
-- **Pattern doc:** label-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/label-ops.md
 
 ### Projects & Monitoring
 - **Load when:** The user needs durable tracking and monitoring of work items with GitHub Projects and safe outputs.
-- **Pattern doc:** monitoring.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/monitoring.md
 
 ### MultiRepoOps
 - **Load when:** The user needs coordination and synchronization across multiple repositories.
-- **Pattern doc:** multi-repo-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/multi-repo-ops.md
 
 ### Orchestration
 - **Load when:** The user needs orchestrator/worker architecture using reusable workflows or workflow dispatch.
-- **Pattern doc:** orchestration.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/orchestration.md
 
 ### ProjectOps
 - **Load when:** The user needs intelligent routing and controlled field updates in GitHub Projects.
-- **Pattern doc:** project-ops.mdx
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/project-ops.mdx
 
 ### ResearchPlanAssignOps
 - **Load when:** The user needs a flow from deep research to planning to automated issue assignment/implementation.
-- **Pattern doc:** research-plan-assign-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/research-plan-assign-ops.md
 
 ### SideRepoOps
 - **Load when:** The user wants low-friction reporting/automation from a side repository targeting a primary repository.
-- **Pattern doc:** side-repo-ops.mdx
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/side-repo-ops.mdx
 
 ### SpecOps
 - **Load when:** The user needs to maintain formal specifications and propagate spec updates to consuming implementations.
-- **Pattern doc:** spec-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/spec-ops.md
 
 ### TaskOps Strategy
 - **Load when:** The user needs a staged model of research, planning, and code execution with developer control.
-- **Pattern doc:** task-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/task-ops.md
 
 ### TrialOps
 - **Load when:** The user needs isolated trial repositories to validate workflows before production rollout.
-- **Pattern doc:** trial-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/trial-ops.md
 
 ### WorkQueueOps
 - **Load when:** The user needs durable queue processing for many items via issues, sub-issues, discussions, or cache-memory.
-- **Pattern doc:** workqueue-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/workqueue-ops.md
 
 ## Notes
 
 - Prefer documented patterns over ad hoc architecture when a strong match exists.
-- Pattern links are relative to this file (`.github/aw/patterns.md`); if this file is moved, update all pattern paths accordingly.
 - When relevant, combine pattern guidance with core workflow rules from:
-  - .github/aw/github-agentic-workflows.md
+  - https://github.com/github/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
