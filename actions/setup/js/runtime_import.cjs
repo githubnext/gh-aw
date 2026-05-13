@@ -491,6 +491,38 @@ function evaluateExpression(expr) {
       if (value !== undefined && value !== null) {
         return String(value);
       }
+
+      // If the direct context lookup failed, try resolving via aw_context.
+      // Slash-command workflows run as workflow_dispatch events; the triggering
+      // issue/discussion/PR number lives in inputs.aw_context, not in the event
+      // payload (context.payload.issue is undefined for workflow_dispatch).
+      const awCtxStr = /** @type {string | undefined} */ (context?.payload?.inputs?.aw_context) || "";
+      if (awCtxStr) {
+        try {
+          /** @type {{ item_type?: string, item_number?: number|string, comment_id?: number|string }} */
+          const awCtx = JSON.parse(awCtxStr);
+          /** @type {Record<string, () => string | undefined>} */
+          const fieldResolvers = {
+            "github.event.issue.number": () =>
+              awCtx.item_type === "issue" && awCtx.item_number ? String(awCtx.item_number) : undefined,
+            "github.event.discussion.number": () =>
+              awCtx.item_type === "discussion" && awCtx.item_number ? String(awCtx.item_number) : undefined,
+            "github.event.pull_request.number": () =>
+              awCtx.item_type === "pull_request" && awCtx.item_number ? String(awCtx.item_number) : undefined,
+            "github.event.comment.id": () =>
+              awCtx.comment_id ? String(awCtx.comment_id) : undefined,
+          };
+          const resolver = fieldResolvers[trimmed];
+          if (resolver) {
+            const awValue = resolver();
+            if (awValue !== undefined) {
+              return awValue;
+            }
+          }
+        } catch (_parseError) {
+          // aw_context is not valid JSON – ignore and fall through
+        }
+      }
     } catch (error) {
       // If evaluation fails, log but don't throw
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -791,7 +823,7 @@ function wrapExpressionsInTemplateConditionals(content) {
       return match;
     }
 
-    // Only wrap expressions that look like GitHub Actions expressions
+    // Only process expressions that look like GitHub Actions expressions
     // GitHub Actions expressions typically start with a letter and contain dots
     // (e.g., github.actor, github.event.issue.number).
     // Expressions starting with non-alphabetic characters (e.g., "...") are NOT GitHub expressions.
@@ -803,8 +835,21 @@ function wrapExpressionsInTemplateConditionals(content) {
       return match;
     }
 
-    // Wrap the expression
-    return `{{#if \${{ ${trimmed} }} }}`;
+    // Evaluate the condition inline so that the template renderer (renderMarkdownTemplate /
+    // isTruthy) receives the actual runtime value rather than an __GH_AW__ placeholder string.
+    //
+    // If we had instead produced `{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}`, the
+    // placeholder literal (a non-empty string) would always be truthy when evaluated by
+    // isTruthy() because substitute_placeholders.cjs runs *after* template rendering.
+    // Evaluating inline here ensures:
+    //   • a known number  → truthy  (block kept when issue is present)
+    //   • "" or undefined → falsy   (block removed when there is no issue/discussion)
+    const evaluated = evaluateExpression(trimmed);
+    if (evaluated.startsWith("${{")) {
+      // Expression could not be resolved — treat as falsy (empty condition)
+      return `{{#if }}`;
+    }
+    return `{{#if ${evaluated} }}`;
   });
 }
 

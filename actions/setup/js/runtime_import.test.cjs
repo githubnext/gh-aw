@@ -480,6 +480,39 @@ describe("runtime_import", () => {
         expect(evaluateExpression("inputs.missing || 42")).toBe("42");
         expect(evaluateExpression("inputs.missing || true")).toBe("true");
       });
+      describe("aw_context fallback for slash-command event fields", () => {
+        it("should resolve github.event.issue.number from aw_context when item_type is issue", () => {
+          global.context.payload.inputs = { aw_context: JSON.stringify({ item_type: "issue", item_number: 123 }) };
+          expect(evaluateExpression("github.event.issue.number")).toBe("123");
+        });
+        it("should return unresolved for github.event.issue.number when aw_context item_type is discussion", () => {
+          global.context.payload.inputs = { aw_context: JSON.stringify({ item_type: "discussion", item_number: 99 }) };
+          expect(evaluateExpression("github.event.issue.number")).toContain("${{");
+        });
+        it("should resolve github.event.discussion.number from aw_context when item_type is discussion", () => {
+          global.context.payload.inputs = { aw_context: JSON.stringify({ item_type: "discussion", item_number: 99 }) };
+          expect(evaluateExpression("github.event.discussion.number")).toBe("99");
+        });
+        it("should return unresolved for github.event.discussion.number when aw_context item_type is issue", () => {
+          global.context.payload.inputs = { aw_context: JSON.stringify({ item_type: "issue", item_number: 123 }) };
+          expect(evaluateExpression("github.event.discussion.number")).toContain("${{");
+        });
+        it("should resolve github.event.pull_request.number from aw_context when item_type is pull_request", () => {
+          global.context.payload.inputs = { aw_context: JSON.stringify({ item_type: "pull_request", item_number: 7 }) };
+          expect(evaluateExpression("github.event.pull_request.number")).toBe("7");
+        });
+        it("should resolve github.event.comment.id from aw_context when comment_id is present", () => {
+          global.context.payload.inputs = { aw_context: JSON.stringify({ item_type: "issue", item_number: 1, comment_id: 555 }) };
+          expect(evaluateExpression("github.event.comment.id")).toBe("555");
+        });
+        it("should return unresolved for github.event.issue.number when aw_context is absent", () => {
+          expect(evaluateExpression("github.event.issue.number")).toContain("${{");
+        });
+        it("should return unresolved for github.event.issue.number when aw_context is invalid JSON", () => {
+          global.context.payload.inputs = { aw_context: "not-json" };
+          expect(evaluateExpression("github.event.issue.number")).toContain("${{");
+        });
+      });
     }),
     describe("processRuntimeImport", () => {
       (it("should read and return file content", async () => {
@@ -1732,15 +1765,51 @@ describe("runtime_import", () => {
       });
     });
 
-    describe("GitHub Actions expressions — must be wrapped", () => {
-      it("should wrap {{#if github.actor}}", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if github.actor}}body{{/if}}")).toBe("{{#if ${{ github.actor }} }}body{{/if}}");
+    describe("GitHub Actions expressions — without context — produce falsy condition", () => {
+      it("should produce {{#if }} (falsy) for github.actor when context is unavailable", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.actor}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
       });
-      it("should wrap {{#if needs.activation.outputs.text}}", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if needs.activation.outputs.text}}body{{/if}}")).toBe("{{#if ${{ needs.activation.outputs.text }} }}body{{/if}}");
+      it("should produce {{#if }} (falsy) for needs.activation.outputs.text when env var is absent", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if needs.activation.outputs.text}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
       });
-      it("should wrap {{#if steps.foo.outputs.bar}}", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if steps.foo.outputs.bar}}body{{/if}}")).toBe("{{#if ${{ steps.foo.outputs.bar }} }}body{{/if}}");
+      it("should produce {{#if }} (falsy) for steps.foo.outputs.bar when env var is absent", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if steps.foo.outputs.bar}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
+      });
+    });
+
+    describe("GitHub Actions expressions — with context — produce evaluated value", () => {
+      beforeEach(() => {
+        global.context = {
+          actor: "testuser",
+          eventName: "workflow_dispatch",
+          job: "test-job",
+          repo: { owner: "testorg", repo: "testrepo" },
+          runId: 12345,
+          runNumber: 67,
+          workflow: "test-workflow",
+          payload: { inputs: {} },
+        };
+      });
+      afterEach(() => {
+        delete global.context;
+      });
+      it("should inline evaluate {{#if github.actor}} to the actor value", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.actor}}body{{/if}}")).toBe("{{#if testuser }}body{{/if}}");
+      });
+      it("should produce {{#if }} (falsy) for github.event.issue.number when event has no issue", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.issue.number}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
+      });
+      it("should inline evaluate github.event.issue.number from aw_context when item_type is issue", () => {
+        global.context.payload.inputs.aw_context = JSON.stringify({ item_type: "issue", item_number: 42 });
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.issue.number}}body{{/if}}")).toBe("{{#if 42 }}body{{/if}}");
+      });
+      it("should produce {{#if }} (falsy) for github.event.issue.number when aw_context item_type is discussion", () => {
+        global.context.payload.inputs.aw_context = JSON.stringify({ item_type: "discussion", item_number: 99 });
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.issue.number}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
+      });
+      it("should inline evaluate github.event.discussion.number from aw_context when item_type is discussion", () => {
+        global.context.payload.inputs.aw_context = JSON.stringify({ item_type: "discussion", item_number: 99 });
+        expect(wrapExpressionsInTemplateConditionals("{{#if github.event.discussion.number}}body{{/if}}")).toBe("{{#if 99 }}body{{/if}}");
       });
     });
 
@@ -1772,10 +1841,24 @@ describe("runtime_import", () => {
     });
 
     it("should handle multiple conditionals in one string", () => {
-      const input = "{{#if github.actor}}A{{/if}} and {{#if ...}}B{{/if}}";
-      const result = wrapExpressionsInTemplateConditionals(input);
-      expect(result).toContain("{{#if ${{ github.actor }} }}");
-      expect(result).toContain("{{#if ...}}");
+      global.context = {
+        actor: "testuser",
+        eventName: "workflow_dispatch",
+        job: "test-job",
+        repo: { owner: "testorg", repo: "testrepo" },
+        runId: 12345,
+        runNumber: 67,
+        workflow: "test-workflow",
+        payload: { inputs: {} },
+      };
+      try {
+        const input = "{{#if github.actor}}A{{/if}} and {{#if ...}}B{{/if}}";
+        const result = wrapExpressionsInTemplateConditionals(input);
+        expect(result).toContain("{{#if testuser }}");
+        expect(result).toContain("{{#if ...}}");
+      } finally {
+        delete global.context;
+      }
     });
   });
 
@@ -1845,12 +1928,26 @@ describe("runtime_import", () => {
       expect(result).toBe(content);
       expect(result).not.toContain("__GH_AW_");
     });
-    it("should convert {{#if github.actor}} to __GH_AW_GITHUB_ACTOR__ placeholder when imported", async () => {
-      const content = "{{#if github.actor}}present{{/if}}";
-      fs.writeFileSync(path.join(workflowsDir2, "actor.md"), content);
-      const result = await processRuntimeImport("actor.md", false, tempDir2);
-      expect(result).toContain("__GH_AW_GITHUB_ACTOR__");
-      expect(result).not.toContain("{{#if github.actor}}");
+    it("should inline evaluate {{#if github.actor}} to the actor value when context is set", async () => {
+      global.context = {
+        actor: "testuser",
+        eventName: "workflow_dispatch",
+        job: "test-job",
+        repo: { owner: "testorg", repo: "testrepo" },
+        runId: 12345,
+        runNumber: 67,
+        workflow: "test-workflow",
+        payload: { inputs: {} },
+      };
+      try {
+        const content = "{{#if github.actor}}present{{/if}}";
+        fs.writeFileSync(path.join(workflowsDir2, "actor.md"), content);
+        const result = await processRuntimeImport("actor.md", false, tempDir2);
+        expect(result).toContain("{{#if testuser }}");
+        expect(result).not.toContain("{{#if github.actor}}");
+      } finally {
+        delete global.context;
+      }
     });
     it("should preserve inline doc text containing {{#if ...}} exactly (regression test)", async () => {
       const content = "- **Conditional blocks not handled**: `{{#if ...}}` blocks are left in output → fix template processing";
