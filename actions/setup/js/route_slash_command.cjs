@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
+// Keep this aligned with the current default stable GitHub REST API version used by workflows.
+// Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
 
 function eventIdentifier() {
@@ -185,18 +187,22 @@ async function addImmediateReaction(reaction) {
  * @returns {Promise<void>}
  */
 async function dispatchWorkflow(workflowId, ref, inputs) {
-  await github.rest.actions.createWorkflowDispatch({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    workflow_id: workflowId,
-    ref,
-    inputs,
-    request: {
-      headers: {
-        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+  try {
+    await github.rest.actions.createWorkflowDispatch({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      workflow_id: workflowId,
+      ref,
+      inputs,
+      request: {
+        headers: {
+          "X-GitHub-Api-Version": GITHUB_API_VERSION,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
+  }
 }
 
 async function main() {
