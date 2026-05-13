@@ -93,18 +93,15 @@ ${{ steps.sanitized.outputs.text }}
 		t.Error("Compiled workflow should contain interpolation and template rendering step")
 	}
 
-	// Verify GitHub expressions are properly replaced with placeholders in template conditionals
-	// The GitHub context section (built-in) should have placeholders
-	// User markdown content is loaded via runtime-import and processed at runtime
-	expectedPlaceholderExpressions := []string{
-		"{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}",
-		"{{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}",
+	// Verify GitHub context section contains issue/PR number conditionals.
+	// Per ADR-31820, these use compound fallback expressions of the form
+	// "github.event.* || aw_context fallback" (not wrapped in GitHub's ${{ }} syntax).
+	// User markdown content is loaded via runtime-import and processed at runtime.
+	if !strings.Contains(compiledStr, "{{#if github.event.issue.number ||") {
+		t.Error("Compiled workflow should contain issue number conditional with aw_context fallback in GitHub context")
 	}
-
-	for _, expectedExpr := range expectedPlaceholderExpressions {
-		if !strings.Contains(compiledStr, expectedExpr) {
-			t.Errorf("Compiled workflow should contain placeholder expression in GitHub context: %s", expectedExpr)
-		}
+	if !strings.Contains(compiledStr, "{{#if github.event.pull_request.number ||") {
+		t.Error("Compiled workflow should contain PR number conditional with aw_context fallback in GitHub context")
 	}
 
 	// Verify that the main workflow content is loaded via runtime-import
@@ -182,17 +179,20 @@ This expression needs wrapping.
 	// After compilation, GitHub expressions are extracted and replaced with placeholders
 	// for security. The original ${{ ... }} expressions are not preserved in the compiled output.
 	// Instead, we verify that:
-	// 1. Placeholders are created for the expressions
-	// 2. Placeholders are not double-wrapped
-	// 3. Both expressions result in placeholder-based conditionals
+	// 1. GitHub context conditionals exist in the compiled output
+	// 2. Expressions are not double-wrapped
+	// 3. The original already-wrapped ${{ }} syntax is handled correctly
 
-	// Verify that placeholder conditionals exist (not the original expressions)
-	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}") {
-		t.Error("Expected placeholder conditional for github.event.issue.number")
+	// Verify the GitHub context section contains the issue number conditional.
+	// Per ADR-31820, the condition uses a compound fallback expression of the form
+	// "github.event.* || aw_context fallback" (not a ${{ }}-wrapped placeholder).
+	if !strings.Contains(compiledStr, "{{#if github.event.issue.number ||") {
+		t.Error("Expected issue number conditional with aw_context fallback in GitHub context")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_ACTOR__ }}") {
-		t.Error("Expected placeholder conditional for github.actor")
+	// Verify the GitHub context section contains the actor conditional (bare expression).
+	if !strings.Contains(compiledStr, "{{#if github.actor}}") {
+		t.Error("Expected actor conditional in GitHub context")
 	}
 
 	// Verify that expressions are not double-wrapped with ${{ ${{ ... }}
@@ -264,10 +264,11 @@ Steps expression - will be wrapped.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify GitHub expressions in the GitHub context section are replaced with placeholders
+	// Verify the GitHub context section contains the issue number conditional.
+	// Per ADR-31820, the condition uses a compound fallback expression (not a simple placeholder).
 	// (These are in the built-in context, not the user's markdown)
-	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}") {
-		t.Error("GitHub context should contain placeholder for github.event.issue.number")
+	if !strings.Contains(compiledStr, "{{#if github.event.issue.number ||") {
+		t.Error("GitHub context should contain issue number conditional with aw_context fallback")
 	}
 
 	// Verify that the main workflow content is loaded via runtime-import

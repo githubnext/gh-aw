@@ -33,7 +33,6 @@ permissions:
   issues: read
 engine: claude
 strict: false
-command: /fix
 ---`,
 			description:        "Pre-activation job should have contents: read when using local actions",
 			expectedPermission: "contents: read",
@@ -153,7 +152,6 @@ permissions:
   issues: read
 engine: claude
 strict: false
-command: /fix
 ---`
 
 	testContent := frontmatter + "\n\n# Test Workflow\n\nTest workflow content."
