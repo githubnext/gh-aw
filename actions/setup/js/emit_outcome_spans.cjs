@@ -26,15 +26,12 @@ const {
   generateTraceId,
   generateSpanId,
   buildAttr,
-  buildOTLPPayload,
   buildOTLPBatchPayload,
   buildOTLPSpan,
   buildGitHubActionsResourceAttributes,
   parseOTLPEndpoints,
   sendOTLPToAllEndpoints,
   appendToOTLPJSONL,
-  SPAN_KIND_INTERNAL,
-  SPAN_KIND_PRODUCER,
 } = require("./send_otlp_span.cjs");
 
 const EVALUATIONS_PATH = "/tmp/gh-aw/outcome-evaluations.jsonl";
