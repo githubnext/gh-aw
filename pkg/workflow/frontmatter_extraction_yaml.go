@@ -149,6 +149,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inOnSteps := false
 	inOnPermissions := false
 	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
+	currentSectionIndent := -1
+	deploymentStatusIndent := -1
+	workflowRunIndent := -1
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -160,7 +163,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		// `issues:` event trigger, incorrectly entering the inIssues state and suppressing
 		// the permission comment-out logic.
 		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
-			if lineIndent == 2 && trimmedLine == "pull_request:" {
+			if lineIndent >= 2 && trimmedLine == "pull_request:" {
 				inPullRequest = true
 				inIssues = false
 				inDiscussion = false
@@ -169,10 +172,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inWorkflowRun = false
 				inWorkflowRunConclusionArray = false
 				currentSection = "pull_request"
+				currentSectionIndent = lineIndent
+				deploymentStatusIndent = -1
+				workflowRunIndent = -1
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "issues:" {
+			if lineIndent >= 2 && trimmedLine == "issues:" {
 				inIssues = true
 				inPullRequest = false
 				inDiscussion = false
@@ -181,10 +187,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inWorkflowRun = false
 				inWorkflowRunConclusionArray = false
 				currentSection = "issues"
+				currentSectionIndent = lineIndent
+				deploymentStatusIndent = -1
+				workflowRunIndent = -1
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "discussion:" {
+			if lineIndent >= 2 && trimmedLine == "discussion:" {
 				inDiscussion = true
 				inPullRequest = false
 				inIssues = false
@@ -193,10 +202,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inWorkflowRun = false
 				inWorkflowRunConclusionArray = false
 				currentSection = "discussion"
+				currentSectionIndent = lineIndent
+				deploymentStatusIndent = -1
+				workflowRunIndent = -1
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "issue_comment:" {
+			if lineIndent >= 2 && trimmedLine == "issue_comment:" {
 				inIssueComment = true
 				inPullRequest = false
 				inIssues = false
@@ -205,10 +217,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inWorkflowRun = false
 				inWorkflowRunConclusionArray = false
 				currentSection = "issue_comment"
+				currentSectionIndent = lineIndent
+				deploymentStatusIndent = -1
+				workflowRunIndent = -1
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "deployment_status:" {
+			if lineIndent >= 2 && trimmedLine == "deployment_status:" {
 				inDeploymentStatus = true
 				inWorkflowRun = false
 				inPullRequest = false
@@ -216,10 +231,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inDiscussion = false
 				inIssueComment = false
 				currentSection = ""
+				currentSectionIndent = -1
+				deploymentStatusIndent = lineIndent
+				workflowRunIndent = -1
 				result = append(result, line)
 				continue
 			}
-			if lineIndent == 2 && trimmedLine == "workflow_run:" {
+			if lineIndent >= 2 && trimmedLine == "workflow_run:" {
 				inWorkflowRun = true
 				inDeploymentStatus = false
 				inPullRequest = false
@@ -227,6 +245,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				inDiscussion = false
 				inIssueComment = false
 				currentSection = ""
+				currentSectionIndent = -1
+				deploymentStatusIndent = -1
+				workflowRunIndent = lineIndent
 				result = append(result, line)
 				continue
 			}
@@ -234,26 +255,32 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 
 		// Check if we're leaving the pull_request, issues, discussion, or issue_comment section (new top-level key or end of indent)
 		if inPullRequest || inIssues || inDiscussion || inIssueComment {
-			// If line is not indented or is a new top-level key, we're out of the section
-			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+			// If line is at or above section indentation, we're out of the section.
+			if strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
+				currentSectionIndent >= 0 && lineIndent <= currentSectionIndent {
 				inPullRequest = false
 				inIssues = false
 				inDiscussion = false
 				inIssueComment = false
 				inForksArray = false
 				currentSection = ""
+				currentSectionIndent = -1
 			}
 		}
 
 		// Check if we're leaving the deployment_status section
-		if inDeploymentStatus && strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+		if inDeploymentStatus && strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
+			deploymentStatusIndent >= 0 && lineIndent <= deploymentStatusIndent {
 			inDeploymentStatus = false
+			deploymentStatusIndent = -1
 		}
 
 		// Check if we're leaving the workflow_run section
-		if inWorkflowRun && strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
+		if inWorkflowRun && strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
+			workflowRunIndent >= 0 && lineIndent <= workflowRunIndent {
 			inWorkflowRun = false
 			inWorkflowRunConclusionArray = false
+			workflowRunIndent = -1
 		}
 
 		// Skip marker lines in the YAML output
