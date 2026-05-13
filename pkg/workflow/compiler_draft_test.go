@@ -229,6 +229,18 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			description: "Should comment out draft but keep paths",
 		},
 		{
+			name: "pull_request with two-space indentation",
+			input: `on:
+  pull_request:
+    draft: false
+  workflow_dispatch:`,
+			expected: `on:
+  pull_request:
+    # draft: false # Draft filtering applied via job conditions
+  workflow_dispatch:`,
+			description: "Should comment out draft with two-space indentation style",
+		},
+		{
 			name: "pull_request with draft and types",
 			input: `on:
     pull_request:
