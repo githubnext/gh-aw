@@ -364,6 +364,14 @@ Reusable workflow components shared across multiple workflows. Specified in the 
 
 Imports support a parameterized form using `uses`/`with` syntax when the shared file declares an `import-schema`. The compiler validates the passed values, substitutes them into the shared file, and errors on conflicting imports of the same file. See [Imports Reference](/gh-aw/reference/imports/).
 
+### Pre-Agent Steps (`pre-agent-steps:`)
+
+Steps injected into the agent job after artifacts are downloaded and before the engine executes. Defined in the `pre-agent-steps:` frontmatter field and composable via imports — imported pre-agent-steps are prepended to the main workflow's steps in import order. Useful for setup tasks such as installing dependencies or configuring the environment before the AI engine runs. See [Imports Reference](/gh-aw/reference/imports/).
+
+### Post-Steps (`post-steps:`)
+
+Steps injected into the agent job after the engine finishes execution. Defined in the `post-steps:` frontmatter field and composable via imports — imported post-steps are appended after the main workflow's post-steps in import order. Useful for cleanup, reporting, or artifact publishing after the AI engine completes. See [Imports Reference](/gh-aw/reference/imports/).
+
 ### Import Schema (`import-schema`)
 
 A typed parameter contract declared in a shared workflow file that enables callers to pass values via `uses`/`with` syntax. The compiler validates each caller's `with` values against the schema and substitutes them into the shared file's frontmatter and body before processing. Supports typed fields with optional defaults; required fields without defaults cause a compile-time error if omitted. See [Imports Reference](/gh-aw/reference/imports/#import-schema-import-schema).
@@ -441,6 +449,10 @@ on:
 ### Triggers
 
 Events that cause a workflow to run, defined in the `on:` section of frontmatter. Includes issue events, pull requests, schedules, manual runs, and slash commands.
+
+### Skip Author Associations (`on.skip-author-associations`)
+
+A pre-activation gating mechanism that skips workflow execution when the triggering event's author has a specific `author_association` value (such as `contributor`, `first_time_contributor`, or `none`). Configured per-event in the `on.skip-author-associations` field. Compiles to a job-level `if` expression — no runtime script step cost for skipped runs. Values are case-insensitive and accept a single string or array of strings per event key. See [Triggers Reference](/gh-aw/reference/triggers/).
 
 ### Trigger File
 
@@ -642,6 +654,14 @@ Persistent agent memory backed by a managed GitHub issue or PR comment. Before e
 ### Command Triggers
 
 Special triggers responding to slash commands in issue and PR comments. Configured using the `slash_command:` section with a command name.
+
+### Centralized Slash-Command Strategy (`strategy: centralized`)
+
+An opt-in compilation mode for `slash_command:` workflows where the compiler generates a single shared `agentic_commands.yml` router workflow. The router listens to merged slash-command events and dispatches matching target workflows via `workflow_dispatch` with an `aw_context` payload. Enables combining slash commands with non-slash events (such as `issues` or `pull_request`) without trigger conflicts. Opt in by setting `on.slash_command.strategy: centralized`. See [Command Triggers](/gh-aw/reference/command-triggers/).
+
+### `aw_context`
+
+A structured context payload passed by the centralized slash-command router (`agentic_commands.yml`) when dispatching target workflows via `workflow_dispatch`. Contains the original GitHub event context (issue number, repository, actor, etc.) so the dispatched workflow can act on the correct resource even though it is triggered as a `workflow_dispatch`. See [Command Triggers](/gh-aw/reference/command-triggers/).
 
 ### Conclusion Job
 
