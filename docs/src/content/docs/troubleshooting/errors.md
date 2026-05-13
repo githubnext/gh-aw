@@ -359,4 +359,10 @@ Remove `read-only: false` or change it to `read-only: true` (the default). Write
 
 ## Getting Help
 
-If you encounter an error not documented here, search this page (Ctrl+F / Cmd+F) for keywords, review workflow examples in the documentation, enable verbose mode with `gh aw compile --verbose`, or [report issues on GitHub](https://github.com/github/gh-aw/issues). See [Common Issues](/gh-aw/troubleshooting/common-issues/) for additional help.
+If you encounter an error not documented here:
+
+1. Enable verbose mode for details: `gh aw compile --verbose`
+2. Search this page (Ctrl+F / Cmd+F) for keywords from the error message
+3. Review [workflow examples](/gh-aw/examples/) in the documentation
+4. Check [Common Issues](/gh-aw/troubleshooting/common-issues/) for additional guidance
+5. [Report the issue on GitHub](https://github.com/github/gh-aw/issues) if it is not documented
