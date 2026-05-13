@@ -31,16 +31,47 @@ steps:
       GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     run: |
       mkdir -p /tmp/gh-aw/agent
+      candidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json
+      eligible_file=/tmp/gh-aw/agent/pr-sous-chef-eligible.json
+      filtered_checks_pending=0
+      filtered_last_comment_from_sous_chef=0
+
       gh pr list --repo "${{ github.repository }}" \
         --state open \
         --search "is:pr is:open -is:draft sort:updated-desc" \
         --limit 30 \
         --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \
-        > /tmp/gh-aw/agent/pr-sous-chef-candidates.json
+        > "$candidate_file"
 
-      jq '{
+      jq -n '[]' > "$eligible_file"
+
+      while IFS= read -r pr; do
+        pr_number="$(jq -r '.number' <<<"$pr")"
+        if [ -z "$pr_number" ] || [ "$pr_number" = "null" ]; then
+          continue
+        fi
+
+        checks_state="$(gh aw checks "$pr_number" --repo "${{ github.repository }}" --json 2>/dev/null | jq -r '.required_state // .state // "unknown"' 2>/dev/null || echo "unknown")"
+        if [ "$checks_state" = "pending" ]; then
+          filtered_checks_pending=$((filtered_checks_pending + 1))
+          continue
+        fi
+
+        last_comment_is_sous_chef="$(gh api "repos/${{ github.repository }}/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" --jq 'if length == 0 then false else (((.[0].user.login // "" | ascii_downcase | contains("pr-sous-chef")) or ((.[0].body // "" | ascii_downcase | contains("pr-sous-chef")))) end' 2>/dev/null || echo "false")"
+        if [ "$last_comment_is_sous_chef" = "true" ]; then
+          filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))
+          continue
+        fi
+
+        jq --argjson pr "$pr" '. + [$pr]' "$eligible_file" > "${eligible_file}.tmp" && mv "${eligible_file}.tmp" "$eligible_file"
+      done < <(jq -c '.[]' "$candidate_file")
+
+      jq --argjson filtered_checks_pending "$filtered_checks_pending" \
+         --argjson filtered_last_comment_from_sous_chef "$filtered_last_comment_from_sous_chef" '{
         fetched: (length),
         generated_at: (now | todate),
+        filtered_checks_pending: $filtered_checks_pending,
+        filtered_last_comment_from_sous_chef: $filtered_last_comment_from_sous_chef,
         prs: map({
           number,
           title,
@@ -51,7 +82,7 @@ steps:
           author: (.author.login // "unknown"),
           mergeStateStatus
         })
-      }' /tmp/gh-aw/agent/pr-sous-chef-candidates.json \
+      }' "$eligible_file" \
         > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json
 safe-outputs:
   add-comment:
@@ -97,10 +128,12 @@ Move open non-draft PRs toward a state where a maintainer can investigate quickl
 Before any nudge for a PR:
 
 1. **Skip when checks/actions are running on the PR head branch**
+   - Candidate prefilter already uses `gh aw checks` and removes PRs with `required_state == pending`.
    - Detect pending/running checks via GitHub PR check runs / statuses for the head SHA.
    - If any check is `queued`, `in_progress`, or `pending`, skip this PR.
 
 2. **Skip when the latest PR comment is from pr-sous-chef itself**
+   - Candidate prefilter already removes PRs when latest comment author/body indicates `pr-sous-chef`.
    - Inspect PR comments ordered by recency.
    - Treat a comment as from pr-sous-chef when the latest comment body contains `pr-sous-chef`.
    - If true, skip to avoid repetitive nudges.
