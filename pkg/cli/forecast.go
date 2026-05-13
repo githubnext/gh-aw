@@ -36,6 +36,17 @@ var forecastPeriodDays = map[string]int{
 	"month": 30,
 }
 
+const (
+	forecastRateLimitMaxAttempts = 3
+	forecastRateLimitBaseBackoff = 2 * time.Second
+)
+
+var (
+	forecastFetchGitHubWorkflows      = fetchGitHubWorkflows
+	forecastListWorkflowRunsPaginated = listWorkflowRunsWithPagination
+	forecastRateLimitSleep            = time.Sleep
+)
+
 // ForecastEpisodeSummary contains episode-level aggregate metrics derived from
 // run history without downloading artifacts.  Episodes are reconstructed from the
 // fields available in the GitHub Actions run list (event type, head SHA, branch).
@@ -312,7 +323,7 @@ func resolveForecastWorkflows(config ForecastConfig) ([]string, error) {
 // When ids are provided, each is matched (case-insensitively) against remote workflow names
 // and file-path basenames.
 func resolveForecastWorkflowsFromRemote(ids []string, repoOverride string, verbose bool) ([]string, error) {
-	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, verbose)
+	githubWorkflows, err := fetchWorkflowsWithBackoff(ids, repoOverride, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list workflows in %s: %w", repoOverride, err)
 	}
@@ -337,6 +348,79 @@ func resolveForecastWorkflowsFromRemote(ids []string, repoOverride string, verbo
 		resolved = append(resolved, matched)
 	}
 	return resolved, nil
+}
+
+func forecastRateLimitBackoffDuration(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	return time.Duration(attempt) * forecastRateLimitBaseBackoff
+}
+
+func fetchWorkflowsWithBackoff(ids []string, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+	var lastErr error
+
+	for attempt := 1; attempt <= forecastRateLimitMaxAttempts; attempt++ {
+		githubWorkflows, err := forecastFetchGitHubWorkflows(repoOverride, verbose)
+		if err == nil {
+			return githubWorkflows, nil
+		}
+		if !gitutil.IsRateLimitError(err.Error()) {
+			return nil, err
+		}
+
+		lastErr = err
+		if attempt == forecastRateLimitMaxAttempts {
+			break
+		}
+
+		backoff := forecastRateLimitBackoffDuration(attempt)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("GitHub API rate limit hit while discovering workflows in %s; backing off for %s before retry %d/%d",
+				repoOverride, backoff, attempt+1, forecastRateLimitMaxAttempts)))
+		forecastRateLimitSleep(backoff)
+	}
+
+	if len(ids) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("GitHub API rate limit exhausted while discovering workflows in %s; continuing with caller-supplied workflow IDs as partial results",
+				repoOverride)))
+
+		partialWorkflows := make(map[string]*GitHubWorkflow, len(ids))
+		for _, id := range ids {
+			partialWorkflows[id] = &GitHubWorkflow{Name: id, Path: id, State: "unknown"}
+		}
+		return partialWorkflows, nil
+	}
+
+	return nil, fmt.Errorf("GitHub API rate limit exhausted after %d attempts: %w", forecastRateLimitMaxAttempts, lastErr)
+}
+
+func listRunsWithBackoff(opts ListWorkflowRunsOptions, workflowID string) ([]WorkflowRun, int, error) {
+	var lastErr error
+
+	for attempt := 1; attempt <= forecastRateLimitMaxAttempts; attempt++ {
+		runs, total, err := forecastListWorkflowRunsPaginated(opts)
+		if err == nil {
+			return runs, total, nil
+		}
+		if !gitutil.IsRateLimitError(err.Error()) {
+			return nil, 0, err
+		}
+
+		lastErr = err
+		if attempt == forecastRateLimitMaxAttempts {
+			break
+		}
+
+		backoff := forecastRateLimitBackoffDuration(attempt)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("GitHub API rate limit hit while sampling %s; backing off for %s before retry %d/%d",
+				workflowID, backoff, attempt+1, forecastRateLimitMaxAttempts)))
+		forecastRateLimitSleep(backoff)
+	}
+
+	return nil, 0, lastErr
 }
 
 // matchRemoteWorkflowName returns the display name of the workflow in the remote map that
@@ -381,7 +465,7 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 		Verbose:      config.Verbose,
 	}
 
-	runs, _, err := listWorkflowRunsWithPagination(opts)
+	runs, _, err := listRunsWithBackoff(opts, result.WorkflowID)
 	if err != nil {
 		if gitutil.IsRateLimitError(err.Error()) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(

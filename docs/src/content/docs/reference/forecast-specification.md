@@ -208,6 +208,7 @@ If a provided `workflow_id` does not match any discovered workflow, the implemen
 | `--days` | int | `30` | Length of the historical sampling window in days. Permitted values: `7`, `30`. |
 | `--period` | string | `"month"` | Projection period length. Permitted values: `"week"`, `"month"`. |
 | `--sample` | int | `100` | Maximum number of completed runs to sample per workflow. MUST be ≥ 1. |
+| `--max-age` | int | `90` | Maximum age in days for historical runs eligible for sampling. Implementations SHOULD discard runs older than this bound unless the caller overrides it. MUST be ≥ 1. |
 | `--repo` | string | (none) | Target a repository other than the current working directory, in `owner/repo` format. Enables remote mode. |
 | `--json` | bool | `false` | Emit machine-readable JSON output instead of console tables. |
 | `--verbose` | bool | `false` | Emit verbose diagnostic output to stderr during processing. |
@@ -220,6 +221,7 @@ Implementations MUST validate all flag values before beginning any API calls or 
 - **R-CLI-002**: If `--period` is not one of `{"week", "month"}`, the implementation MUST exit with a non-zero status and an error message specifying the permitted values.
 - **R-CLI-003**: If `--sample` is less than 1, the implementation MUST exit with a non-zero status.
 - **R-CLI-004**: If `--repo` is provided, it MUST match the pattern `owner/repo` (two non-empty components separated by `/`). An invalid format MUST produce a non-zero exit with a descriptive error.
+- **R-CLI-005**: If `--max-age` is provided and is less than 1, the implementation MUST exit with a non-zero status and a descriptive error.
 
 ### 4.5 Exit Codes
 
@@ -250,6 +252,9 @@ gh aw forecast --repo owner/repo
 
 # Forecast a specific workflow in a remote repository
 gh aw forecast --repo owner/repo ci-doctor
+
+# Ignore historical runs older than 90 days (default)
+gh aw forecast --max-age 90
 ```
 
 ---
@@ -283,9 +288,10 @@ Frontmatter enrichment is OPTIONAL; absence of a corresponding source file MUST 
 
 In remote mode (when `--repo owner/repo` is specified), the implementation MUST:
 
-1. **R-DISC-010**: Call the GitHub Actions API (`GET /repos/{owner}/{repo}/actions/workflows`) to enumerate workflows in the target repository.
+1. **R-DISC-010**: Call the GitHub Actions API (`GET /repos/{owner}/{repo}/actions/workflows`) to enumerate workflows in the target repository. If workflow discovery hits a primary or secondary GitHub API rate limit, the implementation SHOULD back off and retry before failing.
 2. **R-DISC-011**: Filter the returned workflows to those identified as agentic (e.g., by inspecting file-path conventions, labels, or other implementation-defined heuristics).
 3. **R-DISC-012**: Match any caller-supplied `workflow_id` positional arguments against workflow display names and file-path basenames using case-insensitive string comparison.
+4. **R-DISC-013**: If rate-limit exhaustion occurs after at least one caller-supplied workflow identifier can still be attempted, the implementation MUST continue with that subset as a partial result set and MUST emit a warning identifying the degraded discovery mode.
 
 In remote mode, frontmatter metadata (triggers, concurrency, experiment variants) is UNAVAILABLE because the workflow source files are not accessible. The implementation MUST degrade gracefully: fields that depend on frontmatter MUST be omitted from output or reported as their zero/empty values rather than causing an error.
 
@@ -308,14 +314,15 @@ For each discovered workflow (or each workflow in the filtered set), the impleme
 
 1. **R-SAMP-001**: Query completed workflow runs within the historical window using the equivalent of `gh run list --workflow <id> --status completed --limit <sample> --created >=<cutoff>`.
 2. **R-SAMP-002**: Limit the returned run set to at most `--sample` runs.
-3. **R-SAMP-003**: For each run in the sample, derive the per-run metrics defined in Section 6.2.
-4. **R-SAMP-004**: Record the count of runs with a successful conclusion separately from the total sampled count.
+3. **R-SAMP-003**: Implementations SHOULD discard historical runs older than 90 days by default, even when a broader sampling window is requested, and SHOULD expose this bound through a `--max-age` flag so operators can opt in to older samples when needed.
+4. **R-SAMP-004**: For each run in the sample, derive the per-run metrics defined in Section 6.2.
+5. **R-SAMP-005**: Record the count of runs with a successful conclusion separately from the total sampled count.
 
 If the historical window yields zero completed runs for a workflow, the implementation MUST:
 
-- **R-SAMP-005**: Return `nil` (or a sentinel empty result) for that workflow's Monte Carlo projection.
-- **R-SAMP-006**: Include the workflow in output with `sampled_runs: 0` and all projection fields set to zero.
-- **R-SAMP-007**: SHOULD emit a warning indicating that no historical data is available for the workflow.
+- **R-SAMP-006**: Return `nil` (or a sentinel empty result) for that workflow's Monte Carlo projection.
+- **R-SAMP-007**: Include the workflow in output with `sampled_runs: 0` and all projection fields set to zero.
+- **R-SAMP-008**: SHOULD emit a warning indicating that no historical data is available for the workflow.
 
 ### 6.2 Per-Run Metric Derivation
 
@@ -807,6 +814,7 @@ Because the forecast command is marked **Experimental**:
 - **T-FC-011**: Local mode: no lock files found exits with code `3`.
 - **T-FC-012**: Remote mode: calls GitHub Actions API and matches workflow IDs case-insensitively.
 - **T-FC-013**: Remote mode: missing frontmatter fields default to zero/empty without error.
+- **T-FC-030**: Remote mode: on GitHub API rate-limit exhaustion during workflow discovery, the implementation backs off and emits a warning before continuing with caller-supplied workflow IDs as partial results.
 
 #### 12.1.3 Data Sampling Tests
 
@@ -817,23 +825,23 @@ Because the forecast command is marked **Experimental**:
 
 #### 12.1.4 Monte Carlo Engine Tests
 
-- **T-FC-030**: With `λ ≤ 15`, Knuth's algorithm is used for Poisson draw (verifiable by seeded PRNG in test mode).
-- **T-FC-031**: With `λ > 15`, Normal approximation is used; drawn value is non-negative.
-- **T-FC-032**: With `λ = 0`, projected tokens is exactly `0` for all trials.
-- **T-FC-033**: Bootstrap resampling draws with replacement from historical ET observations.
-- **T-FC-034**: Only successful Bernoulli draws contribute ET to the trial total.
-- **T-FC-035**: 10,000 trials are executed per workflow.
-- **T-FC-036**: P10 ≤ P50 ≤ P90 for all non-zero projections.
-- **T-FC-037**: `projected_effective_tokens` equals `p50_projected_effective_tokens`.
-- **T-FC-038**: Boundary crossover: `λ = 15` uses Knuth's exact branch.
-- **T-FC-039**: Boundary crossover: `λ > 15` uses Normal approximation branch.
+- **T-FC-031**: With `λ ≤ 15`, Knuth's algorithm is used for Poisson draw (verifiable by seeded PRNG in test mode).
+- **T-FC-032**: With `λ > 15`, Normal approximation is used; drawn value is non-negative.
+- **T-FC-033**: With `λ = 0`, projected tokens is exactly `0` for all trials.
+- **T-FC-034**: Bootstrap resampling draws with replacement from historical ET observations.
+- **T-FC-035**: Only successful Bernoulli draws contribute ET to the trial total.
+- **T-FC-036**: 10,000 trials are executed per workflow.
+- **T-FC-037**: P10 ≤ P50 ≤ P90 for all non-zero projections.
+- **T-FC-038**: `projected_effective_tokens` equals `p50_projected_effective_tokens`.
+- **T-FC-039**: Boundary crossover: `λ = 15` uses Knuth's exact branch.
+- **T-FC-040**: Boundary crossover: `λ > 15` uses Normal approximation branch.
 
 #### 12.1.5 Episode Analysis Tests
 
-- **T-FC-040**: Runs sharing `headSha` and `headBranch` are grouped into the same episode.
-- **T-FC-041**: `runs_per_episode` equals `sampled_run_count / sampled_episodes`.
-- **T-FC-042**: Episode table is printed in console output when any workflow has `runs_per_episode > 1`.
-- **T-FC-043**: Episode table is suppressed when all workflows have `runs_per_episode = 1.0`.
+- **T-FC-041**: Runs sharing `headSha` and `headBranch` are grouped into the same episode.
+- **T-FC-042**: `runs_per_episode` equals `sampled_run_count / sampled_episodes`.
+- **T-FC-043**: Episode table is printed in console output when any workflow has `runs_per_episode > 1`.
+- **T-FC-044**: Episode table is suppressed when all workflows have `runs_per_episode = 1.0`.
 
 #### 12.1.6 Output Format Tests
 
@@ -851,20 +859,21 @@ Because the forecast command is marked **Experimental**:
 | Flag validation | T-FC-001–005 | 1 | Required |
 | Local workflow discovery | T-FC-010–011 | 1 | Required |
 | Remote workflow discovery | T-FC-012–013 | 2 | Required |
+| Remote discovery rate-limit backoff and partial results | T-FC-030 | 2 | Required |
 | Data sampling with limit and window | T-FC-020–021 | 1 | Required |
 | Missing artifact graceful handling | T-FC-022 | 1 | Required |
 | Nil projection for empty sample | T-FC-023 | 1 | Required |
-| Knuth Poisson algorithm (λ ≤ 15) | T-FC-030 | 1 | Required |
-| Normal approximation (λ > 15) | T-FC-031 | 1 | Required |
-| Zero-λ projection | T-FC-032 | 1 | Required |
-| Bootstrap resampling | T-FC-033 | 1 | Required |
-| Bernoulli success filtering | T-FC-034 | 1 | Required |
-| 10,000 trial count | T-FC-035 | 1 | Required |
-| Percentile ordering | T-FC-036 | 1 | Required |
-| P50 field consistency | T-FC-037 | 1 | Required |
-| λ crossover threshold enforcement | T-FC-038–039 | 1 | Required |
-| Episode grouping | T-FC-040–041 | 2 | Required |
-| Episode table display logic | T-FC-042–043 | 2 | Required |
+| Knuth Poisson algorithm (λ ≤ 15) | T-FC-031 | 1 | Required |
+| Normal approximation (λ > 15) | T-FC-032 | 1 | Required |
+| Zero-λ projection | T-FC-033 | 1 | Required |
+| Bootstrap resampling | T-FC-034 | 1 | Required |
+| Bernoulli success filtering | T-FC-035 | 1 | Required |
+| 10,000 trial count | T-FC-036 | 1 | Required |
+| Percentile ordering | T-FC-037 | 1 | Required |
+| P50 field consistency | T-FC-038 | 1 | Required |
+| λ crossover threshold enforcement | T-FC-039–040 | 1 | Required |
+| Episode grouping | T-FC-041–042 | 2 | Required |
+| Episode table display logic | T-FC-043–044 | 2 | Required |
 | Console output columns | T-FC-050 | 1 | Required |
 | JSON schema conformance | T-FC-051–054 | 2 | Required |
 | Experimental status warning | T-FC-055 | 1 | Required |
@@ -879,8 +888,8 @@ This section maps normative forecast requirements to implementation files.
 |---|---|
 | Monte Carlo engine (Poisson/Bootstrap/Bernoulli) | `pkg/cli/forecast_montecarlo.go` |
 | Forecast command orchestration and output fields | `pkg/cli/forecast.go`, `pkg/cli/forecast_command.go` |
-| Workflow/run sampling and API handling | `pkg/cli/forecast.go` |
-| Monte Carlo compliance tests (including λ threshold) | `pkg/cli/forecast_montecarlo_test.go` |
+| Workflow discovery, rate-limit backoff, and run sampling | `pkg/cli/forecast.go` |
+| Forecast compliance tests (including rate-limit backoff and λ thresholds) | `pkg/cli/forecast_montecarlo_test.go` |
 
 Sync procedure:
 1. Update this specification when changing projection algorithms or thresholds.

@@ -35,6 +35,7 @@ This document is governed by the GitHub Agentic Workflows project specifications
 9. [Error Handling](#9-error-handling)
 10. [Compliance Testing](#10-compliance-testing)
 11. [Sync Notes](#11-sync-notes)
+12. [Calendar Output Schema](#12-calendar-output-schema)
 
 ---
 
@@ -1220,12 +1221,44 @@ This section maps the fuzzy schedule specification to implementation files.
 | Frontmatter schedule parsing and grammar handling | `pkg/parser/schedule_parser.go` |
 | Deterministic fuzzy scattering and peak-minute avoidance | `pkg/parser/schedule_fuzzy_scatter.go` |
 | Parser/scatter conformance tests | `pkg/parser/schedule_parser_test.go`, `pkg/parser/schedule_fuzzy_scatter_test.go` |
-| Calendar/cron visualization support for compile tooling | `pkg/cli/compile_schedule_calendar.go` |
+| Calendar/cron visualization support for compile tooling (see §12) | `pkg/cli/compile_schedule_calendar.go` |
 
 After changing fuzzy schedule semantics:
 1. Update this specification section and any affected normative clauses.
 2. Update parser/scatter implementation in the mapped files.
 3. Re-run parser/scatter tests to verify behavior remains deterministic.
+
+---
+
+## 12. Calendar Output Schema
+
+The compile-time schedule calendar emitted by `pkg/cli/compile_schedule_calendar.go` documents the
+aggregate UTC trigger density of scheduled workflows. A conforming implementation MUST treat the
+calendar as a human-readable console artifact rather than a machine-readable file format.
+
+| Element | Requirement |
+|---|---|
+| Output stream | MUST be written to `stderr` only, and MUST NOT be emitted in JSON output mode. |
+| Emission condition | MUST be omitted when no scheduled workflows are present. |
+| Title line | MUST render the heading `Schedule Heatmap (UTC)`. |
+| Hour header | MUST contain 24 UTC hour labels from `00` through `23`, in ascending order. |
+| Day rows | MUST render exactly seven rows in `Mon`, `Tue`, `Wed`, `Thu`, `Fri`, `Sat`, `Sun` order. |
+| Cells | MUST render one glyph per hour slot using the implementation's intensity mapping (`·`, `░`, `▒`, `▓`, `█`). |
+| Legend | MUST explain the trigger-count buckets for each glyph after the grid. |
+| File output | MUST NOT create a separate file; the calendar is an inline stderr rendering only. |
+
+Implementations SHOULD preserve a fixed-width grid so adjacent cells remain visually aligned in
+plain-text terminals. ANSI styling MAY be applied when stderr is a terminal, but the unstyled text
+content MUST preserve the same row/column structure.
+
+### Version 1.2.0 (Draft) — 2026-05-12
+
+- **Changed**: Daily, weekly, bi-weekly, and tri-weekly scattering now share the weighted 622-slot
+  pool introduced in Sections 6.3.1 and 6.3.5–6.3.6.
+- **Added**: Peak-minute avoidance rules in Section 6.4 to steer schedules away from `:00`, `:15`,
+  `:30`, and `:45` hotspot minutes during documented peak windows.
+- **Added**: Calendar output schema requirements (Section 12) for the compile-time heatmap rendered
+  by `compile_schedule_calendar.go`.
 
 ---
 
