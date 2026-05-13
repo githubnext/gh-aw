@@ -571,15 +571,10 @@ fmt-json:
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
-	@GOPATH=$$(go env GOPATH); \
-	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
-		diff_output=$$(PATH="$$GOPATH/bin:$$PATH" golangci-lint fmt --diff 2>&1); \
-		if [ -n "$$diff_output" ]; then \
-			echo "Code is not formatted. Run 'make fmt' to fix."; \
-			exit 1; \
-		fi; \
-	else \
-		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
+	@unformatted=$$(go fmt ./...); \
+	if [ -n "$$unformatted" ]; then \
+		echo "Code is not formatted. Run 'make fmt' to fix."; \
+		echo "$$unformatted"; \
 		exit 1; \
 	fi
 
