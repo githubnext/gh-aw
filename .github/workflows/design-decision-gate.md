@@ -123,8 +123,8 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 
 | Step | Max turns | Action |
 |------|-----------|--------|
-| Read pre-fetched summary + gate check | 1 | `cat adr-prefetch-summary.json`; decide noop or proceed |
-| Fetch PR details (only if needed) | 1 | `cat pr.json pr-files.json pr.diff` |
+| Read pre-fetched summary + gate check | 1 | `Read /tmp/gh-aw/agent/adr-prefetch-summary.json`; decide noop or proceed |
+| Fetch PR details (only if needed) | 1 | `Read /tmp/gh-aw/agent/pr.json`, `Read /tmp/gh-aw/agent/pr-files.json`, `Read /tmp/gh-aw/agent/pr.diff` |
 | ADR search (branch + PR body) | 1 | `find docs/adr`; inspect PR body links |
 | Fetch linked issue ADR (only if referenced) | 1 | one GitHub MCP call at most |
 | Generate draft ADR or verify alignment | 2 | write ADR content or compare diff |
@@ -146,7 +146,7 @@ Stop and emit a safe output **immediately** when any of the following is true:
 
 ### Mandatory Efficiency Rules
 
-1. Start with pre-fetched files in `/tmp/gh-aw/agent/` before calling any GitHub tool:
+1. Start with pre-fetched files in `/tmp/gh-aw/agent/` before calling any GitHub tool. Use the `Read` tool (not `Bash cat`) for these files:
    - `pr.json`
    - `pr-files.json`
    - `pr.diff`
@@ -165,9 +165,7 @@ Stop and emit a safe output **immediately** when any of the following is true:
 
 Read the pre-fetched summary first:
 
-```bash
-cat /tmp/gh-aw/agent/adr-prefetch-summary.json
-```
+Read `/tmp/gh-aw/agent/adr-prefetch-summary.json`.
 
 Decide if this PR needs ADR enforcement using the following deterministic checks:
 
@@ -178,9 +176,7 @@ If `has_implementation_label` is `true`, enforcement is **required** — proceed
 If `has_custom_config` is `false` and `default_business_additions` is `> 100`, enforcement is **required** — proceed to Step 2.
 
 Configuration snapshot is pre-fetched:
-```bash
-cat /tmp/gh-aw/agent/design-gate-config.yml
-```
+Read `/tmp/gh-aw/agent/design-gate-config.yml`.
 
 If `has_custom_config` is `true` and the config defines custom business directories or thresholds, recompute Condition B from `pr-files.json` using that config before deciding. Do not use `default_business_additions` for the final decision in that case.
 
@@ -209,11 +205,10 @@ If ADR enforcement is required by either condition, continue to Step 2.
 
 Use pre-fetched files first:
 
-```bash
-cat /tmp/gh-aw/agent/pr.json
-cat /tmp/gh-aw/agent/pr-files.json
-cat /tmp/gh-aw/agent/pr.diff
-```
+Read:
+- `/tmp/gh-aw/agent/pr.json`
+- `/tmp/gh-aw/agent/pr-files.json`
+- `/tmp/gh-aw/agent/pr.diff`
 
 Only if one of these files is missing required fields, make a targeted GitHub tool call for the missing field only.
 
