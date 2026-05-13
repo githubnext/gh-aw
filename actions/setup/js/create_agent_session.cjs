@@ -7,16 +7,35 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 
-const fs = require("fs");
-const path = require("path");
-
 /**
  * Module-level state — populated by handleMessage(), read by the exported getters below.
  * Using module-level variables (rather than closure-only state) allows the handler
  * manager to read final output values after all messages have been processed.
- * @type {Array<{number: string, url: string, success: boolean, error?: string}>}
+ * @type {Array<{id: string, url: string, success: boolean, error?: string}>}
  */
 let _allResults = [];
+
+/**
+ * Create a dedicated GitHub client for create-agent-session operations.
+ *
+ * Token precedence:
+ *   1. config["github-token"] — per-handler PAT configured in the workflow frontmatter
+ *   2. GH_AW_AGENT_SESSION_TOKEN — agent token injected by the compiler as a step env var
+ *      (evaluates to: GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
+ *   3. global github — step-level token (fallback when no agent token is available)
+ *
+ * @param {Object} config - Handler configuration
+ * @returns {Promise<Object>} Authenticated GitHub client
+ */
+async function createAgentSessionGitHubClient(config) {
+  const token = config["github-token"] || process.env.GH_AW_AGENT_SESSION_TOKEN;
+  if (!token) {
+    core.debug("No dedicated agent token configured — using step-level github client for create-agent-session operations");
+    return github;
+  }
+  core.info("Using dedicated github client for create-agent-session operations");
+  return global.getOctokit(token);
+}
 
 /**
  * Handler factory for create-agent-session safe output.
@@ -41,6 +60,9 @@ async function main(config = {}) {
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
 
+  // Create a dedicated Octokit instance using the agent token
+  const githubClient = await createAgentSessionGitHubClient(config);
+
   /**
    * Process a single create_agent_session message.
    * @param {Object} message - The agent output message
@@ -51,7 +73,7 @@ async function main(config = {}) {
 
     if (!taskDescription || taskDescription.trim() === "") {
       core.warning("Agent task description is empty, skipping");
-      _allResults.push({ number: "", url: "", success: false, error: "Empty task description" });
+      _allResults.push({ id: "", url: "", success: false, error: "Empty task description" });
       return { success: false, error: "Empty task description" };
     }
 
@@ -60,7 +82,7 @@ async function main(config = {}) {
     if (!repoResult.success) {
       const errorMsg = `E004: ${repoResult.error}`;
       core.error(errorMsg);
-      _allResults.push({ number: "", url: "", success: false, error: repoResult.error });
+      _allResults.push({ id: "", url: "", success: false, error: repoResult.error });
       return { success: false, error: repoResult.error };
     }
     const { repo: effectiveRepo, repoParts } = repoResult;
@@ -87,91 +109,50 @@ async function main(config = {}) {
     }
 
     try {
-      // Write task description to a temporary file
-      const tmpDir = "/tmp/gh-aw";
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
+      core.info(`Task ${_allResults.length + 1}: Creating agent session in ${effectiveRepo} on branch ${baseBranch}`);
 
-      const taskIndex = _allResults.length + 1;
-      const taskFile = path.join(tmpDir, `agent-task-description-${taskIndex}.md`);
-      fs.writeFileSync(taskFile, taskDescription, "utf8");
-      core.info(`Task ${taskIndex}: Task description written to ${taskFile}`);
+      // Call the GitHub REST API to start a task
+      // Reference: https://docs.github.com/en/rest/agent-tasks/agent-tasks?apiVersion=2026-03-10#start-a-task
+      const response = await githubClient.request("POST /agents/repos/{owner}/{repo}/tasks", {
+        owner: repoParts.owner,
+        repo: repoParts.repo,
+        prompt: taskDescription,
+        base_ref: baseBranch,
+        headers: { "X-GitHub-Api-Version": "2026-03-10" },
+      });
 
-      // Build gh agent-task create command
-      const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
+      const task = response.data;
+      const taskId = task.id || "";
+      const taskUrl = task.html_url || task.url || "";
 
-      const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
-      if (effectiveRepo !== contextRepo) {
-        ghArgs.push("--repo", effectiveRepo);
-      }
-
-      core.info(`Task ${taskIndex}: Creating agent session with command: gh ${ghArgs.join(" ")}`);
-
-      // Determine token: prefer per-handler token, fall back to step-level token
-      const ghToken = config["github-token"] || process.env.GH_AW_AGENT_SESSION_TOKEN || process.env.GITHUB_TOKEN || "";
-
-      // Execute gh agent-task create command
-      let taskOutput;
-      try {
-        taskOutput = await exec.getExecOutput("gh", ghArgs, {
-          silent: false,
-          ignoreReturnCode: false,
-          env: {
-            ...process.env,
-            GH_TOKEN: ghToken,
-          },
-        });
-      } catch (execError) {
-        const errorMessage = execError instanceof Error ? execError.message : String(execError);
-
-        // Check for authentication/permission errors
-        if (errorMessage.includes("authentication") || errorMessage.includes("permission") || errorMessage.includes("forbidden") || errorMessage.includes("401") || errorMessage.includes("403")) {
-          core.error(`Task ${taskIndex}: Failed to create agent session due to authentication/permission error.`);
-          core.error(`The default GITHUB_TOKEN may not have permission to create agent sessions.`);
-          core.error(`Configure a Personal Access Token (PAT) using the handler's github-token setting or GH_AW_AGENT_SESSION_TOKEN.`);
-          core.error(`See documentation: https://github.github.com/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-session`);
-        } else {
-          core.error(`Task ${taskIndex}: Failed to create agent session: ${errorMessage}`);
-        }
-        _allResults.push({ number: "", url: "", success: false, error: errorMessage });
-        return { success: false, error: errorMessage };
-      }
-
-      // Parse the output to extract task number and URL.
-      // Expected output format from gh agent-task create is typically:
-      // https://github.com/owner/repo/issues/123
-      const output = taskOutput.stdout.trim();
-      core.info(`Task ${taskIndex}: Agent task created: ${output}`);
-
-      // Extract task number from URL
-      const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
-      if (urlMatch) {
-        const taskNumber = urlMatch[1];
-        core.info(`✅ Successfully created agent session #${taskNumber}`);
-        _allResults.push({ number: taskNumber, url: output, success: true });
-        return { success: true, number: taskNumber, url: output };
-      } else {
-        core.warning(`Task ${taskIndex}: Could not parse task number from output: ${output}`);
-        _allResults.push({ number: "", url: output, success: true });
-        return { success: true, number: "", url: output };
-      }
+      core.info(`✅ Successfully created agent session ${taskId}`);
+      _allResults.push({ id: taskId, url: taskUrl, success: true });
+      return { success: true, id: taskId, url: taskUrl };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      core.error(`Error creating agent session: ${errorMessage}`);
-      _allResults.push({ number: "", url: "", success: false, error: errorMessage });
+
+      // Check for authentication/permission errors
+      if (errorMessage.includes("authentication") || errorMessage.includes("permission") || errorMessage.includes("forbidden") || errorMessage.includes("401") || errorMessage.includes("403")) {
+        core.error(`Failed to create agent session due to authentication/permission error.`);
+        core.error(`The default GITHUB_TOKEN may not have permission to create agent sessions.`);
+        core.error(`Configure a Personal Access Token (PAT) using the handler's github-token setting or GH_AW_AGENT_SESSION_TOKEN.`);
+        core.error(`See documentation: https://github.github.com/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-session`);
+      } else {
+        core.error(`Error creating agent session: ${errorMessage}`);
+      }
+      _allResults.push({ id: "", url: "", success: false, error: errorMessage });
       return { success: false, error: errorMessage };
     }
   };
 }
 
 /**
- * Returns the session_number output: the number of the first successfully created session.
+ * Returns the session_number output: the ID of the first successfully created session.
  * @returns {string}
  */
 function getCreateAgentSessionNumber() {
-  const first = _allResults.find(r => r.success && r.number);
-  return first ? first.number : "";
+  const first = _allResults.find(r => r.success && r.id);
+  return first ? first.id : "";
 }
 
 /**
@@ -200,8 +181,8 @@ async function writeCreateAgentSessionSummary() {
     summaryContent += `✅ Successfully created ${successResults.length} agent session(s):\n\n`;
     summaryContent += successResults
       .map((r, i) => {
-        if (r.url && r.number) {
-          return `- [#${r.number}](${r.url})`;
+        if (r.url && r.id) {
+          return `- [${r.id}](${r.url})`;
         } else if (r.url) {
           return `- [Session ${i + 1}](${r.url})`;
         }

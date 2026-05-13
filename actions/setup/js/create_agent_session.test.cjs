@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import fs from "fs";
 import path from "path";
 
 const mockCore = {
@@ -15,17 +14,22 @@ const mockCore = {
   },
 };
 
-const mockExec = {
-  exec: vi.fn().mockResolvedValue(0),
-  getExecOutput: vi.fn(),
+const mockGithub = {
+  request: vi.fn(),
 };
+
+const mockGetOctokit = vi.fn(token => ({
+  _token: token,
+  request: vi.fn(),
+}));
 
 const mockContext = {
   repo: { owner: "test-owner", repo: "test-repo" },
 };
 
 global.core = mockCore;
-global.exec = mockExec;
+global.github = mockGithub;
+global.getOctokit = mockGetOctokit;
 global.context = mockContext;
 
 describe("create_agent_session.cjs", () => {
@@ -33,6 +37,16 @@ describe("create_agent_session.cjs", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Restore mockGithub.request as a fresh mock after clearAllMocks
+    mockGithub.request = vi.fn();
+    // Restore mockGetOctokit after clearAllMocks
+    mockGetOctokit.mockImplementation(token => ({
+      _token: token,
+      request: vi.fn(),
+    }));
+    global.getOctokit = mockGetOctokit;
+    global.github = mockGithub;
 
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_TARGET_REPO_SLUG;
@@ -44,16 +58,6 @@ describe("create_agent_session.cjs", () => {
     const scriptPath = path.join(process.cwd(), "create_agent_session.cjs");
     delete require.cache[require.resolve(scriptPath)];
     createAgentSessionModule = require(scriptPath);
-  });
-
-  afterEach(() => {
-    // Clean up tmp files
-    try {
-      const files = fs.readdirSync("/tmp/gh-aw").filter(f => f.startsWith("agent-task-description-"));
-      for (const file of files) {
-        fs.unlinkSync(path.join("/tmp/gh-aw", file));
-      }
-    } catch {}
   });
 
   describe("handler factory", () => {
@@ -90,13 +94,13 @@ describe("create_agent_session.cjs", () => {
   });
 
   describe("staged mode", () => {
-    it("should generate staged preview and return skipped without calling gh CLI", async () => {
+    it("should generate staged preview and return skipped without calling the REST API", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       const handler = await createAgentSessionModule.main({ base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Implement feature X" });
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true);
-      expect(mockExec.getExecOutput).not.toHaveBeenCalled();
+      expect(mockGithub.request).not.toHaveBeenCalled();
       // Should have written a staged preview summary
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode: Create Agent Session Preview"));
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Implement feature X"));
@@ -114,97 +118,111 @@ describe("create_agent_session.cjs", () => {
       const result = await handler({ type: "create_agent_session", body: "Test task" });
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true);
-      expect(mockExec.getExecOutput).not.toHaveBeenCalled();
+      expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });
 
   describe("successful session creation", () => {
-    it("should create agent session and extract task number from URL", async () => {
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/test-owner/test-repo/issues/123",
-        stderr: "",
+    it("should create agent session via REST API and return task id and url", async () => {
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          html_url: "https://github.com/test-owner/test-repo/copilot/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Implement feature X" });
 
       expect(result.success).toBe(true);
-      expect(result.number).toBe("123");
-      expect(result.url).toBe("https://github.com/test-owner/test-repo/issues/123");
+      expect(result.id).toBe("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+      expect(result.url).toBe("https://github.com/test-owner/test-repo/copilot/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890");
     });
 
-    it("should use configured base branch when calling gh CLI", async () => {
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/test-owner/test-repo/issues/42",
-        stderr: "",
+    it("should call REST API with correct path, owner, repo, prompt, and base_ref", async () => {
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: "task-uuid-001",
+          html_url: "https://github.com/test-owner/test-repo/copilot/tasks/task-uuid-001",
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ base: "develop" });
       await handler({ type: "create_agent_session", body: "Test task" });
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("gh", expect.arrayContaining(["--base", "develop"]), expect.any(Object));
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /agents/repos/{owner}/{repo}/tasks",
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          prompt: "Test task",
+          base_ref: "develop",
+          headers: { "X-GitHub-Api-Version": "2026-03-10" },
+        })
+      );
     });
 
-    it("should add --repo flag for cross-repo sessions", async () => {
+    it("should call REST API with cross-repo owner/repo derived from message", async () => {
       process.env.GH_AW_ALLOWED_REPOS = "other-owner/other-repo";
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/other-owner/other-repo/issues/99",
-        stderr: "",
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: "cross-repo-task-uuid",
+          html_url: "https://github.com/other-owner/other-repo/copilot/tasks/cross-repo-task-uuid",
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ "target-repo": "other-owner/other-repo", base: "main" });
       await handler({ type: "create_agent_session", body: "Cross-repo task", repo: "other-owner/other-repo" });
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("gh", expect.arrayContaining(["--repo", "other-owner/other-repo"]), expect.any(Object));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /agents/repos/{owner}/{repo}/tasks", expect.objectContaining({ owner: "other-owner", repo: "other-repo" }));
     });
 
-    it("should use GH_AW_AGENT_SESSION_TOKEN as GH_TOKEN for gh CLI", async () => {
+    it("should use GH_AW_AGENT_SESSION_TOKEN to create a dedicated octokit client", async () => {
       process.env.GH_AW_AGENT_SESSION_TOKEN = "test-pat-token";
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/test-owner/test-repo/issues/55",
-        stderr: "",
+      const mockTokenClient = { request: vi.fn() };
+      mockTokenClient.request.mockResolvedValueOnce({
+        data: {
+          id: "session-uuid-from-token",
+          html_url: "https://github.com/test-owner/test-repo/copilot/tasks/session-uuid-from-token",
+          state: "queued",
+        },
       });
+      mockGetOctokit.mockReturnValueOnce(mockTokenClient);
 
       const handler = await createAgentSessionModule.main({ base: "main" });
       await handler({ type: "create_agent_session", body: "Test task" });
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith(
-        "gh",
-        expect.any(Array),
-        expect.objectContaining({
-          env: expect.objectContaining({ GH_TOKEN: "test-pat-token" }),
-        })
-      );
+      expect(mockGetOctokit).toHaveBeenCalledWith("test-pat-token");
+      expect(mockTokenClient.request).toHaveBeenCalled();
+      expect(mockGithub.request).not.toHaveBeenCalled();
     });
 
     it("should prefer per-handler github-token over GH_AW_AGENT_SESSION_TOKEN", async () => {
       process.env.GH_AW_AGENT_SESSION_TOKEN = "step-token";
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/test-owner/test-repo/issues/55",
-        stderr: "",
+      const mockHandlerClient = { request: vi.fn() };
+      mockHandlerClient.request.mockResolvedValueOnce({
+        data: {
+          id: "handler-token-task",
+          html_url: "https://github.com/test-owner/test-repo/copilot/tasks/handler-token-task",
+          state: "queued",
+        },
       });
+      mockGetOctokit.mockReturnValueOnce(mockHandlerClient);
 
       const handler = await createAgentSessionModule.main({ base: "main", "github-token": "per-handler-token" });
       await handler({ type: "create_agent_session", body: "Test task" });
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith(
-        "gh",
-        expect.any(Array),
-        expect.objectContaining({
-          env: expect.objectContaining({ GH_TOKEN: "per-handler-token" }),
-        })
-      );
+      expect(mockGetOctokit).toHaveBeenCalledWith("per-handler-token");
+      expect(mockHandlerClient.request).toHaveBeenCalled();
     });
   });
 
   describe("error handling", () => {
-    it("should return failure when gh CLI fails with auth error", async () => {
-      mockExec.getExecOutput.mockRejectedValueOnce(new Error("permission denied (403)"));
+    it("should return failure when REST API fails with auth error", async () => {
+      mockGithub.request.mockRejectedValueOnce(new Error("permission denied (403)"));
 
       const handler = await createAgentSessionModule.main({ base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Test task" });
@@ -214,29 +232,14 @@ describe("create_agent_session.cjs", () => {
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("GH_AW_AGENT_SESSION_TOKEN"));
     });
 
-    it("should return failure when gh CLI fails with generic error", async () => {
-      mockExec.getExecOutput.mockRejectedValueOnce(new Error("gh: command not found"));
+    it("should return failure when REST API fails with generic error", async () => {
+      mockGithub.request.mockRejectedValueOnce(new Error("network failure"));
 
       const handler = await createAgentSessionModule.main({ base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Test task" });
 
       expect(result.success).toBe(false);
       expect(mockCore.error).toHaveBeenCalled();
-    });
-
-    it("should warn when task number cannot be parsed from output", async () => {
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "Task created successfully",
-        stderr: "",
-      });
-
-      const handler = await createAgentSessionModule.main({ base: "main" });
-      const result = await handler({ type: "create_agent_session", body: "Test task" });
-
-      expect(result.success).toBe(true);
-      expect(result.number).toBe("");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not parse task number"));
     });
 
     it("should reject repositories not in allowlist", async () => {
@@ -251,25 +254,29 @@ describe("create_agent_session.cjs", () => {
   });
 
   describe("module-level getters", () => {
-    it("getCreateAgentSessionNumber() returns first successful session number", async () => {
-      mockExec.getExecOutput.mockResolvedValue({
-        exitCode: 0,
-        stdout: "https://github.com/test-owner/test-repo/issues/42",
-        stderr: "",
+    it("getCreateAgentSessionNumber() returns first successful session id", async () => {
+      mockGithub.request.mockResolvedValue({
+        data: {
+          id: "uuid-task-42",
+          html_url: "https://github.com/test-owner/test-repo/copilot/tasks/uuid-task-42",
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ base: "main" });
       await handler({ type: "create_agent_session", body: "Task 1" });
 
-      expect(createAgentSessionModule.getCreateAgentSessionNumber()).toBe("42");
+      expect(createAgentSessionModule.getCreateAgentSessionNumber()).toBe("uuid-task-42");
     });
 
     it("getCreateAgentSessionUrl() returns first successful session URL", async () => {
-      const expectedUrl = "https://github.com/test-owner/test-repo/issues/42";
-      mockExec.getExecOutput.mockResolvedValue({
-        exitCode: 0,
-        stdout: expectedUrl,
-        stderr: "",
+      const expectedUrl = "https://github.com/test-owner/test-repo/copilot/tasks/uuid-task-42";
+      mockGithub.request.mockResolvedValue({
+        data: {
+          id: "uuid-task-42",
+          html_url: expectedUrl,
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ base: "main" });
@@ -291,10 +298,12 @@ describe("create_agent_session.cjs", () => {
 
   describe("writeCreateAgentSessionSummary()", () => {
     it("should write summary with successful sessions", async () => {
-      mockExec.getExecOutput.mockResolvedValue({
-        exitCode: 0,
-        stdout: "https://github.com/test-owner/test-repo/issues/42",
-        stderr: "",
+      mockGithub.request.mockResolvedValue({
+        data: {
+          id: "uuid-task-42",
+          html_url: "https://github.com/test-owner/test-repo/copilot/tasks/uuid-task-42",
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ base: "main" });
@@ -302,7 +311,7 @@ describe("create_agent_session.cjs", () => {
       await createAgentSessionModule.writeCreateAgentSessionSummary();
 
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Agent Sessions"));
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("42"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("uuid-task-42"));
     });
 
     it("should not write summary when no results", async () => {
@@ -313,7 +322,7 @@ describe("create_agent_session.cjs", () => {
     });
 
     it("should write summary with failed sessions", async () => {
-      mockExec.getExecOutput.mockRejectedValueOnce(new Error("some error"));
+      mockGithub.request.mockRejectedValueOnce(new Error("some error"));
 
       const handler = await createAgentSessionModule.main({ base: "main" });
       await handler({ type: "create_agent_session", body: "Task 1" });
@@ -326,33 +335,37 @@ describe("create_agent_session.cjs", () => {
   describe("cross-repository allowlist validation", () => {
     it("should allow target repository in allowlist", async () => {
       process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/allowed-owner/allowed-repo/issues/123",
-        stderr: "",
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: "cross-repo-uuid-123",
+          html_url: "https://github.com/allowed-owner/allowed-repo/copilot/tasks/cross-repo-uuid-123",
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ "target-repo": "allowed-owner/allowed-repo", base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Test task", repo: "allowed-owner/allowed-repo" });
 
       expect(result.success).toBe(true);
-      expect(result.number).toBe("123");
+      expect(result.id).toBe("cross-repo-uuid-123");
     });
 
     it("should allow default repository without allowlist", async () => {
       delete process.env.GH_AW_TARGET_REPO_SLUG;
       delete process.env.GH_AW_ALLOWED_REPOS;
-      mockExec.getExecOutput.mockResolvedValueOnce({
-        exitCode: 0,
-        stdout: "https://github.com/test-owner/test-repo/issues/123",
-        stderr: "",
+      mockGithub.request.mockResolvedValueOnce({
+        data: {
+          id: "default-repo-uuid-123",
+          html_url: "https://github.com/test-owner/test-repo/copilot/tasks/default-repo-uuid-123",
+          state: "queued",
+        },
       });
 
       const handler = await createAgentSessionModule.main({ base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Test task" });
 
       expect(result.success).toBe(true);
-      expect(result.number).toBe("123");
+      expect(result.id).toBe("default-repo-uuid-123");
     });
   });
 });
