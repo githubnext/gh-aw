@@ -73,6 +73,41 @@ safe-outputs:
 
 This allows your workflow to trigger up to 1 other workflows with custom inputs. See [Safe Outputs](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) for details.
 
+### Can I trigger an agentic workflow from an external system like Jira?
+
+Yes. GitHub Actions cannot listen to external events directly, but any external system that can make an HTTP request can trigger a workflow via the [`repository_dispatch`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch) API.
+
+The two-step setup:
+
+**1. Add a `repository_dispatch` trigger to your workflow frontmatter:**
+
+```yaml wrap
+on:
+  repository_dispatch:
+    types: [jira-issue-created]
+```
+
+Access the caller's payload in your workflow markdown via `${{ github.event.client_payload.* }}`.
+
+**2. Send a `POST` request to the GitHub dispatch API from the external system:**
+
+```http
+POST https://api.github.com/repos/<owner>/<repo>/dispatches
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "event_type": "jira-issue-created",
+  "client_payload": { "issue_key": "PROJ-123", "summary": "Fix the thing" }
+}
+```
+
+For Jira specifically, use **Project → Automation → Issue created → Send web request** pointing at the dispatch API. Any system with webhook or outbound HTTP support—including Jira, PagerDuty, Slack, or a custom API—can trigger workflows this way.
+
+The `repository_dispatch` token must have `repo` scope (classic PAT) or `contents: write` permission. Store it in the external system's secret or credential store (e.g., Jira Automation secret text, a CI/CD vault), scoped to the single target repository.
+
+See [Repository Dispatch Trigger](/gh-aw/reference/triggers/#repository-dispatch-trigger-repository_dispatch) for the full trigger reference.
+
 ### Can I use MCP servers with agentic workflows?
 
 Yes! [Model Context Protocol (MCP)](/gh-aw/reference/glossary/#mcp-model-context-protocol) servers extend workflow capabilities with custom tools and integrations. Configure them in your frontmatter:

@@ -384,6 +384,61 @@ If an incident issue for this deployment already exists, call noop.
 
 See the [Natural Language Shorthands](#other-shorthands) section for additional shorthand formats.
 
+### Repository Dispatch Trigger (`repository_dispatch:`)
+
+Trigger a workflow from outside GitHub using a single authenticated API call. Any external system that can make an HTTP `POST` request—Jira, PagerDuty, Slack, or a custom API—can start an agentic workflow this way. [Full event reference](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#repository_dispatch).
+
+```yaml wrap
+on:
+  repository_dispatch:
+    types: [jira-issue-created]
+```
+
+Omit `types:` to fire on any `event_type`.
+
+#### Sending the Dispatch Request
+
+Call the GitHub dispatch API with a `repo`-scoped PAT (classic) or a token with `contents: write` permission:
+
+```http
+POST https://api.github.com/repos/<owner>/<repo>/dispatches
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "event_type": "jira-issue-created",
+  "client_payload": { "issue_key": "PROJ-123", "summary": "Fix the thing" }
+}
+```
+
+#### Accessing the Payload
+
+Reference `client_payload` fields in your workflow markdown using standard GitHub Actions expressions:
+
+```yaml wrap
+on:
+  repository_dispatch:
+    types: [jira-issue-created]
+```
+
+```markdown
+Issue ${{ github.event.client_payload.issue_key }}: ${{ github.event.client_payload.summary }}
+```
+
+#### Natural Language Shorthand
+
+```yaml wrap
+on: api dispatch jira-issue-created   # repository_dispatch with custom event type
+```
+
+See [Other Shorthands](#other-shorthands) for the full list of dispatch shorthands.
+
+#### Triggering from Jira
+
+In **Project → Automation**, create a rule with trigger **Issue created** and action **Send web request** pointing at the dispatch endpoint above. Pass Jira smart values as `client_payload` fields (e.g., `{{issue.key}}`).
+
+See the FAQ entry [Can I trigger an agentic workflow from an external system like Jira?](/gh-aw/reference/faq/#can-i-trigger-an-agentic-workflow-from-an-external-system-like-jira) for a complete walkthrough.
+
 ### Command Triggers (`slash_command:`)
 
 The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments.

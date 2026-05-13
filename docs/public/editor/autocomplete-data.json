@@ -1028,7 +1028,7 @@
     },
     "max-runs": {
       "type": "integer|string",
-      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 100 when omitted.",
+      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted.",
       "leaf": true
     },
     "mcp-servers": {

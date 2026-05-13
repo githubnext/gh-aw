@@ -34,6 +34,8 @@ type FileReader func(filePath string) ([]byte, error)
 // DefaultFileReader reads files from disk using os.ReadFile
 var DefaultFileReader FileReader = os.ReadFile
 
+const maxFrontmatterHashInputBytes = 1 << 20
+
 // marshalJSONWithoutHTMLEscape marshals a value to JSON without HTML escaping
 // This matches JavaScript's JSON.stringify behavior
 func marshalJSONWithoutHTMLEscape(v any) (string, error) {
@@ -295,6 +297,19 @@ func normalizeFrontmatterText(text string) string {
 	return strings.TrimSpace(normalized)
 }
 
+func validateFrontmatterHashInputSize(normalizedFrontmatterText string, normalizedImportedFrontmatterTexts []string) error {
+	totalBytes := len(normalizedFrontmatterText)
+	for _, text := range normalizedImportedFrontmatterTexts {
+		totalBytes += len(text)
+	}
+
+	if totalBytes > maxFrontmatterHashInputBytes {
+		return fmt.Errorf("frontmatter hash input exceeds %d bytes after normalization", maxFrontmatterHashInputBytes)
+	}
+
+	return nil
+}
+
 // extractImportsFromText extracts import paths from frontmatter text using simple text parsing.
 // For the array form, extracts all top-level array items under "imports:".
 // For the object form, extracts array items under "imports.aw:" only
@@ -456,8 +471,18 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 	// Build canonical representation from text
 	canonical := make(map[string]any)
 
+	normalizedFrontmatterText := normalizeFrontmatterText(frontmatterText)
+	normalizedImportedTexts := make([]string, len(importedFrontmatterTexts))
+	for i, text := range importedFrontmatterTexts {
+		normalizedImportedTexts[i] = normalizeFrontmatterText(text)
+	}
+
+	if err := validateFrontmatterHashInputSize(normalizedFrontmatterText, normalizedImportedTexts); err != nil {
+		return "", err
+	}
+
 	// Add the main frontmatter text as-is (trimmed and normalized)
-	canonical["frontmatter-text"] = normalizeFrontmatterText(frontmatterText)
+	canonical["frontmatter-text"] = normalizedFrontmatterText
 
 	// Add sorted imported files list
 	if len(importedFiles) > 0 {
@@ -466,14 +491,9 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 	}
 
 	// Add sorted imported frontmatter texts (concatenated with delimiter)
-	if len(importedFrontmatterTexts) > 0 {
-		// Normalize and sort all imported texts
-		normalizedTexts := make([]string, len(importedFrontmatterTexts))
-		for i, text := range importedFrontmatterTexts {
-			normalizedTexts[i] = normalizeFrontmatterText(text)
-		}
-		sort.Strings(normalizedTexts)
-		canonical["imported-frontmatters"] = strings.Join(normalizedTexts, "\n---\n")
+	if len(normalizedImportedTexts) > 0 {
+		sort.Strings(normalizedImportedTexts)
+		canonical["imported-frontmatters"] = strings.Join(normalizedImportedTexts, "\n---\n")
 	}
 
 	// When inlined-imports is enabled, include the full markdown body so any content

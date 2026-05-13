@@ -5,6 +5,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -253,4 +254,25 @@ tools:
 	require.NoError(t, err, "Should compute hash with imports using custom reader")
 	assert.Len(t, hash, 64, "Hash should be 64 characters")
 	assert.Regexp(t, "^[a-f0-9]{64}$", hash, "Hash should be lowercase hex")
+}
+
+func TestFrontmatterHashInputSizeLimit(t *testing.T) {
+	// S-6 compliance: inputs exceeding 1 MiB MUST fail with a deterministic error.
+	oversizedValue := strings.Repeat("a", maxFrontmatterHashInputBytes+1)
+	customReader := func(filePath string) ([]byte, error) {
+		switch filePath {
+		case "/test/workflow.md":
+			return []byte("---\ndescription: " + oversizedValue + "\n---\n\n# Workflow\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	_, err := ComputeFrontmatterHashFromFileWithReader("/test/workflow.md", nil, customReader)
+	require.Error(t, err, "Should reject oversized normalized frontmatter input")
+	require.EqualError(t, err, "frontmatter hash input exceeds 1048576 bytes after normalization")
+
+	_, err = ComputeFrontmatterHashFromFileWithReader("/test/workflow.md", nil, customReader)
+	require.Error(t, err, "Should return the same deterministic error on repeated calls")
+	require.EqualError(t, err, "frontmatter hash input exceeds 1048576 bytes after normalization")
 }

@@ -255,7 +255,7 @@ const DefaultMCPStartupTimeout = 120 * time.Second
 const DefaultMaxEffectiveTokens int64 = 25000000
 
 // DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy.
-const DefaultMaxRuns = 100
+const DefaultMaxRuns = 500
 
 // MCPSessionTimeoutMin is the minimum allowed value for engine.mcp.session-timeout (5 minutes).
 const MCPSessionTimeoutMin = 5 * time.Minute

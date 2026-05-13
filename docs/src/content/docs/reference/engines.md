@@ -45,7 +45,7 @@ Not all features are available across all engines. The table below summarizes pe
 
 **Notes:**
 - `max-runs` is a top-level frontmatter field that maps to `apiProxy.maxRuns` and is supported by all engines.
-- `max-runs` defaults to `100` and `max-effective-tokens` defaults to `25000000` when omitted.
+- `max-runs` defaults to `500` and `max-effective-tokens` defaults to `25000000` when omitted.
 - `max-turns` limits the number of AI chat iterations per run (Claude only).
 - `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
 - `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/guides/web-search/).
