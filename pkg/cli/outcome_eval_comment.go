@@ -3,11 +3,16 @@ package cli
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var outcomeEvalCommentLog = logger.New("cli:outcome_eval_comment")
 
 // evalAddComment checks whether a comment received replies, reactions, or was deleted/hidden.
 func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
+	outcomeEvalCommentLog.Printf("Evaluating add_comment: repo=%s, url=%s", repo, item.URL)
 	report := OutcomeReport{
 		Type:      item.Type,
 		ObjectURL: item.URL,
@@ -17,6 +22,7 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 	// Extract comment ID from URL: .../issues/123#issuecomment-456789 or .../comments/456789
 	commentID := extractCommentID(item.URL)
 	if commentID == "" {
+		outcomeEvalCommentLog.Printf("Unable to extract comment ID from URL: %s", item.URL)
 		report.Result = OutcomeError
 		report.EvalError = "cannot extract comment ID from URL"
 		return report
@@ -26,6 +32,7 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 	if err != nil {
 		// 404 means deleted
 		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
+			outcomeEvalCommentLog.Printf("Comment %s deleted (404)", commentID)
 			report.Result = OutcomeRejected
 			report.Detail = "deleted"
 			return report

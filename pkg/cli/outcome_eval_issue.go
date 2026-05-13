@@ -1,12 +1,19 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var outcomeEvalIssueLog = logger.New("cli:outcome_eval_issue")
 
 // evalCreateIssue checks whether an issue was resolved, dismissed, or is still open.
 // Bot-initiated closes (e.g. close-older-issues) are classified as lifecycle, not rejection.
 func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
+	outcomeEvalIssueLog.Printf("Evaluating create_issue: repo=%s, num=%d, url=%s", repo, num, item.URL)
 	report := OutcomeReport{
 		Type:         item.Type,
 		ObjectURL:    item.URL,
@@ -14,6 +21,7 @@ func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport 
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
+		outcomeEvalIssueLog.Printf("Missing issue number or repo: num=%d, repo=%s", num, repo)
 		report.Result = OutcomeError
 		report.EvalError = "missing issue number or repo"
 		return report
@@ -54,6 +62,7 @@ func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport 
 	case state == "closed" && stateReason == "not_planned":
 		// Check if closed by a bot (lifecycle) or human (rejection)
 		closedByBot := isClosedByBot(num, repo)
+		outcomeEvalIssueLog.Printf("Issue #%d closed as not_planned, closed_by_bot=%v", num, closedByBot)
 		if closedByBot {
 			report.Result = OutcomeLifecycle
 			report.Detail = "closed by bot (lifecycle)"

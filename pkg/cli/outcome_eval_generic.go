@@ -1,11 +1,18 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var outcomeEvalGenericLog = logger.New("cli:outcome_eval_generic")
 
 // evalCloseSticky checks whether a closed issue or PR stayed closed.
 func evalCloseSticky(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
+	outcomeEvalGenericLog.Printf("Evaluating close_sticky: type=%s, repo=%s, num=%d", item.Type, repo, num)
 	report := OutcomeReport{
 		Type:         item.Type,
 		ObjectURL:    item.URL,
@@ -130,6 +137,7 @@ func evalResolveThread(item CreatedItemReport, repoOverride string) OutcomeRepor
 func evalMarkReady(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
+	outcomeEvalGenericLog.Printf("Evaluating mark_ready: repo=%s, num=%d", repo, num)
 	report := OutcomeReport{
 		Type:         item.Type,
 		ObjectURL:    item.URL,
