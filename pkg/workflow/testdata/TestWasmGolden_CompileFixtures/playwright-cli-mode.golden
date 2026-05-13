@@ -121,10 +121,10 @@ jobs:
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_1BF7760D: ${{ github.event.comment.id || fromJSON(github.event.inputs.aw_context || '{}').comment_id }}
-          GH_AW_EXPR_38BB2AB6: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || '{}').item_number) }}
-          GH_AW_EXPR_8D6616B0: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || '{}').item_number) }}
-          GH_AW_EXPR_911BC891: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_FF1D34CE: ${{ github.event.comment.id || fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').comment_id }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
@@ -153,16 +153,16 @@ jobs:
           - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
           {{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}
-          - **issue-number**: #__GH_AW_EXPR_8D6616B0__
+          - **issue-number**: #__GH_AW_EXPR_802A9F6A__
           {{/if}}
           {{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}
-          - **discussion-number**: #__GH_AW_EXPR_38BB2AB6__
+          - **discussion-number**: #__GH_AW_EXPR_1A3A194A__
           {{/if}}
           {{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}
-          - **pull-request-number**: #__GH_AW_EXPR_911BC891__
+          - **pull-request-number**: #__GH_AW_EXPR_463A214A__
           {{/if}}
           {{#if github.event.comment.id || github.aw.context.comment_id}}
-          - **comment-id**: __GH_AW_EXPR_1BF7760D__
+          - **comment-id**: __GH_AW_EXPR_FF1D34CE__
           {{/if}}
           {{#if github.run_id}}
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
@@ -204,10 +204,10 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_1BF7760D: ${{ github.event.comment.id || fromJSON(github.event.inputs.aw_context || '{}').comment_id }}
-          GH_AW_EXPR_38BB2AB6: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || '{}').item_number) }}
-          GH_AW_EXPR_8D6616B0: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || '{}').item_number) }}
-          GH_AW_EXPR_911BC891: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_FF1D34CE: ${{ github.event.comment.id || fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').comment_id }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
@@ -224,10 +224,10 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_EXPR_1BF7760D: process.env.GH_AW_EXPR_1BF7760D,
-                GH_AW_EXPR_38BB2AB6: process.env.GH_AW_EXPR_38BB2AB6,
-                GH_AW_EXPR_8D6616B0: process.env.GH_AW_EXPR_8D6616B0,
-                GH_AW_EXPR_911BC891: process.env.GH_AW_EXPR_911BC891,
+                GH_AW_EXPR_1A3A194A: process.env.GH_AW_EXPR_1A3A194A,
+                GH_AW_EXPR_463A214A: process.env.GH_AW_EXPR_463A214A,
+                GH_AW_EXPR_802A9F6A: process.env.GH_AW_EXPR_802A9F6A,
+                GH_AW_EXPR_FF1D34CE: process.env.GH_AW_EXPR_FF1D34CE,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,

@@ -1766,7 +1766,7 @@ describe("runtime_import", () => {
       it("should leave experiments.foo unchanged (not a GitHub Actions root — handled by interpolate_prompt.cjs)", () => {
         expect(wrapExpressionsInTemplateConditionals("{{#if experiments.foo}}body{{/if}}")).toBe("{{#if experiments.foo}}body{{/if}}");
       });
-      it("should leave experiments.prompt_style == \"concise\" unchanged (experiment equality expression)", () => {
+      it('should leave experiments.prompt_style == "concise" unchanged (experiment equality expression)', () => {
         const input = '{{#if experiments.prompt_style == "concise"}}body{{/if}}';
         expect(wrapExpressionsInTemplateConditionals(input)).toBe(input);
       });

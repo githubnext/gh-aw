@@ -504,14 +504,10 @@ function evaluateExpression(expr) {
           const awCtx = JSON.parse(awCtxStr);
           /** @type {Record<string, () => string | undefined>} */
           const fieldResolvers = {
-            "github.event.issue.number": () =>
-              awCtx.item_type === "issue" && awCtx.item_number ? String(awCtx.item_number) : undefined,
-            "github.event.discussion.number": () =>
-              awCtx.item_type === "discussion" && awCtx.item_number ? String(awCtx.item_number) : undefined,
-            "github.event.pull_request.number": () =>
-              awCtx.item_type === "pull_request" && awCtx.item_number ? String(awCtx.item_number) : undefined,
-            "github.event.comment.id": () =>
-              awCtx.comment_id ? String(awCtx.comment_id) : undefined,
+            "github.event.issue.number": () => (awCtx.item_type === "issue" && awCtx.item_number ? String(awCtx.item_number) : undefined),
+            "github.event.discussion.number": () => (awCtx.item_type === "discussion" && awCtx.item_number ? String(awCtx.item_number) : undefined),
+            "github.event.pull_request.number": () => (awCtx.item_type === "pull_request" && awCtx.item_number ? String(awCtx.item_number) : undefined),
+            "github.event.comment.id": () => (awCtx.comment_id ? String(awCtx.comment_id) : undefined),
           };
           const resolver = fieldResolvers[trimmed];
           if (resolver) {
@@ -828,12 +824,7 @@ function wrapExpressionsInTemplateConditionals(content) {
     // Restricting to explicit prefixes prevents non-GH dotted identifiers such as
     // `experiments.foo` (resolved later by interpolate_prompt.cjs via experiment
     // substitution) from being incorrectly collapsed to {{#if }} (falsy) here.
-    const looksLikeGitHubExpr =
-      trimmed.startsWith("github.") ||
-      trimmed.startsWith("needs.") ||
-      trimmed.startsWith("steps.") ||
-      trimmed.startsWith("env.") ||
-      trimmed.startsWith("inputs.");
+    const looksLikeGitHubExpr = trimmed.startsWith("github.") || trimmed.startsWith("needs.") || trimmed.startsWith("steps.") || trimmed.startsWith("env.") || trimmed.startsWith("inputs.");
 
     if (!looksLikeGitHubExpr) {
       // Not a GitHub Actions expression, leave as-is
