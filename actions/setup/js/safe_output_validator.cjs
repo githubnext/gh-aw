@@ -4,6 +4,7 @@
 const fs = require("fs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
 
 /**
  * Load and parse the safe outputs configuration from config.json
@@ -102,7 +103,6 @@ function validateLabels(labels, allowedLabels = undefined, maxCount = 3, blocked
   // Filter out blocked labels first (security boundary)
   let validLabels = labels;
   if (blockedPatterns && blockedPatterns.length > 0) {
-    const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
     const blockedLabels = [];
     validLabels = labels.filter(label => {
       const labelStr = String(label).trim();
@@ -119,7 +119,6 @@ function validateLabels(labels, allowedLabels = undefined, maxCount = 3, blocked
 
   // Filter labels based on allowed list if provided
   if (allowedLabels && allowedLabels.length > 0) {
-    const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
     validLabels = validLabels.filter(label => {
       const labelStr = String(label).trim();
       return allowedLabels.some(pattern => matchesSimpleGlob(labelStr, pattern));
