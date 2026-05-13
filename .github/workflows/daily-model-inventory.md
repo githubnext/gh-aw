@@ -298,7 +298,7 @@ tools:
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
     - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
-    - "mkdir -p /tmp/gh-aw/model-inventory && curl -sS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json"
+    - "mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf \"%s\" \"{\\\"endpoints\\\":[],\\\"error\\\":\\\"reflect endpoint unavailable\\\"}\" > /tmp/gh-aw/model-inventory/reflect.json)"
     - "jq . /tmp/gh-aw/model-inventory/reflect.json"
     - "jq \".endpoints[] | select(.provider == \\\"copilot\\\") | .models\" /tmp/gh-aw/model-inventory/reflect.json"
     - "cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
@@ -341,7 +341,8 @@ them into:
 - Individual provider files: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
 - Copilot live provider metadata: available via `http://api-proxy:10000/reflect` (filter
-  `.endpoints[]` where `provider == "copilot"`)
+  `.endpoints[] | select(.provider == "copilot")`). If `/reflect` is unavailable, treat Copilot
+  data as unavailable for this run and continue with the remaining providers.
 
 Each enriched `models.json` entry has the form (fields vary by provider):
 ```json
@@ -396,6 +397,9 @@ Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. Th
 
 List the providers that returned data and the count of models available from each, including
 Copilot from `/reflect`.
+
+If `/reflect` returns no `copilot` endpoint (or reports an error), note Copilot as unavailable and
+continue.
 
 ### Step 2: Explore Raw API Fields
 
