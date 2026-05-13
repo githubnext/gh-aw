@@ -399,10 +399,10 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
         `pushSignedCommits: refusing unsigned push for branch '${branch}': ${err.message}. ` +
-        `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
-        `submodule entries (mode 160000), or executable bits (mode 100755). ` +
-        `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
-        `or set push-signed-commits: false if the repository does not require signed commits.`,
+          `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
+          `submodule entries (mode 160000), or executable bits (mode 100755). ` +
+          `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
+          `or set push-signed-commits: false if the repository does not require signed commits.`,
         { cause: err }
       );
     }
