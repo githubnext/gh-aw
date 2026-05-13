@@ -119,9 +119,7 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 		}
 
 		for _, commandName := range wd.Command {
-			for _, route := range buildCentralizedRoutes(wd, routeEvents) {
-				routesByCommand[commandName] = append(routesByCommand[commandName], route)
-			}
+			routesByCommand[commandName] = append(routesByCommand[commandName], buildCentralizedRoutes(wd, routeEvents)...)
 		}
 	}
 
