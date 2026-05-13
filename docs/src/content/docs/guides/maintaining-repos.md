@@ -116,7 +116,7 @@ on:
     issue_comment: [owner, member, collaborator]
 ```
 
-This compiles into a pre-activation job-level `if` guard (using `github.event.author_association`), so matching runs are skipped before agent execution starts.
+This compiles into a pre-activation job-level `if` guard (using event-specific payload fields such as `github.event.comment.author_association`, `github.event.issue.author_association`, and `github.event.pull_request.author_association`), so matching runs are skipped before agent execution starts.
 
 ### Concurrency Controls
 

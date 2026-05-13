@@ -355,7 +355,7 @@ skip-bots: [github-actions, copilot, renovate]
 
 ### Skip Author Associations (`on.skip-author-associations`)
 
-Skip workflow execution at the pre-activation job level when a specific event is triggered by an author with a matching `github.event.author_association`.
+Skip workflow execution at the pre-activation job level when a specific event is triggered by an author with a matching event payload `author_association` field (for example `github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`).
 
 ```yaml wrap
 on:
@@ -371,7 +371,7 @@ on:
 **Behavior**:
 
 - Compiles to a job-level `if` expression (no pre-activation script step cost for matched skips)
-- Uses `github.event.author_association`
+- Uses the event-specific payload field (`github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`)
 - Values are case-insensitive in frontmatter (`contributor` and `CONTRIBUTOR` are treated the same)
 - Supports a single string or an array of strings per event key
 

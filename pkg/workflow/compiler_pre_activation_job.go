@@ -613,7 +613,20 @@ func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
 
 // buildSkipAuthorAssociationsCondition returns a condition that evaluates to true when the
 // workflow should continue, and false when the run should be skipped based on:
-// on.skip-author-associations.<event> containing github.event.author_association.
+// on.skip-author-associations.<event> containing the event-specific author_association field.
+func buildAuthorAssociationNodeForEvent(eventName string) ConditionNode {
+	switch eventName {
+	case "issue_comment", "pull_request_review_comment", "pull_request_review", "discussion_comment":
+		return BuildPropertyAccess("github.event.comment.author_association")
+	case "issues":
+		return BuildPropertyAccess("github.event.issue.author_association")
+	case "pull_request", "pull_request_target":
+		return BuildPropertyAccess("github.event.pull_request.author_association")
+	default:
+		return &ExpressionNode{Expression: "github.event.comment.author_association || github.event.issue.author_association || github.event.pull_request.author_association || github.event.author_association"}
+	}
+}
+
 func buildSkipAuthorAssociationsCondition(skipAuthorAssociations map[string][]string) ConditionNode {
 	var eventNames []string
 	for eventName, associations := range skipAuthorAssociations {
@@ -642,7 +655,7 @@ func buildSkipAuthorAssociationsCondition(skipAuthorAssociations map[string][]st
 		associationIsSkipped := BuildFunctionCall(
 			"contains",
 			BuildFunctionCall("fromJSON", BuildStringLiteral(string(associationJSON))),
-			BuildPropertyAccess("github.event.author_association"),
+			buildAuthorAssociationNodeForEvent(eventName),
 		)
 		skipTerms = append(skipTerms, BuildAnd(isConfiguredEvent, associationIsSkipped))
 	}

@@ -593,7 +593,7 @@ func (c *Compiler) extractSkipAuthorAssociations(frontmatter map[string]any) map
 
 	result := make(map[string][]string)
 	for eventName, associationsValue := range rawMap {
-		associations := parseOptionalStringSliceField(associationsValue, fmt.Sprintf("on.skip-author-associations.%s", eventName))
+		associations := parseOptionalStringSliceField(associationsValue, "on.skip-author-associations."+eventName)
 		if len(associations) == 0 {
 			continue
 		}

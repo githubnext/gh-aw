@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestExtractSkipAuthorAssociations(t *testing.T) {
@@ -47,10 +48,16 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
   roles: all
   skip-author-associations:
     issue_comment: contributor
     pull_request_review_comment: [first_time_contributor, none]
+    issues: owner
+    pull_request: member
 engine: copilot
 ---
 
@@ -72,16 +79,31 @@ engine: copilot
 	preActivationSection := extractJobSection(lockContentStr, "pre_activation")
 	require.NotEmpty(t, preActivationSection)
 
-	assert.Contains(t, preActivationSection, "github.event.author_association")
+	assert.Contains(t, preActivationSection, "github.event.comment.author_association")
+	assert.Contains(t, preActivationSection, "github.event.issue.author_association")
+	assert.Contains(t, preActivationSection, "github.event.pull_request.author_association")
 	assert.Contains(t, preActivationSection, "github.event_name == 'issue_comment'")
 	assert.Contains(t, preActivationSection, "github.event_name == 'pull_request_review_comment'")
+	assert.Contains(t, preActivationSection, "github.event_name == 'issues'")
+	assert.Contains(t, preActivationSection, "github.event_name == 'pull_request'")
 	assert.Contains(t, preActivationSection, "CONTRIBUTOR")
 	assert.Contains(t, preActivationSection, "FIRST_TIME_CONTRIBUTOR")
 	assert.Contains(t, preActivationSection, "NONE")
+	assert.Contains(t, preActivationSection, "OWNER")
+	assert.Contains(t, preActivationSection, "MEMBER")
 	assert.Contains(t, preActivationSection, "!(")
 	assert.Contains(t, preActivationSection, "||")
 	assert.Contains(t, preActivationSection, "&&")
 
 	assert.Contains(t, lockContentStr, "# skip-author-associations:")
+	assert.Contains(t, lockContentStr, "    # issue_comment: contributor")
+	assert.Contains(t, lockContentStr, "    # pull_request_review_comment:")
+	assert.Contains(t, lockContentStr, "    # issues: owner")
+	assert.Contains(t, lockContentStr, "    # pull_request: member")
+	assert.Contains(t, lockContentStr, "    # - first_time_contributor")
+	assert.Contains(t, lockContentStr, "    # - none")
 	assert.NotContains(t, lockContentStr, "skip-author-association:")
+
+	var workflow map[string]any
+	require.NoError(t, yaml.Unmarshal(lockContent, &workflow), "compiled lock file should be valid YAML")
 }

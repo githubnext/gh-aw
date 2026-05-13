@@ -1805,7 +1805,7 @@
             },
             "skip-author-associations": {
               "type": "object",
-              "description": "Skip workflow execution when github.event.author_association matches configured associations for specific events. Keys are event names (for example: issue_comment, pull_request_review_comment, issues, pull_request). Values accept a single string or an array of strings. Association values are case-insensitive in frontmatter.",
+              "description": "Skip workflow execution when an event-specific payload author_association field (for example: github.event.comment.author_association, github.event.issue.author_association, github.event.pull_request.author_association) matches configured associations for specific events. Keys are event names (for example: issue_comment, pull_request_review_comment, issues, pull_request). Values accept a single string or an array of strings. Association values are case-insensitive in frontmatter.",
               "additionalProperties": {
                 "oneOf": [
                   {
