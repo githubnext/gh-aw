@@ -85,3 +85,38 @@ on:
 	assert.False(t, applied)
 	assert.Equal(t, content, result)
 }
+
+func TestDiscussionTriggerCategoriesCodemod_LowercasesQuotedOnAndTriggerKeys(t *testing.T) {
+	codemod := getDiscussionTriggerCategoriesLowercaseCodemod()
+
+	content := `---
+"on": # workflow triggers
+  "discussion": # category trigger
+    types:
+      - Agentic Workflows
+  "discussion_comment": # comment category
+    types: [General]
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"discussion": map[string]any{
+				"types": []any{"Agentic Workflows"},
+			},
+			"discussion_comment": map[string]any{
+				"types": []any{"General"},
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.Contains(t, result, "- agentic workflows")
+	assert.Contains(t, result, "types: [general]")
+	assert.NotContains(t, result, "- Agentic Workflows")
+	assert.NotContains(t, result, "types: [General]")
+}

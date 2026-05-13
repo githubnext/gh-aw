@@ -89,7 +89,7 @@ func lowercaseDiscussionTriggerTypesInLines(lines []string) ([]string, bool) {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
 
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "on:") {
+		if isTopLevelKey(line) && isOnBlockStartLine(trimmed) {
 			inOn = true
 			onIndent = indent
 			currentTrigger = ""
@@ -97,7 +97,7 @@ func lowercaseDiscussionTriggerTypesInLines(lines []string) ([]string, bool) {
 			continue
 		}
 
-		if inOn && isTopLevelKey(line) && len(indent) <= len(onIndent) && !strings.HasPrefix(trimmed, "on:") {
+		if inOn && isTopLevelKey(line) && len(indent) <= len(onIndent) && !isOnBlockStartLine(trimmed) {
 			inOn = false
 			currentTrigger = ""
 			inTypes = false
@@ -112,11 +112,14 @@ func lowercaseDiscussionTriggerTypesInLines(lines []string) ([]string, bool) {
 			inTypes = false
 		}
 
-		if len(indent) > len(onIndent) && (trimmed == "discussion:" || trimmed == "discussion_comment:") {
-			currentTrigger = strings.TrimSuffix(trimmed, ":")
-			triggerIndent = indent
-			inTypes = false
-			continue
+		if len(indent) > len(onIndent) {
+			trigger, isTrigger := getDiscussionTriggerFromLine(trimmed)
+			if isTrigger {
+				currentTrigger = trigger
+				triggerIndent = indent
+				inTypes = false
+				continue
+			}
 		}
 
 		if currentTrigger == "" {
@@ -153,6 +156,24 @@ func lowercaseDiscussionTriggerTypesInLines(lines []string) ([]string, bool) {
 	}
 
 	return result, modified
+}
+
+func isOnBlockStartLine(trimmed string) bool {
+	return trimmed == "on:" || trimmed == `"on":` ||
+		strings.HasPrefix(trimmed, "on: #") || strings.HasPrefix(trimmed, `"on": #`)
+}
+
+func getDiscussionTriggerFromLine(trimmed string) (string, bool) {
+	switch {
+	case trimmed == "discussion:" || trimmed == `"discussion":` ||
+		strings.HasPrefix(trimmed, "discussion: #") || strings.HasPrefix(trimmed, `"discussion": #`):
+		return "discussion", true
+	case trimmed == "discussion_comment:" || trimmed == `"discussion_comment":` ||
+		strings.HasPrefix(trimmed, "discussion_comment: #") || strings.HasPrefix(trimmed, `"discussion_comment": #`):
+		return "discussion_comment", true
+	default:
+		return "", false
+	}
 }
 
 func lowercaseInlineTypesArrayLine(line string) (string, bool) {
@@ -221,13 +242,13 @@ func lowercaseYAMLListItemLine(line string) (string, bool) {
 	}
 
 	lineWithoutIndent := strings.TrimLeft(line, " \t")
-	dashIndex := strings.Index(lineWithoutIndent, "- ")
-	if dashIndex < 0 {
+	_, valueAfterDash, hasDash := strings.Cut(lineWithoutIndent, "- ")
+	if !hasDash {
 		return line, false
 	}
 
 	indent := getIndentation(line)
-	valueWithComment := strings.TrimSpace(lineWithoutIndent[dashIndex+2:])
+	valueWithComment := strings.TrimSpace(valueAfterDash)
 
 	commentIndex := strings.Index(valueWithComment, "#")
 	valuePart := valueWithComment
