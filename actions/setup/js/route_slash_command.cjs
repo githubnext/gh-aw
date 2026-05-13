@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
+const GITHUB_API_VERSION = "2022-11-28";
 
 function eventIdentifier() {
   if (context.eventName !== "issue_comment") {
@@ -176,6 +177,26 @@ async function addImmediateReaction(reaction) {
   }
 }
 
+/**
+ * @param {string} workflowId
+ * @param {string} ref
+ * @param {Record<string, string>} inputs
+ */
+async function dispatchWorkflow(workflowId, ref, inputs) {
+  await github.rest.actions.createWorkflowDispatch({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    workflow_id: workflowId,
+    ref,
+    inputs,
+    request: {
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      },
+    },
+  });
+}
+
 async function main() {
   core.info("Starting centralized command routing.");
   core.info(`Incoming event name: '${context.eventName}'.`);
@@ -216,14 +237,8 @@ async function main() {
         ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
       };
       core.info(`Dispatching workflow '${route.workflow}.lock.yml' for label '${labelName}'.`);
-      await github.rest.actions.createWorkflowDispatch({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        workflow_id: `${route.workflow}.lock.yml`,
-        ref,
-        inputs: {
-          aw_context: JSON.stringify(awContext),
-        },
+      await dispatchWorkflow(`${route.workflow}.lock.yml`, ref, {
+        aw_context: JSON.stringify(awContext),
       });
       core.info(`Dispatched '${route.workflow}' for label '${labelName}'`);
     }
@@ -265,14 +280,8 @@ async function main() {
       ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
     };
     core.info(`Dispatching workflow '${route.workflow}.lock.yml' for '/${commandName}'.`);
-    await github.rest.actions.createWorkflowDispatch({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      workflow_id: `${route.workflow}.lock.yml`,
-      ref,
-      inputs: {
-        aw_context: JSON.stringify(awContext),
-      },
+    await dispatchWorkflow(`${route.workflow}.lock.yml`, ref, {
+      aw_context: JSON.stringify(awContext),
     });
     core.info(`Dispatched '${route.workflow}' for '/${commandName}'`);
   }
