@@ -756,6 +756,7 @@ func TestGenerateMainJobStepsWithDevMode_GhAwRuntimeBuildsFromSource(t *testing.
 
 	result := yaml.String()
 	assert.Contains(t, result, "- name: Build and install gh-aw CLI from source")
+	assert.Contains(t, result, "make build")
 	assert.Contains(t, result, "gh extension install .")
 	assert.NotContains(t, result, "uses: github/gh-aw/actions/setup-cli@")
 }
