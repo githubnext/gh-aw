@@ -139,7 +139,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inSkipIfMatch := false
 	inSkipIfNoMatch := false
 	inSkipIfCheckFailing := false
-	inSkipAuthorAssociation := false
+	inSkipAuthorAssociations := false
 	inSkipRolesArray := false
 	inSkipBotsArray := false
 	inRolesArray := false
@@ -339,9 +339,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 
 		// Check if we're entering skip-author-associations object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipAuthorAssociation {
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipAuthorAssociations {
 			if strings.HasPrefix(trimmedLine, "skip-author-associations:") && trimmedLine == "skip-author-associations:" {
-				inSkipAuthorAssociation = true
+				inSkipAuthorAssociations = true
 			}
 		}
 
@@ -394,12 +394,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		}
 
 		// Check if we're leaving skip-author-associations object (encountering another top-level field)
-		if inSkipAuthorAssociation && strings.TrimSpace(line) != "" &&
+		if inSkipAuthorAssociations && strings.TrimSpace(line) != "" &&
 			!strings.HasPrefix(trimmedLine, "skip-author-associations:") &&
 			!strings.HasPrefix(trimmedLine, "# skip-author-associations:") {
 			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 			if currentIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipAuthorAssociation = false
+				inSkipAuthorAssociations = false
 			}
 		}
 
@@ -537,7 +537,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			} else if strings.HasPrefix(trimmedLine, "skip-author-associations:") {
 				shouldComment = true
 				commentReason = " # Skip-author-associations compiled into pre-activation job if condition"
-			} else if inSkipAuthorAssociation && lineIndent > 2 {
+			} else if inSkipAuthorAssociations && lineIndent > 2 {
 				shouldComment = true
 				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "skip-roles:") {

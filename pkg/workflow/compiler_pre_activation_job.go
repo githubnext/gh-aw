@@ -651,7 +651,8 @@ func buildSkipAuthorAssociationsCondition(skipAuthorAssociations map[string][]st
 		return BuildBooleanLiteral(true)
 	}
 
-	// Continue only when no configured (event, author_association) skip condition matched.
+	// Continue only when no configured (event, author_association) skip condition matched:
+	// NOT(skipTerm1 OR skipTerm2 OR ...).
 	return &NotNode{Child: BuildDisjunction(false, skipTerms...)}
 }
 

@@ -78,6 +78,9 @@ engine: copilot
 	assert.Contains(t, preActivationSection, "CONTRIBUTOR")
 	assert.Contains(t, preActivationSection, "FIRST_TIME_CONTRIBUTOR")
 	assert.Contains(t, preActivationSection, "NONE")
+	assert.Contains(t, preActivationSection, "!(")
+	assert.Contains(t, preActivationSection, "||")
+	assert.Contains(t, preActivationSection, "&&")
 
 	assert.Contains(t, lockContentStr, "# skip-author-associations:")
 	assert.NotContains(t, lockContentStr, "skip-author-association:")
