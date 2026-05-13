@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var claudeToolsLog = logger.New("workflow:claude_tools")
@@ -244,56 +245,50 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	var allowedTools []string
 
 	// Process claude-specific tools from the claude section (new format only)
-	if claudeSection, hasClaudeSection := tools["claude"]; hasClaudeSection {
-		if claudeConfig, ok := claudeSection.(map[string]any); ok {
-			if allowed, hasAllowed := claudeConfig["allowed"]; hasAllowed {
-				// In the new format, allowed is a map where keys are tool names
-				if allowedMap, ok := allowed.(map[string]any); ok {
-					for toolName, toolValue := range allowedMap {
-						if toolName == "Bash" {
-							// Handle Bash tool with specific commands
-							if bashCommands, ok := toolValue.([]any); ok {
-								// Check for :* wildcard first - if present, ignore all other bash commands
-								for _, cmd := range bashCommands {
-									if cmdStr, ok := cmd.(string); ok {
-										if cmdStr == ":*" {
-											// :* means allow all bash and ignore other commands
-											allowedTools = append(allowedTools, "Bash")
-											goto nextClaudeTool
-										}
-									}
-								}
-								// Process the allowed bash commands (no :* found)
-								for _, cmd := range bashCommands {
-									if cmdStr, ok := cmd.(string); ok {
-										if cmdStr == "*" {
-											// Wildcard means allow all bash
-											allowedTools = append(allowedTools, "Bash")
-											goto nextClaudeTool
-										}
-									}
-								}
-								// Add individual bash commands with Bash() prefix
-								for _, cmd := range bashCommands {
-									if cmdStr, ok := cmd.(string); ok {
-										// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-										// all engines emit the canonical prefix form (Bash(jq)) regardless
-										// of whether the command was written with or without the wildcard.
-										normalized, _ := normalizeBashCommand(cmdStr)
-										allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", normalized))
-									}
-								}
-							} else {
-								// Bash with no specific commands or null value - allow all bash
+	claudeConfig, ok := typeutil.LookupMap(tools, "claude")
+	if ok {
+		allowedMap, ok := typeutil.LookupMap(claudeConfig, "allowed")
+		if ok {
+			// In the new format, allowed is a map where keys are tool names
+			for toolName, toolValue := range allowedMap {
+				if toolName == "Bash" {
+					// Handle Bash tool with specific commands
+					if bashCommands, ok := toolValue.([]any); ok {
+						// Check for :* wildcard first - if present, ignore all other bash commands
+						for _, cmd := range bashCommands {
+							if cmdStr, ok := cmd.(string); ok && cmdStr == ":*" {
+								// :* means allow all bash and ignore other commands
 								allowedTools = append(allowedTools, "Bash")
+								goto nextClaudeTool
 							}
-						} else if strings.HasPrefix(toolName, strings.ToUpper(toolName[:1])) {
-							// Tool name starts with uppercase letter - regular Claude tool
-							allowedTools = append(allowedTools, toolName)
 						}
-					nextClaudeTool:
+						// Process the allowed bash commands (no :* found)
+						for _, cmd := range bashCommands {
+							if cmdStr, ok := cmd.(string); ok && cmdStr == "*" {
+								// Wildcard means allow all bash
+								allowedTools = append(allowedTools, "Bash")
+								goto nextClaudeTool
+							}
+						}
+						// Add individual bash commands with Bash() prefix
+						for _, cmd := range bashCommands {
+							if cmdStr, ok := cmd.(string); ok {
+								// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+								// all engines emit the canonical prefix form (Bash(jq)) regardless
+								// of whether the command was written with or without the wildcard.
+								normalized, _ := normalizeBashCommand(cmdStr)
+								allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", normalized))
+							}
+						}
+					} else {
+						// Bash with no specific commands or null value - allow all bash
+						allowedTools = append(allowedTools, "Bash")
 					}
+				} else if strings.HasPrefix(toolName, strings.ToUpper(toolName[:1])) {
+					// Tool name starts with uppercase letter - regular Claude tool
+					allowedTools = append(allowedTools, toolName)
 				}
+			nextClaudeTool:
 			}
 		}
 	}

@@ -182,6 +182,38 @@ func TestClaudeEngine_ParseLogMetrics_WithDuration(t *testing.T) {
 	}
 }
 
+func TestClaudeEngine_ParseLogMetrics_BashWithoutCommandUsesFallbackName(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	claudeLog := `[
+  {
+    "type": "assistant",
+    "message": {
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "tool_123",
+          "name": "Bash",
+          "input": {
+            "note": "no command field present"
+          }
+        }
+      ]
+    }
+  }
+]`
+
+	metrics := engine.ParseLogMetrics(claudeLog, false)
+
+	if len(metrics.ToolCalls) != 1 {
+		t.Fatalf("Expected 1 tool call, got %d", len(metrics.ToolCalls))
+	}
+
+	if metrics.ToolCalls[0].Name != "bash" {
+		t.Errorf("Expected fallback bash tool name 'bash', got %q", metrics.ToolCalls[0].Name)
+	}
+}
+
 // func TestClaudeEngine_ParseLogMetrics_WithInputSizes(t *testing.T) {
 // 	engine := NewClaudeEngine()
 

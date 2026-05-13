@@ -335,88 +335,84 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 	var sequence []string
 
 	for _, contentItem := range contentArray {
-		if contentMap, ok := contentItem.(map[string]any); ok {
-			if contentType, exists := contentMap["type"]; exists {
-				if typeStr, ok := contentType.(string); ok {
-					switch typeStr {
-					case "tool_use":
-						// Extract tool name
-						if toolName, exists := contentMap["name"]; exists {
-							if nameStr, ok := toolName.(string); ok {
-								// Skip internal tools as per existing JavaScript logic (disabled for tool graph visualization)
-								// internalTools := []string{
-								//	"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
-								// }
-								// if slices.Contains(internalTools, nameStr) {
-								//	continue
-								// }
+		contentMap, ok := contentItem.(map[string]any)
+		if !ok {
+			continue
+		}
 
-								// Prettify tool name
-								prettifiedName := PrettifyToolName(nameStr)
+		typeStr, ok := typeutil.LookupString(contentMap, "type")
+		if !ok {
+			continue
+		}
 
-								// Special handling for bash - each invocation is unique
-								if nameStr == "Bash" {
-									if input, exists := contentMap["input"]; exists {
-										if inputMap, ok := input.(map[string]any); ok {
-											if command, exists := inputMap["command"]; exists {
-												if commandStr, ok := command.(string); ok {
-													// Create unique bash entry with command info, avoiding colons
-													uniqueBashName := "bash_" + ShortenCommand(commandStr)
-													prettifiedName = uniqueBashName
-												}
-											}
-										}
-									}
-								}
+		switch typeStr {
+		case "tool_use":
+			nameStr, ok := typeutil.LookupString(contentMap, "name")
+			if !ok {
+				continue
+			}
 
-								// Add to sequence
-								sequence = append(sequence, prettifiedName)
+			// Skip internal tools as per existing JavaScript logic (disabled for tool graph visualization)
+			// internalTools := []string{
+			//	"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
+			// }
+			// if slices.Contains(internalTools, nameStr) {
+			//	continue
+			// }
 
-								// Calculate input size from the input field
-								inputSize := 0
-								if input, exists := contentMap["input"]; exists {
-									inputSize = e.estimateInputSize(input)
-								}
+			prettifiedName := PrettifyToolName(nameStr)
 
-								// Initialize or update tool call info
-								if toolInfo, exists := toolCallMap[prettifiedName]; exists {
-									toolInfo.CallCount++
-									if inputSize > toolInfo.MaxInputSize {
-										toolInfo.MaxInputSize = inputSize
-									}
-								} else {
-									toolCallMap[prettifiedName] = &ToolCallInfo{
-										Name:          prettifiedName,
-										CallCount:     1,
-										MaxInputSize:  inputSize,
-										MaxOutputSize: 0, // Will be updated when we find tool results
-										MaxDuration:   0, // Will be updated when we find execution timing
-									}
-								}
-							}
-						}
-					case "tool_result":
-						// Extract output size for tool results
-						if content, exists := contentMap["content"]; exists {
-							if contentStr, ok := content.(string); ok {
-								// Estimate token count (rough approximation: 1 token = ~4 characters)
-								outputSize := len(contentStr) / 4
+			// Special handling for bash - each invocation is unique
+			if nameStr == "Bash" {
+				if commandStr, ok := typeutil.LookupStringPath(contentMap, "input", "command"); ok {
+					// Create unique bash entry with command info, avoiding colons
+					prettifiedName = "bash_" + ShortenCommand(commandStr)
+				}
+			}
 
-								// Find corresponding tool call to update max output size
-								if toolUseID, exists := contentMap["tool_use_id"]; exists {
-									if _, ok := toolUseID.(string); ok {
-										// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
-										// For now, we'll update the max output size for all tools (conservative estimate)
-										for _, toolInfo := range toolCallMap {
-											if outputSize > toolInfo.MaxOutputSize {
-												toolInfo.MaxOutputSize = outputSize
-											}
-										}
-									}
-								}
-							}
-						}
-					}
+			// Add to sequence
+			sequence = append(sequence, prettifiedName)
+
+			// Calculate input size from the input field
+			inputSize := 0
+			if input, exists := contentMap["input"]; exists {
+				inputSize = e.estimateInputSize(input)
+			}
+
+			// Initialize or update tool call info
+			if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+				toolInfo.CallCount++
+				if inputSize > toolInfo.MaxInputSize {
+					toolInfo.MaxInputSize = inputSize
+				}
+			} else {
+				toolCallMap[prettifiedName] = &ToolCallInfo{
+					Name:          prettifiedName,
+					CallCount:     1,
+					MaxInputSize:  inputSize,
+					MaxOutputSize: 0, // Will be updated when we find tool results
+					MaxDuration:   0, // Will be updated when we find execution timing
+				}
+			}
+		case "tool_result":
+			contentStr, ok := typeutil.LookupString(contentMap, "content")
+			if !ok {
+				continue
+			}
+
+			// Estimate token count (rough approximation: 1 token = ~4 characters)
+			outputSize := len(contentStr) / 4
+
+			// Find corresponding tool call to update max output size
+			if _, ok := typeutil.LookupString(contentMap, "tool_use_id"); !ok {
+				continue
+			}
+
+			// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
+			// For now, we'll update the max output size for all tools (conservative estimate)
+			for _, toolInfo := range toolCallMap {
+				if outputSize > toolInfo.MaxOutputSize {
+					toolInfo.MaxOutputSize = outputSize
 				}
 			}
 		}

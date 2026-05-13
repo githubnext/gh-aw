@@ -23,6 +23,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -696,38 +697,7 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 	if err := json.Unmarshal(content, &logEntries); err == nil {
 		// Successfully parsed as JSON array, process entries
 		for _, entry := range logEntries {
-			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
-				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
-					if mcpServers, ok := entry["mcp_servers"].([]any); ok {
-						for _, serverInterface := range mcpServers {
-							if server, ok := serverInterface.(map[string]any); ok {
-								serverName, hasName := server["name"].(string)
-								status, hasStatus := server["status"].(string)
-
-								if hasName && hasStatus && status == "failed" {
-									failure := MCPFailureReport{
-										ServerName:   serverName,
-										Status:       status,
-										WorkflowName: run.WorkflowName,
-										RunID:        run.DatabaseID,
-									}
-
-									// Try to extract timestamp if available
-									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
-										failure.Timestamp = timestamp
-									}
-
-									mcpFailures = append(mcpFailures, failure)
-
-									if verbose {
-										fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			appendMCPFailuresFromEntry(entry, run, verbose, &mcpFailures)
 		}
 	} else {
 		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
@@ -745,40 +715,55 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 			}
 
 			// Look for system init entries that contain MCP server information
-			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
-				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
-					if mcpServers, ok := entry["mcp_servers"].([]any); ok {
-						for _, serverInterface := range mcpServers {
-							if server, ok := serverInterface.(map[string]any); ok {
-								serverName, hasName := server["name"].(string)
-								status, hasStatus := server["status"].(string)
-
-								if hasName && hasStatus && status == "failed" {
-									failure := MCPFailureReport{
-										ServerName:   serverName,
-										Status:       status,
-										WorkflowName: run.WorkflowName,
-										RunID:        run.DatabaseID,
-									}
-
-									// Try to extract timestamp if available
-									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
-										failure.Timestamp = timestamp
-									}
-
-									mcpFailures = append(mcpFailures, failure)
-
-									if verbose {
-										fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			appendMCPFailuresFromEntry(entry, run, verbose, &mcpFailures)
 		}
 	}
 
 	return mcpFailures, nil
+}
+
+func appendMCPFailuresFromEntry(entry map[string]any, run WorkflowRun, verbose bool, mcpFailures *[]MCPFailureReport) {
+	entryType, ok := typeutil.LookupString(entry, "type")
+	if !ok || entryType != "system" {
+		return
+	}
+
+	subtype, ok := typeutil.LookupString(entry, "subtype")
+	if !ok || subtype != "init" {
+		return
+	}
+
+	mcpServers, ok := entry["mcp_servers"].([]any)
+	if !ok {
+		return
+	}
+
+	timestamp, _ := typeutil.LookupString(entry, "timestamp")
+
+	for _, serverInterface := range mcpServers {
+		server, ok := serverInterface.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		serverName, hasName := typeutil.LookupString(server, "name")
+		status, hasStatus := typeutil.LookupString(server, "status")
+		if !hasName || !hasStatus || status != "failed" {
+			continue
+		}
+
+		failure := MCPFailureReport{
+			ServerName:   serverName,
+			Status:       status,
+			WorkflowName: run.WorkflowName,
+			RunID:        run.DatabaseID,
+			Timestamp:    timestamp,
+		}
+
+		*mcpFailures = append(*mcpFailures, failure)
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+		}
+	}
 }
