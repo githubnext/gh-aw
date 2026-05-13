@@ -532,6 +532,22 @@ Specifies which AI engine interprets the markdown section. See [AI Engines](/gh-
 engine: copilot
 ```
 
+### Effective Token Budget (`max-effective-tokens:`)
+
+Sets the AWF effective-token budget used for cost enforcement. Defaults to `25000000` when omitted.
+
+```yaml wrap
+max-effective-tokens: 5000000
+```
+
+### Inline Sub-Agents (`inline-sub-agents:`)
+
+Deprecated compatibility switch for inline sub-agents. Inline sub-agents are enabled by default, and `inline-sub-agents: false` is rejected at compile time. See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for syntax and usage.
+
+```yaml wrap
+inline-sub-agents: true
+```
+
 ### Network Permissions (`network:`)
 
 Controls network access using ecosystem identifiers and domain allowlists. See [Network Permissions](/gh-aw/reference/network/) for full documentation.

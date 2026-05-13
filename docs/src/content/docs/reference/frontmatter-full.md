@@ -1583,6 +1583,12 @@ env:
 # Format 2: string
 env: "example-value"
 
+# Deprecated switch for inline sub-agent support. Inline sub-agents are enabled
+# by default. Setting this to false is not supported and causes a compilation
+# error.
+# (optional)
+inline-sub-agents: true
+
 # Feature flags and configuration options for experimental or optional features in
 # the workflow. Each feature can be a boolean flag or a string value. The
 # 'action-tag' feature (string) specifies the tag or SHA to use when referencing
@@ -2346,6 +2352,18 @@ engine:
   # (optional)
   options:
     {}
+
+# Maximum effective-token (ET) budget for AWF API proxy enforcement. Defaults to
+# 25000000 when omitted.
+# (optional)
+# Accepted formats:
+
+# Format 1: integer
+max-effective-tokens: 1
+
+# Format 2: Numeric string or GitHub Actions expression that resolves to an
+# integer at runtime
+max-effective-tokens: "example-value"
 
 # MCP server definitions
 # (optional)
