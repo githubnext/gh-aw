@@ -29,8 +29,8 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			name:               "ai-inference v1 resolves to v2 pin with source annotation",
 			repo:               "actions/ai-inference",
 			requestedVer:       "v1",
-			expectedCommentVer: "v2.0.8",
-			fallbackPinVer:     "v2.0.8", // Falls back to hardcoded pin
+			expectedCommentVer: "v2.1.0",
+			fallbackPinVer:     "v2.1.0", // Falls back to hardcoded pin
 			expectMismatch:     true,
 		},
 		{
