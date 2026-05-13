@@ -165,15 +165,19 @@ async function main() {
   // -------------------------------------------------------------------------
   // Fleet summary span
   // -------------------------------------------------------------------------
+  function getSummaryNumber(field, fallback) {
+    return summary && typeof summary[field] === "number" ? summary[field] : fallback;
+  }
+
   const summaryAttributes = [
-    buildAttr("gh-aw.outcome.runs_checked", summary ? summary.runs_checked : 0),
-    buildAttr("gh-aw.outcome.total", summary ? summary.total_outcomes : evaluations.length),
-    buildAttr("gh-aw.outcome.accepted", summary ? summary.accepted : 0),
-    buildAttr("gh-aw.outcome.rejected", summary ? summary.rejected : 0),
-    buildAttr("gh-aw.outcome.ignored", summary ? summary.ignored : 0),
-    buildAttr("gh-aw.outcome.pending", summary ? summary.pending : 0),
-    buildAttr("gh-aw.outcome.acceptance_rate", summary ? summary.acceptance_rate : 0),
-    buildAttr("gh-aw.outcome.waste_rate", summary ? summary.waste_rate : 0),
+    buildAttr("gh-aw.outcome.runs_checked", getSummaryNumber("runs_checked", 0)),
+    buildAttr("gh-aw.outcome.total", getSummaryNumber("total_outcomes", evaluations.length)),
+    buildAttr("gh-aw.outcome.accepted", getSummaryNumber("accepted", 0)),
+    buildAttr("gh-aw.outcome.rejected", getSummaryNumber("rejected", 0)),
+    buildAttr("gh-aw.outcome.ignored", getSummaryNumber("ignored", 0)),
+    buildAttr("gh-aw.outcome.pending", getSummaryNumber("pending", 0)),
+    buildAttr("gh-aw.outcome.acceptance_rate", getSummaryNumber("acceptance_rate", 0)),
+    buildAttr("gh-aw.outcome.waste_rate", getSummaryNumber("waste_rate", 0)),
     buildAttr("gh-aw.outcome.item_count", evaluations.length),
   ];
 
