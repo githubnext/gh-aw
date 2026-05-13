@@ -180,29 +180,34 @@ func lowercaseInlineTypesArrayLine(line string) (string, bool) {
 	}
 
 	parts := strings.Split(inner, ",")
-	changed := false
 	for i, part := range parts {
 		trimmed := strings.TrimSpace(part)
 		unquoted := strings.Trim(trimmed, `"'`)
 		lower := strings.ToLower(unquoted)
-		if unquoted != lower {
-			changed = true
-		}
+
+		var updatedValue string
 		if strings.HasPrefix(trimmed, "\"") && strings.HasSuffix(trimmed, "\"") {
-			parts[i] = `"` + lower + `"`
+			updatedValue = `"` + lower + `"`
 		} else if strings.HasPrefix(trimmed, "'") && strings.HasSuffix(trimmed, "'") {
-			parts[i] = "'" + lower + "'"
+			updatedValue = "'" + lower + "'"
 		} else {
-			parts[i] = lower
+			updatedValue = lower
 		}
+
+		leftPaddingLen := len(part) - len(strings.TrimLeft(part, " \t"))
+		rightPaddingLen := len(part) - len(strings.TrimRight(part, " \t"))
+		leftPadding := part[:leftPaddingLen]
+		rightPadding := part[len(part)-rightPaddingLen:]
+		parts[i] = leftPadding + updatedValue + rightPadding
 	}
 
-	if !changed {
+	updatedInner := strings.Join(parts, ",")
+	if updatedInner == inner {
 		return line, false
 	}
 
 	prefix := valuePart[:colonIndex+1]
-	updated := prefix + " [" + strings.Join(parts, ", ") + "]"
+	updated := prefix + " [" + updatedInner + "]"
 	if commentPart != "" {
 		updated += " " + strings.TrimSpace(commentPart)
 	}
