@@ -185,7 +185,7 @@ Create an issue with this structure:
 
 Post the ASCII diagram inside a code block (triple backticks) so it renders with monospace font.
 
-{{#if experiments.detail_level == "comprehensive" }}
+{{#if experiments.detail_level == 'comprehensive' }}
 ### Summary
 
 State whether this is a **full rebuild** or an **incremental update**, and list which packages changed.
