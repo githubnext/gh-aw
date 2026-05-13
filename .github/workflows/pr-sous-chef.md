@@ -139,7 +139,7 @@ At the end, call `noop` with a compact summary including counts:
 ## agent: `pr-processor`
 ---
 description: Processes one PR with minimal API calls and returns skip/nudge decisions
-model: small
+model: gpt-5-mini
 ---
 Given one PR number and compact metadata:
 
