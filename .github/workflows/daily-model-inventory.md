@@ -1,6 +1,6 @@
 ---
 name: Daily Model Inventory Checker
-description: Queries model lists from OpenAI, Anthropic, Google, and Copilot APIs daily, then analyzes the combined inventory to propose updates to the builtin model alias mapping
+description: Queries model lists from OpenAI, Anthropic, and Google APIs daily, uses AWF /reflect for Copilot models, then analyzes the combined inventory to propose updates to the builtin model alias mapping
 on:
   schedule:
     - cron: daily
@@ -178,62 +178,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  collect_copilot_models:
-    runs-on: ubuntu-latest
-    needs: [activation]
-    permissions:
-      contents: read
-    steps:
-      - name: Fetch Copilot models
-        id: fetch
-        shell: bash
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          OUT="/tmp/gh-aw/model-inventory/copilot"
-          mkdir -p "$OUT"
-          if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
-            echo '{"provider":"copilot","error":"COPILOT_GITHUB_TOKEN not set","models":[]}' > "$OUT/models.json"
-            echo '{"provider":"copilot","error":"COPILOT_GITHUB_TOKEN not set"}' > "$OUT/raw.json"
-            echo "status=skipped" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
-            -H "Authorization: Bearer $COPILOT_GITHUB_TOKEN" \
-            -H "Copilot-Integration-Id: copilot-chat" \
-            https://api.githubcopilot.com/models) || true
-          if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            jq '{
-              provider: "copilot",
-              models: [
-                .data[] | {
-                  id,
-                  name: (.name // .id),
-                  vendor: (.vendor // null),
-                  version: (.version // null),
-                  capabilities: .capabilities,
-                  billing: .billing
-                }
-              ] | sort_by(.id)
-            }' "$OUT/raw.json" > "$OUT/models.json"
-            echo "status=ok" >> "$GITHUB_OUTPUT"
-          else
-            echo "{\"provider\":\"copilot\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
-            echo "status=error" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload Copilot artifacts
-        if: always()
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: copilot-models
-          path: |
-            /tmp/gh-aw/model-inventory/copilot/models.json
-            /tmp/gh-aw/model-inventory/copilot/raw.json
-          if-no-files-found: error
-          retention-days: 7
-
   collect_copilot_billing_multipliers:
     runs-on: ubuntu-latest
     needs: [activation]
@@ -354,10 +298,9 @@ tools:
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
     - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
-    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
-    - "jq '[.data[] | .capabilities | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
-    - "jq '[.data[] | select(.billing != null)] | length' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
-    - "jq '.data[] | {id, billing}' /tmp/gh-aw/model-inventory/artifacts/copilot-models/raw.json"
+    - "mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf \"%s\" \"{\\\"endpoints\\\":[],\\\"error\\\":\\\"reflect endpoint unavailable\\\"}\" > /tmp/gh-aw/model-inventory/reflect.json)"
+    - "jq . /tmp/gh-aw/model-inventory/reflect.json"
+    - "jq \".endpoints[] | select(.provider == \\\"copilot\\\") | .models\" /tmp/gh-aw/model-inventory/reflect.json"
     - "cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
     - "jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
     - "jq '.models[]' /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
@@ -391,11 +334,15 @@ updating.
 
 ## Inputs
 
-The pre-job steps have already fetched model lists from each provider's API and merged them into:
+The pre-job steps have already fetched model lists from OpenAI, Anthropic, and Gemini, then merged
+them into:
 
 - Combined inventory: `/tmp/gh-aw/model-inventory/inventory.json`
 - Individual provider files: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
+- Copilot live provider metadata: available via `http://api-proxy:10000/reflect` (filter
+  `.endpoints[] | select(.provider == "copilot")`). If `/reflect` is unavailable, treat Copilot
+  data as unavailable for this run and continue with the remaining providers.
 
 Each enriched `models.json` entry has the form (fields vary by provider):
 ```json
@@ -412,8 +359,8 @@ Each enriched `models.json` entry has the form (fields vary by provider):
   ]
 }
 ```
-Note: the Copilot API acts as a proxy gateway and serves models from multiple vendors (Anthropic,
-OpenAI, Google). The `vendor` field identifies the underlying provider.
+Note: Copilot model data must be read from the AWF `/reflect` endpoint. Copilot serves models from
+multiple vendors (Anthropic, OpenAI, Google), and those models may include `vendor` metadata.
 
 If a provider's API key was not configured, the entry will have `"error": "... not set"` and an
 empty `models` array. Skip providers with errors or empty model lists.
@@ -445,14 +392,23 @@ The alias pattern syntax is:
 
 ### Step 1: Load and Validate the Inventory
 
-Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. List the
-providers that returned data and the count of models available from each.
+Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. Then query
+`http://api-proxy:10000/reflect` and extract the configured `copilot` endpoint.
+
+List the providers that returned data and the count of models available from each, including
+Copilot from `/reflect`.
+
+If `/reflect` returns no `copilot` endpoint (or reports an error), note Copilot as unavailable and
+continue.
 
 ### Step 2: Explore Raw API Fields
 
-For each provider that returned data, examine the raw response from
-`/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json` to identify all available
-fields. Specifically look for:
+For each provider that returned data, examine the raw response to identify all available fields:
+
+- OpenAI / Anthropic / Gemini: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
+- Copilot: `http://api-proxy:10000/reflect` filtered to the `copilot` endpoint object
+
+Specifically look for:
 
 - **Context window metadata**: input/output token limits (e.g. `inputTokenLimit`, `outputTokenLimit`,
   `capabilities.limits.max_context_window_tokens`, `capabilities.limits.max_output_tokens`)
@@ -484,10 +440,10 @@ failed or returned an empty model list, fall back to the heuristics below.
 
 For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
 
-1. **Copilot API** — match model names/IDs against the official docs table first. If a match is
-   found, use the `New multiplier` as the authoritative value. Also check `billing.multiplier`
-   (or a similar field) in the raw Copilot API response as a secondary source. Compare both
-   against the matching entry in `model_multipliers.json`. List any discrepancies or missing models.
+1. **Copilot `/reflect` endpoint** — use the `copilot` endpoint's `models` list as the live model
+   source, then match model names/IDs against the official docs table first. If a match is found,
+   use the `New multiplier` as the authoritative value. Compare against the matching entry in
+   `model_multipliers.json`, and list discrepancies or missing models.
 
 2. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
