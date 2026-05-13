@@ -162,13 +162,13 @@ Self-hosted runners must meet these requirements for agentic workflows to run re
 
 A working Docker daemon is required. The MCP gateway and sandbox run as containers.
 
-- **Unix socket**: Docker must be accessible via a Unix socket (typically `/var/run/docker.sock`). If `DOCKER_HOST` is set, the gateway only treats `unix://...` or bare absolute paths as socket paths; other schemes (for example `tcp://...`) cause the mount path to fall back to `/var/run/docker.sock`.
+- **Unix socket**: Docker must be accessible via a Unix socket (typically `/var/run/docker.sock`). When `DOCKER_HOST` is unset, the gateway mounts `/var/run/docker.sock`. If `DOCKER_HOST` is `unix://...` or a bare absolute path, that socket path is mounted. Other schemes (for example `tcp://...`) are ignored for mounting and fall back to `/var/run/docker.sock`.
 - **Docker group**: The runner user must be in the `docker` group, or the socket must be world-readable.
 - **ARC/Kubernetes**: If using [actions-runner-controller](https://github.com/actions/actions-runner-controller) with Docker-in-Docker (dind), the dind sidecar must share the Docker socket via an `emptyDir` volume. The gateway will retry the socket check for up to 10 seconds to handle startup race conditions.
 
 ### Filesystem
 
-- **Use `RUNNER_TEMP` for transient state.** All job-scoped temporary files (sandbox state, tool downloads, intermediate outputs) should go to `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs. The `/tmp/gh-aw` prefix is reserved for gh-aw/AWF ARC DinD path rewriting. Ensure your runner cleanup policy removes stale `/tmp/gh-aw` contents between jobs.
+- **Use `RUNNER_TEMP` for transient state.** All job-scoped temporary files (sandbox state, tool downloads, intermediate outputs) should go to `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs. The `/tmp/gh-aw` prefix is reserved for gh-aw/AWF ARC DinD path rewriting and is reset by `actions/setup` at job start. Keep your normal runner `/tmp` cleanup policy enabled to remove stale data from interrupted jobs.
 - **No root or sudo assumption.** The runner user may not have root or `sudo` access (except for the initial iptables setup, which requires `sudo`). Tool installs, file operations, and sandbox setup should work as the unprivileged runner user.
 - **No global installs.** Do not install packages to `/usr/local/`, `/opt/hostedtoolcache/`, or other system-wide paths. These may be read-only, shared across runners, or bind-mounted read-only inside the sandbox. Use job-scoped writable locations instead.
 - **No hardcoded `HOME` paths.** The runner's home directory may not be `/home/runner`. Use `$HOME` or `$RUNNER_TEMP` instead of hardcoded paths.
