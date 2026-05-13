@@ -48,9 +48,9 @@ func TestComputeOutcomeSummaryEmpty(t *testing.T) {
 	s := ComputeOutcomeSummary(nil, 0)
 
 	assert.Equal(t, 0, s.Total, "empty total")
-	assert.Equal(t, 0.0, s.AcceptanceRate, "empty acceptance rate")
-	assert.Equal(t, 0.0, s.WasteRate, "empty waste rate")
-	assert.Equal(t, 0.0, s.ZeroTouchRate, "empty zero-touch rate")
+	assert.InDelta(t, 0.0, s.AcceptanceRate, 1e-12, "empty acceptance rate")
+	assert.InDelta(t, 0.0, s.WasteRate, 1e-12, "empty waste rate")
+	assert.InDelta(t, 0.0, s.ZeroTouchRate, 1e-12, "empty zero-touch rate")
 }
 
 func TestParseNumberFromURL(t *testing.T) {
@@ -162,19 +162,19 @@ func TestResolveItemNumber(t *testing.T) {
 }
 
 func TestMedianFloat(t *testing.T) {
-	assert.Equal(t, 0.0, medianFloat(nil), "empty slice")
-	assert.Equal(t, 5.0, medianFloat([]float64{5.0}), "single element")
-	assert.Equal(t, 3.0, medianFloat([]float64{1.0, 3.0, 5.0}), "odd count")
-	assert.Equal(t, 2.5, medianFloat([]float64{1.0, 2.0, 3.0, 4.0}), "even count")
-	assert.Equal(t, 3.0, medianFloat([]float64{5.0, 1.0, 3.0}), "unsorted")
+	assert.InDelta(t, 0.0, medianFloat(nil), 1e-12, "empty slice")
+	assert.InDelta(t, 5.0, medianFloat([]float64{5.0}), 1e-12, "single element")
+	assert.InDelta(t, 3.0, medianFloat([]float64{1.0, 3.0, 5.0}), 1e-12, "odd count")
+	assert.InDelta(t, 2.5, medianFloat([]float64{1.0, 2.0, 3.0, 4.0}), 1e-12, "even count")
+	assert.InDelta(t, 3.0, medianFloat([]float64{5.0, 1.0, 3.0}), 1e-12, "unsorted")
 }
 
 func TestTimeBetween(t *testing.T) {
 	hours := timeBetween("2026-05-12T00:00:00Z", "2026-05-12T02:30:00Z")
 	assert.InDelta(t, 2.5, hours, 0.01, "2.5 hours between timestamps")
 
-	assert.Equal(t, 0.0, timeBetween("bad", "2026-05-12T00:00:00Z"), "bad from timestamp")
-	assert.Equal(t, 0.0, timeBetween("2026-05-12T00:00:00Z", "bad"), "bad to timestamp")
+	assert.InDelta(t, 0.0, timeBetween("bad", "2026-05-12T00:00:00Z"), 1e-12, "bad from timestamp")
+	assert.InDelta(t, 0.0, timeBetween("2026-05-12T00:00:00Z", "bad"), 1e-12, "bad to timestamp")
 }
 
 func TestEvaluateOutcomesSkipsNoopAndMetadata(t *testing.T) {

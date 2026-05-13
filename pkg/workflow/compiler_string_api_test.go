@@ -110,7 +110,7 @@ source: githubnext/agentics/workflows/daily-repo-status.md@c7d030cd6d4607b90d9ac
 	require.Error(t, err)
 
 	var redirectErr *RedirectOnlyWorkflowError
-	assert.ErrorAs(t, err, &redirectErr, "expected RedirectOnlyWorkflowError, not SharedWorkflowError")
+	require.ErrorAs(t, err, &redirectErr, "expected RedirectOnlyWorkflowError, not SharedWorkflowError")
 	assert.Equal(t, "githubnext/agentics/workflows/repo-status.md@main", redirectErr.Target)
 
 	// The error message should NOT contain a duplicate info icon

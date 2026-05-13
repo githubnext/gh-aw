@@ -44,7 +44,7 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 			continue
 		}
 		f.Write(line)
-		f.Write([]byte("\n"))
+		f.WriteString("\n")
 	}
 
 	outcomeEvalLog.Printf("Wrote %d outcome entries to %s", len(reports), filePath)

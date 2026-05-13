@@ -67,14 +67,13 @@ func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeRepor
 		if n, ok := agentPR["number"].(float64); ok {
 			prNumber = int(n)
 		}
-		prState, _ := agentPR["state"].(string)
 
 		// Fetch the actual PR to check merge status
 		if prNumber > 0 {
 			prData, perr := ghAPIGet(fmt.Sprintf("pulls/%d", prNumber), repo)
 			if perr == nil {
 				merged, _ := prData["merged"].(bool)
-				prState, _ = prData["state"].(string)
+				prState, _ := prData["state"].(string)
 				mergedAt, _ := prData["merged_at"].(string)
 				closedAt, _ := prData["closed_at"].(string)
 

@@ -258,11 +258,10 @@ func parseNumberFromURL(url string) int {
 func parseRepoFromURL(url string) string {
 	// https://github.com/owner/repo/...
 	const prefix = "github.com/"
-	idx := strings.Index(url, prefix)
-	if idx < 0 {
+	_, rest, found := strings.Cut(url, prefix)
+	if !found {
 		return ""
 	}
-	rest := url[idx+len(prefix):]
 	parts := strings.SplitN(rest, "/", 3)
 	if len(parts) >= 2 {
 		return parts[0] + "/" + parts[1]
