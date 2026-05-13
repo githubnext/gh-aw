@@ -1,9 +1,9 @@
 ---
 name: Outcome Collector
-description: Daily evaluation of safe output outcomes to measure workflow value and acceptance rates
+description: Periodic evaluation of safe output outcomes to measure workflow value and acceptance rates
 on:
   schedule:
-    - cron: daily around 06:00
+    - cron: every 6 hours
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,6 +24,7 @@ network:
     - github
 tools:
   bash: true
+  cache-memory: true
   github:
     mode: gh-proxy
     toolsets: [default]
@@ -52,9 +53,16 @@ pre-agent-steps:
 
       REPO="${GITHUB_REPOSITORY}"
 
-      # Get recent successful workflow runs
-      RUNS=$(gh run list --repo "$REPO" --limit 100 --json databaseId,conclusion,workflowName \
-        --jq '[.[] | select(.conclusion == "success")] | .[0:50]' 2>/dev/null)
+      # Load previously evaluated run IDs from cache-memory to avoid re-processing
+      SEEN_FILE="/tmp/gh-aw/cache-memory/outcome-collector/seen-runs.json"
+      mkdir -p "$(dirname "$SEEN_FILE")"
+      if [ ! -f "$SEEN_FILE" ]; then
+        echo '[]' > "$SEEN_FILE"
+      fi
+
+      # Get recent successful workflow runs (wider window for better coverage)
+      RUNS=$(gh run list --repo "$REPO" --limit 200 --json databaseId,conclusion,workflowName \
+        --jq '[.[] | select(.conclusion == "success")] | .[0:150]' 2>/dev/null)
 
       if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ] || [ "$RUNS" = "null" ]; then
         echo "No recent successful runs found"
@@ -74,6 +82,11 @@ pre-agent-steps:
       > "$EVAL_JSONL"
 
       for RUN_ID in $(echo "$RUNS" | jq -r '.[].databaseId'); do
+        # Skip runs already evaluated in a previous collection pass
+        if jq -e ". | index($RUN_ID)" "$SEEN_FILE" > /dev/null 2>&1; then
+          continue
+        fi
+
         # Try to download safe-outputs-items artifact (skip runs without it)
         ITEM_DIR="/tmp/gh-aw/outcomes/run-${RUN_ID}"
         gh run download "$RUN_ID" --repo "$REPO" --name safe-outputs-items --dir "$ITEM_DIR" 2>/dev/null || continue
@@ -221,6 +234,12 @@ pre-agent-steps:
           date: (now | strftime("%Y-%m-%d"))
         }' > /tmp/gh-aw/outcome-summary.json
 
+      # Update seen-runs cache so subsequent passes skip these runs.
+      # Keep only the last 500 run IDs to prevent unbounded growth.
+      EVALUATED_IDS=$(echo "$RUNS" | jq '[.[].databaseId]')
+      jq -s '.[0] + .[1] | unique | .[-500:]' "$SEEN_FILE" <(echo "$EVALUATED_IDS") > "${SEEN_FILE}.tmp" \
+        && mv "${SEEN_FILE}.tmp" "$SEEN_FILE"
+
       echo "✓ Checked $CHECKED runs, $TOTAL outcomes"
       echo "  Accepted: $ACCEPTED, Rejected: $REJECTED, Ignored: $IGNORED, Pending: $PENDING"
       echo "  Acceptance rate: $ACCEPTANCE_RATE"
@@ -236,7 +255,7 @@ pre-agent-steps:
 
 # Outcome Collector
 
-You are the Outcome Collector. Your job is to create a concise daily report of safe output outcomes.
+You are the Outcome Collector. Your job is to create a concise report of safe output outcomes.
 
 ## Input
 
@@ -248,7 +267,7 @@ The pre-agent step has already evaluated outcomes for recent workflow runs. Resu
 ## Task
 
 1. Read `/tmp/gh-aw/outcome-summary.json`
-2. If `total_outcomes` is 0, call `noop` with "No safe output outcomes to report today"
+2. If `total_outcomes` is 0, call `noop` with "No new safe output outcomes to report"
 3. Otherwise, create a report issue with the summary
 
 ## Report Format
