@@ -405,7 +405,6 @@ index 0000000..abc1234
         aw_context: JSON.stringify({
           item_type: "pull_request",
           item_number: "456",
-          trigger_label: "necromancer",
         }),
       };
       const patchPath = createPatchFile();

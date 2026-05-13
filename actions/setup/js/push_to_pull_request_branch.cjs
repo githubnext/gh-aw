@@ -48,7 +48,7 @@ function looksLikeMissingRemoteBranchError(value) {
 
 /**
  * @param {unknown} rawAwContext
- * @returns {{ item_type?: unknown, item_number?: unknown } | null}
+ * @returns {{ item_type?: string, item_number?: string | number } | null}
  */
 function parseAwContext(rawAwContext) {
   if (rawAwContext == null) {
