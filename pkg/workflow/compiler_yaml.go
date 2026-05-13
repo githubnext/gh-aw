@@ -461,7 +461,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 			compilerYamlLog.Printf("Substituting %d import input values", len(data.ImportInputs))
 			cleaned = SubstituteImportInputs(cleaned, data.ImportInputs)
 		}
-		chunks, exprMaps := processMarkdownBody(cleaned)
+		chunks, exprMaps := extractPromptChunksFromMarkdown(cleaned)
 		userPromptChunks = append(userPromptChunks, chunks...)
 		expressionMappings = exprMaps
 		compilerYamlLog.Printf("Inlined imported markdown with inputs in %d chunks", len(chunks))
@@ -488,7 +488,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 				if extractErr != nil {
 					importedBody = string(rawContent)
 				}
-				chunks, exprMaps := processMarkdownBody(importedBody)
+				chunks, exprMaps := extractPromptChunksFromMarkdown(importedBody)
 				userPromptChunks = append(userPromptChunks, chunks...)
 				expressionMappings = append(expressionMappings, exprMaps...)
 				compilerYamlLog.Printf("Inlined import without inputs: %s", importPath)
@@ -939,7 +939,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 // processMarkdownBody applies the standard post-processing pipeline to a markdown body:
 // XML comment removal, expression wrapping, expression extraction/substitution, and chunking.
 // It returns the prompt chunks and expression mappings extracted from the content.
-func processMarkdownBody(body string) ([]string, []*ExpressionMapping) {
+func extractPromptChunksFromMarkdown(body string) ([]string, []*ExpressionMapping) {
 	body = removeXMLComments(body)
 	body = wrapExpressionsInTemplateConditionals(body)
 	extractor := NewExpressionExtractor()

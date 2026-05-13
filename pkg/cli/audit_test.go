@@ -521,22 +521,9 @@ func TestAuditUsesRunSummaryCache(t *testing.T) {
 	// WorkflowPath is empty in the cached summary, so renderAuditReport will not attempt any
 	// GitHub API calls for baseline comparison either.
 	ctx := t.Context()
-	if err := AuditWorkflowRun(
-		ctx,
-		runID,
-		"", // owner — empty: no explicit repo context, relies on gh CLI defaults
-		"", // repo
-		"", // hostname — empty: uses github.com
-		tempDir,
-		false, // verbose
-		false, // parse
-		false, // jsonOutput
-		0,     // jobID — 0: full-run audit (not job-specific)
-		0,     // stepNumber
-		nil,   // artifactSets
-		"",    // experimentFilter — no filter
-		"",    // variantFilter — no filter
-	); err != nil {
+	if err := AuditWorkflowRun(ctx, runID, AuditOptions{
+		OutputDir: tempDir,
+	}); err != nil {
 		t.Fatalf("AuditWorkflowRun failed — cache path not taken (fetchWorkflowRunMetadata was probably called): %v", err)
 	}
 
@@ -599,7 +586,9 @@ func TestRenderAuditReportUsesProvidedMetrics(t *testing.T) {
 	// renderAuditReport should complete without error even without GitHub API access.
 	// No GitHub calls are made because WorkflowPath is empty, causing findPreviousSuccessfulWorkflowRuns
 	// to return early with an error before any network requests are issued.
-	err := renderAuditReport(context.Background(), processedRun, metrics, nil, runOutputDir, "", "", "", false, false, false)
+	err := renderAuditReport(context.Background(), processedRun, metrics, nil, AuditOptions{
+		OutputDir: runOutputDir,
+	})
 	if err != nil {
 		t.Errorf("renderAuditReport returned unexpected error: %v", err)
 	}

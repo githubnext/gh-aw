@@ -11,6 +11,16 @@ export const collections = {
 			extend: (ctx) => {
 				const blogExtension = blogSchema(ctx);
 				return blogExtension.extend({
+					metadata: z.object({
+						seoDescription: z.string().max(160).optional().describe(
+							'SEO-optimized description used for search and social snippets (validated at build time, max 160 chars)'
+						),
+						linkedPostText: z.string().max(80).optional().describe(
+							'Short linked text used in blog card and cross-link previews (validated at build time, max 80 chars)'
+						),
+					}).optional().describe(
+						'Additional metadata for blog SEO and linked post previews'
+					),
 					// Agent protection flag: when set to true, instructs AI agents
 					// to treat this documentation page as read-only and skip any
 					// automated editing, generation, or modification operations.

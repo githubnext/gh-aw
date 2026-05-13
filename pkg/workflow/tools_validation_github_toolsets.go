@@ -10,7 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-func validateGitHubToolsAgainstToolsetsImpl(allowedTools []string, enabledToolsets []string) error {
+func validateGitHubToolsAgainstToolsetsCore(allowedTools []string, enabledToolsets []string) error {
 	githubToolToToolsetLog.Printf("Validating GitHub tools against toolsets: allowed_tools=%d, enabled_toolsets=%d", len(allowedTools), len(enabledToolsets))
 
 	if len(allowedTools) == 0 {

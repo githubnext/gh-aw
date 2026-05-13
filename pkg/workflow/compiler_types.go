@@ -65,6 +65,7 @@ type Compiler struct {
 	strictMode              bool                     // If true, enforce strict validation requirements
 	allowActionRefs         bool                     // If true, unresolved action refs are warnings instead of errors
 	approve                 bool                     // If true, approve safe update changes (skip safe update enforcement)
+	forceStaged             bool                     // If true, force all safe-outputs into staged mode
 	trialMode               bool                     // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug    string                   // If set in trial mode, the logical repository to checkout
 	refreshStopTime         bool                     // If true, regenerate stop-after times instead of preserving existing ones
@@ -172,6 +173,16 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 // approving all changes.
 func (c *Compiler) SetApprove(approve bool) {
 	c.approve = approve
+}
+
+// SetForceStaged configures whether safe-outputs should always compile in staged mode.
+func (c *Compiler) SetForceStaged(force bool) {
+	c.forceStaged = force
+}
+
+// IsForceStaged reports whether the compiler forces safe-outputs into staged mode.
+func (c *Compiler) IsForceStaged() bool {
+	return c.forceStaged
 }
 
 // SetFileTracker sets the file tracker for tracking created files

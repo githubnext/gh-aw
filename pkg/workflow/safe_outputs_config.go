@@ -401,6 +401,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					config.Staged = stagedBool
 				}
 			}
+			if c.forceStaged {
+				config.Staged = true
+			}
 
 			// Handle env configuration
 			if env, exists := outputMap["env"]; exists {

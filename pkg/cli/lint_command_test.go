@@ -22,8 +22,16 @@ func TestNewLintCommand(t *testing.T) {
 	require.NotNil(t, cmd.Flags().Lookup("pyflakes"), "lint command should have a --pyflakes flag")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
 		"lint command should include built-in ignore for gh-aw permission extension")
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "vulnerability-alerts"`,
+		"lint command should include built-in ignore for vulnerability-alerts permission scope")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `property "workflow_(repository|sha|ref|file_path)" is not defined in object type`,
 		"lint command should include built-in ignore for gh-aw workflow context extensions")
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unexpected key "queue" for "concurrency" section`,
+		"lint command should include built-in ignore for queue concurrency key not yet in actionlint")
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `property "(activation|activated)" is not defined in object type`,
+		"lint command should include built-in ignore for gh-aw activation context properties not modeled by actionlint")
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `property "artifact_prefix" is not defined in object type`,
+		"lint command should include built-in ignore for gh-aw artifact context properties not modeled by actionlint")
 }
 
 func TestResolveLockFilesForLint(t *testing.T) {
