@@ -205,6 +205,36 @@ safe-outputs:
 	assert.Contains(t, err.Error(), "workflow 'missing-workflow' not found")
 }
 
+func TestShouldSkipLocalDispatchWorkflowValidation(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+	compiler.SetRepositorySlug("my-org/my-repo")
+
+	tests := []struct {
+		name   string
+		target string
+		want   bool
+	}{
+		{name: "empty", target: "", want: false},
+		{name: "github.repository expression", target: "${{ github.repository }}", want: false},
+		{name: "other expression", target: "${{ vars.TARGET_REPO }}", want: false},
+		{name: "invalid slug", target: "not-a-slug", want: false},
+		{name: "same repo literal", target: "my-org/my-repo", want: false},
+		{name: "same repo literal case-insensitive", target: "My-Org/My-Repo", want: false},
+		{name: "cross-repo literal", target: "my-org/other-repo", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, compiler.shouldSkipLocalDispatchWorkflowValidation(tt.target))
+		})
+	}
+
+	t.Run("cross-repo literal with unknown current repo", func(t *testing.T) {
+		compilerWithoutRepo := NewCompiler(WithVersion("1.0.0"))
+		assert.True(t, compilerWithoutRepo.shouldSkipLocalDispatchWorkflowValidation("my-org/other-repo"))
+	})
+}
+
 // TestDispatchWorkflowErrorMessage_SelfReference tests that self-reference
 // error message includes explanation and alternatives
 func TestDispatchWorkflowErrorMessage_SelfReference(t *testing.T) {

@@ -227,7 +227,11 @@ async function main(config = {}) {
       }
 
       // Get the workflow file extension from compile-time resolution
-      const extension = workflowFiles[workflowName];
+      let extension = workflowFiles[workflowName];
+      if (!extension && isCrossRepoDispatch) {
+        extension = ".lock.yml";
+        core.info(`No compile-time extension mapping found for cross-repo workflow "${workflowName}"; defaulting to ${extension}`);
+      }
       if (!extension) {
         return {
           success: false,
