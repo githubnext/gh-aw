@@ -101,6 +101,11 @@ async function main() {
   const sha = process.env.GITHUB_SHA || "";
   const job = process.env.GITHUB_JOB || "";
   const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
+  const actorId = process.env.GITHUB_ACTOR_ID || "";
+  const runnerOs = process.env.RUNNER_OS || "";
+  const runnerArch = process.env.RUNNER_ARCH || "";
+  const runnerName = process.env.RUNNER_NAME || "";
+  const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
@@ -111,6 +116,11 @@ async function main() {
     sha,
     job,
     workflowRef,
+    actorId,
+    runnerOs,
+    runnerArch,
+    runnerName,
+    runnerEnvironment,
     staged,
     runAttempt,
   });

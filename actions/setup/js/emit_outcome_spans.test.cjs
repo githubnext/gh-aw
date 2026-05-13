@@ -103,6 +103,11 @@ describe("emit_outcome_spans.cjs", () => {
       GITHUB_SHA: process.env.GITHUB_SHA,
       GITHUB_JOB: process.env.GITHUB_JOB,
       GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
+      GITHUB_ACTOR_ID: process.env.GITHUB_ACTOR_ID,
+      RUNNER_OS: process.env.RUNNER_OS,
+      RUNNER_ARCH: process.env.RUNNER_ARCH,
+      RUNNER_NAME: process.env.RUNNER_NAME,
+      RUNNER_ENVIRONMENT: process.env.RUNNER_ENVIRONMENT,
       GH_AW_INFO_STAGED: process.env.GH_AW_INFO_STAGED,
       GH_AW_INFO_VERSION: process.env.GH_AW_INFO_VERSION,
       OTEL_SERVICE_NAME: process.env.OTEL_SERVICE_NAME,
@@ -119,6 +124,11 @@ describe("emit_outcome_spans.cjs", () => {
     process.env.GITHUB_SHA = "abc123";
     process.env.GITHUB_JOB = "outcome-collector";
     process.env.GITHUB_WORKFLOW_REF = "github/gh-aw/.github/workflows/outcome.yml@refs/heads/main";
+    process.env.GITHUB_ACTOR_ID = "1234567";
+    process.env.RUNNER_OS = "Linux";
+    process.env.RUNNER_ARCH = "X64";
+    process.env.RUNNER_NAME = "GitHub Actions 99";
+    process.env.RUNNER_ENVIRONMENT = "github-hosted";
     delete process.env.GH_AW_INFO_STAGED;
     delete process.env.GH_AW_INFO_VERSION;
     delete process.env.OTEL_SERVICE_NAME;
@@ -206,6 +216,11 @@ describe("emit_outcome_spans.cjs", () => {
         repository: "github/gh-aw",
         runId: "12345",
         runAttempt: "2",
+        actorId: "1234567",
+        runnerOs: "Linux",
+        runnerArch: "X64",
+        runnerName: "GitHub Actions 99",
+        runnerEnvironment: "github-hosted",
         staged: true,
       })
     );
