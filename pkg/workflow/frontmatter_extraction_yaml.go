@@ -153,14 +153,14 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	deploymentStatusIndent := -1
 	workflowRunIndent := -1
 	// activateEventSection resets all event-section flags and then activates the selected section.
-	activateEventSection := func(section string, indent int, clearWorkflowRunConclusion bool) {
+	activateEventSection := func(section string, indent int, shouldClearWorkflowRunConclusion bool) {
 		inPullRequest = section == "pull_request"
 		inIssues = section == "issues"
 		inDiscussion = section == "discussion"
 		inIssueComment = section == "issue_comment"
 		inDeploymentStatus = section == "deployment_status"
 		inWorkflowRun = section == "workflow_run"
-		if clearWorkflowRunConclusion {
+		if shouldClearWorkflowRunConclusion {
 			inWorkflowRunConclusionArray = false
 		}
 
