@@ -43,15 +43,6 @@ safe-outputs:
 imports:
   - shared/observability-otlp.md
 pre-agent-steps:
-  - name: Install gh-aw CLI
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      gh extension install github/gh-aw --force 2>&1 || {
-        echo "Failed to install gh-aw CLI extension"
-        exit 1
-      }
-      gh aw version
   - name: Evaluate outcomes for recent runs
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,11 +50,13 @@ pre-agent-steps:
     run: |
       echo "Evaluating safe output outcomes for recent workflow runs..."
 
-      # Get recent workflow runs from the last 3 days that had safe outputs
-      RUNS=$(gh run list --limit 100 --json databaseId,conclusion,createdAt,workflowName \
-        --jq '[.[] | select(.conclusion == "success")] | .[0:50] | .[].databaseId' 2>/dev/null)
+      REPO="${GITHUB_REPOSITORY}"
 
-      if [ -z "$RUNS" ]; then
+      # Get recent successful workflow runs
+      RUNS=$(gh run list --repo "$REPO" --limit 100 --json databaseId,conclusion,workflowName \
+        --jq '[.[] | select(.conclusion == "success")] | .[0:50]' 2>/dev/null)
+
+      if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ] || [ "$RUNS" = "null" ]; then
         echo "No recent successful runs found"
         echo '{"runs_checked": 0, "total_outcomes": 0}' > /tmp/gh-aw/outcome-summary.json
         exit 0
@@ -78,25 +71,87 @@ pre-agent-steps:
       PENDING=0
       TOTAL=0
 
-      for RUN_ID in $RUNS; do
-        echo "Checking run $RUN_ID..."
-        RESULT=$(gh aw outcomes "$RUN_ID" --json 2>/dev/null) || continue
+      for RUN_ID in $(echo "$RUNS" | jq -r '.[].databaseId'); do
+        # Try to download safe-outputs-items artifact (skip runs without it)
+        ITEM_DIR="/tmp/gh-aw/outcomes/run-${RUN_ID}"
+        gh run download "$RUN_ID" --repo "$REPO" --name safe-outputs-items --dir "$ITEM_DIR" 2>/dev/null || continue
 
-        ITEMS=$(echo "$RESULT" | jq '.summary.total // 0')
-        if [ "$ITEMS" = "0" ] || [ "$ITEMS" = "null" ]; then
+        MANIFEST="$ITEM_DIR/safe-output-items.jsonl"
+        if [ ! -f "$MANIFEST" ]; then
           continue
         fi
 
+        # Count actionable items (exclude noop, missing_tool, missing_data, report_incomplete, empty objects)
+        ITEMS=$(jq -r 'select(.type != null and .type != "" and .type != "noop" and .type != "missing_tool" and .type != "missing_data" and .type != "report_incomplete") | .type' "$MANIFEST" 2>/dev/null | wc -l | tr -d ' ')
+
+        if [ "$ITEMS" = "0" ]; then
+          continue
+        fi
+
+        WF=$(echo "$RUNS" | jq -r ".[] | select(.databaseId == $RUN_ID) | .workflowName")
+        echo "Run $RUN_ID ($WF): $ITEMS item(s)"
+
         CHECKED=$((CHECKED + 1))
         TOTAL=$((TOTAL + ITEMS))
-        ACCEPTED=$((ACCEPTED + $(echo "$RESULT" | jq '.summary.accepted // 0')))
-        REJECTED=$((REJECTED + $(echo "$RESULT" | jq '.summary.rejected // 0')))
-        IGNORED=$((IGNORED + $(echo "$RESULT" | jq '.summary.ignored // 0')))
-        PENDING=$((PENDING + $(echo "$RESULT" | jq '.summary.pending // 0')))
 
-        # Save per-run outcome
-        WORKFLOW=$(echo "$RESULT" | jq -r '.workflow // "unknown"')
-        echo "$RESULT" | jq --arg wf "$WORKFLOW" '. + {workflow: $wf}' \
+        # Basic outcome evaluation per item using GitHub API
+        while IFS= read -r line; do
+          TYPE=$(echo "$line" | jq -r '.type // empty')
+          case "$TYPE" in
+            ""|noop|missing_tool|missing_data|report_incomplete) continue ;;
+          esac
+
+          URL=$(echo "$line" | jq -r '.url // empty')
+          ITEM_REPO=$(echo "$line" | jq -r '.repo // empty')
+          [ -z "$ITEM_REPO" ] && ITEM_REPO="$REPO"
+
+          if [ -z "$URL" ]; then
+            PENDING=$((PENDING + 1))
+            continue
+          fi
+
+          # Extract issue/PR number from URL and check status
+          if echo "$URL" | grep -qE '/issues/[0-9]+|/issuecomment-'; then
+            NUM=$(echo "$URL" | grep -oE '/(issues|pull)/[0-9]+' | grep -oE '[0-9]+' | head -1)
+            if [ -n "$NUM" ]; then
+              STATE=$(gh api "repos/$ITEM_REPO/issues/$NUM" --jq '.state' 2>/dev/null || echo "")
+              if [ "$STATE" = "open" ]; then
+                ACCEPTED=$((ACCEPTED + 1))
+              elif [ "$STATE" = "closed" ]; then
+                # For issues: closed = accepted (outcome was delivered)
+                ACCEPTED=$((ACCEPTED + 1))
+              else
+                PENDING=$((PENDING + 1))
+              fi
+            else
+              PENDING=$((PENDING + 1))
+            fi
+          elif echo "$URL" | grep -qE '/pull/[0-9]+'; then
+            NUM=$(echo "$URL" | grep -oE '/pull/[0-9]+' | grep -oE '[0-9]+')
+            if [ -n "$NUM" ]; then
+              MERGED=$(gh api "repos/$ITEM_REPO/pulls/$NUM" --jq '.merged' 2>/dev/null || echo "")
+              STATE=$(gh api "repos/$ITEM_REPO/pulls/$NUM" --jq '.state' 2>/dev/null || echo "")
+              if [ "$MERGED" = "true" ]; then
+                ACCEPTED=$((ACCEPTED + 1))
+              elif [ "$STATE" = "closed" ]; then
+                REJECTED=$((REJECTED + 1))
+              elif [ "$STATE" = "open" ]; then
+                PENDING=$((PENDING + 1))
+              else
+                PENDING=$((PENDING + 1))
+              fi
+            else
+              PENDING=$((PENDING + 1))
+            fi
+          else
+            # Comments, labels, etc. — if URL exists, the item was created
+            ACCEPTED=$((ACCEPTED + 1))
+          fi
+        done < "$MANIFEST"
+
+        # Save per-run data
+        jq -n --arg wf "$WF" --argjson items "$ITEMS" --argjson run_id "$RUN_ID" \
+          '{workflow: $wf, run_id: $run_id, items: $items}' \
           > "/tmp/gh-aw/outcomes/run-${RUN_ID}.json"
       done
 
