@@ -97,6 +97,12 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantCount:       1,
 			wantExpressions: []string{"github.actor"},
 		},
+		{
+			name:            "aw context syntax sugar gets transformed",
+			markdown:        "Issue: ${{ github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number) }}",
+			wantCount:       1,
+			wantExpressions: []string{"github.event.issue.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || '{}').item_number)"},
+		},
 	}
 
 	for _, tt := range tests {

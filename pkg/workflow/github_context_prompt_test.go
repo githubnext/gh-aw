@@ -13,8 +13,8 @@ func TestGitHubContextPrompt_UsesAwContextFallbacks(t *testing.T) {
 		}
 	}
 
-	assertContains("github.event.issue.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || '{}').item_number)")
-	assertContains("github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || '{}').item_number)")
-	assertContains("github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || '{}').item_number)")
-	assertContains("github.event.comment.id || fromJSON(github.event.inputs.aw_context || '{}').comment_id")
+	assertContains("github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)")
+	assertContains("github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)")
+	assertContains("github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)")
+	assertContains("github.event.comment.id || github.aw.context.comment_id")
 }

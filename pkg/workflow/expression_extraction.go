@@ -22,6 +22,7 @@ var (
 	// expressionExtractionRegex matches GitHub Actions expressions: ${{ ... }}
 	// Uses (?s) flag for dotall mode, non-greedy matching
 	expressionExtractionRegex = regexp.MustCompile(`\$\{\{(.*?)\}\}`)
+	awContextExpressionRegex  = regexp.MustCompile(`github\.aw\.context\.([a-zA-Z0-9_-]+)`)
 )
 
 // ExpressionMapping represents a mapping between a GitHub expression and its environment variable
@@ -80,6 +81,12 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		// so the substitution step reads the variant value from the pick_experiment step output.
 		if t := transformExperimentsExpression(content); t != content {
 			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, t)
+			content = t
+		}
+
+		// Expand github.aw.context.<field> syntax sugar to parsed aw_context access.
+		if t := transformAwContextExpression(content); t != content {
+			expressionExtractionLog.Printf("Transformed aw_context expression: %s -> %s", content, t)
 			content = t
 		}
 
@@ -248,6 +255,16 @@ func transformExperimentsExpression(expr string) string {
 		return "steps.pick-experiment.outputs." + m[1] + remainder
 	}
 	return expr
+}
+
+// transformAwContextExpression rewrites github.aw.context.<field> references to
+// parsed aw_context access expressions.
+//
+// Example:
+//
+//	github.aw.context.item_number -> fromJSON(github.event.inputs.aw_context || '{}').item_number
+func transformAwContextExpression(expr string) string {
+	return awContextExpressionRegex.ReplaceAllString(expr, "fromJSON(github.event.inputs.aw_context || '{}').$1")
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like
