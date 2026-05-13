@@ -300,17 +300,19 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		if harnessScriptName != "" {
 			// Harness handles prompt reading via --prompt-file; no INSTRUCTION variable needed.
 			command = fmt.Sprintf(`set -o pipefail
+printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
 mkdir -p "$CODEX_HOME/logs"
-%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, codexCommand, logFile)
+%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexCommand, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
+printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, codexCommand, logFile)
+%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexCommand, logFile)
 		}
 	}
 

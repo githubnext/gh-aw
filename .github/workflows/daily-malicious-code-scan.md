@@ -27,6 +27,8 @@ tools:
   cli-proxy: true
 
 
+firewall:
+  effective-token-steering: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

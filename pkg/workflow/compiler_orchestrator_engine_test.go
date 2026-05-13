@@ -53,6 +53,38 @@ Test content
 	assert.NotNil(t, result.importsResult)
 }
 
+func TestSetupEngineAndImports_PreservesFirewallTokenSteeringForStringEngine(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-firewall-token-steering")
+
+	testContent := `---
+on: push
+engine: copilot
+network:
+  allowed:
+    - defaults
+firewall:
+  effective-token-steering: true
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err, "setup should succeed")
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.True(t, result.engineConfig.EnableTokenSteering, "firewall.effective-token-steering should be preserved after string-engine import expansion")
+}
+
 // TestSetupEngineAndImports_DefaultEngine tests engine defaulting when not specified
 func TestSetupEngineAndImports_DefaultEngine(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-default")

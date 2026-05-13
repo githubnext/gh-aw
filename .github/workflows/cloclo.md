@@ -31,6 +31,8 @@ tools:
   bash: true
   cache-memory:
     key: cloclo-memory-${{ github.workflow }}
+firewall:
+  effective-token-steering: true
 safe-outputs:
   create-pull-request:
     expires: 2d

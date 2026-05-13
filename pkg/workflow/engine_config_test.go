@@ -45,6 +45,16 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxRuns: 25},
 		},
 		{
+			name: "top-level firewall effective-token-steering without engine",
+			frontmatter: map[string]any{
+				"firewall": map[string]any{
+					"effective-token-steering": true,
+				},
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{EnableTokenSteering: true},
+		},
+		{
 			name:                  "string format - claude",
 			frontmatter:           map[string]any{"engine": "claude"},
 			expectedEngineSetting: "claude",
@@ -187,6 +197,19 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "claude",
 			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 10000000},
+		},
+		{
+			name: "object format - with top-level firewall effective-token-steering",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+				},
+				"firewall": map[string]any{
+					"effective-token-steering": true,
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", EnableTokenSteering: true},
 		},
 		{
 			name: "object format - complete with max-turns",

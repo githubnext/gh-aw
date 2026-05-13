@@ -279,6 +279,8 @@ imports:
 
 
   - shared/observability-otlp.md
+firewall:
+  effective-token-steering: true
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck
