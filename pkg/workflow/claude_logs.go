@@ -370,6 +370,7 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 					prettifiedName = "bash_" + ShortenCommand(commandStr)
 				}
 				// If command is missing or non-string, preserve the default "bash" fallback name.
+				// This occurs with partial/malformed tool_use payloads and keeps parsing robust.
 			}
 
 			// Add to sequence

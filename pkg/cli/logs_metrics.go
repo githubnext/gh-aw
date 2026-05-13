@@ -738,7 +738,7 @@ func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool,
 		return
 	}
 
-	timestamp, _ := typeutil.LookupString(entry, "timestamp")
+	timestamp, _ := typeutil.LookupString(entry, "timestamp") // Optional field, ignore if missing.
 
 	for _, serverInterface := range mcpServers {
 		server, ok := serverInterface.(map[string]any)
