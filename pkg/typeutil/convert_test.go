@@ -182,7 +182,7 @@ func TestLookupMap(t *testing.T) {
 	}
 }
 
-func TestLookupStringAndLookupStringPath(t *testing.T) {
+func TestLookupString(t *testing.T) {
 	nested := map[string]any{
 		"type": "tool_use",
 		"input": map[string]any{
@@ -196,6 +196,15 @@ func TestLookupStringAndLookupStringPath(t *testing.T) {
 
 	if _, ok := LookupString(nested, "missing"); ok {
 		t.Error("LookupString should return ok=false for missing key")
+	}
+}
+
+func TestLookupStringPath(t *testing.T) {
+	nested := map[string]any{
+		"type": "tool_use",
+		"input": map[string]any{
+			"command": "echo hello",
+		},
 	}
 
 	if value, ok := LookupStringPath(nested, "input", "command"); !ok || value != "echo hello" {

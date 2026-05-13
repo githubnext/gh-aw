@@ -365,7 +365,8 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 			// Special handling for bash - each invocation is unique
 			if nameStr == "Bash" {
 				if commandStr, ok := typeutil.LookupStringPath(contentMap, "input", "command"); ok {
-					// Create unique bash entry with command info, avoiding colons
+					// Create unique bash entry with command info, avoiding colons for
+					// filesystem-safe names in downstream summaries/artifacts.
 					prettifiedName = "bash_" + ShortenCommand(commandStr)
 				}
 			}

@@ -697,7 +697,7 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 	if err := json.Unmarshal(content, &logEntries); err == nil {
 		// Successfully parsed as JSON array, process entries
 		for _, entry := range logEntries {
-			appendMCPFailuresFromEntry(entry, run, verbose, &mcpFailures)
+			processMCPFailureEntry(entry, run, verbose, &mcpFailures)
 		}
 	} else {
 		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
@@ -715,14 +715,14 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 			}
 
 			// Look for system init entries that contain MCP server information
-			appendMCPFailuresFromEntry(entry, run, verbose, &mcpFailures)
+			processMCPFailureEntry(entry, run, verbose, &mcpFailures)
 		}
 	}
 
 	return mcpFailures, nil
 }
 
-func appendMCPFailuresFromEntry(entry map[string]any, run WorkflowRun, verbose bool, mcpFailures *[]MCPFailureReport) {
+func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool, mcpFailures *[]MCPFailureReport) {
 	entryType, ok := typeutil.LookupString(entry, "type")
 	if !ok || entryType != "system" {
 		return
