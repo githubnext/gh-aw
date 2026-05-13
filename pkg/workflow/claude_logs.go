@@ -369,6 +369,7 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 					// filesystem-safe names in downstream summaries/artifacts.
 					prettifiedName = "bash_" + ShortenCommand(commandStr)
 				}
+				// If command is missing or non-string, preserve the default "bash" fallback name.
 			}
 
 			// Add to sequence

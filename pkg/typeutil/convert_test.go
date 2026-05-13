@@ -175,7 +175,7 @@ func TestLookupMap(t *testing.T) {
 			if ok != tt.ok {
 				t.Errorf("LookupMap(%v, %q) ok = %v, want %v", tt.input, tt.key, ok, tt.ok)
 			}
-			if ok && tt.ok && !reflect.DeepEqual(result, tt.expected) {
+			if ok && !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("LookupMap(%v, %q) = %v, want %v", tt.input, tt.key, result, tt.expected)
 			}
 		})
