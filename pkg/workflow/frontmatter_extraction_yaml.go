@@ -139,6 +139,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inSkipIfMatch := false
 	inSkipIfNoMatch := false
 	inSkipIfCheckFailing := false
+	inSkipAuthorAssociation := false
 	inSkipRolesArray := false
 	inSkipBotsArray := false
 	inRolesArray := false
@@ -337,6 +338,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
+		// Check if we're entering skip-author-association object
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipAuthorAssociation {
+			if strings.HasPrefix(trimmedLine, "skip-author-association:") && trimmedLine == "skip-author-association:" {
+				inSkipAuthorAssociation = true
+			}
+		}
+
 		// Check if we're entering github-app object
 		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inGitHubApp {
 			// Check both uncommented and commented forms
@@ -382,6 +390,16 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			// If this is a field at same level as skip-if-check-failing (2 spaces) and not a comment, we're out
 			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
 				inSkipIfCheckFailing = false
+			}
+		}
+
+		// Check if we're leaving skip-author-association object (encountering another top-level field)
+		if inSkipAuthorAssociation && strings.TrimSpace(line) != "" &&
+			!strings.HasPrefix(trimmedLine, "skip-author-association:") &&
+			!strings.HasPrefix(trimmedLine, "# skip-author-association:") {
+			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			if currentIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
+				inSkipAuthorAssociation = false
 			}
 		}
 
@@ -514,6 +532,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				commentReason = " # Skip-if-check-failing processed as check status gate in pre-activation job"
 			} else if inSkipIfCheckFailing && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "allow-pending:") || strings.HasPrefix(trimmedLine, "-")) {
 				// Comment out nested fields and list items in skip-if-check-failing object
+				shouldComment = true
+				commentReason = ""
+			} else if strings.HasPrefix(trimmedLine, "skip-author-association:") {
+				shouldComment = true
+				commentReason = " # Skip-author-association compiled into pre-activation job if condition"
+			} else if inSkipAuthorAssociation && lineIndent > 2 {
 				shouldComment = true
 				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "skip-roles:") {

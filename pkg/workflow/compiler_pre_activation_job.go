@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -469,6 +470,21 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		}
 	}
 
+	// Add optional skip-author-association event guards as a job-level if condition.
+	// This compiles to a static expression so skipped runs exit early without pre-activation
+	// script execution cost for matching event/association combinations.
+	if len(data.SkipAuthorAssociation) > 0 {
+		skipAuthorAssocCondition := RenderCondition(buildSkipAuthorAssociationCondition(data.SkipAuthorAssociation))
+		if jobIfCondition != "" {
+			jobIfCondition = RenderCondition(BuildAnd(
+				&ExpressionNode{Expression: skipAuthorAssocCondition},
+				&ExpressionNode{Expression: jobIfCondition},
+			))
+		} else {
+			jobIfCondition = skipAuthorAssocCondition
+		}
+	}
+
 	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
@@ -590,6 +606,50 @@ func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
 	}
 
 	return result
+}
+
+// buildSkipAuthorAssociationCondition returns a condition that evaluates to true when the
+// workflow should continue, and false when the run should be skipped based on:
+// on.skip-author-association.<event> containing github.event.author_association.
+func buildSkipAuthorAssociationCondition(skipAuthorAssociation map[string][]string) ConditionNode {
+	var eventNames []string
+	for eventName, associations := range skipAuthorAssociation {
+		if len(associations) > 0 {
+			eventNames = append(eventNames, eventName)
+		}
+	}
+	sort.Strings(eventNames)
+
+	var skipTerms []ConditionNode
+	for _, eventName := range eventNames {
+		associations := skipAuthorAssociation[eventName]
+		if len(associations) == 0 {
+			continue
+		}
+
+		associationJSON, err := json.Marshal(associations)
+		if err != nil {
+			continue
+		}
+
+		isConfiguredEvent := BuildEquals(
+			BuildPropertyAccess("github.event_name"),
+			BuildStringLiteral(eventName),
+		)
+		associationIsSkipped := BuildFunctionCall(
+			"contains",
+			BuildFunctionCall("fromJSON", BuildStringLiteral(string(associationJSON))),
+			BuildPropertyAccess("github.event.author_association"),
+		)
+		skipTerms = append(skipTerms, BuildAnd(isConfiguredEvent, associationIsSkipped))
+	}
+
+	if len(skipTerms) == 0 {
+		return BuildBooleanLiteral(true)
+	}
+
+	// Continue only when no configured (event, author_association) skip condition matched.
+	return &NotNode{Child: BuildDisjunction(false, skipTerms...)}
 }
 
 // generateReportSkipStep generates the "Report skip reason" step for the pre-activation job.
