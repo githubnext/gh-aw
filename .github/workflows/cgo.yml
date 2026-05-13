@@ -60,7 +60,8 @@ jobs:
     - name: Run formatting + lint gate
       run: |
         make fmt-check
-        make lint
+        make fmt-check-json
+        make lint-cjs
 
   test:
     needs:
