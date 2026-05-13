@@ -98,9 +98,58 @@ func newImportAccumulator() *importAccumulator {
 // and accumulates the results. Handles tools, engines, mcp-servers, safe-outputs,
 // mcp-scripts, steps, runtimes, services, network, permissions, secret-masking, bots,
 // skip-roles, skip-bots, pre-steps, pre-agent-steps, post-steps, labels, cache, and features.
+// The work is delegated to focused helper methods, each handling one logical phase.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
 	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 
+	// Phase 1: Parse, apply defaults, substitute inputs, extract tools and markdown.
+	origFm, fm, err := acc.prepareFrontmatter(content, item, visited)
+	if err != nil {
+		return err
+	}
+
+	// Phase 2: Validate 'with'/'inputs' values against the imported workflow's 'import-schema'.
+	// Always use the ORIGINAL (unsubstituted) frontmatter for schema lookup so the import-schema
+	// declaration itself is not affected by expression substitution.
+	if _, hasSchema := origFm["import-schema"]; hasSchema {
+		if err := validateWithImportSchema(item.inputs, origFm, item.importPath); err != nil {
+			return err
+		}
+	}
+
+	// Phase 3: Extract engine configuration (id, runtime, mcp timeouts, model preference).
+	acc.extractEngineConfig(fm, item.fullPath)
+
+	// Phase 4: Extract scalar and builder-based configuration fields.
+	acc.extractConfigFields(fm, item.fullPath)
+
+	// Phase 5: Extract activation, authentication, and access-control fields.
+	acc.extractActivationFields(fm, item)
+
+	// Phase 6: Extract step, job, and environment fields.
+	if err := acc.extractStepAndJobFields(fm, item.importPath); err != nil {
+		return err
+	}
+
+	// Phase 7: Extract feature flags, model aliases, run-install-scripts, and observability.
+	acc.extractFeatureAndObservabilityFields(fm, item.fullPath)
+
+	return nil
+}
+
+// prepareFrontmatter handles the parse → defaults → substitution → re-parse pipeline for
+// a single imported file. It parses the original content, applies import-schema defaults,
+// substitutes import-inputs expressions in the raw content, extracts tools and markdown
+// (handling the substituted vs. unsubstituted cases), and re-parses the possibly-modified
+// frontmatter for use in subsequent field extractions.
+//
+// Side effects: acc.toolsBuilder, acc.markdownBuilder, acc.importPaths, acc.warnings,
+// acc.importInputs.
+//
+// Returns: origFm (parsed from unsubstituted content, used for schema validation),
+// fm (parsed from possibly-substituted content, used for all field extraction), and
+// any error that should abort processing for this import.
+func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueueItem, visited map[string]bool) (origFm, fm map[string]any, err error) {
 	// Parse frontmatter once from the original content. This parse is reused for
 	// import-schema default extraction and schema validation, avoiding redundant YAML parsing.
 	// For builtin files we use the process-level cache.
@@ -112,7 +161,6 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	} else {
 		origParsed, origParseErr = ExtractFrontmatterFromContent(origContent)
 	}
-	var origFm map[string]any
 	if origParseErr == nil {
 		origFm = origParsed.Frontmatter
 	} else {
@@ -165,16 +213,14 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// expressions in the tools/mcp-servers frontmatter) rather than re-reading the original file.
 	var toolsContent string
 	if wasSubstituted {
-		var err error
 		toolsContent, err = extractToolsFromContent(rawContent)
 		if err != nil {
-			return fmt.Errorf("failed to extract tools from '%s': %w", item.fullPath, err)
+			return nil, nil, fmt.Errorf("failed to extract tools from '%s': %w", item.fullPath, err)
 		}
 	} else {
-		var err error
 		toolsContent, err = processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
 		if err != nil {
-			return fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
+			return nil, nil, fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
 		}
 	}
 	acc.toolsBuilder.WriteString(toolsContent + "\n")
@@ -185,7 +231,6 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// Builtin paths (@builtin:…) are pure configuration — they carry no user-visible
 	// prompt content and must not generate runtime-import macros.
 	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
-
 	if !wasSubstituted && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
 		// No substitution happened and not a builtin - use runtime-import macro
 		acc.importPaths = append(acc.importPaths, importRelPath)
@@ -195,9 +240,9 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		// Extract markdown from the already-substituted content so that import-inputs
 		// expressions embedded in the markdown body are resolved here.
 		log.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
-		markdownContent, err := ExtractMarkdownContent(rawContent)
-		if err != nil {
-			return fmt.Errorf("failed to extract markdown from imported file '%s': %w", item.fullPath, err)
+		markdownContent, merr := ExtractMarkdownContent(rawContent)
+		if merr != nil {
+			return nil, nil, fmt.Errorf("failed to extract markdown from imported file '%s': %w", item.fullPath, merr)
 		}
 		if markdownContent != "" {
 			acc.markdownBuilder.WriteString(markdownContent)
@@ -218,7 +263,6 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// frontmatter fields (runtimes, mcp-servers, engine, safe-outputs, etc.) reflect
 	// the resolved values. When content is unchanged we reuse origFm, which was already
 	// parsed above — for builtin files the cache also applies.
-	var fm map[string]any
 	if wasSubstituted {
 		if reparsed, rerr := ExtractFrontmatterFromContent(rawContent); rerr == nil {
 			fm = reparsed.Frontmatter
@@ -228,155 +272,151 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	} else {
 		fm = origFm
 	}
+	return origFm, fm, nil
+}
 
-	// Validate 'with'/'inputs' values against the imported workflow's 'import-schema' (if present).
-	// Always use the ORIGINAL (unsubstituted) frontmatter for schema lookup so the import-schema
-	// declaration itself is not affected by expression substitution.
-	if _, hasSchema := origFm["import-schema"]; hasSchema {
-		if err := validateWithImportSchema(item.inputs, origFm, item.importPath); err != nil {
-			return err
-		}
+// extractEngineConfig extracts engine-related settings from the imported frontmatter map
+// and accumulates them. Engine configs with only `mcp` sub-keys (no `id` or `runtime`)
+// are not counted as engine specifications — they carry MCP gateway settings only.
+//
+// Side effects: acc.engines, acc.mergedEngineMCPToolTimeout,
+// acc.mergedEngineMCPSessionTimeout, acc.mergedEngineModel.
+func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath string) {
+	engineVal, hasEngine := fm["engine"]
+	if !hasEngine {
+		return
 	}
+	log.Printf("Found engine config in import: %s", fullPath)
 
-	// Extract engines from imported file.
-	// Engine configs with only `mcp` sub-keys (no `id` or `runtime`) are not counted
-	// as engine specifications — they only carry MCP gateway settings. This prevents
-	// "multiple engine fields" errors when a shared workflow declares engine.mcp.*
-	// without specifying an engine ID.
-	if engineVal, hasEngine := fm["engine"]; hasEngine {
-		log.Printf("Found engine config in import: %s", item.fullPath)
-
-		switch v := engineVal.(type) {
-		case string:
-			// String engine (e.g. "copilot") — always counts as an engine spec.
+	switch v := engineVal.(type) {
+	case string:
+		// String engine (e.g. "copilot") — always counts as an engine spec.
+		if engineJSON, merr := json.Marshal(v); merr == nil {
+			acc.engines = append(acc.engines, string(engineJSON))
+		}
+	case map[string]any:
+		// Object engine — extract engine.mcp.* settings first, then decide
+		// whether to add to engines based on whether an engine ID is present.
+		if mcpVal, hasMCP := v["mcp"]; hasMCP {
+			if mcpMap, ok := mcpVal.(map[string]any); ok {
+				// Extract tool-timeout (first-wins across all imports)
+				if acc.mergedEngineMCPToolTimeout == "" {
+					if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
+						acc.mergedEngineMCPToolTimeout = ttStr
+						log.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", fullPath, ttStr)
+					}
+				}
+				// Extract session-timeout (first-wins across all imports)
+				if acc.mergedEngineMCPSessionTimeout == "" {
+					if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
+						acc.mergedEngineMCPSessionTimeout = stStr
+						log.Printf("Extracted engine.mcp.session-timeout from import %s: %s", fullPath, stStr)
+					}
+				}
+			}
+		}
+		// Only add to engines list if this config specifies an actual engine
+		// (i.e. it carries an 'id' or 'runtime' field). Configs with only
+		// 'model' or 'mcp' settings are preferences, not engine selections,
+		// and must not trigger the "multiple engine fields" validation error.
+		_, hasID := v["id"]
+		_, hasRuntime := v["runtime"]
+		if hasID || hasRuntime {
 			if engineJSON, merr := json.Marshal(v); merr == nil {
 				acc.engines = append(acc.engines, string(engineJSON))
 			}
-		case map[string]any:
-			// Object engine — extract engine.mcp.* settings first, then decide
-			// whether to add to engines based on whether an engine ID is present.
-			if mcpVal, hasMCP := v["mcp"]; hasMCP {
-				if mcpMap, ok := mcpVal.(map[string]any); ok {
-					// Extract tool-timeout (first-wins across all imports)
-					if acc.mergedEngineMCPToolTimeout == "" {
-						if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
-							acc.mergedEngineMCPToolTimeout = ttStr
-							log.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", item.fullPath, ttStr)
-						}
-					}
-					// Extract session-timeout (first-wins across all imports)
-					if acc.mergedEngineMCPSessionTimeout == "" {
-						if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
-							acc.mergedEngineMCPSessionTimeout = stStr
-							log.Printf("Extracted engine.mcp.session-timeout from import %s: %s", item.fullPath, stStr)
-						}
-					}
+		} else {
+			// No engine ID or runtime — this is a model/MCP-only preference.
+			// Extract the model hint (first-wins) so it can be applied to the
+			// resolved engine after all imports are processed.
+			if modelStr, ok := v["model"].(string); ok && modelStr != "" {
+				if acc.mergedEngineModel == "" {
+					acc.mergedEngineModel = modelStr
+					log.Printf("Extracted engine.model preference from import %s: %s", fullPath, modelStr)
 				}
-			}
-			// Only add to engines list if this config specifies an actual engine
-			// (i.e. it carries an 'id' or 'runtime' field). Configs with only
-			// 'model' or 'mcp' settings are preferences, not engine selections,
-			// and must not trigger the "multiple engine fields" validation error.
-			_, hasID := v["id"]
-			_, hasRuntime := v["runtime"]
-			if hasID || hasRuntime {
-				if engineJSON, merr := json.Marshal(v); merr == nil {
-					acc.engines = append(acc.engines, string(engineJSON))
-				}
-			} else {
-				// No engine ID or runtime — this is a model/MCP-only preference.
-				// Extract the model hint (first-wins) so it can be applied to the
-				// resolved engine after all imports are processed.
-				if modelStr, ok := v["model"].(string); ok && modelStr != "" {
-					if acc.mergedEngineModel == "" {
-						acc.mergedEngineModel = modelStr
-						log.Printf("Extracted engine.model preference from import %s: %s", item.fullPath, modelStr)
-					}
-				}
-			}
-		default:
-			// Unexpected type — marshal and add to preserve existing behavior.
-			if engineJSON, merr := json.Marshal(engineVal); merr == nil {
-				acc.engines = append(acc.engines, string(engineJSON))
 			}
 		}
+	default:
+		// Unexpected type — marshal and add to preserve existing behavior.
+		if engineJSON, merr := json.Marshal(engineVal); merr == nil {
+			acc.engines = append(acc.engines, string(engineJSON))
+		}
 	}
+}
 
-	// Extract max-runs from imported file (first-wins across imports).
+// extractConfigFields extracts scalar and builder-based configuration fields from the
+// frontmatter map and writes them into the appropriate accumulator builders and slices.
+//
+// Side effects: acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens, acc.mcpServersBuilder,
+// acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
+// acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
+// acc.secretMaskingBuilder.
+func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath string) {
+	// Extract max-runs (first-wins across imports).
 	if acc.mergedMaxRuns == "" {
 		if maxRunsJSON, merr := extractFieldJSONFromMap(fm, "max-runs", ""); merr == nil &&
 			maxRunsJSON != "" && maxRunsJSON != "null" {
 			acc.mergedMaxRuns = maxRunsJSON
-			log.Printf("Extracted max-runs from import: %s", item.fullPath)
+			log.Printf("Extracted max-runs from import: %s", fullPath)
 		}
 	}
 
-	// Extract max-effective-tokens from imported file (first-wins across imports).
+	// Extract max-effective-tokens (first-wins across imports).
 	if acc.mergedMaxEffectiveTokens == "" {
 		if maxTokensJSON, merr := extractFieldJSONFromMap(fm, "max-effective-tokens", ""); merr == nil &&
 			maxTokensJSON != "" && maxTokensJSON != "null" {
 			acc.mergedMaxEffectiveTokens = maxTokensJSON
-			log.Printf("Extracted max-effective-tokens from import: %s", item.fullPath)
+			log.Printf("Extracted max-effective-tokens from import: %s", fullPath)
 		}
 	}
 
-	// Extract mcp-servers from imported file
-	mcpServersContent, err := extractFieldJSONFromMap(fm, "mcp-servers", "{}")
-	if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
+	if mcpServersContent, err := extractFieldJSONFromMap(fm, "mcp-servers", "{}"); err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
 		acc.mcpServersBuilder.WriteString(mcpServersContent + "\n")
 	}
 
-	// Extract safe-outputs from imported file
-	safeOutputsContent, err := extractFieldJSONFromMap(fm, "safe-outputs", "{}")
-	if err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
+	if safeOutputsContent, err := extractFieldJSONFromMap(fm, "safe-outputs", "{}"); err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
 		acc.safeOutputs = append(acc.safeOutputs, safeOutputsContent)
 	}
 
-	// Extract mcp-scripts from imported file
-	mcpScriptsContent, err := extractFieldJSONFromMap(fm, "mcp-scripts", "{}")
-	if err == nil && mcpScriptsContent != "" && mcpScriptsContent != "{}" {
+	if mcpScriptsContent, err := extractFieldJSONFromMap(fm, "mcp-scripts", "{}"); err == nil && mcpScriptsContent != "" && mcpScriptsContent != "{}" {
 		acc.mcpScripts = append(acc.mcpScripts, mcpScriptsContent)
 	}
 
-	// Extract steps from imported file
-	stepsContent, err := extractYAMLFieldFromMap(fm, "steps")
-	if err == nil && stepsContent != "" {
+	if stepsContent, err := extractYAMLFieldFromMap(fm, "steps"); err == nil && stepsContent != "" {
 		acc.stepsBuilder.WriteString(stepsContent + "\n")
 	}
 
-	// Extract runtimes from imported file
-	runtimesContent, err := extractFieldJSONFromMap(fm, "runtimes", "{}")
-	if err == nil && runtimesContent != "" && runtimesContent != "{}" {
+	if runtimesContent, err := extractFieldJSONFromMap(fm, "runtimes", "{}"); err == nil && runtimesContent != "" && runtimesContent != "{}" {
 		acc.runtimesBuilder.WriteString(runtimesContent + "\n")
 	}
 
-	// Extract services from imported file
-	servicesContent, err := extractYAMLFieldFromMap(fm, "services")
-	if err == nil && servicesContent != "" {
+	if servicesContent, err := extractYAMLFieldFromMap(fm, "services"); err == nil && servicesContent != "" {
 		acc.servicesBuilder.WriteString(servicesContent + "\n")
 	}
 
-	// Extract network from imported file
-	networkContent, err := extractFieldJSONFromMap(fm, "network", "{}")
-	if err == nil && networkContent != "" && networkContent != "{}" {
+	if networkContent, err := extractFieldJSONFromMap(fm, "network", "{}"); err == nil && networkContent != "" && networkContent != "{}" {
 		acc.networkBuilder.WriteString(networkContent + "\n")
 	}
 
-	// Extract permissions from imported file
-	permissionsContent, err := extractFieldJSONFromMap(fm, "permissions", "{}")
-	if err == nil && permissionsContent != "" && permissionsContent != "{}" {
+	if permissionsContent, err := extractFieldJSONFromMap(fm, "permissions", "{}"); err == nil && permissionsContent != "" && permissionsContent != "{}" {
 		acc.permissionsBuilder.WriteString(permissionsContent + "\n")
 	}
 
-	// Extract secret-masking from imported file
-	secretMaskingContent, err := extractFieldJSONFromMap(fm, "secret-masking", "{}")
-	if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
+	if secretMaskingContent, err := extractFieldJSONFromMap(fm, "secret-masking", "{}"); err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 		acc.secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 	}
+}
 
-	// Extract and merge bots from imported file (merge into set to avoid duplicates)
-	botsContent, err := extractFieldJSONFromMap(fm, "bots", "[]")
-	if err == nil && botsContent != "" && botsContent != "[]" {
+// extractActivationFields extracts activation and authentication-related fields from
+// the frontmatter map: bots, skip-roles, skip-bots, skip-if-match, skip-if-no-match,
+// on.github-token, on.github-app, top-level github-app, and checkout.
+//
+// Side effects: acc.bots, acc.botsSet, acc.skipRoles, acc.skipRolesSet, acc.skipBots,
+// acc.skipBotsSet, acc.skipIfMatch, acc.skipIfNoMatch, acc.activationGitHubToken,
+// acc.activationGitHubApp, acc.topLevelGitHubApp, acc.checkouts.
+func (acc *importAccumulator) extractActivationFields(fm map[string]any, item importQueueItem) {
+	// Extract and merge bots (merge into set to avoid duplicates).
+	if botsContent, err := extractFieldJSONFromMap(fm, "bots", "[]"); err == nil && botsContent != "" && botsContent != "[]" {
 		var importedBots []string
 		if jsonErr := json.Unmarshal([]byte(botsContent), &importedBots); jsonErr == nil {
 			for _, bot := range importedBots {
@@ -388,9 +428,8 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract and merge skip-roles from imported file (merge into set to avoid duplicates)
-	skipRolesContent, err := extractOnSectionFieldFromMap(fm, "skip-roles")
-	if err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
+	// Extract and merge skip-roles (merge into set to avoid duplicates).
+	if skipRolesContent, err := extractOnSectionFieldFromMap(fm, "skip-roles"); err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
 		var importedSkipRoles []string
 		if jsonErr := json.Unmarshal([]byte(skipRolesContent), &importedSkipRoles); jsonErr == nil {
 			for _, role := range importedSkipRoles {
@@ -402,9 +441,8 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract and merge skip-bots from imported file (merge into set to avoid duplicates)
-	skipBotsContent, err := extractOnSectionFieldFromMap(fm, "skip-bots")
-	if err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
+	// Extract and merge skip-bots (merge into set to avoid duplicates).
+	if skipBotsContent, err := extractOnSectionFieldFromMap(fm, "skip-bots"); err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
 		var importedSkipBots []string
 		if jsonErr := json.Unmarshal([]byte(skipBotsContent), &importedSkipBots); jsonErr == nil {
 			for _, user := range importedSkipBots {
@@ -416,7 +454,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract on.skip-if-match from imported file (first-wins: only set if not yet populated)
+	// Extract on.skip-if-match (first-wins).
 	if acc.skipIfMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
 			acc.skipIfMatch = skipJSON
@@ -424,7 +462,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract on.skip-if-no-match from imported file (first-wins: only set if not yet populated)
+	// Extract on.skip-if-no-match (first-wins).
 	if acc.skipIfNoMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-no-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
 			acc.skipIfNoMatch = skipJSON
@@ -432,7 +470,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract on.github-token from imported file (first-wins: only set if not yet populated)
+	// Extract on.github-token (first-wins).
 	if acc.activationGitHubToken == "" {
 		if tokenJSON, tokenErr := extractOnSectionAnyFieldFromMap(fm, "github-token"); tokenErr == nil && tokenJSON != "" && tokenJSON != "null" {
 			var token string
@@ -443,7 +481,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract on.github-app from imported file (first-wins: only set if not yet populated)
+	// Extract on.github-app (first-wins).
 	if acc.activationGitHubApp == "" {
 		if appJSON, appErr := extractOnSectionAnyFieldFromMap(fm, "github-app"); appErr == nil {
 			if validated := validateGitHubAppJSON(appJSON); validated != "" {
@@ -453,7 +491,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract top-level github-app from imported file (first-wins: only set if not yet populated)
+	// Extract top-level github-app (first-wins).
 	if acc.topLevelGitHubApp == "" {
 		if appJSON, appErr := extractFieldJSONFromMap(fm, "github-app", ""); appErr == nil {
 			if validated := validateGitHubAppJSON(appJSON); validated != "" {
@@ -463,39 +501,43 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract checkout from imported file (append in order; main workflow's checkouts take precedence).
-	// The checkout field may be a single object or an array of objects; store the raw JSON for
-	// later parsing by the compiler.
+	// Extract checkout (append in order; main workflow's checkouts take precedence).
+	// The checkout field may be a single object or an array of objects; store the raw JSON
+	// for later parsing by the compiler.
 	if checkoutJSON, checkoutErr := extractFieldJSONFromMap(fm, "checkout", ""); checkoutErr == nil && checkoutJSON != "" && checkoutJSON != "null" && checkoutJSON != "false" {
 		acc.checkouts = append(acc.checkouts, checkoutJSON)
 		log.Printf("Extracted checkout from import: %s", item.fullPath)
 	}
+}
 
-	// Extract pre-steps from imported file (prepend in order)
-	preStepsContent, err := extractYAMLFieldFromMap(fm, "pre-steps")
-	if err == nil && preStepsContent != "" {
+// extractStepAndJobFields extracts step and job configuration fields from the frontmatter
+// map. Environment variable conflict detection is performed: if the same env var is
+// defined in two different imports, an error is returned.
+//
+// Side effects: acc.preStepsBuilder, acc.preAgentStepsBuilder, acc.postStepsBuilder,
+// acc.jobsBuilder, acc.envBuilder, acc.envSources.
+func (acc *importAccumulator) extractStepAndJobFields(fm map[string]any, importPath string) error {
+	// Extract pre-steps (prepend in order).
+	if preStepsContent, err := extractYAMLFieldFromMap(fm, "pre-steps"); err == nil && preStepsContent != "" {
 		acc.preStepsBuilder.WriteString(preStepsContent + "\n")
 	}
 
-	// Extract pre-agent-steps from imported file (prepend in order)
-	preAgentStepsContent, err := extractYAMLFieldFromMap(fm, "pre-agent-steps")
-	if err == nil && preAgentStepsContent != "" {
+	// Extract pre-agent-steps (prepend in order).
+	if preAgentStepsContent, err := extractYAMLFieldFromMap(fm, "pre-agent-steps"); err == nil && preAgentStepsContent != "" {
 		acc.preAgentStepsBuilder.WriteString(preAgentStepsContent + "\n")
 	}
 
-	// Extract post-steps from imported file (append in order)
-	postStepsContent, err := extractYAMLFieldFromMap(fm, "post-steps")
-	if err == nil && postStepsContent != "" {
+	// Extract post-steps (append in order).
+	if postStepsContent, err := extractYAMLFieldFromMap(fm, "post-steps"); err == nil && postStepsContent != "" {
 		acc.postStepsBuilder.WriteString(postStepsContent + "\n")
 	}
 
-	// Extract jobs from imported file (append in order; merged into custom jobs map)
-	jobsContent, err := extractFieldJSONFromMap(fm, "jobs", "{}")
-	if err == nil && jobsContent != "" && jobsContent != "{}" {
+	// Extract jobs (append in order; merged into custom jobs map).
+	if jobsContent, err := extractFieldJSONFromMap(fm, "jobs", "{}"); err == nil && jobsContent != "" && jobsContent != "{}" {
 		acc.jobsBuilder.WriteString(jobsContent + "\n")
 	}
 
-	// Extract env from imported file (append in order; main workflow env takes precedence).
+	// Extract env (append in order; main workflow env takes precedence).
 	// Conflicts between two imports are disallowed — only the main workflow may override imported vars.
 	envContent, err := extractFieldJSONFromMap(fm, "env", "{}")
 	if err == nil && envContent != "" && envContent != "{}" {
@@ -503,17 +545,26 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		if jsonErr := json.Unmarshal([]byte(envContent), &envMap); jsonErr == nil {
 			for key := range envMap {
 				if existingSource, exists := acc.envSources[key]; exists {
-					return fmt.Errorf("env variable %q is defined in multiple imports: %q and %q; remove the duplicate definition from one of the imports, or move it to the main workflow to override imported values", key, existingSource, item.importPath)
+					return fmt.Errorf("env variable %q is defined in multiple imports: %q and %q; remove the duplicate definition from one of the imports, or move it to the main workflow to override imported values", key, existingSource, importPath)
 				}
-				acc.envSources[key] = item.importPath
+				acc.envSources[key] = importPath
 			}
 			acc.envBuilder.WriteString(envContent + "\n")
 		}
 	}
 
-	// Extract labels from imported file (merge into set to avoid duplicates)
-	labelsContent, err := extractFieldJSONFromMap(fm, "labels", "[]")
-	if err == nil && labelsContent != "" && labelsContent != "[]" {
+	return nil
+}
+
+// extractFeatureAndObservabilityFields extracts labels, cache, feature flags, model
+// aliases, the run-install-scripts flag, and observability configuration from the
+// frontmatter map.
+//
+// Side effects: acc.labels, acc.labelsSet, acc.caches, acc.features, acc.models,
+// acc.runInstallScripts, acc.observabilityConfigs.
+func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string]any, fullPath string) {
+	// Extract labels (merge into set to avoid duplicates).
+	if labelsContent, err := extractFieldJSONFromMap(fm, "labels", "[]"); err == nil && labelsContent != "" && labelsContent != "[]" {
 		var importedLabels []string
 		if jsonErr := json.Unmarshal([]byte(labelsContent), &importedLabels); jsonErr == nil {
 			for _, label := range importedLabels {
@@ -525,15 +576,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract cache from imported file (append to list of caches)
-	cacheContent, err := extractFieldJSONFromMap(fm, "cache", "{}")
-	if err == nil && cacheContent != "" && cacheContent != "{}" {
+	// Extract cache (append to list of caches).
+	if cacheContent, err := extractFieldJSONFromMap(fm, "cache", "{}"); err == nil && cacheContent != "" && cacheContent != "{}" {
 		acc.caches = append(acc.caches, cacheContent)
 	}
 
-	// Extract features from imported file (parse as map structure)
-	featuresContent, err := extractFieldJSONFromMap(fm, "features", "{}")
-	if err == nil && featuresContent != "" && featuresContent != "{}" {
+	// Extract features (parse as map structure).
+	if featuresContent, err := extractFieldJSONFromMap(fm, "features", "{}"); err == nil && featuresContent != "" && featuresContent != "{}" {
 		var featuresMap map[string]any
 		if jsonErr := json.Unmarshal([]byte(featuresContent), &featuresMap); jsonErr == nil {
 			acc.features = append(acc.features, featuresMap)
@@ -541,9 +590,8 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract model aliases from imported file (parse as map[string][]string structure)
-	modelsContent, err := extractFieldJSONFromMap(fm, "models", "{}")
-	if err == nil && modelsContent != "" && modelsContent != "{}" {
+	// Extract model aliases (parse as map[string][]string structure).
+	if modelsContent, err := extractFieldJSONFromMap(fm, "models", "{}"); err == nil && modelsContent != "" && modelsContent != "{}" {
 		var rawModels map[string]any
 		if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr == nil {
 			modelsMap := make(map[string][]string, len(rawModels))
@@ -565,14 +613,14 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract run-install-scripts flag from imported file.
-	// If global run-install-scripts: true is set OR if runtimes.node.run-install-scripts: true is set,
-	// propagate to the accumulator (OR semantics: any import enabling it enables it overall).
+	// Extract run-install-scripts flag.
+	// If global run-install-scripts: true is set OR if runtimes.node.run-install-scripts: true
+	// is set, propagate to the accumulator (OR semantics: any import enabling it enables it overall).
 	if !acc.runInstallScripts {
 		if rsAny, hasRS := fm["run-install-scripts"]; hasRS {
 			if rsBool, ok := rsAny.(bool); ok && rsBool {
 				acc.runInstallScripts = true
-				log.Printf("Extracted run-install-scripts: true from import: %s", item.fullPath)
+				log.Printf("Extracted run-install-scripts: true from import: %s", fullPath)
 			}
 		}
 		// Also check runtimes.node.run-install-scripts
@@ -583,7 +631,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 						if rsAny, hasRS := nodeMap["run-install-scripts"]; hasRS {
 							if rsBool, ok := rsAny.(bool); ok && rsBool {
 								acc.runInstallScripts = true
-								log.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", item.fullPath)
+								log.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", fullPath)
 							}
 						}
 					}
@@ -592,16 +640,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract observability from imported file. All imports' OTLP endpoints are collected
-	// so that each import can contribute endpoints for fan-out observability.
-	// Deduplication and merging into a single array happens in toImportsResult.
-	obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}")
-	if obsErr == nil && obsContent != "" && obsContent != "{}" {
+	// Extract observability. All imports' OTLP endpoints are collected so that each import
+	// can contribute endpoints for fan-out observability. Deduplication and merging into a
+	// single array happens in toImportsResult.
+	if obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}"); obsErr == nil && obsContent != "" && obsContent != "{}" {
 		acc.observabilityConfigs = append(acc.observabilityConfigs, obsContent)
-		log.Printf("Extracted observability from import: %s", item.fullPath)
+		log.Printf("Extracted observability from import: %s", fullPath)
 	}
-
-	return nil
 }
 
 // toImportsResult converts the accumulated state to a final ImportsResult.
