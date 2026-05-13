@@ -436,6 +436,7 @@ jobs:
       - name: Build and install gh-aw CLI from source
         run: |
           gh extension remove gh-aw || true
+          make build
           gh extension install .
           gh aw version
         env:
@@ -536,7 +537,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           # Check if gh-aw extension is already installed
-          if gh extension list | grep -q "github/gh-aw"; then
+          if gh extension list | grep -qE '(^|[[:space:]])gh-aw($|[[:space:]])'; then
             echo "gh-aw extension already installed, upgrading..."
             gh extension upgrade gh-aw || true
           else

@@ -3,10 +3,14 @@
 package cli
 
 import (
+	"errors"
+	"io"
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -316,4 +320,45 @@ func TestRunMonteCarloFullEpisodePath(t *testing.T) {
 	copy(sorted, ets)
 	sort.Ints(sorted)
 	assert.Equal(t, ets, sorted, "ET percentiles should already be in ascending order")
+}
+
+func TestResolveForecastWorkflowsFromRemote_RateLimitFallsBackToPartialResults(t *testing.T) {
+	originalFetch := forecastFetchGitHubWorkflows
+	originalSleep := forecastRateLimitSleep
+	t.Cleanup(func() {
+		forecastFetchGitHubWorkflows = originalFetch
+		forecastRateLimitSleep = originalSleep
+	})
+
+	attempts := 0
+	var backoffs []time.Duration
+	forecastFetchGitHubWorkflows = func(repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+		attempts++
+		return nil, errors.New("API rate limit exceeded")
+	}
+	forecastRateLimitSleep = func(delay time.Duration) {
+		backoffs = append(backoffs, delay)
+	}
+
+	stderrReader, stderrWriter, err := os.Pipe()
+	require.NoError(t, err, "Should create stderr pipe")
+	originalStderr := os.Stderr
+	os.Stderr = stderrWriter
+	t.Cleanup(func() {
+		os.Stderr = originalStderr
+	})
+
+	names, err := resolveForecastWorkflowsFromRemote([]string{"ci-doctor", "daily-planner"}, "owner/repo", true)
+	require.NoError(t, err, "T-FC-030 should return caller-supplied partial results after rate-limit retries")
+	assert.Equal(t, []string{"ci-doctor", "daily-planner"}, names, "Should preserve caller-supplied workflow order")
+	assert.Equal(t, forecastRateLimitMaxAttempts, attempts, "Should retry discovery until the retry budget is exhausted")
+	assert.Equal(t, []time.Duration{
+		forecastRateLimitBackoffDuration(1),
+		forecastRateLimitBackoffDuration(2),
+	}, backoffs, "Should back off between retry attempts")
+
+	require.NoError(t, stderrWriter.Close(), "Should close stderr writer after the test call")
+	stderrBytes, readErr := io.ReadAll(stderrReader)
+	require.NoError(t, readErr, "Should read captured stderr")
+	assert.Contains(t, string(stderrBytes), "partial results", "Should warn that discovery returned partial results")
 }

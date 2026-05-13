@@ -238,6 +238,15 @@ The root invocation MUST have `parent_id = null`. It represents the user-facing 
 
 Each sub-agent invocation MUST reference a valid `parent_id`. Sub-agent invocations MAY recursively spawn further invocations.
 
+For execution graphs deeper than two levels, implementations MUST aggregate descendant Effective
+Tokens in stable post-order: fully observed leaf descendants first, then their nearest observed
+ancestors, and finally the parent node's local invocation cost. When a parent has incomplete or
+unobservable descendants, the implementation MUST report the partial sum accumulated from the
+deepest observed descendants before adding any shallower fallback estimates, and SHOULD keep the
+parent node flagged until all known descendants are either observed or explicitly marked
+unobservable. Repeated computations over the same partially observed graph MUST produce the same
+partial-ordering and subtotal sequence.
+
 ---
 
 ## 7. Reporting
@@ -291,6 +300,12 @@ integer interoperability in cross-language pipelines.
 **R-SAFE-003**: When computed ET exceeds the ceiling, implementations **MUST** clamp the
 reported `summary.effective_tokens` value to the ceiling and **MUST** emit a warning indicating
 that capping occurred.
+
+**R-SAFE-003A**: When ET capping occurs, implementations **MUST** record a deterministic overflow
+condition using either `flagged.code = "ET_OVERFLOW"` on the affected root/subtree node or a
+deterministic error when no structured flag channel is available. The error/flag payload **MUST**
+include the ceiling value `9007199254740991` so operators can distinguish overflow from missing
+usage data.
 
 **R-SAFE-004**: For long multi-agent chains, implementations **SHOULD** aggregate ET in a
 streaming manner (incremental updates per invocation) and **SHOULD** emit an early warning when

@@ -38,17 +38,20 @@ implementation (gh-aw v1.x) satisfies all conformance requirements below.
 Promotion from **Draft** to **Candidate Recommendation** requires all of the following:
 
 1. **Reference implementation completeness**: 100% of normative requirements in §§4–12 are
-   implemented in `gh-aw` and mapped to concrete implementation files.
+   implemented in `gh-aw` and mapped to concrete implementation files (**tracking issue**:
+   [#31983](https://github.com/github/gh-aw/issues/31983)).
 2. **Compliance coverage**: At least 95% of normative requirements have automated tests, and
-   all MUST/MUST NOT requirements have at least one passing automated test.
+   all MUST/MUST NOT requirements have at least one passing automated test (**tracking issue**:
+   [#31983](https://github.com/github/gh-aw/issues/31983)).
 3. **CI stability window**: The experiments-related test suite passes on the default branch for
    30 consecutive days with no unresolved regression in variant selection, persistence, or
-   reporting behavior.
+   reporting behavior (**tracking issue**: [#31983](https://github.com/github/gh-aw/issues/31983)).
 4. **Interoperability evidence**: At least two production workflows using `experiments:` run for
    a minimum of 500 total assignments each with valid assignment artifacts and reproducible
-   audit output.
+   audit output (**tracking issue**: [#31983](https://github.com/github/gh-aw/issues/31983)).
 5. **Review sign-off**: Written approval from at least two gh-aw maintainers that Sections 10–14
-   are complete, internally consistent, and suitable for Candidate Recommendation publication.
+   are complete, internally consistent, and suitable for Candidate Recommendation publication
+   (**tracking issue**: [#31983](https://github.com/github/gh-aw/issues/31983)).
 
 ### Sync
 

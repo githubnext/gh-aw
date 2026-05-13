@@ -344,14 +344,15 @@ Version changes will be documented and backward compatibility maintained where p
 Per the **Resolution (2026-05-08)** in Implementation Notes, the text-based algorithm remains
 authoritative until a dedicated migration milestone is approved.
 
-The project **MUST NOT** schedule a v2.0.0 migration to the field-selection model until all of
-the following prerequisites are complete:
+Tracking issue: [#31983](https://github.com/github/gh-aw/issues/31983)
 
-1. A selective field-exclusion use case is confirmed and documented.
-2. A migration guide is drafted, including lock-file invalidation and recompilation steps.
-3. Cross-language (Go + JavaScript) test vectors for the candidate v2.0.0 behavior are written
-   and pass in CI.
-4. A rollout plan is approved by maintainers, including backward-compatibility impact analysis.
+The project **MUST NOT** schedule a v2.0.0 migration to the field-selection model until all of
+the following tracked tasks are complete:
+
+- [ ] Confirm and document a selective field-exclusion use case in [#31983](https://github.com/github/gh-aw/issues/31983).
+- [ ] Draft a migration guide in [#31983](https://github.com/github/gh-aw/issues/31983), including lock-file invalidation and recompilation steps.
+- [ ] Write candidate v2.0.0 cross-language test vectors in [#31983](https://github.com/github/gh-aw/issues/31983) and verify they pass in CI.
+- [ ] Approve a rollout plan in [#31983](https://github.com/github/gh-aw/issues/31983), including backward-compatibility impact analysis.
 
 Until these prerequisites are met, implementations **MUST** continue using the text-based
 algorithm and **MUST NOT** selectively exclude frontmatter fields from hash input.
