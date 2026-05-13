@@ -298,7 +298,6 @@ tools:
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
     - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
-    - "curl -sS http://api-proxy:10000/reflect"
     - "curl -sS http://api-proxy:10000/reflect | jq ."
     - "curl -sS http://api-proxy:10000/reflect | jq \".endpoints[] | select(.provider == \\\"copilot\\\")\""
     - "curl -sS http://api-proxy:10000/reflect | jq \".endpoints[] | select(.provider == \\\"copilot\\\") | .models\""
