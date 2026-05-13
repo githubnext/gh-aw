@@ -187,7 +187,7 @@ fi`,
 	// step on the host, before the AWF container launches.  sendJobConclusionSpan reads
 	// this file to set the dedicated gh-aw.<job>.agent span start time, which excludes
 	// pre-agent overhead such as workspace audit and CLI proxy startup.
-	writeAgentCLIStartMs := "printf '%%s' \"$(date +%%s%%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath)
+	writeAgentCLIStartMs := "printf '%s' \"$(date +%s%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath)
 
 	// Build the complete command with proper formatting.
 	// configFileSetup (if non-empty) writes the AWF config JSON immediately before the
