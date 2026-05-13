@@ -159,21 +159,46 @@ func lowercaseDiscussionTriggerTypesInLines(lines []string) ([]string, bool) {
 }
 
 func isOnBlockStartLine(trimmed string) bool {
-	return trimmed == "on:" || trimmed == `"on":` ||
-		strings.HasPrefix(trimmed, "on: #") || strings.HasPrefix(trimmed, `"on": #`)
+	key, isBlockMappingKey := getBlockMappingKey(trimmed)
+	return isBlockMappingKey && key == "on"
 }
 
 func getDiscussionTriggerFromLine(trimmed string) (string, bool) {
-	switch {
-	case trimmed == "discussion:" || trimmed == `"discussion":` ||
-		strings.HasPrefix(trimmed, "discussion: #") || strings.HasPrefix(trimmed, `"discussion": #`):
-		return "discussion", true
-	case trimmed == "discussion_comment:" || trimmed == `"discussion_comment":` ||
-		strings.HasPrefix(trimmed, "discussion_comment: #") || strings.HasPrefix(trimmed, `"discussion_comment": #`):
-		return "discussion_comment", true
-	default:
+	key, isBlockMappingKey := getBlockMappingKey(trimmed)
+	if !isBlockMappingKey {
 		return "", false
 	}
+	return key, key == "discussion" || key == "discussion_comment"
+}
+
+func getBlockMappingKey(trimmed string) (string, bool) {
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "- ") {
+		return "", false
+	}
+
+	keyPart, valuePart, hasColon := strings.Cut(trimmed, ":")
+	if !hasColon {
+		return "", false
+	}
+
+	key := strings.TrimSpace(keyPart)
+	if key == "" {
+		return "", false
+	}
+
+	valuePart = strings.TrimSpace(valuePart)
+	if valuePart != "" && !strings.HasPrefix(valuePart, "#") {
+		return "", false
+	}
+
+	if len(key) >= 2 {
+		if (strings.HasPrefix(key, "\"") && strings.HasSuffix(key, "\"")) ||
+			(strings.HasPrefix(key, "'") && strings.HasSuffix(key, "'")) {
+			key = key[1 : len(key)-1]
+		}
+	}
+
+	return key, key != ""
 }
 
 func lowercaseInlineTypesArrayLine(line string) (string, bool) {

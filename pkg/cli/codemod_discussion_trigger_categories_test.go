@@ -120,3 +120,26 @@ func TestDiscussionTriggerCategoriesCodemod_LowercasesQuotedOnAndTriggerKeys(t *
 	assert.NotContains(t, result, "- Agentic Workflows")
 	assert.NotContains(t, result, "types: [General]")
 }
+
+func TestGetBlockMappingKey(t *testing.T) {
+	tests := []struct {
+		name    string
+		line    string
+		wantKey string
+		wantOK  bool
+	}{
+		{name: "plain key", line: "on:", wantKey: "on", wantOK: true},
+		{name: "quoted key", line: `"on":`, wantKey: "on", wantOK: true},
+		{name: "inline comment with extra spaces", line: `"discussion":    # category`, wantKey: "discussion", wantOK: true},
+		{name: "inline value", line: "on: push", wantKey: "", wantOK: false},
+		{name: "list item", line: "- on:", wantKey: "", wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotKey, gotOK := getBlockMappingKey(tt.line)
+			assert.Equal(t, tt.wantKey, gotKey)
+			assert.Equal(t, tt.wantOK, gotOK)
+		})
+	}
+}
