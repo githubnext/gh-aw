@@ -98,31 +98,19 @@ func parseReactionConfig(value any) (string, *bool, *bool, *bool, error) {
 			reactionType = parsedType
 		}
 
-		reactionIssues := true
-		if issuesValue, hasIssues := reactionMap["issues"]; hasIssues {
-			issuesBool, ok := issuesValue.(bool)
-			if !ok {
-				return "", nil, nil, nil, fmt.Errorf("reaction.issues must be a boolean value, got %T", issuesValue)
-			}
-			reactionIssues = issuesBool
+		reactionIssues, err := parseBoolReactionField(reactionMap, "issues")
+		if err != nil {
+			return "", nil, nil, nil, err
 		}
 
-		reactionPullRequests := true
-		if pullRequestsValue, hasPullRequests := reactionMap["pull-requests"]; hasPullRequests {
-			pullRequestsBool, ok := pullRequestsValue.(bool)
-			if !ok {
-				return "", nil, nil, nil, fmt.Errorf("reaction.pull-requests must be a boolean value, got %T", pullRequestsValue)
-			}
-			reactionPullRequests = pullRequestsBool
+		reactionPullRequests, err := parseBoolReactionField(reactionMap, "pull-requests")
+		if err != nil {
+			return "", nil, nil, nil, err
 		}
 
-		reactionDiscussions := true
-		if discussionsValue, hasDiscussions := reactionMap["discussions"]; hasDiscussions {
-			discussionsBool, ok := discussionsValue.(bool)
-			if !ok {
-				return "", nil, nil, nil, fmt.Errorf("reaction.discussions must be a boolean value, got %T", discussionsValue)
-			}
-			reactionDiscussions = discussionsBool
+		reactionDiscussions, err := parseBoolReactionField(reactionMap, "discussions")
+		if err != nil {
+			return "", nil, nil, nil, err
 		}
 
 		if !reactionIssues && !reactionPullRequests && !reactionDiscussions {
@@ -137,6 +125,20 @@ func parseReactionConfig(value any) (string, *bool, *bool, *bool, error) {
 		return "", nil, nil, nil, err
 	}
 	return reactionType, nil, nil, nil, nil
+}
+
+// parseBoolReactionField reads a boolean field from a reaction config map.
+// Returns true if the key is absent (defaults to enabled), or the parsed bool value.
+func parseBoolReactionField(m map[string]any, key string) (bool, error) {
+	v, ok := m[key]
+	if !ok {
+		return true, nil
+	}
+	b, ok := v.(bool)
+	if !ok {
+		return false, fmt.Errorf("reaction.%s must be a boolean value, got %T", key, v)
+	}
+	return b, nil
 }
 
 // intToReactionString converts an integer to a reaction string.
