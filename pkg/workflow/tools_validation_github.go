@@ -246,5 +246,5 @@ func isValidOwnerOrRepo(s string) bool {
 // ValidateGitHubToolsAgainstToolsets validates that all allowed GitHub tools have their
 // corresponding toolsets enabled in the configuration.
 func ValidateGitHubToolsAgainstToolsets(allowedTools []string, enabledToolsets []string) error {
-	return validateGitHubToolsAgainstToolsetsImpl(allowedTools, enabledToolsets)
+	return validateGitHubToolsAgainstToolsetsCore(allowedTools, enabledToolsets)
 }

@@ -141,6 +141,13 @@ async function main() {
     const url = typeof eval_.url === "string" ? eval_.url : "";
     const repo = typeof eval_.repo === "string" ? eval_.repo : "";
     const timestamp = typeof eval_.timestamp === "string" ? eval_.timestamp : "";
+    const event = typeof eval_.event === "string" ? eval_.event : "";
+    const resolutionSec = typeof eval_.resolution_sec === "number" ? eval_.resolution_sec : null;
+    const pendingAgeSec = typeof eval_.pending_age_sec === "number" ? eval_.pending_age_sec : null;
+    const reviewComments = typeof eval_.review_comments === "number" ? eval_.review_comments : null;
+    const changedFiles = typeof eval_.changed_files === "number" ? eval_.changed_files : null;
+    const additions = typeof eval_.additions === "number" ? eval_.additions : null;
+    const deletions = typeof eval_.deletions === "number" ? eval_.deletions : null;
 
     const attributes = [
       buildAttr("gh-aw.exporter.name", "outcome-collector"),
@@ -154,8 +161,15 @@ async function main() {
     if (url) attributes.push(buildAttr("gh-aw.outcome.url", url));
     if (detail) attributes.push(buildAttr("gh-aw.outcome.detail", detail));
     if (timestamp) attributes.push(buildAttr("gh-aw.outcome.created_at", timestamp));
+    if (event) attributes.push(buildAttr("gh-aw.outcome.event", event));
+    if (resolutionSec !== null) attributes.push(buildAttr("gh-aw.outcome.resolution_sec", resolutionSec));
+    if (pendingAgeSec !== null) attributes.push(buildAttr("gh-aw.outcome.pending_age_sec", pendingAgeSec));
+    if (reviewComments !== null) attributes.push(buildAttr("gh-aw.outcome.review_comments", reviewComments));
+    if (changedFiles !== null) attributes.push(buildAttr("gh-aw.outcome.changed_files", changedFiles));
+    if (additions !== null) attributes.push(buildAttr("gh-aw.outcome.additions", additions));
+    if (deletions !== null) attributes.push(buildAttr("gh-aw.outcome.deletions", deletions));
 
-    // Map result to OTLP status: accepted=OK, rejected=ERROR, pending/ignored=UNSET
+    // Map result to OTLP status: accepted=OK, rejected=ERROR, noop=UNSET, pending/ignored=UNSET
     const statusCode = result === "rejected" ? 2 : result === "accepted" ? 1 : 0;
 
     itemSpans.push(
@@ -187,13 +201,32 @@ async function main() {
     buildAttr("gh-aw.outcome.rejected", getSummaryNumber("rejected", 0)),
     buildAttr("gh-aw.outcome.ignored", getSummaryNumber("ignored", 0)),
     buildAttr("gh-aw.outcome.pending", getSummaryNumber("pending", 0)),
+    buildAttr("gh-aw.outcome.noop", getSummaryNumber("noop", 0)),
     buildAttr("gh-aw.outcome.acceptance_rate", getSummaryNumber("acceptance_rate", 0)),
     buildAttr("gh-aw.outcome.waste_rate", getSummaryNumber("waste_rate", 0)),
+    buildAttr("gh-aw.outcome.noop_rate", getSummaryNumber("noop_rate", 0)),
     buildAttr("gh-aw.outcome.item_count", evaluations.length),
   ];
 
   if (summary && summary.date) {
     summaryAttributes.push(buildAttr("gh-aw.outcome.date", summary.date));
+  }
+
+  // Median time-to-resolution for resolved items
+  const resolutionTimes = evaluations
+    .filter(e => typeof e.resolution_sec === "number" && e.resolution_sec > 0)
+    .map(e => e.resolution_sec)
+    .sort((a, b) => a - b);
+  if (resolutionTimes.length > 0) {
+    const mid = Math.floor(resolutionTimes.length / 2);
+    const median = resolutionTimes.length % 2 !== 0 ? resolutionTimes[mid] : Math.round((resolutionTimes[mid - 1] + resolutionTimes[mid]) / 2);
+    summaryAttributes.push(buildAttr("gh-aw.outcome.median_resolution_sec", median));
+  }
+
+  // Trigger type distribution
+  const events = [...new Set(evaluations.map(e => e.event).filter(Boolean))].sort();
+  if (events.length > 0) {
+    summaryAttributes.push(buildAttr("gh-aw.outcome.events", events.join(",")));
   }
 
   // Distinct workflows evaluated

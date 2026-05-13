@@ -24,6 +24,23 @@ import (
 
 var auditLog = logger.New("cli:audit")
 
+// AuditOptions contains shared options for audit and audit-diff execution.
+type AuditOptions struct {
+	Owner            string
+	Repo             string
+	Hostname         string
+	OutputDir        string
+	Verbose          bool
+	Parse            bool
+	JSONOutput       bool
+	JobID            int64
+	StepNumber       int
+	Format           string
+	ArtifactSets     []string
+	ExperimentFilter string
+	VariantFilter    string
+}
+
 // NewAuditCommand creates the audit command
 func NewAuditCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -133,22 +150,20 @@ Examples:
 					components.Repo = parts[1]
 				}
 
-				return AuditWorkflowRun(
-					cmd.Context(),
-					components.Number,
-					components.Owner,
-					components.Repo,
-					components.Host,
-					outputDir,
-					verbose,
-					parse,
-					jsonOutput,
-					components.JobID,
-					components.StepNumber,
-					artifacts,
-					experimentFilter,
-					variantFilter,
-				)
+				return AuditWorkflowRun(cmd.Context(), components.Number, AuditOptions{
+					Owner:            components.Owner,
+					Repo:             components.Repo,
+					Hostname:         components.Host,
+					OutputDir:        outputDir,
+					Verbose:          verbose,
+					Parse:            parse,
+					JSONOutput:       jsonOutput,
+					JobID:            components.JobID,
+					StepNumber:       components.StepNumber,
+					ArtifactSets:     artifacts,
+					ExperimentFilter: experimentFilter,
+					VariantFilter:    variantFilter,
+				})
 			}
 
 			// Multiple runs: diff mode (first is base, rest are comparisons)
@@ -219,7 +234,16 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 		compareRunIDs = append(compareRunIDs, c.Number)
 	}
 
-	return RunAuditDiff(ctx, baseComponents.Number, compareRunIDs, owner, repo, hostname, outputDir, verbose, jsonOutput, format, artifacts)
+	return RunAuditDiff(ctx, baseComponents.Number, compareRunIDs, AuditOptions{
+		Owner:        owner,
+		Repo:         repo,
+		Hostname:     hostname,
+		OutputDir:    outputDir,
+		Verbose:      verbose,
+		JSONOutput:   jsonOutput,
+		Format:       format,
+		ArtifactSets: artifacts,
+	})
 }
 
 // isPermissionError checks if an error is related to permissions/authentication
@@ -241,7 +265,20 @@ func isPermissionError(err error) bool {
 // If experimentFilter is non-empty, the run is skipped when its experiment artifact does
 // not contain an assignment for that experiment name. If variantFilter is also non-empty,
 // the assigned variant must equal variantFilter.
-func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int, artifactSets []string, experimentFilter string, variantFilter string) error {
+func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error {
+	owner := opts.Owner
+	repo := opts.Repo
+	hostname := opts.Hostname
+	outputDir := opts.OutputDir
+	verbose := opts.Verbose
+	parse := opts.Parse
+	jsonOutput := opts.JSONOutput
+	jobID := opts.JobID
+	stepNumber := opts.StepNumber
+	artifactSets := opts.ArtifactSets
+	experimentFilter := opts.ExperimentFilter
+	variantFilter := opts.VariantFilter
+
 	// Auto-detect GHES host from git remote if hostname is not provided
 	if hostname == "" {
 		hostname = getHostFromOriginRemote()
@@ -341,7 +378,15 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 			}
 		}
 
-		return renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
+		return renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, AuditOptions{
+			Owner:      owner,
+			Repo:       repo,
+			Hostname:   hostname,
+			OutputDir:  runOutputDir,
+			Verbose:    verbose,
+			Parse:      parse,
+			JSONOutput: jsonOutput,
+		})
 	}
 
 	// Check if we have locally cached artifacts first
@@ -653,27 +698,36 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		}
 	}
 
-	return renderAuditReport(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
+	return renderAuditReport(ctx, processedRun, metrics, mcpToolUsage, AuditOptions{
+		Owner:      owner,
+		Repo:       repo,
+		Hostname:   hostname,
+		OutputDir:  runOutputDir,
+		Verbose:    verbose,
+		Parse:      parse,
+		JSONOutput: jsonOutput,
+	})
 }
 
 // renderAuditReport builds and renders the audit report from a fully-populated processedRun.
 // It is called both when serving from a cached run summary and after a fresh processing pass,
 // ensuring that the two paths produce identical output.
-func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, owner, repo, hostname string, verbose bool, parse bool, jsonOutput bool) error {
+func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, opts AuditOptions) error {
 	runID := processedRun.Run.DatabaseID
+	runOutputDir := opts.OutputDir
 
 	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
 	processedRun.Run.SafeItemsCount = len(currentCreatedItems)
 
 	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
-	comparison := buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
+	comparison := buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, opts.Owner, opts.Repo, opts.Hostname, opts.Verbose)
 
 	// Build structured audit data
 	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
 	auditData.Comparison = comparison
 
 	// Render output based on format preference
-	if jsonOutput {
+	if opts.JSONOutput {
 		if err := renderJSON(auditData); err != nil {
 			return fmt.Errorf("failed to render JSON output: %w", err)
 		}
@@ -682,8 +736,8 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	}
 
 	// Display gateway metrics if available
-	if gatewayMetrics, err := parseGatewayLogs(runOutputDir, verbose); err == nil {
-		if metricsOutput := renderGatewayMetricsTable(gatewayMetrics, verbose); metricsOutput != "" {
+	if gatewayMetrics, err := parseGatewayLogs(runOutputDir, opts.Verbose); err == nil {
+		if metricsOutput := renderGatewayMetricsTable(gatewayMetrics, opts.Verbose); metricsOutput != "" {
 			fmt.Fprint(os.Stderr, metricsOutput)
 		}
 	}
@@ -691,11 +745,11 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	// Conditionally attempt to render agentic log (similar to `logs --parse`) if --parse flag is set
 	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
 	// We intentionally do not fail the audit on parse errors; they are reported as warnings.
-	if parse {
+	if opts.Parse {
 		awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
-		if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
-			if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
-				if verbose {
+		if engine := extractEngineFromAwInfo(awInfoPath, opts.Verbose); engine != nil { // reuse existing helper in same package
+			if err := parseAgentLog(runOutputDir, engine, opts.Verbose); err != nil {
+				if opts.Verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
 				}
 			} else {
@@ -705,13 +759,13 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runID, logMdPath)))
 				}
 			}
-		} else if verbose {
+		} else if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
 		}
 
 		// Also parse firewall logs if they exist
-		if err := parseFirewallLogs(runOutputDir, verbose); err != nil {
-			if verbose {
+		if err := parseFirewallLogs(runOutputDir, opts.Verbose); err != nil {
+			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", runID, err)))
 			}
 		} else {
@@ -724,7 +778,7 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	}
 
 	// Display logs location (only for console output)
-	if !jsonOutput {
+	if !opts.JSONOutput {
 		absOutputDir, _ := filepath.Abs(runOutputDir)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Audit complete. Logs saved to "+absOutputDir))
 	}

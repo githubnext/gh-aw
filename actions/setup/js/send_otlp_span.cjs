@@ -152,6 +152,21 @@ function readContextString(value) {
 }
 
 /**
+ * Resolve the engine identifier from aw_info.json, aw_context propagation, or env vars.
+ *
+ * Priority:
+ * 1. `awInfo.engine_id` – set by generate_aw_info.cjs on the agent job
+ * 2. `awInfo.context.engine_id` – propagated via aw_context for auxiliary / dispatched jobs
+ * 3. `process.env.GH_AW_INFO_ENGINE_ID` – workflow-injected env var fallback
+ *
+ * @param {object} awInfo
+ * @returns {string}
+ */
+function resolveEngineId(awInfo) {
+  return readContextString(awInfo.engine_id) || readContextString(awInfo.context?.engine_id) || process.env.GH_AW_INFO_ENGINE_ID || "";
+}
+
+/**
  * Resolve live episode correlation attributes directly from runtime context.
  *
  * Prefer the canonical lineage fields propagated in aw_context: episode_id for
@@ -926,7 +941,7 @@ async function sendJobSetupSpan(options = {}) {
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GH_AW_SETUP_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
-  const engineId = process.env.GH_AW_INFO_ENGINE_ID || "";
+  const engineId = resolveEngineId(awInfo);
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
@@ -1304,7 +1319,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const parentSpanId = isValidSpanId(rawParentSpanId) ? rawParentSpanId : "";
 
   const workflowName = awInfo.workflow_name || process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
-  const engineId = awInfo.engine_id || "";
+  const engineId = resolveEngineId(awInfo);
   const model = awInfo.model || "";
   const staged = awInfo.staged === true;
   const itemType = typeof awInfo.context?.item_type === "string" ? awInfo.context.item_type : "";
@@ -1702,6 +1717,7 @@ module.exports = {
   readLastRateLimitEntry,
   buildCurrentWorkflowCallId,
   buildEpisodeAttributesFromContext,
+  resolveEngineId,
   GITHUB_RATE_LIMITS_JSONL_PATH,
   sendJobSetupSpan,
   sendJobConclusionSpan,

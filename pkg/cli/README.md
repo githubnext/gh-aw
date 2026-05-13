@@ -422,8 +422,14 @@ err := cli.RunWorkflowOnGitHub(ctx, "my-workflow", cli.RunOptions{
 ### Auditing a run
 
 ```go
-err := cli.AuditWorkflowRun(ctx, runID, "owner", "repo", "github.com",
-    "/tmp/output", true, true, false, 0, 0, nil)
+err := cli.AuditWorkflowRun(ctx, runID, cli.AuditOptions{
+    Owner:     "owner",
+    Repo:      "repo",
+    Hostname:  "github.com",
+    OutputDir: "/tmp/output",
+    Verbose:   true,
+    Parse:     true,
+})
 ```
 
 ### Checking workflow health

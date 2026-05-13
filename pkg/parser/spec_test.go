@@ -14,6 +14,11 @@ import (
 //
 // Specification: Extracts YAML frontmatter between --- delimiters from markdown.
 // The markdown body that follows the frontmatter serves as the AI agent's prompt text.
+//
+// SPEC_MISMATCH: The README usage example reads `result.MarkdownBody`, but the
+// actual struct field on FrontmatterResult is `Markdown`. The observable contract
+// (a string field holding the body after frontmatter) is unchanged, so this test
+// targets the implementation field. The README example should be reconciled.
 func TestSpec_PublicAPI_ExtractFrontmatterFromContent(t *testing.T) {
 	t.Run("extracts YAML frontmatter between --- delimiters", func(t *testing.T) {
 		content := "---\non: push\n---\n# My Workflow\nSome prompt text."
@@ -43,6 +48,170 @@ func TestSpec_PublicAPI_ExtractFrontmatterFromContent(t *testing.T) {
 		assert.Empty(t, result.Frontmatter,
 			"result.Frontmatter should be empty when no --- delimiter is present")
 	})
+}
+
+// TestSpec_PublicAPI_ExtractMarkdownSection validates the documented behavior
+// of ExtractMarkdownSection as described in the package README.md.
+//
+// Specification: Extracts a named ## section from markdown.
+func TestSpec_PublicAPI_ExtractMarkdownSection(t *testing.T) {
+	t.Run("extracts the named section content", func(t *testing.T) {
+		content := "# Title\n\n## Tools\n\nSome tool config.\n\n## Other\n\nOther stuff."
+		section, err := ExtractMarkdownSection(content, "Tools")
+		require.NoError(t, err,
+			"ExtractMarkdownSection should not error when section exists")
+		assert.Contains(t, section, "Some tool config",
+			"extracted section should contain the body following the matched heading")
+	})
+
+	t.Run("returns error when section is not found", func(t *testing.T) {
+		content := "# Title\n\n## Tools\n\nSome tool config."
+		_, err := ExtractMarkdownSection(content, "Missing")
+		assert.Error(t, err,
+			"ExtractMarkdownSection should return error when the requested section is absent")
+	})
+
+	t.Run("stops at next same-or-higher level heading", func(t *testing.T) {
+		content := "## Tools\n\nTool A.\n\n## Engine\n\nEngine X."
+		section, err := ExtractMarkdownSection(content, "Tools")
+		require.NoError(t, err,
+			"ExtractMarkdownSection should not error when section exists")
+		assert.Contains(t, section, "Tool A",
+			"extracted section should contain text from inside the matched section")
+		assert.NotContains(t, section, "Engine X",
+			"extracted section should not bleed into the next ## section")
+	})
+}
+
+// TestSpec_PublicAPI_IsWorkflowSpec validates the documented behavior of
+// IsWorkflowSpec as described in the package README.md.
+//
+// Specification: Returns whether a path is a workflow specification markdown file
+// (i.e. of the form owner/repo/path[@ref]).
+func TestSpec_PublicAPI_IsWorkflowSpec(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "owner/repo/path is recognised as workflowspec",
+			input:    "github/gh-aw/workflows/build.md",
+			expected: true,
+		},
+		{
+			name:     "owner/repo/path@ref is recognised as workflowspec",
+			input:    "github/gh-aw/workflows/build.md@main",
+			expected: true,
+		},
+		{
+			name:     "local relative path is not a workflowspec",
+			input:    ".github/workflows/build.md",
+			expected: false,
+		},
+		{
+			name:     "shared/ prefixed path is not a workflowspec",
+			input:    "shared/base.md",
+			expected: false,
+		},
+		{
+			name:     "single-segment path is not a workflowspec",
+			input:    "workflow.md",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsWorkflowSpec(tt.input)
+			assert.Equal(t, tt.expected, result,
+				"IsWorkflowSpec(%q) should match documented workflowspec form", tt.input)
+		})
+	}
+}
+
+// TestSpec_InlineSubAgents_GetEngineSubAgentDir validates the documented
+// behavior of GetEngineSubAgentDir as described in the package README.md.
+//
+// Specification: Returns the relative directory used for sub-agent files for
+// a given engine (claude → .claude/agents, etc.).
+func TestSpec_InlineSubAgents_GetEngineSubAgentDir(t *testing.T) {
+	tests := []struct {
+		name     string
+		engineID string
+		expected string
+	}{
+		{
+			name:     "claude engine uses .claude/agents",
+			engineID: "claude",
+			expected: ".claude/agents",
+		},
+		{
+			name:     "codex engine uses .codex/agents",
+			engineID: "codex",
+			expected: ".codex/agents",
+		},
+		{
+			name:     "gemini engine uses .gemini/agents",
+			engineID: "gemini",
+			expected: ".gemini/agents",
+		},
+		{
+			name:     "unknown engine falls back to .github/agents",
+			engineID: "copilot",
+			expected: ".github/agents",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetEngineSubAgentDir(tt.engineID)
+			assert.Equal(t, tt.expected, result,
+				"GetEngineSubAgentDir(%q) should return documented sub-agent directory", tt.engineID)
+		})
+	}
+}
+
+// TestSpec_InlineSubAgents_GetEngineSubAgentExt validates the documented
+// behavior of GetEngineSubAgentExt as described in the package README.md.
+//
+// Specification: Returns the file extension for sub-agent files for a given
+// engine (.md for claude/codex/gemini, .agent.md otherwise).
+func TestSpec_InlineSubAgents_GetEngineSubAgentExt(t *testing.T) {
+	tests := []struct {
+		name     string
+		engineID string
+		expected string
+	}{
+		{
+			name:     "claude engine uses .md",
+			engineID: "claude",
+			expected: ".md",
+		},
+		{
+			name:     "codex engine uses .md",
+			engineID: "codex",
+			expected: ".md",
+		},
+		{
+			name:     "gemini engine uses .md",
+			engineID: "gemini",
+			expected: ".md",
+		},
+		{
+			name:     "unknown engine uses .agent.md",
+			engineID: "copilot",
+			expected: ".agent.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetEngineSubAgentExt(tt.engineID)
+			assert.Equal(t, tt.expected, result,
+				"GetEngineSubAgentExt(%q) should return documented sub-agent file extension", tt.engineID)
+		})
+	}
 }
 
 // TestSpec_PublicAPI_ExtractMarkdownContent validates the documented behavior
