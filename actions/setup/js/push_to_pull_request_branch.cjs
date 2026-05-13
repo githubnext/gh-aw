@@ -48,19 +48,19 @@ function looksLikeMissingRemoteBranchError(value) {
 
 /**
  * @param {unknown} rawAwContext
- * @returns {{ item_type: string, item_number: string | number | null } | null}
+ * @returns {{ item_type: string, item_number: number | null } | null}
  */
 function parseAwContext(rawAwContext) {
   /**
    * @param {unknown} parsed
-   * @returns {{ item_type: string, item_number: string | number | null } | null}
+   * @returns {{ item_type: string, item_number: number | null } | null}
    */
   function normalizeAwContext(parsed) {
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
     const itemType = typeof parsed.item_type === "string" ? parsed.item_type : "";
-    const itemNumber = typeof parsed.item_number === "string" || typeof parsed.item_number === "number" ? parsed.item_number : null;
+    const itemNumber = parsePositiveInteger(parsed.item_number);
     return { item_type: itemType, item_number: itemNumber };
   }
 
@@ -83,6 +83,8 @@ function parseAwContext(rawAwContext) {
 }
 
 /**
+ * Parses a value into a positive integer.
+ *
  * @param {unknown} value
  * @returns {number | null}
  */
@@ -367,7 +369,7 @@ async function main(config = {}) {
       if (!pullNumber) {
         const awContext = typeof context !== "undefined" ? parseAwContext(context.payload?.inputs?.aw_context) : null;
         const awItemType = typeof awContext?.item_type === "string" ? awContext.item_type.trim() : "";
-        const awItemNumber = parsePositiveInteger(awContext?.item_number);
+        const awItemNumber = awContext?.item_number ?? null;
         if (awItemType === "pull_request" && awItemNumber !== null) {
           pullNumber = awItemNumber;
           core.info(`Resolved triggering pull request number '${pullNumber}' from aw_context.`);
