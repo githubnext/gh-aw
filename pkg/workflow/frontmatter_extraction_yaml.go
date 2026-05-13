@@ -338,9 +338,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
-		// Check if we're entering skip-author-association object
+		// Check if we're entering skip-author-associations object
 		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipAuthorAssociation {
-			if strings.HasPrefix(trimmedLine, "skip-author-association:") && trimmedLine == "skip-author-association:" {
+			if strings.HasPrefix(trimmedLine, "skip-author-associations:") && trimmedLine == "skip-author-associations:" {
 				inSkipAuthorAssociation = true
 			}
 		}
@@ -393,10 +393,10 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
-		// Check if we're leaving skip-author-association object (encountering another top-level field)
+		// Check if we're leaving skip-author-associations object (encountering another top-level field)
 		if inSkipAuthorAssociation && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "skip-author-association:") &&
-			!strings.HasPrefix(trimmedLine, "# skip-author-association:") {
+			!strings.HasPrefix(trimmedLine, "skip-author-associations:") &&
+			!strings.HasPrefix(trimmedLine, "# skip-author-associations:") {
 			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 			if currentIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
 				inSkipAuthorAssociation = false
@@ -534,9 +534,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				// Comment out nested fields and list items in skip-if-check-failing object
 				shouldComment = true
 				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "skip-author-association:") {
+			} else if strings.HasPrefix(trimmedLine, "skip-author-associations:") {
 				shouldComment = true
-				commentReason = " # Skip-author-association compiled into pre-activation job if condition"
+				commentReason = " # Skip-author-associations compiled into pre-activation job if condition"
 			} else if inSkipAuthorAssociation && lineIndent > 2 {
 				shouldComment = true
 				commentReason = ""

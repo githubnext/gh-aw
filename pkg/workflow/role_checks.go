@@ -568,9 +568,9 @@ func (c *Compiler) extractSkipBots(frontmatter map[string]any) []string {
 	return extractSkipField(frontmatter, "skip-bots")
 }
 
-// extractSkipAuthorAssociation extracts the 'skip-author-association' field from the 'on:' section.
+// extractSkipAuthorAssociations extracts the 'skip-author-associations' field from the 'on:' section.
 // The field is an object keyed by event name with values as a string or string array.
-func (c *Compiler) extractSkipAuthorAssociation(frontmatter map[string]any) map[string][]string {
+func (c *Compiler) extractSkipAuthorAssociations(frontmatter map[string]any) map[string][]string {
 	onValue, exists := frontmatter["on"]
 	if !exists || onValue == nil {
 		return nil
@@ -581,7 +581,7 @@ func (c *Compiler) extractSkipAuthorAssociation(frontmatter map[string]any) map[
 		return nil
 	}
 
-	rawValue, exists := onMap["skip-author-association"]
+	rawValue, exists := onMap["skip-author-associations"]
 	if !exists || rawValue == nil {
 		return nil
 	}
@@ -593,11 +593,21 @@ func (c *Compiler) extractSkipAuthorAssociation(frontmatter map[string]any) map[
 
 	result := make(map[string][]string)
 	for eventName, associationsValue := range rawMap {
-		associations := parseOptionalStringSliceField(associationsValue, fmt.Sprintf("on.skip-author-association.%s", eventName))
+		associations := parseOptionalStringSliceField(associationsValue, fmt.Sprintf("on.skip-author-associations.%s", eventName))
 		if len(associations) == 0 {
 			continue
 		}
-		result[eventName] = sliceutil.Deduplicate(associations)
+		normalizedAssociations := make([]string, 0, len(associations))
+		for _, association := range associations {
+			normalized := strings.ToUpper(strings.TrimSpace(association))
+			if normalized != "" {
+				normalizedAssociations = append(normalizedAssociations, normalized)
+			}
+		}
+		if len(normalizedAssociations) == 0 {
+			continue
+		}
+		result[eventName] = sliceutil.Deduplicate(normalizedAssociations)
 	}
 
 	if len(result) == 0 {

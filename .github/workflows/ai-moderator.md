@@ -11,6 +11,10 @@ on:
   pull_request:
     types: [opened]
     forks: "*"
+  skip-author-associations:
+    issue_comment: [owner, member, collaborator]
+    pull_request: [owner, member, collaborator]
+    issues: [owner, member, collaborator]
   skip-roles: [admin, maintainer, write, triage]
   skip-bots: [github-actions, copilot, dependabot, renovate, github-copilot-enterprise, copilot-swe-agent]
 user-rate-limit:

@@ -104,6 +104,20 @@ user-rate-limit:
 
 See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full options.
 
+### Pre-Activation Association Skips
+
+For maintainer-operated moderation and triage workflows, you can skip runs early for specific event/author-association combinations using `on.skip-author-associations`:
+
+```aw wrap
+on:
+  issue_comment:
+    types: [created]
+  skip-author-associations:
+    issue_comment: [owner, member, collaborator]
+```
+
+This compiles into a pre-activation job-level `if` guard (using `github.event.author_association`), so matching runs are skipped before agent execution starts.
+
 ### Concurrency Controls
 
 Workflows automatically use dual concurrency control (per-workflow and per-engine). For repo-assist, you may want higher concurrency so multiple issues are triaged in parallel rather than queued:

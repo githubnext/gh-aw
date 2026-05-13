@@ -360,8 +360,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// The activated output is unconditionally true; the user controls
 		// agent execution through their own if: condition referencing the
 		// on.steps outputs (e.g., needs.pre_activation.outputs.gate_result).
-		if len(data.OnSteps) > 0 || len(data.OnNeeds) > 0 {
-			compilerActivationJobsLog.Printf("Pre-activation created with no checks (on.steps=%d, on.needs=%d); activated output is unconditionally true", len(data.OnSteps), len(data.OnNeeds))
+		if len(data.OnSteps) > 0 || len(data.OnNeeds) > 0 || len(data.SkipAuthorAssociations) > 0 {
+			compilerActivationJobsLog.Printf(
+				"Pre-activation created with no output checks (on.steps=%d, on.needs=%d, skip-author-associations=%d); activated output is unconditionally true",
+				len(data.OnSteps), len(data.OnNeeds), len(data.SkipAuthorAssociations),
+			)
 			activatedNode = BuildStringLiteral("true")
 		} else {
 			// This should never happen - it means pre-activation job was created without any checks
@@ -470,11 +473,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		}
 	}
 
-	// Add optional skip-author-association event guards as a job-level if condition.
+	// Add optional skip-author-associations event guards as a job-level if condition.
 	// This compiles to a static expression so skipped runs exit early without pre-activation
 	// script execution cost for matching event/association combinations.
-	if len(data.SkipAuthorAssociation) > 0 {
-		skipAuthorAssocCondition := RenderCondition(buildSkipAuthorAssociationCondition(data.SkipAuthorAssociation))
+	if len(data.SkipAuthorAssociations) > 0 {
+		skipAuthorAssocCondition := RenderCondition(buildSkipAuthorAssociationsCondition(data.SkipAuthorAssociations))
 		if jobIfCondition != "" {
 			jobIfCondition = RenderCondition(BuildAnd(
 				&ExpressionNode{Expression: skipAuthorAssocCondition},
@@ -608,12 +611,12 @@ func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
 	return result
 }
 
-// buildSkipAuthorAssociationCondition returns a condition that evaluates to true when the
+// buildSkipAuthorAssociationsCondition returns a condition that evaluates to true when the
 // workflow should continue, and false when the run should be skipped based on:
-// on.skip-author-association.<event> containing github.event.author_association.
-func buildSkipAuthorAssociationCondition(skipAuthorAssociation map[string][]string) ConditionNode {
+// on.skip-author-associations.<event> containing github.event.author_association.
+func buildSkipAuthorAssociationsCondition(skipAuthorAssociations map[string][]string) ConditionNode {
 	var eventNames []string
-	for eventName, associations := range skipAuthorAssociation {
+	for eventName, associations := range skipAuthorAssociations {
 		if len(associations) > 0 {
 			eventNames = append(eventNames, eventName)
 		}
@@ -622,7 +625,7 @@ func buildSkipAuthorAssociationCondition(skipAuthorAssociation map[string][]stri
 
 	var skipTerms []ConditionNode
 	for _, eventName := range eventNames {
-		associations := skipAuthorAssociation[eventName]
+		associations := skipAuthorAssociations[eventName]
 		if len(associations) == 0 {
 			continue
 		}
