@@ -1399,6 +1399,24 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
+  // Enrich conclusion span with outcome evaluation fleet metrics when available.
+  // Written by the outcome-collector workflow's pre-agent step.
+  const outcomeSummary = readJSONIfExists("/tmp/gh-aw/outcome-summary.json");
+  if (outcomeSummary && typeof outcomeSummary.total_outcomes === "number" && outcomeSummary.total_outcomes > 0) {
+    attributes.push(buildAttr("gh-aw.outcome.total", outcomeSummary.total_outcomes));
+    attributes.push(buildAttr("gh-aw.outcome.accepted", outcomeSummary.accepted || 0));
+    attributes.push(buildAttr("gh-aw.outcome.rejected", outcomeSummary.rejected || 0));
+    attributes.push(buildAttr("gh-aw.outcome.pending", outcomeSummary.pending || 0));
+    attributes.push(buildAttr("gh-aw.outcome.ignored", outcomeSummary.ignored || 0));
+    attributes.push(buildAttr("gh-aw.outcome.runs_checked", outcomeSummary.runs_checked || 0));
+    if (typeof outcomeSummary.acceptance_rate === "number") {
+      attributes.push(buildAttr("gh-aw.outcome.acceptance_rate", outcomeSummary.acceptance_rate));
+    }
+    if (typeof outcomeSummary.waste_rate === "number") {
+      attributes.push(buildAttr("gh-aw.outcome.waste_rate", outcomeSummary.waste_rate));
+    }
+  }
+
   const resourceAttributes = buildGitHubActionsResourceAttributes({ repository, runId, eventName, ref, refName, headRef, sha, job, workflowRef, staged, runAttempt });
   // OpenTelemetry semantic convention for exceptions.  Each event has
   // name="exception" with "exception.type" and "exception.message" attributes,
