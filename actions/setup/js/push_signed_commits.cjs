@@ -393,17 +393,17 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     }
     core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
     return lastOid ?? shas[shas.length - 1];
-  } catch (graphqlError) {
-    if (graphqlError instanceof PushSignedCommitsUnsupportedShape) {
+  } catch (err) {
+    if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
-        `pushSignedCommits: refusing unsigned push for branch '${branch}': ${graphqlError.message}. ` +
+        `pushSignedCommits: refusing unsigned push for branch '${branch}': ${err.message}. ` +
         `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
         `submodule entries (mode 160000), or executable bits (mode 100755). ` +
         `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
         `or set push-signed-commits: false if the repository does not require signed commits.`
       );
     }
-    core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${graphqlError instanceof Error ? graphqlError.message : String(graphqlError)}`);
+    core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${err instanceof Error ? err.message : String(err)}`);
     await exec.exec("git", ["push", "origin", branch], {
       cwd,
       env: { ...process.env, ...(gitAuthEnv || {}) },
