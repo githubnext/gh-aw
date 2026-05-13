@@ -53,6 +53,16 @@ If you are running a version between 0.68.4 and 0.71.3, upgrading is strongly re
 
 For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+### Custom Go linters
+
+To build and test repository custom linters:
+
+- `go test ./pkg/linters/<linter-name>/...`
+- `go build ./cmd/linters`
+- `make golint-custom`
+
+`make golint-custom` builds `cmd/linters` and runs the custom analyzers against `./cmd/...` and `./pkg/...`.
+
 ## 🌍 Community Contributions
 
 <details>

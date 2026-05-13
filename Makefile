@@ -491,6 +491,17 @@ golint:
 		exit 1; \
 	fi
 
+# Run custom Go analysis linters (pkg/linters)
+# Builds and runs linters defined in cmd/linters against the full repository.
+# Override the large-function line limit with: make golint-custom MAX_LINES=80
+MAX_LINES ?= 60
+.PHONY: golint-custom
+golint-custom:
+	@echo "Building custom linters..."
+	@go build -o /tmp/gh-aw-linters ./cmd/linters
+	@echo "Running custom linters (largefunc max-lines=$(MAX_LINES))..."
+	@/tmp/gh-aw-linters -largefunc.max-lines=$(MAX_LINES) ./cmd/... ./pkg/...
+
 # Run incremental linter (only changed files since BASE_REF)
 # This provides 50-75% faster linting on PRs by only checking changed files
 # Configuration optimizations in .golangci.yml:

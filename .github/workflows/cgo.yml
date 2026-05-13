@@ -898,6 +898,12 @@ jobs:
     - name: Lint error messages
       run: make lint-errors
 
+      # Custom Go analysis linters (pkg/linters via cmd/linters multichecker)
+      # continue-on-error: the existing codebase has large functions; this step is informational
+    - name: Run custom linters
+      continue-on-error: true
+      run: make golint-custom
+
   actions-build:
     needs:
     - lint-gate
