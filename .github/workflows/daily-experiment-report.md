@@ -41,6 +41,8 @@ timeout-minutes: 30
 features:
   copilot-requests: true
 
+firewall:
+  effective-token-steering: true
 ---
 
 # Daily Experiment Report

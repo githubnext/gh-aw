@@ -1215,6 +1215,48 @@ func TestAWFSupportsDockerHostPathPrefix(t *testing.T) {
 	}
 }
 
+// TestAWFSupportsTokenSteering tests the awfSupportsTokenSteering version gate.
+func TestAWFSupportsTokenSteering(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config returns true (uses default version)",
+			firewallConfig: nil,
+			want:           true,
+		},
+		{
+			name:           "empty version returns true (uses default version)",
+			firewallConfig: &FirewallConfig{},
+			want:           true,
+		},
+		{
+			name:           "latest returns true",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.44 supports token steering (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.25.44"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.43 does not support token steering",
+			firewallConfig: &FirewallConfig{Version: "v0.25.43"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsTokenSteering(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsTokenSteering result")
+		})
+	}
+}
+
 // TestGetGeminiAPITarget tests the GetGeminiAPITarget helper that resolves the effective
 // Gemini API target from GEMINI_API_BASE_URL in engine.env or the default endpoint.
 func TestGetGeminiAPITarget(t *testing.T) {

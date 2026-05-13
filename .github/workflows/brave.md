@@ -26,6 +26,8 @@ safe-outputs:
 timeout-minutes: 10
 features:
   copilot-requests: true
+firewall:
+  effective-token-steering: true
 
 tools:
   cli-proxy: true

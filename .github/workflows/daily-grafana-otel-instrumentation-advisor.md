@@ -43,6 +43,8 @@ imports:
 
   - shared/otel-queries.md
   - shared/observability-otlp.md
+firewall:
+  effective-token-steering: true
 ---
 
 # Daily Grafana OTel Instrumentation Advisor

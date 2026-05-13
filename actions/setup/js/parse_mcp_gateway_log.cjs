@@ -253,6 +253,57 @@ function parseGatewayJsonlForDifcFiltered(jsonlContent) {
 }
 
 /**
+ * Parses gateway.jsonl content and extracts token steering events emitted by
+ * the AWF API proxy.
+ * @param {string} jsonlContent
+ * @returns {Array<Object>}
+ */
+function parseGatewayJsonlForTokenSteering(jsonlContent) {
+  const steeringEvents = [];
+  const lines = jsonlContent.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.includes("token_steering")) continue;
+    try {
+      const entry = JSON.parse(trimmed);
+      const eventName = typeof entry?.event === "string" ? entry.event : typeof entry?.type === "string" ? entry.type : "";
+      if (eventName === "token_steering") {
+        steeringEvents.push(entry);
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return steeringEvents;
+}
+
+/**
+ * Generates a markdown summary section for gateway token steering events.
+ * @param {Array<Object>} steeringEvents
+ * @returns {string}
+ */
+function generateTokenSteeringSummary(steeringEvents) {
+  if (!steeringEvents || steeringEvents.length === 0) return "";
+
+  const lines = [];
+  lines.push("<details>");
+  lines.push(`<summary>⚠️ Token Steering Events (${steeringEvents.length})</summary>\n`);
+  lines.push("");
+  lines.push("The firewall API proxy injected effective-token budget warnings into upstream requests.\n");
+  lines.push("");
+  lines.push("| Time | Provider | Request ID | Message |");
+  lines.push("|------|----------|------------|---------|");
+
+  for (const event of steeringEvents) {
+    lines.push(buildRpcSummaryRow([formatRpcMessageTime(event.timestamp), event.provider || "-", event.request_id || "-", event.message || "-"]));
+  }
+
+  lines.push("");
+  lines.push("</details>\n");
+  return lines.join("\n");
+}
+
+/**
  * Generates a markdown summary section for DIFC_FILTERED events
  * @param {Array<Object>} filteredEvents - Array of DIFC_FILTERED event objects
  * @returns {string} Markdown section, or empty string if no events
@@ -643,25 +694,34 @@ async function main() {
     // Parse DIFC_FILTERED events from gateway.jsonl (preferred) or rpc-messages.jsonl (fallback).
     // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
     let difcFilteredEvents = [];
+    let tokenSteeringEvents = [];
     let rpcMessagesContent = null;
     if (fs.existsSync(gatewayJsonlPath)) {
       const jsonlContent = fs.readFileSync(gatewayJsonlPath, "utf8");
       core.info(`Found gateway.jsonl (${jsonlContent.length} bytes)`);
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      tokenSteeringEvents = parseGatewayJsonlForTokenSteering(jsonlContent);
       effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([jsonlContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
+      }
+      if (tokenSteeringEvents.length > 0) {
+        core.info(`Found ${tokenSteeringEvents.length} token_steering event(s) in gateway.jsonl`);
       }
     } else if (fs.existsSync(rpcMessagesPath)) {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
       core.info(`Found rpc-messages.jsonl (${rpcMessagesContent.length} bytes)`);
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
+      tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
       effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([rpcMessagesContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
+      if (tokenSteeringEvents.length > 0) {
+        core.info(`Found ${tokenSteeringEvents.length} token_steering event(s) in rpc-messages.jsonl`);
+      }
     } else {
-      core.info(`No gateway.jsonl or rpc-messages.jsonl found for DIFC_FILTERED scanning`);
+      core.info(`No gateway.jsonl or rpc-messages.jsonl found for steering or DIFC_FILTERED scanning`);
     }
 
     // Try to read gateway.md if it exists (preferred for general gateway summary)
@@ -674,7 +734,12 @@ async function main() {
         // Write the markdown directly to the step summary
         core.summary.addRaw(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
 
-        // Append DIFC_FILTERED section if any events found
+        // Append any proxy-side steering or DIFC_FILTERED sections after the gateway summary
+        if (tokenSteeringEvents.length > 0) {
+          const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
+          core.summary.addRaw(steeringSummary);
+        }
+
         if (difcFilteredEvents.length > 0) {
           const difcSummary = generateDifcFilteredSummary(difcFilteredEvents);
           core.summary.addRaw(difcSummary);
@@ -700,6 +765,9 @@ async function main() {
         const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents);
         if (rpcSummary.length > 0) {
           core.summary.addRaw(rpcSummary);
+        }
+        if (tokenSteeringEvents.length > 0) {
+          core.summary.addRaw(generateTokenSteeringSummary(tokenSteeringEvents));
         }
       } else {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
@@ -732,7 +800,7 @@ async function main() {
     }
 
     // If no legacy log content and no DIFC events, check if token usage is available
-    if ((!gatewayLogContent || gatewayLogContent.trim().length === 0) && (!stderrLogContent || stderrLogContent.trim().length === 0) && difcFilteredEvents.length === 0) {
+    if ((!gatewayLogContent || gatewayLogContent.trim().length === 0) && (!stderrLogContent || stderrLogContent.trim().length === 0) && difcFilteredEvents.length === 0 && tokenSteeringEvents.length === 0) {
       core.info("MCP gateway log files are empty or missing");
       setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
       writeStepSummaryWithTokenUsage(core);
@@ -747,8 +815,9 @@ async function main() {
 
     // Generate step summary: legacy logs + DIFC filtered section
     const legacySummary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
+    const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
     const difcSummary = generateDifcFilteredSummary(difcFilteredEvents);
-    const fullSummary = [legacySummary, difcSummary].filter(s => s.length > 0).join("\n");
+    const fullSummary = [legacySummary, steeringSummary, difcSummary].filter(s => s.length > 0).join("\n");
 
     if (fullSummary.length > 0) {
       core.summary.addRaw(fullSummary);
@@ -870,7 +939,9 @@ if (typeof module !== "undefined" && module.exports) {
     generatePlainTextGatewaySummary,
     generatePlainTextLegacySummary,
     parseGatewayJsonlForDifcFiltered,
+    parseGatewayJsonlForTokenSteering,
     generateDifcFilteredSummary,
+    generateTokenSteeringSummary,
     parseRpcMessagesJsonl,
     getRpcRequestLabel,
     generateRpcMessagesSummary,

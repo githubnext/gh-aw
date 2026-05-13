@@ -60,6 +60,8 @@ safe-outputs:
 imports:
   - shared/observability-otlp.md
   - shared/mcp/mempalace.md
+firewall:
+  effective-token-steering: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

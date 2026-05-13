@@ -361,6 +361,34 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpr
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_FirewallEffectiveTokenSteering(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on": "push",
+		"firewall": map[string]any{
+			"effective-token-steering": true,
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/firewall-effective-token-steering-valid-test.md")
+	if err != nil {
+		t.Fatalf("expected firewall.effective-token-steering to pass schema validation, got: %v", err)
+	}
+
+	invalidFrontmatter := map[string]any{
+		"on": "push",
+		"firewall": map[string]any{
+			"unexpected": true,
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/firewall-effective-token-steering-invalid-test.md")
+	if err == nil {
+		t.Fatal("expected unknown firewall field to fail schema validation")
+	}
+}
+
 func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {
 	t.Parallel()
 

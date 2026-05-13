@@ -1440,7 +1440,20 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   const spanEvents = buildSpanEvents(endMs);
 
-  const agentStartMs = options.startMs;
+  // Prefer the timestamp written at the very beginning of the Execute Agent CLI step
+  // (captures true step start on the host, before the AWF container launches) so the
+  // dedicated agent span excludes pre-agent overhead such as workspace audit and CLI
+  // proxy startup. Fall back to options.startMs (end of setup step) when the file is
+  // absent — e.g. on older compiled workflows or during local development.
+  const agentStartMs = (() => {
+    try {
+      const raw = fs.readFileSync("/tmp/gh-aw/agent_cli_start_ms.txt", "utf8").trim();
+      const ms = Number(raw);
+      return Number.isFinite(ms) && ms > 0 ? ms : options.startMs;
+    } catch {
+      return options.startMs;
+    }
+  })();
   let agentEndMs = null;
   try {
     agentEndMs = fs.statSync("/tmp/gh-aw/agent_output.json").mtimeMs;
