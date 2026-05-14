@@ -70,6 +70,20 @@ jobs:
         run: echo "${{ job.services['redis'].ports['6379'] }}"
 `
 
+	heredocExpressionYAML := `
+name: heredoc-expression
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Heredoc expression is file content
+        run: |
+          cat > config.txt << 'EOF'
+          token=${{ github.token }}
+          EOF
+`
+
 	tmpDir := testutil.TempDir(t, "template-injection-test")
 	markdownPath := filepath.Join(tmpDir, "test.md")
 	lockFile := stringutil.MarkdownToLockFile(markdownPath)
@@ -129,6 +143,16 @@ jobs:
 	t.Run("Path B - schema disabled - allowed generated run expression passes", func(t *testing.T) {
 		err := compiler.validateTemplateInjection(allowedGeneratedExpressionYAML, lockFile, markdownPath, nil)
 		assert.NoError(t, err, "compiler-owned job.services expression should be allowed")
+	})
+
+	t.Run("Path A - schema enabled - heredoc expression passes", func(t *testing.T) {
+		err := compiler.validateTemplateInjection(heredocExpressionYAML, lockFile, markdownPath, parseYAML(t, heredocExpressionYAML))
+		assert.NoError(t, err, "expressions inside heredoc content should not be flagged")
+	})
+
+	t.Run("Path B - schema disabled - heredoc expression passes", func(t *testing.T) {
+		err := compiler.validateTemplateInjection(heredocExpressionYAML, lockFile, markdownPath, nil)
+		assert.NoError(t, err, "expressions inside heredoc content should not be flagged")
 	})
 
 	t.Run("both paths agree on unsafe YAML", func(t *testing.T) {

@@ -223,12 +223,15 @@ func validateNoGitHubExpressionsInRunScriptsFromParsed(workflow map[string]any) 
 	var violations []TemplateInjectionViolation
 
 	for _, runContent := range runBlocks {
-		expressions := inlineExpressionRegex.FindAllString(runContent, -1)
+		// Align with template-injection validation: heredoc bodies are written to files
+		// and are not executed as shell commands, so they are excluded from scanning.
+		contentWithoutHeredocs := removeHeredocContent(runContent)
+		expressions := inlineExpressionRegex.FindAllString(contentWithoutHeredocs, -1)
 		for _, expr := range expressions {
 			if allowedRunScriptExpressionRegex.MatchString(expr) {
 				continue
 			}
-			snippet := extractRunSnippet(runContent, expr)
+			snippet := extractRunSnippet(contentWithoutHeredocs, expr)
 			violations = append(violations, TemplateInjectionViolation{
 				Expression: expr,
 				Snippet:    snippet,
