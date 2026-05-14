@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var frontmatterHashEnvRegex = regexp.MustCompile(`(?m)^\s*GH_AW_INFO_FRONTMATTER_HASH:\s*"([^"]+)"\s*$`)
+var ghAwInfoFrontmatterHashPattern = regexp.MustCompile(`(?m)^\s*GH_AW_INFO_FRONTMATTER_HASH:\s*"([^"]+)"\s*$`)
 
 func TestAwInfoTmpPath(t *testing.T) {
 	// Create temporary directory for test files
@@ -115,7 +115,7 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 	t.Logf("Successfully verified aw_info.json is generated in /tmp/gh-aw directory")
 }
 
-func TestAwInfoFrontmatterHashMatchesLockMetadataAndSource(t *testing.T) {
+func TestFrontmatterHashParity(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "aw-info-frontmatter-hash-test")
 	testContent := `---
 on: push
@@ -150,7 +150,7 @@ strict: false
 	require.NotNil(t, metadata)
 	require.NotEmpty(t, metadata.FrontmatterHash)
 
-	matches := frontmatterHashEnvRegex.FindStringSubmatch(lockStr)
+	matches := ghAwInfoFrontmatterHashPattern.FindStringSubmatch(lockStr)
 	require.Len(t, matches, 2, "expected GH_AW_INFO_FRONTMATTER_HASH env var in lock file")
 	envFrontmatterHash := matches[1]
 
