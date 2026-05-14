@@ -127,6 +127,23 @@ engine: copilot
 	require.NoError(t, err)
 	assert.Empty(t, manifestPath)
 
-	_, err = CompileWorkflows(context.Background(), CompileConfig{})
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_, err = CompileWorkflows(context.Background(), CompileConfig{JSONOutput: true})
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	output, readErr := io.ReadAll(r)
+	require.NoError(t, readErr)
 	require.NoError(t, err)
+
+	var results []ValidationResult
+	require.NoError(t, json.Unmarshal(output, &results), "output: %s", string(output))
+	require.Len(t, results, 1)
+	assert.Equal(t, "test.md", results[0].Workflow)
+	assert.Empty(t, results[0].Warnings)
+	assert.Empty(t, results[0].Errors)
 }
