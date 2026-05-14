@@ -328,4 +328,72 @@ describe("effective_tokens", () => {
       expect(formatET(5_000_000)).toBe("5M");
     });
   });
+
+  describe("buildETComputationTable", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
+
+    beforeEach(() => {
+      _resetCache();
+      delete process.env.GH_AW_MODEL_MULTIPLIERS;
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-table-test-"));
+    });
+
+    afterEach(() => {
+      _resetCache();
+      delete process.env.GH_AW_MODEL_MULTIPLIERS;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it("shows weights-only table when no tokenUsageMarkdown and agent_usage.json is absent", () => {
+      const { buildETComputationTable, AGENT_USAGE_PATH } = require("./effective_tokens.cjs");
+      // Ensure agent_usage.json does not exist
+      if (fs.existsSync(AGENT_USAGE_PATH)) fs.unlinkSync(AGENT_USAGE_PATH);
+      const result = buildETComputationTable("10000000");
+      expect(result).toContain("<details>");
+      expect(result).toContain("</details>");
+      expect(result).toContain("ET computation details");
+      expect(result).toContain("Input");
+      expect(result).toContain("Output");
+      expect(result).toContain("| Token class | Weight |");
+      expect(result).not.toContain("| Token class | Count | Weight | Weighted tokens |");
+    });
+
+    it("shows aggregated weighted table when agent_usage.json is present and no tokenUsageMarkdown", () => {
+      const { buildETComputationTable, AGENT_USAGE_PATH } = require("./effective_tokens.cjs");
+      const origContent = fs.existsSync(AGENT_USAGE_PATH) ? fs.readFileSync(AGENT_USAGE_PATH, "utf8") : null;
+      const usage = { input_tokens: 100000, output_tokens: 10000, cache_read_tokens: 500000, cache_write_tokens: 5000, effective_tokens: 200000 };
+      fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+      fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(usage));
+      try {
+        const result = buildETComputationTable("200000");
+        expect(result).toContain("100,000");
+        expect(result).toContain("10,000");
+        expect(result).toContain("500,000");
+        expect(result).toContain("5,000");
+        expect(result).toContain("Base weighted");
+      } finally {
+        if (origContent !== null) {
+          fs.writeFileSync(AGENT_USAGE_PATH, origContent);
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      }
+    });
+
+    it("uses tokenUsageMarkdown directly when provided, ignoring agent_usage.json", () => {
+      const { buildETComputationTable } = require("./effective_tokens.cjs");
+      const mockTable = "| Model | Input |\n|-------|------:|\n| claude-sonnet-4.5 | 100,000 |";
+      const result = buildETComputationTable("200000", mockTable);
+      expect(result).toContain("<details>");
+      expect(result).toContain("ET computation details");
+      expect(result).toContain("claude-sonnet-4.5");
+      expect(result).toContain("100,000");
+      // Should not include the fallback aggregated table headers
+      expect(result).not.toContain("Token class");
+      expect(result).not.toContain("Weighted tokens");
+    });
+  });
 });
