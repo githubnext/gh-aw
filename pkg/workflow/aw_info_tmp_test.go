@@ -5,12 +5,15 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAwInfoTmpPath(t *testing.T) {
@@ -108,4 +111,51 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 	}
 
 	t.Logf("Successfully verified aw_info.json is generated in /tmp/gh-aw directory")
+}
+
+func TestAwInfoFrontmatterHashMatchesLockMetadataAndSource(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "aw-info-frontmatter-hash-test")
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+tools:
+  github:
+    allowed: [list_issues]
+source: github/gh-aw/.github/workflows/test-aw-info-frontmatter.md@main
+engine: claude
+strict: false
+---
+
+# Test frontmatter hash parity
+`
+
+	testFile := filepath.Join(tmpDir, "test-aw-info-frontmatter.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	metadata, _, err := ExtractMetadataFromLockFile(lockStr)
+	require.NoError(t, err)
+	require.NotNil(t, metadata)
+	require.NotEmpty(t, metadata.FrontmatterHash)
+
+	re := regexp.MustCompile(`(?m)^\s*GH_AW_INFO_FRONTMATTER_HASH:\s*"([^"]+)"\s*$`)
+	matches := re.FindStringSubmatch(lockStr)
+	require.Len(t, matches, 2, "expected GH_AW_INFO_FRONTMATTER_HASH env var in lock file")
+	envFrontmatterHash := matches[1]
+
+	expectedHash, err := parser.ComputeFrontmatterHashFromFile(testFile, parser.NewImportCache(tmpDir))
+	require.NoError(t, err)
+
+	require.Equal(t, metadata.FrontmatterHash, envFrontmatterHash, "setup env hash must match lock header metadata hash")
+	require.Equal(t, expectedHash, metadata.FrontmatterHash, "lock header hash must match computed source frontmatter hash")
 }
