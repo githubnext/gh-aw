@@ -329,6 +329,6 @@ func isRepositoryPackageManifestNotFound(err error) bool {
 }
 
 func isSupportedManifestMinVersion(version string) bool {
-	const manifestMinVersionDotCount = 2
-	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == manifestMinVersionDotCount
+	const expectedManifestMinVersionDotCount = 2
+	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
 }

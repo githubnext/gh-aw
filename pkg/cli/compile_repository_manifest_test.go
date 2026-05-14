@@ -170,7 +170,8 @@ engine: copilot
 
 # Test
 `), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`name: Repo Assist
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`manifest-version: "1"
+name: Repo Assist
 `), 0o644))
 
 	_, err = CompileWorkflows(context.Background(), CompileConfig{})
