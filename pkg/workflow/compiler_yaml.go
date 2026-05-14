@@ -835,9 +835,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	if data.FrontmatterEmoji != "" {
 		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_EMOJI: %q\n", data.FrontmatterEmoji)
 	}
-	if data.FrontmatterHash != "" {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_HASH: %q\n", data.FrontmatterHash)
-	}
 	// Always include strict mode flag for lockdown validation.
 	// validateLockdownRequirements uses this to enforce strict: true for public repositories.
 	// Use effectiveStrictMode to infer strictness from the source (frontmatter), not just the CLI flag.

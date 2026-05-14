@@ -85,11 +85,6 @@ async function main(core, ctx) {
     awInfo.frontmatter_source = frontmatterSource;
   }
 
-  const frontmatterHash = process.env.GH_AW_INFO_FRONTMATTER_HASH || "";
-  if (frontmatterHash) {
-    awInfo.frontmatter_hash = frontmatterHash;
-  }
-
   const frontmatterEmoji = process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
   if (frontmatterEmoji) {
     awInfo.frontmatter_emoji = frontmatterEmoji;

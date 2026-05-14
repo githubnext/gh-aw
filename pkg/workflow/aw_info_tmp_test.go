@@ -84,9 +84,6 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 	if !strings.Contains(lockStr, "GH_AW_INFO_ALLOWED_DOMAINS:") {
 		t.Error("Expected GH_AW_INFO_ALLOWED_DOMAINS env var to be set on the step")
 	}
-	if !strings.Contains(lockStr, "GH_AW_INFO_FRONTMATTER_HASH:") {
-		t.Error("Expected GH_AW_INFO_FRONTMATTER_HASH env var to be set on the step")
-	}
 	if !strings.Contains(lockStr, "GH_AW_INFO_BODY_MODIFIED: \"false\"") {
 		t.Error("Expected GH_AW_INFO_BODY_MODIFIED env var to default to false on the step")
 	}
