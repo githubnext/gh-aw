@@ -373,6 +373,144 @@ index 0000000..abc1234
     expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
   });
 
+  it("should fetch all prerequisite commits in a single origin fetch and retry bundle fetch", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha1 = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    const missingSha2 = "aabbccddee1122334455667788990011aabbccdd";
+    let firstBundleFetchAttempt = true;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
+        firstBundleFetchAttempt = false;
+        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha1}\nerror: ${missingSha2}`);
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha1, missingSha2]);
+    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCalls.length).toBe(2);
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+  });
+
+  it("should fail when fetching prerequisite commits from origin fails", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    let firstBundleFetchAttempt = true;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
+        firstBundleFetchAttempt = false;
+        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+      }
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === "origin" && args[2] === missingSha) {
+        throw new Error("fatal: couldn't connect to 'origin'");
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply bundle");
+    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Failed to apply bundle: fatal: couldn't connect to 'origin'"));
+    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCalls.length).toBe(1);
+  });
+
+  it("should include retry context when bundle fetch still fails after prerequisite recovery", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    let bundleFetchAttempts = 0;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath) {
+        bundleFetchAttempts += 1;
+        if (bundleFetchAttempts === 1) {
+          throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+        }
+        throw new Error("fatal: failed to read bundle");
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply bundle");
+    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Bundle fetch failed after fetching 1 prerequisite commit(s): fatal: failed to read bundle"));
+    expect(bundleFetchAttempts).toBe(2);
+  });
+
   it("should not fetch a bundle directly into the target branch", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(

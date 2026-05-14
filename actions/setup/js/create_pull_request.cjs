@@ -124,10 +124,12 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
       const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorMessage);
       if (prerequisiteCommits.length > 0) {
         core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-        for (const sha of prerequisiteCommits) {
-          await execApi.exec("git", ["fetch", "origin", sha]);
+        await execApi.exec("git", ["fetch", "origin", ...prerequisiteCommits]);
+        try {
+          await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
+        } catch (retryError) {
+          throw new Error(`Bundle fetch failed after fetching ${prerequisiteCommits.length} prerequisite commit(s): ${retryError instanceof Error ? retryError.message : String(retryError)}`, { cause: retryError });
         }
-        await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
       } else {
         // Fallback: resolve the source ref directly from the bundle contents.
         // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
