@@ -323,8 +323,9 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		}
 	} else {
 		// Path B: schema validation is disabled (parsedWorkflow is nil).
-		// Use the text scan to cheaply determine whether expressions appear
-		// inside a run: block before paying the cost of a full yaml.Unmarshal.
+		// Use the text scan to cheaply determine whether any expressions (safe or
+		// unsafe) appear inside a run: block before paying the cost of a full
+		// yaml.Unmarshal for layered security + regression validation.
 		if hasAnyExpressionInRunContent(yamlContent) {
 			log.Print("Validating for template injection vulnerabilities")
 			var reparsed map[string]any

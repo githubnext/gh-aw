@@ -66,6 +66,8 @@ var (
 
 // hasAnyExpressionInRunContent performs a fast line-by-line text scan to determine
 // whether any GitHub Actions expression (${{ ... }}) appears inside a YAML run: block.
+// Used by the compiler regression guardrail to detect expressions that should have
+// been rewritten to env variables.
 func hasAnyExpressionInRunContent(yamlContent string) bool {
 	return hasExpressionInRunContent(yamlContent, inlineExpressionRegex)
 }
@@ -208,7 +210,8 @@ func validateNoTemplateInjectionFromParsed(workflow map[string]any) error {
 //
 // This is a compiler regression guardrail: run: scripts in compiled lock files should
 // never contain ${{ ... }} directly because the compiler must rewrite expressions into
-// env: variables.
+// env: variables. It runs after validateNoTemplateInjectionFromParsed as a broader
+// catch-all for any remaining expression contexts.
 func validateNoGitHubExpressionsInRunScriptsFromParsed(workflow map[string]any) error {
 	runBlocks := extractRunBlocks(workflow)
 	templateInjectionValidationLog.Printf("Found %d run blocks to scan for raw expressions", len(runBlocks))
