@@ -193,11 +193,7 @@ describe("safe_output_validator.cjs", () => {
     });
 
     it("should filter labels based on allowed glob patterns", () => {
-      const result = validator.validateLabels(
-        ["team-backend", "priority-high", "area/ui", "bug"],
-        ["team-*", "priority-*", "area/*"],
-        10
-      );
+      const result = validator.validateLabels(["team-backend", "priority-high", "area/ui", "bug"], ["team-*", "priority-*", "area/*"], 10);
 
       expect(result.valid).toBe(true);
       expect(result.value).toHaveLength(3);
