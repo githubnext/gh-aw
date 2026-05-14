@@ -99,11 +99,26 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
+// isOTLPIfMissingIgnore reports whether an if-missing mode value enables
+// ignore behavior. Empty string represents an unset/default value and is treated
+// as non-ignore ("error" semantics).
+func isOTLPIfMissingIgnore(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "ignore":
+		return true
+	case "", "error", "warn":
+		return false
+	default:
+		// Unknown values are rejected by schema validation. Keep fail-closed behavior.
+		return false
+	}
+}
+
 // getOTLPIgnoreIfMissing returns true when observability.otlp.if-missing is set
 // to "ignore" (or deprecated observability.otlp.ignore-if-missing is true).
 func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]any) bool {
 	if config != nil && config.Observability != nil && config.Observability.OTLP != nil {
-		if strings.EqualFold(strings.TrimSpace(config.Observability.OTLP.IfMissing), "ignore") {
+		if isOTLPIfMissingIgnore(config.Observability.OTLP.IfMissing) {
 			return true
 		}
 		if config.Observability.OTLP.IgnoreIfMissing {
@@ -129,7 +144,7 @@ func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]an
 	if !ok {
 		return false
 	}
-	if v, ok := otlpMap["if-missing"].(string); ok && strings.EqualFold(strings.TrimSpace(v), "ignore") {
+	if v, ok := otlpMap["if-missing"].(string); ok && isOTLPIfMissingIgnore(v) {
 		return true
 	}
 	if v, ok := otlpMap["ignore-if-missing"].(bool); ok && v {

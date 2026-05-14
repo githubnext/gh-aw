@@ -170,6 +170,24 @@ func TestGetOTLPIgnoreIfMissing(t *testing.T) {
 		assert.True(t, got)
 	})
 
+	t.Run("returns false for parsed if-missing warn", func(t *testing.T) {
+		got := getOTLPIgnoreIfMissing(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{IfMissing: "warn"},
+			},
+		}, nil)
+		assert.False(t, got)
+	})
+
+	t.Run("returns false for parsed if-missing error", func(t *testing.T) {
+		got := getOTLPIgnoreIfMissing(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{IfMissing: "error"},
+			},
+		}, nil)
+		assert.False(t, got)
+	})
+
 	t.Run("falls back to raw frontmatter if-missing value", func(t *testing.T) {
 		got := getOTLPIgnoreIfMissing(nil, map[string]any{
 			"observability": map[string]any{
@@ -247,7 +265,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(t, wd.Env, "COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/copilot-otel.jsonl", "should configure Copilot OTEL file exporter path")
 	})
 
-	t.Run("injects ignore-if-missing env var when if-missing is ignore", func(t *testing.T) {
+	t.Run("injects ignore-if-missing env var when if-missing is set to ignore", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
 			ParsedFrontmatter: &FrontmatterConfig{
