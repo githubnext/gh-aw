@@ -151,6 +151,77 @@ func TestGetOTLPEndpointEnvValue(t *testing.T) {
 	}
 }
 
+func TestGetOTLPIfMissingMode(t *testing.T) {
+	t.Run("uses parsed frontmatter value", func(t *testing.T) {
+		got := getOTLPIfMissingMode(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{IfMissing: "ignore"},
+			},
+		}, nil)
+		assert.Equal(t, "ignore", got)
+	})
+
+	t.Run("returns warn for parsed if-missing warn", func(t *testing.T) {
+		got := getOTLPIfMissingMode(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{IfMissing: "warn"},
+			},
+		}, nil)
+		assert.Equal(t, "warn", got)
+	})
+
+	t.Run("returns error for parsed if-missing error", func(t *testing.T) {
+		got := getOTLPIfMissingMode(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{IfMissing: "error"},
+			},
+		}, nil)
+		assert.Equal(t, "error", got)
+	})
+
+	t.Run("falls back to raw frontmatter if-missing value", func(t *testing.T) {
+		got := getOTLPIfMissingMode(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"if-missing": "ignore",
+				},
+			},
+		})
+		assert.Equal(t, "ignore", got)
+	})
+
+	t.Run("falls back to raw frontmatter warn value", func(t *testing.T) {
+		got := getOTLPIfMissingMode(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"if-missing": "warn",
+				},
+			},
+		})
+		assert.Equal(t, "warn", got)
+	})
+
+	t.Run("returns empty for invalid raw frontmatter value", func(t *testing.T) {
+		got := getOTLPIfMissingMode(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"if-missing": "ignor",
+				},
+			},
+		})
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns empty when unset", func(t *testing.T) {
+		got := getOTLPIfMissingMode(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{},
+			},
+		})
+		assert.Empty(t, got)
+	})
+}
+
 // TestInjectOTLPConfig verifies that injectOTLPConfig correctly modifies WorkflowData.
 func TestInjectOTLPConfig(t *testing.T) {
 	newCompiler := func() *Compiler { return &Compiler{} }
@@ -194,6 +265,40 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}", "should contain endpoint var")
 		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "should contain service name")
 		assert.Contains(t, wd.Env, "COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/copilot-otel.jsonl", "should configure Copilot OTEL file exporter path")
+	})
+
+	t.Run("injects if-missing env var when if-missing is set to ignore", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint:  "${{ secrets.OTLP_ENDPOINT }}",
+						IfMissing: "ignore",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		require.NotEmpty(t, wd.Env)
+		assert.Contains(t, wd.Env, "GH_AW_OTLP_IF_MISSING: ignore")
+	})
+
+	t.Run("injects if-missing env var when if-missing is set to warn", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint:  "${{ secrets.OTLP_ENDPOINT }}",
+						IfMissing: "warn",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		require.NotEmpty(t, wd.Env)
+		assert.Contains(t, wd.Env, "GH_AW_OTLP_IF_MISSING: warn")
 	})
 
 	t.Run("adds domain to new NetworkPermissions and injects env vars for static URL", func(t *testing.T) {

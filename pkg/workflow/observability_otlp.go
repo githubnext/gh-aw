@@ -99,6 +99,57 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
+// normalizeOTLPIfMissingMode returns a validated if-missing mode.
+// Empty string means "unset/default (error)".
+func normalizeOTLPIfMissingMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "":
+		return ""
+	case "error", "warn", "ignore":
+		return strings.ToLower(strings.TrimSpace(mode))
+	default:
+		return ""
+	}
+}
+
+// getOTLPIfMissingMode returns observability.otlp.if-missing mode.
+// Returns empty string when unset or invalid.
+func getOTLPIfMissingMode(config *FrontmatterConfig, frontmatter map[string]any) string {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil {
+		if mode := normalizeOTLPIfMissingMode(config.Observability.OTLP.IfMissing); mode != "" {
+			return mode
+		}
+	}
+	if frontmatter == nil {
+		return ""
+	}
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return ""
+	}
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	otlpAny, ok := obsMap["otlp"]
+	if !ok {
+		return ""
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	if v, ok := otlpMap["if-missing"].(string); ok {
+		if mode := normalizeOTLPIfMissingMode(v); mode != "" {
+			return mode
+		}
+		if strings.TrimSpace(v) != "" {
+			otlpLog.Printf("Ignoring invalid observability.otlp.if-missing value %q (expected one of: error, warn, ignore)", v)
+		}
+	}
+	return ""
+}
+
 // isOTLPHeadersPresent returns true when OTEL_EXPORTER_OTLP_HEADERS or
 // GH_AW_OTLP_ALL_HEADERS has been injected into the workflow-level env block.
 // This indicates that header masking is needed so that authentication tokens in
@@ -349,6 +400,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 
 	firstEndpoint := entries[0].URL
 	firstHeaders := entries[0].Headers
+	ifMissingMode := getOTLPIfMissingMode(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
 
 	// 2. Inject OTEL env vars into the workflow-level env: block.
 	//    OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME are set to the first
@@ -375,6 +427,10 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		escapedEncoded := strings.ReplaceAll(encoded, "'", "''")
 		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
+	}
+	if ifMissingMode == "warn" || ifMissingMode == "ignore" {
+		otlpEnvLines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
+		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
 	}
 
 	if workflowData.Env == "" {

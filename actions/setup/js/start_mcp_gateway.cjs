@@ -65,6 +65,95 @@ function sleep(ms) {
 }
 
 /**
+ * Normalizes GH_AW_OTLP_IF_MISSING to a supported mode.
+ * @param {string | undefined} value
+ * @returns {"error" | "warn" | "ignore"}
+ */
+function getOTLPIfMissingMode(value) {
+  const normalized = (value || "").trim().toLowerCase();
+  if (normalized === "warn" || normalized === "ignore") {
+    return normalized;
+  }
+  return "error";
+}
+
+/**
+ * Returns true when GH_AW_OTLP_IF_MISSING is set to "ignore".
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function isOTLPIfMissingIgnore(value) {
+  return getOTLPIfMissingMode(value) === "ignore";
+}
+
+/**
+ * Returns true when OTLP headers contain at least one non-empty value.
+ * NOTE: Unexpected primitive values are treated as non-empty so they are
+ * preserved for downstream validation/error handling.
+ * @param {unknown} headers
+ * @returns {boolean}
+ */
+function hasNonEmptyOTLPHeaders(headers) {
+  if (headers == null) {
+    return false;
+  }
+  if (typeof headers === "string") {
+    return headers.trim() !== "";
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(item => hasNonEmptyOTLPHeaders(item));
+  }
+  if (typeof headers === "object") {
+    return Object.values(headers).some(value => hasNonEmptyOTLPHeaders(value));
+  }
+  // For unexpected primitive types, keep headers
+  // intact so downstream validation can fail explicitly rather than silently
+  // treating them as "missing".
+  return true;
+}
+
+/**
+ * Apply observability.otlp.if-missing: ignore behavior to gateway OTLP config.
+ * When enabled, missing endpoint values are downgraded to warnings and OTLP
+ * gateway configuration is skipped instead of hard-failing the workflow.
+ *
+ * @param {Record<string, unknown>} configObj
+ */
+function applyOTLPIgnoreIfMissing(configObj) {
+  const mode = getOTLPIfMissingMode(process.env.GH_AW_OTLP_IF_MISSING);
+  const shouldDowngradeMissing = mode === "warn" || mode === "ignore";
+  const shouldWarn = mode === "warn";
+  if (!shouldDowngradeMissing) {
+    return;
+  }
+  const gw = configObj.gateway;
+  if (!gw || typeof gw !== "object" || Array.isArray(gw)) {
+    return;
+  }
+  const gateway = /** @type {Record<string, unknown>} */ gw;
+  const otel = gateway["opentelemetry"];
+  if (!otel || typeof otel !== "object" || Array.isArray(otel)) {
+    return;
+  }
+  const otelConfig = /** @type {Record<string, unknown>} */ otel;
+  const endpoint = typeof otelConfig["endpoint"] === "string" ? otelConfig["endpoint"].trim() : "";
+  if (!endpoint) {
+    delete gateway["opentelemetry"];
+    if (shouldWarn) {
+      core.warning("OTLP endpoint is missing/empty and GH_AW_OTLP_IF_MISSING=warn; skipping MCP gateway OTLP configuration.");
+    }
+    return;
+  }
+  const headers = otelConfig["headers"];
+  if ("headers" in otelConfig && !hasNonEmptyOTLPHeaders(headers)) {
+    delete otelConfig["headers"];
+    if (shouldWarn) {
+      core.warning("OTLP headers are missing/empty and GH_AW_OTLP_IF_MISSING=warn; continuing without MCP gateway OTLP headers.");
+    }
+  }
+}
+
+/**
  * Check whether a process is alive.
  * @param {number} pid
  * @returns {boolean}
@@ -258,6 +347,8 @@ async function main() {
     process.exit(1);
   }
 
+  applyOTLPIgnoreIfMissing(configObj);
+
   core.info("Configuration validated successfully");
   printTiming(configValidationStart, "Configuration validation");
   core.info("");
@@ -297,7 +388,7 @@ async function main() {
     core.error("ERROR: Gateway process stdin is not available");
     process.exit(1);
   }
-  child.stdin.write(mcpConfig);
+  child.stdin.write(JSON.stringify(configObj));
   child.stdin.end();
 
   // Allow the child to run independently
@@ -740,11 +831,18 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  const message = err instanceof Error ? err.message : String(err);
-  const stack = err instanceof Error ? err.stack : undefined;
-  if (stack) core.error(stack);
-  core.setFailed(`FATAL: ${message}`);
-});
+if (require.main === module) {
+  main().catch(err => {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    if (stack) core.error(stack);
+    core.setFailed(`FATAL: ${message}`);
+  });
+}
 
-module.exports = {};
+module.exports = {
+  applyOTLPIgnoreIfMissing,
+  getOTLPIfMissingMode,
+  hasNonEmptyOTLPHeaders,
+  isOTLPIfMissingIgnore,
+};
