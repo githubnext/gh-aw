@@ -146,7 +146,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add MCP configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
 		claudeLog.Print("Adding MCP configuration")
-		claudeArgs = append(claudeArgs, "--mcp-config", "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json")
+		claudeArgs = append(claudeArgs, "--mcp-config", "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Add allowed tools configuration

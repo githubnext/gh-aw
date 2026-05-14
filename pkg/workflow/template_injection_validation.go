@@ -62,6 +62,10 @@ var (
 	// unsafeContextRegex matches high-risk context expressions that could contain user input
 	// These patterns are particularly dangerous when used directly in shell commands
 	unsafeContextRegex = regexp.MustCompile(`\$\{\{\s*(github\.event\.|steps\.[^}]+\.outputs\.|inputs\.)[^}]+\}\}`)
+
+	// allowedRunScriptExpressionRegex matches trusted compiler-owned expressions that are
+	// intentionally rendered in generated run scripts and are not user-controlled.
+	allowedRunScriptExpressionRegex = regexp.MustCompile(`^\$\{\{\s*(env\.[^}]+|vars\.[^}]+|runner\.[^}]+|github\.(repository|run_id|workspace)|steps\.parse-guard-vars\.outputs\.(approval_labels|blocked_users|trusted_users)|job\.services\[[^]]+\]\.ports\[[^]]+\])\s*\}\}$`)
 )
 
 // hasAnyExpressionInRunContent performs a fast line-by-line text scan to determine
@@ -221,6 +225,9 @@ func validateNoGitHubExpressionsInRunScriptsFromParsed(workflow map[string]any) 
 	for _, runContent := range runBlocks {
 		expressions := inlineExpressionRegex.FindAllString(runContent, -1)
 		for _, expr := range expressions {
+			if allowedRunScriptExpressionRegex.MatchString(expr) {
+				continue
+			}
 			snippet := extractRunSnippet(runContent, expr)
 			violations = append(violations, TemplateInjectionViolation{
 				Expression: expr,

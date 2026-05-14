@@ -59,6 +59,17 @@ jobs:
         run: echo "${{ github.token }}"
 `
 
+	allowedGeneratedExpressionYAML := `
+name: generated-safe-expression
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Allowed generated expression
+        run: echo "${{ job.services['redis'].ports['6379'] }}"
+`
+
 	tmpDir := testutil.TempDir(t, "template-injection-test")
 	markdownPath := filepath.Join(tmpDir, "test.md")
 	lockFile := stringutil.MarkdownToLockFile(markdownPath)
@@ -108,6 +119,16 @@ jobs:
 		require.Error(t, err, "should detect raw GitHub Actions expression in run script")
 		assert.Contains(t, err.Error(), "compiler regression detected")
 		assert.Contains(t, err.Error(), "github.token")
+	})
+
+	t.Run("Path A - schema enabled - allowed generated run expression passes", func(t *testing.T) {
+		err := compiler.validateTemplateInjection(allowedGeneratedExpressionYAML, lockFile, markdownPath, parseYAML(t, allowedGeneratedExpressionYAML))
+		assert.NoError(t, err, "compiler-owned job.services expression should be allowed")
+	})
+
+	t.Run("Path B - schema disabled - allowed generated run expression passes", func(t *testing.T) {
+		err := compiler.validateTemplateInjection(allowedGeneratedExpressionYAML, lockFile, markdownPath, nil)
+		assert.NoError(t, err, "compiler-owned job.services expression should be allowed")
 	})
 
 	t.Run("both paths agree on unsafe YAML", func(t *testing.T) {
