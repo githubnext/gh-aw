@@ -1321,7 +1321,6 @@ async function main(config = {}) {
       // This preserves merge commit topology and per-commit metadata (messages, authorship)
       // unlike git format-patch which flattens history and drops merge resolution content.
       core.info(`Applying changes from bundle: ${bundleFilePath}`);
-      const bundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
       try {
         await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec);
       } catch (bundleError) {
@@ -1383,7 +1382,7 @@ To create a pull request with the changes:
 gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
 # Fetch the bundle into a local branch
-git fetch /tmp/agent-${runId}/${artifactFileName} ${bundleSourceRef}:refs/heads/${branchName}
+git fetch /tmp/agent-${runId}/${artifactFileName} refs/heads/${originalAgentBranch || branchName}:refs/heads/${branchName}
 git checkout ${branchName}
 
 # Push the branch to origin

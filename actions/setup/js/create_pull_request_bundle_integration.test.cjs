@@ -100,9 +100,9 @@ describe("create_pull_request bundle integration", () => {
     execGit(["commit", "-m", "old branch state"], { cwd: targetRepo });
     execGit(["checkout", "-b", branchName], { cwd: targetRepo });
 
-    const directFetchResult = execGit(["fetch", bundlePath, `refs/heads/${branchName}:refs/heads/${branchName}`], { cwd: targetRepo, allowFailure: true });
-    expect(directFetchResult.status).not.toBe(0);
-    expect(directFetchResult.stderr).toContain("refusing to fetch into branch");
+    const checkedOutBranchFetchResult = execGit(["fetch", bundlePath, `refs/heads/${branchName}:refs/heads/${branchName}`], { cwd: targetRepo, allowFailure: true });
+    expect(checkedOutBranchFetchResult.status).not.toBe(0);
+    expect(checkedOutBranchFetchResult.stderr).toContain("refusing to fetch into branch");
 
     const { applyBundleToBranch } = require("./create_pull_request.cjs");
     await applyBundleToBranch(bundlePath, branchName, "", createExecApi(targetRepo));
