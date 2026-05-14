@@ -155,6 +155,10 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	log.Printf("Validating push-to-pull-request-branch configuration")
 	c.validatePushToPullRequestBranchWarnings(workflowData.SafeOutputs, workflowData.CheckoutConfigs)
 
+	// Emit warnings for bare "*" in allowed-labels (CTR-015)
+	log.Printf("Validating safe-outputs allowed-labels glob scope")
+	c.validateSafeOutputsAllowedLabelsGlobScope(workflowData.SafeOutputs)
+
 	// Validate network allowed domains configuration
 	log.Printf("Validating network allowed domains")
 	if err := c.validateNetworkAllowedDomains(workflowData.NetworkPermissions); err != nil {

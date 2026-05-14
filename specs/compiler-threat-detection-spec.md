@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.4  
+**Version**: 1.0.5  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -122,6 +122,7 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-012 Safe-Outputs Wildcard Push Scope**: Detect misconfiguration patterns when `safe-outputs.push-to-pull-request-branch: target: "*"` is used; warn when no wildcard fetch pattern is present in checkout (suppressed for public repos) and when no access constraints (`title-prefix` or `labels`) are configured.
 - **CTR-013 Argument Injection via Package/Image Names**: Detect package or container image names that start with `-` (hyphen) in npm/npx, pip/uv, and Docker frontmatter configurations; reject these names before they are passed to `exec.Command` calls where they would be interpreted as CLI flags, enabling argument injection.
 - **CTR-014 Supply Chain Attack via Install Scripts**: Detect when `run-install-scripts: true` is configured in workflow frontmatter (globally or per-runtime); warn in non-strict mode and reject in strict mode to protect against malicious npm pre/post install hooks that can exfiltrate secrets or corrupt the runner environment.
+- **CTR-015 Allowed Label Glob Scope**: Detect bare `*` wildcard patterns in `safe-outputs.*.allowed-labels` fields (`create-issue`, `create-discussion`, `update-discussion`, `create-pull-request`, `merge-pull-request`); warn when such a pattern is present because it renders the label restriction ineffective and may allow the agent to apply labels that trigger unintended label-driven automation in the repository.
 
 ### 4.2 Compiler Response Requirements
 
@@ -209,6 +210,7 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-012 Safe-Outputs Wildcard Push Scope | `pkg/workflow/push_to_pull_request_branch_validation.go` | `pkg/workflow/push_to_pull_request_branch_test.go`, `pkg/workflow/push_to_pull_request_branch_warning_test.go` |
 | CTR-013 Argument Injection via Package/Image Names | `pkg/workflow/name_validation.go` (shared helper `rejectHyphenPrefixPackages`), `pkg/workflow/npm_validation.go`, `pkg/workflow/pip_validation.go`, `pkg/workflow/docker_validation.go` | `pkg/workflow/argument_injection_test.go` |
 | CTR-014 Supply Chain Attack via Install Scripts | `pkg/workflow/run_install_scripts_validation.go` (`validateRunInstallScripts`, `resolveRunInstallScripts`) | `pkg/workflow/run_install_scripts_validation_test.go` |
+| CTR-015 Allowed Label Glob Scope | `pkg/workflow/safe_outputs_allowed_labels_validation.go` (`validateSafeOutputsAllowedLabelsGlobScope`) | `pkg/workflow/safe_outputs_allowed_labels_validation_test.go` |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
@@ -247,6 +249,7 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 | **T-CTR-012** | CTR-012 Safe-Outputs Wildcard Push Scope | Workflow uses `safe-outputs.push-to-pull-request-branch: target: "*"` without a wildcard fetch pattern in checkout (for non-public repos) or without `title-prefix` or `labels` access constraints | Compilation warning identifying the unconstrained wildcard scope and the missing checkout fetch pattern or access constraint; suppressed for public repositories | `CTR-012` |
 | **T-CTR-013** | CTR-013 Argument Injection via Package/Image Names | A workflow frontmatter declares an npm/npx package, a pip/uv package, or a Docker container image name that starts with `-` (e.g., `--privileged`, `-exploit`) | Compilation failure with error identifying the invalid name, the affected tool kind, and instructing the user to fix the package or image name | `CTR-013` |
 | **T-CTR-014** | CTR-014 Supply Chain Attack via Install Scripts | A workflow frontmatter sets `run-install-scripts: true` (globally or under `runtimes.node`) | Compilation warning in non-strict mode identifying the supply chain risk and advising removal of `run-install-scripts: true`; compilation failure in strict mode | `CTR-014` |
+| **T-CTR-015** | CTR-015 Allowed Label Glob Scope | A workflow frontmatter sets `safe-outputs.*.allowed-labels` to `["*"]` (bare wildcard) for any safe-output type that supports the field (`create-issue`, `create-discussion`, `update-discussion`, `create-pull-request`, `merge-pull-request`) | Compilation warning identifying the field name, explaining that `"*"` disables label restrictions and may permit unintended label-driven automation, and recommending specific names or narrower patterns | `CTR-015` |
 
 ### 7.2 Test Coverage Requirements
 
@@ -267,6 +270,12 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 ---
 
 ## 9. Change Log
+
+### 1.0.5 (2026-05-14)
+
+- Added CTR-015 Allowed Label Glob Scope (compiler warning when `safe-outputs.*.allowed-labels` contains a bare `"*"` wildcard that effectively disables label restrictions and may permit unintended label-driven automation; triggered by the new glob pattern support for `allowed-labels` introduced in gh-aw #32027)
+- Added T-CTR-015 test ID entry in Section 7.1
+- Extended Section 6.1 baseline rule mapping table with CTR-015 implementation references (`safe_outputs_allowed_labels_validation.go`)
 
 ### 1.0.4 (2026-05-13)
 
