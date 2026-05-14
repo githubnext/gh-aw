@@ -140,7 +140,7 @@ For each closed issue:
 
 ### 1d. Scan Cookie-Labeled Automation Issues
 
-Search for open and recently closed issues from automated monitoring workflows (CLI Consistency Checker, Multi-Device Docs Tester, DeepReport intel agent via `tracker-id: deep-report-intel-agent`). These carry the `cookie` label and may surface real documentation gaps that Step 1b and 1c miss due to the integrity filter:
+Search for open and recently closed issues from automated monitoring workflows (CLI Consistency Checker, Multi-Device Docs Tester). These carry the `cookie` label and may surface real documentation gaps that Step 1b and 1c miss due to the integrity filter:
 
 ```
 repo:${{ github.repository }} is:issue label:documentation label:cookie
