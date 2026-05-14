@@ -614,7 +614,16 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
  */
 async function main(config = {}) {
   // Extract configuration
-  const branchPrefix = config.branch_prefix || "";
+  const rawBranchPrefix = config.branch_prefix || "";
+  const normalizedBranchPrefix = rawBranchPrefix ? normalizeBranchName(rawBranchPrefix) : "";
+  if (rawBranchPrefix && normalizedBranchPrefix !== rawBranchPrefix) {
+    core.warning(
+      `Branch prefix "${rawBranchPrefix}" contains characters that are invalid in a git ref. ` +
+        `Using normalized prefix: "${normalizedBranchPrefix}". ` +
+        `Update branch-prefix in the workflow configuration to avoid this warning.`
+    );
+  }
+  const branchPrefix = normalizedBranchPrefix;
   const titlePrefix = config.title_prefix || "";
   const envLabels = parseStringListConfig(config.labels);
   const configFallbackLabels = parseStringListConfig(config.fallback_labels);

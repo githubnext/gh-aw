@@ -2694,4 +2694,16 @@ describe("create_pull_request - branch-prefix config", () => {
     expect(branchArg).toMatch(/^jsweep-/);
     expect(branchArg).not.toContain("signed/");
   });
+
+  it("should normalize an invalid branch-prefix and emit a warning", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "bad prefix: ", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body" }, {});
+
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringMatching(/branch prefix.*characters that are invalid/i));
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    // normalized prefix "bad-prefix" should be applied
+    expect(branchArg).toMatch(/^bad-prefix/);
+  });
 });
