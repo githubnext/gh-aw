@@ -18,7 +18,7 @@ var listPackageWorkflowFiles = parser.ListWorkflowFiles
 var packageSourceDirectories = []string{"workflows", ".github/workflows"}
 
 const repositoryPackageManifestFileName = "aw.yml"
-const repositoryPackageManifestSchemaVersion = "1"
+const repositoryPackageManifestVersion = "1"
 
 type resolvedRepositoryPackage struct {
 	ManifestPath       string
@@ -64,8 +64,10 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		return nil, fmt.Errorf("repository %q does not declare any installable workflow markdown files", repoSpec.RepoSlug)
 	}
 
-	docsPath, docsWarnings := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host, installationSources)
-	warnings = append(warnings, docsWarnings...)
+	docsPath, err := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host)
+	if err != nil {
+		return nil, err
+	}
 
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
@@ -94,11 +96,11 @@ func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host strin
 }
 
 type repositoryPackageManifest struct {
-	SchemaVersion string
-	MinVersion    string
-	Name          string
-	Description   string
-	Files         []string
+	ManifestVersion string
+	MinVersion      string
+	Name            string
+	Description     string
+	Files           []string
 }
 
 func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
@@ -126,16 +128,16 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 	}
 	var warnings []string
 
-	if schemaVersion, ok := stringValue(root["schema-version"]); ok {
-		manifest.SchemaVersion = strings.TrimSpace(schemaVersion)
+	if manifestVersion, ok := stringValue(root["manifest-version"]); ok {
+		manifest.ManifestVersion = strings.TrimSpace(manifestVersion)
 	} else {
-		manifest.SchemaVersion = repositoryPackageManifestSchemaVersion
+		manifest.ManifestVersion = repositoryPackageManifestVersion
 	}
 
 	if minVersion, ok := stringValue(root["min-version"]); ok {
 		manifest.MinVersion = strings.TrimSpace(minVersion)
-		if !semverutil.IsValid(manifest.MinVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must be a valid semantic version, got %q", manifestPath, minVersion)
+		if !isSupportedManifestMinVersion(manifest.MinVersion) {
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q", manifestPath, minVersion)
 		}
 		currentVersion := GetVersion()
 		if !semverutil.IsValid(currentVersion) {
@@ -224,32 +226,15 @@ func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host s
 	return collected, nil
 }
 
-func resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host string, installationSources []string) (string, []string) {
-	var warnings []string
-	candidates := []string{joinRepositoryPackagePath(packagePath, "README.md")}
-
-	seen := make(map[string]struct{})
-	for _, candidate := range candidates {
-		if candidate == "" {
-			continue
-		}
-		if _, exists := seen[candidate]; exists {
-			continue
-		}
-		seen[candidate] = struct{}{}
-
-		if _, err := downloadPackageFileFromGitHubForHost(owner, repo, candidate, ref, host); err == nil {
-			return candidate, warnings
-		} else if !isRepositoryFileNotFound(err) {
-			warnings = append(warnings, fmt.Sprintf("Unable to validate docs path %q: %v", candidate, err))
-		}
+func resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host string) (string, error) {
+	readmePath := joinRepositoryPackagePath(packagePath, "README.md")
+	if _, err := downloadPackageFileFromGitHubForHost(owner, repo, readmePath, ref, host); err == nil {
+		return readmePath, nil
+	} else if isRepositoryFileNotFound(err) {
+		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q", owner+"/"+repo, readmePath)
+	} else {
+		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s: %w", readmePath, owner, repo, ref, err)
 	}
-
-	if len(installationSources) > 0 {
-		return installationSources[0], warnings
-	}
-
-	return "", warnings
 }
 
 func normalizePackageInstallablePaths(paths []string, packagePath string) []string {
@@ -341,4 +326,8 @@ func isRepositoryPackageManifestNotFound(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "no aw.yml manifest found")
+}
+
+func isSupportedManifestMinVersion(version string) bool {
+	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == 2
 }

@@ -29,7 +29,10 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 		return fmt.Errorf("failed to read Agentic Workflow manifest %q: %w", manifestPath, err)
 	}
 
-	_, warnings, parseErr := parseRepositoryPackageManifest(manifestPath, content)
+	manifest, warnings, parseErr := parseRepositoryPackageManifest(manifestPath, content)
+	if parseErr == nil {
+		parseErr = validateLocalRepositoryPackageContents(manifestPath, manifest)
+	}
 
 	if len(warnings) > 0 {
 		stats.Warnings += len(warnings)
@@ -80,4 +83,15 @@ func findLocalRepositoryPackageManifest(gitRoot string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func validateLocalRepositoryPackageContents(manifestPath string, _ *repositoryPackageManifest) error {
+	readmePath := filepath.Join(filepath.Dir(manifestPath), "README.md")
+	if _, err := os.Stat(readmePath); err == nil {
+		return nil
+	} else if os.IsNotExist(err) {
+		return fmt.Errorf("invalid Agentic Workflow manifest %q: missing required README.md at %q", manifestPath, filepath.Base(readmePath))
+	} else {
+		return fmt.Errorf("failed to read package README %q: %w", readmePath, err)
+	}
 }

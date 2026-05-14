@@ -41,26 +41,23 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `schema-version` | string | No | Manifest schema version. Defaults to `"1"`. |
+| `manifest-version` | string | No | Manifest format version. Defaults to `"1"`. |
 | `min-version` | string | No | Minimum supported `gh-aw` version. |
 | `name` | string | Yes | Human-readable package name. |
 | `description` | string | No | Human-readable package description. |
 | `files` | array of strings | No | Explicit installable workflow file list. |
 
-### 4.2 `schema-version`
+### 4.2 `manifest-version`
 
-If omitted, `schema-version` defaults to `"1"`.
+If omitted, `manifest-version` defaults to `"1"`.
 
 For this version of the format, the only valid value is `"1"`.
 
 ### 4.3 `min-version`
 
-If present, `min-version` MUST be a semantic version string such as:
+If present, `min-version` MUST use the exact `vMAJOR.minor.patch` form, such as:
 
-- `1.2.3`
 - `v1.2.3`
-- `1.2.3-rc.1`
-- `1.2.3+build.5`
 
 If the running compiler version is lower than `min-version`, validation MUST fail.
 
@@ -85,10 +82,6 @@ Each entry:
 - MUST begin with either `workflows/` or `.github/workflows/`.
 
 Duplicate entries SHOULD be ignored after normalization.
-
-### 4.7 Prohibited field
-
-The `docs` field is not part of this format. A manifest containing `docs` MUST be rejected.
 
 ## 5. Installable file resolution
 
@@ -117,7 +110,7 @@ Examples:
 - Repository-root package: `README.md`
 - Nested package: `path/to/package/README.md`
 
-If `README.md` is absent, the current implementation falls back to the first resolved installable workflow file.
+If `README.md` is absent, package validation MUST fail.
 
 ## 7. Validation and errors
 
@@ -127,10 +120,11 @@ Validation MUST fail for at least the following conditions:
 - malformed YAML;
 - top-level document is not a mapping;
 - missing or empty `name`;
-- unsupported `schema-version`;
+- unsupported `manifest-version`;
 - invalid `min-version`;
 - current compiler version is lower than `min-version`;
 - unknown top-level fields, including `docs`; or
+- missing required `README.md`; or
 - no installable workflow files resolved.
 
 Implementations SHOULD emit warnings for at least the following conditions:
@@ -156,7 +150,6 @@ If JSON output is requested, manifest validation failure still causes an overall
 ### 9.1 Repository-root package
 
 ```yaml
-schema-version: "1"
 min-version: v0.38.0
 name: Repo Assist
 description: Friendly repository automation for review and issue triage
@@ -182,7 +175,6 @@ packages/repo-assist/aw.yml
 Manifest:
 
 ```yaml
-schema-version: "1"
 name: Repo Assist
 files:
   - workflows/review.md

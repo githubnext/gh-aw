@@ -118,16 +118,18 @@ files:
 		assert.Contains(t, err.Error(), `no aw.yml manifest found`)
 	})
 
-	t.Run("accepts schema-version and compatible min-version", func(t *testing.T) {
+	t.Run("accepts manifest-version and compatible min-version", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
 			case "aw.yml":
-				return []byte(`schema-version: "1"
+				return []byte(`manifest-version: "1"
 min-version: v1.0.0
 name: Repo Assist
 files:
   - workflows/review.md
 `), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
 			default:
 				return nil, fmt.Errorf("404 not found: %s", path)
 			}
@@ -142,10 +144,10 @@ files:
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
-	t.Run("rejects unsupported schema-version", func(t *testing.T) {
+	t.Run("rejects unsupported manifest-version", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
-				return []byte(`schema-version: "2"
+				return []byte(`manifest-version: "2"
 name: Repo Assist
 `), nil
 			}
@@ -154,7 +156,7 @@ name: Repo Assist
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `schema-version`)
+		assert.Contains(t, err.Error(), `manifest-version`)
 	})
 
 	t.Run("rejects docs field", func(t *testing.T) {
@@ -185,6 +187,26 @@ name: Repo Assist
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `requires gh-aw`)
+	})
+
+	t.Run("requires package README", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`name: Repo Assist
+files:
+  - workflows/review.md
+`), nil
+			}
+			return nil, fmt.Errorf("404 not found: %s", path)
+		}
+		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `missing required README.md`)
 	})
 
 	t.Run("rejects unknown manifest fields", func(t *testing.T) {
@@ -240,12 +262,15 @@ func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
 	})
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
-		if path == "aw.yml" {
+		switch path {
+		case "aw.yml":
 			return []byte(`name: Repo Assist
 files:
   - workflows/review.md
   - .github/workflows/nightly-review.md
 `), nil
+		case "README.md":
+			return []byte("# Repo Assist\n"), nil
 		}
 		return nil, fmt.Errorf("404 not found: %s", path)
 	}
@@ -280,11 +305,14 @@ func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
 	})
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
-		if path == "folder/aw.yml" {
+		switch path {
+		case "folder/aw.yml":
 			return []byte(`name: Repo Assist
 files:
   - workflows/review.md
 `), nil
+		case "folder/README.md":
+			return []byte("# Repo Assist\n"), nil
 		}
 		return nil, fmt.Errorf("404 not found: %s", path)
 	}

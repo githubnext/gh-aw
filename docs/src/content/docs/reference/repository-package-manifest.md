@@ -16,7 +16,6 @@ For the normative file-format definition, see the [aw.yml repository package man
 ## Example
 
 ```yaml
-schema-version: "1"
 min-version: v0.38.0
 name: Repo Assist
 description: Friendly repository automation for review and issue triage
@@ -29,8 +28,8 @@ files:
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `schema-version` | string | No | Current supported value: `"1"`. Defaults to `"1"` when omitted. |
-| `min-version` | string | No | Minimum compatible `gh aw` version. Must be a semantic version such as `v0.38.0` or `0.38.0`. |
+| `manifest-version` | string | No | Current supported value: `"1"`. Defaults to `"1"` when omitted. |
+| `min-version` | string | No | Minimum compatible `gh aw` version. Must use the exact `vMAJOR.minor.patch` form, such as `v0.38.0`. |
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
 | `files` | array of strings | No | Package-root-relative markdown files under `workflows/` or `.github/workflows/`. |
@@ -43,6 +42,7 @@ Package documentation is `README.md` in the package root.
 - Nested package docs: `path/to/package/README.md`
 
 The manifest does not support a `docs` field.
+Missing `README.md` causes package validation to fail.
 
 ## Installable workflows
 

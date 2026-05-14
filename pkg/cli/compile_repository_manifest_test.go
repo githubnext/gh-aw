@@ -37,7 +37,8 @@ engine: copilot
 
 # Test
 `), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`schema-version: "1"
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Repo Assist\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`manifest-version: "1"
 min-version: v9.9.9
 name: Repo Assist
 `), 0o644))
@@ -146,4 +147,33 @@ engine: copilot
 	assert.Equal(t, "test.md", results[0].Workflow)
 	assert.Empty(t, results[0].Warnings)
 	assert.Empty(t, results[0].Errors)
+}
+
+func TestCompileWorkflows_RequiresPackageReadme(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "aw-manifest-readme-*")
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(originalWd) })
+	require.NoError(t, os.Chdir(tmpDir))
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, ".github", "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".github", "workflows", "test.md"), []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`name: Repo Assist
+`), 0o644))
+
+	_, err = CompileWorkflows(context.Background(), CompileConfig{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "missing required README.md")
 }
