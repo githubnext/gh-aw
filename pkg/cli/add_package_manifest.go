@@ -9,6 +9,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -22,6 +23,7 @@ var (
 var downloadPackageFileFromGitHubForHost = downloadRepositoryPackageFileFromGitHubForHost
 var listPackageWorkflowFilesForHost = listRepositoryPackageWorkflowFilesForHost
 var getRepositoryPackageDefaultBranch = resolveRepositoryPackageDefaultBranch
+var addPackageManifestLog = logger.New("cli:add_package_manifest")
 
 var packageSourceDirectories = []string{"workflows", ".github/workflows"}
 
@@ -50,6 +52,8 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		ref = "main"
 		if defaultBranch, err := getRepositoryPackageDefaultBranch(repoSpec.RepoSlug, host); err == nil {
 			ref = defaultBranch
+		} else {
+			addPackageManifestLog.Printf("failed to resolve default branch for %s (host=%q), falling back to %q: %v", repoSpec.RepoSlug, host, ref, err)
 		}
 	}
 	packagePath := strings.Trim(repoSpec.PackagePath, "/")
