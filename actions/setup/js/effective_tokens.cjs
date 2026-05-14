@@ -263,9 +263,7 @@ function buildETComputationTable(effectiveTokens, tokenUsageMarkdown = null) {
 
   const lines = [];
   lines.push("<details>");
-  lines.push(
-    `<summary>ET computation details (formula: ${w.input}×input + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier)</summary>`
-  );
+  lines.push(`<summary>ET computation details (formula: ${w.input}×input + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier)</summary>`);
   lines.push("");
 
   if (tokenUsageMarkdown) {
