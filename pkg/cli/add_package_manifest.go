@@ -39,15 +39,15 @@ type resolvedRepositoryPackage struct {
 	Warnings           []string
 }
 
-type repositoryPackageRemoteNotFoundError struct {
+type packageRemoteNotFoundError struct {
 	cause error
 }
 
-func (e repositoryPackageRemoteNotFoundError) Error() string {
+func (e packageRemoteNotFoundError) Error() string {
 	return e.cause.Error()
 }
 
-func (e repositoryPackageRemoteNotFoundError) Unwrap() []error {
+func (e packageRemoteNotFoundError) Unwrap() []error {
 	return []error{errRepositoryPackageFileNotFound, e.cause}
 }
 
@@ -143,8 +143,8 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: top-level document must be a mapping", manifestPath)
 	}
 
-	// Validate name before schema validation so add/compile can return a stable,
-	// direct message for the most common manifest authoring error before deeper validation runs.
+	// Validate name before schema validation to provide a clear error message for
+	// the most common manifest authoring error (missing or empty name).
 	name, ok := stringValue(root["name"])
 	if !ok || strings.TrimSpace(name) == "" {
 		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string", manifestPath)
@@ -380,7 +380,7 @@ func normalizeRepositoryPackageRemoteError(err error) error {
 	if err == nil || !isRepositoryPackageRemoteNotFound(err) {
 		return err
 	}
-	return repositoryPackageRemoteNotFoundError{cause: err}
+	return packageRemoteNotFoundError{cause: err}
 }
 
 func isRepositoryPackageRemoteNotFound(err error) bool {
@@ -392,17 +392,16 @@ func isRepositoryPackageRemoteNotFound(err error) bool {
 }
 
 func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error) {
-	var (
-		output []byte
-		err    error
-	)
+	args := []string{"api", "/repos/" + repoSlug, "--jq", ".default_branch"}
+	var output []byte
+	var err error
 	if host != "" {
-		output, err = workflow.RunGHWithHost("Fetching repo info...", host, "api", "/repos/"+repoSlug, "--jq", ".default_branch")
+		output, err = workflow.RunGHWithHost("Fetching repo info...", host, args...)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		output, err = workflow.RunGH("Fetching repo info...", "api", "/repos/"+repoSlug, "--jq", ".default_branch")
+		output, err = workflow.RunGH("Fetching repo info...", args...)
 		if err != nil {
 			return "", err
 		}
