@@ -2,12 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyOTLPIgnoreIfMissing, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {
+  let originalWarning;
+
   beforeEach(() => {
+    originalWarning = global.core.warning;
     global.core.warning = vi.fn();
   });
 
   afterEach(() => {
     delete process.env.GH_AW_OTLP_IF_MISSING;
+    global.core.warning = originalWarning;
   });
 
   it("normalizes if-missing mode", () => {

@@ -88,6 +88,8 @@ function isOTLPIfMissingIgnore(value) {
 
 /**
  * Returns true when OTLP headers contain at least one non-empty value.
+ * NOTE: Unexpected primitive values are treated as non-empty so they are
+ * preserved for downstream validation/error handling.
  * @param {unknown} headers
  * @returns {boolean}
  */
