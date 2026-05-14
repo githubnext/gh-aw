@@ -1205,7 +1205,7 @@ describe("sendJobSetupSpan", () => {
     expect(attrs["gh-aw.repository"]).toBe("owner/repo");
   });
 
-  it("includes frontmatter source/hash/body-modified metadata from aw_info.json on setup spans", async () => {
+  it("includes frontmatter hash/body-modified metadata from aw_info.json on setup spans", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1214,7 +1214,6 @@ describe("sendJobSetupSpan", () => {
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/aw_info.json") {
         return JSON.stringify({
-          frontmatter_source: "github/gh-aw/.github/workflows/example.md@main",
           frontmatter_hash: "abc123def456",
           body_modified: true,
         });
@@ -1228,9 +1227,33 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
-    expect(attrs["gh-aw.frontmatter.source"]).toBe("github/gh-aw/.github/workflows/example.md@main");
     expect(attrs["gh-aw.frontmatter.hash"]).toBe("abc123def456");
     expect(attrs["gh-aw.frontmatter.body_modified"]).toBe(true);
+  });
+
+  it("falls back to setup env frontmatter hash/body-modified metadata when aw_info.json is unavailable", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_INFO_FRONTMATTER_HASH = "envhash123";
+    process.env.GH_AW_INFO_BODY_MODIFIED = "false";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobSetupSpan();
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
+    expect(attrs["gh-aw.frontmatter.hash"]).toBe("envhash123");
+    expect(attrs["gh-aw.frontmatter.body_modified"]).toBe(false);
   });
 
   it("uses setup workflow identity and inbound aw_context when aw_info.json is not available yet", async () => {
@@ -4653,7 +4676,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.comment_id", value: { stringValue: "987654321" } });
     });
 
-    it("emits frontmatter source/hash/body-modified attributes when present", async () => {
+    it("emits frontmatter hash/body-modified attributes when present", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4662,7 +4685,6 @@ describe("sendJobConclusionSpan", () => {
       readFileSpy.mockImplementation(filePath => {
         if (filePath === "/tmp/gh-aw/aw_info.json") {
           return JSON.stringify({
-            frontmatter_source: "github/gh-aw/.github/workflows/example.md@main",
             frontmatter_hash: "abc123def456",
             body_modified: false,
           });
@@ -4674,7 +4696,6 @@ describe("sendJobConclusionSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.frontmatter.source", value: { stringValue: "github/gh-aw/.github/workflows/example.md@main" } });
       expect(span.attributes).toContainEqual({ key: "gh-aw.frontmatter.hash", value: { stringValue: "abc123def456" } });
       expect(span.attributes).toContainEqual({ key: "gh-aw.frontmatter.body_modified", value: { boolValue: false } });
     });

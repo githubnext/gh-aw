@@ -895,6 +895,7 @@ observability:
 |-------|------|-------------|
 | `observability.otlp.endpoint` | string, object, or array | OTLP/HTTP collector endpoint URL. Accepts a plain URL string, a single `{url, headers}` object, or an array of `{url, headers}` objects for concurrent fan-out to multiple collectors. When a static URL is provided, its hostname is automatically added to the network firewall allowlist. |
 | `observability.otlp.headers` | map or string | HTTP headers sent with every OTLP export request. Only applies when `endpoint` is a plain string; object and array endpoint entries carry their own per-endpoint headers. |
+| `observability.otlp.if-missing` | string (`error`, `warn`, `ignore`) | Controls behavior when OTLP endpoint/header values resolve to empty values at runtime (for example because a referenced secret is unset): `error` (default) fails startup, `warn` logs a warning and skips MCP gateway OTLP configuration, `ignore` skips MCP gateway OTLP configuration without warning. This setting affects MCP gateway setup only. |
 
 ### `observability.otlp.endpoint`
 
@@ -972,6 +973,7 @@ When `observability.otlp` is configured, the following environment variables are
 | `OTEL_EXPORTER_OTLP_HEADERS` | Comma-separated `key=value` headers for the first endpoint. Set only when headers are configured. |
 | `OTEL_SERVICE_NAME` | Always `gh-aw`. |
 | `GH_AW_OTLP_ENDPOINTS` | JSON-encoded array of all endpoint entries (`[{"url":"...","headers":"..."}]`). Used by JavaScript action scripts to fan out spans to multiple endpoints. |
+| `GH_AW_OTLP_IF_MISSING` | Set to `warn` or `ignore` when `observability.otlp.if-missing` is configured. Used by runtime gateway setup to downgrade missing OTLP endpoint/header values from startup errors to non-fatal behavior for MCP gateway setup only. |
 | `COPILOT_OTEL_FILE_EXPORTER_PATH` | Path where Copilot CLI writes its own OTLP spans (`/tmp/gh-aw/copilot-otel.jsonl`). Copilot CLI detects this variable and writes its traces here; gh-aw forwards these traces to configured endpoints at the end of each run. |
 
 > [!NOTE]
