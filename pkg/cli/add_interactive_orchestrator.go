@@ -221,14 +221,14 @@ func (c *AddInteractiveConfig) workflowNamesForInteractiveAdd() ([]string, error
 		workflowNames := make([]string, 0, len(c.resolvedWorkflows.Workflows))
 		for i, resolvedWorkflow := range c.resolvedWorkflows.Workflows {
 			if resolvedWorkflow == nil {
-				return nil, fmt.Errorf("resolved workflow %d from %q is nil", i+1, specContext)
+				return nil, fmt.Errorf("resolved manifest workflow %d from %q is nil", i+1, specContext)
 			}
 			if resolvedWorkflow.Spec == nil {
-				return nil, fmt.Errorf("resolved workflow %d from %q is missing its specification", i+1, specContext)
+				return nil, fmt.Errorf("resolved manifest workflow %d from %q is missing its specification", i+1, specContext)
 			}
 			workflowName := strings.TrimSpace(resolvedWorkflow.Spec.WorkflowName)
 			if workflowName == "" {
-				return nil, fmt.Errorf("resolved workflow %d from %q is missing its workflow name", i+1, specContext)
+				return nil, fmt.Errorf("resolved manifest workflow %d from %q is missing its workflow name", i+1, specContext)
 			}
 			workflowNames = append(workflowNames, workflowName)
 		}
