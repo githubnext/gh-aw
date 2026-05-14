@@ -8,6 +8,7 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var downloadPackageFileFromGitHubForHost = parser.DownloadFileFromGitHubForHost
@@ -15,6 +16,8 @@ var listPackageWorkflowFiles = parser.ListWorkflowFiles
 
 var packageManifestAliases = []string{"aw.yml", "agents.yml", "agents.yaml"}
 var packageSourceDirectories = []string{"workflows", ".github/workflows"}
+
+const repositoryPackageManifestSchemaVersion = "1"
 
 type resolvedRepositoryPackage struct {
 	ManifestPath       string
@@ -103,10 +106,12 @@ func loadRepositoryPackageManifestFile(owner, repo, ref, host string) (string, [
 }
 
 type repositoryPackageManifest struct {
-	Name        string
-	Description string
-	Docs        string
-	Files       []string
+	SchemaVersion string
+	MinVersion    string
+	Name          string
+	Description   string
+	Docs          string
+	Files         []string
 }
 
 func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
@@ -125,8 +130,33 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string", manifestPath)
 	}
 
-	manifest := &repositoryPackageManifest{Name: strings.TrimSpace(name)}
+	if err := parser.ValidateRepositoryPackageManifestWithSchemaAndLocation(root, manifestPath); err != nil {
+		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: %w", manifestPath, err)
+	}
+
+	manifest := &repositoryPackageManifest{
+		SchemaVersion: repositoryPackageManifestSchemaVersion,
+		Name:          strings.TrimSpace(name),
+	}
 	var warnings []string
+
+	if schemaVersion, ok := stringValue(root["schema-version"]); ok {
+		manifest.SchemaVersion = strings.TrimSpace(schemaVersion)
+	}
+
+	if minVersion, ok := stringValue(root["min-version"]); ok {
+		manifest.MinVersion = strings.TrimSpace(minVersion)
+		if !semverutil.IsValid(manifest.MinVersion) {
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must be a valid semantic version, got %q", manifestPath, minVersion)
+		}
+		currentVersion := GetVersion()
+		if !semverutil.IsValid(currentVersion) {
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version requires a semantic-versioned compiler, but the current compiler version is %q", manifestPath, currentVersion)
+		}
+		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s)", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion)
+		}
+	}
 
 	if description, ok := stringValue(root["description"]); ok {
 		manifest.Description = description

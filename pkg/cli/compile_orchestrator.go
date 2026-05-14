@@ -69,6 +69,15 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	// Create and configure compiler
 	compiler := createAndConfigureCompiler(config)
 
+	if err := validateRepositoryManifestForCompilation(config, stats, &validationResults); err != nil {
+		if config.JSONOutput {
+			if outputErr := outputResults(stats, &validationResults, config); outputErr != nil {
+				return nil, outputErr
+			}
+		}
+		return nil, err
+	}
+
 	// Handle watch mode (early return)
 	if config.Watch {
 		// Watch mode: watch for file changes and recompile automatically

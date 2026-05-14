@@ -160,3 +160,9 @@ func ValidateMCPConfigWithSchema(mcpConfig map[string]any) error {
 	schemaValidationLog.Printf("Validating MCP configuration against JSON schema: %d fields", len(mcpConfig))
 	return validateWithSchema(mcpConfig, mcpConfigSchema, "MCP configuration")
 }
+
+// ValidateRepositoryPackageManifestWithSchemaAndLocation validates an aw.yml repository package manifest.
+func ValidateRepositoryPackageManifestWithSchemaAndLocation(manifest map[string]any, filePath string) error {
+	schemaValidationLog.Printf("Validating repository package manifest: file=%s, fields=%d", filePath, len(manifest))
+	return validateWithSchemaAndLocation(manifest, awManifestSchema, "Agentic Workflow manifest", filePath)
+}

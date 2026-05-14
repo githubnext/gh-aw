@@ -1,0 +1,100 @@
+//go:build !integration
+
+package cli
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCompileWorkflows_ValidatesRootAwManifest(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "aw-manifest-*")
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(originalWd) })
+	require.NoError(t, os.Chdir(tmpDir))
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, ".github", "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".github", "workflows", "test.md"), []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`schema-version: "1"
+min-version: v9.9.9
+name: Repo Assist
+`), 0o644))
+
+	originalVersion := GetVersion()
+	SetVersionInfo("v1.2.3")
+	t.Cleanup(func() { SetVersionInfo(originalVersion) })
+
+	_, err = CompileWorkflows(context.Background(), CompileConfig{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `requires gh-aw`)
+}
+
+func TestCompileWorkflows_JSONOutputIncludesManifestValidationResult(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "aw-manifest-json-*")
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(originalWd) })
+	require.NoError(t, os.Chdir(tmpDir))
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, ".github", "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".github", "workflows", "test.md"), []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`name: Repo Assist
+unknown-field: true
+`), 0o644))
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_, err = CompileWorkflows(context.Background(), CompileConfig{JSONOutput: true})
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	output, readErr := io.ReadAll(r)
+	require.NoError(t, readErr)
+	require.Error(t, err)
+
+	var results []ValidationResult
+	require.NoError(t, json.Unmarshal(output, &results), "output: %s", string(output))
+	require.Len(t, results, 1)
+	assert.Equal(t, "aw.yml", results[0].Workflow)
+	assert.False(t, results[0].Valid)
+	require.NotEmpty(t, results[0].Errors)
+	assert.Equal(t, "manifest_error", results[0].Errors[0].Type)
+	assert.Contains(t, results[0].Errors[0].Message, "unknown-field")
+}

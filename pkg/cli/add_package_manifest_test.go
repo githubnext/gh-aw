@@ -12,12 +12,15 @@ import (
 )
 
 func TestResolveRepositoryPackage(t *testing.T) {
+	originalVersion := GetVersion()
 	originalDownload := downloadPackageFileFromGitHubForHost
 	originalList := listPackageWorkflowFiles
 	t.Cleanup(func() {
+		SetVersionInfo(originalVersion)
 		downloadPackageFileFromGitHubForHost = originalDownload
 		listPackageWorkflowFiles = originalList
 	})
+	SetVersionInfo("v1.2.3")
 
 	t.Run("uses aw manifest files and explicit docs", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
@@ -92,6 +95,75 @@ files:
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `name must be a non-empty string`)
+	})
+
+	t.Run("accepts schema-version and compatible min-version", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`schema-version: "1"
+min-version: v1.0.0
+name: Repo Assist
+files:
+  - workflows/review.md
+`), nil
+			default:
+				return nil, fmt.Errorf("404 not found: %s", path)
+			}
+		}
+		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
+	t.Run("rejects unsupported schema-version", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`schema-version: "2"
+name: Repo Assist
+`), nil
+			}
+			return nil, fmt.Errorf("404 not found: %s", path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `schema-version`)
+	})
+
+	t.Run("rejects incompatible min-version", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`min-version: v9.9.9
+name: Repo Assist
+`), nil
+			}
+			return nil, fmt.Errorf("404 not found: %s", path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `requires gh-aw`)
+	})
+
+	t.Run("rejects unknown manifest fields", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`name: Repo Assist
+unknown-field: true
+`), nil
+			}
+			return nil, fmt.Errorf("404 not found: %s", path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown-field`)
 	})
 }
 

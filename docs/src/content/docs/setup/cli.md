@@ -169,6 +169,8 @@ gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR
 
 **Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
+Repository-level packages can declare a root [`aw.yml` manifest](/gh-aw/reference/repository-package-manifest/) to define installable files, docs, schema compatibility, and minimum supported CLI versions.
+
 #### `new`
 
 Create a workflow template in `.github/workflows/`. Opens for editing automatically.
@@ -262,6 +264,8 @@ gh aw compile --strict --zizmor            # Security scan (fails on findings)
 gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
+
+If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/repository-package-manifest/), `gh aw compile` validates it before compiling workflows.
 
 **Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
 

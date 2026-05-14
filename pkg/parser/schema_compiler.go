@@ -29,20 +29,26 @@ var mcpConfigSchema string
 //go:embed schemas/repo_config_schema.json
 var RepoConfigSchema string
 
+//go:embed schemas/aw_manifest_schema.json
+var awManifestSchema string
+
 // validateWithSchema validates frontmatter against a JSON schema
 // Cached compiled schemas to avoid recompiling on every validation
 var (
 	mainWorkflowSchemaOnce sync.Once
 	mcpConfigSchemaOnce    sync.Once
 	repoConfigSchemaOnce   sync.Once
+	awManifestSchemaOnce   sync.Once
 
 	compiledMainWorkflowSchema *jsonschema.Schema
 	compiledMcpConfigSchema    *jsonschema.Schema
 	compiledRepoConfigSchema   *jsonschema.Schema
+	compiledAwManifestSchema   *jsonschema.Schema
 
 	mainWorkflowSchemaError error
 	mcpConfigSchemaError    error
 	repoConfigSchemaError   error
+	awManifestSchemaError   error
 
 	// Cached parsed schema documents (as any) for suggestion generation.
 	// Parsing the large JSON schema on every error call is expensive; these caches
@@ -78,6 +84,14 @@ func GetCompiledRepoConfigSchema() (*jsonschema.Schema, error) {
 		compiledRepoConfigSchema, repoConfigSchemaError = compileSchema(RepoConfigSchema, "http://contoso.com/repo-config-schema.json")
 	})
 	return compiledRepoConfigSchema, repoConfigSchemaError
+}
+
+// getCompiledAwManifestSchema returns the compiled aw manifest schema, compiling it once and caching.
+func getCompiledAwManifestSchema() (*jsonschema.Schema, error) {
+	awManifestSchemaOnce.Do(func() {
+		compiledAwManifestSchema, awManifestSchemaError = compileSchema(awManifestSchema, "http://contoso.com/aw-manifest-schema.json")
+	})
+	return compiledAwManifestSchema, awManifestSchemaError
 }
 
 // getParsedSchemaDoc returns the parsed (any) representation of a known schema JSON string.
@@ -275,6 +289,9 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 	case RepoConfigSchema:
 		schemaCompilerLog.Print("Using cached repo config schema")
 		schema, err = GetCompiledRepoConfigSchema()
+	case awManifestSchema:
+		schemaCompilerLog.Print("Using cached aw manifest schema")
+		schema, err = getCompiledAwManifestSchema()
 	default:
 		// Fallback for unknown schemas (shouldn't happen in normal operation)
 		// Compile the schema on-the-fly
