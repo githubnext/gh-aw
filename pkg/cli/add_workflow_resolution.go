@@ -43,6 +43,8 @@ type ResolvedWorkflows struct {
 	HasWildcard bool
 	// HasWorkflowDispatch is true if any of the workflows has a workflow_dispatch trigger
 	HasWorkflowDispatch bool
+	// Warnings contains non-fatal package-resolution warnings to show during add
+	Warnings []string
 }
 
 // ResolveWorkflows resolves workflow specifications by parsing specs and fetching workflow content.
@@ -63,11 +65,33 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 
 	// Parse workflow specifications
 	parsedSpecs := make([]*WorkflowSpec, 0, len(workflows))
+	var resolutionWarnings []string
 
 	for _, workflow := range workflows {
 		spec, err := parseWorkflowSpec(workflow)
 		if err != nil {
-			return nil, fmt.Errorf("invalid workflow specification '%s': %w", workflow, err)
+			repoSpec, repoErr := parseRepoSpec(workflow)
+			if repoErr != nil {
+				return nil, fmt.Errorf("invalid workflow specification '%s': %w", workflow, err)
+			}
+
+			pkg, pkgErr := resolveRepositoryPackage(repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
+			if pkgErr != nil {
+				return nil, pkgErr
+			}
+			resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
+			for _, installationSource := range pkg.InstallationSource {
+				parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+					RepoSpec: RepoSpec{
+						RepoSlug: repoSpec.RepoSlug,
+						Version:  repoSpec.Version,
+					},
+					WorkflowPath: installationSource,
+					WorkflowName: strings.TrimSuffix(filepath.Base(installationSource), ".md"),
+					Host:         explicitHostForRepo(repoSpec.RepoSlug),
+				})
+			}
+			continue
 		}
 
 		// Wildcards are only supported for local workflows
@@ -163,6 +187,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		Workflows:           resolvedWorkflows,
 		HasWildcard:         hasWildcard,
 		HasWorkflowDispatch: hasWorkflowDispatch,
+		Warnings:            resolutionWarnings,
 	}, nil
 }
 

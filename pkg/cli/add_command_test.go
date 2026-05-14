@@ -94,10 +94,10 @@ func TestAddWorkflows(t *testing.T) {
 			errorContains: "at least one workflow",
 		},
 		{
-			name:          "repo-only spec (requires workflow path)",
-			workflows:     []string{"owner/repo"},
+			name:          "invalid repo spec missing repo name",
+			workflows:     []string{"owner"},
 			expectError:   true,
-			errorContains: "workflow specification must be in format",
+			errorContains: "invalid workflow specification",
 		},
 	}
 

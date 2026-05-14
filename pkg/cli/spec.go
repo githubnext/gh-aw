@@ -215,6 +215,16 @@ func isGitHubHost(host string) bool {
 		strings.HasSuffix(host, ".ghe.com") ||
 		strings.HasSuffix(host, ".github.com")
 }
+
+func explicitHostForRepo(repoSlug string) string {
+	if repoHost := getGitHubHostForRepo(repoSlug); repoHost != getGitHubHost() {
+		if u, parseErr := url.Parse(repoHost); parseErr == nil && u.Host != "" {
+			return u.Host
+		}
+	}
+	return ""
+}
+
 func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	specLog.Printf("Parsing workflow spec: %q", spec)
 
@@ -300,12 +310,7 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	// is always public GitHub regardless of GHE configuration. If the repo's canonical
 	// host differs from the configured host, record the explicit hostname so API fetches
 	// target the correct server.
-	var explicitHost string
-	if repoHost := getGitHubHostForRepo(repoSlug); repoHost != getGitHubHost() {
-		if u, parseErr := url.Parse(repoHost); parseErr == nil && u.Host != "" {
-			explicitHost = u.Host
-		}
-	}
+	explicitHost := explicitHostForRepo(repoSlug)
 
 	// Check if this is a wildcard specification (owner/repo/*)
 	if workflowPath == "*" {

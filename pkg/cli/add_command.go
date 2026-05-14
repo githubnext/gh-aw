@@ -195,6 +195,10 @@ func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows,
 
 	result := &AddWorkflowsResult{}
 
+	for _, warning := range resolved.Warnings {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+	}
+
 	// If creating a PR, check prerequisites
 	if opts.CreatePR {
 		// Check if GitHub CLI is available
