@@ -615,7 +615,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
 async function main(config = {}) {
   // Extract configuration
   const rawBranchPrefix = config.branch_prefix || "";
-  const normalizedBranchPrefix = rawBranchPrefix ? normalizeBranchName(rawBranchPrefix) : "";
+  const normalizedBranchPrefix = normalizeBranchName(rawBranchPrefix);
   if (rawBranchPrefix && normalizedBranchPrefix !== rawBranchPrefix) {
     core.warning(
       `Branch prefix "${rawBranchPrefix}" contains characters that are invalid in a git ref. ` +
