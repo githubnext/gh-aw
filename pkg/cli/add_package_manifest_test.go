@@ -98,7 +98,7 @@ files:
 		assert.Contains(t, err.Error(), `name must be a non-empty string`)
 	})
 
-	t.Run("rejects legacy manifest aliases", func(t *testing.T) {
+	t.Run("requires aw manifest when only legacy alias exists", func(t *testing.T) {
 		var requestedPaths []string
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			requestedPaths = append(requestedPaths, path)

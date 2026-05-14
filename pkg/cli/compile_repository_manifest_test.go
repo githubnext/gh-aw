@@ -99,7 +99,7 @@ docs: docs/overview.md
 	assert.Contains(t, results[0].Errors[0].Message, "docs")
 }
 
-func TestCompileWorkflows_IgnoresLegacyManifestAliases(t *testing.T) {
+func TestCompileWorkflows_RequiresCanonicalAwManifest(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "aw-manifest-legacy-*")
 	originalWd, err := os.Getwd()
 	require.NoError(t, err)
