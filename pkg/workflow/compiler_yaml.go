@@ -826,6 +826,18 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
+	if data.Source != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)
+		// Body-modified defaults to false at compile time; update flows may override this
+		// signal when source/body drift is detected before execution.
+		yaml.WriteString("          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
+	}
+	if data.FrontmatterEmoji != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_EMOJI: %q\n", data.FrontmatterEmoji)
+	}
+	if data.FrontmatterHash != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_HASH: %q\n", data.FrontmatterHash)
+	}
 	// Always include strict mode flag for lockdown validation.
 	// validateLockdownRequirements uses this to enforce strict: true for public repositories.
 	// Use effectiveStrictMode to infer strictness from the source (frontmatter), not just the CLI flag.

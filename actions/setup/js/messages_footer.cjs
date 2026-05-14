@@ -71,6 +71,12 @@ function getEffectiveTokensFromEnv() {
 function getFooterMessage(ctx) {
   const messages = getMessages();
 
+  // Use effectiveTokens from context if provided, otherwise fall back to env var.
+  // This ensures callers that don't pass effectiveTokens (e.g. update_activation_comment.cjs)
+  // still get the effective token count in the footer when GH_AW_EFFECTIVE_TOKENS is set.
+  const { effectiveTokens: envEffectiveTokens } = getEffectiveTokensFromEnv();
+  const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
+
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
   const historyLink = ctx.historyUrl ? ` · [◷](${ctx.historyUrl})` : "";
 
@@ -78,12 +84,12 @@ function getFooterMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Pre-compute effective_tokens_formatted and effective_tokens_suffix for use in custom templates
-  const effectiveTokensFormatted = ctx.effectiveTokens ? formatET(ctx.effectiveTokens) : undefined;
+  const effectiveTokensFormatted = effectiveTokens ? formatET(effectiveTokens) : undefined;
   // effective_tokens_suffix is always a string: either " · ● 1.2K" or "" (for safe use in templates)
   const effectiveTokensSuffix = effectiveTokensFormatted ? ` · ● ${effectiveTokensFormatted}` : "";
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
-  const templateContext = toSnakeCase({ ...ctx, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix });
+  const templateContext = toSnakeCase({ ...ctx, effectiveTokens, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix });
 
   // Use custom footer template if configured (no automatic suffix appended)
   if (messages?.footer) {
@@ -97,8 +103,8 @@ function getFooterMessage(ctx) {
     defaultFooter += " for issue #{triggering_number}";
   }
   // Append effective tokens with ● symbol when available (compact format, no "ET" label)
-  if (ctx.effectiveTokens) {
-    defaultFooter += ` · ● ${formatET(ctx.effectiveTokens)}`;
+  if (effectiveTokens) {
+    defaultFooter += ` · ● ${formatET(effectiveTokens)}`;
   }
   // Append history link when available
   if (ctx.historyUrl) {

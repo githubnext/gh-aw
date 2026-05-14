@@ -80,6 +80,26 @@ async function main(core, ctx) {
     created_at: new Date().toISOString(),
   };
 
+  const frontmatterSource = process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
+  if (frontmatterSource) {
+    awInfo.frontmatter_source = frontmatterSource;
+  }
+
+  const frontmatterHash = process.env.GH_AW_INFO_FRONTMATTER_HASH || "";
+  if (frontmatterHash) {
+    awInfo.frontmatter_hash = frontmatterHash;
+  }
+
+  const frontmatterEmoji = process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  if (frontmatterEmoji) {
+    awInfo.frontmatter_emoji = frontmatterEmoji;
+  }
+
+  const bodyModified = process.env.GH_AW_INFO_BODY_MODIFIED;
+  if (bodyModified === "true" || bodyModified === "false") {
+    awInfo.body_modified = bodyModified === "true";
+  }
+
   // Include cli_version only when set (released builds only)
   const cliVersion = process.env.GH_AW_INFO_CLI_VERSION;
   if (cliVersion) {
