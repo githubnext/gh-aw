@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCTR015AllowedLabelsGlobScope tests that the compiler warns (CTR-015) when
+// TestCTR015AllowedLabelsGlobScope tests that the compiler rejects (CTR-015) when
 // a bare "*" wildcard appears in any safe-outputs allowed-labels field.
 func TestCTR015AllowedLabelsGlobScope(t *testing.T) {
 	basePermissions := `
@@ -31,71 +31,71 @@ strict: false
 	tests := []struct {
 		name        string
 		safeOutputs string
-		expectWarn  bool
+		expectError bool
 	}{
 		{
-			name: "create-issue with bare * in allowed-labels triggers warning",
+			name: "create-issue with bare * in allowed-labels triggers error",
 			safeOutputs: `safe-outputs:
   create-issue:
     allowed-labels: ["*"]
 `,
-			expectWarn: true,
+			expectError: true,
 		},
 		{
-			name: "create-discussion with bare * triggers warning",
+			name: "create-discussion with bare * triggers error",
 			safeOutputs: `safe-outputs:
   create-discussion:
     allowed-labels: ["*"]
 `,
-			expectWarn: true,
+			expectError: true,
 		},
 		{
-			name: "create-pull-request with bare * triggers warning",
+			name: "create-pull-request with bare * triggers error",
 			safeOutputs: `safe-outputs:
   create-pull-request:
     allowed-labels: ["*"]
 `,
-			expectWarn: true,
+			expectError: true,
 		},
 		{
-			name: "merge-pull-request with bare * triggers warning",
+			name: "merge-pull-request with bare * triggers error",
 			safeOutputs: `safe-outputs:
   merge-pull-request:
     allowed-labels: ["*"]
 `,
-			expectWarn: true,
+			expectError: true,
 		},
 		{
-			name: "update-discussion with bare * triggers warning",
+			name: "update-discussion with bare * triggers error",
 			safeOutputs: `safe-outputs:
   update-discussion:
     allowed-labels: ["*"]
 `,
-			expectWarn: true,
+			expectError: true,
 		},
 		{
-			name: "specific label names do not trigger warning",
+			name: "specific label names do not trigger error",
 			safeOutputs: `safe-outputs:
   create-issue:
     allowed-labels: ["bug", "enhancement"]
 `,
-			expectWarn: false,
+			expectError: false,
 		},
 		{
-			name: "prefix glob pattern does not trigger warning",
+			name: "prefix glob pattern does not trigger error",
 			safeOutputs: `safe-outputs:
   create-issue:
     allowed-labels: ["team-*", "priority-*"]
 `,
-			expectWarn: false,
+			expectError: false,
 		},
 		{
-			name: "mixed specific and bare * triggers warning",
+			name: "mixed specific and bare * triggers error",
 			safeOutputs: `safe-outputs:
   create-issue:
     allowed-labels: ["bug", "*", "enhancement"]
 `,
-			expectWarn: true,
+			expectError: true,
 		},
 	}
 
@@ -109,11 +109,16 @@ strict: false
 			require.NoError(t, err, "Should write test workflow file")
 
 			compiler := NewCompiler()
-			_, _ = compiler.Compile(wfPath)
+			compileErr := compiler.CompileWorkflow(wfPath)
 
-			if tt.expectWarn {
-				assert.Greater(t, compiler.GetWarningCount(), 0,
-					"CTR-015: expected warning for bare \"*\" in allowed-labels")
+			if tt.expectError {
+				assert.Error(t, compileErr,
+					"CTR-015: expected error for bare \"*\" in allowed-labels")
+				assert.Contains(t, compileErr.Error(), "CTR-015",
+					"CTR-015: error message should reference the rule ID")
+			} else {
+				assert.NoError(t, compileErr,
+					"CTR-015: did not expect error for valid allowed-labels")
 			}
 		})
 	}

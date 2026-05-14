@@ -2,24 +2,21 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/console"
 )
 
 var safeOutputsAllowedLabelsValidationLog = newValidationLogger("safe_outputs_allowed_labels")
 
-// validateSafeOutputsAllowedLabelsGlobScope emits warnings when any safe-outputs
+// validateSafeOutputsAllowedLabelsGlobScope returns an error when any safe-outputs
 // allowed-labels field contains a bare "*" glob pattern (CTR-015).
 //
 // A bare "*" in allowed-labels is semantically equivalent to omitting the field
 // entirely: all labels are permitted and the restriction is ineffective. This is
 // almost always accidental. Authors should use specific names or narrower patterns
 // such as "team-*" or "priority-*" instead.
-func (c *Compiler) validateSafeOutputsAllowedLabelsGlobScope(config *SafeOutputsConfig) {
+func (c *Compiler) validateSafeOutputsAllowedLabelsGlobScope(config *SafeOutputsConfig) error {
 	if config == nil {
-		return
+		return nil
 	}
 
 	type labelledConfig struct {
@@ -57,10 +54,10 @@ func (c *Compiler) validateSafeOutputsAllowedLabelsGlobScope(config *SafeOutputs
 						"to restrict which labels the agent is allowed to apply.",
 					lc.name,
 				)
-				safeOutputsAllowedLabelsValidationLog.Printf("Warning: %s", msg)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
-				c.IncrementWarningCount()
+				safeOutputsAllowedLabelsValidationLog.Printf("Error: %s", msg)
+				return fmt.Errorf("%s", msg)
 			}
 		}
 	}
+	return nil
 }
