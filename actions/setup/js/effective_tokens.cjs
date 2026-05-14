@@ -247,14 +247,19 @@ function readAgentUsage() {
 
 /**
  * Build a collapsible `<details>` table showing the data used to compute ET.
- * Uses actual token counts from agent_usage.json when available, otherwise shows
- * the formula and weights only.
+ *
+ * Three tiers of detail, in order of preference:
+ *  1. `tokenUsageMarkdown` — full per-model breakdown produced by `generateTokenUsageSummary`
+ *     (passed in by the caller after reading/parsing token-usage.jsonl)
+ *  2. Aggregated data from `agent_usage.json` — weighted computation table with model multiplier
+ *  3. Weights-only table — when no token count data is available
+ *
  * @param {string} effectiveTokens - Total effective token count (string)
- * @returns {string} Markdown/HTML fragment, or empty string
+ * @param {string | null} [tokenUsageMarkdown] - Pre-rendered per-model table from generateTokenUsageSummary
+ * @returns {string} Markdown/HTML `<details>` block
  */
-function buildETComputationTable(effectiveTokens) {
+function buildETComputationTable(effectiveTokens, tokenUsageMarkdown = null) {
   const w = getTokenClassWeights();
-  const usage = readAgentUsage();
 
   const lines = [];
   lines.push("<details>");
@@ -263,39 +268,46 @@ function buildETComputationTable(effectiveTokens) {
   );
   lines.push("");
 
-  if (usage) {
-    const inputWeighted = w.input * (usage.input_tokens || 0);
-    const cachedWeighted = w.cached_input * (usage.cache_read_tokens || 0);
-    const outputWeighted = w.output * (usage.output_tokens || 0);
-    const cacheWriteWeighted = w.cache_write * (usage.cache_write_tokens || 0);
-    // Reasoning tokens are not tracked in agent_usage.json (they are captured per-model in
-    // token-usage.jsonl but not aggregated into the summary file), so they are omitted here.
-    // The step summary's Token Usage table includes reasoning per model when available.
-    const baseWeighted = inputWeighted + cachedWeighted + outputWeighted + cacheWriteWeighted;
-
-    lines.push("| Token class | Count | Weight | Weighted tokens |");
-    lines.push("|-------------|------:|------:|---------------:|");
-    lines.push(`| Input | ${(usage.input_tokens || 0).toLocaleString()} | ×${w.input} | ${Math.round(inputWeighted).toLocaleString()} |`);
-    lines.push(`| Cached input | ${(usage.cache_read_tokens || 0).toLocaleString()} | ×${w.cached_input} | ${Math.round(cachedWeighted).toLocaleString()} |`);
-    lines.push(`| Output | ${(usage.output_tokens || 0).toLocaleString()} | ×${w.output} | ${Math.round(outputWeighted).toLocaleString()} |`);
-    lines.push(`| Cache write | ${(usage.cache_write_tokens || 0).toLocaleString()} | ×${w.cache_write} | ${Math.round(cacheWriteWeighted).toLocaleString()} |`);
-    lines.push(`| **Base weighted** | | | **${Math.round(baseWeighted).toLocaleString()}** |`);
-
-    const etVal = Number.parseInt(effectiveTokens || "", 10);
-    if (Number.isInteger(etVal) && etVal > 0 && baseWeighted > 0) {
-      const multiplier = etVal / baseWeighted;
-      lines.push(`| **Model multiplier** | | ×${multiplier.toFixed(2)} | **${etVal.toLocaleString()}** |`);
-    }
+  if (tokenUsageMarkdown) {
+    // Full per-model breakdown — includes ET per model, token class counts,
+    // duration, request count, and ET weight disclosure.
+    lines.push(tokenUsageMarkdown.trimEnd());
   } else {
-    lines.push("| Token class | Weight |");
-    lines.push("|-------------|-------:|");
-    lines.push(`| Input | ×${w.input} |`);
-    lines.push(`| Cached input | ×${w.cached_input} |`);
-    lines.push(`| Output | ×${w.output} |`);
-    lines.push(`| Reasoning | ×${w.reasoning} |`);
-    lines.push(`| Cache write | ×${w.cache_write} |`);
-    lines.push("");
-    lines.push("_Token counts unavailable — see step summary for per-model breakdown._");
+    const usage = readAgentUsage();
+    if (usage) {
+      const inputWeighted = w.input * (usage.input_tokens || 0);
+      const cachedWeighted = w.cached_input * (usage.cache_read_tokens || 0);
+      const outputWeighted = w.output * (usage.output_tokens || 0);
+      const cacheWriteWeighted = w.cache_write * (usage.cache_write_tokens || 0);
+      // Reasoning tokens are not tracked in agent_usage.json (they are captured per-model in
+      // token-usage.jsonl but not aggregated into the summary file), so they are omitted here.
+      // The step summary's Token Usage table includes reasoning per model when available.
+      const baseWeighted = inputWeighted + cachedWeighted + outputWeighted + cacheWriteWeighted;
+
+      lines.push("| Token class | Count | Weight | Weighted tokens |");
+      lines.push("|-------------|------:|------:|---------------:|");
+      lines.push(`| Input | ${(usage.input_tokens || 0).toLocaleString()} | ×${w.input} | ${Math.round(inputWeighted).toLocaleString()} |`);
+      lines.push(`| Cached input | ${(usage.cache_read_tokens || 0).toLocaleString()} | ×${w.cached_input} | ${Math.round(cachedWeighted).toLocaleString()} |`);
+      lines.push(`| Output | ${(usage.output_tokens || 0).toLocaleString()} | ×${w.output} | ${Math.round(outputWeighted).toLocaleString()} |`);
+      lines.push(`| Cache write | ${(usage.cache_write_tokens || 0).toLocaleString()} | ×${w.cache_write} | ${Math.round(cacheWriteWeighted).toLocaleString()} |`);
+      lines.push(`| **Base weighted** | | | **${Math.round(baseWeighted).toLocaleString()}** |`);
+
+      const etVal = Number.parseInt(effectiveTokens || "", 10);
+      if (Number.isInteger(etVal) && etVal > 0 && baseWeighted > 0) {
+        const multiplier = etVal / baseWeighted;
+        lines.push(`| **Model multiplier** | | ×${multiplier.toFixed(2)} | **${etVal.toLocaleString()}** |`);
+      }
+    } else {
+      lines.push("| Token class | Weight |");
+      lines.push("|-------------|-------:|");
+      lines.push(`| Input | ×${w.input} |`);
+      lines.push(`| Cached input | ×${w.cached_input} |`);
+      lines.push(`| Output | ×${w.output} |`);
+      lines.push(`| Reasoning | ×${w.reasoning} |`);
+      lines.push(`| Cache write | ×${w.cache_write} |`);
+      lines.push("");
+      lines.push("_Token counts unavailable — see step summary for per-model breakdown._");
+    }
   }
 
   lines.push("");

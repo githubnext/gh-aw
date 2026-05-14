@@ -2064,56 +2064,54 @@ describe("handle_agent_failure", () => {
     });
   });
 
-  describe("buildETComputationTable", () => {
-    let buildETComputationTable;
-    let AGENT_USAGE_PATH;
+  describe("readTokenUsageMarkdown", () => {
+    let readTokenUsageMarkdown;
     const fs = require("fs");
     const os = require("os");
     const path = require("path");
     let tmpDir;
 
     beforeEach(() => {
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+      global.github = {};
+      global.context = { repo: { owner: "owner", repo: "repo" } };
       vi.resetModules();
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-table-test-"));
-      ({ buildETComputationTable, AGENT_USAGE_PATH } = require("./effective_tokens.cjs"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "rt-usage-test-"));
+      ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
     });
 
     afterEach(() => {
+      delete global.core;
+      delete global.github;
+      delete global.context;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    it("shows weights-only table when agent_usage.json is absent", () => {
-      // No agent_usage.json written — readAgentUsage() returns null
-      const result = buildETComputationTable("10000000");
-      expect(result).toContain("<details>");
-      expect(result).toContain("</details>");
-      expect(result).toContain("ET computation details");
-      // Should show weight rows without counts
-      expect(result).toContain("Input");
-      expect(result).toContain("Output");
+    it("returns null when no token-usage.jsonl files exist", () => {
+      const result = readTokenUsageMarkdown();
+      expect(result).toBeNull();
     });
 
-    it("shows full computation table when agent_usage.json is present", () => {
-      const origContent = fs.existsSync(AGENT_USAGE_PATH) ? fs.readFileSync(AGENT_USAGE_PATH, "utf8") : null;
-
-      const usage = { input_tokens: 100000, output_tokens: 10000, cache_read_tokens: 500000, cache_write_tokens: 5000, effective_tokens: 200000 };
-      fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
-      fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(usage));
-
+    it("returns a markdown table when a valid token-usage.jsonl file is present", () => {
+      const { TOKEN_USAGE_PATH } = require("./parse_token_usage.cjs");
+      fs.mkdirSync(path.dirname(TOKEN_USAGE_PATH), { recursive: true });
+      const entry = JSON.stringify({ model: "claude-sonnet-4.5", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const origContent = fs.existsSync(TOKEN_USAGE_PATH) ? fs.readFileSync(TOKEN_USAGE_PATH, "utf8") : null;
+      fs.writeFileSync(TOKEN_USAGE_PATH, entry + "\n");
       try {
         vi.resetModules();
-        ({ buildETComputationTable } = require("./effective_tokens.cjs"));
-        const result = buildETComputationTable("200000");
-        expect(result).toContain("100,000");
-        expect(result).toContain("10,000");
-        expect(result).toContain("500,000");
-        expect(result).toContain("5,000");
-        expect(result).toContain("Base weighted");
+        global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+        ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
+        const result = readTokenUsageMarkdown();
+        expect(result).not.toBeNull();
+        expect(result).toContain("claude-sonnet-4.5");
+        expect(result).toContain("1,000");
+        expect(result).toContain("Model");
       } finally {
         if (origContent !== null) {
-          fs.writeFileSync(AGENT_USAGE_PATH, origContent);
-        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
-          fs.unlinkSync(AGENT_USAGE_PATH);
+          fs.writeFileSync(TOKEN_USAGE_PATH, origContent);
+        } else if (fs.existsSync(TOKEN_USAGE_PATH)) {
+          fs.unlinkSync(TOKEN_USAGE_PATH);
         }
       }
     });
