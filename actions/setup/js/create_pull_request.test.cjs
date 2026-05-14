@@ -251,7 +251,9 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/feature/test:refs/heads/feature/test"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/feature/test:refs/bundles/create-pr-feature-test"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", "refs/bundles/create-pr-feature-test"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"]);
     const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
     const bundleFetchCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
@@ -282,7 +284,7 @@ index 0000000..abc1234
     fs.writeFileSync(bundlePath, "bundle content");
 
     global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && args[2] === "refs/heads/ops-review-may09-2026:refs/heads/ops-review-may09-2026") {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && args[2] === "refs/heads/ops-review-may09-2026:refs/bundles/create-pr-ops-review-may09-2026") {
         throw new Error("fatal: couldn't find remote ref refs/heads/ops-review-may09-2026");
       }
       return Promise.resolve(0);
@@ -314,7 +316,40 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/main:refs/heads/ops-review-may09-2026"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/main:refs/bundles/create-pr-ops-review-may09-2026"]);
+  });
+
+  it("should not fetch a bundle directly into the target branch", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/bundles/create-pr-autoloop-perf-comparison"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/autoloop/perf-comparison", "refs/bundles/create-pr-autoloop-perf-comparison"]);
   });
 });
 
