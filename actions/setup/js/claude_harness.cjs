@@ -357,12 +357,12 @@ async function main() {
   // initialArgs carries prompt text as its last positional arg.
   const hadPromptFile = args.includes("--prompt-file");
 
-  // Safe arg list for logging: when --prompt-file was present, the last element of
-  // initialArgs is the resolved prompt content (preceded by the -- end-of-options
-  // marker).  Replace the prompt with a placeholder so that task instructions are
-  // never written to stderr or captured in agent logs.
-  const safeInitialArgs = hadPromptFile && initialArgs.length > 0 ? [...initialArgs.slice(0, -1), "<prompt omitted>"] : initialArgs;
-  const safeFreshRetryArgs = hadPromptFile && freshRetryArgs.length > 0 ? [...freshRetryArgs.slice(0, -1), "<prompt omitted>"] : freshRetryArgs;
+  // Safe arg list for logging: when --prompt-file was present, the last two elements of
+  // initialArgs are the -- end-of-options marker and the resolved prompt content.
+  // Strip both and replace with a placeholder so task instructions are never written
+  // to stderr or captured in agent logs.
+  const safeInitialArgs = hadPromptFile && initialArgs.length > 0 ? [...initialArgs.slice(0, -2), "<prompt omitted>"] : initialArgs;
+  const safeFreshRetryArgs = hadPromptFile && freshRetryArgs.length > 0 ? [...freshRetryArgs.slice(0, -2), "<prompt omitted>"] : freshRetryArgs;
 
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.

@@ -51,7 +51,7 @@ function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = []
 
 describe("claude_harness.cjs", () => {
   describe("resolveClaudePromptFileArgs", () => {
-    it("replaces --prompt-file with -- and the file's content as the last positional args", () => {
+    it("replaces --prompt-file with ['--', content] as the last two positional args", () => {
       const promptFile = path.join(os.tmpdir(), `claude-harness-prompt-${Date.now()}.txt`);
       fs.writeFileSync(promptFile, "fix the bug", "utf8");
       try {
@@ -62,7 +62,7 @@ describe("claude_harness.cjs", () => {
       }
     });
 
-    it("appends -- and prompt content as the last args when no other positional args precede it", () => {
+    it("appends -- and prompt content as the last two args", () => {
       const promptFile = path.join(os.tmpdir(), `claude-harness-prompt-${Date.now()}.txt`);
       fs.writeFileSync(promptFile, "my task", "utf8");
       try {
