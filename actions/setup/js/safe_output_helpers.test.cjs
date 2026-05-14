@@ -324,6 +324,28 @@ describe("safe_output_helpers", () => {
         expect(result.contextType).toBe("pull request");
       });
 
+      it("should resolve wildcard with pr_number alias", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "*",
+          item: { pr_number: 790 },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(790);
+        expect(result.contextType).toBe("pull request");
+      });
+
+      it("should resolve wildcard with pr alias", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "*",
+          item: { pr: "791" },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(791);
+        expect(result.contextType).toBe("pull request");
+      });
+
       it("should fail wildcard without pull_request_number", () => {
         const result = helpers.resolveTarget({
           ...baseParams,
@@ -391,6 +413,18 @@ describe("safe_output_helpers", () => {
         });
         expect(result.success).toBe(true);
         expect(result.number).toBe(456);
+      });
+
+      it("should handle string pr_number alias", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "*",
+          item: { pr_number: "457" },
+          context: { eventName: "push", payload: {} },
+          itemType: "test",
+          supportsPR: false,
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(457);
       });
     });
 

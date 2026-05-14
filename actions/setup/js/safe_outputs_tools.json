@@ -258,6 +258,14 @@
           "type": ["number", "string"],
           "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion). If auto-targeting fails (e.g., for schedule or workflow_dispatch triggers), the tool call will fail with an error."
         },
+        "pr_number": {
+          "type": ["number", "string"],
+          "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls."
+        },
+        "pr": {
+          "type": ["number", "string"],
+          "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls."
+        },
         "temporary_id": {
           "type": "string",
           "pattern": "^aw_[A-Za-z0-9]{3,12}$",
@@ -815,6 +823,14 @@
         "pull_request_number": {
           "type": ["number", "string"],
           "description": "Pull request number to update. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/pull/234). Required when the workflow target is '*' (any PR)."
+        },
+        "pr_number": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
+        },
+        "pr": {
+          "type": ["number", "string"],
+          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
         },
         "draft": {
           "type": "boolean",

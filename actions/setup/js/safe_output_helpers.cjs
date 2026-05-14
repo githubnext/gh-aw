@@ -119,15 +119,16 @@ function resolveTarget(params) {
   if (target === "*") {
     // Use item_number, issue_number, or pull_request_number from item
     let numberField;
+    const pullRequestNumberField = item.pull_request_number || item.pr_number || item.pr;
     if (supportsPR) {
       // Supports both issues and PRs: check all fields
-      numberField = item.item_number || item.issue_number || item.pull_request_number;
+      numberField = item.item_number || item.issue_number || pullRequestNumberField;
     } else if (supportsIssue) {
       // Supports issues only: check issue-related fields
       numberField = item.item_number || item.issue_number;
     } else {
       // Supports PRs only: check PR field
-      numberField = item.pull_request_number;
+      numberField = pullRequestNumberField;
     }
 
     if (numberField) {
