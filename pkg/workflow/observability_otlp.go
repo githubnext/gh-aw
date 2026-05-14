@@ -115,13 +115,10 @@ func isOTLPIfMissingIgnore(mode string) bool {
 }
 
 // getOTLPIgnoreIfMissing returns true when observability.otlp.if-missing is set
-// to "ignore" (or deprecated observability.otlp.ignore-if-missing is true).
+// to "ignore".
 func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]any) bool {
 	if config != nil && config.Observability != nil && config.Observability.OTLP != nil {
 		if isOTLPIfMissingIgnore(config.Observability.OTLP.IfMissing) {
-			return true
-		}
-		if config.Observability.OTLP.IgnoreIfMissing {
 			return true
 		}
 	}
@@ -145,9 +142,6 @@ func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]an
 		return false
 	}
 	if v, ok := otlpMap["if-missing"].(string); ok && isOTLPIfMissingIgnore(v) {
-		return true
-	}
-	if v, ok := otlpMap["ignore-if-missing"].(bool); ok && v {
 		return true
 	}
 	return false
@@ -432,8 +426,8 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
 	}
 	if ignoreIfMissing {
-		otlpEnvLines += "\n  GH_AW_OTLP_IGNORE_IF_MISSING: true"
-		otlpLog.Printf("Injected GH_AW_OTLP_IGNORE_IF_MISSING env var")
+		otlpEnvLines += "\n  GH_AW_OTLP_IF_MISSING: ignore"
+		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var")
 	}
 
 	if workflowData.Env == "" {

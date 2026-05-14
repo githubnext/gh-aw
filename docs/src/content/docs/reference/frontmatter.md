@@ -968,7 +968,7 @@ When `observability.otlp` is configured, the following environment variables are
 | `OTEL_EXPORTER_OTLP_HEADERS` | Comma-separated `key=value` headers for the first endpoint. Set only when headers are configured. |
 | `OTEL_SERVICE_NAME` | Always `gh-aw`. |
 | `GH_AW_OTLP_ENDPOINTS` | JSON-encoded array of all endpoint entries (`[{"url":"...","headers":"..."}]`). Used by JavaScript action scripts to fan out spans to multiple endpoints. |
-| `GH_AW_OTLP_IGNORE_IF_MISSING` | Set to `true` when `observability.otlp.if-missing: ignore` is enabled. Used by runtime gateway setup to downgrade missing OTLP endpoint/header values from errors to warnings. |
+| `GH_AW_OTLP_IF_MISSING` | Set to `ignore` when `observability.otlp.if-missing: ignore` is enabled. Used by runtime gateway setup to downgrade missing OTLP endpoint/header values from errors to warnings. |
 | `COPILOT_OTEL_FILE_EXPORTER_PATH` | Path where Copilot CLI writes its own OTLP spans (`/tmp/gh-aw/copilot-otel.jsonl`). Copilot CLI detects this variable and writes its traces here; gh-aw forwards these traces to configured endpoints at the end of each run. |
 
 > [!NOTE]

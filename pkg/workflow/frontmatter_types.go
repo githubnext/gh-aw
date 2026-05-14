@@ -232,9 +232,6 @@ type OTLPConfig struct {
 	//   - "warn": keep OTLP config and continue (gateway may still fail with invalid OTLP config)
 	//   - "ignore": log a warning and skip OTLP gateway config
 	IfMissing string `json:"if-missing,omitempty"`
-
-	// IgnoreIfMissing is deprecated in favor of IfMissing: ignore.
-	IgnoreIfMissing bool `json:"ignore-if-missing,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.

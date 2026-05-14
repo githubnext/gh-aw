@@ -9334,10 +9334,6 @@
               "enum": ["error", "warn", "ignore"],
               "default": "error",
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' continues with OTLP config, and 'ignore' logs a warning and skips OTLP gateway configuration."
-            },
-            "ignore-if-missing": {
-              "type": "boolean",
-              "description": "Deprecated: use if-missing: ignore. When true, missing OTLP endpoint/header values at runtime are treated as warnings and OTLP gateway configuration is skipped instead of failing the workflow."
             }
           },
           "additionalProperties": false

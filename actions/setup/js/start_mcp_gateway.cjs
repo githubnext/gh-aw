@@ -65,13 +65,13 @@ function sleep(ms) {
 }
 
 /**
- * Parse a truthy environment-variable style value.
+ * Returns true when GH_AW_OTLP_IF_MISSING is set to "ignore".
  * @param {string | undefined} value
  * @returns {boolean}
  */
-function isTruthyEnvValue(value) {
+function isIgnoreIfMissingMode(value) {
   const normalized = (value || "").trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+  return normalized === "ignore";
 }
 
 /**
@@ -82,7 +82,7 @@ function isTruthyEnvValue(value) {
  * @param {Record<string, unknown>} configObj
  */
 function applyOTLPIgnoreIfMissing(configObj) {
-  if (!isTruthyEnvValue(process.env.GH_AW_OTLP_IGNORE_IF_MISSING)) {
+  if (!isIgnoreIfMissingMode(process.env.GH_AW_OTLP_IF_MISSING)) {
     return;
   }
   const gw = configObj.gateway;
@@ -98,13 +98,13 @@ function applyOTLPIgnoreIfMissing(configObj) {
   const endpoint = typeof otelConfig["endpoint"] === "string" ? otelConfig["endpoint"].trim() : "";
   if (!endpoint) {
     delete gateway["opentelemetry"];
-    core.info("WARNING: OTLP endpoint is missing/empty and GH_AW_OTLP_IGNORE_IF_MISSING is enabled; skipping MCP gateway OTLP configuration.");
+    core.info("WARNING: OTLP endpoint is missing/empty and GH_AW_OTLP_IF_MISSING=ignore; skipping MCP gateway OTLP configuration.");
     return;
   }
   const headers = otelConfig["headers"];
   if (typeof headers === "string" && headers.trim() === "") {
     delete otelConfig["headers"];
-    core.info("WARNING: OTLP headers are missing/empty and GH_AW_OTLP_IGNORE_IF_MISSING is enabled; continuing without MCP gateway OTLP headers.");
+    core.info("WARNING: OTLP headers are missing/empty and GH_AW_OTLP_IF_MISSING=ignore; continuing without MCP gateway OTLP headers.");
   }
 }
 
