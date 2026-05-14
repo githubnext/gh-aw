@@ -229,8 +229,10 @@ type OTLPConfig struct {
 	// IfMissing controls runtime behavior when OTLP endpoint/header values are
 	// missing (for example because a referenced secret is unset). Supported values:
 	//   - "error" (default): fail workflow startup
-	//   - "warn": keep OTLP config and continue (gateway may still fail with invalid OTLP config)
-	//   - "ignore": log a warning and skip OTLP gateway config
+	//   - "warn": log a warning and skip MCP gateway OTLP config
+	//   - "ignore": skip MCP gateway OTLP config without warning
+	// This setting affects MCP gateway setup only. Other OTLP-aware steps still
+	// receive workflow-level OTEL_* environment variables.
 	IfMissing string `json:"if-missing,omitempty"`
 }
 

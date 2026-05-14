@@ -99,52 +99,55 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
-// isOTLPIfMissingIgnore reports whether an if-missing mode value enables
-// ignore behavior. Empty string represents an unset/default value and is treated
-// as non-ignore ("error" semantics).
-func isOTLPIfMissingIgnore(mode string) bool {
+// normalizeOTLPIfMissingMode returns a validated if-missing mode.
+// Empty string means "unset/default (error)".
+func normalizeOTLPIfMissingMode(mode string) string {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "ignore":
-		return true
-	case "", "error", "warn":
-		return false
+	case "":
+		return ""
+	case "error", "warn", "ignore":
+		return strings.ToLower(strings.TrimSpace(mode))
 	default:
-		// Unknown values are rejected by schema validation. Keep fail-closed behavior.
-		return false
+		return ""
 	}
 }
 
-// getOTLPIgnoreIfMissing returns true when observability.otlp.if-missing is set
-// to "ignore".
-func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]any) bool {
+// getOTLPIfMissingMode returns observability.otlp.if-missing mode.
+// Returns empty string when unset or invalid.
+func getOTLPIfMissingMode(config *FrontmatterConfig, frontmatter map[string]any) string {
 	if config != nil && config.Observability != nil && config.Observability.OTLP != nil {
-		if isOTLPIfMissingIgnore(config.Observability.OTLP.IfMissing) {
-			return true
+		if mode := normalizeOTLPIfMissingMode(config.Observability.OTLP.IfMissing); mode != "" {
+			return mode
 		}
 	}
 	if frontmatter == nil {
-		return false
+		return ""
 	}
 	obsAny, ok := frontmatter["observability"]
 	if !ok {
-		return false
+		return ""
 	}
 	obsMap, ok := obsAny.(map[string]any)
 	if !ok {
-		return false
+		return ""
 	}
 	otlpAny, ok := obsMap["otlp"]
 	if !ok {
-		return false
+		return ""
 	}
 	otlpMap, ok := otlpAny.(map[string]any)
 	if !ok {
-		return false
+		return ""
 	}
-	if v, ok := otlpMap["if-missing"].(string); ok && isOTLPIfMissingIgnore(v) {
-		return true
+	if v, ok := otlpMap["if-missing"].(string); ok {
+		if mode := normalizeOTLPIfMissingMode(v); mode != "" {
+			return mode
+		}
+		if strings.TrimSpace(v) != "" {
+			otlpLog.Printf("Ignoring invalid observability.otlp.if-missing value %q (expected one of: error, warn, ignore)", v)
+		}
 	}
-	return false
+	return ""
 }
 
 // isOTLPHeadersPresent returns true when OTEL_EXPORTER_OTLP_HEADERS or
@@ -397,7 +400,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 
 	firstEndpoint := entries[0].URL
 	firstHeaders := entries[0].Headers
-	ignoreIfMissing := getOTLPIgnoreIfMissing(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
+	ifMissingMode := getOTLPIfMissingMode(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
 
 	// 2. Inject OTEL env vars into the workflow-level env: block.
 	//    OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME are set to the first
@@ -425,9 +428,9 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
 	}
-	if ignoreIfMissing {
-		otlpEnvLines += "\n  GH_AW_OTLP_IF_MISSING: ignore"
-		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var")
+	if ifMissingMode == "warn" || ifMissingMode == "ignore" {
+		otlpEnvLines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
+		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
 	}
 
 	if workflowData.Env == "" {
