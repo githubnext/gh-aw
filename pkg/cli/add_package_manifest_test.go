@@ -99,7 +99,9 @@ files:
 	})
 
 	t.Run("rejects legacy manifest aliases", func(t *testing.T) {
+		var requestedPaths []string
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			requestedPaths = append(requestedPaths, path)
 			if path == "agents.yml" {
 				return []byte("name: Legacy Alias\n"), nil
 			}
@@ -112,6 +114,7 @@ files:
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
+		assert.Equal(t, []string{"aw.yml"}, requestedPaths)
 		assert.Contains(t, err.Error(), `no aw.yml manifest found`)
 	})
 

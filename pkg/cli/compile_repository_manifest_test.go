@@ -123,6 +123,10 @@ engine: copilot
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agents.yml"), []byte(`docs: docs/overview.md
 `), 0o644))
 
+	manifestPath, err := findLocalRepositoryPackageManifest(tmpDir)
+	require.NoError(t, err)
+	assert.Empty(t, manifestPath)
+
 	_, err = CompileWorkflows(context.Background(), CompileConfig{})
 	require.NoError(t, err)
 }
