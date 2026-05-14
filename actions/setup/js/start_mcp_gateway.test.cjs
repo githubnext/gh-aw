@@ -64,6 +64,7 @@ describe("start_mcp_gateway OTLP if-missing helpers", () => {
 
     expect(config.gateway.opentelemetry).toBeUndefined();
     expect(warningSpy).toHaveBeenCalledOnce();
+    expect(warningSpy).toHaveBeenCalledWith(expect.stringContaining("OTLP endpoint is missing/empty"));
   });
 
   it("removes empty headers object for warn mode and emits a warning", () => {
@@ -84,6 +85,7 @@ describe("start_mcp_gateway OTLP if-missing helpers", () => {
 
     expect(config.gateway.opentelemetry.headers).toBeUndefined();
     expect(warningSpy).toHaveBeenCalledOnce();
+    expect(warningSpy).toHaveBeenCalledWith(expect.stringContaining("OTLP headers are missing/empty"));
   });
 
   it("removes empty headers object for ignore mode without warning", () => {
