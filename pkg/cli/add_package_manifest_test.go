@@ -77,7 +77,7 @@ files:
 		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
 	})
 
-	t.Run("fails fast on invalid parse-valid manifest", func(t *testing.T) {
+	t.Run("rejects manifest without name field", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
 				return []byte("description: missing name\n"), nil

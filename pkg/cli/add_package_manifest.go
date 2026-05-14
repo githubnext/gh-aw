@@ -96,7 +96,7 @@ func loadRepositoryPackageManifestFile(owner, repo, ref, host string) (string, [
 	}
 
 	if selectedPath == "" {
-		return "", nil, nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root", owner+"/"+repo)
+		return "", nil, nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", owner+"/"+repo)
 	}
 
 	return selectedPath, selectedContent, foundAliases, nil
@@ -131,7 +131,7 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 	if description, ok := stringValue(root["description"]); ok {
 		manifest.Description = description
 		if len(description) > 255 {
-			warnings = append(warnings, fmt.Sprintf("Manifest %s description exceeds 255 characters; marketplace surfaces may ignore it", manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Manifest %s description exceeds the 255-character marketplace display limit", manifestPath))
 		}
 	}
 
@@ -172,7 +172,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	seen := make(map[string]struct{})
 	for _, file := range rawFiles {
 		if !isSupportedPackageInstallablePath(file) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s because installable workflow files must be markdown files under workflows/ or .github/workflows/", file, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: workflow files must be markdown (.md) files under workflows/ or .github/workflows/", file, manifestPath))
 			continue
 		}
 		if _, exists := seen[file]; exists {
@@ -290,6 +290,8 @@ func repositoryPackageAliasWarnings(foundAliases []string, selectedPath string) 
 	return warnings
 }
 
+// parameterizePackageName converts a human-readable package name into a lowercase
+// hyphenated slug suitable for docs path probing (for example, "Repo Assist" → "repo-assist").
 func parameterizePackageName(name string) string {
 	lower := strings.ToLower(strings.TrimSpace(name))
 	if lower == "" {
