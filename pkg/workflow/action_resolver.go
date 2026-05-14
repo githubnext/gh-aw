@@ -12,11 +12,6 @@ import (
 
 var resolverLog = logger.New("workflow:action_resolver")
 
-// ActionSHAResolver is the minimal interface for resolving an action tag to its commit SHA.
-type ActionSHAResolver interface {
-	ResolveSHA(ctx context.Context, repo, version string) (string, error)
-}
-
 // ActionResolver handles resolving action SHAs using GitHub CLI
 type ActionResolver struct {
 	cache             *ActionCache
