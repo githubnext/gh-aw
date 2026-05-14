@@ -157,7 +157,9 @@ func (c *Compiler) generateWazeroCacheCleanupStep(yaml *strings.Builder) {
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          sudo rm -rf /tmp/gh-aw/mcp-logs/wazero-cache 2>/dev/null || rm -rf /tmp/gh-aw/mcp-logs/wazero-cache\n")
+	yaml.WriteString("          if [ -d /tmp/gh-aw/mcp-logs/wazero-cache ]; then\n")
+	yaml.WriteString("            sudo rm -rf /tmp/gh-aw/mcp-logs/wazero-cache 2>/dev/null || rm -rf /tmp/gh-aw/mcp-logs/wazero-cache\n")
+	yaml.WriteString("          fi\n")
 }
 
 // generateAgentOutputPlaceholderStep generates a step that writes a minimal {"items":[]}

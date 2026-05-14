@@ -574,8 +574,10 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// separate agent_outputs artifact.
 	paths = append(paths, getEngineArtifactPaths(engine)...)
 
-	// Collect MCP logs. Unreadable wazero-cache files are deleted before artifact handling.
+	// Collect MCP logs. Unreadable wazero-cache files are deleted before artifact handling,
+	// and also excluded from upload as a safety net if cleanup could not remove them.
 	paths = append(paths, "/tmp/gh-aw/mcp-logs/")
+	paths = append(paths, "!/tmp/gh-aw/mcp-logs/wazero-cache/**")
 
 	// Collect DIFC proxy logs (proxy-tls certs + container stderr) when proxy was injected
 	paths = append(paths, difcProxyLogPaths(data)...)

@@ -86,8 +86,8 @@ Please navigate to example.com and take a screenshot.
 	if !strings.Contains(lockContentStr, "- name: Remove wazero MCP cache") {
 		t.Error("Expected workflow to remove '/tmp/gh-aw/mcp-logs/wazero-cache' after agent execution")
 	}
-	if strings.Contains(lockContentStr, "!/tmp/gh-aw/mcp-logs/wazero-cache/**") {
-		t.Error("Did not expect unified upload to exclude '/tmp/gh-aw/mcp-logs/wazero-cache/**' after cleanup step was added")
+	if !strings.Contains(lockContentStr, "!/tmp/gh-aw/mcp-logs/wazero-cache/**") {
+		t.Error("Expected unified upload to exclude '/tmp/gh-aw/mcp-logs/wazero-cache/**' as a safety net")
 	}
 
 	// Verify the upload step has 'if-no-files-found: ignore' condition
@@ -198,8 +198,8 @@ This workflow does not use Playwright but should still have MCP logs upload.
 	if !strings.Contains(lockContentStr, "- name: Remove wazero MCP cache") {
 		t.Error("Expected workflow to remove '/tmp/gh-aw/mcp-logs/wazero-cache' even when Playwright is not used")
 	}
-	if strings.Contains(lockContentStr, "!/tmp/gh-aw/mcp-logs/wazero-cache/**") {
-		t.Error("Did not expect unified upload to exclude '/tmp/gh-aw/mcp-logs/wazero-cache/**' even when Playwright is not used")
+	if !strings.Contains(lockContentStr, "!/tmp/gh-aw/mcp-logs/wazero-cache/**") {
+		t.Error("Expected unified upload to exclude '/tmp/gh-aw/mcp-logs/wazero-cache/**' even when Playwright is not used")
 	}
 
 	// Verify the upload step uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
