@@ -69,7 +69,7 @@ function sleep(ms) {
  * @param {string | undefined} value
  * @returns {boolean}
  */
-function isIgnoreIfMissingMode(value) {
+function isOTLPIfMissingIgnore(value) {
   const normalized = (value || "").trim().toLowerCase();
   return normalized === "ignore";
 }
@@ -82,7 +82,7 @@ function isIgnoreIfMissingMode(value) {
  * @param {Record<string, unknown>} configObj
  */
 function applyOTLPIgnoreIfMissing(configObj) {
-  if (!isIgnoreIfMissingMode(process.env.GH_AW_OTLP_IF_MISSING)) {
+  if (!isOTLPIfMissingIgnore(process.env.GH_AW_OTLP_IF_MISSING)) {
     return;
   }
   const gw = configObj.gateway;
