@@ -19,8 +19,9 @@ engine:
 strict: true
 mcp-servers:
   sentry:
-    command: "npx"
-    args: ["@sentry/mcp-server@0.33.0"]
+    container: "node:lts-alpine"
+    entrypoint: "npx"
+    entrypointArgs: ["@sentry/mcp-server@0.33.0"]
     allowed:
       - whoami
       - find_organizations
