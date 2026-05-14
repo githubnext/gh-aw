@@ -357,7 +357,8 @@ describe("effective_tokens", () => {
       expect(result).toContain("ET computation details");
       expect(result).toContain("Input");
       expect(result).toContain("Output");
-      expect(result).not.toContain("Count");
+      expect(result).toContain("| Token class | Weight |");
+      expect(result).not.toContain("| Token class | Count | Weight | Weighted tokens |");
     });
 
     it("shows aggregated weighted table when agent_usage.json is present and no tokenUsageMarkdown", () => {

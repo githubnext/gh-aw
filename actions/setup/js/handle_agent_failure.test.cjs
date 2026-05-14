@@ -2072,18 +2072,12 @@ describe("handle_agent_failure", () => {
     let tmpDir;
 
     beforeEach(() => {
-      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
-      global.github = {};
-      global.context = { repo: { owner: "owner", repo: "repo" } };
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "rt-usage-test-"));
       ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
     });
 
     afterEach(() => {
-      delete global.core;
-      delete global.github;
-      delete global.context;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
@@ -2100,7 +2094,6 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(TOKEN_USAGE_PATH, entry + "\n");
       try {
         vi.resetModules();
-        global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
         ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
         const result = readTokenUsageMarkdown();
         expect(result).not.toBeNull();
