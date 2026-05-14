@@ -74,7 +74,9 @@ const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
  * @returns {string}
  */
 function createBundleTempRef(branchName) {
-  return `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}-${crypto.randomBytes(4).toString("hex")}`;
+  // Avoid collisions between sanitized branch names such as foo/bar and foo-bar.
+  const suffix = crypto.randomBytes(4).toString("hex");
+  return `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}-${suffix}`;
 }
 
 /**
