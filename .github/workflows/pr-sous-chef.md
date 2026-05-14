@@ -111,6 +111,8 @@ safe-outputs:
     update-branch: true
     max: 10
     target: "*"
+  mentions:
+    allowed: ["@copilot"]
   noop:
   messages:
     run-started: "🍳 [{workflow_name}]({run_url}) is preparing PRs for maintainer investigation."

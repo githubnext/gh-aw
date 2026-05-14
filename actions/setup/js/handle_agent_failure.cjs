@@ -849,7 +849,11 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 function readTokenUsageMarkdown() {
   try {
     const readablePaths = TOKEN_USAGE_PATHS.filter(p => {
-      try { return fs.existsSync(p) && fs.statSync(p).size > 0; } catch { return false; }
+      try {
+        return fs.existsSync(p) && fs.statSync(p).size > 0;
+      } catch {
+        return false;
+      }
     });
     if (readablePaths.length === 0) return null;
     const content = readDedupedTokenUsage(readablePaths);
