@@ -120,7 +120,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Commit Changes Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/commit-changes-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "46342f1853af70b06fc19a0343b4b102d4af7fa6c1496fc8c9bc1ace3040e4f7"
+          GH_AW_INFO_FRONTMATTER_HASH: "163079f2d0c21852ed3298b3943ae9ddf21b62e4ac31536ef99f6ffc8e1c4f82"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -140,7 +140,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "46342f1853af70b06fc19a0343b4b102d4af7fa6c1496fc8c9bc1ace3040e4f7"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "📊"
+          GH_AW_INFO_FRONTMATTER_HASH: "163079f2d0c21852ed3298b3943ae9ddf21b62e4ac31536ef99f6ffc8e1c4f82"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -380,7 +381,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Commit Changes Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/commit-changes-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "46342f1853af70b06fc19a0343b4b102d4af7fa6c1496fc8c9bc1ace3040e4f7"
+          GH_AW_INFO_FRONTMATTER_HASH: "163079f2d0c21852ed3298b3943ae9ddf21b62e4ac31536ef99f6ffc8e1c4f82"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1049,7 +1050,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Commit Changes Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/commit-changes-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "46342f1853af70b06fc19a0343b4b102d4af7fa6c1496fc8c9bc1ace3040e4f7"
+          GH_AW_INFO_FRONTMATTER_HASH: "163079f2d0c21852ed3298b3943ae9ddf21b62e4ac31536ef99f6ffc8e1c4f82"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1193,7 +1194,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Commit Changes Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/commit-changes-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "46342f1853af70b06fc19a0343b4b102d4af7fa6c1496fc8c9bc1ace3040e4f7"
+          GH_AW_INFO_FRONTMATTER_HASH: "163079f2d0c21852ed3298b3943ae9ddf21b62e4ac31536ef99f6ffc8e1c4f82"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1425,7 +1426,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Commit Changes Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/commit-changes-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "46342f1853af70b06fc19a0343b4b102d4af7fa6c1496fc8c9bc1ace3040e4f7"
+          GH_AW_INFO_FRONTMATTER_HASH: "163079f2d0c21852ed3298b3943ae9ddf21b62e4ac31536ef99f6ffc8e1c4f82"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

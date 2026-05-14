@@ -123,7 +123,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Copilot Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -144,8 +144,10 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_FRONTMATTER_SOURCE: "githubnext/agentic-ops/workflows/copilot-token-audit.md@c780d8324935fe1fb30fce545832c10a8f904039"
           GH_AW_INFO_BODY_MODIFIED: "false"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔒"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -398,7 +400,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Copilot Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -1175,7 +1177,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Copilot Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1341,7 +1343,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Copilot Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1554,7 +1556,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Copilot Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1667,7 +1669,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Copilot Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -1752,7 +1754,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Copilot Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-audit.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "ce78ffa83039a41844a3f7498c7673b7da19aae717be8ec386de302e22f7f697"
+          GH_AW_INFO_FRONTMATTER_HASH: "a1bcf5a5ed69bed2545d7ce53443263023c9e00f616fe5d2310adb721ce3a60f"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

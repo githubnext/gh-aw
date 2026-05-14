@@ -134,7 +134,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -155,8 +155,10 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_FRONTMATTER_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
           GH_AW_INFO_BODY_MODIFIED: "false"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🏥"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -474,7 +476,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -1281,7 +1283,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1457,7 +1459,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1672,7 +1674,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Check team membership for workflow
         id: check_membership
@@ -1744,7 +1746,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -1830,7 +1832,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "450e83467962088f2ea0522b7ad02092dfd0e6c1e61fd99585a2010f85224ddc"
+          GH_AW_INFO_FRONTMATTER_HASH: "b69ddc40fc5ff4c3fe058cf1fb2662f9324370b82e9793d500faa3a0d5ef486d"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download cache-memory artifact (default)
         id: download_cache_default

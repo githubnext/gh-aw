@@ -134,7 +134,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Approach Validator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/approach-validator.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "a097214449bb07a9fa191ee0fb3f56add53c5a157d35480d03ade545c61996de"
+          GH_AW_INFO_FRONTMATTER_HASH: "dbcabc1be995a6db809105e5be84bfabd153d3a51106d7e0422c71c4197aeace"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -154,7 +154,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "a097214449bb07a9fa191ee0fb3f56add53c5a157d35480d03ade545c61996de"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "✅"
+          GH_AW_INFO_FRONTMATTER_HASH: "dbcabc1be995a6db809105e5be84bfabd153d3a51106d7e0422c71c4197aeace"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -473,7 +474,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Approach Validator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/approach-validator.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "a097214449bb07a9fa191ee0fb3f56add53c5a157d35480d03ade545c61996de"
+          GH_AW_INFO_FRONTMATTER_HASH: "dbcabc1be995a6db809105e5be84bfabd153d3a51106d7e0422c71c4197aeace"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1188,7 +1189,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Approach Validator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/approach-validator.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "a097214449bb07a9fa191ee0fb3f56add53c5a157d35480d03ade545c61996de"
+          GH_AW_INFO_FRONTMATTER_HASH: "dbcabc1be995a6db809105e5be84bfabd153d3a51106d7e0422c71c4197aeace"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1352,7 +1353,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Approach Validator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/approach-validator.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "a097214449bb07a9fa191ee0fb3f56add53c5a157d35480d03ade545c61996de"
+          GH_AW_INFO_FRONTMATTER_HASH: "dbcabc1be995a6db809105e5be84bfabd153d3a51106d7e0422c71c4197aeace"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1568,7 +1569,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Approach Validator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/approach-validator.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "a097214449bb07a9fa191ee0fb3f56add53c5a157d35480d03ade545c61996de"
+          GH_AW_INFO_FRONTMATTER_HASH: "dbcabc1be995a6db809105e5be84bfabd153d3a51106d7e0422c71c4197aeace"
       - name: Check team membership for command workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1651,7 +1652,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Approach Validator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/approach-validator.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "a097214449bb07a9fa191ee0fb3f56add53c5a157d35480d03ade545c61996de"
+          GH_AW_INFO_FRONTMATTER_HASH: "dbcabc1be995a6db809105e5be84bfabd153d3a51106d7e0422c71c4197aeace"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

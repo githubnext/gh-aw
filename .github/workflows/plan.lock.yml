@@ -126,7 +126,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Plan Command"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/plan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "9a853e396a03d843430d369b9391a47d80ae9a96821e271c9f537fac654ff0e7"
+          GH_AW_INFO_FRONTMATTER_HASH: "be851de41f064eebe9abdf1f9b7dc0da2c55cffa4152921d66751c2af83e7ca2"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -146,7 +146,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "9a853e396a03d843430d369b9391a47d80ae9a96821e271c9f537fac654ff0e7"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "📋"
+          GH_AW_INFO_FRONTMATTER_HASH: "be851de41f064eebe9abdf1f9b7dc0da2c55cffa4152921d66751c2af83e7ca2"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -443,7 +444,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Plan Command"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/plan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "9a853e396a03d843430d369b9391a47d80ae9a96821e271c9f537fac654ff0e7"
+          GH_AW_INFO_FRONTMATTER_HASH: "be851de41f064eebe9abdf1f9b7dc0da2c55cffa4152921d66751c2af83e7ca2"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1090,7 +1091,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Plan Command"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/plan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "9a853e396a03d843430d369b9391a47d80ae9a96821e271c9f537fac654ff0e7"
+          GH_AW_INFO_FRONTMATTER_HASH: "be851de41f064eebe9abdf1f9b7dc0da2c55cffa4152921d66751c2af83e7ca2"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1256,7 +1257,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Plan Command"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/plan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "9a853e396a03d843430d369b9391a47d80ae9a96821e271c9f537fac654ff0e7"
+          GH_AW_INFO_FRONTMATTER_HASH: "be851de41f064eebe9abdf1f9b7dc0da2c55cffa4152921d66751c2af83e7ca2"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1457,7 +1458,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Plan Command"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/plan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "9a853e396a03d843430d369b9391a47d80ae9a96821e271c9f537fac654ff0e7"
+          GH_AW_INFO_FRONTMATTER_HASH: "be851de41f064eebe9abdf1f9b7dc0da2c55cffa4152921d66751c2af83e7ca2"
       - name: Check team membership for command workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1534,7 +1535,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Plan Command"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/plan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "9a853e396a03d843430d369b9391a47d80ae9a96821e271c9f537fac654ff0e7"
+          GH_AW_INFO_FRONTMATTER_HASH: "be851de41f064eebe9abdf1f9b7dc0da2c55cffa4152921d66751c2af83e7ca2"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

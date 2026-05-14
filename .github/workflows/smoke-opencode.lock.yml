@@ -135,7 +135,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke OpenCode"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-opencode.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.2.14"
-          GH_AW_INFO_FRONTMATTER_HASH: "d1915139ce67acd523d09be0c8fc30a47acdac83f884a0177d9e019d4b20a3ac"
+          GH_AW_INFO_FRONTMATTER_HASH: "41641e59b2274d4dc8a5a4cc0d6440eaf633cd0f430d4012be9b185ac26e173b"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -155,7 +155,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: ""
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "d1915139ce67acd523d09be0c8fc30a47acdac83f884a0177d9e019d4b20a3ac"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🧪"
+          GH_AW_INFO_FRONTMATTER_HASH: "41641e59b2274d4dc8a5a4cc0d6440eaf633cd0f430d4012be9b185ac26e173b"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -436,7 +437,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke OpenCode"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-opencode.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.2.14"
-          GH_AW_INFO_FRONTMATTER_HASH: "d1915139ce67acd523d09be0c8fc30a47acdac83f884a0177d9e019d4b20a3ac"
+          GH_AW_INFO_FRONTMATTER_HASH: "41641e59b2274d4dc8a5a4cc0d6440eaf633cd0f430d4012be9b185ac26e173b"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1075,7 +1076,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke OpenCode"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-opencode.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.2.14"
-          GH_AW_INFO_FRONTMATTER_HASH: "d1915139ce67acd523d09be0c8fc30a47acdac83f884a0177d9e019d4b20a3ac"
+          GH_AW_INFO_FRONTMATTER_HASH: "41641e59b2274d4dc8a5a4cc0d6440eaf633cd0f430d4012be9b185ac26e173b"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1238,7 +1239,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke OpenCode"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-opencode.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.2.14"
-          GH_AW_INFO_FRONTMATTER_HASH: "d1915139ce67acd523d09be0c8fc30a47acdac83f884a0177d9e019d4b20a3ac"
+          GH_AW_INFO_FRONTMATTER_HASH: "41641e59b2274d4dc8a5a4cc0d6440eaf633cd0f430d4012be9b185ac26e173b"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1436,7 +1437,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke OpenCode"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-opencode.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.2.14"
-          GH_AW_INFO_FRONTMATTER_HASH: "d1915139ce67acd523d09be0c8fc30a47acdac83f884a0177d9e019d4b20a3ac"
+          GH_AW_INFO_FRONTMATTER_HASH: "41641e59b2274d4dc8a5a4cc0d6440eaf633cd0f430d4012be9b185ac26e173b"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1505,7 +1506,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke OpenCode"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-opencode.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.2.14"
-          GH_AW_INFO_FRONTMATTER_HASH: "d1915139ce67acd523d09be0c8fc30a47acdac83f884a0177d9e019d4b20a3ac"
+          GH_AW_INFO_FRONTMATTER_HASH: "41641e59b2274d4dc8a5a4cc0d6440eaf633cd0f430d4012be9b185ac26e173b"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

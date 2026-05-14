@@ -128,7 +128,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Visual Regression Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/visual-regression-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "80dd7ce72e02f35d25cd24f500d0ed2e7cc1d668eeba5da34a7f24b2ea464aa4"
+          GH_AW_INFO_FRONTMATTER_HASH: "f63b95682e1a077120b76ed204760cf98c0328471fa3c700700b67df1e27bae4"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -148,7 +148,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "80dd7ce72e02f35d25cd24f500d0ed2e7cc1d668eeba5da34a7f24b2ea464aa4"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "👁️"
+          GH_AW_INFO_FRONTMATTER_HASH: "f63b95682e1a077120b76ed204760cf98c0328471fa3c700700b67df1e27bae4"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -397,7 +398,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Visual Regression Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/visual-regression-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "80dd7ce72e02f35d25cd24f500d0ed2e7cc1d668eeba5da34a7f24b2ea464aa4"
+          GH_AW_INFO_FRONTMATTER_HASH: "f63b95682e1a077120b76ed204760cf98c0328471fa3c700700b67df1e27bae4"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1064,7 +1065,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Visual Regression Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/visual-regression-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "80dd7ce72e02f35d25cd24f500d0ed2e7cc1d668eeba5da34a7f24b2ea464aa4"
+          GH_AW_INFO_FRONTMATTER_HASH: "f63b95682e1a077120b76ed204760cf98c0328471fa3c700700b67df1e27bae4"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1210,7 +1211,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Visual Regression Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/visual-regression-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "80dd7ce72e02f35d25cd24f500d0ed2e7cc1d668eeba5da34a7f24b2ea464aa4"
+          GH_AW_INFO_FRONTMATTER_HASH: "f63b95682e1a077120b76ed204760cf98c0328471fa3c700700b67df1e27bae4"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1412,7 +1413,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Visual Regression Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/visual-regression-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "80dd7ce72e02f35d25cd24f500d0ed2e7cc1d668eeba5da34a7f24b2ea464aa4"
+          GH_AW_INFO_FRONTMATTER_HASH: "f63b95682e1a077120b76ed204760cf98c0328471fa3c700700b67df1e27bae4"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1479,7 +1480,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Visual Regression Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/visual-regression-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "80dd7ce72e02f35d25cd24f500d0ed2e7cc1d668eeba5da34a7f24b2ea464aa4"
+          GH_AW_INFO_FRONTMATTER_HASH: "f63b95682e1a077120b76ed204760cf98c0328471fa3c700700b67df1e27bae4"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
