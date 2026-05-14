@@ -334,9 +334,9 @@ var SharedWorkflowForbiddenFields = []string{
 
 func GetWorkflowDir() string {
 	if dir := os.Getenv("GH_AW_WORKFLOWS_DIR"); dir != "" {
-		return dir
+		return filepath.ToSlash(dir)
 	}
-	return filepath.Join(".github", "workflows")
+	return ".github/workflows"
 }
 
 // MaxSymlinkDepth limits recursive symlink resolution when fetching remote files.

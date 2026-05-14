@@ -209,7 +209,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		}
 	}
 
-	// Find all include files in .github/workflows
+	// Find all include files in the workflows directory
 	// Only consider files in subdirectories (like shared/) as potential include files
 	// Root-level .md files are workflow files, not include files
 	workflowsDir := constants.GetWorkflowDir()

@@ -32,7 +32,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 	workflowsDir := filepath.Join(gitRoot, constants.GetWorkflowDir())
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("the .github/workflows directory does not exist in git root (%s)", gitRoot)
+		return fmt.Errorf("the %s directory does not exist in git root (%s)", constants.GetWorkflowDir(), gitRoot)
 	}
 
 	// If a specific file is provided, watch only that file and its directory
