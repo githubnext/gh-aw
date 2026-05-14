@@ -225,6 +225,11 @@ type OTLPConfig struct {
 	//   - a comma-separated list of key=value pairs (e.g. "Authorization=Bearer <token>")
 	// Both forms are injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
 	Headers any `json:"headers,omitempty"`
+
+	// IgnoreIfMissing controls runtime behavior when OTLP endpoint/header values are
+	// missing (for example because a referenced secret is unset). When true, gh-aw
+	// logs a warning and skips MCP gateway OTLP configuration instead of failing.
+	IgnoreIfMissing bool `json:"ignore-if-missing,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.

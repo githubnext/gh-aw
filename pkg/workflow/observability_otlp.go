@@ -99,6 +99,35 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
+// getOTLPIgnoreIfMissing returns true when observability.otlp.ignore-if-missing
+// is enabled in parsed or raw frontmatter.
+func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]any) bool {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.IgnoreIfMissing {
+		return true
+	}
+	if frontmatter == nil {
+		return false
+	}
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return false
+	}
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	otlpAny, ok := obsMap["otlp"]
+	if !ok {
+		return false
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	v, ok := otlpMap["ignore-if-missing"].(bool)
+	return ok && v
+}
+
 // isOTLPHeadersPresent returns true when OTEL_EXPORTER_OTLP_HEADERS or
 // GH_AW_OTLP_ALL_HEADERS has been injected into the workflow-level env block.
 // This indicates that header masking is needed so that authentication tokens in
@@ -349,6 +378,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 
 	firstEndpoint := entries[0].URL
 	firstHeaders := entries[0].Headers
+	ignoreIfMissing := getOTLPIgnoreIfMissing(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
 
 	// 2. Inject OTEL env vars into the workflow-level env: block.
 	//    OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME are set to the first
@@ -375,6 +405,10 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		escapedEncoded := strings.ReplaceAll(encoded, "'", "''")
 		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
+	}
+	if ignoreIfMissing {
+		otlpEnvLines += "\n  GH_AW_OTLP_IGNORE_IF_MISSING: true"
+		otlpLog.Printf("Injected GH_AW_OTLP_IGNORE_IF_MISSING env var")
 	}
 
 	if workflowData.Env == "" {

@@ -151,6 +151,37 @@ func TestGetOTLPEndpointEnvValue(t *testing.T) {
 	}
 }
 
+func TestGetOTLPIgnoreIfMissing(t *testing.T) {
+	t.Run("uses parsed frontmatter value", func(t *testing.T) {
+		got := getOTLPIgnoreIfMissing(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{IgnoreIfMissing: true},
+			},
+		}, nil)
+		assert.True(t, got)
+	})
+
+	t.Run("falls back to raw frontmatter value", func(t *testing.T) {
+		got := getOTLPIgnoreIfMissing(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"ignore-if-missing": true,
+				},
+			},
+		})
+		assert.True(t, got)
+	})
+
+	t.Run("returns false when unset", func(t *testing.T) {
+		got := getOTLPIgnoreIfMissing(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{},
+			},
+		})
+		assert.False(t, got)
+	})
+}
+
 // TestInjectOTLPConfig verifies that injectOTLPConfig correctly modifies WorkflowData.
 func TestInjectOTLPConfig(t *testing.T) {
 	newCompiler := func() *Compiler { return &Compiler{} }
@@ -194,6 +225,23 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}", "should contain endpoint var")
 		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "should contain service name")
 		assert.Contains(t, wd.Env, "COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/copilot-otel.jsonl", "should configure Copilot OTEL file exporter path")
+	})
+
+	t.Run("injects ignore-if-missing env var when enabled", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint:        "${{ secrets.OTLP_ENDPOINT }}",
+						IgnoreIfMissing: true,
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		require.NotEmpty(t, wd.Env)
+		assert.Contains(t, wd.Env, "GH_AW_OTLP_IGNORE_IF_MISSING: true")
 	})
 
 	t.Run("adds domain to new NetworkPermissions and injects env vars for static URL", func(t *testing.T) {

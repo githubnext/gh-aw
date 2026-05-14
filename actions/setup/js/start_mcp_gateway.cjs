@@ -65,6 +65,49 @@ function sleep(ms) {
 }
 
 /**
+ * Parse a truthy environment-variable style value.
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function isTruthyEnvValue(value) {
+  const normalized = (value || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+/**
+ * Apply observability.otlp.ignore-if-missing behavior to gateway OTLP config.
+ * When enabled, missing endpoint values are downgraded to warnings and OTLP
+ * gateway configuration is skipped instead of hard-failing the workflow.
+ *
+ * @param {Record<string, unknown>} configObj
+ */
+function applyOTLPIgnoreIfMissing(configObj) {
+  if (!isTruthyEnvValue(process.env.GH_AW_OTLP_IGNORE_IF_MISSING)) {
+    return;
+  }
+  const gw = configObj.gateway;
+  if (!gw || typeof gw !== "object" || Array.isArray(gw)) {
+    return;
+  }
+  const gateway = /** @type {Record<string, unknown>} */ gw;
+  const otel = gateway.opentelemetry;
+  if (!otel || typeof otel !== "object" || Array.isArray(otel)) {
+    return;
+  }
+  const otelConfig = /** @type {Record<string, unknown>} */ otel;
+  const endpoint = typeof otelConfig.endpoint === "string" ? otelConfig.endpoint.trim() : "";
+  if (!endpoint) {
+    delete gateway.opentelemetry;
+    core.info("WARNING: OTLP endpoint is missing/empty and GH_AW_OTLP_IGNORE_IF_MISSING is enabled; skipping MCP gateway OTLP configuration.");
+    return;
+  }
+  if (typeof otelConfig.headers === "string" && otelConfig.headers.trim() === "") {
+    delete otelConfig.headers;
+    core.info("WARNING: OTLP headers are missing/empty and GH_AW_OTLP_IGNORE_IF_MISSING is enabled; continuing without MCP gateway OTLP headers.");
+  }
+}
+
+/**
  * Check whether a process is alive.
  * @param {number} pid
  * @returns {boolean}
@@ -258,6 +301,8 @@ async function main() {
     process.exit(1);
   }
 
+  applyOTLPIgnoreIfMissing(configObj);
+
   core.info("Configuration validated successfully");
   printTiming(configValidationStart, "Configuration validation");
   core.info("");
@@ -297,7 +342,7 @@ async function main() {
     core.error("ERROR: Gateway process stdin is not available");
     process.exit(1);
   }
-  child.stdin.write(mcpConfig);
+  child.stdin.write(JSON.stringify(configObj));
   child.stdin.end();
 
   // Allow the child to run independently
