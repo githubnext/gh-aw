@@ -201,6 +201,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if templatableIntValue(config.Max) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be created.", templatableIntValue(config.Max)))
 			}
+			if config.BranchPrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("Branch name will be prefixed with %q.", config.BranchPrefix))
+			}
 			if config.TitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
 			}

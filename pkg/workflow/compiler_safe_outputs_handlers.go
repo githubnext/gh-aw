@@ -389,6 +389,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		}
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("branch_prefix", c.BranchPrefix).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddTemplatableStringSlice("labels", c.Labels).
 			AddStringSlice("fallback_labels", c.FallbackLabels).

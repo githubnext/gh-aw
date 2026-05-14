@@ -206,6 +206,13 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 			t.Error("jsweep workflow should batch validation commands into a single chained command")
 		}
 	})
+
+	// Test 17: Verify the branch prefix is set to "signed/"
+	t.Run("BranchPrefixSignedSlash", func(t *testing.T) {
+		if !strings.Contains(mdContent, `branch-prefix: "signed/"`) {
+			t.Error(`jsweep workflow should set branch-prefix to "signed/" in create-pull-request safe-outputs`)
+		}
+	})
 }
 
 // TestJSweepWorkflowLockFile validates that the compiled jsweep.lock.yml file

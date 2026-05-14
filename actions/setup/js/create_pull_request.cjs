@@ -614,6 +614,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
  */
 async function main(config = {}) {
   // Extract configuration
+  const branchPrefix = config.branch_prefix || "";
   const titlePrefix = config.title_prefix || "";
   const envLabels = parseStringListConfig(config.labels);
   const configFallbackLabels = parseStringListConfig(config.fallback_labels);
@@ -1311,6 +1312,12 @@ async function main(config = {}) {
     if (!branchName) {
       core.info("No branch name provided in JSONL, generating unique branch name");
       branchName = `${workflowId}-${randomHex}`;
+    }
+
+    // Apply the configured branch prefix (e.g. "signed/") if it hasn't already been applied.
+    if (branchPrefix && !branchName.startsWith(branchPrefix)) {
+      branchName = `${branchPrefix}${branchName}`;
+      core.info(`Applied branch prefix: ${branchName}`);
     }
 
     core.info(`Generated branch name: ${branchName}`);

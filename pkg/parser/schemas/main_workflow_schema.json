@@ -6102,6 +6102,10 @@
                     }
                   ]
                 },
+                "branch-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name."
+                },
                 "title-prefix": {
                   "type": "string",
                   "description": "Optional prefix for the pull request title"

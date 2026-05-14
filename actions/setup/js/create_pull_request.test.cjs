@@ -2596,3 +2596,102 @@ describe("create_pull_request - rate-limit retry", () => {
     expect(secondCall.body).toContain("could not be set");
   });
 });
+
+describe("create_pull_request - branch-prefix config", () => {
+  let originalEnv;
+  let tempDir;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "jsweep";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-branch-prefix-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(undefined) },
+    };
+    global.github = {
+      rest: {
+        pulls: { create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test/pull/1" } }) },
+        repos: { get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }) },
+        issues: { addLabels: vi.fn().mockResolvedValue({}) },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) delete process.env[key];
+    }
+    Object.assign(process.env, originalEnv);
+    if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should prepend branch-prefix to auto-generated branch name when agent provides no branch", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "signed/", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^signed\/jsweep-/);
+  });
+
+  it("should prepend branch-prefix to agent-specified branch name", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "signed/", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body", branch: "my-feature" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^signed\/my-feature/);
+  });
+
+  it("should not double-apply branch-prefix when agent branch already starts with the prefix", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "signed/", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body", branch: "signed/already-prefixed" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^signed\/already-prefixed/);
+    expect(branchArg).not.toMatch(/^signed\/signed\//);
+  });
+
+  it("should not add any prefix when branch-prefix is not configured", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^jsweep-/);
+    expect(branchArg).not.toContain("signed/");
+  });
+});

@@ -17,6 +17,7 @@ func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
+	BranchPrefix                   string   `yaml:"branch-prefix,omitempty"`               // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
 	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`
 	Labels                         []string `yaml:"labels,omitempty"`
 	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
