@@ -11,16 +11,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func repositoryPackageNotFound(path string) error {
+	return normalizeRepositoryPackageRemoteError(fmt.Errorf("404 not found: %s", path))
+}
+
 func TestResolveRepositoryPackage(t *testing.T) {
 	originalVersion := GetVersion()
 	originalDownload := downloadPackageFileFromGitHubForHost
 	originalList := listPackageWorkflowFilesForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	t.Cleanup(func() {
 		SetVersionInfo(originalVersion)
 		downloadPackageFileFromGitHubForHost = originalDownload
 		listPackageWorkflowFilesForHost = originalList
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
 	SetVersionInfo("v1.2.3")
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
 
 	t.Run("uses aw manifest files and README docs", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
@@ -36,7 +45,7 @@ files:
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, fmt.Errorf("404 not found: %s", path)
+				return nil, repositoryPackageNotFound(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -54,6 +63,44 @@ files:
 		assert.Contains(t, pkg.Warnings[0], "Ignoring files entry")
 	})
 
+	t.Run("uses repository default branch when version is omitted", func(t *testing.T) {
+		previousDefaultBranch := getRepositoryPackageDefaultBranch
+		t.Cleanup(func() {
+			getRepositoryPackageDefaultBranch = previousDefaultBranch
+		})
+		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+			assert.Equal(t, "owner/repo", repoSlug)
+			assert.Equal(t, "github.com", host)
+			return "master", nil
+		}
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			assert.Equal(t, "master", ref)
+			switch path {
+			case "aw.yml":
+				return []byte("name: Repo Assist\n"), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, repositoryPackageNotFound(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			assert.Equal(t, "master", ref)
+			switch workflowPath {
+			case "workflows":
+				return []string{"workflows/review.md"}, nil
+			case ".github/workflows":
+				return nil, repositoryPackageNotFound(workflowPath)
+			default:
+				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
+			}
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "github.com")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
 	t.Run("falls back to scanning supported workflow directories", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
@@ -62,7 +109,7 @@ files:
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, fmt.Errorf("404 not found: %s", path)
+				return nil, repositoryPackageNotFound(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -93,7 +140,7 @@ files:
 				assert.Equal(t, "github.com", host)
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, fmt.Errorf("404 not found: %s", path)
+				return nil, repositoryPackageNotFound(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -102,7 +149,7 @@ files:
 			case "workflows":
 				return []string{"workflows/review.md"}, nil
 			case ".github/workflows":
-				return nil, fmt.Errorf("404 not found: %s", workflowPath)
+				return nil, repositoryPackageNotFound(workflowPath)
 			default:
 				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
 			}
@@ -118,7 +165,7 @@ files:
 			if path == "aw.yml" {
 				return []byte("description: missing name\n"), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -137,7 +184,7 @@ files:
 			if path == "agents.yml" {
 				return []byte("name: Legacy Alias\n"), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -163,7 +210,7 @@ files:
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, fmt.Errorf("404 not found: %s", path)
+				return nil, repositoryPackageNotFound(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -183,7 +230,7 @@ files:
 name: Repo Assist
 `), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -198,7 +245,7 @@ name: Repo Assist
 docs: docs/overview.md
 `), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -213,7 +260,7 @@ docs: docs/overview.md
 name: Repo Assist
 `), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -229,7 +276,7 @@ files:
   - workflows/review.md
 `), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -249,7 +296,7 @@ files:
   - workflows/review.md
 `), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -269,7 +316,7 @@ files:
 unknown-field: true
 `), nil
 			}
-			return nil, fmt.Errorf("404 not found: %s", path)
+			return nil, repositoryPackageNotFound(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -288,7 +335,7 @@ files:
 			case "packages/repo-assist/README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, fmt.Errorf("404 not found: %s", path)
+				return nil, repositoryPackageNotFound(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -308,11 +355,16 @@ func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
 	originalList := listPackageWorkflowFilesForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	t.Cleanup(func() {
 		fetchWorkflowFromSourceWithContextFn = originalFetchFn
 		downloadPackageFileFromGitHubForHost = originalDownload
 		listPackageWorkflowFilesForHost = originalList
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
@@ -325,7 +377,7 @@ files:
 		case "README.md":
 			return []byte("# Repo Assist\n"), nil
 		}
-		return nil, fmt.Errorf("404 not found: %s", path)
+		return nil, repositoryPackageNotFound(path)
 	}
 	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
@@ -351,11 +403,16 @@ func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
 	originalList := listPackageWorkflowFilesForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	t.Cleanup(func() {
 		fetchWorkflowFromSourceWithContextFn = originalFetchFn
 		downloadPackageFileFromGitHubForHost = originalDownload
 		listPackageWorkflowFilesForHost = originalList
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 		switch path {
@@ -367,7 +424,7 @@ files:
 		case "folder/README.md":
 			return []byte("# Repo Assist\n"), nil
 		}
-		return nil, fmt.Errorf("404 not found: %s", path)
+		return nil, repositoryPackageNotFound(path)
 	}
 	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
@@ -391,13 +448,18 @@ files:
 func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	t.Cleanup(func() {
 		fetchWorkflowFromSourceWithContextFn = originalFetchFn
 		downloadPackageFileFromGitHubForHost = originalDownload
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
-		return nil, fmt.Errorf("404 not found: %s", path)
+		return nil, repositoryPackageNotFound(path)
 	}
 	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
 		return &FetchedWorkflow{

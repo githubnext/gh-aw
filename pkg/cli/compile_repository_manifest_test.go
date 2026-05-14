@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -177,4 +178,22 @@ name: Repo Assist
 	_, err = CompileWorkflows(context.Background(), CompileConfig{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing required README.md")
+}
+
+func TestValidateRepositoryManifestForCompilation_PropagatesGitRootErrors(t *testing.T) {
+	originalFindGitRoot := findGitRootForManifestValidation
+	t.Cleanup(func() {
+		findGitRootForManifestValidation = originalFindGitRoot
+	})
+
+	findGitRootForManifestValidation = func() (string, error) {
+		return "", errors.New("permission denied")
+	}
+
+	stats := &CompilationStats{}
+	var results []ValidationResult
+	err := validateRepositoryManifestForCompilation(CompileConfig{}, stats, &results)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to find git root for manifest validation")
+	assert.Contains(t, err.Error(), "permission denied")
 }

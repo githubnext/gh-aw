@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -10,10 +11,17 @@ import (
 
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
-var downloadPackageFileFromGitHubForHost = parser.DownloadFileFromGitHubForHost
-var listPackageWorkflowFilesForHost = parser.ListWorkflowFilesForHost
+var (
+	errRepositoryPackageFileNotFound     = errors.New("repository package file not found")
+	errRepositoryPackageManifestNotFound = errors.New("repository package manifest not found")
+)
+
+var downloadPackageFileFromGitHubForHost = downloadRepositoryPackageFileFromGitHubForHost
+var listPackageWorkflowFilesForHost = listRepositoryPackageWorkflowFilesForHost
+var getRepositoryPackageDefaultBranch = resolveRepositoryPackageDefaultBranch
 
 var packageSourceDirectories = []string{"workflows", ".github/workflows"}
 
@@ -40,6 +48,9 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	ref := repoSpec.Version
 	if ref == "" {
 		ref = "main"
+		if defaultBranch, err := getRepositoryPackageDefaultBranch(repoSpec.RepoSlug, host); err == nil {
+			ref = defaultBranch
+		}
 	}
 	packagePath := strings.Trim(repoSpec.PackagePath, "/")
 
@@ -89,9 +100,9 @@ func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host strin
 			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
 		}
 		if packagePath != "" {
-			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", packageID, packagePath, manifestPath)
+			return "", nil, fmt.Errorf("%w: repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", errRepositoryPackageManifestNotFound, packageID, packagePath, manifestPath)
 		}
-		return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", repoSlug)
+		return "", nil, fmt.Errorf("%w: repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", errRepositoryPackageManifestNotFound, repoSlug)
 	}
 
 	return manifestPath, content, nil
@@ -116,6 +127,8 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: top-level document must be a mapping", manifestPath)
 	}
 
+	// Validate name before schema validation so add/compile can return a stable,
+	// direct message for the most common manifest authoring error.
 	name, ok := stringValue(root["name"])
 	if !ok || strings.TrimSpace(name) == "" {
 		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string", manifestPath)
@@ -325,6 +338,36 @@ func stringValue(value any) (string, bool) {
 }
 
 func isRepositoryFileNotFound(err error) bool {
+	return errors.Is(err, errRepositoryPackageFileNotFound)
+}
+
+func isRepositoryPackageManifestNotFound(err error) bool {
+	return errors.Is(err, errRepositoryPackageManifestNotFound)
+}
+
+func isSupportedManifestMinVersion(version string) bool {
+	const expectedManifestMinVersionDotCount = 2
+	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
+}
+
+func downloadRepositoryPackageFileFromGitHubForHost(owner, repo, path, ref, host string) ([]byte, error) {
+	content, err := parser.DownloadFileFromGitHubForHost(owner, repo, path, ref, host)
+	return content, normalizeRepositoryPackageRemoteError(err)
+}
+
+func listRepositoryPackageWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	files, err := parser.ListWorkflowFilesForHost(owner, repo, ref, workflowPath, host)
+	return files, normalizeRepositoryPackageRemoteError(err)
+}
+
+func normalizeRepositoryPackageRemoteError(err error) error {
+	if err == nil || !isRepositoryPackageRemoteNotFound(err) {
+		return err
+	}
+	return fmt.Errorf("%w: %w", errRepositoryPackageFileNotFound, err)
+}
+
+func isRepositoryPackageRemoteNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -332,14 +375,23 @@ func isRepositoryFileNotFound(err error) bool {
 	return strings.Contains(errText, "404") || strings.Contains(errText, "not found")
 }
 
-func isRepositoryPackageManifestNotFound(err error) bool {
-	if err == nil {
-		return false
+func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error) {
+	var (
+		output []byte
+		err    error
+	)
+	if host != "" {
+		output, err = workflow.RunGHWithHost("Fetching repo info...", host, "api", "/repos/"+repoSlug, "--jq", ".default_branch")
+	} else {
+		output, err = workflow.RunGH("Fetching repo info...", "api", "/repos/"+repoSlug, "--jq", ".default_branch")
 	}
-	return strings.Contains(strings.ToLower(err.Error()), "no aw.yml manifest found")
-}
+	if err != nil {
+		return "", err
+	}
 
-func isSupportedManifestMinVersion(version string) bool {
-	const expectedManifestMinVersionDotCount = 2
-	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
+	branch := strings.TrimSpace(string(output))
+	if branch == "" {
+		return "", fmt.Errorf("empty default branch returned for %s", repoSlug)
+	}
+	return branch, nil
 }

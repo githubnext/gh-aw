@@ -13,6 +13,7 @@ import (
 )
 
 var log = logger.New("gitutil:gitutil")
+var ErrNotGitRepository = errors.New("not in a git repository")
 
 var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
@@ -135,7 +136,7 @@ func FindGitRootFrom(startDir string) (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("not in a git repository")
+			return "", ErrNotGitRepository
 		}
 		dir = parent
 	}

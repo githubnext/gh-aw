@@ -10,10 +10,15 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 )
 
+var findGitRootForManifestValidation = gitutil.FindGitRoot
+
 func validateRepositoryManifestForCompilation(config CompileConfig, stats *CompilationStats, validationResults *[]ValidationResult) error {
-	gitRoot, err := gitutil.FindGitRoot()
+	gitRoot, err := findGitRootForManifestValidation()
 	if err != nil {
-		return nil
+		if errors.Is(err, gitutil.ErrNotGitRepository) {
+			return nil
+		}
+		return fmt.Errorf("failed to find git root for manifest validation: %w", err)
 	}
 
 	manifestPath, err := findLocalRepositoryPackageManifest(gitRoot)
