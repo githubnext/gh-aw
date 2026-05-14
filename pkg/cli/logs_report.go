@@ -319,6 +319,14 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			runData.RunAttempt = awInfo.RunAttempt
 			runData.TargetRepo = awInfo.TargetRepo
 			runData.EventName = awInfo.EventName
+			// Fall back to inferring the workflow path from the display name when the
+			// GitHub API returned an empty path (e.g. for scheduled agentic runs).
+			// This handles both fresh runs and old cached RunSummary entries whose
+			// run.WorkflowPath was persisted as empty before the fix in
+			// logs_run_processor.go was applied.
+			if runData.WorkflowPath == "" && awInfo.WorkflowName != "" {
+				runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
+			}
 		}
 		if run.Duration > 0 {
 			runData.Duration = timeutil.FormatDuration(run.Duration)

@@ -915,3 +915,140 @@ func TestBuildLogsDataOrganizationEmptyWhenNoRepository(t *testing.T) {
 		t.Errorf("Expected empty episode.Organization, got %q", episode.Organization)
 	}
 }
+
+// TestInferWorkflowPathFromDisplayName verifies that display names are correctly
+// slugified into conventional lock-file paths.
+func TestInferWorkflowPathFromDisplayName(t *testing.T) {
+	tests := []struct {
+		name        string
+		displayName string
+		want        string
+	}{
+		{
+			name:        "simple display name with spaces",
+			displayName: "Auto-Triage Issues",
+			want:        ".github/workflows/auto-triage-issues.lock.yml",
+		},
+		{
+			name:        "display name with mixed case and spaces",
+			displayName: "CI Failure Doctor",
+			want:        ".github/workflows/ci-failure-doctor.lock.yml",
+		},
+		{
+			name:        "already kebab-case slug",
+			displayName: "weekly-research",
+			want:        ".github/workflows/weekly-research.lock.yml",
+		},
+		{
+			name:        "display name with slash",
+			displayName: "CI/CD Pipeline",
+			want:        ".github/workflows/ci-cd-pipeline.lock.yml",
+		},
+		{
+			name:        "display name with colon",
+			displayName: "Deploy: Production",
+			want:        ".github/workflows/deploy-production.lock.yml",
+		},
+		{
+			name:        "empty display name",
+			displayName: "",
+			want:        "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := inferWorkflowPathFromDisplayName(tt.displayName)
+			if got != tt.want {
+				t.Errorf("inferWorkflowPathFromDisplayName(%q) = %q, want %q", tt.displayName, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestBuildLogsDataInfersWorkflowPathFromAwInfo verifies that buildLogsData falls back
+// to inferring workflow_path from aw_info.json when the GitHub API returned an empty path.
+func TestBuildLogsDataInfersWorkflowPathFromAwInfo(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-infer-workflow-path-*")
+
+	// Create a run with an empty WorkflowPath (simulating what the GitHub API returns
+	// for scheduled/agentic workflow runs).
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:   99901,
+			WorkflowName: "Auto-Triage Issues",
+			WorkflowPath: "", // empty — the bug scenario
+			Status:       "completed",
+			Conclusion:   "success",
+			LogsPath:     tmpDir,
+		},
+	}
+
+	// Write an aw_info.json that contains the workflow display name.
+	awInfoPath := filepath.Join(tmpDir, "aw_info.json")
+	awInfoData := map[string]any{
+		"engine_id":     "copilot",
+		"engine_name":   "GitHub Copilot CLI",
+		"workflow_name": "Auto-Triage Issues",
+	}
+	awInfoBytes, err := json.Marshal(awInfoData)
+	if err != nil {
+		t.Fatalf("Failed to marshal aw_info: %v", err)
+	}
+	if err := os.WriteFile(awInfoPath, awInfoBytes, 0644); err != nil {
+		t.Fatalf("Failed to write aw_info.json: %v", err)
+	}
+
+	logsData := buildLogsData([]ProcessedRun{processedRun}, tmpDir, nil)
+
+	if len(logsData.Runs) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(logsData.Runs))
+	}
+
+	got := logsData.Runs[0].WorkflowPath
+	want := ".github/workflows/auto-triage-issues.lock.yml"
+	if got != want {
+		t.Errorf("WorkflowPath = %q, want %q", got, want)
+	}
+}
+
+// TestBuildLogsDataPreservesExplicitWorkflowPath verifies that an explicit WorkflowPath
+// set by the GitHub API is never overwritten by the inference fallback.
+func TestBuildLogsDataPreservesExplicitWorkflowPath(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-preserve-workflow-path-*")
+
+	explicitPath := ".github/workflows/custom-path.lock.yml"
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:   99902,
+			WorkflowName: "Auto-Triage Issues",
+			WorkflowPath: explicitPath,
+			Status:       "completed",
+			Conclusion:   "success",
+			LogsPath:     tmpDir,
+		},
+	}
+
+	// Write an aw_info.json with a different workflow_name to ensure it does not
+	// overwrite the explicit path that came from the GitHub API.
+	awInfoPath := filepath.Join(tmpDir, "aw_info.json")
+	awInfoData := map[string]any{
+		"engine_id":     "copilot",
+		"workflow_name": "Different Name",
+	}
+	awInfoBytes, _ := json.Marshal(awInfoData)
+	if err := os.WriteFile(awInfoPath, awInfoBytes, 0644); err != nil {
+		t.Fatalf("Failed to write aw_info.json: %v", err)
+	}
+
+	logsData := buildLogsData([]ProcessedRun{processedRun}, tmpDir, nil)
+
+	if len(logsData.Runs) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(logsData.Runs))
+	}
+
+	got := logsData.Runs[0].WorkflowPath
+	if got != explicitPath {
+		t.Errorf("WorkflowPath = %q, want %q (explicit path must not be overwritten)", got, explicitPath)
+	}
+}
