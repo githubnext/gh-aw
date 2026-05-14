@@ -200,7 +200,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 		}
 
 		// Check if the lock file exists in .github/workflows
-		lockFilePath = filepath.Join(".github/workflows", lockFileName)
+		lockFilePath = filepath.Join(constants.GetWorkflowDir(), lockFileName)
 		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 			executionLog.Printf("Lock file not found: %s (workflow must be compiled first)", lockFilePath)
 			suggestions := []string{

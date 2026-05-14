@@ -20,7 +20,7 @@ var resolverLog = logger.New("cli:resolver")
 // - Workflow name or subpath (e.g., "a.md" -> ".github/workflows/a.md", "shared/b.md" -> ".github/workflows/shared/b.md")
 func ResolveWorkflowPath(workflowFile string) (string, error) {
 	resolverLog.Printf("Resolving workflow path: %s", workflowFile)
-	workflowsDir := ".github/workflows"
+	workflowsDir := constants.GetWorkflowDir()
 
 	// Add .md extension if not present
 	searchPath := workflowFile

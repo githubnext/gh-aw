@@ -2,6 +2,7 @@ package constants
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -332,6 +333,9 @@ var SharedWorkflowForbiddenFields = []string{
 }
 
 func GetWorkflowDir() string {
+	if dir := os.Getenv("GH_AW_WORKFLOWS_DIR"); dir != "" {
+		return dir
+	}
 	return filepath.Join(".github", "workflows")
 }
 

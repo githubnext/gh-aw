@@ -328,7 +328,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		opts.WorkflowDir = filepath.Clean(opts.WorkflowDir)
 		githubWorkflowsDir = filepath.Join(gitRoot, opts.WorkflowDir)
 	} else {
-		githubWorkflowsDir = filepath.Join(gitRoot, ".github/workflows")
+		githubWorkflowsDir = filepath.Join(gitRoot, constants.GetWorkflowDir())
 	}
 
 	// Ensure the target directory exists

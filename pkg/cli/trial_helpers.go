@@ -66,7 +66,7 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 		}
 
 		// Display workflow description if present
-		workflowPath := filepath.Join(tempDir, ".github/workflows", parsedSpec.WorkflowName+".md")
+		workflowPath := filepath.Join(tempDir, constants.GetWorkflowDir(), parsedSpec.WorkflowName+".md")
 		if description := ExtractWorkflowDescriptionFromFile(workflowPath); description != "" {
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))

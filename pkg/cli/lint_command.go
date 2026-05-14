@@ -74,7 +74,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("dir", "d", ".github/workflows", "Directory to scan for *.lock.yml files when no arguments are provided")
+	cmd.Flags().StringP("dir", "d", constants.GetWorkflowDir(), "Directory to scan for *.lock.yml files when no arguments are provided")
 	cmd.Flags().Bool("shellcheck", false, "Enable shellcheck integration in actionlint")
 	cmd.Flags().Bool("pyflakes", false, "Enable pyflakes integration in actionlint")
 

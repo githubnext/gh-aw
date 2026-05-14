@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -18,7 +19,7 @@ import (
 // so that the returned manifests cannot be tampered with by the agent.
 func CollectLockFileManifests(workflowsDir string) map[string]*workflow.GHAWManifest {
 	if workflowsDir == "" {
-		workflowsDir = ".github/workflows"
+		workflowsDir = constants.GetWorkflowDir()
 	}
 
 	result := make(map[string]*workflow.GHAWManifest)

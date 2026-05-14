@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -168,7 +169,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 // "download_docker_images.sh" invocations.
 func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 	if workflowDir == "" {
-		workflowDir = ".github/workflows"
+		workflowDir = constants.GetWorkflowDir()
 	}
 
 	entries, err := os.ReadDir(workflowDir)

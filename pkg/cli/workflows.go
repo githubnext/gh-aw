@@ -34,7 +34,7 @@ var workflowTitleScannerBufferPool = sync.Pool{
 }
 
 func getWorkflowsDir() string {
-	return ".github/workflows"
+	return constants.GetWorkflowDir()
 }
 
 // readWorkflowFile reads a workflow file from either filesystem

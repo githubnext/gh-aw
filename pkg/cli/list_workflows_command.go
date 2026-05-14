@@ -71,7 +71,7 @@ Examples:
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 	cmd.Flags().String("label", "", "Filter workflows by label")
-	cmd.Flags().String("path", ".github/workflows", "Path to workflows directory in the remote repository (used with --repo)")
+	cmd.Flags().String("path", constants.GetWorkflowDir(), "Path to workflows directory in the remote repository (used with --repo)")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows; ignored when --repo is set)")
 
 	// Register completions for list command
