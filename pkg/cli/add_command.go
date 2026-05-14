@@ -57,6 +57,8 @@ for a guided setup that configures secrets, creates a pull request, and more.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Add workflow directly
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/repo-assist              # Add package from repository root aw.yml
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/packages/repo-assist     # Add package from nested aw.yml
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
   ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
@@ -66,6 +68,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
 
 Workflow specifications:
+  - Two parts: "owner/repo[@version]" (loads repository-root aw.yml package)
+  - Three+ parts without .md: "owner/repo/folder[@version]" (loads nested aw.yml package when present)
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
   - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"

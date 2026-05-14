@@ -68,6 +68,32 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 	var resolutionWarnings []string
 
 	for _, workflow := range workflows {
+		if repoSpec, ok, repoErr := parseRepositoryPackageSpec(workflow); ok {
+			if repoErr != nil {
+				return nil, repoErr
+			}
+
+			pkg, pkgErr := resolveRepositoryPackage(repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
+			if pkgErr == nil {
+				resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
+				for _, installationSource := range pkg.InstallationSource {
+					parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+						RepoSpec: RepoSpec{
+							RepoSlug: repoSpec.RepoSlug,
+							Version:  repoSpec.Version,
+						},
+						WorkflowPath: installationSource,
+						WorkflowName: strings.TrimSuffix(filepath.Base(installationSource), ".md"),
+						Host:         explicitHostForRepo(repoSpec.RepoSlug),
+					})
+				}
+				continue
+			}
+			if repoSpec.PackagePath == "" || !isRepositoryPackageManifestNotFound(pkgErr) {
+				return nil, pkgErr
+			}
+		}
+
 		spec, err := parseWorkflowSpec(workflow)
 		if err != nil {
 			repoSpec, repoErr := parseRepoSpec(workflow)

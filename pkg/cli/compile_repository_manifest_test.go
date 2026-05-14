@@ -73,7 +73,7 @@ engine: copilot
 # Test
 `), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`name: Repo Assist
-unknown-field: true
+docs: docs/overview.md
 `), 0o644))
 
 	oldStdout := os.Stdout
@@ -96,5 +96,5 @@ unknown-field: true
 	assert.False(t, results[0].Valid)
 	require.NotEmpty(t, results[0].Errors)
 	assert.Equal(t, "manifest_error", results[0].Errors[0].Type)
-	assert.Contains(t, results[0].Errors[0].Message, "unknown-field")
+	assert.Contains(t, results[0].Errors[0].Message, "docs")
 }

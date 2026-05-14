@@ -15,8 +15,9 @@ var specLog = logger.New("cli:spec")
 
 // RepoSpec represents a parsed repository specification
 type RepoSpec struct {
-	RepoSlug string // e.g., "owner/repo"
-	Version  string // optional version/tag/SHA/branch
+	RepoSlug    string // e.g., "owner/repo"
+	Version     string // optional version/tag/SHA/branch
+	PackagePath string // optional repository package subpath, e.g. "packages/repo-assist"
 }
 
 // SourceSpec represents a parsed source specification from workflow frontmatter

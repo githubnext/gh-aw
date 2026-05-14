@@ -20,9 +20,6 @@
     "description": {
       "type": "string"
     },
-    "docs": {
-      "type": "string"
-    },
     "files": {
       "type": "array",
       "items": {

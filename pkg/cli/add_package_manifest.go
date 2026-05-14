@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -40,8 +41,9 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	if ref == "" {
 		ref = "main"
 	}
+	packagePath := strings.Trim(repoSpec.PackagePath, "/")
 
-	manifestPath, manifestContent, foundAliases, err := loadRepositoryPackageManifestFile(owner, repo, ref, host)
+	manifestPath, manifestContent, foundAliases, err := loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host)
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +55,9 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 
 	warnings = append(warnings, repositoryPackageAliasWarnings(foundAliases, manifestPath)...)
 
-	installationSources := normalizePackageInstallablePaths(manifest.Files)
+	installationSources := normalizePackageInstallablePaths(manifest.Files, packagePath)
 	if len(installationSources) == 0 {
-		installationSources, err = scanRepositoryPackageInstallablePaths(owner, repo, ref, host)
+		installationSources, err = scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +66,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		return nil, fmt.Errorf("repository %q does not declare any installable workflow markdown files", repoSpec.RepoSlug)
 	}
 
-	docsPath, docsWarnings := resolveRepositoryPackageDocsPath(owner, repo, ref, host, manifest, installationSources)
+	docsPath, docsWarnings := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host, installationSources)
 	warnings = append(warnings, docsWarnings...)
 
 	return &resolvedRepositoryPackage{
@@ -77,28 +79,32 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	}, nil
 }
 
-func loadRepositoryPackageManifestFile(owner, repo, ref, host string) (string, []byte, []string, error) {
+func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host string) (string, []byte, []string, error) {
 	var selectedPath string
 	var selectedContent []byte
 	var foundAliases []string
 
 	for _, manifestPath := range packageManifestAliases {
-		content, err := downloadPackageFileFromGitHubForHost(owner, repo, manifestPath, ref, host)
+		candidatePath := joinRepositoryPackagePath(packagePath, manifestPath)
+		content, err := downloadPackageFileFromGitHubForHost(owner, repo, candidatePath, ref, host)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return "", nil, nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
+			return "", nil, nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", candidatePath, owner, repo, ref, err)
 		}
 
-		foundAliases = append(foundAliases, manifestPath)
+		foundAliases = append(foundAliases, candidatePath)
 		if selectedPath == "" {
-			selectedPath = manifestPath
+			selectedPath = candidatePath
 			selectedContent = content
 		}
 	}
 
 	if selectedPath == "" {
+		if packagePath != "" {
+			return "", nil, nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", owner+"/"+repo+"/"+packagePath, packagePath, joinRepositoryPackagePath(packagePath, "aw.yml"))
+		}
 		return "", nil, nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", owner+"/"+repo)
 	}
 
@@ -110,7 +116,6 @@ type repositoryPackageManifest struct {
 	MinVersion    string
 	Name          string
 	Description   string
-	Docs          string
 	Files         []string
 }
 
@@ -166,14 +171,6 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		}
 	}
 
-	if docs, ok := stringValue(root["docs"]); ok {
-		if strings.HasSuffix(strings.ToLower(docs), ".md") {
-			manifest.Docs = docs
-		} else {
-			warnings = append(warnings, fmt.Sprintf("Ignoring docs entry %q in %s because it does not point to a markdown file", docs, manifestPath))
-		}
-	}
-
 	if filesValue, ok := root["files"]; ok {
 		files, fileWarnings := extractManifestFiles(filesValue, manifestPath)
 		manifest.Files = files
@@ -216,17 +213,18 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	return normalized, warnings
 }
 
-func scanRepositoryPackageInstallablePaths(owner, repo, ref, host string) ([]string, error) {
+func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host string) ([]string, error) {
 	var collected []string
 	seen := make(map[string]struct{})
 
 	for _, sourceDir := range packageSourceDirectories {
-		files, err := listPackageWorkflowFiles(owner, repo, ref, sourceDir)
+		sourcePath := joinRepositoryPackagePath(packagePath, sourceDir)
+		files, err := listPackageWorkflowFiles(owner, repo, ref, sourcePath)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return nil, fmt.Errorf("failed to scan %q in %s/%s@%s: %w", sourceDir, owner, repo, ref, err)
+			return nil, fmt.Errorf("failed to scan %q in %s/%s@%s: %w", sourcePath, owner, repo, ref, err)
 		}
 
 		for _, file := range files {
@@ -244,18 +242,9 @@ func scanRepositoryPackageInstallablePaths(owner, repo, ref, host string) ([]str
 	return collected, nil
 }
 
-func resolveRepositoryPackageDocsPath(owner, repo, ref, host string, manifest *repositoryPackageManifest, installationSources []string) (string, []string) {
-	if manifest.Docs != "" {
-		return manifest.Docs, nil
-	}
-
+func resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host string, installationSources []string) (string, []string) {
 	var warnings []string
-	candidates := []string{
-		filepath.ToSlash(filepath.Join("docs", parameterizePackageName(manifest.Name)+".md")),
-	}
-	for _, source := range installationSources {
-		candidates = append(candidates, filepath.ToSlash(filepath.Join("docs", filepath.Base(source))))
-	}
+	candidates := []string{joinRepositoryPackagePath(packagePath, "README.md")}
 
 	seen := make(map[string]struct{})
 	for _, candidate := range candidates {
@@ -281,13 +270,14 @@ func resolveRepositoryPackageDocsPath(owner, repo, ref, host string, manifest *r
 	return "", warnings
 }
 
-func normalizePackageInstallablePaths(paths []string) []string {
+func normalizePackageInstallablePaths(paths []string, packagePath string) []string {
 	normalized := make([]string, 0, len(paths))
 	seen := make(map[string]struct{})
 	for _, path := range paths {
 		if !isSupportedPackageInstallablePath(path) {
 			continue
 		}
+		path = joinRepositoryPackagePath(packagePath, path)
 		if _, exists := seen[path]; exists {
 			continue
 		}
@@ -304,7 +294,7 @@ func isSupportedPackageInstallablePath(path string) bool {
 
 func repositoryPackageAliasWarnings(foundAliases []string, selectedPath string) []string {
 	var warnings []string
-	if selectedPath != "aw.yml" {
+	if filepath.Base(selectedPath) != "aw.yml" {
 		warnings = append(warnings, fmt.Sprintf("Using legacy manifest %q; rename it to aw.yml", selectedPath))
 	}
 	if len(foundAliases) > 1 {
@@ -321,29 +311,53 @@ func repositoryPackageAliasWarnings(foundAliases []string, selectedPath string) 
 	return warnings
 }
 
-// parameterizePackageName converts a human-readable package name into a lowercase
-// ASCII hyphenated slug suitable for docs path probing (for example, "Repo Assist" → "repo-assist").
-func parameterizePackageName(name string) string {
-	lower := strings.ToLower(strings.TrimSpace(name))
-	if lower == "" {
-		return ""
+func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
+	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") || isLocalWorkflowPath(spec) {
+		return nil, false, nil
 	}
 
-	var b strings.Builder
-	lastHyphen := false
-	for _, r := range lower {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			b.WriteRune(r)
-			lastHyphen = false
-			continue
-		}
-		if !lastHyphen {
-			b.WriteByte('-')
-			lastHyphen = true
+	parts := strings.SplitN(spec, "@", 2)
+	specWithoutVersion := parts[0]
+	if strings.HasSuffix(strings.ToLower(specWithoutVersion), ".md") {
+		return nil, false, nil
+	}
+
+	slashParts := strings.Split(specWithoutVersion, "/")
+	if len(slashParts) < 2 || slashParts[0] == "" || slashParts[1] == "" {
+		return nil, false, nil
+	}
+	if !parser.IsValidGitHubIdentifier(slashParts[0]) || !parser.IsValidGitHubIdentifier(slashParts[1]) {
+		return nil, false, nil
+	}
+
+	packagePath := strings.Trim(strings.Join(slashParts[2:], "/"), "/")
+	if packagePath != "" {
+		cleanedPath := path.Clean(packagePath)
+		if cleanedPath == "." {
+			packagePath = ""
+		} else if cleanedPath == ".." || strings.HasPrefix(cleanedPath, "../") {
+			return nil, true, fmt.Errorf("invalid repository package path %q", packagePath)
+		} else {
+			packagePath = cleanedPath
 		}
 	}
 
-	return strings.Trim(b.String(), "-")
+	repoSpec := &RepoSpec{
+		RepoSlug:    slashParts[0] + "/" + slashParts[1],
+		PackagePath: packagePath,
+	}
+	if len(parts) == 2 {
+		repoSpec.Version = parts[1]
+	}
+
+	return repoSpec, true, nil
+}
+
+func joinRepositoryPackagePath(packagePath, relativePath string) string {
+	if packagePath == "" {
+		return filepath.ToSlash(relativePath)
+	}
+	return filepath.ToSlash(filepath.Join(packagePath, relativePath))
 }
 
 func stringValue(value any) (string, bool) {
@@ -357,4 +371,11 @@ func isRepositoryFileNotFound(err error) bool {
 	}
 	errText := strings.ToLower(err.Error())
 	return strings.Contains(errText, "404") || strings.Contains(errText, "not found")
+}
+
+func isRepositoryPackageManifestNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "no aw.yml manifest found")
 }
