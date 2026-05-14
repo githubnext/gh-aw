@@ -38,7 +38,7 @@ func TestNoRawOctalPermissionLiteralsInOSCalls(t *testing.T) {
 
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	pkgRoot := filepath.Join(repoRoot, "pkg")
-	octalPattern := regexp.MustCompile(`^0[0-7]+$`)
+	octalPattern := regexp.MustCompile(`^0o?[0-7]+$`)
 
 	fset := token.NewFileSet()
 	err := filepath.Walk(pkgRoot, func(path string, info fs.FileInfo, walkErr error) error {

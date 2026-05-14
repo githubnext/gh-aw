@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // writeOutcomeJSONL writes outcome reports as JSONL to the given directory.
 // Each line is a JSON object suitable for OTLP span conversion or downstream processing.
 func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, constants.DirPermPublic); err != nil {
 		outcomeEvalLog.Printf("Failed to create outcomes dir %s: %v", dir, err)
 		return
 	}
