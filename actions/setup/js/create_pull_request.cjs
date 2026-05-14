@@ -70,11 +70,14 @@ const HANDLER_TYPE = "create_pull_request";
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 
 /**
- * @param {string} branchName
- * @returns {string}
+ * Creates a temporary refs/bundles ref for applying create_pull_request bundles.
+ * Branch names are sanitized for ref compatibility, and a short crypto-random
+ * suffix avoids collisions between branches that sanitize to the same value.
+ *
+ * @param {string} branchName - Target branch name
+ * @returns {string} Temporary bundle ref name
  */
 function createBundleTempRef(branchName) {
-  // Avoid collisions between sanitized branch names such as foo/bar and foo-bar.
   const suffix = crypto.randomBytes(4).toString("hex");
   return `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}-${suffix}`;
 }

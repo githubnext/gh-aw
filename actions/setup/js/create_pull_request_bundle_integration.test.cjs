@@ -43,7 +43,7 @@ function createRepo(prefix) {
   return repoDir;
 }
 
-function createExecApi(cwd) {
+function createExecApi(cwd, onExec) {
   return {
     async exec(command, args = []) {
       if (command !== "git") {
@@ -52,6 +52,9 @@ function createExecApi(cwd) {
       const result = execGit(args, { cwd, allowFailure: true });
       if (result.status !== 0) {
         throw new Error(result.stderr || result.stdout);
+      }
+      if (onExec) {
+        onExec(args);
       }
       return result.status;
     },
@@ -104,12 +107,24 @@ describe("create_pull_request bundle integration", () => {
     expect(checkedOutBranchFetchResult.status).not.toBe(0);
     expect(checkedOutBranchFetchResult.stderr).toContain("refusing to fetch into branch");
 
+    let bundleTempRef = "";
     const { applyBundleToBranch } = require("./create_pull_request.cjs");
-    await applyBundleToBranch(bundlePath, branchName, "", createExecApi(targetRepo));
+    await applyBundleToBranch(
+      bundlePath,
+      branchName,
+      "",
+      createExecApi(targetRepo, args => {
+        if (args[0] === "fetch" && args[1] === bundlePath) {
+          bundleTempRef = args[2].split(":")[1];
+          expect(execGit(["show-ref", "--verify", bundleTempRef], { cwd: targetRepo }).status).toBe(0);
+        }
+      })
+    );
 
     const actualHead = execGit(["rev-parse", "HEAD"], { cwd: targetRepo }).stdout.trim();
     expect(actualHead).toBe(expectedHead);
     expect(fs.readFileSync(path.join(targetRepo, "file.txt"), "utf8")).toBe("bundle tip\n");
-    expect(execGit(["for-each-ref", "--format=%(refname)", "refs/bundles/create-pr-autoloop-perf-comparison-"], { cwd: targetRepo }).stdout).toBe("");
+    expect(bundleTempRef).toMatch(/^refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8}$/);
+    expect(execGit(["show-ref", "--verify", bundleTempRef], { cwd: targetRepo, allowFailure: true }).status).not.toBe(0);
   });
 });
