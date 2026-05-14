@@ -99,11 +99,16 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
-// getOTLPIgnoreIfMissing returns true when observability.otlp.ignore-if-missing
-// is enabled in parsed or raw frontmatter.
+// getOTLPIgnoreIfMissing returns true when observability.otlp.if-missing is set
+// to "ignore" (or deprecated observability.otlp.ignore-if-missing is true).
 func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]any) bool {
-	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.IgnoreIfMissing {
-		return true
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil {
+		if strings.EqualFold(strings.TrimSpace(config.Observability.OTLP.IfMissing), "ignore") {
+			return true
+		}
+		if config.Observability.OTLP.IgnoreIfMissing {
+			return true
+		}
 	}
 	if frontmatter == nil {
 		return false
@@ -124,8 +129,13 @@ func getOTLPIgnoreIfMissing(config *FrontmatterConfig, frontmatter map[string]an
 	if !ok {
 		return false
 	}
-	v, ok := otlpMap["ignore-if-missing"].(bool)
-	return ok && v
+	if v, ok := otlpMap["if-missing"].(string); ok && strings.EqualFold(strings.TrimSpace(v), "ignore") {
+		return true
+	}
+	if v, ok := otlpMap["ignore-if-missing"].(bool); ok && v {
+		return true
+	}
+	return false
 }
 
 // isOTLPHeadersPresent returns true when OTEL_EXPORTER_OTLP_HEADERS or

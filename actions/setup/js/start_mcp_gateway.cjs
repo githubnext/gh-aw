@@ -75,7 +75,7 @@ function isTruthyEnvValue(value) {
 }
 
 /**
- * Apply observability.otlp.ignore-if-missing behavior to gateway OTLP config.
+ * Apply observability.otlp.if-missing: ignore behavior to gateway OTLP config.
  * When enabled, missing endpoint values are downgraded to warnings and OTLP
  * gateway configuration is skipped instead of hard-failing the workflow.
  *
@@ -90,19 +90,20 @@ function applyOTLPIgnoreIfMissing(configObj) {
     return;
   }
   const gateway = /** @type {Record<string, unknown>} */ gw;
-  const otel = gateway.opentelemetry;
+  const otel = gateway["opentelemetry"];
   if (!otel || typeof otel !== "object" || Array.isArray(otel)) {
     return;
   }
   const otelConfig = /** @type {Record<string, unknown>} */ otel;
-  const endpoint = typeof otelConfig.endpoint === "string" ? otelConfig.endpoint.trim() : "";
+  const endpoint = typeof otelConfig["endpoint"] === "string" ? otelConfig["endpoint"].trim() : "";
   if (!endpoint) {
-    delete gateway.opentelemetry;
+    delete gateway["opentelemetry"];
     core.info("WARNING: OTLP endpoint is missing/empty and GH_AW_OTLP_IGNORE_IF_MISSING is enabled; skipping MCP gateway OTLP configuration.");
     return;
   }
-  if (typeof otelConfig.headers === "string" && otelConfig.headers.trim() === "") {
-    delete otelConfig.headers;
+  const headers = otelConfig["headers"];
+  if (typeof headers === "string" && headers.trim() === "") {
+    delete otelConfig["headers"];
     core.info("WARNING: OTLP headers are missing/empty and GH_AW_OTLP_IGNORE_IF_MISSING is enabled; continuing without MCP gateway OTLP headers.");
   }
 }

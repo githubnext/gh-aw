@@ -155,13 +155,33 @@ func TestGetOTLPIgnoreIfMissing(t *testing.T) {
 	t.Run("uses parsed frontmatter value", func(t *testing.T) {
 		got := getOTLPIgnoreIfMissing(&FrontmatterConfig{
 			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{IfMissing: "ignore"},
+			},
+		}, nil)
+		assert.True(t, got)
+	})
+
+	t.Run("supports deprecated parsed frontmatter value", func(t *testing.T) {
+		got := getOTLPIgnoreIfMissing(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
 				OTLP: &OTLPConfig{IgnoreIfMissing: true},
 			},
 		}, nil)
 		assert.True(t, got)
 	})
 
-	t.Run("falls back to raw frontmatter value", func(t *testing.T) {
+	t.Run("falls back to raw frontmatter if-missing value", func(t *testing.T) {
+		got := getOTLPIgnoreIfMissing(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"if-missing": "ignore",
+				},
+			},
+		})
+		assert.True(t, got)
+	})
+
+	t.Run("supports deprecated ignore-if-missing value", func(t *testing.T) {
 		got := getOTLPIgnoreIfMissing(nil, map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
@@ -227,14 +247,14 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(t, wd.Env, "COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/copilot-otel.jsonl", "should configure Copilot OTEL file exporter path")
 	})
 
-	t.Run("injects ignore-if-missing env var when enabled", func(t *testing.T) {
+	t.Run("injects ignore-if-missing env var when if-missing is ignore", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
 			ParsedFrontmatter: &FrontmatterConfig{
 				Observability: &ObservabilityConfig{
 					OTLP: &OTLPConfig{
-						Endpoint:        "${{ secrets.OTLP_ENDPOINT }}",
-						IgnoreIfMissing: true,
+						Endpoint:  "${{ secrets.OTLP_ENDPOINT }}",
+						IfMissing: "ignore",
 					},
 				},
 			},

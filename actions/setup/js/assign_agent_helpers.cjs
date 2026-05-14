@@ -126,7 +126,7 @@ async function findAgent(owner, repo, agentName, githubClient = github) {
     core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
 
     // Re-throw authentication/permission errors so they can be handled by the caller
-    // This allows ignore-if-missing logic to work properly
+    // This allows if-missing: ignore logic to work properly
     if (
       errorMessage.includes("Bad credentials") ||
       errorMessage.includes("Not Authenticated") ||
