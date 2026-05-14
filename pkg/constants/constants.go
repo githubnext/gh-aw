@@ -332,6 +332,9 @@ var SharedWorkflowForbiddenFields = []string{
 	"tracker-id",      // Tracker ID
 }
 
+// GetWorkflowDir returns the workflows directory path.
+// Always uses forward slashes, which are required for git/GitHub paths.
+// GH_AW_WORKFLOWS_DIR overrides the default; any OS-specific separators are normalized.
 func GetWorkflowDir() string {
 	if dir := os.Getenv("GH_AW_WORKFLOWS_DIR"); dir != "" {
 		return filepath.ToSlash(dir)
