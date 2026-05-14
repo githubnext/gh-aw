@@ -83,6 +83,18 @@ function createBundleTempRef(branchName) {
 }
 
 /**
+ * Extract prerequisite commit SHAs from git bundle fetch error output.
+ * @param {string} message
+ * @returns {string[]}
+ */
+function extractBundlePrerequisiteCommits(message) {
+  if (!message || !/lacks these prerequisite commits/i.test(message)) {
+    return [];
+  }
+  return [...new Set((message.match(/\b[0-9a-f]{40}\b/gi) || []).map(sha => sha.toLowerCase()))];
+}
+
+/**
  * Apply a git bundle to a local branch without fetching directly into the branch ref.
  * Fetching directly into refs/heads/<branch> fails when that branch is currently checked out.
  *
@@ -105,22 +117,36 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
     try {
       await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
     } catch (initialFetchError) {
-      // Fallback: resolve the source ref directly from the bundle contents.
-      // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
       const initialFetchErrorMessage = initialFetchError instanceof Error ? initialFetchError.message : String(initialFetchError);
-      core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
-      const { stdout: bundleHeadsOutput } = await execApi.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
-      const branchRefs = bundleHeadsOutput
-        .split("\n")
-        .map(line => line.trim().split(/\s+/)[1] || "")
-        .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
 
-      if (branchRefs.length === 1) {
-        bundleBranchRef = branchRefs[0];
-        core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
+      // Recovery path for bundle prerequisite failures: fetch missing prerequisite
+      // commit objects, then retry with the original bundle ref.
+      const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorMessage);
+      if (prerequisiteCommits.length > 0) {
+        core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
+        for (const sha of prerequisiteCommits) {
+          await execApi.exec("git", ["fetch", "origin", sha]);
+        }
         await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
       } else {
-        throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, { cause: initialFetchError });
+        // Fallback: resolve the source ref directly from the bundle contents.
+        // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
+        core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
+        const { stdout: bundleHeadsOutput } = await execApi.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
+        const branchRefs = bundleHeadsOutput
+          .split("\n")
+          .map(line => line.trim().split(/\s+/)[1] || "")
+          .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
+
+        if (branchRefs.length === 1) {
+          bundleBranchRef = branchRefs[0];
+          core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
+          await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
+        } else {
+          throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, {
+            cause: initialFetchError,
+          });
+        }
       }
     }
     core.info(`Fetched bundle to ${bundleTempRef}`);

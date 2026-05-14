@@ -329,6 +329,50 @@ index 0000000..abc1234
     expect(resolvedFetchCall[1][2]).toMatch(/^refs\/heads\/main:refs\/bundles\/create-pr-ops-review-may09-2026-[a-f0-9]{8}$/);
   });
 
+  it("should fetch prerequisite commits and retry bundle fetch when prerequisites are missing", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    let firstBundleFetchAttempt = true;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
+        firstBundleFetchAttempt = false;
+        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha]);
+    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCalls.length).toBe(2);
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+  });
+
   it("should not fetch a bundle directly into the target branch", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(
