@@ -2,16 +2,23 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
 
 var updateLog = logger.New("cli:update_command")
+
+const updateTargetRepoCheckoutDir = ".github/aw/updates"
 
 // NewUpdateCommand creates the update command
 func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
@@ -48,6 +55,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` update --no-compile           # Update without regenerating lock files
   ` + string(constants.CLIExtensionPrefix) + ` update --no-redirect          # Refuse workflows that use redirect frontmatter
   ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` update --repo owner/repo        # Update workflows in another repository
   ` + string(constants.CLIExtensionPrefix) + ` update --create-pull-request   # Update and open a pull request
   ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 0           # Disable cooldown and apply all pending releases immediately
   ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 3d          # Apply a custom 3-day cooldown period`,
@@ -68,6 +76,7 @@ Examples:
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			coolDownStr, _ := cmd.Flags().GetString("cool-down")
+			targetRepo, _ := cmd.Flags().GetString("repo")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
@@ -78,7 +87,7 @@ Examples:
 				return fmt.Errorf("invalid --cool-down value: %w", err)
 			}
 
-			if createPR {
+			if createPR && targetRepo == "" {
 				if err := PreflightCheckForCreatePR(verbose); err != nil {
 					return err
 				}
@@ -99,6 +108,10 @@ Examples:
 				NoRedirect:             noRedirect,
 				DisableSecurityScanner: disableSecurityScanner,
 				CoolDown:               coolDown,
+			}
+
+			if targetRepo != "" {
+				return runUpdateForTargetRepo(cmd.Context(), targetRepo, opts, createPR, verbose)
 			}
 
 			if err := RunUpdateWorkflows(cmd.Context(), opts); err != nil {
@@ -126,6 +139,7 @@ Examples:
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
 	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
+	addRepoFlag(cmd)
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().String("cool-down", "7d", "Cooldown period before applying a new release (e.g. 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories")
@@ -176,4 +190,102 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 
 	updateLog.Printf("Update process complete: had_error=%v", firstErr != nil)
 	return firstErr
+}
+
+func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return fmt.Errorf("--repo requires running inside a git repository: %w", err)
+	}
+
+	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
+	if err != nil {
+		return err
+	}
+
+	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(targetRepo))
+	if err := shallowCloneTargetRepo(ctx, targetRepo, checkoutDir); err != nil {
+		return err
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checked out "+targetRepo+" at "+checkoutDir))
+	}
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to read current directory: %w", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(checkoutDir); err != nil {
+		return fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
+	}
+
+	if createPR {
+		if err := PreflightCheckForCreatePR(verbose); err != nil {
+			return err
+		}
+	}
+
+	if err := RunUpdateWorkflows(ctx, opts); err != nil {
+		return err
+	}
+
+	if createPR {
+		prBody := "This PR updates agentic workflows from their source repositories."
+		_, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
+			"Update workflows from source", prBody, verbose)
+		return err
+	}
+	return nil
+}
+
+func ensureUpdateTargetRepoGitignore(gitRoot string) (string, error) {
+	updatesDir := filepath.Join(gitRoot, updateTargetRepoCheckoutDir)
+	if err := os.MkdirAll(updatesDir, constants.DirPermPublic); err != nil {
+		return "", fmt.Errorf("failed to create %s: %w", updateTargetRepoCheckoutDir, err)
+	}
+
+	gitignorePath := filepath.Join(updatesDir, ".gitignore")
+	if _, err := os.Stat(gitignorePath); err == nil {
+		return updatesDir, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("failed to stat %s: %w", gitignorePath, err)
+	}
+
+	const gitignoreContent = `# Ignore checked-out repositories used by 'gh aw update --repo'
+*
+
+# Keep this file in version control
+!.gitignore
+`
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), constants.FilePermSensitive); err != nil {
+		return "", fmt.Errorf("failed to write %s: %w", gitignorePath, err)
+	}
+	return updatesDir, nil
+}
+
+func shallowCloneTargetRepo(ctx context.Context, repo, destination string) error {
+	if err := os.RemoveAll(destination); err != nil {
+		return fmt.Errorf("failed to clean previous checkout %s: %w", destination, err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "repo", "clone", repo, destination, "--", "--depth=1")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed == "" {
+			return fmt.Errorf("failed to shallow clone %s: %w", repo, err)
+		}
+		return fmt.Errorf("failed to shallow clone %s: %w: %s", repo, err, trimmed)
+	}
+	return nil
+}
+
+func sanitizeRepoPath(repo string) string {
+	replacer := strings.NewReplacer("/", "__", "\\", "__", ":", "__", "@", "__")
+	return replacer.Replace(repo)
 }
