@@ -16,7 +16,7 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 		return nil
 	}
 
-	manifestPath, foundAliases, err := findLocalRepositoryPackageManifest(gitRoot)
+	manifestPath, err := findLocalRepositoryPackageManifest(gitRoot)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,6 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 	}
 
 	_, warnings, parseErr := parseRepositoryPackageManifest(manifestPath, content)
-	warnings = append(warnings, repositoryPackageAliasWarnings(foundAliases, filepath.Base(manifestPath))...)
 
 	if len(warnings) > 0 {
 		stats.Warnings += len(warnings)
@@ -72,22 +71,13 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 	return nil
 }
 
-func findLocalRepositoryPackageManifest(gitRoot string) (string, []string, error) {
-	var selectedPath string
-	var foundAliases []string
-
-	for _, alias := range packageManifestAliases {
-		candidate := filepath.Join(gitRoot, alias)
-		if _, err := os.Stat(candidate); err == nil {
-			foundAliases = append(foundAliases, alias)
-			if selectedPath == "" {
-				selectedPath = candidate
-			}
-			continue
-		} else if !os.IsNotExist(err) {
-			return "", nil, fmt.Errorf("failed to check if Agentic Workflow manifest %q exists: %w", candidate, err)
-		}
+func findLocalRepositoryPackageManifest(gitRoot string) (string, error) {
+	manifestPath := filepath.Join(gitRoot, repositoryPackageManifestFileName)
+	if _, err := os.Stat(manifestPath); err == nil {
+		return manifestPath, nil
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("failed to check if Agentic Workflow manifest %q exists: %w", manifestPath, err)
 	}
 
-	return selectedPath, foundAliases, nil
+	return "", nil
 }

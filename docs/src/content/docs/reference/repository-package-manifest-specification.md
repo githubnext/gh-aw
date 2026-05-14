@@ -33,12 +33,6 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are to be interpreted 
 
 The canonical manifest filename is `aw.yml`.
 
-Implementations MAY continue to recognize `agents.yml` and `agents.yaml` as legacy aliases. When multiple aliases exist:
-
-1. `aw.yml` MUST take precedence.
-2. Using a legacy alias SHOULD produce a warning.
-3. Finding multiple aliases SHOULD produce a warning.
-
 ## 4. Manifest format
 
 The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be rejected.
@@ -141,8 +135,6 @@ Validation MUST fail for at least the following conditions:
 
 Implementations SHOULD emit warnings for at least the following conditions:
 
-- use of `agents.yml` or `agents.yaml`;
-- multiple manifest aliases found;
 - a `files` entry is ignored because it is not a supported installable path; or
 - `description` exceeds 255 characters.
 

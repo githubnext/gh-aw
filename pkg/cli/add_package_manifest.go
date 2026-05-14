@@ -15,9 +15,9 @@ import (
 var downloadPackageFileFromGitHubForHost = parser.DownloadFileFromGitHubForHost
 var listPackageWorkflowFiles = parser.ListWorkflowFiles
 
-var packageManifestAliases = []string{"aw.yml", "agents.yml", "agents.yaml"}
 var packageSourceDirectories = []string{"workflows", ".github/workflows"}
 
+const repositoryPackageManifestFileName = "aw.yml"
 const repositoryPackageManifestSchemaVersion = "1"
 
 type resolvedRepositoryPackage struct {
@@ -43,7 +43,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	}
 	packagePath := strings.Trim(repoSpec.PackagePath, "/")
 
-	manifestPath, manifestContent, foundAliases, err := loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host)
+	manifestPath, manifestContent, err := loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +52,6 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	if err != nil {
 		return nil, err
 	}
-
-	warnings = append(warnings, repositoryPackageAliasWarnings(foundAliases, manifestPath)...)
 
 	installationSources := normalizePackageInstallablePaths(manifest.Files, packagePath)
 	if len(installationSources) == 0 {
@@ -79,36 +77,20 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	}, nil
 }
 
-func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host string) (string, []byte, []string, error) {
-	var selectedPath string
-	var selectedContent []byte
-	var foundAliases []string
-
-	for _, manifestPath := range packageManifestAliases {
-		candidatePath := joinRepositoryPackagePath(packagePath, manifestPath)
-		content, err := downloadPackageFileFromGitHubForHost(owner, repo, candidatePath, ref, host)
-		if err != nil {
-			if isRepositoryFileNotFound(err) {
-				continue
-			}
-			return "", nil, nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", candidatePath, owner, repo, ref, err)
+func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host string) (string, []byte, error) {
+	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
+	content, err := downloadPackageFileFromGitHubForHost(owner, repo, manifestPath, ref, host)
+	if err != nil {
+		if !isRepositoryFileNotFound(err) {
+			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
 		}
-
-		foundAliases = append(foundAliases, candidatePath)
-		if selectedPath == "" {
-			selectedPath = candidatePath
-			selectedContent = content
-		}
-	}
-
-	if selectedPath == "" {
 		if packagePath != "" {
-			return "", nil, nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", owner+"/"+repo+"/"+packagePath, packagePath, joinRepositoryPackagePath(packagePath, "aw.yml"))
+			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", owner+"/"+repo+"/"+packagePath, packagePath, manifestPath)
 		}
-		return "", nil, nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", owner+"/"+repo)
+		return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", owner+"/"+repo)
 	}
 
-	return selectedPath, selectedContent, foundAliases, nil
+	return manifestPath, content, nil
 }
 
 type repositoryPackageManifest struct {
@@ -290,25 +272,6 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 func isSupportedPackageInstallablePath(path string) bool {
 	return strings.HasSuffix(strings.ToLower(path), ".md") &&
 		(strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/"))
-}
-
-func repositoryPackageAliasWarnings(foundAliases []string, selectedPath string) []string {
-	var warnings []string
-	if filepath.Base(selectedPath) != "aw.yml" {
-		warnings = append(warnings, fmt.Sprintf("Using legacy manifest %q; rename it to aw.yml", selectedPath))
-	}
-	if len(foundAliases) > 1 {
-		var extras []string
-		for _, alias := range foundAliases {
-			if alias != selectedPath {
-				extras = append(extras, alias)
-			}
-		}
-		if len(extras) > 0 {
-			warnings = append(warnings, fmt.Sprintf("Multiple repository manifests found (%s); using %s and ignoring the legacy aliases", strings.Join(foundAliases, ", "), selectedPath))
-		}
-	}
-	return warnings
 }
 
 func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {

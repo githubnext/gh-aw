@@ -98,6 +98,23 @@ files:
 		assert.Contains(t, err.Error(), `name must be a non-empty string`)
 	})
 
+	t.Run("rejects legacy manifest aliases", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "agents.yml" {
+				return []byte("name: Legacy Alias\n"), nil
+			}
+			return nil, fmt.Errorf("404 not found: %s", path)
+		}
+		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `no aw.yml manifest found`)
+	})
+
 	t.Run("accepts schema-version and compatible min-version", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
