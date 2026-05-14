@@ -2007,27 +2007,19 @@ describe("handle_agent_failure", () => {
 
   describe("buildEffectiveTokensRateLimitErrorContext", () => {
     let buildEffectiveTokensRateLimitErrorContext;
-    let buildETComputationTable;
-    let readAgentUsage;
-    const fs = require("fs");
-    const os = require("os");
-    const path = require("path");
-    let tmpDir;
 
     beforeEach(() => {
       global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
       global.github = {};
       global.context = { repo: { owner: "owner", repo: "repo" } };
       vi.resetModules();
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-test-"));
-      ({ buildEffectiveTokensRateLimitErrorContext, buildETComputationTable, readAgentUsage } = require("./handle_agent_failure.cjs"));
+      ({ buildEffectiveTokensRateLimitErrorContext } = require("./handle_agent_failure.cjs"));
     });
 
     afterEach(() => {
       delete global.core;
       delete global.github;
       delete global.context;
-      fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
     it("formats effective token values in friendly compact form", () => {
@@ -2074,12 +2066,11 @@ describe("handle_agent_failure", () => {
 
   describe("buildETComputationTable", () => {
     let buildETComputationTable;
-    let readAgentUsage;
+    let AGENT_USAGE_PATH;
     const fs = require("fs");
     const os = require("os");
     const path = require("path");
     let tmpDir;
-    let origAgentUsagePath;
 
     beforeEach(() => {
       global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
@@ -2087,7 +2078,7 @@ describe("handle_agent_failure", () => {
       global.context = { repo: { owner: "owner", repo: "repo" } };
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-table-test-"));
-      ({ buildETComputationTable, readAgentUsage } = require("./handle_agent_failure.cjs"));
+      ({ buildETComputationTable, AGENT_USAGE_PATH } = require("./handle_agent_failure.cjs"));
     });
 
     afterEach(() => {
@@ -2109,12 +2100,11 @@ describe("handle_agent_failure", () => {
     });
 
     it("shows full computation table when agent_usage.json is present", () => {
-      const agentUsagePath = "/tmp/gh-aw/agent_usage.json";
-      const origContent = fs.existsSync(agentUsagePath) ? fs.readFileSync(agentUsagePath, "utf8") : null;
+      const origContent = fs.existsSync(AGENT_USAGE_PATH) ? fs.readFileSync(AGENT_USAGE_PATH, "utf8") : null;
 
       const usage = { input_tokens: 100000, output_tokens: 10000, cache_read_tokens: 500000, cache_write_tokens: 5000, effective_tokens: 200000 };
-      fs.mkdirSync(path.dirname(agentUsagePath), { recursive: true });
-      fs.writeFileSync(agentUsagePath, JSON.stringify(usage));
+      fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+      fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(usage));
 
       try {
         vi.resetModules();
@@ -2127,9 +2117,9 @@ describe("handle_agent_failure", () => {
         expect(result).toContain("Base weighted");
       } finally {
         if (origContent !== null) {
-          fs.writeFileSync(agentUsagePath, origContent);
-        } else if (fs.existsSync(agentUsagePath)) {
-          fs.unlinkSync(agentUsagePath);
+          fs.writeFileSync(AGENT_USAGE_PATH, origContent);
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
         }
       }
     });

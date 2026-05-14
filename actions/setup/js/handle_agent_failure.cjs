@@ -882,6 +882,9 @@ function buildETComputationTable(effectiveTokens) {
     const cachedWeighted = w.cached_input * (usage.cache_read_tokens || 0);
     const outputWeighted = w.output * (usage.output_tokens || 0);
     const cacheWriteWeighted = w.cache_write * (usage.cache_write_tokens || 0);
+    // Reasoning tokens are not tracked in agent_usage.json (they are captured per-model in
+    // token-usage.jsonl but not aggregated into the summary file), so they are omitted here.
+    // The step summary's Token Usage table includes reasoning per model when available.
     const baseWeighted = inputWeighted + cachedWeighted + outputWeighted + cacheWriteWeighted;
 
     lines.push("| Token class | Count | Weight | Weighted tokens |");
@@ -2122,6 +2125,7 @@ module.exports = {
   buildEffectiveTokensRateLimitErrorContext,
   buildETComputationTable,
   readAgentUsage,
+  AGENT_USAGE_PATH,
   parseFirewallAuthErrors,
   parseMaxEffectiveTokensFromAuditLog,
   parseEffectiveTokensErrorInfoFromAuditLog,
