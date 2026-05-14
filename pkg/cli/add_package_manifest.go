@@ -391,7 +391,7 @@ func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error
 
 	branch := strings.TrimSpace(string(output))
 	if branch == "" {
-		return "", fmt.Errorf("empty default branch returned for %s", repoSlug)
+		return "", fmt.Errorf("repository %s returned an empty default branch; ensure the repository exists and is accessible", repoSlug)
 	}
 	return branch, nil
 }

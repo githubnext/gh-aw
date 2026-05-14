@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func repositoryPackageNotFound(path string) error {
+func createRepositoryPackageNotFoundError(path string) error {
 	return normalizeRepositoryPackageRemoteError(fmt.Errorf("404 not found: %s", path))
 }
 
@@ -45,7 +45,7 @@ files:
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, repositoryPackageNotFound(path)
+				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -81,7 +81,7 @@ files:
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, repositoryPackageNotFound(path)
+				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -90,7 +90,7 @@ files:
 			case "workflows":
 				return []string{"workflows/review.md"}, nil
 			case ".github/workflows":
-				return nil, repositoryPackageNotFound(workflowPath)
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
 			default:
 				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
 			}
@@ -109,7 +109,7 @@ files:
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, repositoryPackageNotFound(path)
+				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -140,7 +140,7 @@ files:
 				assert.Equal(t, "github.com", host)
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, repositoryPackageNotFound(path)
+				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -149,7 +149,7 @@ files:
 			case "workflows":
 				return []string{"workflows/review.md"}, nil
 			case ".github/workflows":
-				return nil, repositoryPackageNotFound(workflowPath)
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
 			default:
 				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
 			}
@@ -165,7 +165,7 @@ files:
 			if path == "aw.yml" {
 				return []byte("description: missing name\n"), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -184,7 +184,7 @@ files:
 			if path == "agents.yml" {
 				return []byte("name: Legacy Alias\n"), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -210,7 +210,7 @@ files:
 			case "README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, repositoryPackageNotFound(path)
+				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -230,7 +230,7 @@ files:
 name: Repo Assist
 `), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -245,7 +245,7 @@ name: Repo Assist
 docs: docs/overview.md
 `), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -260,7 +260,7 @@ docs: docs/overview.md
 name: Repo Assist
 `), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -276,7 +276,7 @@ files:
   - workflows/review.md
 `), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -296,7 +296,7 @@ files:
   - workflows/review.md
 `), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
@@ -316,7 +316,7 @@ files:
 unknown-field: true
 `), nil
 			}
-			return nil, repositoryPackageNotFound(path)
+			return nil, createRepositoryPackageNotFoundError(path)
 		}
 
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -335,7 +335,7 @@ files:
 			case "packages/repo-assist/README.md":
 				return []byte("# Repo Assist\n"), nil
 			default:
-				return nil, repositoryPackageNotFound(path)
+				return nil, createRepositoryPackageNotFoundError(path)
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
@@ -377,7 +377,7 @@ files:
 		case "README.md":
 			return []byte("# Repo Assist\n"), nil
 		}
-		return nil, repositoryPackageNotFound(path)
+		return nil, createRepositoryPackageNotFoundError(path)
 	}
 	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
@@ -424,7 +424,7 @@ files:
 		case "folder/README.md":
 			return []byte("# Repo Assist\n"), nil
 		}
-		return nil, repositoryPackageNotFound(path)
+		return nil, createRepositoryPackageNotFoundError(path)
 	}
 	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
@@ -459,7 +459,7 @@ func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testin
 	}
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
-		return nil, repositoryPackageNotFound(path)
+		return nil, createRepositoryPackageNotFoundError(path)
 	}
 	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
 		return &FetchedWorkflow{
