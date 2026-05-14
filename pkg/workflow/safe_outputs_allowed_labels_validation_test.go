@@ -123,4 +123,3 @@ strict: false
 		})
 	}
 }
-
