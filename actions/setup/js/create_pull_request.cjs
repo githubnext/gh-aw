@@ -70,6 +70,62 @@ const HANDLER_TYPE = "create_pull_request";
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 
 /**
+ * Apply a git bundle to a local branch without fetching directly into the branch ref.
+ * Fetching directly into refs/heads/<branch> fails when that branch is currently checked out.
+ *
+ * @param {string} bundleFilePath - Path to the bundle file
+ * @param {string} branchName - Target branch name
+ * @param {string} originalAgentBranch - Original source branch name from the agent, if different
+ * @param {{ exec: Function, getExecOutput: Function }} execApi - GitHub Actions exec API
+ * @returns {Promise<void>}
+ */
+async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, execApi) {
+  let bundleBranchRef = `refs/heads/${originalAgentBranch || branchName}`;
+  const bundleTargetRef = `refs/heads/${branchName}`;
+  const bundleTempRef = `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+
+  try {
+    await ensureFullHistoryForBundle(execApi);
+
+    // Fetch from bundle into a temporary ref, then update the target branch.
+    // bundleBranchRef is the source ref inside the bundle (typically refs/heads/<agent-branch>).
+    try {
+      await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
+    } catch (initialFetchError) {
+      // Fallback: resolve the source ref directly from the bundle contents.
+      // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
+      const initialFetchErrorMessage = initialFetchError instanceof Error ? initialFetchError.message : String(initialFetchError);
+      core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
+      const { stdout: bundleHeadsOutput } = await execApi.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
+      const branchRefs = bundleHeadsOutput
+        .split("\n")
+        .map(line => line.trim().split(/\s+/)[1] || "")
+        .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
+
+      if (branchRefs.length === 1) {
+        bundleBranchRef = branchRefs[0];
+        core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
+        await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
+      } else {
+        throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, { cause: initialFetchError });
+      }
+    }
+    core.info(`Fetched bundle to ${bundleTempRef}`);
+    await execApi.exec("git", ["update-ref", bundleTargetRef, bundleTempRef]);
+    core.info(`Created local branch ${branchName} from bundle`);
+    await execApi.exec("git", ["checkout", branchName]);
+    await execApi.exec("git", ["reset", "--hard"]);
+    core.info(`Checked out branch ${branchName} from bundle`);
+  } finally {
+    try {
+      await execApi.exec("git", ["update-ref", "-d", bundleTempRef]);
+    } catch {
+      // Non-fatal cleanup
+    }
+  }
+}
+
+/**
  * Determines if a label API error is transient and worth retrying.
  * Returns true for:
  *  - The GitHub race condition where a newly-created PR's node ID is not immediately
@@ -1265,52 +1321,12 @@ async function main(config = {}) {
       // This preserves merge commit topology and per-commit metadata (messages, authorship)
       // unlike git format-patch which flattens history and drops merge resolution content.
       core.info(`Applying changes from bundle: ${bundleFilePath}`);
-      let bundleBranchRef = `refs/heads/${originalAgentBranch || branchName}`;
-      const bundleTargetRef = `refs/heads/${branchName}`;
-      const bundleTempRef = `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+      const bundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
       try {
-        await ensureFullHistoryForBundle(exec);
-
-        // Fetch from bundle into a temporary ref, then update the target branch.
-        // Fetching directly into refs/heads/<branch> fails when that branch is
-        // currently checked out in the safe_outputs job.
-        // bundleBranchRef is the source ref inside the bundle (typically refs/heads/<agent-branch>).
-        try {
-          await exec.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
-        } catch (initialFetchError) {
-          // Fallback: resolve the source ref directly from the bundle contents.
-          // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
-          const initialFetchErrorMessage = initialFetchError instanceof Error ? initialFetchError.message : String(initialFetchError);
-          core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
-          const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
-          const branchRefs = bundleHeadsOutput
-            .split("\n")
-            .map(line => line.trim().split(/\s+/)[1] || "")
-            .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
-
-          if (branchRefs.length === 1) {
-            bundleBranchRef = branchRefs[0];
-            core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
-            await exec.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
-          } else {
-            throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, { cause: initialFetchError });
-          }
-        }
-        core.info(`Fetched bundle to ${bundleTempRef}`);
-        await exec.exec("git", ["update-ref", bundleTargetRef, bundleTempRef]);
-        core.info(`Created local branch ${branchName} from bundle`);
-        await exec.exec("git", ["checkout", branchName]);
-        await exec.exec("git", ["reset", "--hard"]);
-        core.info(`Checked out branch ${branchName} from bundle`);
+        await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec);
       } catch (bundleError) {
         core.error(`Failed to apply bundle: ${bundleError instanceof Error ? bundleError.message : String(bundleError)}`);
         return { success: false, error: "Failed to apply bundle" };
-      } finally {
-        try {
-          await exec.exec("git", ["update-ref", "-d", bundleTempRef]);
-        } catch {
-          // Non-fatal cleanup
-        }
       }
 
       // Push the commits from the bundle to the remote branch
@@ -1367,7 +1383,7 @@ To create a pull request with the changes:
 gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
 # Fetch the bundle into a local branch
-git fetch /tmp/agent-${runId}/${artifactFileName} ${bundleBranchRef}:refs/heads/${branchName}
+git fetch /tmp/agent-${runId}/${artifactFileName} ${bundleSourceRef}:refs/heads/${branchName}
 git checkout ${branchName}
 
 # Push the branch to origin
@@ -2072,4 +2088,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch };
