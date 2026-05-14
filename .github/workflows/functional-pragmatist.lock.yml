@@ -118,6 +118,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Functional Pragmatist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/functional-pragmatist.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "8b53cc48ad287630a03791d81a7dd6473b5f5b3873681ef8619a50228ed7ad7b"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -137,6 +138,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_FRONTMATTER_HASH: "8b53cc48ad287630a03791d81a7dd6473b5f5b3873681ef8619a50228ed7ad7b"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -381,6 +383,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Functional Pragmatist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/functional-pragmatist.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "8b53cc48ad287630a03791d81a7dd6473b5f5b3873681ef8619a50228ed7ad7b"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1010,6 +1013,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Functional Pragmatist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/functional-pragmatist.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "8b53cc48ad287630a03791d81a7dd6473b5f5b3873681ef8619a50228ed7ad7b"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1162,6 +1166,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Functional Pragmatist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/functional-pragmatist.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "8b53cc48ad287630a03791d81a7dd6473b5f5b3873681ef8619a50228ed7ad7b"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1387,6 +1392,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Functional Pragmatist"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/functional-pragmatist.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "8b53cc48ad287630a03791d81a7dd6473b5f5b3873681ef8619a50228ed7ad7b"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

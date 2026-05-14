@@ -57,6 +57,10 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_AWF_VERSION = "";
     process.env.GH_AW_INFO_AWMG_VERSION = "";
     process.env.GH_AW_INFO_FIREWALL_TYPE = "";
+    process.env.GH_AW_INFO_FRONTMATTER_SOURCE = "";
+    process.env.GH_AW_INFO_FRONTMATTER_HASH = "";
+    process.env.GH_AW_INFO_FRONTMATTER_EMOJI = "";
+    process.env.GH_AW_INFO_BODY_MODIFIED = "";
 
     // Dynamic import to get fresh module state
     const module = await import("./generate_aw_info.cjs");
@@ -95,6 +99,21 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.staged).toBe(false);
     expect(awInfo.firewall_enabled).toBe(false);
     expect(awInfo.created_at).toBeTruthy();
+  });
+
+  it("should include frontmatter source/hash/emoji and body_modified when configured", async () => {
+    process.env.GH_AW_INFO_FRONTMATTER_SOURCE = "github/gh-aw/.github/workflows/example.md@main";
+    process.env.GH_AW_INFO_FRONTMATTER_HASH = "abc123def456";
+    process.env.GH_AW_INFO_FRONTMATTER_EMOJI = "🧪";
+    process.env.GH_AW_INFO_BODY_MODIFIED = "true";
+
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.frontmatter_source).toBe("github/gh-aw/.github/workflows/example.md@main");
+    expect(awInfo.frontmatter_hash).toBe("abc123def456");
+    expect(awInfo.frontmatter_emoji).toBe("🧪");
+    expect(awInfo.body_modified).toBe(true);
   });
 
   it("should set model output", async () => {

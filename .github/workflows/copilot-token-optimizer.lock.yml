@@ -121,6 +121,8 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Token Usage Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "156c9cf8fea0bc0818b0a55e1a461f8fd4754190cb44dc9bd99d3bbc7782c9d4"
+          GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -140,6 +142,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_BODY_MODIFIED: "false"
+          GH_AW_INFO_FRONTMATTER_HASH: "156c9cf8fea0bc0818b0a55e1a461f8fd4754190cb44dc9bd99d3bbc7782c9d4"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -393,6 +397,8 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Token Usage Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "156c9cf8fea0bc0818b0a55e1a461f8fd4754190cb44dc9bd99d3bbc7782c9d4"
+          GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1048,6 +1054,8 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Token Usage Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "156c9cf8fea0bc0818b0a55e1a461f8fd4754190cb44dc9bd99d3bbc7782c9d4"
+          GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1195,6 +1203,8 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Token Usage Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "156c9cf8fea0bc0818b0a55e1a461f8fd4754190cb44dc9bd99d3bbc7782c9d4"
+          GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1303,6 +1313,8 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Token Usage Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-token-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "156c9cf8fea0bc0818b0a55e1a461f8fd4754190cb44dc9bd99d3bbc7782c9d4"
+          GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

@@ -120,6 +120,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Team Evolution Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-team-evolution-insights.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
+          GH_AW_INFO_FRONTMATTER_HASH: "4fa8d7d032e5e23f16415cdd65e8607a0f95223581ea0a813c354d0ef85d3b47"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -139,6 +140,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_FRONTMATTER_HASH: "4fa8d7d032e5e23f16415cdd65e8607a0f95223581ea0a813c354d0ef85d3b47"
           GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -378,6 +380,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Team Evolution Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-team-evolution-insights.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
+          GH_AW_INFO_FRONTMATTER_HASH: "4fa8d7d032e5e23f16415cdd65e8607a0f95223581ea0a813c354d0ef85d3b47"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1050,6 +1053,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Team Evolution Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-team-evolution-insights.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
+          GH_AW_INFO_FRONTMATTER_HASH: "4fa8d7d032e5e23f16415cdd65e8607a0f95223581ea0a813c354d0ef85d3b47"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1198,6 +1202,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Team Evolution Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-team-evolution-insights.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
+          GH_AW_INFO_FRONTMATTER_HASH: "4fa8d7d032e5e23f16415cdd65e8607a0f95223581ea0a813c354d0ef85d3b47"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1430,6 +1435,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Team Evolution Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-team-evolution-insights.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
+          GH_AW_INFO_FRONTMATTER_HASH: "4fa8d7d032e5e23f16415cdd65e8607a0f95223581ea0a813c354d0ef85d3b47"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
