@@ -119,7 +119,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Semgrep Scan"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-semgrep-scan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "102fac327bce705793c86c9f02fc39c3a39cd1f1adbbae44c916632e95fff504"
+          GH_AW_INFO_FRONTMATTER_HASH: "ce3ede36b42fd505bdfc55c536a185b3058444f0203fd9ff7bdb1ab239277887"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -139,7 +139,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "102fac327bce705793c86c9f02fc39c3a39cd1f1adbbae44c916632e95fff504"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔒"
+          GH_AW_INFO_FRONTMATTER_HASH: "ce3ede36b42fd505bdfc55c536a185b3058444f0203fd9ff7bdb1ab239277887"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -377,7 +378,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Semgrep Scan"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-semgrep-scan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "102fac327bce705793c86c9f02fc39c3a39cd1f1adbbae44c916632e95fff504"
+          GH_AW_INFO_FRONTMATTER_HASH: "ce3ede36b42fd505bdfc55c536a185b3058444f0203fd9ff7bdb1ab239277887"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1025,7 +1026,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Semgrep Scan"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-semgrep-scan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "102fac327bce705793c86c9f02fc39c3a39cd1f1adbbae44c916632e95fff504"
+          GH_AW_INFO_FRONTMATTER_HASH: "ce3ede36b42fd505bdfc55c536a185b3058444f0203fd9ff7bdb1ab239277887"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1171,7 +1172,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Semgrep Scan"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-semgrep-scan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "102fac327bce705793c86c9f02fc39c3a39cd1f1adbbae44c916632e95fff504"
+          GH_AW_INFO_FRONTMATTER_HASH: "ce3ede36b42fd505bdfc55c536a185b3058444f0203fd9ff7bdb1ab239277887"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1395,7 +1396,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Semgrep Scan"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-semgrep-scan.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "102fac327bce705793c86c9f02fc39c3a39cd1f1adbbae44c916632e95fff504"
+          GH_AW_INFO_FRONTMATTER_HASH: "ce3ede36b42fd505bdfc55c536a185b3058444f0203fd9ff7bdb1ab239277887"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

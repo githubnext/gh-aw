@@ -124,7 +124,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "ACE Editor Session"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ace-editor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "b263690284cee8285318ff446cc08ef7626809882954ced125416fb4fa989078"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a3c6ed7758d1bfb82eecde3b776666736cb5a0bcfa20e8cf4fceb217b29170"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -144,7 +144,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "b263690284cee8285318ff446cc08ef7626809882954ced125416fb4fa989078"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "✏️"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a3c6ed7758d1bfb82eecde3b776666736cb5a0bcfa20e8cf4fceb217b29170"
           GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -424,7 +425,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "ACE Editor Session"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ace-editor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "b263690284cee8285318ff446cc08ef7626809882954ced125416fb4fa989078"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a3c6ed7758d1bfb82eecde3b776666736cb5a0bcfa20e8cf4fceb217b29170"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -949,7 +950,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "ACE Editor Session"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ace-editor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "b263690284cee8285318ff446cc08ef7626809882954ced125416fb4fa989078"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a3c6ed7758d1bfb82eecde3b776666736cb5a0bcfa20e8cf4fceb217b29170"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1082,7 +1083,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "ACE Editor Session"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ace-editor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "b263690284cee8285318ff446cc08ef7626809882954ced125416fb4fa989078"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a3c6ed7758d1bfb82eecde3b776666736cb5a0bcfa20e8cf4fceb217b29170"
       - name: Check team membership for command workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1155,7 +1156,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "ACE Editor Session"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ace-editor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "b263690284cee8285318ff446cc08ef7626809882954ced125416fb4fa989078"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a3c6ed7758d1bfb82eecde3b776666736cb5a0bcfa20e8cf4fceb217b29170"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

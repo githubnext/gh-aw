@@ -121,7 +121,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Basic Research Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/research.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e9e095025fd767098d13259be670213650622e55289e85631f35502de8e8d0d8"
+          GH_AW_INFO_FRONTMATTER_HASH: "64ddc49a5b7b72dfcfe96e7f24c6c34b12d8b5ebbdd063b5923581ec113ecac3"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -141,7 +141,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "e9e095025fd767098d13259be670213650622e55289e85631f35502de8e8d0d8"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔬"
+          GH_AW_INFO_FRONTMATTER_HASH: "64ddc49a5b7b72dfcfe96e7f24c6c34b12d8b5ebbdd063b5923581ec113ecac3"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -386,7 +387,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Basic Research Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/research.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e9e095025fd767098d13259be670213650622e55289e85631f35502de8e8d0d8"
+          GH_AW_INFO_FRONTMATTER_HASH: "64ddc49a5b7b72dfcfe96e7f24c6c34b12d8b5ebbdd063b5923581ec113ecac3"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1024,7 +1025,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Basic Research Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/research.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e9e095025fd767098d13259be670213650622e55289e85631f35502de8e8d0d8"
+          GH_AW_INFO_FRONTMATTER_HASH: "64ddc49a5b7b72dfcfe96e7f24c6c34b12d8b5ebbdd063b5923581ec113ecac3"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1172,7 +1173,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Basic Research Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/research.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e9e095025fd767098d13259be670213650622e55289e85631f35502de8e8d0d8"
+          GH_AW_INFO_FRONTMATTER_HASH: "64ddc49a5b7b72dfcfe96e7f24c6c34b12d8b5ebbdd063b5923581ec113ecac3"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1395,7 +1396,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Basic Research Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/research.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e9e095025fd767098d13259be670213650622e55289e85631f35502de8e8d0d8"
+          GH_AW_INFO_FRONTMATTER_HASH: "64ddc49a5b7b72dfcfe96e7f24c6c34b12d8b5ebbdd063b5923581ec113ecac3"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

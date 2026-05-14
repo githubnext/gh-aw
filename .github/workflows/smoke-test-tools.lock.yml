@@ -135,7 +135,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Container Smoke Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-test-tools.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "568730293b57f4a9d4ff0d1a76b0b3f266205595a2c401d44a3cf409fa2f5590"
+          GH_AW_INFO_FRONTMATTER_HASH: "b7c23b6122514234dec78135d9b5ecaf2b4515814c95af9ebb6046f8ceb38bfe"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -155,7 +155,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "568730293b57f4a9d4ff0d1a76b0b3f266205595a2c401d44a3cf409fa2f5590"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🧪"
+          GH_AW_INFO_FRONTMATTER_HASH: "b7c23b6122514234dec78135d9b5ecaf2b4515814c95af9ebb6046f8ceb38bfe"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -418,7 +419,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Container Smoke Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-test-tools.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "568730293b57f4a9d4ff0d1a76b0b3f266205595a2c401d44a3cf409fa2f5590"
+          GH_AW_INFO_FRONTMATTER_HASH: "b7c23b6122514234dec78135d9b5ecaf2b4515814c95af9ebb6046f8ceb38bfe"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1053,7 +1054,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Container Smoke Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-test-tools.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "568730293b57f4a9d4ff0d1a76b0b3f266205595a2c401d44a3cf409fa2f5590"
+          GH_AW_INFO_FRONTMATTER_HASH: "b7c23b6122514234dec78135d9b5ecaf2b4515814c95af9ebb6046f8ceb38bfe"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1221,7 +1222,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Container Smoke Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-test-tools.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "568730293b57f4a9d4ff0d1a76b0b3f266205595a2c401d44a3cf409fa2f5590"
+          GH_AW_INFO_FRONTMATTER_HASH: "b7c23b6122514234dec78135d9b5ecaf2b4515814c95af9ebb6046f8ceb38bfe"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1425,7 +1426,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Container Smoke Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-test-tools.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "568730293b57f4a9d4ff0d1a76b0b3f266205595a2c401d44a3cf409fa2f5590"
+          GH_AW_INFO_FRONTMATTER_HASH: "b7c23b6122514234dec78135d9b5ecaf2b4515814c95af9ebb6046f8ceb38bfe"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1493,7 +1494,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Container Smoke Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-test-tools.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "568730293b57f4a9d4ff0d1a76b0b3f266205595a2c401d44a3cf409fa2f5590"
+          GH_AW_INFO_FRONTMATTER_HASH: "b7c23b6122514234dec78135d9b5ecaf2b4515814c95af9ebb6046f8ceb38bfe"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

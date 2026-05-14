@@ -129,7 +129,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -149,7 +149,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔬"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -454,7 +455,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1329,7 +1330,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1483,7 +1484,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1698,7 +1699,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1787,7 +1788,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1900,7 +1901,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1991,7 +1992,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "5191b61cc3f9e9e0ca24a9aa3395c2e5c5ed1e44a3c6201b24c4bdaf330275c7"
+          GH_AW_INFO_FRONTMATTER_HASH: "26a8572e84b56cd5a0ae801a8975eee9865cf2ccce9991689feef72c58f8f691"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

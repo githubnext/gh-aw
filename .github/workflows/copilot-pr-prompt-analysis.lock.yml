@@ -124,7 +124,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot PR Prompt Pattern Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-pr-prompt-analysis.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -144,7 +144,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔍"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -407,7 +408,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot PR Prompt Pattern Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-pr-prompt-analysis.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1089,7 +1090,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot PR Prompt Pattern Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-pr-prompt-analysis.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1242,7 +1243,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot PR Prompt Pattern Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-pr-prompt-analysis.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1454,7 +1455,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot PR Prompt Pattern Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-pr-prompt-analysis.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1562,7 +1563,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot PR Prompt Pattern Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-pr-prompt-analysis.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1647,7 +1648,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot PR Prompt Pattern Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-pr-prompt-analysis.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "d81f0f9c46d3d445183518d35187f1a55ed43362d242d644bed6946e58f10e80"
+          GH_AW_INFO_FRONTMATTER_HASH: "f7990567a28c259221c691468876984887f6f5236d9c887666dfb3b898471c87"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

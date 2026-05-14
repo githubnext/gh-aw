@@ -165,7 +165,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "435faccd36bdbb23b2954d10ceee8044498e52b1b7483876b68012ffe904a58f"
+          GH_AW_INFO_FRONTMATTER_HASH: "e483f0719dba6ea718bf5f1f1a160446254056b7eb5d9c8164b9f0da9f857a80"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -205,7 +205,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "435faccd36bdbb23b2954d10ceee8044498e52b1b7483876b68012ffe904a58f"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🧪"
+          GH_AW_INFO_FRONTMATTER_HASH: "e483f0719dba6ea718bf5f1f1a160446254056b7eb5d9c8164b9f0da9f857a80"
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_TARGET_REPO: ${{ steps.resolve-host-repo.outputs.target_repo }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -458,7 +459,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "435faccd36bdbb23b2954d10ceee8044498e52b1b7483876b68012ffe904a58f"
+          GH_AW_INFO_FRONTMATTER_HASH: "e483f0719dba6ea718bf5f1f1a160446254056b7eb5d9c8164b9f0da9f857a80"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Set runtime paths
         id: set-runtime-paths
@@ -1090,7 +1091,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "435faccd36bdbb23b2954d10ceee8044498e52b1b7483876b68012ffe904a58f"
+          GH_AW_INFO_FRONTMATTER_HASH: "e483f0719dba6ea718bf5f1f1a160446254056b7eb5d9c8164b9f0da9f857a80"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Download agent output artifact
         id: download-agent-output
@@ -1238,7 +1239,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "435faccd36bdbb23b2954d10ceee8044498e52b1b7483876b68012ffe904a58f"
+          GH_AW_INFO_FRONTMATTER_HASH: "e483f0719dba6ea718bf5f1f1a160446254056b7eb5d9c8164b9f0da9f857a80"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Download agent output artifact
         id: download-agent-output
@@ -1440,7 +1441,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "435faccd36bdbb23b2954d10ceee8044498e52b1b7483876b68012ffe904a58f"
+          GH_AW_INFO_FRONTMATTER_HASH: "e483f0719dba6ea718bf5f1f1a160446254056b7eb5d9c8164b9f0da9f857a80"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Check team membership for workflow
         id: check_membership
@@ -1509,7 +1510,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Workflow Call"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-workflow-call.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "435faccd36bdbb23b2954d10ceee8044498e52b1b7483876b68012ffe904a58f"
+          GH_AW_INFO_FRONTMATTER_HASH: "e483f0719dba6ea718bf5f1f1a160446254056b7eb5d9c8164b9f0da9f857a80"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"

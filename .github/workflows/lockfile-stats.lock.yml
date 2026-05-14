@@ -122,7 +122,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/lockfile-stats.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "ee334c8679dc6b866ff2b240944b9114fc2bf3789e489046e5fdb29c0327dcf4"
+          GH_AW_INFO_FRONTMATTER_HASH: "3fbe7b5d12190e82dea8fa4fba568732cb90a1939ac47a01035b708240b3d1b6"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -142,7 +142,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "ee334c8679dc6b866ff2b240944b9114fc2bf3789e489046e5fdb29c0327dcf4"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "📊"
+          GH_AW_INFO_FRONTMATTER_HASH: "3fbe7b5d12190e82dea8fa4fba568732cb90a1939ac47a01035b708240b3d1b6"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -385,7 +386,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/lockfile-stats.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "ee334c8679dc6b866ff2b240944b9114fc2bf3789e489046e5fdb29c0327dcf4"
+          GH_AW_INFO_FRONTMATTER_HASH: "3fbe7b5d12190e82dea8fa4fba568732cb90a1939ac47a01035b708240b3d1b6"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1089,7 +1090,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/lockfile-stats.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "ee334c8679dc6b866ff2b240944b9114fc2bf3789e489046e5fdb29c0327dcf4"
+          GH_AW_INFO_FRONTMATTER_HASH: "3fbe7b5d12190e82dea8fa4fba568732cb90a1939ac47a01035b708240b3d1b6"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1234,7 +1235,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/lockfile-stats.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "ee334c8679dc6b866ff2b240944b9114fc2bf3789e489046e5fdb29c0327dcf4"
+          GH_AW_INFO_FRONTMATTER_HASH: "3fbe7b5d12190e82dea8fa4fba568732cb90a1939ac47a01035b708240b3d1b6"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1466,7 +1467,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/lockfile-stats.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "ee334c8679dc6b866ff2b240944b9114fc2bf3789e489046e5fdb29c0327dcf4"
+          GH_AW_INFO_FRONTMATTER_HASH: "3fbe7b5d12190e82dea8fa4fba568732cb90a1939ac47a01035b708240b3d1b6"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1551,7 +1552,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/lockfile-stats.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "ee334c8679dc6b866ff2b240944b9114fc2bf3789e489046e5fdb29c0327dcf4"
+          GH_AW_INFO_FRONTMATTER_HASH: "3fbe7b5d12190e82dea8fa4fba568732cb90a1939ac47a01035b708240b3d1b6"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

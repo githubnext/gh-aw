@@ -124,7 +124,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4f112e0b9e31d818c5f1763a76cc0d1269aa1bcb9253c3956684dac3785366e0"
+          GH_AW_INFO_FRONTMATTER_HASH: "1e31b3699e19baea1fc4e86464fc5fd5cc14b567324acfed4551edafc8b256c3"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -145,8 +145,10 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_FRONTMATTER_SOURCE: "githubnext/dependabot-campaign/.github/workflows/dependabot-repair.md@ff91842c074b23270d3a0e26a7206a251232a374"
           GH_AW_INFO_BODY_MODIFIED: "false"
-          GH_AW_INFO_FRONTMATTER_HASH: "4f112e0b9e31d818c5f1763a76cc0d1269aa1bcb9253c3956684dac3785366e0"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔧"
+          GH_AW_INFO_FRONTMATTER_HASH: "1e31b3699e19baea1fc4e86464fc5fd5cc14b567324acfed4551edafc8b256c3"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -395,7 +397,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4f112e0b9e31d818c5f1763a76cc0d1269aa1bcb9253c3956684dac3785366e0"
+          GH_AW_INFO_FRONTMATTER_HASH: "1e31b3699e19baea1fc4e86464fc5fd5cc14b567324acfed4551edafc8b256c3"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -1103,7 +1105,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4f112e0b9e31d818c5f1763a76cc0d1269aa1bcb9253c3956684dac3785366e0"
+          GH_AW_INFO_FRONTMATTER_HASH: "1e31b3699e19baea1fc4e86464fc5fd5cc14b567324acfed4551edafc8b256c3"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1262,7 +1264,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4f112e0b9e31d818c5f1763a76cc0d1269aa1bcb9253c3956684dac3785366e0"
+          GH_AW_INFO_FRONTMATTER_HASH: "1e31b3699e19baea1fc4e86464fc5fd5cc14b567324acfed4551edafc8b256c3"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1465,7 +1467,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4f112e0b9e31d818c5f1763a76cc0d1269aa1bcb9253c3956684dac3785366e0"
+          GH_AW_INFO_FRONTMATTER_HASH: "1e31b3699e19baea1fc4e86464fc5fd5cc14b567324acfed4551edafc8b256c3"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Check team membership for workflow
         id: check_membership
@@ -1537,7 +1539,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dependabot Local Repair"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-repair.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4f112e0b9e31d818c5f1763a76cc0d1269aa1bcb9253c3956684dac3785366e0"
+          GH_AW_INFO_FRONTMATTER_HASH: "1e31b3699e19baea1fc4e86464fc5fd5cc14b567324acfed4551edafc8b256c3"
           GH_AW_INFO_BODY_MODIFIED: "false"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"

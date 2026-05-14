@@ -134,7 +134,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Project"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-project.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "1b7096328eacdc23e3ecf65e5d6d6ae85dce97c0c9e3664bb951178bbbddcc5d"
+          GH_AW_INFO_FRONTMATTER_HASH: "214035a882f0c57fa53b440b7172b4cb330cdb5152db8f8c2640f3445bbc72ef"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -154,7 +154,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "1b7096328eacdc23e3ecf65e5d6d6ae85dce97c0c9e3664bb951178bbbddcc5d"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🧪"
+          GH_AW_INFO_FRONTMATTER_HASH: "214035a882f0c57fa53b440b7172b4cb330cdb5152db8f8c2640f3445bbc72ef"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -434,7 +435,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Project"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-project.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "1b7096328eacdc23e3ecf65e5d6d6ae85dce97c0c9e3664bb951178bbbddcc5d"
+          GH_AW_INFO_FRONTMATTER_HASH: "214035a882f0c57fa53b440b7172b4cb330cdb5152db8f8c2640f3445bbc72ef"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1250,7 +1251,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Project"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-project.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "1b7096328eacdc23e3ecf65e5d6d6ae85dce97c0c9e3664bb951178bbbddcc5d"
+          GH_AW_INFO_FRONTMATTER_HASH: "214035a882f0c57fa53b440b7172b4cb330cdb5152db8f8c2640f3445bbc72ef"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1420,7 +1421,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Project"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-project.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "1b7096328eacdc23e3ecf65e5d6d6ae85dce97c0c9e3664bb951178bbbddcc5d"
+          GH_AW_INFO_FRONTMATTER_HASH: "214035a882f0c57fa53b440b7172b4cb330cdb5152db8f8c2640f3445bbc72ef"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1624,7 +1625,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Project"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-project.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "1b7096328eacdc23e3ecf65e5d6d6ae85dce97c0c9e3664bb951178bbbddcc5d"
+          GH_AW_INFO_FRONTMATTER_HASH: "214035a882f0c57fa53b440b7172b4cb330cdb5152db8f8c2640f3445bbc72ef"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1696,7 +1697,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Project"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-project.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "1b7096328eacdc23e3ecf65e5d6d6ae85dce97c0c9e3664bb951178bbbddcc5d"
+          GH_AW_INFO_FRONTMATTER_HASH: "214035a882f0c57fa53b440b7172b4cb330cdb5152db8f8c2640f3445bbc72ef"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

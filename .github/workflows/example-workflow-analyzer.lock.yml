@@ -125,7 +125,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Weekly Workflow Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/example-workflow-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "dbe21c4c158c0df4db32420d6bfc1703d12af5d23b4e69cb5f3866dcb1be906c"
+          GH_AW_INFO_FRONTMATTER_HASH: "9cbab98418b322cd0b2d6950fede0d864406d7631e118b707c61473173330ca5"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -145,7 +145,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "dbe21c4c158c0df4db32420d6bfc1703d12af5d23b4e69cb5f3866dcb1be906c"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔍"
+          GH_AW_INFO_FRONTMATTER_HASH: "9cbab98418b322cd0b2d6950fede0d864406d7631e118b707c61473173330ca5"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -386,7 +387,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Weekly Workflow Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/example-workflow-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "dbe21c4c158c0df4db32420d6bfc1703d12af5d23b4e69cb5f3866dcb1be906c"
+          GH_AW_INFO_FRONTMATTER_HASH: "9cbab98418b322cd0b2d6950fede0d864406d7631e118b707c61473173330ca5"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1132,7 +1133,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Weekly Workflow Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/example-workflow-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "dbe21c4c158c0df4db32420d6bfc1703d12af5d23b4e69cb5f3866dcb1be906c"
+          GH_AW_INFO_FRONTMATTER_HASH: "9cbab98418b322cd0b2d6950fede0d864406d7631e118b707c61473173330ca5"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1276,7 +1277,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Weekly Workflow Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/example-workflow-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "dbe21c4c158c0df4db32420d6bfc1703d12af5d23b4e69cb5f3866dcb1be906c"
+          GH_AW_INFO_FRONTMATTER_HASH: "9cbab98418b322cd0b2d6950fede0d864406d7631e118b707c61473173330ca5"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1508,7 +1509,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Weekly Workflow Analysis"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/example-workflow-analyzer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "dbe21c4c158c0df4db32420d6bfc1703d12af5d23b4e69cb5f3866dcb1be906c"
+          GH_AW_INFO_FRONTMATTER_HASH: "9cbab98418b322cd0b2d6950fede0d864406d7631e118b707c61473173330ca5"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
