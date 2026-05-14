@@ -72,7 +72,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		if err != nil {
 			repoSpec, repoErr := parseRepoSpec(workflow)
 			if repoErr != nil {
-				return nil, fmt.Errorf("invalid workflow specification '%s': %w", workflow, repoErr)
+				return nil, fmt.Errorf("invalid specification '%s': not a valid workflow path or repository package: %w", workflow, repoErr)
 			}
 
 			pkg, pkgErr := resolveRepositoryPackage(repoSpec, explicitHostForRepo(repoSpec.RepoSlug))

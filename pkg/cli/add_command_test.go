@@ -97,7 +97,7 @@ func TestAddWorkflows(t *testing.T) {
 			name:          "invalid repo spec missing repo name",
 			workflows:     []string{"owner"},
 			expectError:   true,
-			errorContains: "invalid workflow specification",
+			errorContains: "not a valid workflow path or repository package",
 		},
 	}
 

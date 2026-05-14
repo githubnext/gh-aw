@@ -291,7 +291,7 @@ func repositoryPackageAliasWarnings(foundAliases []string, selectedPath string) 
 }
 
 // parameterizePackageName converts a human-readable package name into a lowercase
-// hyphenated slug suitable for docs path probing (for example, "Repo Assist" → "repo-assist").
+// ASCII hyphenated slug suitable for docs path probing (for example, "Repo Assist" → "repo-assist").
 func parameterizePackageName(name string) string {
 	lower := strings.ToLower(strings.TrimSpace(name))
 	if lower == "" {
