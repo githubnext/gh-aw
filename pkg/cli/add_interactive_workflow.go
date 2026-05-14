@@ -42,28 +42,25 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 			// Continue with check
 		}
 
-		// Use the workflow name from the first spec
-		if len(c.WorkflowSpecs) > 0 {
-			parsed, _ := parseWorkflowSpec(c.WorkflowSpecs[0])
-			if parsed != nil {
+		workflowName := c.primaryWorkflowName()
+		if workflowName != "" {
+			if c.Verbose {
+				fmt.Fprintf(os.Stderr, "Checking workflow status (attempt %d/5) for: %s\n", i+1, workflowName)
+			}
+			// Check if workflow is in status
+			statuses, err := findWorkflowsByFilenamePattern(workflowName, c.RepoOverride, c.Verbose)
+			if err != nil {
 				if c.Verbose {
-					fmt.Fprintf(os.Stderr, "Checking workflow status (attempt %d/5) for: %s\n", i+1, parsed.WorkflowName)
+					fmt.Fprintf(os.Stderr, "Status check error: %v\n", err)
 				}
-				// Check if workflow is in status
-				statuses, err := findWorkflowsByFilenamePattern(parsed.WorkflowName, c.RepoOverride, c.Verbose)
-				if err != nil {
-					if c.Verbose {
-						fmt.Fprintf(os.Stderr, "Status check error: %v\n", err)
-					}
-				} else if len(statuses) > 0 {
-					if c.Verbose {
-						fmt.Fprintf(os.Stderr, "Found %d workflow(s) matching pattern\n", len(statuses))
-					}
-					workflowFound = true
-					break
-				} else if c.Verbose {
-					fmt.Fprintln(os.Stderr, "No workflows found matching pattern yet")
+			} else if len(statuses) > 0 {
+				if c.Verbose {
+					fmt.Fprintf(os.Stderr, "Found %d workflow(s) matching pattern\n", len(statuses))
 				}
+				workflowFound = true
+				break
+			} else if c.Verbose {
+				fmt.Fprintln(os.Stderr, "No workflows found matching pattern yet")
 			}
 		}
 	}
@@ -122,41 +119,39 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	}
 
 	// Run the workflow interactively (collects inputs if the workflow has them)
-	if len(c.WorkflowSpecs) > 0 {
-		parsed, _ := parseWorkflowSpec(c.WorkflowSpecs[0])
-		if parsed != nil {
+	workflowName := c.primaryWorkflowName()
+	if workflowName != "" {
+		fmt.Fprintln(os.Stderr, "")
+
+		// Pull the merged workflow files now that we know GitHub has processed the
+		// merge (workflowFound is true). Doing this here—rather than immediately
+		// after the PR merge—avoids a race where git fetch runs before GitHub's git
+		// objects have been updated, which caused "workflow file not found" errors.
+		if !c.Verbose {
+			fmt.Fprintln(os.Stderr, "Updating local branch (this may take a few seconds)...")
+		}
+		if err := c.updateLocalBranch(); err != nil {
+			addInteractiveLog.Printf("Failed to update local branch: %v", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
+			fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
+		}
+		if !c.Verbose {
+			fmt.Fprintln(os.Stderr, "Finished updating local branch.")
+		}
+
+		if err := RunSpecificWorkflowInteractively(ctx, workflowName, c.Verbose, c.EngineOverride, c.RepoOverride, "", false, false, false); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to run workflow: %v", err)))
+			c.showFinalInstructions()
+			return nil
+		}
+
+		// Get the run URL for step 10
+		runInfo, err := getLatestWorkflowRunWithRetry(workflowName+".lock.yml", c.RepoOverride, c.Verbose)
+		if err == nil && runInfo.URL != "" {
 			fmt.Fprintln(os.Stderr, "")
-
-			// Pull the merged workflow files now that we know GitHub has processed the
-			// merge (workflowFound is true). Doing this here—rather than immediately
-			// after the PR merge—avoids a race where git fetch runs before GitHub's git
-			// objects have been updated, which caused "workflow file not found" errors.
-			if !c.Verbose {
-				fmt.Fprintln(os.Stderr, "Updating local branch (this may take a few seconds)...")
-			}
-			if err := c.updateLocalBranch(); err != nil {
-				addInteractiveLog.Printf("Failed to update local branch: %v", err)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
-				fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
-			}
-			if !c.Verbose {
-				fmt.Fprintln(os.Stderr, "Finished updating local branch.")
-			}
-
-			if err := RunSpecificWorkflowInteractively(ctx, parsed.WorkflowName, c.Verbose, c.EngineOverride, c.RepoOverride, "", false, false, false); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to run workflow: %v", err)))
-				c.showFinalInstructions()
-				return nil
-			}
-
-			// Get the run URL for step 10
-			runInfo, err := getLatestWorkflowRunWithRetry(parsed.WorkflowName+".lock.yml", c.RepoOverride, c.Verbose)
-			if err == nil && runInfo.URL != "" {
-				fmt.Fprintln(os.Stderr, "")
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
-				fmt.Fprintln(os.Stderr, "")
-				fmt.Fprintf(os.Stderr, "🔗 View workflow run: %s\n", runInfo.URL)
-			}
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintf(os.Stderr, "🔗 View workflow run: %s\n", runInfo.URL)
 		}
 	}
 

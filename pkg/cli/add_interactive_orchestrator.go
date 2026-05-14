@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
@@ -195,14 +196,14 @@ func (c *AddInteractiveConfig) showWorkflowDescriptions() {
 func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, initFiles []string, err error) {
 	addInteractiveLog.Print("Determining files to add")
 
-	// Parse the workflow specs to get the files that will be added
-	for _, spec := range c.WorkflowSpecs {
-		parsed, parseErr := parseWorkflowSpec(spec)
-		if parseErr != nil {
-			return nil, nil, fmt.Errorf("invalid workflow specification '%s': %w", spec, parseErr)
-		}
-		workflowFiles = append(workflowFiles, parsed.WorkflowName+".md")
-		workflowFiles = append(workflowFiles, parsed.WorkflowName+".lock.yml")
+	workflowNames, err := c.workflowNamesForInteractiveAdd()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, workflowName := range workflowNames {
+		workflowFiles = append(workflowFiles, workflowName+".md")
+		workflowFiles = append(workflowFiles, workflowName+".lock.yml")
 	}
 
 	fmt.Fprintln(os.Stderr, "")
@@ -212,6 +213,43 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 	}
 
 	return workflowFiles, initFiles, nil
+}
+
+func (c *AddInteractiveConfig) workflowNamesForInteractiveAdd() ([]string, error) {
+	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
+		workflowNames := make([]string, 0, len(c.resolvedWorkflows.Workflows))
+		for _, resolvedWorkflow := range c.resolvedWorkflows.Workflows {
+			if resolvedWorkflow == nil || resolvedWorkflow.Spec == nil {
+				continue
+			}
+			workflowName := strings.TrimSpace(resolvedWorkflow.Spec.WorkflowName)
+			if workflowName == "" {
+				continue
+			}
+			workflowNames = append(workflowNames, workflowName)
+		}
+		if len(workflowNames) > 0 {
+			return workflowNames, nil
+		}
+	}
+
+	workflowNames := make([]string, 0, len(c.WorkflowSpecs))
+	for _, spec := range c.WorkflowSpecs {
+		parsed, parseErr := parseWorkflowSpec(spec)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid workflow specification '%s': %w", spec, parseErr)
+		}
+		workflowNames = append(workflowNames, parsed.WorkflowName)
+	}
+	return workflowNames, nil
+}
+
+func (c *AddInteractiveConfig) primaryWorkflowName() string {
+	workflowNames, err := c.workflowNamesForInteractiveAdd()
+	if err != nil || len(workflowNames) == 0 {
+		return ""
+	}
+	return workflowNames[0]
 }
 
 // confirmChanges asks the user to confirm the changes
