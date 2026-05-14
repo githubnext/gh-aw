@@ -168,6 +168,7 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
           get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
         },
         issues: {
+          create: vi.fn().mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test-owner/test-repo/issues/99" } }),
           addLabels: vi.fn().mockResolvedValue({}),
         },
       },
@@ -350,6 +351,44 @@ index 0000000..abc1234
     expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/bundles/create-pr-autoloop-perf-comparison"]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/autoloop/perf-comparison", "refs/bundles/create-pr-autoloop-perf-comparison"]);
+  });
+
+  it("should give fallback issue bundle instructions that avoid direct branch fetches", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "aw-test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+    pushSignedSpy.mockRejectedValueOnce(new Error("push rejected"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+
+    const fallbackIssueBody = global.github.rest.issues.create.mock.calls[0][0].body;
+    expect(fallbackIssueBody).toContain("refs/heads/autoloop/perf-comparison:refs/bundles/create-pr-autoloop-perf-comparison");
+    expect(fallbackIssueBody).toContain("git update-ref refs/heads/autoloop/perf-comparison refs/bundles/create-pr-autoloop-perf-comparison");
+    expect(fallbackIssueBody).toContain("git reset --hard");
+    expect(fallbackIssueBody).not.toContain("refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison");
   });
 });
 

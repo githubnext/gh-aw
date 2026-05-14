@@ -1364,6 +1364,8 @@ async function main(config = {}) {
         const runId = context.runId;
 
         const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
+        const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
+        const fallbackBundleTempRef = `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         const fallbackBody = `${body}
 
 ---
@@ -1381,9 +1383,12 @@ To create a pull request with the changes:
 # Download the artifact from the workflow run
 gh run download ${runId} -n agent -D /tmp/agent-${runId}
 
-# Fetch the bundle into a local branch
-git fetch /tmp/agent-${runId}/${artifactFileName} refs/heads/${originalAgentBranch || branchName}:refs/heads/${branchName}
+# Fetch the bundle into a temporary ref, then update the local branch
+git fetch /tmp/agent-${runId}/${artifactFileName} ${fallbackBundleSourceRef}:${fallbackBundleTempRef}
+git update-ref refs/heads/${branchName} ${fallbackBundleTempRef}
 git checkout ${branchName}
+git reset --hard
+git update-ref -d ${fallbackBundleTempRef}
 
 # Push the branch to origin
 git push origin ${branchName}
