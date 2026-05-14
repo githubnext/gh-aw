@@ -126,6 +126,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-fact.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -145,6 +146,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "📚"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -530,6 +533,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-fact.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1249,6 +1253,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-fact.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1397,6 +1402,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-fact.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1521,18 +1527,18 @@ jobs:
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.9'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_aa609e593ae0f5f0_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_e79a0eb1ea40de0e_EOF
           [history]
           persistence = "none"
           
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_MCP_CONFIG_aa609e593ae0f5f0_EOF
+          GH_AW_MCP_CONFIG_e79a0eb1ea40de0e_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_7324c7cd5e802975_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_23aacae593f19307_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
             },
@@ -1543,11 +1549,11 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_7324c7cd5e802975_EOF
+          GH_AW_MCP_CONFIG_23aacae593f19307_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_8ded827902061d6c_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_0918cc4cf52b1ba6_EOF
           model_provider = "openai-proxy"
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
@@ -1557,7 +1563,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_CODEX_SHELL_POLICY_8ded827902061d6c_EOF
+          GH_AW_CODEX_SHELL_POLICY_0918cc4cf52b1ba6_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1668,6 +1674,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-fact.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1772,6 +1779,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-fact.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1856,6 +1864,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-fact.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.129.0"
+          GH_AW_INFO_FRONTMATTER_HASH: "38653d1c2b0558cd3a2e1023f1ceb28882ef79aaf6cb03b515d0dc08abe18b1d"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

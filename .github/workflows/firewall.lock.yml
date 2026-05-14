@@ -113,7 +113,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Firewall Test Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/firewall.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "596d8ffce8d4a6bc870a89575efbc8e23946b7894de3cefb137c7ea88b2657e3"
+          GH_AW_INFO_FRONTMATTER_HASH: "08962a2d2de2636af25e8129134b4d154850b108a5b18c9a17786f829db896ec"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -133,7 +133,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "596d8ffce8d4a6bc870a89575efbc8e23946b7894de3cefb137c7ea88b2657e3"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔒"
+          GH_AW_INFO_FRONTMATTER_HASH: "08962a2d2de2636af25e8129134b4d154850b108a5b18c9a17786f829db896ec"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -374,7 +375,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Firewall Test Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/firewall.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "596d8ffce8d4a6bc870a89575efbc8e23946b7894de3cefb137c7ea88b2657e3"
+          GH_AW_INFO_FRONTMATTER_HASH: "08962a2d2de2636af25e8129134b4d154850b108a5b18c9a17786f829db896ec"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -917,7 +918,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Firewall Test Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/firewall.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "596d8ffce8d4a6bc870a89575efbc8e23946b7894de3cefb137c7ea88b2657e3"
+          GH_AW_INFO_FRONTMATTER_HASH: "08962a2d2de2636af25e8129134b4d154850b108a5b18c9a17786f829db896ec"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1017,7 +1018,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Firewall Test Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/firewall.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "596d8ffce8d4a6bc870a89575efbc8e23946b7894de3cefb137c7ea88b2657e3"
+          GH_AW_INFO_FRONTMATTER_HASH: "08962a2d2de2636af25e8129134b4d154850b108a5b18c9a17786f829db896ec"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

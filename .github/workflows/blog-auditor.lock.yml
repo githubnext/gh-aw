@@ -120,7 +120,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/blog-auditor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "b734d93c5fdce1485d2a03b402977f9aa9e6e7ce3238c656d615a4b93a5ed439"
+          GH_AW_INFO_FRONTMATTER_HASH: "fea38af454b93b1db6f7129b8de0c3598e3fd9bd9871249678690e188c9203ec"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -140,7 +140,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "b734d93c5fdce1485d2a03b402977f9aa9e6e7ce3238c656d615a4b93a5ed439"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "📝"
+          GH_AW_INFO_FRONTMATTER_HASH: "fea38af454b93b1db6f7129b8de0c3598e3fd9bd9871249678690e188c9203ec"
           GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -383,7 +384,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/blog-auditor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "b734d93c5fdce1485d2a03b402977f9aa9e6e7ce3238c656d615a4b93a5ed439"
+          GH_AW_INFO_FRONTMATTER_HASH: "fea38af454b93b1db6f7129b8de0c3598e3fd9bd9871249678690e188c9203ec"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1100,7 +1101,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/blog-auditor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "b734d93c5fdce1485d2a03b402977f9aa9e6e7ce3238c656d615a4b93a5ed439"
+          GH_AW_INFO_FRONTMATTER_HASH: "fea38af454b93b1db6f7129b8de0c3598e3fd9bd9871249678690e188c9203ec"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1249,7 +1250,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/blog-auditor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "b734d93c5fdce1485d2a03b402977f9aa9e6e7ce3238c656d615a4b93a5ed439"
+          GH_AW_INFO_FRONTMATTER_HASH: "fea38af454b93b1db6f7129b8de0c3598e3fd9bd9871249678690e188c9203ec"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1482,7 +1483,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/blog-auditor.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "b734d93c5fdce1485d2a03b402977f9aa9e6e7ce3238c656d615a4b93a5ed439"
+          GH_AW_INFO_FRONTMATTER_HASH: "fea38af454b93b1db6f7129b8de0c3598e3fd9bd9871249678690e188c9203ec"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

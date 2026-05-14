@@ -114,7 +114,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Hippo Embed"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hippo-embed.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4ef7f6b8bbdac607b9e53f65d5ac33188d23475ce9b4675864102ff8b6ca5a30"
+          GH_AW_INFO_FRONTMATTER_HASH: "73e29b2b41124c66cdfdd7463bb52288537acc648b56e6b0ac1233798a9dae96"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -134,7 +134,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "4ef7f6b8bbdac607b9e53f65d5ac33188d23475ce9b4675864102ff8b6ca5a30"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🦛"
+          GH_AW_INFO_FRONTMATTER_HASH: "73e29b2b41124c66cdfdd7463bb52288537acc648b56e6b0ac1233798a9dae96"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -376,7 +377,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Hippo Embed"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hippo-embed.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4ef7f6b8bbdac607b9e53f65d5ac33188d23475ce9b4675864102ff8b6ca5a30"
+          GH_AW_INFO_FRONTMATTER_HASH: "73e29b2b41124c66cdfdd7463bb52288537acc648b56e6b0ac1233798a9dae96"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1073,7 +1074,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Hippo Embed"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hippo-embed.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4ef7f6b8bbdac607b9e53f65d5ac33188d23475ce9b4675864102ff8b6ca5a30"
+          GH_AW_INFO_FRONTMATTER_HASH: "73e29b2b41124c66cdfdd7463bb52288537acc648b56e6b0ac1233798a9dae96"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1175,7 +1176,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Hippo Embed"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/hippo-embed.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "4ef7f6b8bbdac607b9e53f65d5ac33188d23475ce9b4675864102ff8b6ca5a30"
+          GH_AW_INFO_FRONTMATTER_HASH: "73e29b2b41124c66cdfdd7463bb52288537acc648b56e6b0ac1233798a9dae96"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

@@ -127,7 +127,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Safe Output Health Monitor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/safe-output-health.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "0724e9b792c751967e2c53121d7d01548a708ffb5265f7f1e509929e8692cef1"
+          GH_AW_INFO_FRONTMATTER_HASH: "2c651706a6665ca1b6a978a05209b035c11305be0e6747b2f6e36368b6d63ecf"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -147,7 +147,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "0724e9b792c751967e2c53121d7d01548a708ffb5265f7f1e509929e8692cef1"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🔒"
+          GH_AW_INFO_FRONTMATTER_HASH: "2c651706a6665ca1b6a978a05209b035c11305be0e6747b2f6e36368b6d63ecf"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -395,7 +396,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Safe Output Health Monitor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/safe-output-health.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "0724e9b792c751967e2c53121d7d01548a708ffb5265f7f1e509929e8692cef1"
+          GH_AW_INFO_FRONTMATTER_HASH: "2c651706a6665ca1b6a978a05209b035c11305be0e6747b2f6e36368b6d63ecf"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1209,7 +1210,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Safe Output Health Monitor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/safe-output-health.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "0724e9b792c751967e2c53121d7d01548a708ffb5265f7f1e509929e8692cef1"
+          GH_AW_INFO_FRONTMATTER_HASH: "2c651706a6665ca1b6a978a05209b035c11305be0e6747b2f6e36368b6d63ecf"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1354,7 +1355,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Safe Output Health Monitor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/safe-output-health.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "0724e9b792c751967e2c53121d7d01548a708ffb5265f7f1e509929e8692cef1"
+          GH_AW_INFO_FRONTMATTER_HASH: "2c651706a6665ca1b6a978a05209b035c11305be0e6747b2f6e36368b6d63ecf"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1586,7 +1587,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Safe Output Health Monitor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/safe-output-health.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "0724e9b792c751967e2c53121d7d01548a708ffb5265f7f1e509929e8692cef1"
+          GH_AW_INFO_FRONTMATTER_HASH: "2c651706a6665ca1b6a978a05209b035c11305be0e6747b2f6e36368b6d63ecf"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1671,7 +1672,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Safe Output Health Monitor"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/safe-output-health.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "0724e9b792c751967e2c53121d7d01548a708ffb5265f7f1e509929e8692cef1"
+          GH_AW_INFO_FRONTMATTER_HASH: "2c651706a6665ca1b6a978a05209b035c11305be0e6747b2f6e36368b6d63ecf"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

@@ -129,7 +129,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-file-diet.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "c01f565aef0848c00171f26bf452e657eb11969421dd8812d0469929012e1ff6"
+          GH_AW_INFO_FRONTMATTER_HASH: "558aa50cb8bd9788c331352f012379e700c3af89b31bd1c2c262c3eef3015191"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -149,7 +149,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "c01f565aef0848c00171f26bf452e657eb11969421dd8812d0469929012e1ff6"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "🧹"
+          GH_AW_INFO_FRONTMATTER_HASH: "558aa50cb8bd9788c331352f012379e700c3af89b31bd1c2c262c3eef3015191"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -424,7 +425,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-file-diet.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "c01f565aef0848c00171f26bf452e657eb11969421dd8812d0469929012e1ff6"
+          GH_AW_INFO_FRONTMATTER_HASH: "558aa50cb8bd9788c331352f012379e700c3af89b31bd1c2c262c3eef3015191"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1099,7 +1100,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-file-diet.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "c01f565aef0848c00171f26bf452e657eb11969421dd8812d0469929012e1ff6"
+          GH_AW_INFO_FRONTMATTER_HASH: "558aa50cb8bd9788c331352f012379e700c3af89b31bd1c2c262c3eef3015191"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1250,7 +1251,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-file-diet.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "c01f565aef0848c00171f26bf452e657eb11969421dd8812d0469929012e1ff6"
+          GH_AW_INFO_FRONTMATTER_HASH: "558aa50cb8bd9788c331352f012379e700c3af89b31bd1c2c262c3eef3015191"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1452,7 +1453,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-file-diet.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "c01f565aef0848c00171f26bf452e657eb11969421dd8812d0469929012e1ff6"
+          GH_AW_INFO_FRONTMATTER_HASH: "558aa50cb8bd9788c331352f012379e700c3af89b31bd1c2c262c3eef3015191"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1531,7 +1532,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-file-diet.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "c01f565aef0848c00171f26bf452e657eb11969421dd8812d0469929012e1ff6"
+          GH_AW_INFO_FRONTMATTER_HASH: "558aa50cb8bd9788c331352f012379e700c3af89b31bd1c2c262c3eef3015191"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

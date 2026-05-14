@@ -135,7 +135,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dev"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dev.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "c710212aa60eb5bc611f49a8323c67b777a2e58754de021cdba0f336ba4e6e35"
+          GH_AW_INFO_FRONTMATTER_HASH: "9977be85afb34ca73b4ee206437d7c37103909a4e06d2c64c3e6b0aa9533dd16"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -155,7 +155,8 @@ jobs:
           GH_AW_INFO_AWF_VERSION: ""
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_HASH: "c710212aa60eb5bc611f49a8323c67b777a2e58754de021cdba0f336ba4e6e35"
+          GH_AW_INFO_FRONTMATTER_EMOJI: "💻"
+          GH_AW_INFO_FRONTMATTER_HASH: "9977be85afb34ca73b4ee206437d7c37103909a4e06d2c64c3e6b0aa9533dd16"
           GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -426,7 +427,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dev"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dev.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "c710212aa60eb5bc611f49a8323c67b777a2e58754de021cdba0f336ba4e6e35"
+          GH_AW_INFO_FRONTMATTER_HASH: "9977be85afb34ca73b4ee206437d7c37103909a4e06d2c64c3e6b0aa9533dd16"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -990,7 +991,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dev"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dev.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "c710212aa60eb5bc611f49a8323c67b777a2e58754de021cdba0f336ba4e6e35"
+          GH_AW_INFO_FRONTMATTER_HASH: "9977be85afb34ca73b4ee206437d7c37103909a4e06d2c64c3e6b0aa9533dd16"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1151,7 +1152,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dev"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dev.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "c710212aa60eb5bc611f49a8323c67b777a2e58754de021cdba0f336ba4e6e35"
+          GH_AW_INFO_FRONTMATTER_HASH: "9977be85afb34ca73b4ee206437d7c37103909a4e06d2c64c3e6b0aa9533dd16"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1344,7 +1345,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dev"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dev.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "c710212aa60eb5bc611f49a8323c67b777a2e58754de021cdba0f336ba4e6e35"
+          GH_AW_INFO_FRONTMATTER_HASH: "9977be85afb34ca73b4ee206437d7c37103909a4e06d2c64c3e6b0aa9533dd16"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1408,7 +1409,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Dev"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dev.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "c710212aa60eb5bc611f49a8323c67b777a2e58754de021cdba0f336ba4e6e35"
+          GH_AW_INFO_FRONTMATTER_HASH: "9977be85afb34ca73b4ee206437d7c37103909a4e06d2c64c3e6b0aa9533dd16"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
