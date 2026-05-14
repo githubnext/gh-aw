@@ -85,7 +85,7 @@ func findLocalRepositoryPackageManifest(gitRoot string) (string, []string, error
 			}
 			continue
 		} else if !os.IsNotExist(err) {
-			return "", nil, fmt.Errorf("failed to inspect Agentic Workflow manifest %q: %w", candidate, err)
+			return "", nil, fmt.Errorf("failed to check if Agentic Workflow manifest %q exists: %w", candidate, err)
 		}
 	}
 

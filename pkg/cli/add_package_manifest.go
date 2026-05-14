@@ -152,7 +152,7 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		}
 		currentVersion := GetVersion()
 		if !semverutil.IsValid(currentVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version requires a semantic-versioned compiler, but the current compiler version is %q", manifestPath, currentVersion)
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version (this indicates a build issue)", manifestPath, currentVersion)
 		}
 		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
 			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s)", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion)
