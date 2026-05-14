@@ -127,4 +127,51 @@ describe("create_pull_request bundle integration", () => {
     expect(bundleTempRef).toMatch(/^refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8}$/);
     expect(execGit(["show-ref", "--verify", bundleTempRef], { cwd: targetRepo, allowFailure: true }).status).not.toBe(0);
   });
+
+  it("cleans up the temp ref when updating the target branch fails", async () => {
+    const branchName = "autoloop/perf-comparison";
+    const sourceRepo = createRepo("create-pr-bundle-source-");
+    const targetRepo = createRepo("create-pr-bundle-target-");
+    tempDirs.push(sourceRepo, targetRepo);
+
+    fs.writeFileSync(path.join(sourceRepo, "file.txt"), "base\n");
+    execGit(["add", "file.txt"], { cwd: sourceRepo });
+    execGit(["commit", "-m", "base"], { cwd: sourceRepo });
+    execGit(["branch", "-M", "main"], { cwd: sourceRepo });
+    execGit(["checkout", "-b", branchName], { cwd: sourceRepo });
+    fs.writeFileSync(path.join(sourceRepo, "file.txt"), "bundle tip\n");
+    execGit(["commit", "-am", "bundle tip"], { cwd: sourceRepo });
+    const bundlePath = path.join(sourceRepo, "change.bundle");
+    execGit(["bundle", "create", bundlePath, `refs/heads/${branchName}`], { cwd: sourceRepo });
+
+    fs.writeFileSync(path.join(targetRepo, "file.txt"), "old branch state\n");
+    execGit(["add", "file.txt"], { cwd: targetRepo });
+    execGit(["commit", "-m", "old branch state"], { cwd: targetRepo });
+    execGit(["checkout", "-b", branchName], { cwd: targetRepo });
+    const originalHead = execGit(["rev-parse", `refs/heads/${branchName}`], { cwd: targetRepo }).stdout.trim();
+
+    let bundleTempRef = "";
+    const execApi = createExecApi(targetRepo, args => {
+      if (args[0] === "fetch" && args[1] === bundlePath) {
+        bundleTempRef = args[2].split(":")[1];
+      }
+    });
+    const { applyBundleToBranch } = require("./create_pull_request.cjs");
+
+    await expect(
+      applyBundleToBranch(bundlePath, branchName, "", {
+        ...execApi,
+        async exec(command, args = []) {
+          if (command === "git" && args[0] === "update-ref" && args[1] === `refs/heads/${branchName}`) {
+            throw new Error("simulated update-ref failure");
+          }
+          return execApi.exec(command, args);
+        },
+      })
+    ).rejects.toThrow("simulated update-ref failure");
+
+    expect(bundleTempRef).toMatch(/^refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8}$/);
+    expect(execGit(["show-ref", "--verify", bundleTempRef], { cwd: targetRepo, allowFailure: true }).status).not.toBe(0);
+    expect(execGit(["rev-parse", `refs/heads/${branchName}`], { cwd: targetRepo }).stdout.trim()).toBe(originalHead);
+  });
 });
