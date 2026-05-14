@@ -936,7 +936,6 @@ async function sendJobSetupSpan(options = {}) {
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
-  const frontmatterHash = (typeof awInfo.frontmatter_hash === "string" ? awInfo.frontmatter_hash : "") || process.env.GH_AW_INFO_FRONTMATTER_HASH || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
 
@@ -1007,7 +1006,6 @@ async function sendJobSetupSpan(options = {}) {
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
   if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
   if (frontmatterSource) attributes.push(buildAttr("gh-aw.frontmatter.source", frontmatterSource));
-  if (frontmatterHash) attributes.push(buildAttr("gh-aw.frontmatter.hash", frontmatterHash));
   if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
   if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
 
@@ -1346,7 +1344,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
-  const frontmatterHash = (typeof awInfo.frontmatter_hash === "string" ? awInfo.frontmatter_hash : "") || process.env.GH_AW_INFO_FRONTMATTER_HASH || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
@@ -1442,7 +1439,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
   if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
   if (frontmatterSource) attributes.push(buildAttr("gh-aw.frontmatter.source", frontmatterSource));
-  if (frontmatterHash) attributes.push(buildAttr("gh-aw.frontmatter.hash", frontmatterHash));
   if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
   if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
