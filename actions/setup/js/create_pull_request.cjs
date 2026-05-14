@@ -127,7 +127,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
     await execApi.exec("git", ["update-ref", bundleTargetRef, bundleTempRef]);
     core.info(`Created local branch ${branchName} from bundle`);
     await execApi.exec("git", ["checkout", branchName]);
-    // Ensure the working tree matches the new HEAD in case checkout left any index/worktree drift.
+    // Ensure the working tree matches the new HEAD in case checkout left any index/working tree drift.
     await execApi.exec("git", ["reset", "--hard"]);
     core.info(`Checked out branch ${branchName} from bundle`);
   } finally {
