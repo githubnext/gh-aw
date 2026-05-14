@@ -1,4 +1,5 @@
 ---
+emoji: "🔧"
 description: Repair safe Dependabot PR failures locally inside a product repository.
 on:
   pull_request:

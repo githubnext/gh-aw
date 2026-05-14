@@ -1,4 +1,5 @@
 ---
+emoji: "📋"
 name: Package Specification Enforcer
 description: Generates and maintains specification-driven test suites for each Go package, relying on README.md specifications rather than source code
 on:

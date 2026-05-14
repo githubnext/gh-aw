@@ -1,4 +1,5 @@
 ---
+emoji: "🔒"
 name: Weekly Safe Outputs Specification Review
 description: Reviews changes to the Safe Outputs specification and ensures the conformance checker script is up to date
 on:

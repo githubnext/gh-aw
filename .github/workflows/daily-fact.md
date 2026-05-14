@@ -1,4 +1,5 @@
 ---
+emoji: "📚"
 description: Posts a daily poetic verse about the gh-aw project to a discussion thread
 on:
   schedule:

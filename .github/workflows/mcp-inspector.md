@@ -1,4 +1,5 @@
 ---
+emoji: "🔍"
 description: Inspects MCP (Model Context Protocol) server configurations and validates their functionality
 on:
   schedule: weekly on monday around 18:00

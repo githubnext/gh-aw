@@ -1,4 +1,5 @@
 ---
+emoji: "🔧"
 name: Refactoring Cadence
 description: Tracks repository code health over time using file length, cyclomatic complexity, file growth, and TODO/FIXME/HACK churn metrics — optimized for Go and JavaScript codebases. Automatically opens a refactoring issue when the health score drops below a configurable threshold.
 on:

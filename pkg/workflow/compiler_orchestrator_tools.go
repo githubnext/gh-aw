@@ -29,6 +29,7 @@ type toolsProcessingResult struct {
 	allIncludedFiles      []string
 	workflowName          string
 	frontmatterName       string
+	frontmatterEmoji      string
 	needsTextOutput       bool
 	trackerID             string
 	safeOutputs           *SafeOutputsConfig
@@ -317,6 +318,9 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		workflowName = frontmatterName
 	}
 
+	// Extract emoji from frontmatter for use in footers and UI
+	frontmatterEmoji := extractStringFromMap(result.Frontmatter, "emoji", nil)
+
 	log.Printf("Extracted workflow name: '%s'", workflowName)
 
 	// Check if the markdown content uses the text output OR if the workflow is triggered by
@@ -358,6 +362,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		allIncludedFiles:      allIncludedFiles,
 		workflowName:          workflowName,
 		frontmatterName:       frontmatterName,
+		frontmatterEmoji:      frontmatterEmoji,
 		needsTextOutput:       needsTextOutput,
 		trackerID:             trackerID,
 		safeOutputs:           safeOutputs,

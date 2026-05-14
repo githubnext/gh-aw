@@ -1,4 +1,5 @@
 ---
+emoji: "📝"
 name: Documentation Noob Tester
 description: Tests documentation as a new user would, identifying confusing or broken steps in getting started guides
 on:

@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 description: Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, actionlint, and runner-guard
 on:
   schedule: daily

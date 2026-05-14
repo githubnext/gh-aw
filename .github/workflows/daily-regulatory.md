@@ -1,4 +1,5 @@
 ---
+emoji: "⚖️"
 description: Daily regulatory workflow that monitors and cross-checks other daily report agents' outputs for data consistency and anomalies
 on:
   schedule: daily

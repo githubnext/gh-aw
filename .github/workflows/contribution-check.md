@@ -1,4 +1,5 @@
 ---
+emoji: "✅"
 name: "Contribution Check"
 on:
   schedule: "every 4 hours"

@@ -1,4 +1,5 @@
 ---
+emoji: "🚨"
 description: Monitors deployment failures and automatically creates deduplicated incident issues with root cause analysis.
 on:
   deployment_status:

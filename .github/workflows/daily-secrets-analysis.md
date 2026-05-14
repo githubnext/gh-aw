@@ -1,4 +1,5 @@
 ---
+emoji: "🔒"
 description: Daily analysis of secret usage patterns across all compiled lock.yml workflow files
 on:
   schedule: daily

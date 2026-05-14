@@ -1,4 +1,5 @@
 ---
+emoji: "💀"
 name: Necromancer
 description: Investigates merge-ready pull requests, traces root-cause issues, and adds regression tests before merge
 on:

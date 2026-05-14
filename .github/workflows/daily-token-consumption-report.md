@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 description: Daily report of token consumption across all agentic workflows using OTel telemetry stored in Sentry
 on:
   schedule: daily on weekdays

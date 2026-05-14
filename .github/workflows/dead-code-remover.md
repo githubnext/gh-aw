@@ -1,4 +1,5 @@
 ---
+emoji: "🧹"
 description: Daily dead code assessment and removal — identifies unreachable Go functions using static analysis and creates a PR to remove a batch each day
 on:
   schedule: daily

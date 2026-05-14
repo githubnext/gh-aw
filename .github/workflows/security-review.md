@@ -1,4 +1,5 @@
 ---
+emoji: "🔒"
 description: Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries
 on:
   slash_command:

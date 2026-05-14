@@ -1,4 +1,5 @@
 ---
+emoji: "💻"
 on:
   workflow_dispatch:
   label_command:

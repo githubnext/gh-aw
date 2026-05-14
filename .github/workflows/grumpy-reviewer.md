@@ -1,4 +1,5 @@
 ---
+emoji: "🔍"
 description: "⚠️ DEPRECATED: Use PR Code Quality Reviewer (pr-code-quality-reviewer) instead. Performs critical code review with a focus on edge cases, potential bugs, and code quality issues"
 on:
   slash_command:

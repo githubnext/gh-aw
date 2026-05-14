@@ -1,4 +1,5 @@
 ---
+emoji: "🎬"
 description: Analyzes video files using ffmpeg to extract metadata, frames, and other technical information
 on:
   workflow_dispatch:

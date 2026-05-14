@@ -55,6 +55,14 @@ Provides a human-readable description of the workflow rendered as a comment in t
 description: "Workflow that analyzes pull requests and provides feedback"
 ```
 
+### Emoji (`emoji:`)
+
+An optional emoji to represent the workflow visually, for example in listings and UI surfaces.
+
+```yaml wrap
+emoji: "🤖"
+```
+
 ### Source Tracking (`source:`)
 
 Tracks workflow origin in format `owner/repo/path@ref`. Automatically populated when using `gh aw add` to install workflows from external repositories. Optional for manually created workflows.

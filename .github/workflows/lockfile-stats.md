@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 description: Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
 on:
   schedule: daily

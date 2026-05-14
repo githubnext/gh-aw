@@ -618,6 +618,10 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// Add workflow metadata that's common to all steps
 	envVars["GH_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
 
+	if data.FrontmatterEmoji != "" {
+		envVars["GH_AW_WORKFLOW_EMOJI"] = fmt.Sprintf("%q", data.FrontmatterEmoji)
+	}
+
 	if data.Source != "" {
 		envVars["GH_AW_WORKFLOW_SOURCE"] = fmt.Sprintf("%q", data.Source)
 		sourceURL := buildSourceURL(data.Source)

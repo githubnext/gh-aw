@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Smoke test that validates OTEL span export and backend query access for Sentry and Grafana
 on:
   workflow_dispatch:

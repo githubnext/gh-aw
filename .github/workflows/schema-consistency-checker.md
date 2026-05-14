@@ -1,4 +1,5 @@
 ---
+emoji: "✅"
 description: Detects inconsistencies between JSON schema, implementation code, and documentation
 on:
   schedule: daily

@@ -1,4 +1,5 @@
 ---
+emoji: "🏆"
 name: Daily Community Attribution Updater
 description: Maintains a live community contributions section in README.md and an all-time Community Contributors wiki page by attributing all community-labeled issues using the five-tier attribution strategy
 on:

@@ -1,4 +1,5 @@
 ---
+emoji: "👾"
 name: Issue Monster
 description: The Cookie Monster of issues - assigns issues to Copilot coding agent one at a time
 on:

@@ -1,4 +1,5 @@
 ---
+emoji: "📚"
 name: Package Specification Librarian
 description: Daily review of all package README.md specifications to detect inconsistencies, staleness, and cross-package conflicts
 on:

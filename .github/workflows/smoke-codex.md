@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Smoke test workflow that validates Codex engine functionality by reviewing recent PRs twice daily
 on:
   workflow_dispatch:

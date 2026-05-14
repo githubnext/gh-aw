@@ -1,4 +1,5 @@
 ---
+emoji: "🔧"
 name: Update Astro
 description: Daily workflow to update Astro and related npm packages in the docs folder, review migration guides, ensure the docs build, and create a pull request with changes
 on:

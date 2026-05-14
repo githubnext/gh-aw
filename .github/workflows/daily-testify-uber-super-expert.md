@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 name: Daily Testify Uber Super Expert
 description: Daily expert that analyzes one test file and creates an issue with testify-based improvements
 on:

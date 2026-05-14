@@ -1,4 +1,5 @@
 ---
+emoji: "🔍"
 description: Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes fixed issues, and opens focused fix sub-issues when needed
 on:
   schedule:

@@ -20,6 +20,11 @@
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
       "examples": ["Quickstart for using the GitHub Actions library"]
     },
+    "emoji": {
+      "type": "string",
+      "description": "Optional emoji to represent the workflow visually (e.g. in listings and UI surfaces).",
+      "examples": ["🤖", "🔍", "🚀"]
+    },
     "source": {
       "type": "string",
       "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file.",

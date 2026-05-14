@@ -1,4 +1,5 @@
 ---
+emoji: "🔒"
 description: Daily unified security observability report combining firewall traffic analysis and DIFC integrity-filtered event analysis
 on:
   schedule:

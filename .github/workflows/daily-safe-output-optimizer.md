@@ -1,4 +1,5 @@
 ---
+emoji: "⚡"
 name: Daily Safe Output Tool Optimizer
 description: Analyzes gateway logs for errored safe output tool calls and creates issues to improve tool descriptions
 on:

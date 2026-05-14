@@ -1,4 +1,5 @@
 ---
+emoji: "📝"
 name: Go Logger Enhancement
 description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
 on:

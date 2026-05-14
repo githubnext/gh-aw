@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Daily test workflow using Claude with custom safe-output job containing choice inputs
 on:
   schedule:

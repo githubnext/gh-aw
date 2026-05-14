@@ -1,4 +1,5 @@
 ---
+emoji: "📐"
 name: Layout Specification Maintainer
 description: Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 on:

@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 name: Test Create PR Error Handling
 description: Test workflow to verify create_pull_request error handling
 on:

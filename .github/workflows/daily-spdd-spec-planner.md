@@ -1,4 +1,5 @@
 ---
+emoji: "📋"
 name: Daily SPDD Spec Planner
 description: Runs daily SPDD planning over repository specifications and creates a prioritized issue with actionable work items.
 on:

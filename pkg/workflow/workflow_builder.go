@@ -34,6 +34,7 @@ func (c *Compiler) buildInitialWorkflowData(
 	workflowData := &WorkflowData{
 		Name:                  toolsResult.workflowName,
 		FrontmatterName:       toolsResult.frontmatterName,
+		FrontmatterEmoji:      toolsResult.frontmatterEmoji,
 		FrontmatterYAML:       strings.Join(result.FrontmatterLines, "\n"),
 		RawMarkdown:           result.Markdown,
 		Description:           c.extractDescription(result.Frontmatter),

@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Test Codex engine with GitHub remote MCP server
 on:
   workflow_dispatch:

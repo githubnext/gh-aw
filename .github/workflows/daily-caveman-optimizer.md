@@ -1,4 +1,5 @@
 ---
+emoji: "⚡"
 name: Daily Caveman Optimizer
 description: Applies caveman optimization to instruction files in .github/aw and .github/agents — making them more concise without losing technical accuracy. Round-robins through files daily and creates a PR when improvements are found.
 on:
