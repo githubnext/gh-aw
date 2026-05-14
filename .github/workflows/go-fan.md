@@ -1,4 +1,5 @@
 ---
+emoji: "🐹"
 name: Go Fan
 description: Daily Go module usage reviewer - analyzes direct dependencies prioritizing recently updated ones
 on:

@@ -1,4 +1,5 @@
 ---
+emoji: "🔬"
 description: Performs web research on any topic using Tavily search and creates a discussion with findings
 on:
   workflow_dispatch:

@@ -1,4 +1,5 @@
 ---
+emoji: "📄"
 description: pdf summarizer
 on:
   # Command trigger - responds to /summarize mentions

@@ -1,4 +1,5 @@
 ---
+emoji: "⚠️"
 description: Daily analysis of recent commits and merged PRs for breaking CLI changes
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only

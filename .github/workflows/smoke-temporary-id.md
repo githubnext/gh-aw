@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 name: Smoke Temporary ID
 description: Test temporary ID functionality for issue chaining and cross-references
 on: 

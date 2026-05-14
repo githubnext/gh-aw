@@ -1,4 +1,5 @@
 ---
+emoji: "📝"
 name: Claude Code User Documentation Review
 description: Reviews project documentation from the perspective of a Claude Code user who does not use GitHub Copilot or Copilot CLI
 on:

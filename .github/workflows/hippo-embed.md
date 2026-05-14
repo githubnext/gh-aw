@@ -1,4 +1,5 @@
 ---
+emoji: "🦛"
 name: Hippo Embed
 description: Maintenance workflow to audit low-quality entries and embed all Hippo memories to restore semantic recall quality
 on:

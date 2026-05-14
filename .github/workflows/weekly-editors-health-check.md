@@ -1,4 +1,5 @@
 ---
+emoji: "📝"
 name: Weekly Editors Health Check
 description: Checks that the workflow editors listed in the documentation are still valid, takes Playwright screenshots, and opens a PR to update the docs with preview images
 on:

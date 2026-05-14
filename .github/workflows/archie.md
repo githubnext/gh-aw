@@ -1,4 +1,5 @@
 ---
+emoji: "🏛️"
 name: Archie
 description: Generates Mermaid diagrams to visualize issue and pull request relationships when invoked with the /archie command
 on:

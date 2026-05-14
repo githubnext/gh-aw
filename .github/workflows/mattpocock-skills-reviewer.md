@@ -1,4 +1,5 @@
 ---
+emoji: "🔍"
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 on:
   pull_request:

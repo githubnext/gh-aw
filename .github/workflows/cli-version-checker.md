@@ -1,4 +1,5 @@
 ---
+emoji: "🔢"
 description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway) for new versions
 on:
   schedule: daily

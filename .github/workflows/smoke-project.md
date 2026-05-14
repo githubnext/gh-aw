@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 name: Smoke Project
 description: Smoke Project - Test project operations
 on: 

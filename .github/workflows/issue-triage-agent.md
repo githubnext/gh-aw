@@ -1,4 +1,5 @@
 ---
+emoji: "🔧"
 timeout-minutes: 5
 strict: true
 on:

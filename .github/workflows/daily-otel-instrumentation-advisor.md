@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 name: Daily OTel Instrumentation Advisor
 description: Daily DevOps analysis of OpenTelemetry instrumentation in JavaScript code — identifies the single most impactful improvement opportunity and creates an actionable GitHub issue
 on:

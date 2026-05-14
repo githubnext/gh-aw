@@ -1,4 +1,5 @@
 ---
+emoji: "🔒"
 description: Daily audit of Copilot token usage across all agentic workflows with historical trend tracking
 on:
   schedule:

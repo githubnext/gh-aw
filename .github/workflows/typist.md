@@ -1,4 +1,5 @@
 ---
+emoji: "✍️"
 name: Typist - Go Type Analysis
 description: Analyzes Go type usage patterns and identifies opportunities for better type safety and code improvements
 on:

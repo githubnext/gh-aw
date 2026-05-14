@@ -1,4 +1,5 @@
 ---
+emoji: "🧹"
 name: Stale PR Cleanup
 description: Triages and closes PRs open for 30+ days — covers draft PRs with no activity, Dependabot PRs with merge conflicts, and PRs superseded by merged work
 on:

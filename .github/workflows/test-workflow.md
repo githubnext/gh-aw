@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 name: Test Workflow
 on:
   workflow_dispatch:

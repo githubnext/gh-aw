@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 name: Copilot Agent Prompt Clustering Analysis
 description: Analyzes and clusters GitHub Copilot coding agent prompts to identify patterns and usage trends
 on:

@@ -1,4 +1,5 @@
 ---
+emoji: "🔥"
 on: weekly
 permissions:
   contents: read

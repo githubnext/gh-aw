@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Daily A/B testing advisor that picks a random agentic workflow without an experiments section, devises an experiment campaign to improve it, and creates a GitHub issue with the implementation task
 on:
   schedule:

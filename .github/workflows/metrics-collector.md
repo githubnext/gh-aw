@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 description: Collects daily performance metrics for the agent ecosystem and stores them in repo-memory
 on: daily
 permissions:

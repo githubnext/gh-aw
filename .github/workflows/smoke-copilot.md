@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Smoke Copilot
 on: 
   workflow_dispatch:

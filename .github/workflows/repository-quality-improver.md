@@ -1,4 +1,5 @@
 ---
+emoji: "⚡"
 description: Daily analysis and improvement of repository quality focusing on different software development lifecycle areas
 on:
   schedule:

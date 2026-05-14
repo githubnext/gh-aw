@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 on:
   slash_command:
     name: cloclo

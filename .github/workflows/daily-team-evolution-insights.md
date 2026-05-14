@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 description: Daily analysis of repository changes to extract insights about team evolution and working patterns
 on:
   schedule: daily

@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 name: Outcome Collector
 description: Periodic evaluation of safe output outcomes to measure workflow value and acceptance rates
 on:

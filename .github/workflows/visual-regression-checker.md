@@ -1,4 +1,5 @@
 ---
+emoji: "👁️"
 description: Visual regression checker that captures and compares screenshots on every pull request using Playwright
 on:
   pull_request:

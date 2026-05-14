@@ -1,4 +1,5 @@
 ---
+emoji: "⛏️"
 description: Scans AI-generated discussions to extract actionable code quality improvement tasks
 on:
   schedule:

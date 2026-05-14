@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Smoke Copilot ARM64
 on:
   workflow_dispatch:

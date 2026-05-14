@@ -1,4 +1,5 @@
 ---
+emoji: "🔧"
 description: Automates PR categorization, risk assessment, and prioritization for agent-created pull requests
 on:
   schedule: "every 6h"  # Every ~6 hours (scattered to avoid thundering herd)

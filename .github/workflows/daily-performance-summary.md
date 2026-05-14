@@ -1,4 +1,5 @@
 ---
+emoji: "⚡"
 description: Daily project performance summary (90-day window) with trend charts using mcp-scripts
 on:
   schedule: daily

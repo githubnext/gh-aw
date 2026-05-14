@@ -1,4 +1,5 @@
 ---
+emoji: "🔧"
 name: Daily Safe Output Integrator
 description: Daily workflow that inspects test workflows in pkg/cli/workflows for safe-output coverage, detects missing safe-output types, creates test workflows and Go compilation tests for any missing types, then creates a PR or reports NOOP
 on:

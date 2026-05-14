@@ -1,4 +1,5 @@
 ---
+emoji: "🔍"
 name: Workflow Skill Extractor
 description: Analyzes existing agentic workflows to identify shared skills, tools, and prompts that could be refactored into shared components
 on:

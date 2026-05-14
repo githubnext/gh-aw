@@ -1,4 +1,5 @@
 ---
+emoji: "⚡"
 description: Daily optimizer that identifies a high-token-usage Copilot workflow, audits its runs, and recommends efficiency improvements
 on:
   schedule:

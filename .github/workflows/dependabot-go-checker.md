@@ -1,4 +1,5 @@
 ---
+emoji: "🔧"
 description: Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
 on:
   schedule:

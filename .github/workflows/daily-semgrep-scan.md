@@ -1,4 +1,5 @@
 ---
+emoji: "🔒"
 description: Daily Semgrep security scan for SQL injection and other vulnerabilities
 name: Daily Semgrep Scan
 imports:

@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 name: Daily MCP Tool Concurrency Analysis
 description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 on:

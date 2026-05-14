@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 description: Generates a comprehensive report of available MCP server tools and their capabilities for GitHub integration
 on:
   schedule: weekly on sunday around 12:00

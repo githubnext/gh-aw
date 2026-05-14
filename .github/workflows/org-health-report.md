@@ -1,4 +1,5 @@
 ---
+emoji: "📊"
 description: Generate an organization-wide health report for all public repositories in the GitHub org
 on:
   schedule: weekly on monday around 09:00

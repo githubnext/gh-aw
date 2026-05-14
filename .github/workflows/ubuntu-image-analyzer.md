@@ -1,4 +1,5 @@
 ---
+emoji: "🐧"
 name: Ubuntu Actions Image Analyzer
 description: Weekly analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
 on:

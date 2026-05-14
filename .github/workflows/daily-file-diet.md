@@ -1,4 +1,5 @@
 ---
+emoji: "🧹"
 name: Daily File Diet
 description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the healthy size threshold
 on:

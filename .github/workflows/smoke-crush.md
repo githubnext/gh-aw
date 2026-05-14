@@ -1,4 +1,5 @@
 ---
+emoji: "🧪"
 description: Smoke test workflow that validates Crush engine functionality
 on:
   workflow_dispatch:

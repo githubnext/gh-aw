@@ -1,4 +1,5 @@
 ---
+emoji: "📋"
 name: Step Name Alignment
 description: Scans step names in .lock.yml files and aligns them with step intent and project glossary
 on:
