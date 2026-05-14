@@ -39,6 +39,18 @@ type resolvedRepositoryPackage struct {
 	Warnings           []string
 }
 
+type repositoryPackageRemoteNotFoundError struct {
+	cause error
+}
+
+func (e repositoryPackageRemoteNotFoundError) Error() string {
+	return e.cause.Error()
+}
+
+func (e repositoryPackageRemoteNotFoundError) Unwrap() []error {
+	return []error{errRepositoryPackageFileNotFound, e.cause}
+}
+
 func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
 	parts := strings.SplitN(repoSpec.RepoSlug, "/", 2)
 	if len(parts) != 2 {
@@ -368,7 +380,7 @@ func normalizeRepositoryPackageRemoteError(err error) error {
 	if err == nil || !isRepositoryPackageRemoteNotFound(err) {
 		return err
 	}
-	return fmt.Errorf("%w: %w", errRepositoryPackageFileNotFound, err)
+	return repositoryPackageRemoteNotFoundError{cause: err}
 }
 
 func isRepositoryPackageRemoteNotFound(err error) bool {
@@ -380,22 +392,28 @@ func isRepositoryPackageRemoteNotFound(err error) bool {
 }
 
 func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error) {
-	var (
-		output []byte
-		err    error
-	)
+	var output []byte
 	if host != "" {
+		var err error
 		output, err = workflow.RunGHWithHost("Fetching repo info...", host, "api", "/repos/"+repoSlug, "--jq", ".default_branch")
+		if err != nil {
+			return "", err
+		}
 	} else {
+		var err error
 		output, err = workflow.RunGH("Fetching repo info...", "api", "/repos/"+repoSlug, "--jq", ".default_branch")
-	}
-	if err != nil {
-		return "", err
+		if err != nil {
+			return "", err
+		}
 	}
 
 	branch := strings.TrimSpace(string(output))
 	if branch == "" {
-		return "", fmt.Errorf("repository %s returned an empty default branch; ensure the repository exists and is accessible", repoSlug)
+		targetHost := host
+		if targetHost == "" {
+			targetHost = "the configured host"
+		}
+		return "", fmt.Errorf("repository %s on %s returned an empty default branch; ensure the repository exists and is accessible", repoSlug, targetHost)
 	}
 	return branch, nil
 }
