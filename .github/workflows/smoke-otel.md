@@ -77,6 +77,16 @@ Verify that OTLP telemetry environment variables are correctly injected and that
    else
      echo "No OTLP spans found yet"
    fi
+   if [ -f /tmp/gh-aw/otlp-export-errors.count ]; then
+     OTLP_EXPORT_ERRORS="$(cat /tmp/gh-aw/otlp-export-errors.count)"
+     echo "OTLP export errors: $OTLP_EXPORT_ERRORS"
+     if [ "${OTLP_EXPORT_ERRORS:-0}" -gt 0 ]; then
+       echo "❌ OTLP HTTP export failures detected"
+       exit 1
+     fi
+   else
+     echo "OTLP export errors: 0 (counter file not present)"
+   fi
    ```
 
 4. **Create a test file**: Write a marker file to confirm the agent ran:
@@ -90,5 +100,5 @@ Verify that OTLP telemetry environment variables are correctly injected and that
 
 Create an issue summarizing the results:
 - Title: "Smoke Test: OTEL - ${{ github.run_id }}"
-- Body: test results (✅ or ❌) for each check, including whether OTLP env vars were set and spans were found.
+- Body: test results (✅ or ❌) for each check, including whether OTLP env vars were set, spans were found, and OTLP export errors were zero.
 - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
