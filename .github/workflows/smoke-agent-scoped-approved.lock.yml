@@ -1018,6 +1018,7 @@ jobs:
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/mcp-logs/
+            !/tmp/gh-aw/mcp-logs/wazero-cache/**
             /tmp/gh-aw/proxy-logs/
             !/tmp/gh-aw/proxy-logs/proxy-tls/
             /tmp/gh-aw/agent_usage.json
