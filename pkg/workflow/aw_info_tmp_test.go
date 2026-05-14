@@ -28,6 +28,7 @@ tools:
   github:
     allowed: [list_issues]
 source: github/gh-aw/.github/workflows/test-aw-info-tmp.md@main
+emoji: "🧪"
 engine: claude
 strict: false
 ---
@@ -89,8 +90,11 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 	if !strings.Contains(lockStr, "GH_AW_INFO_BODY_MODIFIED: \"false\"") {
 		t.Error("Expected GH_AW_INFO_BODY_MODIFIED env var to default to false on the step")
 	}
-	if strings.Contains(lockStr, "GH_AW_INFO_FRONTMATTER_SOURCE:") {
-		t.Error("Expected GH_AW_INFO_FRONTMATTER_SOURCE env var to be omitted from generated workflow")
+	if !strings.Contains(lockStr, `GH_AW_INFO_FRONTMATTER_SOURCE: "github/gh-aw/.github/workflows/test-aw-info-tmp.md@main"`) {
+		t.Error("Expected GH_AW_INFO_FRONTMATTER_SOURCE env var to be set on the step")
+	}
+	if !strings.Contains(lockStr, `GH_AW_INFO_FRONTMATTER_EMOJI: "🧪"`) {
+		t.Error("Expected GH_AW_INFO_FRONTMATTER_EMOJI env var to be set on the step")
 	}
 
 	// Test 3: Verify upload artifact still includes /tmp/gh-aw/aw_info.json path

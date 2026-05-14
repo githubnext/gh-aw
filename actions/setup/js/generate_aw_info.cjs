@@ -90,6 +90,11 @@ async function main(core, ctx) {
     awInfo.frontmatter_hash = frontmatterHash;
   }
 
+  const frontmatterEmoji = process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  if (frontmatterEmoji) {
+    awInfo.frontmatter_emoji = frontmatterEmoji;
+  }
+
   const bodyModified = process.env.GH_AW_INFO_BODY_MODIFIED;
   if (bodyModified === "true" || bodyModified === "false") {
     awInfo.body_modified = bodyModified === "true";

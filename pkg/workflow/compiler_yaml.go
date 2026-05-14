@@ -827,9 +827,13 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
 	if data.Source != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)
 		// Body-modified defaults to false at compile time; update flows may override this
 		// signal when source/body drift is detected before execution.
 		yaml.WriteString("          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
+	}
+	if data.FrontmatterEmoji != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_EMOJI: %q\n", data.FrontmatterEmoji)
 	}
 	if data.FrontmatterHash != "" {
 		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_HASH: %q\n", data.FrontmatterHash)
