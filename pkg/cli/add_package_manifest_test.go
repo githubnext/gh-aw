@@ -14,11 +14,11 @@ import (
 func TestResolveRepositoryPackage(t *testing.T) {
 	originalVersion := GetVersion()
 	originalDownload := downloadPackageFileFromGitHubForHost
-	originalList := listPackageWorkflowFiles
+	originalList := listPackageWorkflowFilesForHost
 	t.Cleanup(func() {
 		SetVersionInfo(originalVersion)
 		downloadPackageFileFromGitHubForHost = originalDownload
-		listPackageWorkflowFiles = originalList
+		listPackageWorkflowFilesForHost = originalList
 	})
 	SetVersionInfo("v1.2.3")
 
@@ -39,7 +39,7 @@ files:
 				return nil, fmt.Errorf("404 not found: %s", path)
 			}
 		}
-		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
@@ -50,6 +50,7 @@ files:
 		assert.Equal(t, "Repo Assist", pkg.Name)
 		assert.Equal(t, "README.md", pkg.DocsPath)
 		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
+		require.NotEmpty(t, pkg.Warnings)
 		assert.Contains(t, pkg.Warnings[0], "Ignoring files entry")
 	})
 
@@ -64,7 +65,8 @@ files:
 				return nil, fmt.Errorf("404 not found: %s", path)
 			}
 		}
-		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			assert.Equal(t, "", host)
 			switch workflowPath {
 			case "workflows":
 				return []string{"workflows/review.md"}, nil
@@ -81,6 +83,36 @@ files:
 		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
 	})
 
+	t.Run("passes explicit host to scanning fallback", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				assert.Equal(t, "github.com", host)
+				return []byte("name: Repo Assist\n"), nil
+			case "README.md":
+				assert.Equal(t, "github.com", host)
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, fmt.Errorf("404 not found: %s", path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			assert.Equal(t, "github.com", host)
+			switch workflowPath {
+			case "workflows":
+				return []string{"workflows/review.md"}, nil
+			case ".github/workflows":
+				return nil, fmt.Errorf("404 not found: %s", workflowPath)
+			default:
+				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
+			}
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "github.com")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
 	t.Run("rejects manifest without name field", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
@@ -88,7 +120,7 @@ files:
 			}
 			return nil, fmt.Errorf("404 not found: %s", path)
 		}
-		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
@@ -107,7 +139,7 @@ files:
 			}
 			return nil, fmt.Errorf("404 not found: %s", path)
 		}
-		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
@@ -134,7 +166,7 @@ files:
 				return nil, fmt.Errorf("404 not found: %s", path)
 			}
 		}
-		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
@@ -199,7 +231,7 @@ files:
 			}
 			return nil, fmt.Errorf("404 not found: %s", path)
 		}
-		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
@@ -207,6 +239,27 @@ files:
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `missing required README.md`)
+	})
+
+	t.Run("reports nested package path when README is missing", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "packages/repo-assist/aw.yml" {
+				return []byte(`name: Repo Assist
+files:
+  - workflows/review.md
+`), nil
+			}
+			return nil, fmt.Errorf("404 not found: %s", path)
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `owner/repo/packages/repo-assist`)
+		assert.Contains(t, err.Error(), `packages/repo-assist/README.md`)
 	})
 
 	t.Run("rejects unknown manifest fields", func(t *testing.T) {
@@ -238,7 +291,7 @@ files:
 				return nil, fmt.Errorf("404 not found: %s", path)
 			}
 		}
-		listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 			t.Fatalf("unexpected scan of %s", workflowPath)
 			return nil, nil
 		}
@@ -254,11 +307,11 @@ files:
 func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
-	originalList := listPackageWorkflowFiles
+	originalList := listPackageWorkflowFilesForHost
 	t.Cleanup(func() {
 		fetchWorkflowFromSourceWithContextFn = originalFetchFn
 		downloadPackageFileFromGitHubForHost = originalDownload
-		listPackageWorkflowFiles = originalList
+		listPackageWorkflowFilesForHost = originalList
 	})
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
@@ -274,7 +327,7 @@ files:
 		}
 		return nil, fmt.Errorf("404 not found: %s", path)
 	}
-	listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
 		return nil, nil
 	}
@@ -297,11 +350,11 @@ files:
 func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
-	originalList := listPackageWorkflowFiles
+	originalList := listPackageWorkflowFilesForHost
 	t.Cleanup(func() {
 		fetchWorkflowFromSourceWithContextFn = originalFetchFn
 		downloadPackageFileFromGitHubForHost = originalDownload
-		listPackageWorkflowFiles = originalList
+		listPackageWorkflowFilesForHost = originalList
 	})
 
 	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
@@ -316,7 +369,7 @@ files:
 		}
 		return nil, fmt.Errorf("404 not found: %s", path)
 	}
-	listPackageWorkflowFiles = func(owner, repo, ref, workflowPath string) ([]string, error) {
+	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 		t.Fatalf("unexpected scan of %s", workflowPath)
 		return nil, nil
 	}
@@ -359,4 +412,65 @@ func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testin
 	require.NoError(t, err)
 	require.Len(t, resolved.Workflows, 1)
 	assert.Equal(t, "workflows/review.md", resolved.Workflows[0].Spec.WorkflowPath)
+}
+
+func TestParseRepositoryPackageSpec(t *testing.T) {
+	tests := []struct {
+		name            string
+		spec            string
+		wantOK          bool
+		wantErr         string
+		wantRepoSlug    string
+		wantPackagePath string
+	}{
+		{
+			name:         "repo only package",
+			spec:         "owner/repo",
+			wantOK:       true,
+			wantRepoSlug: "owner/repo",
+		},
+		{
+			name:            "nested package path",
+			spec:            "owner/repo/packages/repo-assist",
+			wantOK:          true,
+			wantRepoSlug:    "owner/repo",
+			wantPackagePath: "packages/repo-assist",
+		},
+		{
+			name:   "workflow path is not package",
+			spec:   "owner/repo/workflows/review.md",
+			wantOK: false,
+		},
+		{
+			name:   "url is not package",
+			spec:   "https://github.com/owner/repo",
+			wantOK: false,
+		},
+		{
+			name:    "rejects path traversal",
+			spec:    "owner/repo/../secrets",
+			wantOK:  true,
+			wantErr: `invalid repository package path "../secrets"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repoSpec, ok, err := parseRepositoryPackageSpec(tt.spec)
+			assert.Equal(t, tt.wantOK, ok)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			if !tt.wantOK {
+				assert.Nil(t, repoSpec)
+				return
+			}
+			require.NotNil(t, repoSpec)
+			assert.Equal(t, tt.wantRepoSlug, repoSpec.RepoSlug)
+			assert.Equal(t, tt.wantPackagePath, repoSpec.PackagePath)
+		})
+	}
 }

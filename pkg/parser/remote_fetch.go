@@ -22,6 +22,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var remoteLog = logger.New("parser:remote_fetch")
@@ -843,13 +844,31 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 // ListWorkflowFiles lists workflow files from a remote GitHub repository
 // Returns a list of .md files in the specified directory (excluding subdirectories)
 func ListWorkflowFiles(owner, repo, ref, workflowPath string) ([]string, error) {
+	return listWorkflowFilesForHost(owner, repo, ref, workflowPath, "")
+}
+
+// ListWorkflowFilesForHost lists workflow files from a remote GitHub repository on an explicit host.
+// Use this when the target repository is on a different host than the one configured via GH_HOST.
+func ListWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
+	return listWorkflowFilesForHost(owner, repo, ref, workflowPath, host)
+}
+
+func listWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
 	remoteLog.Printf("Listing workflow files for %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)
 
 	// Create REST client
-	client, err := api.DefaultRESTClient()
+	var (
+		client *api.RESTClient
+		err    error
+	)
+	if host != "" {
+		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
+	} else {
+		client, err = api.DefaultRESTClient()
+	}
 	if err != nil {
 		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
-		return listWorkflowFilesViaGit(owner, repo, ref, workflowPath)
+		return listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, host)
 	}
 
 	// Define response struct for GitHub contents API (array of file objects)
@@ -869,7 +888,7 @@ func ListWorkflowFiles(owner, repo, ref, workflowPath string) ([]string, error) 
 		if gitutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
 			// Try fallback using git commands for public repositories
-			files, gitErr := listWorkflowFilesViaGit(owner, repo, ref, workflowPath)
+			files, gitErr := listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, host)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
 				return nil, fmt.Errorf("failed to list workflow files via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
@@ -894,9 +913,16 @@ func ListWorkflowFiles(owner, repo, ref, workflowPath string) ([]string, error) 
 
 // listWorkflowFilesViaGit lists workflow files using git commands (fallback for auth errors)
 func listWorkflowFilesViaGit(owner, repo, ref, workflowPath string) ([]string, error) {
+	return listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, "")
+}
+
+func listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
 	remoteLog.Printf("Attempting git fallback for listing workflow files: %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)
 
 	githubHost := GetGitHubHostForRepo(owner, repo)
+	if host != "" {
+		githubHost = stringutil.NormalizeGitHubHostURL(host)
+	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Create a temporary directory for minimal clone

@@ -13,7 +13,7 @@ import (
 )
 
 var downloadPackageFileFromGitHubForHost = parser.DownloadFileFromGitHubForHost
-var listPackageWorkflowFiles = parser.ListWorkflowFiles
+var listPackageWorkflowFilesForHost = parser.ListWorkflowFilesForHost
 
 var packageSourceDirectories = []string{"workflows", ".github/workflows"}
 
@@ -61,7 +61,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		}
 	}
 	if len(installationSources) == 0 {
-		return nil, fmt.Errorf("repository %q does not declare any installable workflow markdown files", repoSpec.RepoSlug)
+		return nil, fmt.Errorf("repository %q does not declare any installable workflow markdown files", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
 
 	docsPath, err := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host)
@@ -82,13 +82,14 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host string) (string, []byte, error) {
 	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
 	repoSlug := owner + "/" + repo
+	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
 	content, err := downloadPackageFileFromGitHubForHost(owner, repo, manifestPath, ref, host)
 	if err != nil {
 		if !isRepositoryFileNotFound(err) {
 			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
 		}
 		if packagePath != "" {
-			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", repoSlug+"/"+packagePath, packagePath, manifestPath)
+			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", packageID, packagePath, manifestPath)
 		}
 		return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", repoSlug)
 	}
@@ -204,7 +205,7 @@ func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host s
 
 	for _, sourceDir := range packageSourceDirectories {
 		sourcePath := joinRepositoryPackagePath(packagePath, sourceDir)
-		files, err := listPackageWorkflowFiles(owner, repo, ref, sourcePath)
+		files, err := listPackageWorkflowFilesForHost(owner, repo, ref, sourcePath, host)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				continue
@@ -230,13 +231,21 @@ func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host s
 func resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host string) (string, error) {
 	readmePath := joinRepositoryPackagePath(packagePath, "README.md")
 	repoSlug := owner + "/" + repo
+	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
 	if _, err := downloadPackageFileFromGitHubForHost(owner, repo, readmePath, ref, host); err == nil {
 		return readmePath, nil
 	} else if isRepositoryFileNotFound(err) {
-		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q", repoSlug, readmePath)
+		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q", packageID, readmePath)
 	} else {
 		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s: %w", readmePath, owner, repo, ref, err)
 	}
+}
+
+func repositoryPackageIdentifier(repoSlug, packagePath string) string {
+	if packagePath == "" {
+		return repoSlug
+	}
+	return repoSlug + "/" + packagePath
 }
 
 func normalizePackageInstallablePaths(paths []string, packagePath string) []string {
