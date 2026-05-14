@@ -70,6 +70,14 @@ const HANDLER_TYPE = "create_pull_request";
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 
 /**
+ * @param {string} branchName
+ * @returns {string}
+ */
+function createBundleTempRef(branchName) {
+  return `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+/**
  * Apply a git bundle to a local branch without fetching directly into the branch ref.
  * Fetching directly into refs/heads/<branch> fails when that branch is currently checked out.
  *
@@ -82,7 +90,7 @@ const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, execApi) {
   let bundleBranchRef = `refs/heads/${originalAgentBranch || branchName}`;
   const bundleTargetRef = `refs/heads/${branchName}`;
-  const bundleTempRef = `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+  const bundleTempRef = createBundleTempRef(branchName);
 
   try {
     await ensureFullHistoryForBundle(execApi);
@@ -1365,7 +1373,7 @@ async function main(config = {}) {
 
         const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
         const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
-        const fallbackBundleTempRef = `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+        const fallbackBundleTempRef = createBundleTempRef(branchName);
         const fallbackBody = `${body}
 
 ---
@@ -1387,7 +1395,9 @@ gh run download ${runId} -n agent -D /tmp/agent-${runId}
 git fetch /tmp/agent-${runId}/${artifactFileName} ${fallbackBundleSourceRef}:${fallbackBundleTempRef}
 git update-ref refs/heads/${branchName} ${fallbackBundleTempRef}
 git checkout ${branchName}
+# Ensure the working tree matches the updated branch
 git reset --hard
+# Remove the temporary bundle ref
 git update-ref -d ${fallbackBundleTempRef}
 
 # Push the branch to origin

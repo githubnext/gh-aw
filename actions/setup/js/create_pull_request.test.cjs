@@ -252,8 +252,10 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/feature/test:refs/bundles/create-pr-feature-test"]);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", "refs/bundles/create-pr-feature-test"]);
+    const bundleFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/feature\/test:refs\/bundles\/create-pr-feature-test-[a-f0-9]{8}$/);
+    const bundleTempRef = bundleFetchCall[1][2].split(":")[1];
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", bundleTempRef]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"]);
     const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
     const bundleFetchCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
@@ -285,7 +287,7 @@ index 0000000..abc1234
     fs.writeFileSync(bundlePath, "bundle content");
 
     global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && args[2] === "refs/heads/ops-review-may09-2026:refs/bundles/create-pr-ops-review-may09-2026") {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && /^refs\/heads\/ops-review-may09-2026:refs\/bundles\/create-pr-ops-review-may09-2026-[a-f0-9]{8}$/.test(args[2])) {
         throw new Error("fatal: couldn't find remote ref refs/heads/ops-review-may09-2026");
       }
       return Promise.resolve(0);
@@ -317,7 +319,8 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/main:refs/bundles/create-pr-ops-review-may09-2026"]);
+    const resolvedFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && args[2].startsWith("refs/heads/main:"));
+    expect(resolvedFetchCall[1][2]).toMatch(/^refs\/heads\/main:refs\/bundles\/create-pr-ops-review-may09-2026-[a-f0-9]{8}$/);
   });
 
   it("should not fetch a bundle directly into the target branch", async () => {
@@ -349,8 +352,10 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"]);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/bundles/create-pr-autoloop-perf-comparison"]);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/autoloop/perf-comparison", "refs/bundles/create-pr-autoloop-perf-comparison"]);
+    const bundleFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/autoloop\/perf-comparison:refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8}$/);
+    const bundleTempRef = bundleFetchCall[1][2].split(":")[1];
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/autoloop/perf-comparison", bundleTempRef]);
   });
 
   it("should give fallback issue bundle instructions that avoid direct branch fetches", async () => {
@@ -385,9 +390,12 @@ index 0000000..abc1234
     expect(result.fallback_used).toBe(true);
 
     const fallbackIssueBody = global.github.rest.issues.create.mock.calls[0][0].body;
-    expect(fallbackIssueBody).toContain("refs/heads/autoloop/perf-comparison:refs/bundles/create-pr-autoloop-perf-comparison");
-    expect(fallbackIssueBody).toContain("git update-ref refs/heads/autoloop/perf-comparison refs/bundles/create-pr-autoloop-perf-comparison");
+    const tempRefMatch = fallbackIssueBody.match(/refs\/heads\/autoloop\/perf-comparison:(refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8})/);
+    expect(tempRefMatch).not.toBeNull();
+    const fallbackBundleTempRef = tempRefMatch[1];
+    expect(fallbackIssueBody).toContain(`git update-ref refs/heads/autoloop/perf-comparison ${fallbackBundleTempRef}`);
     expect(fallbackIssueBody).toContain("git reset --hard");
+    expect(fallbackIssueBody).toContain(`git update-ref -d ${fallbackBundleTempRef}`);
     expect(fallbackIssueBody).not.toContain("refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison");
   });
 });

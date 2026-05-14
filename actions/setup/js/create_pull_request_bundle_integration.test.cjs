@@ -110,6 +110,6 @@ describe("create_pull_request bundle integration", () => {
     const actualHead = execGit(["rev-parse", "HEAD"], { cwd: targetRepo }).stdout.trim();
     expect(actualHead).toBe(expectedHead);
     expect(fs.readFileSync(path.join(targetRepo, "file.txt"), "utf8")).toBe("bundle tip\n");
-    expect(execGit(["show-ref", "--verify", "refs/bundles/create-pr-autoloop-perf-comparison"], { cwd: targetRepo, allowFailure: true }).status).not.toBe(0);
+    expect(execGit(["for-each-ref", "--format=%(refname)", "refs/bundles/create-pr-autoloop-perf-comparison-"], { cwd: targetRepo }).stdout).toBe("");
   });
 });
