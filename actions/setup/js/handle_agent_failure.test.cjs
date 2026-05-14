@@ -2045,6 +2045,69 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Configured ET budget:");
       expect(result).not.toContain("- Run:");
     });
+
+    it("includes a link to the ET specification docs", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("https://github.github.com/gh-aw/reference/effective-tokens-specification/");
+    });
+
+    it("includes a link to the token optimization guide", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md");
+    });
+
+    it("includes a collapsible details section for ET computation", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("<details>");
+      expect(result).toContain("</details>");
+      expect(result).toContain("ET computation details");
+    });
+  });
+
+  describe("readTokenUsageMarkdown", () => {
+    let readTokenUsageMarkdown;
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "rt-usage-test-"));
+      ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it("returns null when no token-usage.jsonl files exist", () => {
+      const result = readTokenUsageMarkdown();
+      expect(result).toBeNull();
+    });
+
+    it("returns a markdown table when a valid token-usage.jsonl file is present", () => {
+      const { TOKEN_USAGE_PATH } = require("./parse_token_usage.cjs");
+      fs.mkdirSync(path.dirname(TOKEN_USAGE_PATH), { recursive: true });
+      const entry = JSON.stringify({ model: "claude-sonnet-4.5", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const origContent = fs.existsSync(TOKEN_USAGE_PATH) ? fs.readFileSync(TOKEN_USAGE_PATH, "utf8") : null;
+      fs.writeFileSync(TOKEN_USAGE_PATH, entry + "\n");
+      try {
+        vi.resetModules();
+        ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
+        const result = readTokenUsageMarkdown();
+        expect(result).not.toBeNull();
+        expect(result).toContain("claude-sonnet-4.5");
+        expect(result).toContain("1,000");
+        expect(result).toContain("Model");
+      } finally {
+        if (origContent !== null) {
+          fs.writeFileSync(TOKEN_USAGE_PATH, origContent);
+        } else if (fs.existsSync(TOKEN_USAGE_PATH)) {
+          fs.unlinkSync(TOKEN_USAGE_PATH);
+        }
+      }
+    });
   });
 
   describe("buildCredentialAuthErrorContext", () => {
