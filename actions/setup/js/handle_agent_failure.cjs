@@ -12,7 +12,9 @@ const { formatMissingData, formatMissingTools } = require("./missing_info_format
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState } = require("./effective_tokens_context.cjs");
-const { formatET } = require("./effective_tokens.cjs");
+const { formatET, buildETComputationTable } = require("./effective_tokens.cjs");
+const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
+const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -840,6 +842,27 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
+ * Read and render token usage from token-usage.jsonl for inclusion in the ET computation table.
+ * Returns null gracefully when files are absent, empty, or unparseable.
+ * @returns {string | null} Pre-rendered per-model markdown table, or null
+ */
+function readTokenUsageMarkdown() {
+  try {
+    const readablePaths = TOKEN_USAGE_PATHS.filter(p => {
+      try { return fs.existsSync(p) && fs.statSync(p).size > 0; } catch { return false; }
+    });
+    if (readablePaths.length === 0) return null;
+    const content = readDedupedTokenUsage(readablePaths);
+    if (!content.trim()) return null;
+    const tokenSummary = parseTokenUsageJsonl(content);
+    if (!tokenSummary) return null;
+    return generateTokenUsageSummary(tokenSummary) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build a context string when ET budget exhaustion/rate-limit is detected from gateway logs.
  * @param {boolean} hasEffectiveTokensRateLimitError
  * @param {string} effectiveTokens
@@ -863,7 +886,16 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
   const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${formatEffectiveTokensForMessage(maxEffectiveTokens)}\`` : "";
   const runLine = runUrl ? `\n- Run: ${runUrl}` : "";
 
-  return `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.${usageLine}${budgetLine}${runLine}\n\nPrefer ET budget controls for diagnosis instead of run-count heuristics. You can tune this limit with \`max-effective-tokens\` in workflow frontmatter.\n`;
+  const etTableSection = buildETComputationTable(effectiveTokens, readTokenUsageMarkdown());
+
+  const etSpecLink = "https://github.github.com/gh-aw/reference/effective-tokens-specification/";
+  const tokenOptLink = "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md";
+
+  return (
+    `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy. [What are effective tokens?](${etSpecLink})${usageLine}${budgetLine}${runLine}\n\n` +
+    etTableSection +
+    `You can tune this limit with \`max-effective-tokens\` in workflow frontmatter. To reduce token consumption, review the [token optimization guide](${tokenOptLink}).\n`
+  );
 }
 
 /**
@@ -2034,6 +2066,7 @@ module.exports = {
   buildMissingToolContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
+  readTokenUsageMarkdown,
   parseFirewallAuthErrors,
   parseMaxEffectiveTokensFromAuditLog,
   parseEffectiveTokensErrorInfoFromAuditLog,
