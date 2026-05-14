@@ -1,6 +1,6 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-05-07
+**Last Updated**: 2026-05-14
 **Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04.4 LTS
 **Image Version**: 20260413.86.1
