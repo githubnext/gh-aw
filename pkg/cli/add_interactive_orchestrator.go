@@ -216,19 +216,19 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 }
 
 func (c *AddInteractiveConfig) workflowNamesForInteractiveAdd() ([]string, error) {
-	specContext := strings.Join(c.WorkflowSpecs, ", ")
+	workflowSpecsContext := strings.Join(c.WorkflowSpecs, ", ")
 	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
 		workflowNames := make([]string, 0, len(c.resolvedWorkflows.Workflows))
 		for i, resolvedWorkflow := range c.resolvedWorkflows.Workflows {
 			if resolvedWorkflow == nil {
-				return nil, fmt.Errorf("resolved manifest workflow %d from %q is nil", i+1, specContext)
+				return nil, fmt.Errorf("resolved manifest workflow %d from %q is nil", i+1, workflowSpecsContext)
 			}
 			if resolvedWorkflow.Spec == nil {
-				return nil, fmt.Errorf("resolved manifest workflow %d from %q is missing its specification", i+1, specContext)
+				return nil, fmt.Errorf("resolved manifest workflow %d from %q is missing its specification", i+1, workflowSpecsContext)
 			}
 			workflowName := strings.TrimSpace(resolvedWorkflow.Spec.WorkflowName)
 			if workflowName == "" {
-				return nil, fmt.Errorf("resolved manifest workflow %d from %q is missing its workflow name", i+1, specContext)
+				return nil, fmt.Errorf("resolved manifest workflow %d from %q is missing its workflow name", i+1, workflowSpecsContext)
 			}
 			workflowNames = append(workflowNames, workflowName)
 		}

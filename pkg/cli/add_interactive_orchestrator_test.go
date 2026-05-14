@@ -66,6 +66,18 @@ func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:          "resolved workflow with blank name fails loudly",
+			workflowSpecs: []string{"owner/repo"},
+			resolved: &ResolvedWorkflows{
+				Workflows: []*ResolvedWorkflow{
+					{
+						Spec: &WorkflowSpec{WorkflowName: "   "},
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
