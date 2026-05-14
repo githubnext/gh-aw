@@ -72,8 +72,8 @@ describe("validateAllowedIssueFieldName", () => {
     expect(() => validateAllowedIssueFieldName("Title", ["title"])).not.toThrow();
   });
 
-  it("throws when allowedFields is not an array", () => {
-    // non-array allowedFields with length=0 passes through (no restriction)
+  it("does not throw when allowedFields is not an array (no restriction)", () => {
+    // non-array allowedFields is treated as no restriction
     expect(() => validateAllowedIssueFieldName("title", null)).not.toThrow();
   });
 
