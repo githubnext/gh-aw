@@ -144,7 +144,7 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 	}
 
 	// Validate name before schema validation so add/compile can return a stable,
-	// direct message for the most common manifest authoring error.
+	// direct message for the most common manifest authoring error before deeper validation runs.
 	name, ok := stringValue(root["name"])
 	if !ok || strings.TrimSpace(name) == "" {
 		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string", manifestPath)
@@ -392,15 +392,16 @@ func isRepositoryPackageRemoteNotFound(err error) bool {
 }
 
 func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error) {
-	var output []byte
+	var (
+		output []byte
+		err    error
+	)
 	if host != "" {
-		var err error
 		output, err = workflow.RunGHWithHost("Fetching repo info...", host, "api", "/repos/"+repoSlug, "--jq", ".default_branch")
 		if err != nil {
 			return "", err
 		}
 	} else {
-		var err error
 		output, err = workflow.RunGH("Fetching repo info...", "api", "/repos/"+repoSlug, "--jq", ".default_branch")
 		if err != nil {
 			return "", err
