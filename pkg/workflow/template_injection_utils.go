@@ -229,3 +229,31 @@ func formatTemplateInjectionError(violations []TemplateInjectionViolation) error
 
 	return errors.New(builder.String())
 }
+
+// formatRunScriptExpressionGuardrailError formats a compiler-regression error for any
+// GitHub Actions expressions that remain in run: shell scripts of compiled workflows.
+func formatRunScriptExpressionGuardrailError(violations []TemplateInjectionViolation) error {
+	var builder strings.Builder
+
+	builder.WriteString("compiler regression detected: GitHub Actions expressions found in run: shell scripts of compiled workflow\n\n")
+	builder.WriteString("The compiler must rewrite expressions in run: blocks to env variables.\n")
+	builder.WriteString("Use env: assignments and shell variable references instead of inline ${{ ... }} in run: scripts.\n\n")
+	builder.WriteString("Examples found:\n")
+
+	maxExamples := min(5, len(violations))
+	for i := 0; i < maxExamples; i++ {
+		fmt.Fprintf(&builder, "  - %s\n", violations[i].Expression)
+		fmt.Fprintf(&builder, "    in: %s\n", violations[i].Snippet)
+	}
+	if len(violations) > maxExamples {
+		fmt.Fprintf(&builder, "  ... and %d more\n", len(violations)-maxExamples)
+	}
+
+	builder.WriteString("\nSafe pattern:\n")
+	builder.WriteString("  env:\n")
+	builder.WriteString("    EXPR_VALUE: ${{ github.token }}\n")
+	builder.WriteString("  run: |\n")
+	builder.WriteString("    echo \"$EXPR_VALUE\"\n")
+
+	return errors.New(builder.String())
+}

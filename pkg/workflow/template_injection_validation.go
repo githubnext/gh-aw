@@ -64,6 +64,12 @@ var (
 	unsafeContextRegex = regexp.MustCompile(`\$\{\{\s*(github\.event\.|steps\.[^}]+\.outputs\.|inputs\.)[^}]+\}\}`)
 )
 
+// hasAnyExpressionInRunContent performs a fast line-by-line text scan to determine
+// whether any GitHub Actions expression (${{ ... }}) appears inside a YAML run: block.
+func hasAnyExpressionInRunContent(yamlContent string) bool {
+	return hasExpressionInRunContent(yamlContent, inlineExpressionRegex)
+}
+
 // hasUnsafeExpressionInRunContent performs a fast line-by-line text scan to determine
 // whether any unsafe context expression (${{ github.event.* }},
 // ${{ steps.*.outputs.* }}, or ${{ inputs.* }}) appears inside the content of a
@@ -78,12 +84,16 @@ var (
 // encounters `run:` with no inline content (rest == ""), it enters run-block scanning
 // mode and only returns true if a subsequent indented line matches unsafeContextRegex.
 func hasUnsafeExpressionInRunContent(yamlContent string) bool {
-	// Fast-path: no unsafe expressions anywhere → definitely no violation.
-	if !unsafeContextRegex.MatchString(yamlContent) {
+	return hasExpressionInRunContent(yamlContent, unsafeContextRegex)
+}
+
+func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {
+	// Fast-path: no matching expressions anywhere → definitely no violation.
+	if !expressionRegex.MatchString(yamlContent) {
 		return false
 	}
 
-	// Unsafe expressions exist somewhere; scan for any that appear inside a run: block
+	// Matching expressions exist somewhere; scan for any that appear inside a run: block
 	// without doing a full YAML parse.
 	// Use SplitSeq to iterate over lines lazily, avoiding the up-front allocation of the
 	// full []string slice that strings.Split would create for large YAML content.
@@ -105,8 +115,8 @@ func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 				inRunBlock = false
 				// Fall through: check whether this line starts a new run: block.
 			} else {
-				// Inside run block content — check for unsafe expressions.
-				if unsafeContextRegex.MatchString(line) {
+				// Inside run block content — check for matching expressions.
+				if expressionRegex.MatchString(line) {
 					return true
 				}
 				continue
@@ -134,7 +144,7 @@ func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 			runBlockIndent = indent
 		} else {
 			// Inline run value, e.g. run: echo "hello ${{ github.event.foo }}".
-			if unsafeContextRegex.MatchString(rest) {
+			if expressionRegex.MatchString(rest) {
 				return true
 			}
 		}
@@ -190,5 +200,37 @@ func validateNoTemplateInjectionFromParsed(workflow map[string]any) error {
 	}
 
 	templateInjectionValidationLog.Print("Template injection validation passed")
+	return nil
+}
+
+// validateNoGitHubExpressionsInRunScriptsFromParsed checks a pre-parsed workflow map
+// for any GitHub Actions expression usage in run: scripts.
+//
+// This is a compiler regression guardrail: run: scripts in compiled lock files should
+// never contain ${{ ... }} directly because the compiler must rewrite expressions into
+// env: variables.
+func validateNoGitHubExpressionsInRunScriptsFromParsed(workflow map[string]any) error {
+	runBlocks := extractRunBlocks(workflow)
+	templateInjectionValidationLog.Printf("Found %d run blocks to scan for raw expressions", len(runBlocks))
+
+	var violations []TemplateInjectionViolation
+
+	for _, runContent := range runBlocks {
+		expressions := inlineExpressionRegex.FindAllString(runContent, -1)
+		for _, expr := range expressions {
+			snippet := extractRunSnippet(runContent, expr)
+			violations = append(violations, TemplateInjectionViolation{
+				Expression: expr,
+				Snippet:    snippet,
+				Context:    detectExpressionContext(expr),
+			})
+		}
+	}
+
+	if len(violations) > 0 {
+		templateInjectionValidationLog.Printf("Run-script expression guardrail failed: %d violation(s) found", len(violations))
+		return formatRunScriptExpressionGuardrailError(violations)
+	}
+
 	return nil
 }

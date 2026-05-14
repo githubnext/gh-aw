@@ -305,10 +305,10 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 // tree, which is faster than re-scanning the full YAML string with a regex.
 //
 // When parsedWorkflow is nil (schema validation disabled via skipValidation), the
-// function first uses the lightweight hasUnsafeExpressionInRunContent text scan
-// to avoid an unnecessary yaml.Unmarshal call.  When the scan detects unsafe
-// expressions, the YAML is parsed with github.com/goccy/go-yaml for consistency
-// with validateNoTemplateInjection.
+// function first uses the lightweight hasAnyExpressionInRunContent text scan
+// to avoid an unnecessary yaml.Unmarshal call. When the scan detects expressions
+// in run blocks, the YAML is parsed with github.com/goccy/go-yaml for consistency
+// with the parsed-workflow validators.
 func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath string, parsedWorkflow map[string]any) error {
 	var templateErr error
 
@@ -318,11 +318,14 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		// scanning the full YAML string.
 		log.Print("Validating for template injection vulnerabilities")
 		templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
+		if templateErr == nil {
+			templateErr = validateNoGitHubExpressionsInRunScriptsFromParsed(parsedWorkflow)
+		}
 	} else {
 		// Path B: schema validation is disabled (parsedWorkflow is nil).
-		// Use the text scan to cheaply determine whether unsafe expressions appear
+		// Use the text scan to cheaply determine whether expressions appear
 		// inside a run: block before paying the cost of a full yaml.Unmarshal.
-		if hasUnsafeExpressionInRunContent(yamlContent) {
+		if hasAnyExpressionInRunContent(yamlContent) {
 			log.Print("Validating for template injection vulnerabilities")
 			var reparsed map[string]any
 			if err := yaml.Unmarshal([]byte(yamlContent), &reparsed); err != nil {
@@ -332,6 +335,9 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 			}
 			if reparsed != nil {
 				templateErr = validateNoTemplateInjectionFromParsed(reparsed)
+				if templateErr == nil {
+					templateErr = validateNoGitHubExpressionsInRunScriptsFromParsed(reparsed)
+				}
 			}
 		}
 	}
