@@ -126,6 +126,17 @@ function buildCurrentWorkflowCallId(runId, runAttempt, workflowRef = process.env
 }
 
 /**
+ * Parse a strict boolean env var.
+ * @param {string | undefined} value
+ * @returns {boolean | undefined}
+ */
+function parseBooleanEnv(value) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
+/**
  * Parse setup-time aw_context passed via environment before aw_info.json exists.
  *
  * @param {string | undefined} raw
@@ -924,6 +935,10 @@ async function sendJobSetupSpan(options = {}) {
   const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
+  const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
+  const frontmatterHash = (typeof awInfo.frontmatter_hash === "string" ? awInfo.frontmatter_hash : "") || process.env.GH_AW_INFO_FRONTMATTER_HASH || "";
+  const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
   const parentSpanId = optionsParentSpanId || inputParentSpanId || contextParentSpanId || "";
@@ -991,6 +1006,10 @@ async function sendJobSetupSpan(options = {}) {
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
   if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
+  if (frontmatterSource) attributes.push(buildAttr("gh-aw.frontmatter.source", frontmatterSource));
+  if (frontmatterHash) attributes.push(buildAttr("gh-aw.frontmatter.hash", frontmatterHash));
+  if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
+  if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
 
   // Include experiment assignments so each span can be correlated with the
   // A/B variant selected for this run (written by pick_experiment.cjs).
@@ -1326,6 +1345,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const itemNumber = typeof awInfo.context?.item_number === "string" ? awInfo.context.item_number : "";
   const triggerLabel = typeof awInfo.context?.trigger_label === "string" ? awInfo.context.trigger_label : "";
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
+  const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
+  const frontmatterHash = (typeof awInfo.frontmatter_hash === "string" ? awInfo.frontmatter_hash : "") || process.env.GH_AW_INFO_FRONTMATTER_HASH || "";
+  const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
@@ -1418,6 +1441,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
   if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
   if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
+  if (frontmatterSource) attributes.push(buildAttr("gh-aw.frontmatter.source", frontmatterSource));
+  if (frontmatterHash) attributes.push(buildAttr("gh-aw.frontmatter.hash", frontmatterHash));
+  if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
+  if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));

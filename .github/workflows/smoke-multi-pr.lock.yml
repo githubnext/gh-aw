@@ -133,6 +133,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Multi PR"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-multi-pr.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "1ec226354f443f07d3107ba1f8d9ed9ef843658f29457640d2dc421facd2feee"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -152,6 +153,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_INFO_FRONTMATTER_HASH: "1ec226354f443f07d3107ba1f8d9ed9ef843658f29457640d2dc421facd2feee"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -430,6 +432,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Multi PR"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-multi-pr.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "1ec226354f443f07d3107ba1f8d9ed9ef843658f29457640d2dc421facd2feee"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1108,6 +1111,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Multi PR"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-multi-pr.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "1ec226354f443f07d3107ba1f8d9ed9ef843658f29457640d2dc421facd2feee"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1277,6 +1281,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Multi PR"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-multi-pr.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "1ec226354f443f07d3107ba1f8d9ed9ef843658f29457640d2dc421facd2feee"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1480,6 +1485,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Multi PR"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-multi-pr.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "1ec226354f443f07d3107ba1f8d9ed9ef843658f29457640d2dc421facd2feee"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1549,6 +1555,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Multi PR"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-multi-pr.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
+          GH_AW_INFO_FRONTMATTER_HASH: "1ec226354f443f07d3107ba1f8d9ed9ef843658f29457640d2dc421facd2feee"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

@@ -147,6 +147,12 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 			if v := getVersionForSetup(data); v != "" {
 				lines = append(lines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
 			}
+			if data.FrontmatterHash != "" {
+				lines = append(lines, fmt.Sprintf("          GH_AW_INFO_FRONTMATTER_HASH: %q\n", data.FrontmatterHash))
+			}
+			if data.Source != "" {
+				lines = append(lines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
+			}
 		}
 		if traceID != "" {
 			lines = append(lines, fmt.Sprintf("          INPUT_TRACE_ID: %s\n", traceID))
@@ -186,6 +192,12 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 	)
 	if v := getVersionForSetup(data); v != "" {
 		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
+	}
+	if data.FrontmatterHash != "" {
+		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_FRONTMATTER_HASH: %q\n", data.FrontmatterHash))
+	}
+	if data.Source != "" {
+		lines = append(lines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
 	}
 	if hasWorkflowCallTrigger(data.On) {
 		lines = append(lines, "          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}\n")
