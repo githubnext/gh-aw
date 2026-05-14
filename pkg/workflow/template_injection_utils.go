@@ -241,7 +241,7 @@ func formatRunScriptExpressionGuardrailError(violations []TemplateInjectionViola
 	builder.WriteString("Examples found:\n")
 
 	maxExamples := min(5, len(violations))
-	for i := 0; i < maxExamples; i++ {
+	for i := range maxExamples {
 		fmt.Fprintf(&builder, "  - %s\n", violations[i].Expression)
 		fmt.Fprintf(&builder, "    in: %s\n", violations[i].Snippet)
 	}

@@ -112,7 +112,7 @@ strict: false
 			compileErr := compiler.CompileWorkflow(wfPath)
 
 			if tt.expectError {
-				assert.Error(t, compileErr,
+				require.Error(t, compileErr,
 					"CTR-015: expected error for bare \"*\" in allowed-labels")
 				assert.Contains(t, compileErr.Error(), "CTR-015",
 					"CTR-015: error message should reference the rule ID")
@@ -123,4 +123,3 @@ strict: false
 		})
 	}
 }
-
