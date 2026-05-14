@@ -53,8 +53,8 @@ Test content
 	assert.NotNil(t, result.importsResult)
 }
 
-func TestSetupEngineAndImports_PreservesFirewallTokenSteeringForStringEngine(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "engine-firewall-token-steering")
+func TestSetupEngineAndImports_PreservesNegativeMaxEffectiveTokensForStringEngine(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-negative-max-et")
 
 	testContent := `---
 on: push
@@ -62,8 +62,7 @@ engine: copilot
 network:
   allowed:
     - defaults
-firewall:
-  effective-token-steering: true
+max-effective-tokens: -1
 ---
 
 # Test Workflow
@@ -82,7 +81,7 @@ firewall:
 	require.NoError(t, err, "setup should succeed")
 	require.NotNil(t, result)
 	require.NotNil(t, result.engineConfig)
-	assert.True(t, result.engineConfig.EnableTokenSteering, "firewall.effective-token-steering should be preserved after string-engine import expansion")
+	assert.Equal(t, int64(-1), result.engineConfig.MaxEffectiveTokens, "negative max-effective-tokens should be preserved after string-engine import expansion")
 }
 
 // TestSetupEngineAndImports_DefaultEngine tests engine defaulting when not specified

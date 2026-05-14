@@ -534,10 +534,15 @@ engine: copilot
 
 ### Effective Token Budget (`max-effective-tokens:`)
 
-Sets the AWF effective-token budget used for cost enforcement. Defaults to `25000000` when omitted.
+Sets the AWF effective-token budget used for cost enforcement. Defaults to `25000000` when omitted. Token steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Set to a negative value to disable both budget enforcement and token steering.
 
 ```yaml wrap
 max-effective-tokens: 5000000
+```
+
+```yaml wrap
+# Disable budget enforcement and token steering
+max-effective-tokens: -1
 ```
 
 ### Inline Sub-Agents (`inline-sub-agents:`)

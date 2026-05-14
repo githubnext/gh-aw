@@ -61,8 +61,6 @@ safe-outputs:
 imports:
   - shared/observability-otlp.md
 
-firewall:
-  effective-token-steering: true
 ---
 
 # Daily Choice Type Test

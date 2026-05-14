@@ -29,8 +29,6 @@ imports:
       expires: 3d
 
   - shared/observability-otlp.md
-firewall:
-  effective-token-steering: true
 ---
 
 # Daily CLI Tools Exploratory Tester

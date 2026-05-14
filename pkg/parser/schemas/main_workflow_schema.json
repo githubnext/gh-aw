@@ -3721,8 +3721,8 @@
       "oneOf": [
         {
           "type": "integer",
-          "minimum": 1,
-          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement."
+          "not": {"enum": [0]},
+          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
         },
         {
           "type": "string",
@@ -3738,7 +3738,7 @@
         }
       ],
       "default": 25000000,
-      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted."
+      "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Set to a negative value to disable budget enforcement and token steering."
     },
     "max-runs": {
       "oneOf": [
@@ -3762,17 +3762,6 @@
       ],
       "default": 500,
       "description": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted."
-    },
-    "firewall": {
-      "type": "object",
-      "description": "AWF firewall behavior configuration.",
-      "properties": {
-        "effective-token-steering": {
-          "type": "boolean",
-          "description": "Enable AWF token steering (`apiProxy.enableTokenSteering` / `--enable-token-steering`) to inject budget warning system messages at 80%, 90%, 95%, and 99% effective token usage."
-        }
-      },
-      "additionalProperties": false
     },
     "mcp-servers": {
       "type": "object",

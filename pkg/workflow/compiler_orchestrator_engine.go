@@ -41,11 +41,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// intentionally clear engineConfig while converting "engine: <id>" into an import.
 	preservedMaxEffectiveTokens := int64(0)
 	preservedMaxRuns := 0
-	preservedEffectiveTokenSteering := false
 	if engineConfig != nil {
 		preservedMaxEffectiveTokens = engineConfig.MaxEffectiveTokens
 		preservedMaxRuns = engineConfig.MaxRuns
-		preservedEffectiveTokenSteering = engineConfig.EnableTokenSteering
 	}
 
 	// Validate and register inline engine definitions (engine.runtime sub-object).
@@ -293,14 +291,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
-	if preservedMaxEffectiveTokens > 0 {
+	if preservedMaxEffectiveTokens != 0 {
 		engineConfig.MaxEffectiveTokens = preservedMaxEffectiveTokens
 	}
 	if preservedMaxRuns > 0 {
 		engineConfig.MaxRuns = preservedMaxRuns
-	}
-	if preservedEffectiveTokenSteering {
-		engineConfig.EnableTokenSteering = true
 	}
 	if engineConfig.MaxRuns <= 0 && importsResult.MergedMaxRuns != "" {
 		var importedMaxRuns any
@@ -311,7 +306,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 			}
 		}
 	}
-	if engineConfig.MaxEffectiveTokens <= 0 && importsResult.MergedMaxEffectiveTokens != "" {
+	if engineConfig.MaxEffectiveTokens == 0 && importsResult.MergedMaxEffectiveTokens != "" {
 		var importedMaxTokens any
 		if err := json.Unmarshal([]byte(importsResult.MergedMaxEffectiveTokens), &importedMaxTokens); err == nil {
 			if parsed := parseMaxEffectiveTokensValue(importedMaxTokens); parsed > 0 {

@@ -30,8 +30,6 @@ imports:
     with:
       title-prefix: "[agentrx-optimizer] "
       expires: 7d
-firewall:
-  effective-token-steering: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

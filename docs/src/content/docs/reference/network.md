@@ -266,15 +266,15 @@ Use SSL bump when you need to allow specific API endpoints while blocking others
 
 ### Effective Token Steering
 
-Set `firewall.effective-token-steering: true` to opt the AWF API proxy into injecting budget-warning system messages as the run approaches its effective-token budget. Warnings fire at 80%, 90%, 95%, and 99% of the configured `max-effective-tokens`, giving the agent a chance to wrap up work before the budget is exhausted.
+The AWF API proxy automatically injects budget-warning system messages as the run approaches its effective-token budget. Warnings fire at 80%, 90%, 95%, and 99% of the configured `max-effective-tokens`, giving the agent a chance to wrap up work before the budget is exhausted. Token steering requires AWF `v0.25.44` or later; for older pinned versions the setting is silently dropped at compile time.
+
+To disable token steering (and budget enforcement entirely), set `max-effective-tokens` to a negative value:
 
 ```yaml wrap
-firewall:
-  effective-token-steering: true
-max-effective-tokens: 5000000
+max-effective-tokens: -1
 ```
 
-The compiler maps this field to `apiProxy.enableTokenSteering` in the generated AWF configuration. Token steering requires AWF `v0.25.44` or later; for older pinned versions the setting is silently dropped at compile time. See [Max Effective Tokens](/gh-aw/reference/glossary/#max-effective-tokens-max-effective-tokens) for budget configuration.
+See [Max Effective Tokens](/gh-aw/reference/glossary/#max-effective-tokens-max-effective-tokens) for budget configuration.
 
 ### Disabling the Firewall
 

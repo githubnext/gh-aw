@@ -260,7 +260,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
 
-	enableTokenSteering := extractEffectiveTokenSteering(config.WorkflowData)
+	// Token steering is enabled by default; a negative max-effective-tokens value
+	// disables both budget enforcement and token steering.
+	enableTokenSteering := maxEffectiveTokens >= 0
+	if maxEffectiveTokens < 0 {
+		// Negative signals "disabled" — omit the budget from the AWF config.
+		maxEffectiveTokens = 0
+	}
+
 	apiProxy := &AWFAPIProxyConfig{
 		Enabled:             true,
 		MaxRuns:             maxRuns,
@@ -268,7 +275,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		EnableTokenSteering: enableTokenSteering && awfSupportsTokenSteering(firewallConfig),
 	}
 
-	if enableTokenSteering && !awfSupportsTokenSteering(firewallConfig) {
+	if !enableTokenSteering {
+		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-effective-tokens is negative (disabled)")
+	} else if !awfSupportsTokenSteering(firewallConfig) {
 		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFTokenSteeringMinVersion)
 	}
 
@@ -356,10 +365,4 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 		return nil
 	}
 	return workflowData.EngineConfig.TokenWeights.Multipliers
-}
-
-func extractEffectiveTokenSteering(workflowData *WorkflowData) bool {
-	return workflowData != nil &&
-		workflowData.EngineConfig != nil &&
-		workflowData.EngineConfig.EnableTokenSteering
 }

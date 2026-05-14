@@ -104,8 +104,6 @@ imports:
       expires: 3d
 
   - shared/observability-otlp.md
-firewall:
-  effective-token-steering: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
