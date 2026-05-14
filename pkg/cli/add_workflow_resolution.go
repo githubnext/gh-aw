@@ -76,17 +76,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			pkg, pkgErr := resolveRepositoryPackage(repoSpec, explicitHostForRepo(repoSpec.RepoSlug))
 			if pkgErr == nil {
 				resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
-				for _, installationSource := range pkg.InstallationSource {
-					parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-						RepoSpec: RepoSpec{
-							RepoSlug: repoSpec.RepoSlug,
-							Version:  repoSpec.Version,
-						},
-						WorkflowPath: installationSource,
-						WorkflowName: strings.TrimSuffix(filepath.Base(installationSource), ".md"),
-						Host:         explicitHostForRepo(repoSpec.RepoSlug),
-					})
-				}
+				parsedSpecs = appendRepositoryPackageWorkflowSpecs(parsedSpecs, repoSpec, pkg)
 				continue
 			}
 			if repoSpec.PackagePath == "" || !isRepositoryPackageManifestNotFound(pkgErr) {
@@ -106,17 +96,7 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 				return nil, pkgErr
 			}
 			resolutionWarnings = append(resolutionWarnings, pkg.Warnings...)
-			for _, installationSource := range pkg.InstallationSource {
-				parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-					RepoSpec: RepoSpec{
-						RepoSlug: repoSpec.RepoSlug,
-						Version:  repoSpec.Version,
-					},
-					WorkflowPath: installationSource,
-					WorkflowName: strings.TrimSuffix(filepath.Base(installationSource), ".md"),
-					Host:         explicitHostForRepo(repoSpec.RepoSlug),
-				})
-			}
+			parsedSpecs = appendRepositoryPackageWorkflowSpecs(parsedSpecs, repoSpec, pkg)
 			continue
 		}
 
@@ -215,6 +195,23 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		HasWorkflowDispatch: hasWorkflowDispatch,
 		Warnings:            resolutionWarnings,
 	}, nil
+}
+
+func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
+	host := explicitHostForRepo(repoSpec.RepoSlug)
+	for _, installationSource := range pkg.InstallationSource {
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug: repoSpec.RepoSlug,
+				Version:  repoSpec.Version,
+			},
+			WorkflowPath: installationSource,
+			WorkflowName: strings.TrimSuffix(filepath.Base(installationSource), ".md"),
+			Host:         host,
+		})
+	}
+
+	return parsedSpecs
 }
 
 func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *WorkflowSpec, verbose bool) (*WorkflowSpec, *FetchedWorkflow, error) {

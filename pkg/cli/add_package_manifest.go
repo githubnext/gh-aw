@@ -81,15 +81,16 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 
 func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host string) (string, []byte, error) {
 	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
+	repoSlug := owner + "/" + repo
 	content, err := downloadPackageFileFromGitHubForHost(owner, repo, manifestPath, ref, host)
 	if err != nil {
 		if !isRepositoryFileNotFound(err) {
 			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
 		}
 		if packagePath != "" {
-			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", owner+"/"+repo+"/"+packagePath, packagePath, manifestPath)
+			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", joinRepositoryPackagePath(repoSlug, packagePath), packagePath, manifestPath)
 		}
-		return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", owner+"/"+repo)
+		return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", repoSlug)
 	}
 
 	return manifestPath, content, nil
@@ -228,10 +229,11 @@ func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host s
 
 func resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host string) (string, error) {
 	readmePath := joinRepositoryPackagePath(packagePath, "README.md")
+	repoSlug := owner + "/" + repo
 	if _, err := downloadPackageFileFromGitHubForHost(owner, repo, readmePath, ref, host); err == nil {
 		return readmePath, nil
 	} else if isRepositoryFileNotFound(err) {
-		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q", owner+"/"+repo, readmePath)
+		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q", repoSlug, readmePath)
 	} else {
 		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s: %w", readmePath, owner, repo, ref, err)
 	}
