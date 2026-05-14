@@ -467,6 +467,7 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/timeutil` — human-readable duration formatting
 - `github.com/github/gh-aw/pkg/tty` — terminal detection
 - `github.com/github/gh-aw/pkg/types` — shared MCP server configuration types
+- `github.com/github/gh-aw/pkg/typeutil` — type conversion helpers for dynamic frontmatter values
 - `github.com/github/gh-aw/pkg/fileutil` — file system helpers
 - `github.com/github/gh-aw/pkg/gitutil` — Git and GitHub CLI helpers
 - `github.com/github/gh-aw/pkg/repoutil` — repository name parsing and normalization
