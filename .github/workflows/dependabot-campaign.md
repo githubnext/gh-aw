@@ -1,5 +1,5 @@
 ---
-emoji: "��"
+emoji: "📦"
 name: Dependabot Campaign
 description: Lean campaign that bundles open Dependabot PRs for compiler-generated workflow manifests into one remediation wave
 on:
