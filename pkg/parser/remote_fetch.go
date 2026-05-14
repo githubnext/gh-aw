@@ -911,11 +911,6 @@ func listWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]st
 	return workflowFiles, nil
 }
 
-// listWorkflowFilesViaGit lists workflow files using git commands (fallback for auth errors)
-func listWorkflowFilesViaGit(owner, repo, ref, workflowPath string) ([]string, error) {
-	return listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, "")
-}
-
 func listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
 	remoteLog.Printf("Attempting git fallback for listing workflow files: %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)
 

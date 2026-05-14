@@ -113,7 +113,7 @@ files:
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
-			assert.Equal(t, "", host)
+			assert.Empty(t, host)
 			switch workflowPath {
 			case "workflows":
 				return []string{"workflows/review.md"}, nil
