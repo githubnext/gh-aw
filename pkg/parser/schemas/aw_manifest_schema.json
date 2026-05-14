@@ -10,6 +10,7 @@
     },
     "min-version": {
       "type": "string",
+      "description": "Minimum supported gh-aw CLI version. Accepts v1.2.3, 1.2.3, prerelease, and build metadata forms.",
       "pattern": "^v?[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
     },
     "name": {

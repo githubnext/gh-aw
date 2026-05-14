@@ -135,13 +135,14 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 	}
 
 	manifest := &repositoryPackageManifest{
-		SchemaVersion: repositoryPackageManifestSchemaVersion,
-		Name:          strings.TrimSpace(name),
+		Name: strings.TrimSpace(name),
 	}
 	var warnings []string
 
 	if schemaVersion, ok := stringValue(root["schema-version"]); ok {
 		manifest.SchemaVersion = strings.TrimSpace(schemaVersion)
+	} else {
+		manifest.SchemaVersion = repositoryPackageManifestSchemaVersion
 	}
 
 	if minVersion, ok := stringValue(root["min-version"]); ok {

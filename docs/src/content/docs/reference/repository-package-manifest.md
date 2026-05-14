@@ -41,4 +41,4 @@ files:
 - If `files` is omitted, `gh aw add` falls back to scanning `workflows/` and `.github/workflows/` for installable markdown workflows.
 - If `docs` is omitted, `gh aw add` probes `docs/<package-name>.md`, then `docs/<workflow-basename>.md`, then falls back to the first installable workflow file.
 
-The embedded JSON schema source of truth lives in [`pkg/parser/schemas/aw_manifest_schema.json`](https://github.com/github/gh-aw/blob/main/pkg/parser/schemas/aw_manifest_schema.json).
+The embedded JSON schema source of truth lives in `pkg/parser/schemas/aw_manifest_schema.json` in this repository.
