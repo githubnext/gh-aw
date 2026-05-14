@@ -965,6 +965,13 @@ jobs:
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
+      - name: Remove wazero MCP cache
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -d /tmp/gh-aw/mcp-logs/wazero-cache ]; then
+            sudo rm -rf /tmp/gh-aw/mcp-logs/wazero-cache 2>/dev/null || rm -rf /tmp/gh-aw/mcp-logs/wazero-cache
+          fi
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
