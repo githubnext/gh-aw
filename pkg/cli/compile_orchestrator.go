@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -50,7 +51,7 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	// Set up workflow directory (using default if not specified)
 	workflowDir := config.WorkflowDir
 	if workflowDir == "" {
-		workflowDir = ".github/workflows"
+		workflowDir = constants.GetWorkflowDir()
 		compileOrchestratorLog.Printf("Using default workflow directory: %s", workflowDir)
 	} else {
 		workflowDir = filepath.Clean(workflowDir)

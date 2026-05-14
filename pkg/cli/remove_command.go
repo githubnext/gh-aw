@@ -209,10 +209,10 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		}
 	}
 
-	// Find all include files in .github/workflows
+	// Find all include files in the workflows directory
 	// Only consider files in subdirectories (like shared/) as potential include files
 	// Root-level .md files are workflow files, not include files
-	workflowsDir := ".github/workflows"
+	workflowsDir := constants.GetWorkflowDir()
 	var allIncludes []string
 
 	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
@@ -328,7 +328,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 
 // getAllIncludeFiles returns all include files in .github/workflows subdirectories
 func getAllIncludeFiles() ([]string, error) {
-	workflowsDir := ".github/workflows"
+	workflowsDir := constants.GetWorkflowDir()
 	var allIncludes []string
 
 	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
@@ -357,7 +357,7 @@ func getAllIncludeFiles() ([]string, error) {
 
 // cleanupAllIncludes removes all include files when no workflows remain
 func cleanupAllIncludes(verbose bool) error {
-	workflowsDir := ".github/workflows"
+	workflowsDir := constants.GetWorkflowDir()
 
 	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

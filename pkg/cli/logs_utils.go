@@ -30,7 +30,7 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 	var workflowNames []string
 
 	// Look for .lock.yml files in .github/workflows directory
-	workflowsDir := ".github/workflows"
+	workflowsDir := constants.GetWorkflowDir()
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No .github/workflows directory found"))

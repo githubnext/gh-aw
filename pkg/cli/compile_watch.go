@@ -14,6 +14,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -29,9 +30,9 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		return fmt.Errorf("watch mode requires being in a git repository: %w", err)
 	}
 
-	workflowsDir := filepath.Join(gitRoot, ".github/workflows")
+	workflowsDir := filepath.Join(gitRoot, constants.GetWorkflowDir())
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("the .github/workflows directory does not exist in git root (%s)", gitRoot)
+		return fmt.Errorf("the %s directory does not exist in git root (%s)", constants.GetWorkflowDir(), gitRoot)
 	}
 
 	// If a specific file is provided, watch only that file and its directory

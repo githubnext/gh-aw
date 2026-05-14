@@ -196,11 +196,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 
 		_, _, err := readWorkflowFile(normalizedID+".md", workflowsDir)
 		if err != nil {
-			return fmt.Errorf("failed to find workflow in local .github/workflows: %w", err)
+			return fmt.Errorf("failed to find workflow in local %s: %w", workflowsDir, err)
 		}
 
-		// Check if the lock file exists in .github/workflows
-		lockFilePath = filepath.Join(".github/workflows", lockFileName)
+		// Check if the lock file exists in the workflows directory
+		lockFilePath = filepath.Join(constants.GetWorkflowDir(), lockFileName)
 		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 			executionLog.Printf("Lock file not found: %s (workflow must be compiled first)", lockFilePath)
 			suggestions := []string{
@@ -208,7 +208,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 				fmt.Sprintf("Run '%s compile %s' to compile this specific workflow", string(constants.CLIExtensionPrefix), normalizedID),
 			}
 			errMsg := console.FormatErrorWithSuggestions(
-				fmt.Sprintf("workflow lock file '%s' not found in .github/workflows", lockFileName),
+				fmt.Sprintf("workflow lock file '%s' not found in %s", lockFileName, constants.GetWorkflowDir()),
 				suggestions,
 			)
 			return errors.New(errMsg)

@@ -233,14 +233,20 @@ function shouldRetryWithContinue({ attempt, maxRetries, exitCode, hasOutput, isN
 
 /**
  * Resolve --prompt-file arguments for the initial Claude run.
- * Strips the --prompt-file <path> pair from args and appends the file content
- * as the last positional argument, which is where Claude Code expects the prompt.
+ * Strips the --prompt-file <path> pair from args and appends -- followed by
+ * the file content as the last positional argument.
+ *
+ * The end-of-options marker (--) is essential: Claude Code 2.x treats any
+ * non-flag argument that follows --mcp-config as an additional config file
+ * path (variadic flag).  Without --, a long prompt appended after
+ * --mcp-config <path> would be used as a file path, producing an
+ * ENAMETOOLONG error when the prompt exceeds PATH_MAX (~4096 bytes).
  *
  * For --continue retries the prompt should be omitted entirely (Claude resumes
  * from its on-disk session state).  Call this function only for the initial run.
  *
  * @param {string[]} args
- * @returns {string[]} Args with --prompt-file resolved to inline prompt content
+ * @returns {string[]} Args with --prompt-file resolved to ["--", <content>]
  */
 function resolveClaudePromptFileArgs(args) {
   /** @type {string[]} */
@@ -275,8 +281,13 @@ function resolveClaudePromptFileArgs(args) {
     i++; // Skip the prompt-file path argument
   }
 
-  // Append the prompt content as the last positional argument (Claude Code convention).
+  // Append an end-of-options marker followed by the prompt content.
+  // The '--' prevents Claude Code from treating the prompt text as an additional
+  // --mcp-config value (Claude Code 2.x accepts that flag variadically, so any
+  // non-flag positional argument that follows --mcp-config <path> would otherwise
+  // be tried as a second config file path, causing ENAMETOOLONG for long prompts).
   if (promptContent !== null) {
+    filteredArgs.push("--");
     filteredArgs.push(promptContent);
   }
 
@@ -346,11 +357,12 @@ async function main() {
   // initialArgs carries prompt text as its last positional arg.
   const hadPromptFile = args.includes("--prompt-file");
 
-  // Safe arg list for logging: when --prompt-file was present, the last element of
-  // initialArgs is the resolved prompt content. Replace it with a placeholder so that
-  // task instructions are never written to stderr or captured in agent logs.
-  const safeInitialArgs = hadPromptFile && initialArgs.length > 0 ? [...initialArgs.slice(0, -1), "<prompt omitted>"] : initialArgs;
-  const safeFreshRetryArgs = hadPromptFile && freshRetryArgs.length > 0 ? [...freshRetryArgs.slice(0, -1), "<prompt omitted>"] : freshRetryArgs;
+  // Safe arg list for logging: when --prompt-file was present, the last two elements of
+  // initialArgs are the -- end-of-options marker and the resolved prompt content.
+  // Strip both and replace with a placeholder so task instructions are never written
+  // to stderr or captured in agent logs.
+  const safeInitialArgs = hadPromptFile && initialArgs.length > 0 ? [...initialArgs.slice(0, -2), "<prompt omitted>"] : initialArgs;
+  const safeFreshRetryArgs = hadPromptFile && freshRetryArgs.length > 0 ? [...freshRetryArgs.slice(0, -2), "<prompt omitted>"] : freshRetryArgs;
 
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.

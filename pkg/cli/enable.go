@@ -277,7 +277,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 // Typically used to disable all workflows except the one being trialled
 func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbose bool) error {
 	enableLog.Printf("Disabling all workflows except: count=%d, repo=%s", len(exceptWorkflows), repoSlug)
-	workflowsDir := ".github/workflows"
+	workflowsDir := constants.GetWorkflowDir()
 
 	// Check if workflows directory exists
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {

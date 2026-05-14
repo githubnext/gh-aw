@@ -18,6 +18,23 @@ func TestGetWorkflowDir(t *testing.T) {
 	}
 }
 
+func TestGetWorkflowDirEnvOverride(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "/tmp/custom-workflows")
+	result := GetWorkflowDir()
+	if result != "/tmp/custom-workflows" {
+		t.Errorf("GetWorkflowDir() with GH_AW_WORKFLOWS_DIR set = %q, want %q", result, "/tmp/custom-workflows")
+	}
+}
+
+func TestGetWorkflowDirEnvEmpty(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+	expected := filepath.Join(".github", "workflows")
+	result := GetWorkflowDir()
+	if result != expected {
+		t.Errorf("GetWorkflowDir() with empty GH_AW_WORKFLOWS_DIR = %q, want %q", result, expected)
+	}
+}
+
 func TestDefaultAllowedDomains(t *testing.T) {
 	if len(DefaultAllowedDomains) == 0 {
 		t.Error("DefaultAllowedDomains should not be empty")

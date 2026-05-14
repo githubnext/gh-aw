@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // processImportsFromFrontmatterWithManifestAndSource is the internal implementation that includes source tracking.
@@ -399,7 +400,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					// Use the parent's BasePath if available, otherwise default to .github/workflows
 					basePath := item.remoteOrigin.BasePath
 					if basePath == "" {
-						basePath = ".github/workflows"
+						basePath = constants.GetWorkflowDir()
 					}
 					// Clean the basePath to ensure it's normalized
 					basePath = path.Clean(basePath)

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -183,7 +184,7 @@ func validateCompileConfig(config CompileConfig) error {
 			compileValidationLog.Print("Config validation failed: dependabot flag with specific files")
 			return errors.New("--dependabot flag cannot be used with specific workflow files")
 		}
-		if config.WorkflowDir != "" && config.WorkflowDir != ".github/workflows" {
+		if config.WorkflowDir != "" && config.WorkflowDir != constants.GetWorkflowDir() {
 			compileValidationLog.Printf("Config validation failed: dependabot with custom dir: %s", config.WorkflowDir)
 			return errors.New("--dependabot flag cannot be used with custom --dir")
 		}

@@ -272,7 +272,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 		// Determine workflow directory
 		workflowsDir := workflowDir
 		if workflowsDir == "" {
-			workflowsDir = ".github/workflows"
+			workflowsDir = constants.GetWorkflowDir()
 		}
 
 		// Compile all workflow files

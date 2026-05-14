@@ -51,23 +51,23 @@ function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = []
 
 describe("claude_harness.cjs", () => {
   describe("resolveClaudePromptFileArgs", () => {
-    it("replaces --prompt-file with the file's content as the last positional arg", () => {
+    it("replaces --prompt-file with ['--', content] as the last two positional args", () => {
       const promptFile = path.join(os.tmpdir(), `claude-harness-prompt-${Date.now()}.txt`);
       fs.writeFileSync(promptFile, "fix the bug", "utf8");
       try {
         const result = resolveClaudePromptFileArgs(["--print", "--prompt-file", promptFile, "--output-format", "stream-json"]);
-        expect(result).toEqual(["--print", "--output-format", "stream-json", "fix the bug"]);
+        expect(result).toEqual(["--print", "--output-format", "stream-json", "--", "fix the bug"]);
       } finally {
         fs.rmSync(promptFile);
       }
     });
 
-    it("appends prompt content as the last arg when other positional args precede it", () => {
+    it("appends -- and prompt content as the last two args", () => {
       const promptFile = path.join(os.tmpdir(), `claude-harness-prompt-${Date.now()}.txt`);
       fs.writeFileSync(promptFile, "my task", "utf8");
       try {
         const result = resolveClaudePromptFileArgs(["--prompt-file", promptFile]);
-        expect(result).toEqual(["my task"]);
+        expect(result).toEqual(["--", "my task"]);
       } finally {
         fs.rmSync(promptFile);
       }
@@ -95,6 +95,25 @@ describe("claude_harness.cjs", () => {
         expect(() => resolveClaudePromptFileArgs(["--prompt-file", dir])).toThrow(`--prompt-file '${dir}' is not readable`);
       } finally {
         fs.rmdirSync(dir);
+      }
+    });
+
+    it("places -- between --mcp-config and prompt to prevent ENAMETOOLONG (Claude Code 2.x variadic flag)", () => {
+      // Claude Code 2.x treats any non-flag positional argument that follows
+      // --mcp-config as a second config file path. A large prompt without the --
+      // separator would exceed PATH_MAX (~4096 bytes) and fail with ENAMETOOLONG.
+      const promptFile = path.join(os.tmpdir(), `claude-harness-prompt-${Date.now()}.txt`);
+      const longPrompt = "<system>".padEnd(5000, "x");
+      fs.writeFileSync(promptFile, longPrompt, "utf8");
+      try {
+        const result = resolveClaudePromptFileArgs([
+          "--mcp-config", "/tmp/mcp-servers.json",
+          "--prompt-file", promptFile,
+        ]);
+        // The -- must immediately precede the prompt content, not adjacent to --mcp-config.
+        expect(result).toEqual(["--mcp-config", "/tmp/mcp-servers.json", "--", longPrompt]);
+      } finally {
+        fs.rmSync(promptFile);
       }
     });
   });

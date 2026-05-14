@@ -115,7 +115,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 
 	// Set up workflow directory (using default if not specified)
 	if workflowDir == "" {
-		workflowDir = ".github/workflows"
+		workflowDir = constants.GetWorkflowDir()
 		fixLog.Printf("Using default workflow directory: %s", workflowDir)
 	} else {
 		workflowDir = filepath.Clean(workflowDir)
