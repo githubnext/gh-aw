@@ -346,6 +346,20 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokens
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensIntegerZeroInvalid(t *testing.T) {
+	t.Parallel()
+
+	invalidFrontmatter := map[string]any{
+		"on":                   "push",
+		"max-effective-tokens": 0,
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/max-effective-tokens-zero-integer-test.md")
+	if err == nil {
+		t.Fatal("expected max-effective-tokens=0 (integer) to fail schema validation")
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpressions(t *testing.T) {
 	t.Parallel()
 

@@ -309,7 +309,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if engineConfig.MaxEffectiveTokens == 0 && importsResult.MergedMaxEffectiveTokens != "" {
 		var importedMaxTokens any
 		if err := json.Unmarshal([]byte(importsResult.MergedMaxEffectiveTokens), &importedMaxTokens); err == nil {
-			if parsed := parseMaxEffectiveTokensValue(importedMaxTokens); parsed > 0 {
+			if parsed := parseMaxEffectiveTokensValue(importedMaxTokens); parsed != 0 {
 				engineConfig.MaxEffectiveTokens = parsed
 				orchestratorEngineLog.Printf("Applied max-effective-tokens from import")
 			}
