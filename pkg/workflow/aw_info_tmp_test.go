@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var ghAwInfoFrontmatterHashPattern = regexp.MustCompile(`(?m)^\s*GH_AW_INFO_FRONTMATTER_HASH:\s*"([^"]+)"\s*$`)
+var awInfoFrontmatterHashRe = regexp.MustCompile(`(?m)^\s*GH_AW_INFO_FRONTMATTER_HASH:\s*"([^"]+)"\s*$`)
 
 func TestAwInfoTmpPath(t *testing.T) {
 	// Create temporary directory for test files
@@ -150,7 +150,7 @@ strict: false
 	require.NotNil(t, metadata)
 	require.NotEmpty(t, metadata.FrontmatterHash)
 
-	matches := ghAwInfoFrontmatterHashPattern.FindStringSubmatch(lockStr)
+	matches := awInfoFrontmatterHashRe.FindStringSubmatch(lockStr)
 	require.Len(t, matches, 2, "expected GH_AW_INFO_FRONTMATTER_HASH env var in lock file")
 	envFrontmatterHash := matches[1]
 
