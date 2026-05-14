@@ -20,7 +20,7 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 // In release mode: installs the released CLI via the setup-cli action (gh aw available)
 // In action mode: installs the released CLI via the gh-aw-actions/setup-cli action (gh aw available)
 // When resolver is non-nil, attempts to resolve the setup-cli action to a SHA-pinned reference.
-func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
+func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string, resolver SHAResolver) string {
 	if actionMode == ActionModeDev {
 		return `      - name: Setup Go
         uses: ` + getActionPin("actions/setup-go") + `
@@ -65,7 +65,7 @@ func generateInstallCLISteps(actionMode ActionMode, version string, actionTag st
 // resolveActionRef attempts to resolve an action repo@tag to a SHA-pinned reference
 // using the provided resolver. If the resolver is nil or resolution fails, it returns
 // the tag-based reference (repo@tag).
-func resolveActionRef(actionRepo, tag string, resolver ActionSHAResolver) string {
+func resolveActionRef(actionRepo, tag string, resolver SHAResolver) string {
 	if resolver != nil && tag != "" && tag != "dev" {
 		sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
 		if err != nil {
@@ -141,7 +141,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	// Get the setup action reference (local or remote based on mode).
 	// Use the first available WorkflowData's ActionResolver to enable SHA pinning.
 	// Computed early so it is available in the !hasExpires path for side-repo workflows.
-	var resolver ActionSHAResolver
+	var resolver SHAResolver
 	if len(workflowDataList) > 0 && workflowDataList[0].ActionResolver != nil {
 		resolver = workflowDataList[0].ActionResolver
 	}

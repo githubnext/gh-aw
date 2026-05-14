@@ -26,7 +26,7 @@ const (
 //   - actionMode: The action mode (dev, release, or action)
 //   - version: The version string to use for release/action mode
 //   - actionTag: Optional override tag/SHA (takes precedence over version when in release mode)
-//   - resolver: Optional ActionSHAResolver for dynamic SHA resolution (can be nil for standalone use)
+//   - resolver: Optional SHAResolver for dynamic SHA resolution (can be nil for standalone use)
 //
 // Returns:
 //   - For dev mode: "./actions/setup" (local path)
@@ -35,14 +35,14 @@ const (
 //   - For action mode with resolver: "github/gh-aw-actions/setup@<sha> # <version>" (SHA-pinned)
 //   - For action mode without resolver: "github/gh-aw-actions/setup@<version>" (tag-based, SHA resolved later)
 //   - Falls back to local path if version is invalid in release/action mode
-func ResolveSetupActionReference(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
+func ResolveSetupActionReference(actionMode ActionMode, version string, actionTag string, resolver SHAResolver) string {
 	return resolveSetupActionRef(actionMode, version, actionTag, resolver, "")
 }
 
 // resolveSetupActionRef is the internal implementation of ResolveSetupActionReference
 // that accepts an optional actionsOrgRepo override. When actionsOrgRepo is empty,
 // GitHubActionsOrgRepo is used.
-func resolveSetupActionRef(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver, actionsOrgRepo string) string {
+func resolveSetupActionRef(actionMode ActionMode, version string, actionTag string, resolver SHAResolver, actionsOrgRepo string) string {
 	if actionsOrgRepo == "" {
 		actionsOrgRepo = GitHubActionsOrgRepo
 	}
@@ -159,7 +159,7 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 	// For ./actions/setup, check for compiler-level actionTag override first
 	if localActionPath == "./actions/setup" {
 		// Use compiler actionTag if available, otherwise check features
-		var resolver ActionSHAResolver
+		var resolver SHAResolver
 		if data != nil && data.ActionResolver != nil {
 			resolver = data.ActionResolver
 		}

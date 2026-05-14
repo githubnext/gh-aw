@@ -25,6 +25,10 @@ type ActionPinsData = actionpins.ActionPinsData
 // ContainerPin is the pinned container image type from pkg/actionpins.
 type ContainerPin = actionpins.ContainerPin
 
+// SHAResolver is the interface for resolving a GitHub Action's commit SHA for a given version tag.
+// It aliases actionpins.SHAResolver so pkg/workflow files can reference it without a separate import.
+type SHAResolver = actionpins.SHAResolver
+
 // --------------------------------------------------------------------------
 // Package-private helpers used throughout pkg/workflow
 // --------------------------------------------------------------------------
@@ -94,7 +98,7 @@ func (c *Compiler) getActionPin(repo string) string {
 // getCachedActionPinFromResolver returns the pinned action reference for repo,
 // preferring dynamic resolution via resolver over the embedded pins.
 // For use within pkg/workflow when only a resolver is available (no WorkflowData).
-func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) string {
+func getCachedActionPinFromResolver(repo string, resolver SHAResolver) string {
 	ctx := &actionpins.PinContext{}
 	if resolver != nil {
 		ctx.Resolver = resolver

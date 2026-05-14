@@ -16,7 +16,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// mockSHAResolver is a test double for workflow.ActionSHAResolver that returns a fixed SHA
+// mockSHAResolver is a test double for workflow.SHAResolver that returns a fixed SHA
 type mockSHAResolver struct {
 	sha string
 	err error
@@ -1020,7 +1020,7 @@ func TestUpgradeSetupCliVersionInContent(t *testing.T) {
 		content       string
 		actionMode    workflow.ActionMode
 		version       string
-		resolver      workflow.ActionSHAResolver
+		resolver      workflow.SHAResolver
 		expectUpgrade bool
 		validate      func(*testing.T, string)
 	}{
@@ -1436,7 +1436,7 @@ func TestGetActionRef(t *testing.T) {
 		name        string
 		actionMode  workflow.ActionMode
 		version     string
-		resolver    workflow.ActionSHAResolver
+		resolver    workflow.SHAResolver
 		expectedRef string
 	}{
 		{
