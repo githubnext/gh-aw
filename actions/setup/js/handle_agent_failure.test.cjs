@@ -2073,18 +2073,12 @@ describe("handle_agent_failure", () => {
     let tmpDir;
 
     beforeEach(() => {
-      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
-      global.github = {};
-      global.context = { repo: { owner: "owner", repo: "repo" } };
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-table-test-"));
-      ({ buildETComputationTable, AGENT_USAGE_PATH } = require("./handle_agent_failure.cjs"));
+      ({ buildETComputationTable, AGENT_USAGE_PATH } = require("./effective_tokens.cjs"));
     });
 
     afterEach(() => {
-      delete global.core;
-      delete global.github;
-      delete global.context;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
@@ -2108,7 +2102,7 @@ describe("handle_agent_failure", () => {
 
       try {
         vi.resetModules();
-        ({ buildETComputationTable } = require("./handle_agent_failure.cjs"));
+        ({ buildETComputationTable } = require("./effective_tokens.cjs"));
         const result = buildETComputationTable("200000");
         expect(result).toContain("100,000");
         expect(result).toContain("10,000");
