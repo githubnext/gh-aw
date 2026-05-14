@@ -116,7 +116,7 @@ if [ -f /tmp/gh-aw/otel.jsonl ]; then
   wc -l /tmp/gh-aw/otel.jsonl
   jq -c '.resourceSpans[]?.scopeSpans[]?.spans[]? | {name, traceId}' /tmp/gh-aw/otel.jsonl | head -10
   echo "=== Current run markers in local mirror ==="
-  jq -c '.resourceSpans[]?.scopeSpans[]?.spans[]? as $span | {name: $span.name, run_id: ([($span.attributes[]? | select(.key == "github.run_id") | .value.stringValue)] | first // "")}' /tmp/gh-aw/otel.jsonl | grep '"run_id":"${{ github.run_id }}"' | head -5 || true
+  jq -c '.resourceSpans[]? as $rs | ([($rs.resource.attributes[]? | select(.key == "github.run_id") | .value.stringValue)] | first // "") as $run_id | $rs.scopeSpans[]?.spans[]? | {name, run_id: $run_id}' /tmp/gh-aw/otel.jsonl | grep '"run_id":"${{ github.run_id }}"' | head -5 || true
 else
   echo "otel.jsonl missing"
 fi
