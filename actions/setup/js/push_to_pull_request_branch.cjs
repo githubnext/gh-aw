@@ -59,9 +59,10 @@ function parseAwContext(rawAwContext) {
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
-    const parsedObj = /** @type {Record<string, unknown>} */ (parsed);
-    const itemType = typeof parsedObj.item_type === "string" ? parsedObj.item_type : "";
-    const itemNumber = parsePositiveInteger(parsedObj.item_number);
+    const itemTypeValue = Reflect.get(parsed, "item_type");
+    const itemNumberValue = Reflect.get(parsed, "item_number");
+    const itemType = typeof itemTypeValue === "string" ? itemTypeValue : "";
+    const itemNumber = parsePositiveInteger(itemNumberValue);
     return { item_type: itemType, item_number: itemNumber };
   }
 
