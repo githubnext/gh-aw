@@ -88,7 +88,7 @@ func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host strin
 			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
 		}
 		if packagePath != "" {
-			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", joinRepositoryPackagePath(repoSlug, packagePath), packagePath, manifestPath)
+			return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", repoSlug+"/"+packagePath, packagePath, manifestPath)
 		}
 		return "", nil, fmt.Errorf("repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", repoSlug)
 	}
