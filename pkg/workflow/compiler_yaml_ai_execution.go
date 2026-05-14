@@ -148,20 +148,6 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh\" \"$GATEWAY_PID\"\n")
 }
 
-// generateWazeroCacheCleanupStep removes unreadable wazero MCP cache files after the
-// agent and MCP gateway have stopped so they cannot break later artifact processing.
-func (c *Compiler) generateWazeroCacheCleanupStep(yaml *strings.Builder) {
-	compilerYamlLog.Print("Generating wazero cache cleanup step")
-
-	yaml.WriteString("      - name: Remove wazero MCP cache\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        continue-on-error: true\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          if [ -d /tmp/gh-aw/mcp-logs/wazero-cache ]; then\n")
-	yaml.WriteString("            sudo rm -rf /tmp/gh-aw/mcp-logs/wazero-cache 2>/dev/null || rm -rf /tmp/gh-aw/mcp-logs/wazero-cache\n")
-	yaml.WriteString("          fi\n")
-}
-
 // generateAgentOutputPlaceholderStep generates a step that writes a minimal {"items":[]}
 // placeholder to agent_output.json when the engine exits before producing any safe outputs.
 // This prevents downstream safe_outputs and conclusion jobs from receiving an ENOENT error
