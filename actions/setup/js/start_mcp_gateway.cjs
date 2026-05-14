@@ -104,7 +104,10 @@ function hasNonEmptyOTLPHeaders(headers) {
   if (typeof headers === "object") {
     return Object.values(headers).some(value => hasNonEmptyOTLPHeaders(value));
   }
-  return String(headers).trim() !== "";
+  // For unexpected primitive types (number/boolean/symbol/bigint), keep headers
+  // intact so downstream validation can fail explicitly rather than silently
+  // treating them as "missing".
+  return true;
 }
 
 /**
