@@ -38,8 +38,8 @@ Examples:
 
 Workflow specifications:
   - Two parts: "owner/repo[@version]" (loads repository-root aw.yml package)
-  - Three+ parts without .md: "owner/repo/folder[@version]" (loads nested aw.yml package when present)
-  - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
+  - Three parts without .md: "owner/repo/name[@version]" (tries owner/repo/name/aw.yml first, then falls back to workflows/name.md)
+  - Four+ parts without .md: "owner/repo/folder[/subfolder][@version]" (loads nested aw.yml package when present)
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
   - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
   - Local file: "./path/to/workflow.md"

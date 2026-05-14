@@ -45,6 +45,11 @@ func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
 			wantFiles:     []string{"review.md", "review.lock.yml", "nightly-review.md", "nightly-review.lock.yml"},
 			wantErr:       false,
 		},
+		{
+			name:          "invalid resolved workflow fails loudly",
+			workflowSpecs: []string{"owner/repo"},
+			wantErr:       true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -61,6 +66,13 @@ func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
 						{
 							Spec: &WorkflowSpec{WorkflowName: "nightly-review"},
 						},
+					},
+				}
+			}
+			if tt.name == "invalid resolved workflow fails loudly" {
+				config.resolvedWorkflows = &ResolvedWorkflows{
+					Workflows: []*ResolvedWorkflow{
+						{},
 					},
 				}
 			}

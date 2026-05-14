@@ -218,19 +218,20 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 func (c *AddInteractiveConfig) workflowNamesForInteractiveAdd() ([]string, error) {
 	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
 		workflowNames := make([]string, 0, len(c.resolvedWorkflows.Workflows))
-		for _, resolvedWorkflow := range c.resolvedWorkflows.Workflows {
-			if resolvedWorkflow == nil || resolvedWorkflow.Spec == nil {
-				continue
+		for i, resolvedWorkflow := range c.resolvedWorkflows.Workflows {
+			if resolvedWorkflow == nil {
+				return nil, fmt.Errorf("resolved workflow %d is nil", i+1)
+			}
+			if resolvedWorkflow.Spec == nil {
+				return nil, fmt.Errorf("resolved workflow %d is missing its specification", i+1)
 			}
 			workflowName := strings.TrimSpace(resolvedWorkflow.Spec.WorkflowName)
 			if workflowName == "" {
-				continue
+				return nil, fmt.Errorf("resolved workflow %d is missing its workflow name", i+1)
 			}
 			workflowNames = append(workflowNames, workflowName)
 		}
-		if len(workflowNames) > 0 {
-			return workflowNames, nil
-		}
+		return workflowNames, nil
 	}
 
 	workflowNames := make([]string, 0, len(c.WorkflowSpecs))
