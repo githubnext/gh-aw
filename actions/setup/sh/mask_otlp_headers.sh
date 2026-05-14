@@ -30,6 +30,8 @@ set -euo pipefail
 # mask_headers masks all values in a comma-separated key=value headers string.
 mask_headers() {
   local _headers="$1"
+  local -a _pairs
+  local _pair _val _no_bearer
   [ -z "$_headers" ] && return
 
   # Level 1: mask the entire comma-separated headers string.
@@ -37,11 +39,15 @@ mask_headers() {
 
   # Levels 2 & 3: split on commas, extract each value, and mask it individually.
   # For "Bearer <token>" values, also mask the raw token without the scheme prefix.
-  printf '%s' "$_headers" | tr ',' '\n' | while IFS= read -r _pair; do
+  # Use mapfile rather than a pipeline so the loop completion doesn't trip errexit.
+  mapfile -t _pairs < <(printf '%s' "$_headers" | tr ',' '\n')
+  for _pair in "${_pairs[@]}"; do
     _val="${_pair#*=}"
     [ -n "$_val" ] && echo '::add-mask::'"$_val"
     _no_bearer="${_val#Bearer }"
-    [ "$_no_bearer" != "$_val" ] && echo '::add-mask::'"$_no_bearer"
+    if [ "$_no_bearer" != "$_val" ]; then
+      echo '::add-mask::'"$_no_bearer"
+    fi
   done
 }
 

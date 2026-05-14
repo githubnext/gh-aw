@@ -143,10 +143,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Add MCP configuration only if there are MCP servers
+	// Add MCP configuration only if there are MCP servers.
+	// Keep this argument outside shellJoinArgs so ${RUNNER_TEMP} expands at runtime.
+	mcpConfigArg := ""
 	if HasMCPServers(workflowData) {
 		claudeLog.Print("Adding MCP configuration")
-		claudeArgs = append(claudeArgs, "--mcp-config", "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json")
+		mcpConfigArg = ` --mcp-config "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"`
 	}
 
 	// Add allowed tools configuration
@@ -235,7 +237,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// as the last positional arg on the initial run.  On --continue retries it omits the
 		// prompt so Claude Code resumes from its on-disk session state.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		claudeCommand = fmt.Sprintf("%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt", execPrefix, shellJoinArgs(claudeArgs))
+		claudeCommand = fmt.Sprintf("%s %s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt", execPrefix, shellJoinArgs(claudeArgs), mcpConfigArg)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
 		//
@@ -243,7 +245,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// shell variable references ("$(cat ...)") that must NOT be escaped —
 		// single-quoting them would prevent shell expansion at runtime.
 		promptCommand := `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
-		claudeCommand = fmt.Sprintf("%s %s", shellJoinArgs(append([]string{commandName}, claudeArgs...)), promptCommand)
+		claudeCommand = fmt.Sprintf("%s%s %s", shellJoinArgs(append([]string{commandName}, claudeArgs...)), mcpConfigArg, promptCommand)
 	}
 
 	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
