@@ -2007,19 +2007,27 @@ describe("handle_agent_failure", () => {
 
   describe("buildEffectiveTokensRateLimitErrorContext", () => {
     let buildEffectiveTokensRateLimitErrorContext;
+    let buildETComputationTable;
+    let readAgentUsage;
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
 
     beforeEach(() => {
       global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
       global.github = {};
       global.context = { repo: { owner: "owner", repo: "repo" } };
       vi.resetModules();
-      ({ buildEffectiveTokensRateLimitErrorContext } = require("./handle_agent_failure.cjs"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-test-"));
+      ({ buildEffectiveTokensRateLimitErrorContext, buildETComputationTable, readAgentUsage } = require("./handle_agent_failure.cjs"));
     });
 
     afterEach(() => {
       delete global.core;
       delete global.github;
       delete global.context;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
     it("formats effective token values in friendly compact form", () => {
@@ -2044,6 +2052,86 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Effective tokens used:");
       expect(result).not.toContain("Configured ET budget:");
       expect(result).not.toContain("- Run:");
+    });
+
+    it("includes a link to the ET specification docs", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("https://github.github.com/gh-aw/reference/effective-tokens-specification/");
+    });
+
+    it("includes a link to the token optimization guide", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md");
+    });
+
+    it("includes a collapsible details section for ET computation", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("<details>");
+      expect(result).toContain("</details>");
+      expect(result).toContain("ET computation details");
+    });
+  });
+
+  describe("buildETComputationTable", () => {
+    let buildETComputationTable;
+    let readAgentUsage;
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
+    let origAgentUsagePath;
+
+    beforeEach(() => {
+      global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+      global.github = {};
+      global.context = { repo: { owner: "owner", repo: "repo" } };
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-table-test-"));
+      ({ buildETComputationTable, readAgentUsage } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it("shows weights-only table when agent_usage.json is absent", () => {
+      // No agent_usage.json written — readAgentUsage() returns null
+      const result = buildETComputationTable("10000000");
+      expect(result).toContain("<details>");
+      expect(result).toContain("</details>");
+      expect(result).toContain("ET computation details");
+      // Should show weight rows without counts
+      expect(result).toContain("Input");
+      expect(result).toContain("Output");
+    });
+
+    it("shows full computation table when agent_usage.json is present", () => {
+      const agentUsagePath = "/tmp/gh-aw/agent_usage.json";
+      const origContent = fs.existsSync(agentUsagePath) ? fs.readFileSync(agentUsagePath, "utf8") : null;
+
+      const usage = { input_tokens: 100000, output_tokens: 10000, cache_read_tokens: 500000, cache_write_tokens: 5000, effective_tokens: 200000 };
+      fs.mkdirSync(path.dirname(agentUsagePath), { recursive: true });
+      fs.writeFileSync(agentUsagePath, JSON.stringify(usage));
+
+      try {
+        vi.resetModules();
+        ({ buildETComputationTable } = require("./handle_agent_failure.cjs"));
+        const result = buildETComputationTable("200000");
+        expect(result).toContain("100,000");
+        expect(result).toContain("10,000");
+        expect(result).toContain("500,000");
+        expect(result).toContain("5,000");
+        expect(result).toContain("Base weighted");
+      } finally {
+        if (origContent !== null) {
+          fs.writeFileSync(agentUsagePath, origContent);
+        } else if (fs.existsSync(agentUsagePath)) {
+          fs.unlinkSync(agentUsagePath);
+        }
+      }
     });
   });
 

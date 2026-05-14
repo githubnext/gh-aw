@@ -12,7 +12,7 @@ const { formatMissingData, formatMissingTools } = require("./missing_info_format
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState } = require("./effective_tokens_context.cjs");
-const { formatET } = require("./effective_tokens.cjs");
+const { formatET, getTokenClassWeights } = require("./effective_tokens.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -839,6 +839,83 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
   }
 }
 
+const AGENT_USAGE_PATH = "/tmp/gh-aw/agent_usage.json";
+
+/**
+ * Read the aggregated token usage written by parse_token_usage.cjs.
+ * Returns null when the file is absent or unparseable.
+ * @returns {{input_tokens: number, output_tokens: number, cache_read_tokens: number, cache_write_tokens: number, effective_tokens: number} | null}
+ */
+function readAgentUsage() {
+  try {
+    if (!fs.existsSync(AGENT_USAGE_PATH)) return null;
+    const content = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
+    if (!content.trim()) return null;
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a collapsible `<details>` table showing the data used to compute ET.
+ * Uses actual token counts from agent_usage.json when available, otherwise shows
+ * the formula and weights only.
+ * @param {string} effectiveTokens - Total effective token count (string)
+ * @returns {string} Markdown/HTML fragment, or empty string
+ */
+function buildETComputationTable(effectiveTokens) {
+  const w = getTokenClassWeights();
+  const usage = readAgentUsage();
+
+  const lines = [];
+  lines.push("<details>");
+  lines.push(
+    `<summary>ET computation details (formula: ${w.input}×input + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier)</summary>`
+  );
+  lines.push("");
+
+  if (usage) {
+    const inputWeighted = w.input * (usage.input_tokens || 0);
+    const cachedWeighted = w.cached_input * (usage.cache_read_tokens || 0);
+    const outputWeighted = w.output * (usage.output_tokens || 0);
+    const cacheWriteWeighted = w.cache_write * (usage.cache_write_tokens || 0);
+    const baseWeighted = inputWeighted + cachedWeighted + outputWeighted + cacheWriteWeighted;
+
+    lines.push("| Token class | Count | Weight | Weighted tokens |");
+    lines.push("|-------------|------:|------:|---------------:|");
+    lines.push(`| Input | ${(usage.input_tokens || 0).toLocaleString()} | ×${w.input} | ${Math.round(inputWeighted).toLocaleString()} |`);
+    lines.push(`| Cached input | ${(usage.cache_read_tokens || 0).toLocaleString()} | ×${w.cached_input} | ${Math.round(cachedWeighted).toLocaleString()} |`);
+    lines.push(`| Output | ${(usage.output_tokens || 0).toLocaleString()} | ×${w.output} | ${Math.round(outputWeighted).toLocaleString()} |`);
+    lines.push(`| Cache write | ${(usage.cache_write_tokens || 0).toLocaleString()} | ×${w.cache_write} | ${Math.round(cacheWriteWeighted).toLocaleString()} |`);
+    lines.push(`| **Base weighted** | | | **${Math.round(baseWeighted).toLocaleString()}** |`);
+
+    const etVal = Number.parseInt(effectiveTokens || "", 10);
+    if (Number.isInteger(etVal) && etVal > 0 && baseWeighted > 0) {
+      const multiplier = etVal / baseWeighted;
+      lines.push(`| **Model multiplier** | | ×${multiplier.toFixed(2)} | **${etVal.toLocaleString()}** |`);
+    }
+  } else {
+    lines.push("| Token class | Weight |");
+    lines.push("|-------------|-------:|");
+    lines.push(`| Input | ×${w.input} |`);
+    lines.push(`| Cached input | ×${w.cached_input} |`);
+    lines.push(`| Output | ×${w.output} |`);
+    lines.push(`| Reasoning | ×${w.reasoning} |`);
+    lines.push(`| Cache write | ×${w.cache_write} |`);
+    lines.push("");
+    lines.push("_Token counts unavailable — see step summary for per-model breakdown._");
+  }
+
+  lines.push("");
+  lines.push("</details>");
+  lines.push("");
+
+  return lines.join("\n");
+}
+
 /**
  * Build a context string when ET budget exhaustion/rate-limit is detected from gateway logs.
  * @param {boolean} hasEffectiveTokensRateLimitError
@@ -863,7 +940,16 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
   const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${formatEffectiveTokensForMessage(maxEffectiveTokens)}\`` : "";
   const runLine = runUrl ? `\n- Run: ${runUrl}` : "";
 
-  return `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.${usageLine}${budgetLine}${runLine}\n\nPrefer ET budget controls for diagnosis instead of run-count heuristics. You can tune this limit with \`max-effective-tokens\` in workflow frontmatter.\n`;
+  const etTableSection = buildETComputationTable(effectiveTokens);
+
+  const etSpecLink = "https://github.github.com/gh-aw/reference/effective-tokens-specification/";
+  const tokenOptLink = "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md";
+
+  return (
+    `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy. [What are effective tokens?](${etSpecLink})${usageLine}${budgetLine}${runLine}\n\n` +
+    etTableSection +
+    `You can tune this limit with \`max-effective-tokens\` in workflow frontmatter. To reduce token consumption, review the [token optimization guide](${tokenOptLink}).\n`
+  );
 }
 
 /**
@@ -2034,6 +2120,8 @@ module.exports = {
   buildMissingToolContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
+  buildETComputationTable,
+  readAgentUsage,
   parseFirewallAuthErrors,
   parseMaxEffectiveTokensFromAuditLog,
   parseEffectiveTokensErrorInfoFromAuditLog,
