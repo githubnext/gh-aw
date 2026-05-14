@@ -18,7 +18,7 @@ func buildMaintenanceWorkflowYAML(
 	runsOnValue string,
 	actionMode ActionMode,
 	version, actionTag string,
-	resolver ActionSHAResolver,
+	resolver SHAResolver,
 	configuredRunsOn RunsOnValue,
 	defaultBranch string,
 	disableLabelTrigger bool,

@@ -92,7 +92,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 	actionMode ActionMode,
 	actionTag string,
 	runsOnValue string,
-	resolver ActionSHAResolver,
+	resolver SHAResolver,
 	hasExpires bool,
 	minExpiresDays int,
 ) error {
@@ -154,7 +154,7 @@ func generateSideRepoMaintenanceWorkflow(
 	actionMode ActionMode,
 	actionTag string,
 	runsOnValue string,
-	resolver ActionSHAResolver,
+	resolver SHAResolver,
 	hasExpires bool,
 	minExpiresDays int,
 ) error {
