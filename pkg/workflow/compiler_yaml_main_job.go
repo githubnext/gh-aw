@@ -573,7 +573,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// separate agent_outputs artifact.
 	paths = append(paths, getEngineArtifactPaths(engine)...)
 
-	// Collect MCP logs path if any MCP tools were used.
+	// Collect MCP logs and cache paths.
 	// Exclude wazero-cache because some MCP servers create unreadable root-owned cache files
 	// there, which can make actions/upload-artifact fail while zipping the unified artifact.
 	paths = append(paths, "/tmp/gh-aw/mcp-logs/")
