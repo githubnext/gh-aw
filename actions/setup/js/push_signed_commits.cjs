@@ -170,11 +170,11 @@ async function resolveLocalHeadSha(cwd) {
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true }) {
-  // The default parameter converts missing/undefined values to true; only explicit false disables signed commit replay.
+  // The default parameter converts undefined to true; only explicit false disables signed commit replay.
   if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
-    core.info(`pushSignedCommits: git push completed, HEAD=${headSha}`);
+    core.info(`pushSignedCommits: git push and HEAD resolution completed, HEAD=${headSha}`);
     return headSha;
   }
 
