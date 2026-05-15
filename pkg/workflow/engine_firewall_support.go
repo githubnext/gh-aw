@@ -101,7 +101,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
 	artifactName := "firewall-logs-" + sanitizedName
 	// Firewall logs are now at a known location in the sandbox folder structure
-	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs/"
+	firewallLogsDir := constants.AWFProxyLogsDir + "/"
 
 	stepLines := []string{
 		"      - name: Upload Firewall Logs",
