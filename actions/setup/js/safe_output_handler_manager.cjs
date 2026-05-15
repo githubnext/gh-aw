@@ -133,7 +133,12 @@ const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
   "report_incomplete",
 ]);
 
-/** @type {Map<string, string>} Safe output types that require conversion to a reviewable type in warn mode. */
+/**
+ * Safe output types that require conversion to a reviewable type in warn mode.
+ * Kept as a Map (instead of a single constant) because multiple convertible mappings
+ * may be added over time as safe output types evolve.
+ * @type {Map<string, string>}
+ */
 const THREAT_WARNING_CONVERTIBLE_TYPES = new Map([["push_to_pull_request_branch", "create_pull_request"]]);
 
 /**
@@ -184,6 +189,8 @@ function getThreatWarningPolicy(messageType) {
   if (THREAT_WARNING_REVIEWABLE_TYPES.has(messageType)) {
     return { policy: "reviewable" };
   }
+  // Unknown types return "none" so the caller can explicitly decide whether to
+  // allow, warn, or fail depending on context.
   return { policy: "none" };
 }
 
@@ -550,7 +557,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         continue;
       }
       if (threatPolicy.policy === "convertible") {
+        // Conversion execution is implemented in the relevant handler.
+        // For push_to_pull_request_branch this occurs inside push_to_pull_request_branch.cjs,
+        // which routes warning-mode outcomes into a reviewable PR flow.
         core.info(`Threat-detection warn policy conversion required for "${messageType}" -> "${threatPolicy.mappedType}" (${WTD2_REQUIREMENT_ID})`);
+      } else if (threatPolicy.policy === "none") {
+        core.warning(`Threat-detection warn policy has no explicit classification for "${messageType}"; allowing handler execution by default`);
       }
     }
 
