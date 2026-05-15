@@ -760,7 +760,7 @@ Operational patterns (suffixed with "-Ops") are established workflow architectur
 
 ### AgenticOps
 
-Repository-wide observability pattern where a scheduled workflow inspects other agentic workflows, classifies notable behavior, and publishes a structured report. When it detects repeated failures, abnormal token consumption, or other unhealthy patterns, it escalates findings into issues for follow-up. Creates a durable operational record instead of relying on ad hoc inspection of individual runs. See [AgenticOps](/gh-aw/patterns/agentic-ops/).
+Repository-wide observability pattern where a scheduled workflow inspects other agentic workflows, classifies notable behavior, and publishes a structured report. When it detects repeated failures, abnormal token consumption, or other unhealthy patterns, it escalates findings into issues for follow-up. Creates a durable operational record instead of relying on ad hoc inspection of individual runs. See [MonitorOps](/gh-aw/patterns/monitor-ops/).
 
 ### BatchOps
 

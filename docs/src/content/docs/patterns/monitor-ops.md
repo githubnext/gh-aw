@@ -1,5 +1,5 @@
 ---
-title: AgenticOps
+title: MonitorOps
 description: Monitor agentic workflows across a repository, publish observability reports, and escalate recurring failures or waste.
 sidebar:
   badge: { text: 'Observability', variant: 'tip' }

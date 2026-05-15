@@ -151,7 +151,8 @@ export default defineConfig({
 		'/guides/telemetry/': '/gh-aw/reference/open-telemetry/',
 		'/guides/getting-started-mcp/': '/gh-aw/guides/mcps/',
 		'/patterns/data-ops/': '/gh-aw/patterns/deterministic-ops/',
-		'/patterns/expert-ops/': '/gh-aw/patterns/agentic-ops/',
+		'/patterns/expert-ops/': '/gh-aw/patterns/monitor-ops/',
+		'/patterns/agentic-ops/': '/gh-aw/patterns/monitor-ops/',
 		'/patterns/task-ops/': '/gh-aw/patterns/research-plan-assign-ops/',
 		'/examples/comment-triggered/': '/gh-aw/patterns/chat-ops/',
 		'/examples/issue-pr-events/': '/gh-aw/patterns/issue-ops/',
@@ -312,7 +313,7 @@ export default defineConfig({
 				{
 					label: 'Design Patterns',
 					items: [
-						{ label: 'AgenticOps', link: '/patterns/agentic-ops/' },
+						{ label: 'MonitorOps', link: '/patterns/monitor-ops/' },
 						{ label: 'BatchOps', link: '/patterns/batch-ops/' },
 						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
