@@ -12,7 +12,7 @@ on:
     inputs:
       topic:
         description: 'Research topic or question'
-        required: true
+        required: false
       history:
         description: "Git history to fetch: shallow (default) or full"
         required: false

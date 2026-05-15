@@ -13,7 +13,7 @@ on:
     inputs:
       url:
         description: 'URL(s) to resource(s) to analyze (comma-separated for multiple URLs)'
-        required: true
+        required: false
         type: string
       query:
         description: 'Query or question to answer about the resource(s)'
