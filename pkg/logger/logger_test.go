@@ -5,7 +5,6 @@ package logger
 import (
 	"bytes"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -284,51 +283,36 @@ func TestColorSelection(t *testing.T) {
 	if color1 != color2 {
 		t.Errorf("selectColor should return same color for same namespace")
 	}
-
-	// Test that different namespaces can get different colors
-	// (not guaranteed but likely with our hash function)
-	color3 := selectColor("other:namespace")
-	// Just verify it's a valid color from palette or empty
-	found := color3 == ""
-	if slices.Contains(colorPalette, color3) {
-		found = true
+	if color1 == "" {
+		t.Error("selectColor should return non-empty namespace label")
 	}
-	if !found {
-		t.Errorf("selectColor returned invalid color: %q", color3)
+
+	// When colors are disabled, selectColor should return plain namespace text.
+	origDebugColors := debugColors
+	debugColors = false
+	t.Cleanup(func() { debugColors = origDebugColors })
+	if got := selectColor("plain:namespace"); got != "plain:namespace" {
+		t.Errorf("selectColor should return plain namespace when debugColors=false, got %q", got)
 	}
 }
 
-func TestColorDisabling(t *testing.T) {
+func TestNoColorEnvironment(t *testing.T) {
 	// Save original values
 	origDebugColors := debugColors
-	origIsTTY := isTTY
 	defer func() {
 		debugColors = origDebugColors
-		isTTY = origIsTTY
 	}()
 
-	// Test with colors disabled via DEBUG_COLORS
-	debugColors = false
-	isTTY = true
-	color := selectColor("test:namespace")
-	if color != "" {
-		t.Errorf("selectColor should return empty when debugColors=false, got %q", color)
-	}
-
-	// Test with TTY disabled
+	debugEnv = "*"
 	debugColors = true
-	isTTY = false
-	color = selectColor("test:namespace")
-	if color != "" {
-		t.Errorf("selectColor should return empty when isTTY=false, got %q", color)
-	}
+	t.Setenv("NO_COLOR", "1")
 
-	// Test with both enabled
-	debugColors = true
-	isTTY = true
-	color = selectColor("test:namespace")
-	if color == "" {
-		t.Error("selectColor should return color when both enabled")
+	logger := New("test:namespace")
+	output := captureStderr(func() {
+		logger.Printf("hello")
+	})
+	if strings.Contains(output, "\x1b[") {
+		t.Errorf("logger output should not contain ANSI color escapes when NO_COLOR is set, got %q", output)
 	}
 }
 
