@@ -899,22 +899,12 @@ function generatePlaceholderName(expr) {
 }
 
 /**
- * Reads and processes a file or URL for runtime import
- * @param {string} filepathOrUrl - The path to the file (relative to GITHUB_WORKSPACE) or URL to import
- * @param {boolean} optional - Whether the import is optional (true for {{#runtime-import? filepath}})
+ * Resolves a runtime-import file path to its normalized absolute path.
+ * @param {string} filepathOrUrl - File path (not URL)
  * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
- * @param {number} [startLine] - Optional start line (1-indexed, inclusive)
- * @param {number} [endLine] - Optional end line (1-indexed, inclusive)
- * @returns {Promise<string>} - The processed file or URL content, or empty string if optional and file not found
- * @throws {Error} - If file/URL is not found and import is not optional, or if GitHub Actions macros are detected
+ * @returns {{filepath: string, normalizedPath: string}}
  */
-async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, startLine, endLine) {
-  // Check if this is a URL
-  if (/^https?:\/\//i.test(filepathOrUrl)) {
-    return await processUrlImport(filepathOrUrl, optional, startLine, endLine);
-  }
-
-  // Otherwise, process as a file
+function resolveRuntimeImportFilePath(filepathOrUrl, workspaceDir) {
   let filepath = filepathOrUrl;
   let isAgentsPath = false;
 
@@ -992,6 +982,28 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
       throw new Error(`${ERR_VALIDATION}: Security: Path ${filepathOrUrl} must be within .github folder (resolves to: ${relativePath})`);
     }
   }
+
+  return { filepath, normalizedPath };
+}
+
+/**
+ * Reads and processes a file or URL for runtime import
+ * @param {string} filepathOrUrl - The path to the file (relative to GITHUB_WORKSPACE) or URL to import
+ * @param {boolean} optional - Whether the import is optional (true for {{#runtime-import? filepath}})
+ * @param {string} workspaceDir - The GITHUB_WORKSPACE directory path
+ * @param {number} [startLine] - Optional start line (1-indexed, inclusive)
+ * @param {number} [endLine] - Optional end line (1-indexed, inclusive)
+ * @returns {Promise<string>} - The processed file or URL content, or empty string if optional and file not found
+ * @throws {Error} - If file/URL is not found and import is not optional, or if GitHub Actions macros are detected
+ */
+async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, startLine, endLine) {
+  // Check if this is a URL
+  if (/^https?:\/\//i.test(filepathOrUrl)) {
+    return await processUrlImport(filepathOrUrl, optional, startLine, endLine);
+  }
+
+  // Otherwise, process as a file
+  const { filepath, normalizedPath } = resolveRuntimeImportFilePath(filepathOrUrl, workspaceDir);
 
   // Check if file exists
   if (!fs.existsSync(normalizedPath)) {
@@ -1092,57 +1104,7 @@ function resolveRuntimeImportKey(filepathOrUrl, workspaceDir, startLine, endLine
     return `${filepathOrUrl}${rangeSuffix}`;
   }
 
-  let filepath = filepathOrUrl;
-  let isAgentsPath = false;
-
-  if (filepath.startsWith("/")) {
-    const stripped = filepath.replace(/^\/+/, "");
-    if (stripped.startsWith(".agents/") || stripped.startsWith(".agents\\") || stripped.startsWith(".github/") || stripped.startsWith(".github\\")) {
-      filepath = stripped;
-    } else {
-      throw new Error(`${ERR_VALIDATION}: Security: Path ${filepathOrUrl} must be within .agents/ or .github/ folder`);
-    }
-  }
-
-  if (filepath.startsWith(".agents/") || filepath.startsWith(".agents\\")) {
-    isAgentsPath = true;
-  } else if (filepath.startsWith(".github/") || filepath.startsWith(".github\\")) {
-    filepath = filepath.substring(8);
-  } else {
-    filepath = path.join("workflows", filepath);
-  }
-
-  if (!isAgentsPath) {
-    if (filepath.startsWith("./") || filepath.startsWith(".\\")) {
-      filepath = filepath.substring(2);
-    }
-  }
-
-  let normalizedPath, normalizedBaseFolder;
-
-  if (isAgentsPath) {
-    const absolutePath = path.resolve(workspaceDir, filepath);
-    normalizedPath = path.normalize(absolutePath);
-    normalizedBaseFolder = path.normalize(workspaceDir);
-
-    const relativePath = path.relative(normalizedBaseFolder, normalizedPath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      throw new Error(`${ERR_CONFIG}: Security: Path ${filepathOrUrl} must be within workspace (resolves to: ${relativePath})`);
-    }
-    if (!relativePath.startsWith(".agents" + path.sep) && relativePath !== ".agents") {
-      throw new Error(`${ERR_VALIDATION}: Security: Path ${filepathOrUrl} must be within .agents folder`);
-    }
-  } else {
-    const githubFolder = path.join(workspaceDir, ".github");
-    const absolutePath = path.resolve(githubFolder, filepath);
-    normalizedPath = path.normalize(absolutePath);
-    normalizedBaseFolder = path.normalize(githubFolder);
-
-    const relativePath = path.relative(normalizedBaseFolder, normalizedPath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      throw new Error(`${ERR_VALIDATION}: Security: Path ${filepathOrUrl} must be within .github folder (resolves to: ${relativePath})`);
-    }
-  }
+  const { normalizedPath } = resolveRuntimeImportFilePath(filepathOrUrl, workspaceDir);
 
   return `${normalizedPath}${rangeSuffix}`;
 }
