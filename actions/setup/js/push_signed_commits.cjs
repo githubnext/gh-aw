@@ -164,7 +164,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {boolean} signedCommits
  * @returns {boolean}
  */
-function shouldUseDirectGitPush(signedCommits) {
+function isSignedCommitsExplicitlyDisabled(signedCommits) {
   return signedCommits === false;
 }
 
@@ -197,12 +197,12 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return headSha;
   }
 
-  if (shouldUseDirectGitPush(signedCommits)) {
+  if (isSignedCommitsExplicitlyDisabled(signedCommits)) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
-    const pushedSha = await resolveLocalHeadSha(cwd);
-    core.info(`pushSignedCommits: git push completed with signed commits disabled, using pushed SHA ${pushedSha}`);
-    return pushedSha;
+    const headSha = await resolveLocalHeadSha(cwd);
+    core.info(`pushSignedCommits: git push completed with signed commits disabled, using pushed SHA ${headSha}`);
+    return headSha;
   }
 
   // Collect the commits introduced (oldest-first) using topological order to ensure
