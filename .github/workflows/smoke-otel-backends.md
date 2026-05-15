@@ -19,19 +19,6 @@ engine:
   bare: true
 strict: true
 mcp-servers:
-  sentry:
-    container: "node:lts-alpine"
-    entrypoint: "npx"
-    entrypointArgs: ["@sentry/mcp-server@0.33.0"]
-    allowed:
-      - whoami
-      - find_organizations
-      - find_projects
-      - search_events
-      - get_trace_details
-    env:
-      SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
-      SENTRY_HOST: ${{ env.SENTRY_HOST || 'sentry.io' }}
   grafana:
     container: "grafana/mcp-grafana"
     entrypointArgs:
@@ -56,6 +43,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 imports:
+  - shared/mcp/sentry.md
   - shared/otel-queries.md
   - shared/observability-otlp.md
 ---
