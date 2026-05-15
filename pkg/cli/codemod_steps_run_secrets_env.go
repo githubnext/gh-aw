@@ -11,7 +11,7 @@ import (
 var stepsRunSecretsEnvCodemodLog = logger.New("cli:codemod_steps_run_secrets_env")
 
 var (
-	stepsAnyExprRe        = regexp.MustCompile(`\$\{\{\s*(.*?)\s*\}\}`)
+	stepsAnyExprRe        = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
 	stepsSecretBodyExprRe = regexp.MustCompile(`^secrets\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\|\|.*)?$`)
 	stepsEnvBodyExprRe    = regexp.MustCompile(`^env\.([A-Za-z_][A-Za-z0-9_]*)$`)
 )
