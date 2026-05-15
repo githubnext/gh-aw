@@ -32,17 +32,17 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.141"
+const DefaultClaudeCodeVersion Version = "2.1.142"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.43"
+const DefaultCopilotVersion Version = "1.0.48"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.129.0"
+const DefaultCodexVersion Version = "0.130.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -57,7 +57,7 @@ const DefaultPiVersion Version = "0.72.1"
 const DefaultOpenCodeVersion Version = "1.2.14"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.0.3"
+const DefaultGitHubMCPServerVersion Version = "v1.0.4"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -119,7 +119,7 @@ const DefaultPlaywrightMCPVersion Version = "0.0.75"
 const DefaultPlaywrightCLIVersion Version = "0.1.13"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
-const DefaultPlaywrightBrowserVersion Version = "v1.59.1"
+const DefaultPlaywrightBrowserVersion Version = "v1.60.0"
 
 // DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
 const DefaultMCPSDKVersion Version = "1.24.0"
