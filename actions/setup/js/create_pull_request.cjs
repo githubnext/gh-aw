@@ -184,6 +184,56 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
 }
 
 /**
+ * Rewrites the current branch to a single non-merge commit relative to origin/<baseBranch>.
+ * This is used as a recovery path when signed commit replay rejects merge commit topology.
+ *
+ * @param {string} baseBranch
+ * @param {{ exec: Function, getExecOutput: Function }} execApi
+ * @returns {Promise<void>}
+ */
+async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
+  const baseRef = `origin/${baseBranch}`;
+  const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"]);
+  const originalHead = originalHeadOut.trim();
+  if (!originalHead) {
+    throw new Error("Could not resolve current HEAD before bundle rewrite");
+  }
+
+  let commitHeadline = "Apply bundled create_pull_request changes";
+  try {
+    const { stdout: headlineOut } = await execApi.getExecOutput("git", ["log", "-1", "--format=%s", "HEAD"]);
+    if (headlineOut.trim()) {
+      commitHeadline = headlineOut.trim();
+    }
+  } catch {
+    // Non-fatal: use default commit headline.
+  }
+
+  core.warning(`Rewriting bundled commits to a single linear commit for signed push compatibility (base: ${baseRef})`);
+  try {
+    await execApi.exec("git", ["reset", "--soft", baseRef]);
+    const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"]);
+    if (!stagedFilesOut.trim()) {
+      throw new Error(`No staged changes found after soft reset to ${baseRef}`);
+    }
+    await execApi.exec("git", ["commit", "-m", commitHeadline]);
+    const { stdout: rewrittenHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"]);
+    const rewrittenHead = rewrittenHeadOut.trim();
+    core.info(`Bundle rewrite completed (old HEAD: ${originalHead}, new HEAD: ${rewrittenHead})`);
+  } catch (rewriteError) {
+    try {
+      await execApi.exec("git", ["reset", "--hard", originalHead]);
+      core.warning(`Bundle rewrite failed; restored original HEAD ${originalHead}`);
+    } catch (restoreError) {
+      core.warning(`Bundle rewrite rollback failed: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
+    }
+    throw new Error(`Failed to rewrite bundled commits for signed push retry: ${rewriteError instanceof Error ? rewriteError.message : String(rewriteError)}`, {
+      cause: rewriteError,
+    });
+  }
+}
+
+/**
  * Determines if a label API error is transient and worth retrying.
  * Returns true for:
  *  - The GitHub race condition where a newly-created PR's node ID is not immediately
@@ -1428,23 +1478,58 @@ async function main(config = {}) {
         } catch {
           core.info("Could not count new commits - extra empty commit will be skipped");
         }
-      } catch (pushError) {
-        core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+      } catch (initialPushError) {
+        /** @type {unknown} */
+        let pushError = initialPushError;
+        let pushRecovered = false;
+        const pushErrorMessage = pushError instanceof Error ? pushError.message : String(pushError);
+        const isSignedMergeReplayRefusal = signedCommits && /pushSignedCommits: refusing unsigned push/.test(pushErrorMessage) && /merge commit/i.test(pushErrorMessage);
 
-        if (!fallbackAsIssue) {
-          const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
-          return { success: false, error, error_type: "push_failed" };
+        if (isSignedMergeReplayRefusal) {
+          core.warning("Signed push rejected merge commit topology from bundle; rewriting branch and retrying signed push");
+          try {
+            await rewriteBundleBranchAsSingleCommit(baseBranch, exec);
+            await pushSignedCommits({
+              githubClient,
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              branch: branchName,
+              baseRef: `origin/${baseBranch}`,
+              cwd: process.cwd(),
+              signedCommits,
+            });
+            core.info("Changes pushed to branch after bundle rewrite retry");
+
+            try {
+              const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+              newCommitCount = parseInt(countStr.trim(), 10);
+              core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+            } catch {
+              core.info("Could not count new commits - extra empty commit will be skipped");
+            }
+            pushRecovered = true;
+          } catch (retryPushError) {
+            pushError = retryPushError;
+          }
         }
 
-        core.warning("Git push operation failed - creating fallback issue instead of pull request");
+        if (!pushRecovered) {
+          core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-        const runUrl = buildWorkflowRunUrl(context, context.repo);
-        const runId = context.runId;
+          if (!fallbackAsIssue) {
+            const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+            return { success: false, error, error_type: "push_failed" };
+          }
 
-        const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
-        const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
-        const fallbackBundleTempRef = createBundleTempRef(branchName);
-        const fallbackBody = `${body}
+          core.warning("Git push operation failed - creating fallback issue instead of pull request");
+
+          const runUrl = buildWorkflowRunUrl(context, context.repo);
+          const runId = context.runId;
+
+          const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
+          const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
+          const fallbackBundleTempRef = createBundleTempRef(branchName);
+          const fallbackBody = `${body}
 
 ---
 
@@ -1477,22 +1562,23 @@ git push origin ${branchName}
 gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\``;
 
-        try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+          try {
+            const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
-          core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-          await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
-          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+            core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+            await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+            await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
-          return {
-            success: true,
-            fallback_used: true,
-            issue_number: issue.number,
-            issue_url: issue.html_url,
-          };
-        } catch (issueError) {
-          const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
-          return { success: false, error };
+            return {
+              success: true,
+              fallback_used: true,
+              issue_number: issue.number,
+              issue_url: issue.html_url,
+            };
+          } catch (issueError) {
+            const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+            return { success: false, error };
+          }
         }
       }
     } else {

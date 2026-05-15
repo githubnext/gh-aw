@@ -299,6 +299,74 @@ index 0000000..abc1234
     expect(pushSignedSpy).toHaveBeenCalledWith(expect.objectContaining({ signedCommits: false }));
   });
 
+  it("should rewrite bundle history to a single commit and retry when signed push rejects merge commits", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    let revParseHeadCallCount = 0;
+    global.exec.getExecOutput.mockImplementation((cmd, args) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+        revParseHeadCallCount += 1;
+        return Promise.resolve({ exitCode: 0, stdout: revParseHeadCallCount === 1 ? "old-head-sha\n" : "new-head-sha\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "log" && args[1] === "-1" && args[2] === "--format=%s" && args[3] === "HEAD") {
+        return Promise.resolve({ exitCode: 0, stdout: "bundle merge headline\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "diff" && args[1] === "--cached" && args[2] === "--name-only") {
+        return Promise.resolve({ exitCode: 0, stdout: "test.txt\n", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    });
+
+    pushSignedSpy
+      .mockRejectedValueOnce(
+        new Error(
+          "pushSignedCommits: refusing unsigned push for branch 'feature/test': merge commit detected. " +
+            "GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits."
+        )
+      )
+      .mockResolvedValueOnce("bundle-tip");
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).not.toBe(true);
+    expect(pushSignedSpy).toHaveBeenCalledTimes(2);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "origin/main"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "bundle merge headline"]);
+    expect(global.github.rest.issues.create).not.toHaveBeenCalled();
+  });
+
   it("should resolve bundle source ref from list-heads when JSONL branch ref is missing in bundle", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(
