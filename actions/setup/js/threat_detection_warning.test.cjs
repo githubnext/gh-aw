@@ -16,8 +16,8 @@ describe("threat_detection_warning", () => {
 
   describe("marker helpers", () => {
     it("emits the normative threat marker", () => {
-      expect(getThreatDetectedMarker("threat_detected,parse_error")).toBe("<!-- gh-aw-thread-detected -->");
-      expect(getThreatDetectedMarkerTemplate()).toBe("<!-- gh-aw-thread-detected -->");
+      expect(getThreatDetectedMarker("threat_detected,parse_error")).toBe("<!-- gh-aw-threat-detected -->");
+      expect(getThreatDetectedMarkerTemplate()).toBe("<!-- gh-aw-threat-detected -->");
     });
   });
 
