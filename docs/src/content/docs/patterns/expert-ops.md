@@ -170,4 +170,4 @@ See [Cache Memory](/gh-aw/reference/cache-memory/) for configuration details.
 - **[DailyOps](/gh-aw/patterns/daily-ops/)** — General scheduled improvement workflows
 - **[DataOps](/gh-aw/patterns/data-ops/)** — Deterministic data collection followed by agentic analysis
 - **[IssueOps](/gh-aw/patterns/issue-ops/)** — Trigger workflows from issue events
-- **[Monitoring](/gh-aw/patterns/monitoring/)** — Track workflow activity with GitHub Projects
+- **[Monitoring](/gh-aw/experimental/monitoring-with-projects/)** — Track workflow activity with GitHub Projects

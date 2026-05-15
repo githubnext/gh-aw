@@ -163,7 +163,7 @@ download details.
 ## Custom spans from shared imports
 
 To emit custom spans from imported shared workflows, use:
-[Emitting Custom OTLP Attributes](/gh-aw/guides/custom-otlp-attributes/).
+[Telemetry](/gh-aw/guides/telemetry/).
 
 ## Related documentation
 

@@ -1,5 +1,5 @@
 ---
-title: Emitting Custom OTLP Attributes
+title: Telemetry
 description: How to add custom OpenTelemetry spans and attributes from shared agentic workflows so third-party tools can upload their own telemetry data alongside built-in instrumentation.
 sidebar:
   order: 19
@@ -164,5 +164,5 @@ await sendOTLPSpan(endpoint, buildOTLPPayload({
 
 - [OpenTelemetry reference](/gh-aw/reference/open-telemetry/) — configure OTLP endpoints, headers, and runtime behavior
 - [Imports](/gh-aw/reference/imports/) — how shared workflow imports work
-- [Deterministic Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) — adding custom `steps:` to workflows
+- [Deterministic Agentic Patterns](/gh-aw/patterns/deterministic-agentic-patterns/) — adding custom `steps:` to workflows
 - [Artifacts](/gh-aw/reference/artifacts/) — downloading the `otel.jsonl` mirror and other artifacts

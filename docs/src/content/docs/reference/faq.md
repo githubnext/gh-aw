@@ -488,7 +488,7 @@ If you want to use a coding agent that isn't currently supported (Copilot, Claud
 
 ### Can I test workflows without affecting my repository?
 
-Yes! Use [TrialOps](/gh-aw/patterns/trial-ops/) to test workflows in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues, PRs, or comments in your actual repository.
+Yes! Use [TrialOps](/gh-aw/experimental/trial-ops/) to test workflows in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues, PRs, or comments in your actual repository.
 
 ### Where can I find help with common issues?
 

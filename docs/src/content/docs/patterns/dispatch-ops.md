@@ -204,7 +204,7 @@ URGENT: Prioritize speed over completeness.
 
 ### Testing Workflow Changes
 
-Add `workflow_dispatch:` to feature branches for testing before merging. Use [trial mode](/gh-aw/patterns/trial-ops/) for isolated testing without affecting the production repository, or run from a branch directly:
+Add `workflow_dispatch:` to feature branches for testing before merging. Use [trial mode](/gh-aw/experimental/trial-ops/) for isolated testing without affecting the production repository, or run from a branch directly:
 
 ```bash
 gh aw trial ./research.md --raw-field topic="test query"  # isolated, no side effects
@@ -241,7 +241,7 @@ gh aw run research --ref feature/improve-workflow          # runs against live r
 
 - [Manual Workflows Example](/gh-aw/examples/manual/) - Example manual workflows
 - [Triggers Reference](/gh-aw/reference/triggers/) - Complete trigger syntax including workflow_dispatch
-- [TrialOps](/gh-aw/patterns/trial-ops/) - Testing workflows in isolation
+- [TrialOps](/gh-aw/experimental/trial-ops/) - Testing workflows in isolation
 - [CLI Commands](/gh-aw/setup/cli/) - Complete gh aw run command reference
 - [Templating](/gh-aw/reference/templating/) - Using expressions and conditionals
 - [Security Best Practices](/gh-aw/introduction/architecture/) - Securing workflow execution

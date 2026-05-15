@@ -452,7 +452,7 @@ These workflows do the following:
 5. Capture and validate outputs
 6. Delete trial repo or keep for reference
 
-**Learn more**: [TrialOps](/gh-aw/patterns/trial-ops/)
+**Learn more**: [TrialOps](/gh-aw/experimental/trial-ops/)
 
 ---
 

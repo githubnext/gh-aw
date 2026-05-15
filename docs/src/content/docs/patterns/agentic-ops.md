@@ -28,6 +28,6 @@ Use this pattern when a repository has enough workflow activity that maintainers
 
 ## Related documentation
 
-- [Projects & Monitoring](/gh-aw/patterns/monitoring/) for durable tracking with Projects and safe outputs
-- [Custom OTLP Attributes](/gh-aw/guides/custom-otlp-attributes/) for enriching workflow telemetry
+- [Projects & Monitoring](/gh-aw/experimental/monitoring-with-projects/) for durable tracking with Projects and safe outputs
+- [Custom OTLP Attributes](/gh-aw/guides/telemetry/) for enriching workflow telemetry
 - [Audit Commands](/gh-aw/reference/audit/) for investigating individual runs and regressions

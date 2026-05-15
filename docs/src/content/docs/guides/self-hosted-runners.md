@@ -151,7 +151,7 @@ This setting applies to every job in `agentics-maintenance.yml` (close-expired-e
 - [Threat Detection](/gh-aw/reference/threat-detection/) — detection job configuration
 - [Network Access](/gh-aw/reference/network/) — configuring outbound network permissions
 - [Sandbox](/gh-aw/reference/sandbox/) — container and Docker requirements
-- [Ephemerals](/gh-aw/guides/ephemerals/#maintenance-configuration) — full `aw.json` maintenance configuration reference
+- [Ephemerals](/gh-aw/reference/ephemerals/#maintenance-configuration) — full `aw.json` maintenance configuration reference
 - [Enterprise Configuration](/gh-aw/reference/enterprise-configuration/) — custom API endpoints for GHEC/GHES
 
 ## Runner environment requirements

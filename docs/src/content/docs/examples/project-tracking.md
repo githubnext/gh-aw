@@ -198,5 +198,5 @@ Update the project item with the team field.
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe-outputs documentation
 - [Project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication) - Token setup guide
-- [Projects & Monitoring](/gh-aw/patterns/monitoring/) - Design pattern guide
+- [Projects & Monitoring](/gh-aw/experimental/monitoring-with-projects/) - Design pattern guide
 - [Orchestration](/gh-aw/patterns/orchestration/) - Design pattern guide
