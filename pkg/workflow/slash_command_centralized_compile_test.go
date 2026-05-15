@@ -85,7 +85,7 @@ tools:
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 }
 
-func TestCompileWorkflow_SlashCommandRejectsRequiredDispatchInputs(t *testing.T) {
+func TestSlashCommandRejectsRequiredDispatchInputs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-dispatch-inputs-test")
 
 	markdownPath := filepath.Join(tmpDir, "scout.md")
@@ -115,7 +115,7 @@ tools:
 	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed when using slash_command")
 }
 
-func TestCompileWorkflow_LabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
+func TestLabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-label-dispatch-inputs-test")
 
 	markdownPath := filepath.Join(tmpDir, "triage.md")
