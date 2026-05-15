@@ -287,6 +287,17 @@ steps:
       echo "Combined inventory written to $INVENTORY"
       cat "$INVENTORY"
 
+  - name: Fetch Copilot reflect inventory
+    shell: bash
+    run: |
+      set -euo pipefail
+      OUT="/tmp/gh-aw/model-inventory/reflect.json"
+      mkdir -p "$(dirname "$OUT")"
+      if ! curl -fsS http://api-proxy:10000/reflect > "$OUT"; then
+        printf '%s' '{"endpoints":[],"error":"reflect endpoint unavailable"}' > "$OUT"
+      fi
+      echo "Copilot reflect metadata written to $OUT"
+
 tools:
   cli-proxy: true
   playwright:
@@ -299,7 +310,6 @@ tools:
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
     - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
     - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
-    - "mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf \"%s\" \"{\\\"endpoints\\\":[],\\\"error\\\":\\\"reflect endpoint unavailable\\\"}\" > /tmp/gh-aw/model-inventory/reflect.json)"
     - "jq . /tmp/gh-aw/model-inventory/reflect.json"
     - "jq \".endpoints[] | select(.provider == \\\"copilot\\\") | .models\" /tmp/gh-aw/model-inventory/reflect.json"
     - "cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
@@ -341,9 +351,10 @@ them into:
 - Combined inventory: `/tmp/gh-aw/model-inventory/inventory.json`
 - Individual provider files: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
-- Copilot live provider metadata: available via `http://api-proxy:10000/reflect` (filter
-  `.endpoints[] | select(.provider == "copilot")`). If `/reflect` is unavailable, treat Copilot
-  data as unavailable for this run and continue with the remaining providers.
+- Copilot live provider metadata: `/tmp/gh-aw/model-inventory/reflect.json` (filter
+  `.endpoints[] | select(.provider == "copilot") | .models`). If the file contains an
+  `error` field, treat Copilot data as unavailable for this run and continue with the
+  remaining providers.
 
 Each enriched `models.json` entry has the form (fields vary by provider):
 ```json
