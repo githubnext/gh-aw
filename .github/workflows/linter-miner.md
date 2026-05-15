@@ -12,6 +12,10 @@ permissions:
   actions: read
 tracker-id: linter-miner
 engine: copilot
+network:
+  allowed:
+    - defaults
+    - go
 tools:
   cli-proxy: true
   github:
