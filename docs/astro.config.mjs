@@ -314,7 +314,6 @@ export default defineConfig({
 				{
 					label: 'Design Patterns',
 					items: [
-						{ label: 'MonitorOps', link: '/patterns/monitor-ops/' },
 						{ label: 'BatchOps', link: '/patterns/batch-ops/' },
 						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
@@ -324,6 +323,7 @@ export default defineConfig({
 						{ label: 'IssueOps', link: '/patterns/issue-ops/' },
 						{ label: 'LabelOps', link: '/patterns/label-ops/' },
 						{ label: 'MemoryOps', link: '/guides/memory-ops/' },
+						{ label: 'MonitorOps', link: '/patterns/monitor-ops/' },
 						{ label: 'MultiRepoOps', link: '/patterns/multi-repo-ops/' },
 						{ label: 'Orchestration', link: '/patterns/orchestration/' },
 						{ label: 'ProjectOps', link: '/patterns/project-ops/' },
