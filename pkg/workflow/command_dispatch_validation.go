@@ -1,7 +1,9 @@
 package workflow
 
-import "fmt"
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // validateCommandWorkflowDispatchInputs rejects required workflow_dispatch inputs when
 // slash_command or label_command triggers are configured.
@@ -47,11 +49,11 @@ func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 			if hasLabelCommand {
 				triggerNames = append(triggerNames, "label_command")
 			}
-			triggerName := strings.Join(triggerNames, " and ")
+			triggersPhrase := strings.Join(triggerNames, " and ")
 
 			return fmt.Errorf(
 				"on.workflow_dispatch.inputs.%s.required: true is not allowed when using %s; set required: false",
-				inputName, triggerName,
+				inputName, triggersPhrase,
 			)
 		}
 	}
