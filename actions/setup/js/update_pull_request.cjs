@@ -23,8 +23,14 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
  * @returns {boolean}
  */
 function isNonFatalUpdateBranchError(error) {
+  if (typeof error === "object" && error !== null && "status" in error && error.status !== 422) {
+    return false;
+  }
+
   const message = getErrorMessage(error).toLowerCase();
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head");
+  return (
+    message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head")
+  );
 }
 
 /**
