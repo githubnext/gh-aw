@@ -103,6 +103,8 @@ func findMissingToolsetPermissions(frontmatter map[string]any, toolsets []string
 
 	missing := make(map[workflow.PermissionScope]workflow.PermissionLevel)
 	for scope, level := range validationResult.MissingPermissions {
+		// Skip GitHub App-only scopes: these are not grantable through workflow
+		// GITHUB_TOKEN permissions and require GitHub App token minting instead.
 		if workflow.IsGitHubAppOnlyScope(scope) {
 			continue
 		}

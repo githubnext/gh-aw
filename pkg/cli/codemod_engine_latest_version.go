@@ -30,7 +30,7 @@ func getPinEngineLatestVersionCodemod() Codemod {
 				return content, false, nil
 			}
 			version, ok := versionAny.(string)
-			if !ok || !strings.EqualFold(strings.TrimSpace(version), "latest") {
+			if !ok || strings.TrimSpace(version) != "latest" {
 				return content, false, nil
 			}
 
