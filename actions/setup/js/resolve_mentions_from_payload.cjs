@@ -5,7 +5,7 @@
  * Helper module for resolving allowed mentions from GitHub event payloads
  */
 
-const { resolveMentionsLazily, isPayloadUserBot } = require("./resolve_mentions.cjs");
+const { resolveMentionsLazily, isPayloadUserBot, DEFAULT_ALLOWED_MENTION_ALIASES } = require("./resolve_mentions.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -131,6 +131,9 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
   try {
     const { owner, repo } = context.repo;
     const knownAuthors = allowContext ? extractKnownAuthorsFromPayload(context) : [];
+
+    // Always allow core automation aliases.
+    knownAuthors.push(...DEFAULT_ALLOWED_MENTION_ALIASES);
 
     // Add allowed list (always included regardless of configuration)
     knownAuthors.push(...allowedList);

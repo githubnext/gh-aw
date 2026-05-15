@@ -23,7 +23,7 @@ const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = re
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
-const { isPayloadUserBot } = require("./resolve_mentions.cjs");
+const { isPayloadUserBot, DEFAULT_ALLOWED_MENTION_ALIASES } = require("./resolve_mentions.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
@@ -570,7 +570,8 @@ async function main(config = {}) {
 
     // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
     // so they can be @mentioned in the generated comment.
-    processedBody = sanitizeContent(processedBody, { allowedAliases: parentAuthors });
+    const allowedAliases = [...DEFAULT_ALLOWED_MENTION_ALIASES, ...parentAuthors];
+    processedBody = sanitizeContent(processedBody, { allowedAliases });
 
     // Enforce max limits before processing (validates user-provided content)
     try {
