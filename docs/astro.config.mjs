@@ -296,6 +296,7 @@ export default defineConfig({
 				{
 					label: 'Guides',
 					items: [
+						{ label: 'A/B Experiments', link: '/guides/experiments/' },
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Editing Workflows', link: '/guides/editing-workflows/' },
 
@@ -342,6 +343,10 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Examples',
+					autogenerate: { directory: 'examples' },
+				},
+				{
 					label: 'Reference',
 					items: [
 						{ label: 'AI Engines', link: '/reference/engines/' },
@@ -351,6 +356,7 @@ export default defineConfig({
 						{ label: 'Authentication', link: '/reference/auth/' },
 						{ label: 'Authentication (Projects)', link: '/reference/auth-projects/' },
 						{ label: 'aw.yml Package Manifest', link: '/reference/aw-yml-package-manifest/' },
+						{ label: 'aw.yml Package Manifest (Spec)', link: '/reference/repository-package-manifest-specification/' },
 						{ label: 'Cache Memory', link: '/reference/cache-memory/' },
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
@@ -359,10 +365,13 @@ export default defineConfig({
 						{ label: 'Cost Management (Rate Limiting)', link: '/reference/rate-limiting-controls/' },
 						{ label: 'Cost Management (Effective Tokens)', link: '/reference/effective-tokens-specification/' },
 						{ label: 'Cost Management (Model Tables)', link: '/reference/model-tables/' },
+						{ label: 'Enterprise Configuration', link: '/reference/enterprise-configuration/' },
 						{ label: 'Ephemerals', link: '/reference/ephemerals/' },
 						{ label: 'Environment Variables', link: '/reference/environment-variables/' },
 						{ label: 'FAQ', link: '/reference/faq/' },
+						{ label: 'Experiments (Spec)', link: '/reference/experiments-specification/' },
 						{ label: 'Footers', link: '/reference/footers/' },
+						{ label: 'Forecast (Spec)', link: '/reference/forecast-specification/' },
 						{ label: 'Frontmatter', link: '/reference/frontmatter/' },
 						{ label: 'Frontmatter (Hash Specification)', link: '/reference/frontmatter-hash-specification/' },
 						{ label: 'Frontmatter (Schedule Syntax)', link: '/reference/schedule-syntax/' },
@@ -385,8 +394,10 @@ export default defineConfig({
 						{ label: 'Imports (Dependabot)', link: '/reference/dependabot/' },
 						{ label: 'Indexing (QMD)', link: '/reference/qmd/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },
+						{ label: 'Model Alias (Spec)', link: '/reference/model-alias-specification/' },
 						{ label: 'MCP Gateway', link: '/reference/mcp-gateway/' },
 						{ label: 'Network Access', link: '/reference/network/' },
+						{ label: 'OpenTelemetry', link: '/reference/open-telemetry/' },
 						{ label: 'Playwright', link: '/reference/playwright/' },
 						{ label: 'Releases and Versioning', link: '/reference/releases/' },
 						{ label: 'Repo Memory', link: '/reference/repo-memory/' },
