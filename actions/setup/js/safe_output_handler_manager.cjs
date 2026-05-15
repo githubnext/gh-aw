@@ -105,8 +105,9 @@ const WTD3_REQUIREMENT_ID = "WTD3";
 
 /**
  * Safe output types that remain reviewable in threat-detection warn mode.
- * These handlers produce visible artifacts (issues/comments/PRs/review items) that humans can inspect
- * before any further automation occurs.
+ * Reviewable means the handler creates visible artifacts (issues, comments, pull requests, review items)
+ * that humans can inspect before any follow-up automation or merge decision.
+ * If a new safe output type is added, include it here only when it follows that same review-first model.
  * @type {Set<string>}
  */
 const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
@@ -137,8 +138,9 @@ const THREAT_WARNING_CONVERTIBLE_TYPES = new Map([["push_to_pull_request_branch"
 
 /**
  * Safe output types that must be aborted in threat-detection warn mode.
- * These handlers perform non-reviewable state-changing operations and therefore cannot safely proceed
- * after a threat warning.
+ * These handlers perform non-reviewable state-changing operations (merge/close/assign/dispatch/etc.)
+ * that cannot be safely inspected before execution and are often irreversible after execution.
+ * If a new safe output type performs direct state mutation without a review artifact, classify it here.
  * @type {Set<string>}
  */
 const THREAT_WARNING_ABORT_TYPES = new Set([
