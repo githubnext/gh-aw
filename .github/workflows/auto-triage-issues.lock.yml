@@ -128,7 +128,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "7596da517653e4de4ba451de3a0db30c9c324de999d01affa52b35909b77eafa"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -149,7 +148,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "🔧"
-          GH_AW_INFO_FRONTMATTER_HASH: "7596da517653e4de4ba451de3a0db30c9c324de999d01affa52b35909b77eafa"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -396,7 +394,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "7596da517653e4de4ba451de3a0db30c9c324de999d01affa52b35909b77eafa"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1071,7 +1068,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "7596da517653e4de4ba451de3a0db30c9c324de999d01affa52b35909b77eafa"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1219,7 +1215,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "7596da517653e4de4ba451de3a0db30c9c324de999d01affa52b35909b77eafa"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1422,7 +1417,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "7596da517653e4de4ba451de3a0db30c9c324de999d01affa52b35909b77eafa"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1502,7 +1496,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Auto-Triage Issues"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/auto-triage-issues.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "7596da517653e4de4ba451de3a0db30c9c324de999d01affa52b35909b77eafa"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

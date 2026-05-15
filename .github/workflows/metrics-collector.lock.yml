@@ -122,7 +122,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Metrics Collector - Infrastructure Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/metrics-collector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "03f8a54667df27842a9d9696b8e5ad10f94e1edb9bce3524dd4c1788f4ffa6a9"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -143,7 +142,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "📊"
-          GH_AW_INFO_FRONTMATTER_HASH: "03f8a54667df27842a9d9696b8e5ad10f94e1edb9bce3524dd4c1788f4ffa6a9"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -406,7 +404,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Metrics Collector - Infrastructure Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/metrics-collector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "03f8a54667df27842a9d9696b8e5ad10f94e1edb9bce3524dd4c1788f4ffa6a9"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1128,7 +1125,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Metrics Collector - Infrastructure Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/metrics-collector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "03f8a54667df27842a9d9696b8e5ad10f94e1edb9bce3524dd4c1788f4ffa6a9"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1278,7 +1274,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Metrics Collector - Infrastructure Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/metrics-collector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "03f8a54667df27842a9d9696b8e5ad10f94e1edb9bce3524dd4c1788f4ffa6a9"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1489,7 +1484,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Metrics Collector - Infrastructure Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/metrics-collector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "03f8a54667df27842a9d9696b8e5ad10f94e1edb9bce3524dd4c1788f4ffa6a9"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1598,7 +1592,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Metrics Collector - Infrastructure Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/metrics-collector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "03f8a54667df27842a9d9696b8e5ad10f94e1edb9bce3524dd4c1788f4ffa6a9"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

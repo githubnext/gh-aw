@@ -121,7 +121,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e061b74aaacb0fbf00a13dfaa4492fe4d3b21f2410d226da6d1e5abc883f7c56"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -142,7 +141,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "✅"
-          GH_AW_INFO_FRONTMATTER_HASH: "e061b74aaacb0fbf00a13dfaa4492fe4d3b21f2410d226da6d1e5abc883f7c56"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -378,7 +376,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e061b74aaacb0fbf00a13dfaa4492fe4d3b21f2410d226da6d1e5abc883f7c56"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1083,7 +1080,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e061b74aaacb0fbf00a13dfaa4492fe4d3b21f2410d226da6d1e5abc883f7c56"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1232,7 +1228,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e061b74aaacb0fbf00a13dfaa4492fe4d3b21f2410d226da6d1e5abc883f7c56"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1467,7 +1462,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e061b74aaacb0fbf00a13dfaa4492fe4d3b21f2410d226da6d1e5abc883f7c56"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

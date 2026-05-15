@@ -128,7 +128,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -149,7 +148,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "✍️"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -412,7 +410,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1200,7 +1197,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1357,7 +1353,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1558,7 +1553,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1623,7 +1617,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1734,7 +1727,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1879,7 +1871,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7b8dd65d3e84330f3622338731b36edfdc720229c4d355d35f7013d5b54e052"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

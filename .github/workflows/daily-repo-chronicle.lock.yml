@@ -124,7 +124,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-repo-chronicle.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -145,7 +144,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "📅"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -394,7 +392,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-repo-chronicle.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1077,7 +1074,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-repo-chronicle.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1231,7 +1227,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-repo-chronicle.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1456,7 +1451,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-repo-chronicle.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1541,7 +1535,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-repo-chronicle.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1597,7 +1590,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-repo-chronicle.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "2fc68df5c31513179098fd4fc11b14f8695a0ca2ad51e7339d05c3c34b97580a"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

@@ -138,7 +138,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-pi.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -159,7 +158,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "🧪"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -447,7 +445,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-pi.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1083,7 +1080,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-pi.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1247,7 +1243,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-pi.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1437,7 +1432,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-pi.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1506,7 +1500,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-pi.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1591,7 +1584,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Pi"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-pi.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.72.1"
-          GH_AW_INFO_FRONTMATTER_HASH: "43a0965724afa923894accae47d87ef66e4edc60760fda7ea8591866d9176ea3"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

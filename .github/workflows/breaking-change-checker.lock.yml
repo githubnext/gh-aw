@@ -125,7 +125,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/breaking-change-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "73895a2b995a09155de76ce723b9c896f44185bd635595041ac9ff6606194b27"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -146,7 +145,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "⚠️"
-          GH_AW_INFO_FRONTMATTER_HASH: "73895a2b995a09155de76ce723b9c896f44185bd635595041ac9ff6606194b27"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -386,7 +384,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/breaking-change-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "73895a2b995a09155de76ce723b9c896f44185bd635595041ac9ff6606194b27"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1027,7 +1024,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/breaking-change-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "73895a2b995a09155de76ce723b9c896f44185bd635595041ac9ff6606194b27"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1181,7 +1177,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/breaking-change-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "73895a2b995a09155de76ce723b9c896f44185bd635595041ac9ff6606194b27"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1383,7 +1378,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/breaking-change-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "73895a2b995a09155de76ce723b9c896f44185bd635595041ac9ff6606194b27"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1465,7 +1459,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/breaking-change-checker.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "73895a2b995a09155de76ce723b9c896f44185bd635595041ac9ff6606194b27"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

@@ -120,7 +120,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Go Pattern Detector"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/go-pattern-detector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7f2ed345c71baee84e4a4e1b0773eb2d56edee911336128ab931ea1d912b415"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -141,7 +140,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "🔍"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7f2ed345c71baee84e4a4e1b0773eb2d56edee911336128ab931ea1d912b415"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -387,7 +385,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Go Pattern Detector"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/go-pattern-detector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7f2ed345c71baee84e4a4e1b0773eb2d56edee911336128ab931ea1d912b415"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1128,7 +1125,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Go Pattern Detector"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/go-pattern-detector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7f2ed345c71baee84e4a4e1b0773eb2d56edee911336128ab931ea1d912b415"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1270,7 +1266,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Go Pattern Detector"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/go-pattern-detector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7f2ed345c71baee84e4a4e1b0773eb2d56edee911336128ab931ea1d912b415"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1503,7 +1498,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Go Pattern Detector"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/go-pattern-detector.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "e7f2ed345c71baee84e4a4e1b0773eb2d56edee911336128ab931ea1d912b415"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

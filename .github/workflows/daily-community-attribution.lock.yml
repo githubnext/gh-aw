@@ -121,7 +121,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -142,7 +141,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "🏆"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -436,7 +434,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1179,7 +1176,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1331,7 +1327,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1536,7 +1531,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1625,7 +1619,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1737,7 +1730,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.43"
-          GH_AW_INFO_FRONTMATTER_HASH: "e6e946561d5d75eb5ba6d511181e22f2bd5475776086d7c5c89bec837c6949da"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

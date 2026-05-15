@@ -125,7 +125,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "2bea0196ba3a17ed7137e8fb6b19dc644bcd76b4b4deee0331ce1a166a82d148"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -146,7 +145,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "⚡"
-          GH_AW_INFO_FRONTMATTER_HASH: "2bea0196ba3a17ed7137e8fb6b19dc644bcd76b4b4deee0331ce1a166a82d148"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -400,7 +398,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "2bea0196ba3a17ed7137e8fb6b19dc644bcd76b4b4deee0331ce1a166a82d148"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1186,7 +1183,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "2bea0196ba3a17ed7137e8fb6b19dc644bcd76b4b4deee0331ce1a166a82d148"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1334,7 +1330,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "2bea0196ba3a17ed7137e8fb6b19dc644bcd76b4b4deee0331ce1a166a82d148"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1568,7 +1563,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "2bea0196ba3a17ed7137e8fb6b19dc644bcd76b4b4deee0331ce1a166a82d148"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1653,7 +1647,6 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Sub-Agent Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-subagent-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.141"
-          GH_AW_INFO_FRONTMATTER_HASH: "2bea0196ba3a17ed7137e8fb6b19dc644bcd76b4b4deee0331ce1a166a82d148"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
