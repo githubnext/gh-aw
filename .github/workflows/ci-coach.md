@@ -1,5 +1,4 @@
 ---
-emoji: "🏋️"
 description: Daily CI optimization coach that analyzes workflow runs for efficiency improvements and cost reduction opportunities
 on:
   schedule:
@@ -31,6 +30,23 @@ imports:
   - shared/observability-otlp.md
 features:
   copilot-requests: true
+experiments:
+  prompt_style:
+    variants: [detailed, concise]
+    description: "Tests whether a condensed goal-oriented prompt produces equivalent or better CI optimization proposals compared to the current verbose phase-structured prompt"
+    hypothesis: "H0: no change in PR merge rate or proposal quality. H1: concise prompt reduces token usage ≥25% without degrading proposal quality"
+    metric: token_count_per_run
+    secondary_metrics: [pr_created_rate, run_duration_ms, output_word_count]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.85"
+      - name: empty_output_rate
+        threshold: "<=0.05"
+    min_samples: 20
+    weight: [50, 50]
+    start_date: "2026-05-15"
+    analysis_type: mann_whitney
+    issue: 32335
 
 ---
 
@@ -69,6 +85,30 @@ The `ci-data-analysis` shared module has pre-downloaded CI run data and built th
 The project has been **built, linted, and tested** so you can validate changes immediately.
 Start from `/tmp/ci-summary.json` first and only read raw files if a summary metric needs verification.
 
+{{#if experiments.prompt_style == "concise" }}
+## Task
+
+Analyze CI workflows (`.github/workflows/ci.yml`, `cgo.yml`, `cjs.yml`) using pre-downloaded data in `/tmp`. Identify the top 3 highest-impact optimizations for cost and speed. If you find actionable improvements, make focused changes, validate with `make lint && make build && make test-unit && make recompile`, and create a PR. If CI is healthy, call `noop`. Never modify test code to hide failures.
+
+**Data**:
+- `/tmp/ci-summary.json` (start here)
+- `/tmp/ci-runs.json`
+- `/tmp/ci-artifacts/`
+- `/tmp/gh-aw/cache-memory/`
+
+**Required approach**:
+- Follow optimization strategy guidance from `ci-optimization-strategies` import.
+- Prioritize low-risk, high-impact changes with measurable expected savings.
+- Keep scope small and reversible.
+- Validate YAML integrity and preserve correctness dependencies.
+- Stop after PR creation or `noop`.
+
+**Output format**:
+- Use `###` headers only.
+- Keep under 600 words.
+- Use `<details>` for long diffs or evidence.
+- Include top 1-3 optimizations with impact, risk, and rationale.
+{{else}}
 ## Analysis Framework
 
 Follow the optimization strategies defined in the `ci-optimization-strategies` shared module:
@@ -144,7 +184,7 @@ If you identify improvements worth implementing:
    ```bash
    make lint && make build && make test-unit && make recompile
    ```
-   
+
    **IMPORTANT**: Only proceed to creating a PR if all validations pass.
 
 3. **Document changes** in the PR description (see template below)
@@ -169,6 +209,7 @@ If no improvements are found or changes are too risky:
 1. Save analysis to cache memory
 2. Exit gracefully - no pull request needed
 3. Log findings for future reference
+{{/if}}
 
 ## Pull Request Structure (if created)
 

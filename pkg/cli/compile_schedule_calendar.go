@@ -195,8 +195,14 @@ func intensityChar(count int) string {
 	}
 }
 
-// intensityStyle returns a lipgloss style appropriate for the given trigger count.
-func intensityStyle(count int) lipgloss.Style {
+// intensityStyle returns a lipgloss style appropriate for the given trigger
+// count. Styling is TTY-gated so non-interactive output does not emit ANSI.
+func intensityStyle(count int, isTerminal bool) lipgloss.Style {
+	if !isTerminal {
+		// Keep glyph rendering unchanged while preventing ANSI escapes in piped output.
+		return lipgloss.NewStyle()
+	}
+
 	switch {
 	case count == 0:
 		return lipgloss.NewStyle().Foreground(styles.ColorComment)
@@ -265,11 +271,7 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 			ch := intensityChar(count)
 			// Pad each cell to cellWidth with a trailing space.
 			cell := ch + strings.Repeat(" ", cellWidth-len([]rune(ch)))
-			if isTerminal {
-				row.WriteString(intensityStyle(count).Render(cell))
-			} else {
-				row.WriteString(cell)
-			}
+			row.WriteString(intensityStyle(count, isTerminal).Render(cell))
 		}
 
 		fmt.Fprintln(os.Stderr, row.String())
@@ -287,12 +289,8 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 	legend.WriteString("Legend: ")
 	for _, e := range entries {
 		ch := intensityChar(e.count)
-		if isTerminal {
-			legend.WriteString(intensityStyle(e.count).Render(ch))
-			legend.WriteString(" = " + e.label + "   ")
-		} else {
-			legend.WriteString(ch + " = " + e.label + "   ")
-		}
+		legend.WriteString(intensityStyle(e.count, isTerminal).Render(ch))
+		legend.WriteString(" = " + e.label + "   ")
 	}
 	fmt.Fprintln(os.Stderr, legend.String())
 	fmt.Fprintln(os.Stderr)

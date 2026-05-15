@@ -6382,6 +6382,11 @@
                   ],
                   "description": "Transport format for packaging changes. \"bundle\" (default) uses git bundle. \"am\" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable workflows."
                 },
+                "signed-commits": {
+                  "type": "boolean",
+                  "description": "When true (default), signed commits are required and pushes use GitHub's createCommitOnBranch GraphQL mutation so GitHub signs them. Set to false to use git push directly for repositories that do not require signed commits; this also allows pushing merge commits that GraphQL cannot represent.",
+                  "default": true
+                },
                 "staged": {
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -7614,6 +7619,11 @@
                 "fallback-as-pull-request": {
                   "type": "boolean",
                   "description": "When true (default), if pushing to the PR branch fails due to a non-fast-forward/diverged branch, create a fallback pull request that targets the original PR branch. Set to false to disable this behavior and avoid requiring pull-requests: write permission.",
+                  "default": true
+                },
+                "signed-commits": {
+                  "type": "boolean",
+                  "description": "When true (default), signed commits are required and pushes use GitHub's createCommitOnBranch GraphQL mutation so GitHub signs them. Set to false to use git push directly for repositories that do not require signed commits; this also allows pushing merge commits that GraphQL cannot represent.",
                   "default": true
                 },
                 "target-repo": {

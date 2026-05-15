@@ -297,11 +297,6 @@
           "pattern": "^(https://.+|\\$\\{[A-Z_][A-Z0-9_]*\\})$",
           "minLength": 1
         },
-        "headers": {
-          "type": "string",
-          "description": "Raw string of HTTP headers to include with every OTLP export request (e.g., for authentication). The value is passed through as-is without parsing. Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
-          "minLength": 1
-        },
         "traceId": {
           "type": "string",
           "description": "Parent trace ID for W3C trace context propagation. When set, all gateway spans are attached as children of this trace. MUST be a 32-character lowercase hexadecimal string (128-bit W3C trace ID). Supports variable expressions.",

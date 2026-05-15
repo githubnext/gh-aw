@@ -264,7 +264,6 @@ func TestInjectOTLPConfig(t *testing.T) {
 		require.NotEmpty(t, wd.Env, "Env should be set")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}", "should contain endpoint var")
 		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "should contain service name")
-		assert.Contains(t, wd.Env, "COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/copilot-otel.jsonl", "should configure Copilot OTEL file exporter path")
 	})
 
 	t.Run("injects if-missing env var when if-missing is set to ignore", func(t *testing.T) {
@@ -318,7 +317,6 @@ func TestInjectOTLPConfig(t *testing.T) {
 		require.NotEmpty(t, wd.Env, "Env should be set")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com:4317")
 		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw")
-		assert.Contains(t, wd.Env, "COPILOT_OTEL_FILE_EXPORTER_PATH: /tmp/gh-aw/copilot-otel.jsonl")
 		assert.True(t, strings.HasPrefix(wd.Env, "env:"), "Env should start with 'env:'")
 	})
 

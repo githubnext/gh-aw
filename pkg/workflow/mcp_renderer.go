@@ -212,14 +212,12 @@ func RenderJSONMCPConfig(
 		// (injected by injectOTLPConfig) so that secrets are never interpolated directly into
 		// the run block (RGS-008 compliance). All four fields use ${VARIABLE_NAME} expressions
 		// expanded by bash from workflow-level env vars.
-		// Per MCP Gateway Specification §4.1.3.6 and the opentelemetryConfig schema.
+		// Per MCP Gateway Specification §4.1.3.7 and the opentelemetryConfig schema.
+		// Note: OTEL_EXPORTER_OTLP_HEADERS is passed as a container env var (not in the JSON
+		// config) so that auth credentials are not embedded in the stdin JSON config pipe.
 		if options.GatewayConfig.OTLPEndpoint != "" {
 			configBuilder.WriteString(",\n              \"opentelemetry\": {\n")
 			configBuilder.WriteString("                \"endpoint\": \"${OTEL_EXPORTER_OTLP_ENDPOINT}\",\n")
-			if options.GatewayConfig.OTLPHeaders != "" {
-				// Pass the headers string through as-is; the gateway schema requires a string value.
-				configBuilder.WriteString("                \"headers\": \"${OTEL_EXPORTER_OTLP_HEADERS}\",\n")
-			}
 			configBuilder.WriteString("                \"traceId\": \"${GITHUB_AW_OTEL_TRACE_ID}\",\n")
 			configBuilder.WriteString("                \"spanId\": \"${GITHUB_AW_OTEL_PARENT_SPAN_ID}\"\n")
 			configBuilder.WriteString("              }")

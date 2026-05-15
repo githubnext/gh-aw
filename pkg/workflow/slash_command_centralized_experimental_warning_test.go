@@ -13,14 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSlashCommandCentralizedExperimentalWarning(t *testing.T) {
+func TestSlashCommandStrategiesDoNotEmitExperimentalWarning(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		expectWarning bool
+		name    string
+		content string
 	}{
 		{
-			name: "centralized strategy emits warning",
+			name: "centralized strategy does not emit warning",
 			content: `---
 on:
   slash_command:
@@ -30,7 +29,6 @@ on:
 
 # Test Workflow
 `,
-			expectWarning: true,
 		},
 		{
 			name: "inline strategy does not emit warning",
@@ -42,7 +40,18 @@ on:
 
 # Test Workflow
 `,
-			expectWarning: false,
+		},
+		{
+			name: "label decentralized strategy does not emit warning",
+			content: `---
+on:
+  label_command:
+    name: triage
+    strategy: decentralized
+---
+
+# Test Workflow
+`,
 		},
 	}
 
@@ -68,13 +77,8 @@ on:
 			stderrOutput := buf.String()
 			require.NoError(t, err)
 
-			expected := "Using experimental feature: slash_command.strategy: centralized"
-			if tt.expectWarning {
-				require.Contains(t, stderrOutput, expected)
-				require.Greater(t, compiler.GetWarningCount(), 0)
-			} else {
-				require.NotContains(t, stderrOutput, expected)
-			}
+			require.NotContains(t, stderrOutput, "Using experimental feature: slash_command.strategy: centralized")
+			require.NotContains(t, stderrOutput, "Using experimental feature: label_command.strategy: decentralized")
 		})
 	}
 }

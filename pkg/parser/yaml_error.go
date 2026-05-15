@@ -65,6 +65,10 @@ var yamlErrorTranslations = []struct {
 		"did not find expected key",
 		"incorrect indentation or missing key in mapping",
 	},
+	{
+		"mapping value not found",
+		"missing ':' after key — YAML mapping entries require 'key: value' format",
+	},
 }
 
 // TranslateYAMLMessage translates a raw goccy/go-yaml parser message to a user-friendly

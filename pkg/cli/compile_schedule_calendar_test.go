@@ -202,6 +202,13 @@ func TestIntensityChar(t *testing.T) {
 	}
 }
 
+func TestIntensityStyle_NoANSIWhenNotTerminal(t *testing.T) {
+	for _, count := range []int{0, 1, 2, 5, 8} {
+		got := intensityStyle(count, false).Render(intensityChar(count))
+		assert.NotContains(t, got, "\x1b[", "non-TTY output should not contain ANSI escapes")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // displayScheduleCalendar (integration-style: captures stderr)
 // ---------------------------------------------------------------------------
@@ -245,6 +252,7 @@ func TestDisplayScheduleCalendar_WithSchedules(t *testing.T) {
 	}
 	assert.Contains(t, output, "20", "output should contain the scheduled hour")
 	assert.Contains(t, output, "Legend:", "output should contain a legend")
+	assert.NotContains(t, output, "\x1b[", "captured non-TTY stderr output should not contain ANSI escapes")
 }
 
 func TestDisplayScheduleCalendar_ContainsAllDayLabels(t *testing.T) {

@@ -113,6 +113,7 @@ async function main(config = {}) {
   const ignoreMissingBranchFailure = config.ignore_missing_branch_failure === true;
   const fallbackAsPullRequest = config.fallback_as_pull_request !== false;
   const checkBranchProtection = config.check_branch_protection !== false;
+  const signedCommits = config.signed_commits !== false;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const maxCount = config.max || 0; // 0 means no limit
@@ -150,6 +151,7 @@ async function main(config = {}) {
   core.info(`Ignore missing branch failure: ${ignoreMissingBranchFailure}`);
   core.info(`Fallback as pull request: ${fallbackAsPullRequest}`);
   core.info(`Check branch protection: ${checkBranchProtection}`);
+  core.info(`Push signed commits: ${signedCommits}`);
   if (commitTitleSuffix) {
     core.info(`Commit title suffix: ${commitTitleSuffix}`);
   }
@@ -891,6 +893,7 @@ async function main(config = {}) {
           baseRef: remoteHeadBeforePatch || `origin/${branchName}`,
           cwd: repoCwd || process.cwd(),
           gitAuthEnv,
+          signedCommits,
         });
         if (pushedSha) {
           pushedCommitSha = pushedSha;

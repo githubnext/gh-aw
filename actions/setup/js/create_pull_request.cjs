@@ -670,9 +670,12 @@ async function main(config = {}) {
   const rawBranchPrefix = config.branch_prefix || "";
   const normalizedBranchPrefix = normalizeBranchName(rawBranchPrefix);
   if (rawBranchPrefix && normalizedBranchPrefix !== rawBranchPrefix) {
-    core.warning(
-      `Branch prefix "${rawBranchPrefix}" contains characters that are invalid in a git ref. ` + `Using normalized prefix: "${normalizedBranchPrefix}". ` + `Update branch-prefix in the workflow configuration to avoid this warning.`
-    );
+    const branchPrefixWarning = [
+      `Branch prefix "${rawBranchPrefix}" contains characters that are invalid in a git ref.`,
+      `Using normalized prefix: "${normalizedBranchPrefix}".`,
+      "Update branch-prefix in the workflow configuration to avoid this warning.",
+    ].join(" ");
+    core.warning(branchPrefixWarning);
   }
   const branchPrefix = normalizedBranchPrefix;
   const titlePrefix = config.title_prefix || "";
@@ -689,6 +692,7 @@ async function main(config = {}) {
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
   const preserveBranchName = config.preserve_branch_name === true;
   const recreateRef = config.recreate_ref === true;
+  const signedCommits = config.signed_commits !== false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
@@ -820,6 +824,7 @@ async function main(config = {}) {
   core.info(`If no changes: ${ifNoChanges}`);
   core.info(`Allow empty: ${allowEmpty}`);
   core.info(`Auto-merge: ${autoMerge}`);
+  core.info(`Signed commits: ${signedCommits}`);
   if (expiresHours > 0) {
     core.info(`Pull requests expire after: ${expiresHours} hours`);
   }
@@ -1420,6 +1425,7 @@ async function main(config = {}) {
           branch: branchName,
           baseRef: `origin/${baseBranch}`,
           cwd: process.cwd(),
+          signedCommits,
         });
         core.info("Changes pushed to branch (from bundle)");
 
@@ -1636,6 +1642,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             branch: branchName,
             baseRef: `origin/${baseBranch}`,
             cwd: process.cwd(),
+            signedCommits,
           });
           core.info("Changes pushed to branch");
 
@@ -1780,6 +1787,7 @@ ${patchPreview}`;
               branch: branchName,
               baseRef: `origin/${baseBranch}`,
               cwd: process.cwd(),
+              signedCommits,
             });
             core.info("Empty branch pushed successfully");
 

@@ -2,11 +2,14 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/typeutil"
@@ -504,10 +507,23 @@ func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, er
 	engine, err := c.engineRegistry.GetEngineByPrefix(engineSetting)
 	if err == nil {
 		engineLog.Printf("Found engine by prefix match: %s", engine.GetID())
-	} else {
-		engineLog.Printf("Failed to find engine for setting %s: %v", engineSetting, err)
+		return engine, nil
 	}
-	return engine, err
+
+	engineLog.Printf("Failed to find engine for setting %s: %v", engineSetting, err)
+
+	validEngines := c.engineRegistry.GetSupportedEngines()
+	suggestions := parser.FindClosestMatches(engineSetting, validEngines, 1)
+	enginesStr := strings.Join(validEngines, ", ")
+
+	errMsg := fmt.Sprintf("invalid engine: %s. Valid engines are: %s.\n\nExample:\nengine: copilot\n\nSee: %s",
+		engineSetting, enginesStr, constants.DocsEnginesURL)
+	if len(suggestions) > 0 {
+		errMsg = fmt.Sprintf("invalid engine: %s. Valid engines are: %s.\n\nDid you mean: %s?\n\nExample:\nengine: copilot\n\nSee: %s",
+			engineSetting, enginesStr, suggestions[0], constants.DocsEnginesURL)
+	}
+
+	return nil, errors.New(errMsg)
 }
 
 // extractEngineConfigFromJSON parses engine configuration from JSON string (from included files)

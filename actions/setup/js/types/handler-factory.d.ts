@@ -24,6 +24,8 @@ interface HandlerConfig {
   protected_files_policy?: string;
   /** When true (default), create a fallback pull request if direct push to PR branch fails with non-fast-forward/diverged branch. */
   fallback_as_pull_request?: boolean;
+  /** When false, skip GraphQL signed commits and push the local git history directly. */
+  signed_commits?: boolean;
   /** Additional handler-specific configuration properties */
   [key: string]: any;
 }

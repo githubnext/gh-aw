@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * @fileoverview Shared helper for pushing local commits either through
+ * GitHub's signed-commit GraphQL API or, when explicitly configured, direct
+ * `git push`.
+ */
+
 const { ERR_API } = require("./error_codes.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
@@ -119,17 +125,33 @@ async function readBlobAsBase64(blobHash, cwd) {
 }
 
 /**
- * @fileoverview Signed Commit Push Helper
+ * Push the local branch to origin using git directly and return the local HEAD
+ * SHA after the push succeeds.
  *
- * Pushes local git commits to a remote branch using the GitHub GraphQL
- * `createCommitOnBranch` mutation, so commits are cryptographically signed
- * (verified) by GitHub.  Falls back to a plain `git push` when the GraphQL
- * approach is unavailable (e.g. GitHub Enterprise Server instances that do
- * not support the mutation, or when branch-protection policies reject it).
- *
- * Both `create_pull_request.cjs` and `push_to_pull_request_branch.cjs` use
- * this helper so the signed-commit logic lives in exactly one place.
+ * @param {object} opts
+ * @param {string} opts.branch
+ * @param {string} opts.cwd
+ * @param {object} [opts.gitAuthEnv]
+ * @returns {Promise<string>}
  */
+async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv }) {
+  await exec.exec("git", ["push", "origin", branch], {
+    cwd,
+    env: { ...process.env, ...(gitAuthEnv || {}) },
+  });
+  return resolveLocalHeadSha(cwd);
+}
+
+/**
+ * Resolve the local HEAD SHA.
+ *
+ * @param {string} cwd
+ * @returns {Promise<string>}
+ */
+async function resolveLocalHeadSha(cwd) {
+  const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
+  return stdout.trim();
+}
 
 /**
  * Pushes local commits to a remote branch using the GitHub GraphQL
@@ -144,21 +166,25 @@ async function readBlobAsBase64(blobHash, cwd) {
  * @param {string} opts.baseRef - Git ref of the remote head before commits were applied (used for rev-list)
  * @param {string} opts.cwd - Working directory of the local git checkout
  * @param {object} [opts.gitAuthEnv] - Environment variables for git push fallback auth
+ * @param {boolean} [opts.signedCommits=true] - When false, skip GraphQL signed commits and use git push directly
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
-async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
+async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true }) {
+  // The default parameter value converts undefined to true; this check tests only the explicit false value.
+  if (signedCommits === false) {
+    core.info(`pushSignedCommits: signed-commits disabled (using direct git push) for branch ${branch}`);
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
+    core.info(`pushSignedCommits: git push and HEAD resolution completed, HEAD=${headSha}`);
+    return headSha;
+  }
+
   // Orphan branch first push: baseRef is "" when push_experiment_state creates a brand-new
   // branch for the first time (checkoutOrCreateBranch returns "" for new branches).
   // The GraphQL createCommitOnBranch path cannot handle root commits (no parent to resolve),
   // so skip it entirely and fall directly through to git push.
   if (!baseRef) {
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
-    await exec.exec("git", ["push", "origin", branch], {
-      cwd,
-      env: { ...process.env, ...(gitAuthEnv || {}) },
-    });
-    const { stdout: headOut } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
-    const headSha = headOut.trim();
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
     core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
     return headSha;
   }
@@ -402,16 +428,12 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
           `submodule entries (mode 160000), or executable bits (mode 100755). ` +
           `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
-          `or set push-signed-commits: false if the repository does not require signed commits.`,
+          `or set signed-commits: false if the repository does not require signed commits.`,
         { cause: err }
       );
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${err instanceof Error ? err.message : String(err)}`);
-    await exec.exec("git", ["push", "origin", branch], {
-      cwd,
-      env: { ...process.env, ...(gitAuthEnv || {}) },
-    });
-    const fallbackSha = shas[shas.length - 1];
+    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;
   }

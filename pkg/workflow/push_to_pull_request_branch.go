@@ -27,6 +27,7 @@ type PushToPullRequestBranchConfig struct {
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "bundle" (default, uses git bundle and preserves merge topology/per-commit metadata) or "am" (uses git format-patch).
 	FallbackAsPullRequest          *bool    `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
+	SignedCommits                  *bool    `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
 	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
 	CheckBranchProtection          *bool    `yaml:"check-branch-protection,omitempty"`             // When false, skips the branch protection API pre-flight check. Default is true (check enabled). Set to false to avoid needing administration: read permission.
 }
@@ -179,6 +180,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			if fallbackAsPullRequest, exists := configMap["fallback-as-pull-request"]; exists {
 				if fallbackAsPullRequestBool, ok := fallbackAsPullRequest.(bool); ok {
 					pushToBranchConfig.FallbackAsPullRequest = &fallbackAsPullRequestBool
+				}
+			}
+
+			// Parse signed-commits (optional, defaults to true)
+			if signedCommits, exists := configMap["signed-commits"]; exists {
+				if signedCommitsBool, ok := signedCommits.(bool); ok {
+					pushToBranchConfig.SignedCommits = &signedCommitsBool
 				}
 			}
 

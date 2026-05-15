@@ -257,6 +257,13 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Target: 456");
     });
 
+    it("should accept disabling signed commits", async () => {
+      const module = await loadModule();
+      await module.main({ signed_commits: false });
+
+      expect(mockCore.info).toHaveBeenCalledWith("Push signed commits: false");
+    });
+
     it('should default if_no_changes to "warn"', async () => {
       const module = await loadModule();
       const handler = await module.main({});

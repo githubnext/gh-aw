@@ -1126,6 +1126,39 @@ describe("push_signed_commits integration tests", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/merge commit [0-9a-f]{7,40} detected/));
     });
 
+    it("should use direct git push for merge commits when signed commits are disabled", async () => {
+      execGit(["checkout", "-b", "unsigned-side-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "unsigned-side.txt"), "side branch content\n");
+      execGit(["add", "unsigned-side.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Unsigned side branch commit"], { cwd: workDir });
+
+      execGit(["checkout", "main"], { cwd: workDir });
+      execGit(["checkout", "-b", "unsigned-merge-test-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "unsigned-feature.txt"), "feature content\n");
+      execGit(["add", "unsigned-feature.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Unsigned feature commit"], { cwd: workDir });
+      execGit(["merge", "--no-ff", "unsigned-side-branch", "-m", "Merge unsigned-side-branch into unsigned-merge-test-branch"], { cwd: workDir });
+      const expectedHead = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      const pushedSha = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "unsigned-merge-test-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        signedCommits: false,
+      });
+
+      expect(pushedSha).toBe(expectedHead);
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      expect(execGit(["rev-parse", "refs/heads/unsigned-merge-test-branch"], { cwd: bareDir }).stdout.trim()).toBe(expectedHead);
+      expect(mockCore.info).toHaveBeenCalledWith("pushSignedCommits: signed-commits disabled (using direct git push) for branch unsigned-merge-test-branch");
+    });
+
     it("should not trigger merge-commit fallback for a commit message that starts with 'parent '", async () => {
       // Regression test: a commit whose message body starts with "parent " must not be misidentified
       // as a merge commit. The old cat-file approach would have counted this as an extra parent.

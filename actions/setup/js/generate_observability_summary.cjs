@@ -2,7 +2,6 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
-const { main: exportCopilotOtelTraces } = require("./export_copilot_otel_traces.cjs");
 
 const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
 const AGENT_OUTPUT_PATH = "/tmp/gh-aw/agent_output.json";
@@ -119,7 +118,6 @@ function buildObservabilitySummary(data) {
 }
 
 async function main(core) {
-  await exportCopilotOtelTraces(core);
   const data = collectObservabilityData();
   const markdown = buildObservabilitySummary(data);
   await core.summary.addRaw(markdown).write();

@@ -421,6 +421,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("preserve_branch_name", c.PreserveBranchName).
 			AddIfTrue("recreate_ref", c.RecreateRef).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
+			AddBoolPtr("signed_commits", c.SignedCommits).
 			AddIfTrue("staged", c.Staged)
 		return builder.Build()
 	},
@@ -455,6 +456,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddBoolPtr("fallback_as_pull_request", c.FallbackAsPullRequest).
+			AddBoolPtr("signed_commits", c.SignedCommits).
 			AddBoolPtr("check_branch_protection", c.CheckBranchProtection).
 			Build()
 	},

@@ -1198,6 +1198,7 @@ describe("sendJobSetupSpan", () => {
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
     expect(attrs["gh-aw.job.name"]).toBe("agent");
     expect(attrs["gh-aw.workflow.name"]).toBe("my-workflow");
+    expect(attrs["gen_ai.system"]).toBe("github_models");
     expect(attrs["gh-aw.engine.id"]).toBe("copilot");
     expect(attrs["gh-aw.run.id"]).toBe("123456789");
     expect(attrs["gh-aw.run.attempt"]).toBe("2");
@@ -1733,6 +1734,7 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gen_ai.system");
     expect(keys).not.toContain("gh-aw.engine.id");
   });
 
@@ -1767,6 +1769,7 @@ describe("sendJobSetupSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
+      expect(attrs["gen_ai.system"]).toBe("anthropic");
       expect(attrs["gh-aw.engine.id"]).toBe("claude");
     });
 
@@ -1819,6 +1822,7 @@ describe("sendJobSetupSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
+      expect(attrs["gen_ai.system"]).toBe("openai");
       expect(attrs["gh-aw.engine.id"]).toBe("codex");
     });
   });
@@ -2914,6 +2918,7 @@ describe("sendJobConclusionSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.name).toBe("gh-aw.job.conclusion");
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
+    expect(attrs["gen_ai.system"]).toBe("anthropic");
     expect(attrs["gen_ai.request.model"]).toBe("claude-3-5-sonnet-20241022");
   });
 
@@ -2937,6 +2942,7 @@ describe("sendJobConclusionSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.name).toBe("gh-aw.job.conclusion");
     const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gen_ai.system");
     expect(keys).not.toContain("gen_ai.request.model");
   });
 
