@@ -784,3 +784,94 @@ Test that OIDC env vars are NOT added when no server uses github-oidc auth.
 	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
 		"ACTIONS_ID_TOKEN_REQUEST_TOKEN should NOT be in docker command without github-oidc auth")
 }
+
+// TestOTLPHeadersEnvVarPassedToGatewayContainer verifies that OTEL_EXPORTER_OTLP_HEADERS is
+// passed to the MCP gateway container when observability.otlp is configured. This ensures
+// that OTLP auth credentials are securely delivered via the container env rather than being
+// embedded in the stdin JSON config pipe.
+func TestOTLPHeadersEnvVarPassedToGatewayContainer(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+observability:
+  otlp:
+    endpoint: "https://otel.example.com:4318"
+    headers: "${{ secrets.OTEL_HEADERS }}"
+---
+
+# Test OTLP Headers Env Var
+
+Test that OTEL_EXPORTER_OTLP_HEADERS is forwarded to the MCP gateway container.
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	// Verify OTEL_EXPORTER_OTLP_HEADERS is passed to the docker container via -e flag
+	assert.Contains(t, yamlStr, "-e OTEL_EXPORTER_OTLP_HEADERS",
+		"OTEL_EXPORTER_OTLP_HEADERS should be passed to gateway container via -e flag")
+
+	// Verify the docker command includes the -e flag before the container image
+	dockerCmdPattern := `docker run.*-e OTEL_EXPORTER_OTLP_HEADERS.*ghcr\.io/github/gh-aw-mcpg`
+	assert.Regexp(t, dockerCmdPattern, yamlStr,
+		"Docker command should include -e OTEL_EXPORTER_OTLP_HEADERS before the container image")
+
+	// Verify the headers value is NOT embedded in the JSON config pipe (security requirement)
+	assert.NotContains(t, yamlStr, `"headers": "${OTEL_EXPORTER_OTLP_HEADERS}"`,
+		"headers must not be embedded in the gateway JSON config")
+}
+
+// TestOTLPHeadersEnvVarNotPassedWithoutOTLP verifies that OTEL_EXPORTER_OTLP_HEADERS is NOT
+// added to the docker command when observability.otlp is not configured.
+func TestOTLPHeadersEnvVarNotPassedWithoutOTLP(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+---
+
+# Test No OTLP
+
+Test that OTEL_EXPORTER_OTLP_HEADERS is NOT added when no OTLP is configured.
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	// Verify OTEL_EXPORTER_OTLP_HEADERS is NOT in the docker command
+	assert.NotContains(t, yamlStr, "-e OTEL_EXPORTER_OTLP_HEADERS",
+		"OTEL_EXPORTER_OTLP_HEADERS should NOT be in docker command without OTLP config")
+}
