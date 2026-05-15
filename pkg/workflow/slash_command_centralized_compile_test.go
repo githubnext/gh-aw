@@ -85,7 +85,7 @@ tools:
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 }
 
-func TestSlashCommandRejectsRequiredDispatchInputs(t *testing.T) {
+func TestCompileWorkflow_SlashCommandRejectsRequiredDispatchInputs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-dispatch-inputs-test")
 
 	markdownPath := filepath.Join(tmpDir, "scout.md")
@@ -120,7 +120,7 @@ tools:
 	require.True(t, os.IsNotExist(statErr))
 }
 
-func TestLabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
+func TestCompileWorkflow_LabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-label-dispatch-inputs-test")
 
 	markdownPath := filepath.Join(tmpDir, "triage.md")
