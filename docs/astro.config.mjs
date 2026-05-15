@@ -145,6 +145,8 @@ export default defineConfig({
 		'/guides/audit-with-agents/': '/gh-aw/reference/audit/',
 		'/guides/ephemerals/': '/gh-aw/reference/ephemerals/',
 
+		'/reference/awf-reflect/': '/gh-aw/experimental/awf-reflect/',
+
 		// Patterns → Experimental
 		'/patterns/correction-ops/': '/gh-aw/experimental/correction-ops/',
 		'/patterns/trial-ops/': '/gh-aw/experimental/trial-ops/',
@@ -330,7 +332,6 @@ export default defineConfig({
 						{ label: 'Auditing Workflows', link: '/reference/audit/' },
 						{ label: 'Authentication', link: '/reference/auth/' },
 						{ label: 'Authentication (Projects)', link: '/reference/auth-projects/' },
-						{ label: 'AWF Reflect Route', link: '/reference/awf-reflect/' },
 						{ label: 'aw.yml Package Manifest', link: '/reference/aw-yml-package-manifest/' },
 						{ label: 'Cache Memory', link: '/reference/cache-memory/' },
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
@@ -394,7 +395,8 @@ export default defineConfig({
 				{
 					label: 'Experimental',
 					items: [
-						{ label: 'CorrectionOps', link: '/experimental/correction-ops/' },
+						{ label: 'AWF Reflect Route', link: '/experimental/awf-reflect/' },
+					{ label: 'CorrectionOps', link: '/experimental/correction-ops/' },
 						{ label: 'Monitoring with Projects', link: '/experimental/monitoring-with-projects/' },
 						{ label: 'TrialOps', link: '/experimental/trial-ops/' },
 					],
