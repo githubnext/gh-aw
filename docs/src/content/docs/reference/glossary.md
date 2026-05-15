@@ -422,7 +422,13 @@ Controls over external domains and services a workflow can access. Configured vi
 
 ### Observability (`observability.otlp`)
 
-A frontmatter field that enables distributed tracing for workflow runs via OpenTelemetry. Configured under `observability.otlp`, it exports structured spans to any OTLP-compatible backend (such as Honeycomb, Grafana Tempo, or Sentry). Every job emits setup and conclusion spans; cross-job trace correlation is wired automatically using a single trace ID from the activation job. Sensitive values in span attributes are automatically redacted before export. The MCP Gateway also receives OpenTelemetry configuration derived from `observability.otlp`, correlating MCP tool-call traces under the workflow root trace. The `endpoint` field is polymorphic: it accepts a plain URL string, a single `{url, headers}` object, or an array of objects to fan out spans to multiple OTLP collectors simultaneously. Span attributes include `gh-aw.agent.conclusion`, `gh-aw.detection.conclusion`, and `gh-aw.detection.reason` to surface agent and threat-detection outcomes in OTel backends.
+A frontmatter field that enables OpenTelemetry trace
+export from workflow runs. It supports single-endpoint and
+multi-endpoint OTLP export with optional headers.
+
+See [OpenTelemetry](/gh-aw/reference/open-telemetry/) for
+full configuration details, runtime variables, and span
+semantics.
 
 ### Pre-Steps (`jobs.<job-id>.pre-steps`)
 

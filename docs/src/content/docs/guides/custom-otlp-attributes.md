@@ -162,8 +162,7 @@ await sendOTLPSpan(endpoint, buildOTLPPayload({
 
 ## Related documentation
 
-- [Observability (`observability:`)](/gh-aw/reference/frontmatter/#observability-observability) — configure the OTLP endpoint and headers
+- [OpenTelemetry reference](/gh-aw/reference/open-telemetry/) — configure OTLP endpoints, headers, and runtime behavior
 - [Imports](/gh-aw/reference/imports/) — how shared workflow imports work
 - [Deterministic Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) — adding custom `steps:` to workflows
 - [Artifacts](/gh-aw/reference/artifacts/) — downloading the `otel.jsonl` mirror and other artifacts
-

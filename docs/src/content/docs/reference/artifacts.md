@@ -136,6 +136,10 @@ The unified `agent` artifact contains all agent job outputs.
 - `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters (only present when `observability.otlp` is configured)
 - `copilot-otel.jsonl` — OTLP spans emitted by Copilot CLI (only present when `observability.otlp` is configured)
 
+For OTLP configuration, runtime environment variables, and
+span semantics, see
+[OpenTelemetry](/gh-aw/reference/open-telemetry/).
+
 ## `activation`
 
 The `activation` artifact contains activation job outputs.

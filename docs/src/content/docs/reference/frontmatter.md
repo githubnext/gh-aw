@@ -886,7 +886,9 @@ cache:
 
 ## Observability (`observability:`)
 
-The `observability.otlp` field exports distributed traces from workflow runs to any [OpenTelemetry](https://opentelemetry.io/) Protocol (OTLP) compatible backend such as Honeycomb, Grafana Tempo, or Sentry.
+Use `observability.otlp` to export distributed traces from
+workflow runs to an OpenTelemetry Protocol (OTLP)
+compatible backend.
 
 ```yaml wrap
 observability:
@@ -897,119 +899,17 @@ observability:
       X-Tenant: my-org
 ```
 
-### Fields
+`endpoint` accepts a string, a `{url, headers}` object,
+or an array of endpoint objects for fan-out.
+`headers` accepts a map or comma-separated `key=value`
+string.
+`if-missing` supports `error` (default), `warn`, and
+`ignore`.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `observability.otlp.endpoint` | string, object, or array | OTLP/HTTP collector endpoint URL. Accepts a plain URL string, a single `{url, headers}` object, or an array of `{url, headers}` objects for concurrent fan-out to multiple collectors. When a static URL is provided, its hostname is automatically added to the network firewall allowlist. |
-| `observability.otlp.headers` | map or string | HTTP headers sent with every OTLP export request. Only applies when `endpoint` is a plain string; object and array endpoint entries carry their own per-endpoint headers. |
-| `observability.otlp.if-missing` | string (`error`, `warn`, `ignore`) | Controls behavior when OTLP endpoint/header values resolve to empty values at runtime (for example because a referenced secret is unset): `error` (default) fails startup, `warn` logs a warning and skips MCP gateway OTLP configuration, `ignore` skips MCP gateway OTLP configuration without warning. This setting affects MCP gateway setup only. |
-
-### `observability.otlp.endpoint`
-
-The `endpoint` field accepts three forms:
-
-**String form** (backward-compatible) — a plain URL with optional top-level `headers`:
-
-```yaml wrap
-observability:
-  otlp:
-    endpoint: ${{ secrets.OTLP_ENDPOINT }}
-    headers:
-      Authorization: ${{ secrets.OTLP_TOKEN }}
-```
-
-**Object form** — a single endpoint with per-endpoint headers:
-
-```yaml wrap
-observability:
-  otlp:
-    endpoint:
-      url: ${{ secrets.OTLP_ENDPOINT }}
-      headers:
-        Authorization: ${{ secrets.OTLP_TOKEN }}
-        X-Tenant: acme
-```
-
-**Array form** — multiple endpoints for concurrent fan-out:
-
-```yaml wrap
-observability:
-  otlp:
-    endpoint:
-      - url: ${{ secrets.OTLP_ENDPOINT_PRIMARY }}
-        headers:
-          Authorization: ${{ secrets.OTLP_TOKEN_PRIMARY }}
-      - url: ${{ secrets.OTLP_ENDPOINT_BACKUP }}
-        headers:
-          Authorization: ${{ secrets.OTLP_TOKEN_BACKUP }}
-```
-
-When using the array form, spans are sent to all endpoints concurrently. A failure on one endpoint does not prevent export to others.
-
-### `observability.otlp.headers`
-
-The `headers` field accepts two forms (applies to the string endpoint form only):
-
-**Map form** — define each header as a key/value pair:
-
-```yaml wrap
-observability:
-  otlp:
-    endpoint: ${{ secrets.OTLP_ENDPOINT }}
-    headers:
-      Authorization: ${{ secrets.OTLP_TOKEN }}
-      X-Tenant: acme
-```
-
-**String form** — comma-separated `key=value` pairs:
-
-```yaml wrap
-observability:
-  otlp:
-    endpoint: ${{ secrets.OTLP_ENDPOINT }}
-    headers: "Authorization=${{ secrets.OTLP_TOKEN }},X-Tenant=acme"
-```
-
-### Injected environment variables
-
-When `observability.otlp` is configured, the following environment variables are automatically injected into every step of the generated workflow:
-
-| Variable | Description |
-|----------|-------------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector URL (first endpoint, for backward compatibility with the MCP gateway and third-party tools). |
-| `OTEL_EXPORTER_OTLP_HEADERS` | Comma-separated `key=value` headers for the first endpoint. Set only when headers are configured. |
-| `OTEL_SERVICE_NAME` | Always `gh-aw`. |
-| `GH_AW_OTLP_ENDPOINTS` | JSON-encoded array of all endpoint entries (`[{"url":"...","headers":"..."}]`). Used by JavaScript action scripts to fan out spans to multiple endpoints. |
-| `GH_AW_OTLP_IF_MISSING` | Set to `warn` or `ignore` when `observability.otlp.if-missing` is configured. Used by runtime gateway setup to downgrade missing OTLP endpoint/header values from startup errors to non-fatal behavior for MCP gateway setup only. |
-| `COPILOT_OTEL_FILE_EXPORTER_PATH` | Path where Copilot CLI writes its own OTLP spans (`/tmp/gh-aw/copilot-otel.jsonl`). Copilot CLI detects this variable and writes its traces here; gh-aw forwards these traces to configured endpoints at the end of each run. |
-
-> [!NOTE]
-> `GH_AW_OTLP_ENDPOINTS` is the primary variable used by gh-aw's JavaScript span exporters. `OTEL_EXPORTER_OTLP_ENDPOINT` is retained for backward compatibility only.
-
-### Agent span attributes
-
-The agent span (`gh-aw.agent.agent`) uses [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) and is emitted as a `SPAN_KIND_CLIENT` span. The following attributes are set on the agent span:
-
-| Attribute | Description |
-|-----------|-------------|
-| `gen_ai.request.model` | Model name used for inference |
-| `gen_ai.operation.name` | Always `"chat"` |
-| `gen_ai.system` | Standardized OTel system name (e.g. `github_models`, `anthropic`, `openai`, `google_vertex_ai`) |
-| `gh-aw.engine` | gh-aw internal engine identifier (e.g. `copilot`, `claude`, `codex`, `gemini`) |
-| `gen_ai.workflow.name` | Workflow name |
-| `gen_ai.usage.input_tokens` | Total input tokens consumed |
-| `gen_ai.usage.output_tokens` | Total output tokens produced |
-| `gen_ai.usage.cache_read.input_tokens` | Cache-read tokens reused |
-| `gen_ai.usage.cache_creation.input_tokens` | Cache-creation tokens written |
-| `gen_ai.response.finish_reasons` | Array containing the agent's stop reason (e.g. `["end_turn"]`, `["max_tokens"]`) |
-
-> [!NOTE]
-> Prior to v0.70, the agent span used private `gh-aw.*` attribute names (`gh-aw.model`, `gh-aw.tokens.input`, etc.) and `SPAN_KIND_INTERNAL`. These attributes were removed and replaced with the `gen_ai.*` convention above. Update any dashboards or alert rules that reference the old attribute names.
-
-> [!NOTE]
-> Prior to v0.76, the engine was emitted as `gen_ai.provider.name` with the raw gh-aw engine ID. It is now emitted as the standard `gen_ai.system` attribute with a mapped OTel system name, and the raw engine ID is preserved in `gh-aw.engine`.
+For full OpenTelemetry reference details, including runtime
+variables, endpoint forms, span attributes, and artifact
+files, see [OpenTelemetry](/gh-aw/reference/open-telemetry/).
 
 ## Related Documentation
 
-See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)
+See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [OpenTelemetry](/gh-aw/reference/open-telemetry/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)
