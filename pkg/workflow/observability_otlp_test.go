@@ -358,9 +358,10 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Equal(t, 1, strings.Count(wd.Env, "env:"), "should have exactly one env: key")
 	})
 
-	t.Run("OTEL_SERVICE_NAME is always gh-aw", func(t *testing.T) {
+	t.Run("OTEL_SERVICE_NAME includes sanitized workflow id when available", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
+			WorkflowID: "Repo Triage/Weekly",
 			ParsedFrontmatter: &FrontmatterConfig{
 				Observability: &ObservabilityConfig{
 					OTLP: &OTLPConfig{Endpoint: "https://otel.corp.com"},
@@ -368,7 +369,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 			},
 		}
 		c.injectOTLPConfig(wd)
-		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "service name should always be gh-aw")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw.repo-triage-weekly", "service name should include sanitized workflow id")
 	})
 
 	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS when headers are configured", func(t *testing.T) {

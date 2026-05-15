@@ -399,12 +399,14 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 
 	firstEndpoint := entries[0].URL
 	firstHeaders := entries[0].Headers
+	serviceName := otelServiceName(workflowData)
 	ifMissingMode := getOTLPIfMissingMode(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
 
 	// 2. Inject OTEL env vars into the workflow-level env: block.
-	//    OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME are set to the first
-	//    endpoint for backward compatibility (MCP gateway, legacy scripts).
-	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: gh-aw", firstEndpoint)
+	//    OTEL_EXPORTER_OTLP_ENDPOINT is set to the first endpoint for backward
+	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
+	//    workflow-specific when WorkflowID is available.
+	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: %s", firstEndpoint, serviceName)
 
 	// 3. Inject per-endpoint headers env vars.
 	//    OTEL_EXPORTER_OTLP_HEADERS = first endpoint headers (backward compat).
@@ -443,4 +445,18 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	workflowData.OTLPEndpoint = firstEndpoint
 	workflowData.OTLPHeaders = firstHeaders
 	workflowData.OTLPEndpoints = encodeOTLPEndpoints(entries)
+}
+
+func otelServiceName(workflowData *WorkflowData) string {
+	const defaultServiceName = "gh-aw"
+	if workflowData == nil {
+		return defaultServiceName
+	}
+
+	sanitizedWorkflowID := SanitizeWorkflowName(workflowData.WorkflowID)
+	if sanitizedWorkflowID == "" {
+		return defaultServiceName
+	}
+
+	return defaultServiceName + "." + sanitizedWorkflowID
 }
