@@ -58,13 +58,16 @@ function createExecApi(cwd, onExec) {
       }
       return result.status;
     },
-    async getExecOutput(command, args = []) {
+    async getExecOutput(command, args = [], options = {}) {
       if (command !== "git") {
         throw new Error(`unexpected command: ${command}`);
       }
       const result = execGit(args, { cwd, allowFailure: true });
-      if (result.status !== 0) {
+      if (result.status !== 0 && !options.ignoreReturnCode) {
         throw new Error(result.stderr || result.stdout);
+      }
+      if (onExec) {
+        onExec(args);
       }
       return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
     },
