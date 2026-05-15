@@ -131,3 +131,79 @@ func TestSpec_PublicAPI_Deduplicate(t *testing.T) {
 		assert.Equal(t, []string{"x", "y", "z"}, unique, "Deduplicate of slice with no duplicates should return same elements in same order")
 	})
 }
+
+// TestSpec_PublicAPI_MergeUnique validates the documented behavior of
+// MergeUnique as described in the sliceutil README.md specification.
+//
+// Specification: "Returns a deduplicated slice starting with base and appending
+// unseen values from extra"
+//
+// README example:
+//
+//	merged := sliceutil.MergeUnique([]string{"a", "b"}, "b", "c")
+//	// merged = ["a", "b", "c"]
+func TestSpec_PublicAPI_MergeUnique(t *testing.T) {
+	t.Run("appends unseen values from extra to base", func(t *testing.T) {
+		merged := MergeUnique([]string{"a", "b"}, "b", "c")
+		assert.Equal(t, []string{"a", "b", "c"}, merged,
+			"MergeUnique should append only unseen extras, in order")
+	})
+
+	t.Run("base is deduplicated when it contains duplicates", func(t *testing.T) {
+		merged := MergeUnique([]string{"a", "b", "a"}, "c")
+		assert.Equal(t, []string{"a", "b", "c"}, merged,
+			"MergeUnique should deduplicate the base slice")
+	})
+
+	t.Run("returns base when extra is empty", func(t *testing.T) {
+		merged := MergeUnique([]string{"x", "y"})
+		assert.Equal(t, []string{"x", "y"}, merged,
+			"MergeUnique with no extras should yield the deduplicated base")
+	})
+
+	t.Run("does not modify input base slice", func(t *testing.T) {
+		original := []string{"a", "b"}
+		input := make([]string, len(original))
+		copy(input, original)
+		_ = MergeUnique(input, "b", "c")
+		assert.Equal(t, original, input, "MergeUnique must not modify the input base slice")
+	})
+}
+
+// TestSpec_PublicAPI_Exclude validates the documented behavior of
+// Exclude as described in the sliceutil README.md specification.
+//
+// Specification: "Returns a new slice with all exclude values removed while
+// preserving order"
+//
+// README example:
+//
+//	filtered := sliceutil.Exclude([]string{"a", "b", "c"}, "b")
+//	// filtered = ["a", "c"]
+func TestSpec_PublicAPI_Exclude(t *testing.T) {
+	t.Run("removes excluded values preserving order", func(t *testing.T) {
+		filtered := Exclude([]string{"a", "b", "c"}, "b")
+		assert.Equal(t, []string{"a", "c"}, filtered,
+			"Exclude should remove matching values and keep original order")
+	})
+
+	t.Run("removes multiple excluded values", func(t *testing.T) {
+		filtered := Exclude([]string{"a", "b", "c", "d"}, "b", "d")
+		assert.Equal(t, []string{"a", "c"}, filtered,
+			"Exclude should remove every matching exclude value")
+	})
+
+	t.Run("returns base unchanged when no exclude values match", func(t *testing.T) {
+		filtered := Exclude([]string{"a", "b", "c"}, "z")
+		assert.Equal(t, []string{"a", "b", "c"}, filtered,
+			"Exclude with no matching excludes should yield the base elements in order")
+	})
+
+	t.Run("does not modify input base slice", func(t *testing.T) {
+		original := []string{"a", "b", "c"}
+		input := make([]string, len(original))
+		copy(input, original)
+		_ = Exclude(input, "b")
+		assert.Equal(t, original, input, "Exclude must not modify the input base slice")
+	})
+}
