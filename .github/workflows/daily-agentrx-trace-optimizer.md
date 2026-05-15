@@ -66,14 +66,7 @@ Focus on:
 
 ### 1) Build AgentRx input trajectory
 
-Create `/tmp/agentrx/trajectory.json` from MCP-downloaded run data and logs by mapping `runs[]` session records to ordered workflow steps. Include:
-- step index
-- workflow/run identifiers (`github.workflow_ref`, `github.run_id`)
-- status/error signal
-- duration/token/cost fields when available (`duration`, `effective_tokens`, `estimated_cost`, `turns`)
-- behavior and diagnostics fields when available (`agentic_assessments`, `behavior_fingerprint`, `missing_tool_count`)
-
-Use the last 24h of data and prioritize runs with failures or high latency.
+Use the `trajectory-builder` agent, passing it the path to the MCP run-data file, to produce `/tmp/agentrx/trajectory.json`.
 
 ### 2) Run AgentRx pipeline
 
@@ -97,6 +90,8 @@ python run.py /tmp/agentrx/trajectory.json --run-dir /tmp/agentrx/runs/gh-aw-dai
 If a later stage fails (for example due to endpoint/auth constraints), continue with completed artifacts and still produce a grounded recommendation.
 
 ### 3) Derive one optimization recommendation
+
+First, use the `failure-pattern-classifier` agent to label each AgentRx violation. Then read the labeled table and pick the single highest-impact fix.
 
 Use AgentRx outputs to identify:
 - the most frequent or most expensive failure pattern
@@ -130,10 +125,7 @@ Body structure:
 <details>
 <summary>AgentRx Artifacts</summary>
 
-- IR summary
-- Invariant/checker highlights
-- Judge classification output (if available)
-- Known limitations (missing session fields, missing attributes, auth-limited stages)
+Use the `artifacts-summarizer` agent to produce the body of this details block.
 
 </details>
 
@@ -157,3 +149,41 @@ Body structure:
 - Otherwise, always call `create_issue` once.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `trajectory-builder`
+---
+description: Builds AgentRx trajectory input from MCP run and log data
+model: small
+---
+You are a structured-data extraction agent.
+Given the path to MCP-downloaded run data, create `/tmp/agentrx/trajectory.json`.
+Use the last 24h of data and prioritize failed or high-latency runs.
+Map `runs[]` session records to ordered workflow steps.
+Include when present: step index, `github.workflow_ref`, `github.run_id`, status/error signal, `duration`, `effective_tokens`, `estimated_cost`, `turns`, `agentic_assessments`, `behavior_fingerprint`, `missing_tool_count`.
+Output valid JSON only and write it to `/tmp/agentrx/trajectory.json`.
+
+## agent: `artifacts-summarizer`
+---
+description: Summarizes AgentRx stage artifacts for issue details output
+model: small
+---
+You are an artifact summarization agent.
+Read AgentRx stage outputs from `/tmp/agentrx/runs/<run_name>/` (`ir`, `static`, `dynamic`, `check`, `judge`, `report`).
+Produce concise markdown bullets for the AgentRx Artifacts details block.
+Cover: IR summary, invariant/checker highlights, judge classification output when available, and known limitations such as missing fields or auth-limited stages.
+Do not invent values.
+
+## agent: `failure-pattern-classifier`
+---
+description: Classifies AgentRx violations into predefined optimization fix types
+model: small
+---
+You are a violation classification agent.
+Label every AgentRx violation with exactly one fix type from this taxonomy:
+- prompt tightening to reduce invalid tool invocations
+- adding precondition checks before expensive tools
+- improving retry/backoff strategy
+- reducing token-heavy context payloads
+- adding missing telemetry attributes for better triage
+Return a markdown table with columns: violation, evidence, fix_type, rationale.
+Use only provided AgentRx artifacts.
