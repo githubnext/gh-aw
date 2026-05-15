@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"strings"
 
@@ -10,7 +11,14 @@ import (
 
 var stepsRunSecretsEnvCodemodLog = logger.New("cli:codemod_steps_run_secrets_env")
 
-var stepsSecretExprRe = regexp.MustCompile(`\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
+var (
+	stepsAnyExprRe        = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
+	stepsSecretBodyExprRe = regexp.MustCompile(`^secrets\.([A-Za-z_][A-Za-z0-9_]*)$`)
+	stepsEnvBodyExprRe    = regexp.MustCompile(`^env\.([A-Za-z_][A-Za-z0-9_]*)$`)
+	stepsSecretRefExprRe  = regexp.MustCompile(`\bsecrets\.([A-Za-z_][A-Za-z0-9_]*)\b`)
+	stepsEnvRefExprRe     = regexp.MustCompile(`\benv\.([A-Za-z_][A-Za-z0-9_]*)\b`)
+	stepsGitHubTokenRe    = regexp.MustCompile(`\bgithub\.token\b`)
+)
 
 // getStepsRunSecretsToEnvCodemod creates a codemod that moves secrets interpolated directly
 // in run fields to step-level env bindings in steps-like sections.
@@ -136,7 +144,8 @@ func transformStepsWithinSection(sectionLines []string, sectionIndent string) ([
 func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string, bool) {
 	modified := false
 	seen := make(map[string]bool)
-	orderedSecrets := make([]string, 0)
+	orderedBindings := make([]string, 0)
+	bindingExprs := make(map[string]string)
 	firstRunLine := -1
 	envStart := -1
 	envEnd := -1
@@ -189,58 +198,60 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
 					break
 				}
-				updatedLine, names := replaceStepSecretRefs(stepLines[j])
-				if len(names) > 0 {
+				updatedLine, bindings := replaceStepExpressionRefs(stepLines[j])
+				if len(bindings) > 0 {
 					stepLines[j] = updatedLine
 					modified = true
 				}
-				for _, name := range names {
-					if !seen[name] {
-						seen[name] = true
-						orderedSecrets = append(orderedSecrets, name)
+				for _, binding := range bindings {
+					if !seen[binding.Name] {
+						seen[binding.Name] = true
+						orderedBindings = append(orderedBindings, binding.Name)
+						bindingExprs[binding.Name] = binding.Expression
 					}
 				}
 			}
 			continue
 		}
 
-		newLine, names := replaceStepSecretRefs(line)
-		if len(names) > 0 {
+		newLine, bindings := replaceStepExpressionRefs(line)
+		if len(bindings) > 0 {
 			stepLines[i] = newLine
 			modified = true
 		}
-		for _, name := range names {
-			if !seen[name] {
-				seen[name] = true
-				orderedSecrets = append(orderedSecrets, name)
+		for _, binding := range bindings {
+			if !seen[binding.Name] {
+				seen[binding.Name] = true
+				orderedBindings = append(orderedBindings, binding.Name)
+				bindingExprs[binding.Name] = binding.Expression
 			}
 		}
 	}
 
-	if len(orderedSecrets) == 0 {
+	if len(orderedBindings) == 0 {
 		return stepLines, modified
 	}
 
-	stepsRunSecretsEnvCodemodLog.Printf("Found %d unique secret references in step run commands", len(orderedSecrets))
+	stepsRunSecretsEnvCodemodLog.Printf("Found %d unique run expression references in step run commands", len(orderedBindings))
 
-	missingSecrets := make([]string, 0, len(orderedSecrets))
-	for _, name := range orderedSecrets {
+	missingBindings := make([]string, 0, len(orderedBindings))
+	for _, name := range orderedBindings {
 		if !existingEnvKeys[name] {
-			missingSecrets = append(missingSecrets, name)
+			missingBindings = append(missingBindings, name)
 		}
 	}
-	if len(missingSecrets) == 0 {
+	if len(missingBindings) == 0 {
 		return stepLines, true
 	}
 
-	stepsRunSecretsEnvCodemodLog.Printf("Adding env bindings for %d missing secrets: %v", len(missingSecrets), missingSecrets)
+	stepsRunSecretsEnvCodemodLog.Printf("Adding env bindings for %d missing expressions: %v", len(missingBindings), missingBindings)
 
 	if envStart != -1 {
 		insertAt := envEnd + 1
 		envValueIndent := envIndent + "  "
-		insertLines := make([]string, 0, len(missingSecrets))
-		for _, name := range missingSecrets {
-			insertLines = append(insertLines, fmt.Sprintf("%s%s: ${{ secrets.%s }}", envValueIndent, name, name))
+		insertLines := make([]string, 0, len(missingBindings))
+		for _, name := range missingBindings {
+			insertLines = append(insertLines, fmt.Sprintf("%s%s: %s", envValueIndent, name, bindingExprs[name]))
 		}
 		stepLines = append(stepLines[:insertAt], append(insertLines, stepLines[insertAt:]...)...)
 		return stepLines, true
@@ -252,35 +263,99 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 
 	insertIndent := stepIndent + "  "
 	insertLines := []string{insertIndent + "env:"}
-	for _, name := range missingSecrets {
-		insertLines = append(insertLines, fmt.Sprintf("%s  %s: ${{ secrets.%s }}", insertIndent, name, name))
+	for _, name := range missingBindings {
+		insertLines = append(insertLines, fmt.Sprintf("%s  %s: %s", insertIndent, name, bindingExprs[name]))
 	}
 	stepLines = append(stepLines[:firstRunLine], append(insertLines, stepLines[firstRunLine:]...)...)
 	return stepLines, true
 }
 
-func replaceStepSecretRefs(line string) (string, []string) {
-	matches := stepsSecretExprRe.FindAllStringSubmatch(line, -1)
+type stepExpressionBinding struct {
+	Name       string
+	Expression string
+}
+
+func replaceStepExpressionRefs(line string) (string, []stepExpressionBinding) {
+	matches := stepsAnyExprRe.FindAllStringSubmatchIndex(line, -1)
 	if len(matches) == 0 {
 		return line, nil
 	}
+
+	var result strings.Builder
+	last := 0
 	seen := make(map[string]bool)
-	ordered := make([]string, 0, len(matches))
+	ordered := make([]stepExpressionBinding, 0, len(matches))
+
 	for _, match := range matches {
-		if len(match) < 2 {
+		if len(match) < 4 {
 			continue
 		}
-		name := match[1]
-		if !seen[name] {
-			seen[name] = true
-			ordered = append(ordered, name)
+		fullStart, fullEnd := match[0], match[1]
+		bodyStart, bodyEnd := match[2], match[3]
+		fullExpression := line[fullStart:fullEnd]
+		body := strings.TrimSpace(line[bodyStart:bodyEnd])
+
+		result.WriteString(line[last:fullStart])
+
+		envName, canonicalExpression, ok := mapRunExpressionToEnvBinding(body)
+		if !ok {
+			result.WriteString(fullExpression)
+			last = fullEnd
+			continue
 		}
+
+		result.WriteString("$" + envName)
+		if !seen[envName] {
+			seen[envName] = true
+			ordered = append(ordered, stepExpressionBinding{
+				Name:       envName,
+				Expression: canonicalExpression,
+			})
+		}
+		last = fullEnd
 	}
-	// In Go regexp replacement syntax, "$$$1" means:
-	// "$$" -> literal "$" in output, then "$1" -> capture group 1 (secret name),
-	// resulting in "$SECRET_NAME" shell env references.
-	updated := stepsSecretExprRe.ReplaceAllString(line, `$$$1`)
-	return updated, ordered
+
+	result.WriteString(line[last:])
+	return result.String(), ordered
+}
+
+func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
+	if secretMatch := stepsSecretBodyExprRe.FindStringSubmatch(body); len(secretMatch) == 2 {
+		secretName := secretMatch[1]
+		return secretName, fmt.Sprintf("${{ secrets.%s }}", secretName), true
+	}
+
+	if envMatch := stepsEnvBodyExprRe.FindStringSubmatch(body); len(envMatch) == 2 {
+		envName := envMatch[1]
+		return "GH_AW_ENV_" + envName, fmt.Sprintf("${{ env.%s }}", envName), true
+	}
+
+	if body == "github.token" {
+		return "GH_AW_GITHUB_TOKEN", "${{ github.token }}", true
+	}
+
+	if secretRef := stepsSecretRefExprRe.FindStringSubmatch(body); len(secretRef) == 2 {
+		return hashedBindingName("GH_AW_SECRET_"+secretRef[1], body), fmt.Sprintf("${{ %s }}", body), true
+	}
+
+	if envRef := stepsEnvRefExprRe.FindStringSubmatch(body); len(envRef) == 2 {
+		return hashedBindingName("GH_AW_ENV_"+envRef[1], body), fmt.Sprintf("${{ %s }}", body), true
+	}
+
+	if stepsGitHubTokenRe.MatchString(body) {
+		return hashedBindingName("GH_AW_GITHUB_TOKEN", body), fmt.Sprintf("${{ %s }}", body), true
+	}
+
+	return "", "", false
+}
+
+// hashedBindingName returns a collision-resistant binding key by suffixing
+// the caller-provided prefix with a stable hash of the expression body.
+func hashedBindingName(prefix, body string) string {
+	h := fnv.New32a()
+	// fnv.Hash.Write on in-memory bytes is guaranteed not to return an error.
+	_, _ = h.Write([]byte(body))
+	return fmt.Sprintf("%s_%08x", prefix, h.Sum32())
 }
 
 // parseStepKeyLine detects a YAML step key in both standard form ("key: value")

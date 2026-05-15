@@ -45,7 +45,7 @@ Generate randomized "agent personas" that each perform a small change scenario, 
 
 ## Hard Requirements
 
-1. Create at most **5 PRs per run**.
+1. Create exactly **5 PRs per run**.
 2. Every PR branch name must start with `chaos/`.
 3. Every PR body must include this exact sentence (plain text, no markdown formatting):
    This pull request is an automated chaos test for safe-output create-pull-request bundling.
@@ -61,10 +61,10 @@ For each run:
 
 1. Load previous ledger if present.
 2. Build a randomized plan:
-   - Random PR count between 1 and 5.
+   - Always generate 5 PR scenarios.
    - Random personas (examples: cautious maintainer, rushed intern, refactor zealot, docs tidy bot, flaky fixer).
-   - Random strategy mix (single commit, two commits, amend, staged subset, minor rename, line-ending variant).
-3. Prefer strategies that were under-tested in previous runs (fuzzy balancing, not strict rotation).
+   - Random strategy mix (single commit, two commits, amend, staged subset, minor rename, line-ending variant, multi-parent merge commit, octopus merge, diverged history reconciliation).
+3. Prefer strategies that were under-tested in previous runs while balancing simple and complex strategy categories across runs.
 
 ## Per-PR Scenario Steps
 
