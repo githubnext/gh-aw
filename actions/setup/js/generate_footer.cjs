@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getDetectionReasonText, getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
+
 /**
  * Generates a standalone workflow-id XML comment marker for searchability.
  * This marker enables finding all items (issues, discussions, PRs, comments)
@@ -112,9 +114,8 @@ function generateXMLMarker(workflowName, runUrl) {
  * messages_core.cjs which contains 'GH_AW_SAFE_OUTPUT_MESSAGES:' in a warning message,
  * breaking tests that check for env var declarations.
  *
- * The equivalent function in messages_footer.cjs is getDetectionCautionAlert().
- * If the caution alert format changes in either location, BOTH functions must be updated
- * together to keep them in sync.
+ * Warning reason text and threat marker formatting are centralized in
+ * threat_detection_warning.cjs to keep warning-mode messaging consistent.
  *
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
@@ -126,13 +127,8 @@ function getExpiredEntityCautionAlert(workflowName, runUrl) {
     return "";
   }
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
-  const reasonDescriptions = {
-    threat_detected: "Potential security threats were detected in the agent output.",
-    agent_failure: "The threat detection engine failed to produce results.",
-    parse_error: "The threat detection results could not be parsed.",
-  };
-  const reasonText = reasonDescriptions[detectionReason] || "The threat detection analysis could not be completed.";
-  return `> [!CAUTION]\n> **Security scanning requires review** for [${workflowName}](${runUrl})\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
+  const reasonText = getDetectionReasonText(detectionReason);
+  return `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> ${getThreatDetectedMarker(detectionReason)}\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText}\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
 }
 
 /**

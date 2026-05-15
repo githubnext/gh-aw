@@ -19,6 +19,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
+const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -857,7 +858,9 @@ async function main(config = {}) {
           const detectionReasonEnv = process.env.GH_AW_DETECTION_REASON || "unknown";
           const prBody = [
             "> [!CAUTION]",
-            "> **This PR requires manual review** because threat detection produced a warning.",
+            "> agentic threat detected",
+            "> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.",
+            `> ${getThreatDetectedMarker(detectionReasonEnv)}`,
             ">",
             `> **Reason:** ${detectionReasonEnv}`,
             ">",

@@ -84,7 +84,7 @@ const createTestableFunction = scriptContent => {
             parse_error: "The threat detection results could not be parsed.",
           };
           const reasonText = reasons[reason] || "The threat detection analysis could not be completed.";
-          return `> [!CAUTION]\n> **Security scanning requires review**\n>\n> ${reasonText}`;
+          return `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> <!-- agentic threat detected -->\n>\n> ${reasonText}`;
         },
       };
     }

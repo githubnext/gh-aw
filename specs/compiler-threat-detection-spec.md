@@ -218,6 +218,12 @@ The mappings above are pattern-based references and MUST be validated against co
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
+### 6.2 Mapping Audit (2026-05-15)
+
+Audit result: ✅ all listed `CTR-001` through `CTR-016` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table.
+
+Implementation note: entries that use glob patterns (for example, `pkg/workflow/*permissions*validation*.go`) SHOULD continue to be verified against concrete files during each rule update to prevent silent drift.
+
 ---
 
 ## 7. Compliance Testing

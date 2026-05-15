@@ -24,19 +24,42 @@ tools:
   cache-memory:
     key: linter-miner-state-${{ github.workflow }}
   bash:
-    - "find pkg/linters -type f -name *.go"
     - "find pkg/linters -type d"
-    - "cat pkg/linters/**/*.go"
     - "cat cmd/linters/main.go"
-    - "grep -r * pkg/linters --include=*.go"
-    - "cat pkg/linters/largefunc/largefunc.go"
-    - "cat .github/skills/go-linters/SKILL.md"
+    - "cat /tmp/gh-aw/agent/linters-src.txt"
+    - "cat /tmp/gh-aw/agent/go-linters-skill.txt"
+    - "cat /tmp/gh-aw/agent/prior-linters.json"
     - "go build:*"
     - "go test:*"
   edit:
 imports:
   - shared/mcp/serena-go.md
   - shared/observability-otlp.md
+pre-agent-steps:
+  - name: Preload linter source and cache context
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+
+      : > /tmp/gh-aw/agent/linters-src.txt
+      while IFS= read -r -d '' file; do
+        printf '\n===== FILE: %s =====\n' "$file" >> /tmp/gh-aw/agent/linters-src.txt
+        cat "$file" >> /tmp/gh-aw/agent/linters-src.txt
+      done < <(find pkg/linters -type f -name '*.go' -print0 | sort -z)
+      cat .github/skills/go-linters/SKILL.md > /tmp/gh-aw/agent/go-linters-skill.txt
+
+      prior_file=""
+      if [ -d /tmp/gh-aw/cache-memory ]; then
+        prior_file="$(find /tmp/gh-aw/cache-memory -maxdepth 4 -type f -name 'proposed-linters.json' | sort | head -n 1 || true)"
+        if [ -z "${prior_file}" ]; then
+          prior_file="$(find /tmp/gh-aw/cache-memory -maxdepth 4 -type f -name 'proposed-linters' | sort | head -n 1 || true)"
+        fi
+      fi
+      if [ -n "${prior_file}" ] && [ -f "${prior_file}" ]; then
+        cp "${prior_file}" /tmp/gh-aw/agent/prior-linters.json
+      else
+        echo "[]" > /tmp/gh-aw/agent/prior-linters.json
+      fi
 safe-outputs:
   create-pull-request:
     title-prefix: "[linter-miner] "
@@ -80,7 +103,7 @@ You are a Go static-analysis engineer specializing in custom `go/analysis` linte
 
 ## Step 1 — Load Prior State
 
-Use `cache-memory` to load the list of linter ideas that have already been proposed or implemented in previous runs (key: `proposed-linters`). If no prior state exists, start with an empty list.
+Read `/tmp/gh-aw/agent/prior-linters.json` (preloaded from cache-memory) to load the list of linter ideas that have already been proposed or implemented in previous runs. If it is empty or missing, start with an empty list.
 
 ---
 
@@ -90,11 +113,13 @@ Use the `discussion-miner` sub-agent and the `code-pattern-scanner` sub-agent **
 
 ### Discussion mining (sub-agent output)
 
-Mine the last **60 days** of GitHub Discussions and Issues in `${{ github.repository }}` for:
+Mine the last **14 days** of GitHub Discussions and Issues in `${{ github.repository }}` for:
 - Recurring code review comments about Go style or patterns
 - Bug reports that mention a specific Go construct (e.g. "forgot to close", "nil dereference", "error ignored")
 - Discussions labelled `go`, `code-quality`, `linting`, or `static-analysis`
 - Any issue or discussion that describes a pattern that *should* be caught automatically
+
+First query 14 days and count relevant discussions/issues from the results. If fewer than 5 relevant items are found, rerun discussion mining with a 30-day window.
 
 Extract a bullet list of **candidate linter ideas** from these sources, each including:
 - A short name (kebab-case, e.g. `unchecked-error`)
@@ -128,7 +153,7 @@ If no new ideas remain, use `noop` safe output and exit gracefully.
 
 ## Step 4 — Read the Go Linters Skill
 
-Read `.github/skills/go-linters/SKILL.md` to review the exact conventions and file layout for adding a linter to this repository.
+Read `/tmp/gh-aw/agent/go-linters-skill.txt` to review the exact conventions and file layout for adding a linter to this repository.
 
 ---
 
@@ -139,7 +164,7 @@ Use the `linter-writer` sub-agent to implement the chosen linter.
 Provide it with:
 - The linter name (kebab-case)
 - The one-sentence description
-- The full content of `pkg/linters/largefunc/largefunc.go` as a reference implementation
+- The preloaded linter source corpus from `/tmp/gh-aw/agent/linters-src.txt` (use `largefunc` as the primary reference style)
 - The Go module path `github.com/github/gh-aw`
 
 The sub-agent must create:
@@ -189,6 +214,7 @@ Call the `create-pull-request` safe output with:
 
 ## Guidelines
 
+- Keep references to the preloaded files stable across turns and avoid re-fetching large context blocks unless needed.
 - **Do not** modify any existing linter implementation.
 - **Do not** change files outside `pkg/linters/`, `cmd/linters/main.go`, and `pkg/linters/README.md`.
 - Follow the exact package layout and coding style of `pkg/linters/largefunc/`.
@@ -207,7 +233,7 @@ model: small
 ---
 You are a Go code-review analyst. Your job is to search GitHub Discussions and Issues in the current repository for evidence of recurring Go code patterns or errors that could benefit from automatic static analysis.
 
-Search the last 60 days of Discussions and Issues using `gh` CLI:
+Search the last 14 days of Discussions and Issues using `gh` CLI. Count relevant matches in that 14-day slice. If fewer than 5 relevant items are found, rerun with a 30-day window:
 
 ```bash
 gh discussion list --limit 100 --json number,title,body,comments,labels,createdAt
