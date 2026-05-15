@@ -1,19 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-/**
- * @fileoverview Signed Commit Push Helper
- *
- * Pushes local git commits to a remote branch using the GitHub GraphQL
- * `createCommitOnBranch` mutation, so commits are cryptographically signed
- * (verified) by GitHub.  Falls back to a plain `git push` when the GraphQL
- * approach is unavailable (e.g. GitHub Enterprise Server instances that do
- * not support the mutation, or when branch-protection policies reject it).
- *
- * Both `create_pull_request.cjs` and `push_to_pull_request_branch.cjs` use
- * this helper so the signed-commit logic lives in exactly one place.
- */
-
 const { ERR_API } = require("./error_codes.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
@@ -133,6 +120,8 @@ async function readBlobAsBase64(blobHash, cwd) {
 
 /**
  * Push the local branch to origin using git directly.
+ * git push sends the currently checked-out branch tip; after it succeeds,
+ * local HEAD is the SHA that landed on the remote branch.
  *
  * @param {object} opts
  * @param {string} opts.branch
@@ -190,8 +179,6 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
-    // git push sends the currently checked-out branch tip; after it succeeds,
-    // local HEAD is the SHA that landed on the remote branch.
     const headSha = await resolveLocalHeadSha(cwd);
     core.info(`pushSignedCommits: git push completed, HEAD=${headSha}`);
     return headSha;
