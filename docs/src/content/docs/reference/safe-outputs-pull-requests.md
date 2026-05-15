@@ -137,6 +137,8 @@ safe-outputs:
 
 When `update-branch: true` is set, the handler calls the GitHub REST `pulls.updateBranch` API to merge the latest base branch changes into the PR branch before applying title or body updates. This requires `contents: write` permission; without it only `contents: read` is needed. The field can also be used alone (with `title: false` and `body: false`) to update the branch without changing the PR description.
 
+If GitHub reports `There are no new commits on the base branch.` or `merge conflict between base and head`, the branch update is treated as best-effort: the workflow logs a warning and continues processing the safe output.
+
 When using `target: "*"`, the agent must provide `pull_request_number` in the output to identify which pull request to update.
 
 **Operation Types**: Same as `update-issue` (`append`, `prepend`, `replace`). Title updates always replace the existing title. Disable fields by setting to `false`.

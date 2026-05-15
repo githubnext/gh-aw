@@ -847,4 +847,37 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to update pull request #100 branch from base"));
   });
+
+  it("should treat no-new-commits updateBranch response as a non-fatal no-op", async () => {
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("There are no new commits on the base branch."));
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should continue title/body updates when updateBranch reports merge conflict", async () => {
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("merge conflict between base and head"));
+
+    const handler = await updatePRModule.main({});
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+      update_branch: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
 });

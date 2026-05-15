@@ -19,6 +19,15 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isNonFatalUpdateBranchError(error) {
+  const message = getErrorMessage(error).toLowerCase();
+  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head");
+}
+
+/**
  * Execute the pull request update API call
  * @param {any} github - GitHub API client
  * @param {any} context - GitHub Actions context
@@ -55,8 +64,13 @@ async function executePRUpdate(github, context, prNumber, updateData) {
         `update pull request #${prNumber} branch from base`
       );
     } catch (error) {
-      core.warning(`Failed to update pull request #${prNumber} branch from base: ${getErrorMessage(error)}`);
-      throw error;
+      const errorMessage = getErrorMessage(error);
+      if (isNonFatalUpdateBranchError(error)) {
+        core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
+      } else {
+        core.warning(`Failed to update pull request #${prNumber} branch from base: ${errorMessage}`);
+        throw error;
+      }
     }
   }
 
