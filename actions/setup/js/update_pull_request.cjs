@@ -26,7 +26,7 @@ function isNonFatalUpdateBranchError(error) {
   /** @type {number | undefined} */
   let status;
   if (typeof error === "object" && error !== null && "status" in error) {
-    status = /** @type {{status?: number}} */ (error).status;
+    status = /** @type {{status?: number}} */ error.status;
   }
   if (status !== undefined && status !== 422) {
     return false;
@@ -37,9 +37,7 @@ function isNonFatalUpdateBranchError(error) {
   // - cannot auto-update due to conflict ("merge conflict between base and head")
   // These should not fail safe output processing.
   const message = getErrorMessage(error).toLowerCase();
-  return (
-    message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head")
-  );
+  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head");
 }
 
 /**

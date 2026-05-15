@@ -671,9 +671,7 @@ async function main(config = {}) {
   const normalizedBranchPrefix = normalizeBranchName(rawBranchPrefix);
   if (rawBranchPrefix && normalizedBranchPrefix !== rawBranchPrefix) {
     core.warning(
-      `Branch prefix "${rawBranchPrefix}" contains characters that are invalid in a git ref. ` +
-        `Using normalized prefix: "${normalizedBranchPrefix}". ` +
-        `Update branch-prefix in the workflow configuration to avoid this warning.`
+      `Branch prefix "${rawBranchPrefix}" contains characters that are invalid in a git ref. ` + `Using normalized prefix: "${normalizedBranchPrefix}". ` + `Update branch-prefix in the workflow configuration to avoid this warning.`
     );
   }
   const branchPrefix = normalizedBranchPrefix;
