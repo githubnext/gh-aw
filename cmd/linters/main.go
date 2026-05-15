@@ -18,11 +18,13 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 )
 
 func main() {
 	multichecker.Main(
 		excessivefuncparams.Analyzer,
 		largefunc.Analyzer,
+		osexitinlibrary.Analyzer,
 	)
 }
