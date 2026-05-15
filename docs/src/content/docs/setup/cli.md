@@ -169,7 +169,7 @@ gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR
 
 **Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
-Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/repository-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
+Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
 
 #### `new`
 
@@ -265,7 +265,7 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/repository-package-manifest/), `gh aw compile` validates it before compiling workflows.
+If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/), `gh aw compile` validates it before compiling workflows.
 
 **Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
 

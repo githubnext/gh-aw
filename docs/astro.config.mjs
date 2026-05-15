@@ -325,6 +325,7 @@ export default defineConfig({
 						{ label: 'Authentication', link: '/reference/auth/' },
 						{ label: 'Authentication (Projects)', link: '/reference/auth-projects/' },
 						{ label: 'AWF Reflect Route', link: '/reference/awf-reflect/' },
+						{ label: 'aw.yml Package Manifest', link: '/reference/aw-yml-package-manifest/' },
 						{ label: 'Cache Memory', link: '/reference/cache-memory/' },
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
