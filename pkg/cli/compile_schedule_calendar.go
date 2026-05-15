@@ -199,6 +199,7 @@ func intensityChar(count int) string {
 // count. Styling is TTY-gated so non-interactive output does not emit ANSI.
 func intensityStyle(count int, isTerminal bool) lipgloss.Style {
 	if !isTerminal {
+		// Keep glyph rendering unchanged while preventing ANSI escapes in piped output.
 		return lipgloss.NewStyle()
 	}
 
