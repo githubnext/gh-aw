@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -227,6 +228,67 @@ steps:
 		assert.True(t, applied, "codemod should apply")
 		assert.Contains(t, result, "run: echo $GH_AW_ENV_RUNTIME_TOKEN", "run should use hoisted env binding")
 		assert.Contains(t, result, "GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}", "env expression should be bound in step env")
+	})
+
+	t.Run("hoists mixed expressions in multiline run block with deduplicated bindings", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: |
+      echo "${{ secrets.RUNTIME_TOKEN }}:${{ secrets.RUNTIME_TOKEN }}"
+      echo "${{ env.RUNTIME_TOKEN }}"
+      echo "${{ github.token }}"
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"run": "echo \"${{ secrets.RUNTIME_TOKEN }}:${{ secrets.RUNTIME_TOKEN }}\"\necho \"${{ env.RUNTIME_TOKEN }}\"\necho \"${{ github.token }}\"",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, `echo "$RUNTIME_TOKEN:$RUNTIME_TOKEN"`, "run block should replace repeated secrets expressions")
+		assert.Contains(t, result, `echo "$GH_AW_ENV_RUNTIME_TOKEN"`, "run block should replace env expression")
+		assert.Contains(t, result, `echo "$GH_AW_GITHUB_TOKEN"`, "run block should replace github token expression")
+		assert.Equal(t, 1, strings.Count(result, "RUNTIME_TOKEN: ${{ secrets.RUNTIME_TOKEN }}"), "secret binding should be added only once")
+		assert.Equal(t, 1, strings.Count(result, "GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}"), "env binding should be added only once")
+		assert.Equal(t, 1, strings.Count(result, "GH_AW_GITHUB_TOKEN: ${{ github.token }}"), "github token binding should be added only once")
+	})
+
+	t.Run("does not duplicate pre-existing synthesized bindings", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - env:
+      GH_AW_GITHUB_TOKEN: ${{ github.token }}
+      GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}
+    run: echo "${{ github.token }} ${{ env.RUNTIME_TOKEN }}"
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"env": map[string]any{
+						"GH_AW_GITHUB_TOKEN":      "${{ github.token }}",
+						"GH_AW_ENV_RUNTIME_TOKEN": "${{ env.RUNTIME_TOKEN }}",
+					},
+					"run": `echo "${{ github.token }} ${{ env.RUNTIME_TOKEN }}"`,
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should still rewrite run expression references")
+		assert.Contains(t, result, `run: echo "$GH_AW_GITHUB_TOKEN $GH_AW_ENV_RUNTIME_TOKEN"`, "run should be rewritten")
+		assert.Equal(t, 1, strings.Count(result, "GH_AW_GITHUB_TOKEN: ${{ github.token }}"), "existing github token binding should not be duplicated")
+		assert.Equal(t, 1, strings.Count(result, "GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}"), "existing env binding should not be duplicated")
 	})
 
 	t.Run("no-op when no inline run secrets are present", func(t *testing.T) {
