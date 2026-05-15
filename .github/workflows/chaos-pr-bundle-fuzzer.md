@@ -47,8 +47,8 @@ Generate randomized "agent personas" that each perform a small change scenario, 
 
 1. Create at most **5 PRs per run**.
 2. Every PR branch name must start with `chaos/`.
-3. Every PR body must include this exact sentence:  
-   **`This pull request is an automated chaos test for safe-output create-pull-request bundling.`**
+3. Every PR body must include this exact sentence (plain text, no markdown formatting):
+   This pull request is an automated chaos test for safe-output create-pull-request bundling.
 4. Never modify `.github/workflows/**`.
 5. Never modify protected/sensitive files.
 6. Keep changes intentionally small (1-3 tiny edits per PR). Large changes are out of scope.
