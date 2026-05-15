@@ -203,6 +203,7 @@ function isSafeExpression(expr) {
     /^github\.aw\.inputs\.[a-zA-Z0-9_-]+$/,
     /^inputs\.[a-zA-Z0-9_-]+$/,
     /^env\.[a-zA-Z0-9_-]+$/,
+    /^experiments\.[a-zA-Z0-9_-]+$/,
   ];
 
   for (const pattern of dynamicPatterns) {
@@ -562,7 +563,7 @@ function processExpressions(content, source) {
           "Safe expressions include:\n" +
           "  - github.actor, github.repository, github.run_id, etc.\n" +
           "  - github.event.issue.number, github.event.pull_request.number, etc.\n" +
-          "  - needs.*, steps.*, env.*, inputs.*\n\n" +
+          "  - needs.*, steps.*, env.*, inputs.*, experiments.*\n\n" +
           "See documentation for the complete list of allowed expressions."
       );
     }
@@ -611,7 +612,7 @@ function processExpressions(content, source) {
       "Safe expressions include:\n" +
       "  - github.actor, github.repository, github.run_id, etc.\n" +
       "  - github.event.issue.number, github.event.pull_request.number, etc.\n" +
-      "  - needs.*, steps.*, env.*, inputs.*\n\n" +
+      "  - needs.*, steps.*, env.*, inputs.*, experiments.*\n\n" +
       "See documentation for the complete list of allowed expressions.";
     throw new Error(errorMsg);
   }
