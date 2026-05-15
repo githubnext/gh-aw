@@ -24,6 +24,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -67,7 +68,7 @@ func ValidateLockSchemaCompatibility(content string, lockFilePath string) error 
 }
 
 // ValidateActionSHAsInLockFile validates action SHAs in a lock file and emits warnings
-func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbose bool) error {
+func ValidateActionSHAsInLockFile(ctx context.Context, lockFilePath string, cache *ActionCache, verbose bool) error {
 	actionSHACheckerLog.Printf("Validating action SHAs in: %s", lockFilePath)
 
 	// Extract actions from lock file
@@ -88,7 +89,7 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 	resolver := NewActionResolver(cache)
 
 	// Check for updates
-	checks := CheckActionSHAUpdates(actions, resolver)
+	checks := CheckActionSHAUpdates(ctx, actions, resolver)
 
 	// Count and report updates
 	updateCount := 0

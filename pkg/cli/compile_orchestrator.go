@@ -69,6 +69,7 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 
 	// Create and configure compiler
 	compiler := createAndConfigureCompiler(config)
+	compiler.SetContext(ctx)
 
 	if err := validateRepositoryManifestForCompilation(config, stats, &validationResults); err != nil {
 		if config.JSONOutput {
@@ -96,15 +97,15 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 			}
 			markdownFile = resolvedFile
 		}
-		return nil, watchAndCompileWorkflows(markdownFile, compiler, config.Verbose)
+		return nil, watchAndCompileWorkflows(ctx, markdownFile, compiler, config.Verbose)
 	}
 
 	// Compile specific files or all files in directory
 	if len(config.MarkdownFiles) > 0 {
 		// Compile specific workflow files
-		return compileSpecificFiles(compiler, config, stats, &validationResults)
+		return compileSpecificFiles(ctx, compiler, config, stats, &validationResults)
 	}
 
 	// Compile all workflow files in directory
-	return compileAllFilesInDirectory(compiler, config, workflowDir, stats, &validationResults)
+	return compileAllFilesInDirectory(ctx, compiler, config, workflowDir, stats, &validationResults)
 }

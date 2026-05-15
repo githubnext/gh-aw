@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -137,7 +138,7 @@ func TestCheckActionSHAUpdates(t *testing.T) {
 	resolver := NewActionResolver(cache)
 
 	// Check for updates
-	checks := CheckActionSHAUpdates(actions, resolver)
+	checks := CheckActionSHAUpdates(context.Background(), actions, resolver)
 
 	// Verify results
 	if len(checks) != 2 {

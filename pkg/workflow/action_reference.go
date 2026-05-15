@@ -35,14 +35,14 @@ const (
 //   - For action mode with resolver: "github/gh-aw-actions/setup@<sha> # <version>" (SHA-pinned)
 //   - For action mode without resolver: "github/gh-aw-actions/setup@<version>" (tag-based, SHA resolved later)
 //   - Falls back to local path if version is invalid in release/action mode
-func ResolveSetupActionReference(actionMode ActionMode, version string, actionTag string, resolver SHAResolver) string {
-	return resolveSetupActionRef(actionMode, version, actionTag, resolver, "")
+func ResolveSetupActionReference(ctx context.Context, actionMode ActionMode, version string, actionTag string, resolver SHAResolver) string {
+	return resolveSetupActionRef(ctx, actionMode, version, actionTag, resolver, "")
 }
 
 // resolveSetupActionRef is the internal implementation of ResolveSetupActionReference
 // that accepts an optional actionsOrgRepo override. When actionsOrgRepo is empty,
 // GitHubActionsOrgRepo is used.
-func resolveSetupActionRef(actionMode ActionMode, version string, actionTag string, resolver SHAResolver, actionsOrgRepo string) string {
+func resolveSetupActionRef(ctx context.Context, actionMode ActionMode, version string, actionTag string, resolver SHAResolver, actionsOrgRepo string) string {
 	if actionsOrgRepo == "" {
 		actionsOrgRepo = GitHubActionsOrgRepo
 	}
@@ -75,7 +75,7 @@ func resolveSetupActionRef(actionMode ActionMode, version string, actionTag stri
 
 		// If a resolver is available, try to resolve the SHA
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
+			sha, err := resolver.ResolveSHA(ctx, actionRepo, tag)
 			if err == nil && sha != "" {
 				pinnedRef := formatActionReference(actionRepo, sha, tag)
 				actionRefLog.Printf("Action mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
@@ -113,7 +113,7 @@ func resolveSetupActionRef(actionMode ActionMode, version string, actionTag stri
 
 		// If a resolver is available, try to resolve the SHA
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA(context.Background(), actionRepo, tag)
+			sha, err := resolver.ResolveSHA(ctx, actionRepo, tag)
 			if err == nil && sha != "" {
 				pinnedRef := formatActionReference(actionRepo, sha, tag)
 				actionRefLog.Printf("Release mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
@@ -164,13 +164,13 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 			resolver = data.ActionResolver
 		}
 		if c.actionTag != "" {
-			return resolveSetupActionRef(c.actionMode, c.version, c.actionTag, resolver, c.effectiveActionsRepo())
+			return resolveSetupActionRef(c.ctx, c.actionMode, c.version, c.actionTag, resolver, c.effectiveActionsRepo())
 		}
 		if !hasActionTag {
-			return resolveSetupActionRef(c.actionMode, c.version, "", resolver, c.effectiveActionsRepo())
+			return resolveSetupActionRef(c.ctx, c.actionMode, c.version, "", resolver, c.effectiveActionsRepo())
 		}
 		// hasActionTag is true and no compiler actionTag: use action mode with the frontmatter tag
-		return resolveSetupActionRef(ActionModeAction, c.version, frontmatterActionTag, resolver, c.effectiveActionsRepo())
+		return resolveSetupActionRef(c.ctx, ActionModeAction, c.version, frontmatterActionTag, resolver, c.effectiveActionsRepo())
 	}
 
 	// Action mode - use external gh-aw-actions repository

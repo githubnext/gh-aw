@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -296,7 +297,7 @@ This uses reaction.
 	tracker := NewFileTracker()
 
 	// Compile the workflow with tracking
-	if err := compileWorkflowWithTracking(workflowFileWithReaction, false, false, "", tracker); err != nil {
+	if err := compileWorkflowWithTracking(context.Background(), workflowFileWithReaction, false, false, "", tracker); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -338,7 +339,7 @@ This does NOT use ai-reaction.
 	// (Note: Since reaction is now inline, this removal step is no longer needed)
 
 	// Compile the workflow with tracking
-	if err := compileWorkflowWithTracking(workflowFileWithoutReaction, false, false, "", tracker2); err != nil {
+	if err := compileWorkflowWithTracking(context.Background(), workflowFileWithoutReaction, false, false, "", tracker2); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

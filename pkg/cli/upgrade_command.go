@@ -183,7 +183,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent file..."))
 	upgradeLog.Print("Updating agent file")
 
-	if err := updateAgentFiles(verbose); err != nil {
+	if err := updateAgentFiles(ctx, verbose); err != nil {
 		upgradeLog.Printf("Failed to update agent file: %v", err)
 		return fmt.Errorf("failed to update agent file: %w", err)
 	}
@@ -276,7 +276,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 		}
 
 		// Compile all workflow files
-		stats, compileErr := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
+		stats, compileErr := compileAllWorkflowFiles(ctx, compiler, workflowsDir, verbose)
 		if compileErr != nil {
 			upgradeLog.Printf("Failed to compile workflows: %v", compileErr)
 			// Don't fail the upgrade if compilation fails - this is non-critical
@@ -312,7 +312,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 }
 
 // updateAgentFiles updates the dispatcher agent file to the latest template
-func updateAgentFiles(verbose bool) error {
+func updateAgentFiles(ctx context.Context, verbose bool) error {
 	// Update dispatcher agent
 	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
 		upgradeLog.Printf("Failed to update dispatcher agent: %v", err)
@@ -321,7 +321,7 @@ func updateAgentFiles(verbose bool) error {
 
 	// Upgrade copilot-setup-steps.yml version
 	actionMode := workflow.DetectActionMode(GetVersion())
-	if err := upgradeCopilotSetupSteps(verbose, actionMode, GetVersion()); err != nil {
+	if err := upgradeCopilotSetupSteps(ctx, verbose, actionMode, GetVersion()); err != nil {
 		upgradeLog.Printf("Failed to upgrade copilot-setup-steps.yml: %v", err)
 		// Don't fail the upgrade if copilot-setup-steps upgrade fails - this is non-critical
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to upgrade copilot-setup-steps.yml: %v", err)))

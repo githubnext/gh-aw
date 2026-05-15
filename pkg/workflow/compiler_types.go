@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
@@ -48,6 +49,12 @@ func WithVersion(version string) CompilerOption {
 	return func(c *Compiler) { c.version = version }
 }
 
+// WithContext sets the context used for network operations such as SHA resolution.
+// Defaults to context.Background() if not specified.
+func WithContext(ctx context.Context) CompilerOption {
+	return func(c *Compiler) { c.ctx = ctx }
+}
+
 // FileCreationTracker interface for tracking files created during compilation
 type FileCreationTracker interface {
 	TrackCreated(filePath string)
@@ -55,6 +62,7 @@ type FileCreationTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
+	ctx                     context.Context          // Context for network operations (e.g. SHA resolution); defaults to context.Background()
 	verbose                 bool
 	quiet                   bool // If true, suppress success messages (for interactive mode)
 	engineOverride          string
@@ -119,6 +127,7 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 
 	// Create compiler with defaults
 	c := &Compiler{
+		ctx:               context.Background(),        // Default context; override with WithContext
 		verbose:           false,
 		engineOverride:    "",
 		version:           version,
@@ -149,6 +158,11 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// SetContext sets the context used for network operations such as SHA resolution.
+func (c *Compiler) SetContext(ctx context.Context) {
+	c.ctx = ctx
 }
 
 // SetRequireDocker configures whether Docker must be available for container image validation.

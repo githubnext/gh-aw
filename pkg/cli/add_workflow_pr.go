@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -45,7 +46,7 @@ func sanitizeBranchName(name string) string {
 }
 
 // addWorkflowsWithPR handles workflow addition with PR creation using pre-resolved workflows.
-func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, string, error) {
+func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts AddOptions) (int, string, error) {
 	addWorkflowPRLog.Printf("Adding %d workflow(s) with PR creation (resolved)", len(workflows))
 
 	// Get current branch for restoration later
@@ -83,7 +84,7 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 	addWorkflowPRLog.Print("Adding workflows to repository")
 	prOpts := opts
 	prOpts.DisableSecurityScanner = false
-	if err := addWorkflowsWithTracking(workflows, tracker, prOpts); err != nil {
+	if err := addWorkflowsWithTracking(ctx, workflows, tracker, prOpts); err != nil {
 		addWorkflowPRLog.Printf("Failed to add workflows: %v", err)
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {

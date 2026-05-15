@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -37,7 +38,7 @@ type commandsHeaderMetadata struct {
 // GenerateCentralSlashCommandWorkflow generates a single centralized slash-command trigger
 // workflow for workflows that opt into on.slash_command.strategy: centralized.
 // When no centralized slash-command workflows are found, any existing generated file is deleted.
-func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workflowDir string) error {
+func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string) error {
 	centralSlashCommandWorkflowLog.Printf("Generating centralized slash-command workflow from %d workflow(s)", len(workflowDataList))
 	slashRoutesByCommand, labelRoutesByCommand, mergedEvents := collectCentralCommandRoutes(workflowDataList)
 
@@ -55,7 +56,7 @@ func GenerateCentralSlashCommandWorkflow(workflowDataList []*WorkflowData, workf
 	}
 
 	actionMode := DetectActionMode(GetVersion())
-	setupActionRef := ResolveSetupActionReference(actionMode, GetVersion(), "", nil)
+	setupActionRef := ResolveSetupActionReference(ctx, actionMode, GetVersion(), "", nil)
 
 	content, err := buildCentralSlashCommandWorkflowYAML(slashRoutesByCommand, labelRoutesByCommand, mergedEvents, resolveCentralSlashRunsOn(workflowDataList), setupActionRef)
 	if err != nil {

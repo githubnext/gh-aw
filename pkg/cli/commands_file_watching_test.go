@@ -34,7 +34,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 		compiler := workflow.NewCompiler()
 
-		err := watchAndCompileWorkflows("", compiler, false)
+		err := watchAndCompileWorkflows(context.Background(), "", compiler, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should require git repository")
 		}
@@ -59,7 +59,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 		compiler := workflow.NewCompiler()
 
-		err := watchAndCompileWorkflows("", compiler, false)
+		err := watchAndCompileWorkflows(context.Background(), "", compiler, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should require .github/workflows directory")
 		}
@@ -86,7 +86,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 		compiler := workflow.NewCompiler()
 
-		err := watchAndCompileWorkflows("nonexistent.md", compiler, false)
+		err := watchAndCompileWorkflows(context.Background(), "nonexistent.md", compiler, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should error for nonexistent specific file")
 		}
@@ -124,7 +124,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		// Run in a goroutine so we can control it with context
 		done := make(chan error, 1)
 		go func() {
-			done <- watchAndCompileWorkflows("test.md", compiler, true)
+			done <- watchAndCompileWorkflows(context.Background(), "test.md", compiler, true)
 		}()
 
 		select {
@@ -150,7 +150,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
+		stats, err := compileAllWorkflowFiles(context.Background(), compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles should handle empty directory: %v", err)
 		}
@@ -175,7 +175,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		// Create a basic compiler
 		compiler := workflow.NewCompiler()
 
-		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
+		stats, err := compileAllWorkflowFiles(context.Background(), compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles failed: %v", err)
 		}
@@ -210,7 +210,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		require.NoError(t, err)
 
 		compiler := workflow.NewCompiler()
-		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, false)
+		stats, err := compileAllWorkflowFiles(context.Background(), compiler, workflowsDir, false)
 		if err != nil {
 			t.Fatalf("compileAllWorkflowFiles failed: %v", err)
 		}
@@ -231,7 +231,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		_, err := compileAllWorkflowFiles(compiler, invalidDir, false)
+		_, err := compileAllWorkflowFiles(context.Background(), compiler, invalidDir, false)
 		if err == nil {
 			t.Error("compileAllWorkflowFiles should handle glob errors")
 		}
@@ -254,7 +254,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		compiler := workflow.NewCompiler()
 
 		// This should not return an error (it prints errors but continues)
-		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, false)
+		stats, err := compileAllWorkflowFiles(context.Background(), compiler, workflowsDir, false)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles should handle compilation errors gracefully: %v", err)
 		}
@@ -276,7 +276,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		compiler := workflow.NewCompiler()
 
 		// Test verbose mode (should not error)
-		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
+		stats, err := compileAllWorkflowFiles(context.Background(), compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles verbose mode failed: %v", err)
 		}
@@ -384,7 +384,7 @@ func TestCompileSingleFile(t *testing.T) {
 		stats := &CompilationStats{}
 
 		// Compile without checking existence
-		result := compileSingleFile(compiler, filePath, stats, false, false)
+		result := compileSingleFile(context.Background(), compiler, filePath, stats, false, false)
 
 		if !result {
 			t.Error("Expected compilation to be attempted")
@@ -419,7 +419,7 @@ func TestCompileSingleFile(t *testing.T) {
 		stats := &CompilationStats{}
 
 		// Compile without checking existence
-		result := compileSingleFile(compiler, filePath, stats, false, false)
+		result := compileSingleFile(context.Background(), compiler, filePath, stats, false, false)
 
 		if !result {
 			t.Error("Expected compilation to be attempted")
@@ -460,7 +460,7 @@ func TestCompileSingleFile(t *testing.T) {
 		os.Stderr = w
 		t.Cleanup(func() { os.Stderr = oldStderr })
 
-		result := compileSingleFile(compiler, filePath, stats, false, false)
+		result := compileSingleFile(context.Background(), compiler, filePath, stats, false, false)
 
 		w.Close()
 
@@ -490,7 +490,7 @@ func TestCompileSingleFile(t *testing.T) {
 		stats := &CompilationStats{}
 
 		// Compile with existence check
-		result := compileSingleFile(compiler, filePath, stats, false, true)
+		result := compileSingleFile(context.Background(), compiler, filePath, stats, false, true)
 
 		if !result {
 			t.Error("Expected compilation to be attempted")
@@ -513,7 +513,7 @@ func TestCompileSingleFile(t *testing.T) {
 		stats := &CompilationStats{}
 
 		// Compile with existence check - should skip
-		result := compileSingleFile(compiler, filePath, stats, false, true)
+		result := compileSingleFile(context.Background(), compiler, filePath, stats, false, true)
 
 		if result {
 			t.Error("Expected compilation to be skipped for non-existent file")
@@ -538,7 +538,7 @@ func TestCompileSingleFile(t *testing.T) {
 		stats := &CompilationStats{}
 
 		// Compile in verbose mode
-		result := compileSingleFile(compiler, filePath, stats, true, false)
+		result := compileSingleFile(context.Background(), compiler, filePath, stats, true, false)
 
 		if !result {
 			t.Error("Expected compilation to be attempted")
@@ -573,7 +573,7 @@ func TestCompileModifiedFilesWithDependencies_FormatsWatchMessage(t *testing.T) 
 	os.Stderr = w
 	t.Cleanup(func() { os.Stderr = oldStderr })
 
-	compileModifiedFilesWithDependencies(compiler, depGraph, []string{filePath}, false)
+	compileModifiedFilesWithDependencies(context.Background(), compiler, depGraph, []string{filePath}, false)
 
 	w.Close()
 

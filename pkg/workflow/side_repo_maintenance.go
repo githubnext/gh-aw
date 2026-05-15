@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -86,6 +87,7 @@ func effectiveSideRepoToken(checkout SideRepoTarget) string {
 // generateAllSideRepoMaintenanceWorkflows detects SideRepoOps targets and
 // generates a per-target maintenance workflow for each unique static repository.
 func generateAllSideRepoMaintenanceWorkflows(
+	ctx context.Context,
 	workflowDataList []*WorkflowData,
 	workflowDir string,
 	version string,
@@ -109,7 +111,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 		outPath := filepath.Join(workflowDir, filename)
 
 		maintenanceLog.Printf("Generating side-repo maintenance workflow: %s → %s", target.Repository, filename)
-		if err := generateSideRepoMaintenanceWorkflow(target, outPath, version, actionMode, actionTag, runsOnValue, resolver, hasExpires, minExpiresDays); err != nil {
+		if err := generateSideRepoMaintenanceWorkflow(ctx, target, outPath, version, actionMode, actionTag, runsOnValue, resolver, hasExpires, minExpiresDays); err != nil {
 			return fmt.Errorf("failed to generate side-repo maintenance workflow for %s: %w", target.Repository, err)
 		}
 		fmt.Fprintf(os.Stderr, "  Generated side-repo maintenance workflow: %s\n", filename)
@@ -148,6 +150,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 // the target repository using the token from the checkout config and sets
 // GH_AW_TARGET_REPO_SLUG for all cross-repo operations.
 func generateSideRepoMaintenanceWorkflow(
+	ctx context.Context,
 	target SideRepoTarget,
 	outPath string,
 	version string,
@@ -236,7 +239,7 @@ jobs:
 `
 	yaml.WriteString(onSection)
 
-	setupActionRef := ResolveSetupActionReference(actionMode, version, actionTag, resolver)
+	setupActionRef := ResolveSetupActionReference(ctx, actionMode, version, actionTag, resolver)
 
 	// Add close-expired-entities job only when any workflow uses expires.
 	if hasExpires {
@@ -394,7 +397,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Create missing labels in target repository
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
@@ -442,7 +445,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Restore activity report logs cache
         id: activity_report_logs_cache
         uses: ` + getActionPin("actions/cache/restore") + `
@@ -554,7 +557,7 @@ jobs:
 
 `)
 
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Validate workflows and file issue on findings
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:

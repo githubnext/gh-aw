@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,7 +90,7 @@ This is a test workflow.`
 
 		// Call addWorkflows with noGitattributes=false
 		opts := AddOptions{}
-		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
+		err := addWorkflows(context.Background(), []*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
 			// Log any error but don't fail - we're testing gitattributes behavior
 			t.Logf("Note: workflow addition returned: %v", err)
@@ -119,7 +120,7 @@ This is a test workflow.`
 
 		opts := AddOptions{NoGitattributes: true}
 		// Call addWorkflows with noGitattributes=true
-		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
+		err := addWorkflows(context.Background(), []*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
 			// Log any error but don't fail - we're testing gitattributes behavior
 			t.Logf("Note: workflow addition returned: %v", err)
@@ -142,7 +143,7 @@ This is a test workflow.`
 
 		opts := AddOptions{NoGitattributes: true}
 		// Call addWorkflows with noGitattributes=true
-		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
+		err := addWorkflows(context.Background(), []*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
 			// Log any error but don't fail - we're testing gitattributes behavior
 			t.Logf("Note: workflow addition returned: %v", err)

@@ -162,10 +162,10 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 			}
 
 			// Call the function
-			err = ensureCopilotSetupSteps(tt.verbose, workflow.ActionModeDev, "dev")
+			err = ensureCopilotSetupSteps(context.Background(), tt.verbose, workflow.ActionModeDev, "dev")
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ensureCopilotSetupSteps() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ensureCopilotSetupSteps(context.Background(), ) error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
@@ -308,9 +308,9 @@ func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Check file permissions
@@ -408,9 +408,9 @@ func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
 	}
 
 	// Call function when .github/workflows doesn't exist
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Verify directory structure was created
@@ -452,9 +452,9 @@ func TestEnsureCopilotSetupSteps_ReleaseMode(t *testing.T) {
 
 	// Call function with release mode
 	testVersion := "v1.2.3"
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, testVersion)
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeRelease, testVersion)
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Read generated file
@@ -506,9 +506,9 @@ func TestEnsureCopilotSetupSteps_DevMode(t *testing.T) {
 	}
 
 	// Call function with dev mode
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Read generated file
@@ -546,9 +546,9 @@ func TestEnsureCopilotSetupSteps_CreateWithReleaseMode(t *testing.T) {
 
 	// Create new file with release mode and specific version
 	testVersion := "v2.0.0"
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, testVersion)
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeRelease, testVersion)
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
@@ -585,9 +585,9 @@ func TestEnsureCopilotSetupSteps_CreateWithDevMode(t *testing.T) {
 	}
 
 	// Create new file with dev mode
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
@@ -651,9 +651,9 @@ jobs:
 
 	// Call with release mode - should render instructions instead of modifying
 	testVersion := "v3.0.0"
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, testVersion)
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeRelease, testVersion)
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Read file - should remain unchanged
@@ -715,9 +715,9 @@ jobs:
 	}
 
 	// Call with dev mode - should render instructions instead of modifying
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Read file - should remain unchanged
@@ -785,9 +785,9 @@ jobs:
 	}
 
 	// Attempt to update - should skip
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, "v2.0.0")
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeRelease, "v2.0.0")
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Read file - should be unchanged
@@ -842,9 +842,9 @@ jobs:
 	}
 
 	// Attempt to update - should skip
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
 	if err != nil {
-		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Verify file content matches expected (should be unchanged)
@@ -899,9 +899,9 @@ jobs:
 	}
 
 	// Upgrade to v2.0.0
-	err = upgradeCopilotSetupSteps(false, workflow.ActionModeRelease, "v2.0.0")
+	err = upgradeCopilotSetupSteps(context.Background(), false, workflow.ActionModeRelease, "v2.0.0")
 	if err != nil {
-		t.Fatalf("upgradeCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("upgradeCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Read updated file
@@ -940,9 +940,9 @@ func TestUpgradeCopilotSetupSteps_NoFile(t *testing.T) {
 	}
 
 	// Attempt to upgrade when file doesn't exist - should create new file
-	err = upgradeCopilotSetupSteps(false, workflow.ActionModeRelease, "v2.0.0")
+	err = upgradeCopilotSetupSteps(context.Background(), false, workflow.ActionModeRelease, "v2.0.0")
 	if err != nil {
-		t.Fatalf("upgradeCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("upgradeCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Verify file was created with the new version
@@ -995,9 +995,9 @@ jobs:
 	}
 
 	// Attempt upgrade in dev mode - should not modify file
-	err = upgradeCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	err = upgradeCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
 	if err != nil {
-		t.Fatalf("upgradeCopilotSetupSteps() failed: %v", err)
+		t.Fatalf("upgradeCopilotSetupSteps(context.Background(), ) failed: %v", err)
 	}
 
 	// Verify file was not changed (dev mode doesn't upgrade curl-based installs)
@@ -1201,9 +1201,9 @@ jobs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			upgraded, got, err := upgradeSetupCliVersionInContent([]byte(tt.content), tt.actionMode, tt.version, tt.resolver)
+			upgraded, got, err := upgradeSetupCliVersionInContent(context.Background(), []byte(tt.content), tt.actionMode, tt.version, tt.resolver)
 			if err != nil {
-				t.Fatalf("upgradeSetupCliVersionInContent() error: %v", err)
+				t.Fatalf("upgradeSetupCliVersionInContent(context.Background(), ) error: %v", err)
 			}
 			if upgraded != tt.expectUpgrade {
 				t.Errorf("upgraded = %v, want %v", upgraded, tt.expectUpgrade)
@@ -1305,9 +1305,9 @@ jobs:
         run: echo "hello" # inline run comment
 `
 
-	upgraded, got, err := upgradeSetupCliVersionInContent([]byte(input), workflow.ActionModeRelease, "v2.0.0", nil)
+	upgraded, got, err := upgradeSetupCliVersionInContent(context.Background(), []byte(input), workflow.ActionModeRelease, "v2.0.0", nil)
 	if err != nil {
-		t.Fatalf("upgradeSetupCliVersionInContent() error: %v", err)
+		t.Fatalf("upgradeSetupCliVersionInContent(context.Background(), ) error: %v", err)
 	}
 	if !upgraded {
 		t.Fatal("Expected upgrade to occur")
@@ -1391,9 +1391,9 @@ jobs:
 	// upgradeSetupCliVersionInContent with a SHA resolver — the result must be unquoted
 	sha := "bd9c0ca491e6334a2797ef56ad6ee89958d54ab9"
 	resolver := &mockSHAResolver{sha: sha}
-	upgraded, updated, err := upgradeSetupCliVersionInContent([]byte(existingContent), workflow.ActionModeRelease, "v2.0.0", resolver)
+	upgraded, updated, err := upgradeSetupCliVersionInContent(context.Background(), []byte(existingContent), workflow.ActionModeRelease, "v2.0.0", resolver)
 	if err != nil {
-		t.Fatalf("upgradeSetupCliVersionInContent() error: %v", err)
+		t.Fatalf("upgradeSetupCliVersionInContent(context.Background(), ) error: %v", err)
 	}
 	if !upgraded {
 		t.Fatal("Expected upgrade to occur")
@@ -1471,9 +1471,9 @@ func TestGetActionRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ref := getActionRef(tt.actionMode, tt.version, tt.resolver)
+			ref := getActionRef(context.Background(), tt.actionMode, tt.version, tt.resolver)
 			if ref != tt.expectedRef {
-				t.Errorf("getActionRef() = %q, want %q", ref, tt.expectedRef)
+				t.Errorf("getActionRef(context.Background(), ) = %q, want %q", ref, tt.expectedRef)
 			}
 		})
 	}

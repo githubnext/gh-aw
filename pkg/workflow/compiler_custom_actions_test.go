@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -378,7 +379,7 @@ func TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout(t *testing.T) {
 
 // TestResolveSetupActionReferenceActionMode tests that action mode resolves to the external gh-aw-actions repo
 func TestResolveSetupActionReferenceActionMode(t *testing.T) {
-	ref := ResolveSetupActionReference(ActionModeAction, "v1.2.3", "", nil)
+	ref := ResolveSetupActionReference(context.Background(), ActionModeAction, "v1.2.3", "", nil)
 	if ref != "github/gh-aw-actions/setup@v1.2.3" {
 		t.Errorf("Action mode should resolve to 'github/gh-aw-actions/setup@v1.2.3', got %q", ref)
 	}
@@ -386,7 +387,7 @@ func TestResolveSetupActionReferenceActionMode(t *testing.T) {
 
 // TestResolveSetupActionReferenceActionModeWithTag tests action mode with an explicit action tag
 func TestResolveSetupActionReferenceActionModeWithTag(t *testing.T) {
-	ref := ResolveSetupActionReference(ActionModeAction, "v1.0.0", "v2.0.0", nil)
+	ref := ResolveSetupActionReference(context.Background(), ActionModeAction, "v1.0.0", "v2.0.0", nil)
 	if ref != "github/gh-aw-actions/setup@v2.0.0" {
 		t.Errorf("Action mode with tag should resolve to 'github/gh-aw-actions/setup@v2.0.0', got %q", ref)
 	}
@@ -394,7 +395,7 @@ func TestResolveSetupActionReferenceActionModeWithTag(t *testing.T) {
 
 // TestResolveSetupActionReferenceActionModeDevVersion tests action mode falls back to local path for dev version
 func TestResolveSetupActionReferenceActionModeDevVersion(t *testing.T) {
-	ref := ResolveSetupActionReference(ActionModeAction, "dev", "", nil)
+	ref := ResolveSetupActionReference(context.Background(), ActionModeAction, "dev", "", nil)
 	if ref != "./actions/setup" {
 		t.Errorf("Action mode with dev version should fall back to './actions/setup', got %q", ref)
 	}
@@ -472,7 +473,7 @@ func TestResolveSetupActionReferenceActionModeWithResolver(t *testing.T) {
 
 		// The resolver will fail to resolve github/gh-aw-actions/setup@v1.0.0
 		// since it's not a real tag, but it should fall back gracefully to tag-based reference
-		ref := ResolveSetupActionReference(ActionModeAction, "v1.0.0", "", resolver)
+		ref := ResolveSetupActionReference(context.Background(), ActionModeAction, "v1.0.0", "", resolver)
 
 		// Without a valid pin or successful resolution, should return tag-based reference
 		if ref != "github/gh-aw-actions/setup@v1.0.0" {
@@ -481,7 +482,7 @@ func TestResolveSetupActionReferenceActionModeWithResolver(t *testing.T) {
 	})
 
 	t.Run("action mode with nil resolver returns tag-based reference", func(t *testing.T) {
-		ref := ResolveSetupActionReference(ActionModeAction, "v1.0.0", "", nil)
+		ref := ResolveSetupActionReference(context.Background(), ActionModeAction, "v1.0.0", "", nil)
 		if ref != "github/gh-aw-actions/setup@v1.0.0" {
 			t.Errorf("expected 'github/gh-aw-actions/setup@v1.0.0', got %q", ref)
 		}

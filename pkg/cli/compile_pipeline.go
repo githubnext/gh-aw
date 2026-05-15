@@ -22,6 +22,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -39,6 +40,7 @@ var compileOrchestrationLog = logger.New("cli:compile_pipeline")
 
 // compileSpecificFiles compiles a specific list of workflow files
 func compileSpecificFiles(
+	ctx context.Context,
 	compiler *workflow.Compiler,
 	config CompileConfig,
 	stats *CompilationStats,
@@ -96,7 +98,7 @@ func compileSpecificFiles(
 
 		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
-			compiler, resolvedFile, config.Verbose, config.JSONOutput,
+			ctx, compiler, resolvedFile, config.Verbose, config.JSONOutput,
 			config.NoEmit, false, false, false, // Disable per-file security tools
 			config.Strict, shouldValidate,
 		)
@@ -204,6 +206,7 @@ func compileSpecificFiles(
 
 // compileAllFilesInDirectory compiles all workflow files in a directory
 func compileAllFilesInDirectory(
+	ctx context.Context,
 	compiler *workflow.Compiler,
 	config CompileConfig,
 	workflowDir string,
@@ -273,7 +276,7 @@ func compileAllFilesInDirectory(
 
 		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
-			compiler, file, config.Verbose, config.JSONOutput,
+			ctx, compiler, file, config.Verbose, config.JSONOutput,
 			config.NoEmit, false, false, false, // Disable per-file security tools
 			config.Strict, shouldValidate,
 		)
@@ -368,7 +371,7 @@ func compileAllFilesInDirectory(
 	}
 
 	// Post-processing
-	if err := runPostProcessingForDirectory(compiler, workflowDataList, config, workflowsDir, gitRoot, successCount); err != nil {
+	if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount); err != nil {
 		return workflowDataList, err
 	}
 
@@ -486,6 +489,7 @@ func runPostProcessing(
 
 // runPostProcessingForDirectory runs post-processing for directory compilation
 func runPostProcessingForDirectory(
+	ctx context.Context,
 	compiler *workflow.Compiler,
 	workflowDataList []*workflow.WorkflowData,
 	config CompileConfig,
@@ -523,12 +527,12 @@ func runPostProcessingForDirectory(
 	// Skip maintenance workflow generation when using custom --dir option
 	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
-		if err := generateMaintenanceWorkflowWrapper(compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
+		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
 			if config.Strict {
 				return err
 			}
 		}
-		if err := generateCentralSlashCommandWorkflowWrapper(workflowDataList, absWorkflowDir, config.Strict); err != nil {
+		if err := generateCentralSlashCommandWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, config.Strict); err != nil {
 			if config.Strict {
 				return err
 			}

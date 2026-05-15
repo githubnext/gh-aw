@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -56,7 +57,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
 
 	generatedPath := filepath.Join(tmpDir, centralSlashCommandWorkflowFilename)
 	content, err := os.ReadFile(generatedPath)
@@ -120,7 +121,7 @@ func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
 	_, err := os.Stat(generatedPath)
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
@@ -137,7 +138,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesForDecentralizedLabelsOnly
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	text := string(content)
@@ -300,7 +301,7 @@ func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *
 		},
 	}
 
-	require.NoError(t, GenerateCentralSlashCommandWorkflow(data, tmpDir))
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	require.Contains(t, string(content), "runs-on: self-hosted")

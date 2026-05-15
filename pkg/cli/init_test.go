@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -264,7 +265,7 @@ This is a test workflow.
 			}
 
 			// Call ensureMaintenanceWorkflow
-			err = ensureMaintenanceWorkflow(false)
+			err = ensureMaintenanceWorkflow(context.Background(), false)
 			if err != nil {
 				t.Logf("ensureMaintenanceWorkflow returned error (may be expected): %v", err)
 			}

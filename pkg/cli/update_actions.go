@@ -636,7 +636,7 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 
 		// Recompile the updated workflow (unless --no-compile is set)
 		if !noCompile {
-			if err := compileWorkflowWithRefresh(path, verbose, false, engineOverride, false); err != nil {
+			if err := compileWorkflowWithRefresh(ctx, path, verbose, false, engineOverride, false); err != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
 				}

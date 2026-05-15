@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -23,7 +24,7 @@ import (
 var compileWatchLog = logger.New("cli:compile_watch")
 
 // watchAndCompileWorkflows watches for changes to workflow files and recompiles them automatically
-func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, verbose bool) error {
+func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler *workflow.Compiler, verbose bool) error {
 	// Find git root for consistent behavior
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
@@ -126,7 +127,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Fprintln(os.Stderr, "🔨 Initial compilation of all workflow files...")
 		}
-		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
+		stats, err := compileAllWorkflowFiles(ctx, compiler, workflowsDir, verbose)
 		if err != nil {
 			// Always show initial compilation errors, not just in verbose mode
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
@@ -146,7 +147,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		}
 
 		// Use compileSingleFile to handle both regular workflows and campaign files
-		compileSingleFile(compiler, markdownFile, stats, verbose, false)
+		compileSingleFile(ctx, compiler, markdownFile, stats, verbose, false)
 
 		// Get warning count from compiler
 		stats.Warnings = compiler.GetWarningCount()
@@ -210,7 +211,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 					debounceMu.Unlock()
 
 					// Compile the modified files using dependency graph
-					compileModifiedFilesWithDependencies(compiler, depGraph, filesToCompile, verbose)
+					compileModifiedFilesWithDependencies(ctx, compiler, depGraph, filesToCompile, verbose)
 				})
 				debounceMu.Unlock()
 			}

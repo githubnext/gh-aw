@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -228,7 +229,7 @@ jobs:
 
 	// Run validation - even if no updates are detected, this exercises the code path
 	// In a real scenario with network access, this would detect and save updates
-	err := ValidateActionSHAsInLockFile(lockFile, cache, false)
+	err := ValidateActionSHAsInLockFile(context.Background(), lockFile, cache, false)
 	if err != nil {
 		t.Fatalf("Validation failed: %v", err)
 	}

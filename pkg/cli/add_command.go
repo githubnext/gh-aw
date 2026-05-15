@@ -188,13 +188,13 @@ func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*Ad
 		return nil, err
 	}
 
-	return AddResolvedWorkflows(workflows, resolved, opts)
+	return AddResolvedWorkflows(ctx, workflows, resolved, opts)
 }
 
 // AddResolvedWorkflows adds workflows using pre-resolved workflow data.
 // This allows callers to resolve workflows early (e.g., to show descriptions) and then add them later.
 // The opts.Quiet parameter suppresses detailed output (useful for interactive mode where output is already shown).
-func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows, opts AddOptions) (*AddWorkflowsResult, error) {
+func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolved *ResolvedWorkflows, opts AddOptions) (*AddWorkflowsResult, error) {
 	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v, opts.WorkflowDir=%s, noStopAfter=%v, stopAfter=%s", len(workflowStrings), opts.EngineOverride, opts.CreatePR, opts.NoGitattributes, opts.WorkflowDir, opts.NoStopAfter, opts.StopAfter)
 
 	result := &AddWorkflowsResult{}
@@ -230,7 +230,7 @@ func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows,
 	// Handle PR creation workflow
 	if opts.CreatePR {
 		addLog.Print("Creating workflow with PR")
-		prNumber, prURL, err := addWorkflowsWithPR(resolved.Workflows, opts)
+		prNumber, prURL, err := addWorkflowsWithPR(ctx, resolved.Workflows, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -241,19 +241,19 @@ func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows,
 
 	// Handle normal workflow addition - pass resolved workflows with content
 	addLog.Print("Adding workflows normally without PR")
-	return result, addWorkflows(resolved.Workflows, opts)
+	return result, addWorkflows(ctx, resolved.Workflows, opts)
 }
 
 // addWorkflows handles workflow addition using pre-fetched content
-func addWorkflows(workflows []*ResolvedWorkflow, opts AddOptions) error {
+func addWorkflows(ctx context.Context, workflows []*ResolvedWorkflow, opts AddOptions) error {
 	addLog.Printf("Adding %d workflow(s) to repository", len(workflows))
 	// Create file tracker for all operations
 	tracker := NewFileTracker()
-	return addWorkflowsWithTracking(workflows, tracker, opts)
+	return addWorkflowsWithTracking(ctx, workflows, tracker, opts)
 }
 
 // addWorkflows handles workflow addition using pre-fetched content
-func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
+func addWorkflowsWithTracking(ctx context.Context, workflows []*ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
 	addLog.Printf("Adding %d workflow(s) with tracking: force=%v, disableSecurityScanner=%v", len(workflows), opts.Force, opts.DisableSecurityScanner)
 	// Ensure .gitattributes is configured unless flag is set
 	if !opts.NoGitattributes {
@@ -279,7 +279,7 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), resolved.Spec.WorkflowName)))
 		}
 
-		if err := addWorkflowWithTracking(resolved, tracker, opts); err != nil {
+		if err := addWorkflowWithTracking(ctx, resolved, tracker, opts); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", resolved.Spec.String(), err)
 		}
 	}
@@ -292,7 +292,7 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 }
 
 // addWorkflowWithTracking adds a workflow using pre-fetched content with file tracking
-func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
+func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
 	workflowSpec := resolved.Spec
 	sourceContent := resolved.Content
 	sourceInfo := resolved.SourceInfo
@@ -364,7 +364,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 
 	// For remote workflows, fetch and save all dependencies (includes, imports, dispatch workflows, resources)
 	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
-		if err := fetchAllRemoteDependencies(context.Background(), string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+		if err := fetchAllRemoteDependencies(ctx, string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
 			return err
 		}
 	} else if sourceInfo != nil && sourceInfo.IsLocal {
@@ -537,15 +537,15 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	// Compile any dispatch-workflow .md dependencies that were just fetched and lack a
 	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
 	// compiled before the main workflow can be validated.
-	compileDispatchWorkflowDependencies(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker)
+	compileDispatchWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker)
 
 	// Compile the workflow
 	if tracker != nil {
-		if err := compileWorkflowWithTracking(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
+		if err := compileWorkflowWithTracking(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
 			printCompilationError(err, opts.Quiet)
 		}
 	} else {
-		if err := compileWorkflow(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
+		if err := compileWorkflow(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
 			printCompilationError(err, opts.Quiet)
 		}
 	}

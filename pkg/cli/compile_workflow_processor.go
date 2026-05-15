@@ -22,6 +22,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -46,6 +47,7 @@ type compileWorkflowFileResult struct {
 // compileWorkflowFile compiles a single workflow file (not a campaign spec)
 // Returns the workflow data, lock file path, validation result, and success status
 func compileWorkflowFile(
+	ctx context.Context,
 	compiler *workflow.Compiler,
 	resolvedFile string,
 	verbose bool,
@@ -149,7 +151,7 @@ func compileWorkflowFile(
 
 	// Compile the workflow
 	// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
-	if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
+	if err := CompileWorkflowDataWithValidation(ctx, compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
 		// Don't print error here - it will be displayed in the compilation summary
 		// The error is stored in ValidationResult for JSON output and summary display
 		result.validationResult.Valid = false

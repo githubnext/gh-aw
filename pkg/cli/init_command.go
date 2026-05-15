@@ -94,6 +94,7 @@ Examples:
 
 			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, createPR=%v", verbose, mcp, codespaceRepos, codespaceEnabled, completions, createPR)
 			opts := InitOptions{
+				Ctx:              cmd.Context(),
 				Verbose:          verbose,
 				MCP:              mcp,
 				CodespaceRepos:   codespaceRepos,

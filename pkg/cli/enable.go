@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -20,19 +21,19 @@ import (
 var enableLog = logger.New("cli:enable")
 
 // EnableWorkflowsByNames enables workflows by specific names, or all if no names provided
-func EnableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+func EnableWorkflowsByNames(ctx context.Context, workflowNames []string, repoOverride string) error {
 	enableLog.Printf("EnableWorkflowsByNames called: workflow_count=%d, repo=%s", len(workflowNames), repoOverride)
-	return toggleWorkflowsByNames(workflowNames, true, repoOverride)
+	return toggleWorkflowsByNames(ctx, workflowNames, true, repoOverride)
 }
 
 // DisableWorkflowsByNames disables workflows by specific names, or all if no names provided
-func DisableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+func DisableWorkflowsByNames(ctx context.Context, workflowNames []string, repoOverride string) error {
 	enableLog.Printf("DisableWorkflowsByNames called: workflow_count=%d, repo=%s", len(workflowNames), repoOverride)
-	return toggleWorkflowsByNames(workflowNames, false, repoOverride)
+	return toggleWorkflowsByNames(ctx, workflowNames, false, repoOverride)
 }
 
 // toggleWorkflowsByNames toggles workflows by specific names, or all if no names provided
-func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride string) error {
+func toggleWorkflowsByNames(ctx context.Context, workflowNames []string, enable bool, repoOverride string) error {
 	action := "enable"
 	if !enable {
 		action = "disable"
@@ -63,7 +64,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 		}
 
 		// Recursively call with all workflow names
-		return toggleWorkflowsByNames(allWorkflowNames, enable, repoOverride)
+		return toggleWorkflowsByNames(ctx, allWorkflowNames, enable, repoOverride)
 	}
 
 	// Check if gh CLI is available
@@ -119,7 +120,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				// If enabling and lock file doesn't exist locally, try to compile it
 				if enable {
 					if _, err := os.Stat(lockFile); os.IsNotExist(err) {
-						if err := compileWorkflow(file, false, false, ""); err != nil {
+						if err := compileWorkflow(ctx, file, false, false, ""); err != nil {
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile workflow %s to create lock file: %v", name, err)))
 							// If we can't compile and there's no GitHub entry, skip because we can't address it
 							if !exists {

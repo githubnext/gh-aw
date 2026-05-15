@@ -19,10 +19,10 @@ var copilotSetupLog = logger.New("cli:copilot_setup")
 // getActionRef returns the action reference string based on action mode and version.
 // If a resolver is provided and mode is release or action, attempts to resolve the SHA for a SHA-pinned reference.
 // Falls back to a version tag reference if SHA resolution fails or resolver is nil.
-func getActionRef(actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
+func getActionRef(ctx context.Context, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
 	if actionMode.IsRelease() && version != "" && version != "dev" {
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA(context.Background(), "github/gh-aw/actions/setup-cli", version)
+			sha, err := resolver.ResolveSHA(ctx, "github/gh-aw/actions/setup-cli", version)
 			if err == nil && sha != "" {
 				return fmt.Sprintf("@%s # %s", sha, version)
 			}
@@ -32,7 +32,7 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 	}
 	if actionMode.IsAction() && version != "" && version != "dev" {
 		if resolver != nil {
-			sha, err := resolver.ResolveSHA(context.Background(), "github/gh-aw-actions/setup-cli", version)
+			sha, err := resolver.ResolveSHA(ctx, "github/gh-aw-actions/setup-cli", version)
 			if err == nil && sha != "" {
 				return fmt.Sprintf("@%s # %s", sha, version)
 			}
@@ -44,9 +44,9 @@ func getActionRef(actionMode workflow.ActionMode, version string, resolver workf
 }
 
 // generateCopilotSetupStepsYAML generates the copilot-setup-steps.yml content based on action mode
-func generateCopilotSetupStepsYAML(actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
+func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
 	// Determine the action reference - use SHA-pinned or version tag in release/action mode, @main in dev mode
-	actionRef := getActionRef(actionMode, version, resolver)
+	actionRef := getActionRef(ctx, actionMode, version, resolver)
 
 	if actionMode.IsRelease() || actionMode.IsAction() {
 		// Determine the action repo based on mode
@@ -159,19 +159,19 @@ type Workflow struct {
 }
 
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
-func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, version string) error {
-	return ensureCopilotSetupStepsWithUpgrade(verbose, actionMode, version, false)
+func ensureCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string) error {
+	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, false)
 }
 
 // upgradeCopilotSetupSteps upgrades the version in existing copilot-setup-steps.yml
-func upgradeCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, version string) error {
-	return ensureCopilotSetupStepsWithUpgrade(verbose, actionMode, version, true)
+func upgradeCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string) error {
+	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, true)
 }
 
 // ensureCopilotSetupStepsWithUpgrade creates .github/workflows/copilot-setup-steps.yml
 // If the file already exists, it renders console instructions instead of editing
 // When upgradeVersion is true and called from upgrade command, this is a special case
-func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool) error {
+func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool) error {
 	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s, upgradeVersion: %v", actionMode, version, upgradeVersion)
 
 	// Create a SHA resolver for release/action mode to enable SHA-pinned action references
@@ -213,7 +213,7 @@ func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.Action
 		if (hasLegacyInstall || hasActionInstall) && upgradeVersion {
 			copilotSetupLog.Print("Extension install step exists, attempting version upgrade (upgrade command)")
 
-			upgraded, updatedContent, err := upgradeSetupCliVersionInContent(content, actionMode, version, resolver)
+			upgraded, updatedContent, err := upgradeSetupCliVersionInContent(ctx, content, actionMode, version, resolver)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade setup-cli version: %w", err)
 			}
@@ -248,12 +248,12 @@ func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.Action
 
 		// File exists but needs update - render instructions
 		copilotSetupLog.Print("File exists without install step, rendering update instructions instead of editing")
-		renderCopilotSetupUpdateInstructions(setupStepsPath, actionMode, version, resolver)
+		renderCopilotSetupUpdateInstructions(ctx, setupStepsPath, actionMode, version, resolver)
 		return nil
 	}
 
 	// File doesn't exist - create it
-	if err := os.WriteFile(setupStepsPath, []byte(generateCopilotSetupStepsYAML(actionMode, version, resolver)), constants.FilePermSensitive); err != nil {
+	if err := os.WriteFile(setupStepsPath, []byte(generateCopilotSetupStepsYAML(ctx, actionMode, version, resolver)), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write copilot-setup-steps.yml: %w", err)
 	}
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
@@ -262,7 +262,7 @@ func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.Action
 }
 
 // renderCopilotSetupUpdateInstructions renders console instructions for updating copilot-setup-steps.yml
-func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) {
+func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "%s %s\n",
 		"ℹ",
@@ -273,7 +273,7 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 	fmt.Fprintln(os.Stderr)
 
 	// Determine the action reference
-	actionRef := getActionRef(actionMode, version, resolver)
+	actionRef := getActionRef(ctx, actionMode, version, resolver)
 
 	if actionMode.IsRelease() || actionMode.IsAction() {
 		actionRepo := "github/gh-aw/actions/setup-cli"
@@ -333,7 +333,7 @@ var versionInWithPattern = regexp.MustCompile(
 //
 // Returns (upgraded, updatedContent, error).  upgraded is false when no change
 // was required (e.g. already at the target version, or file has no setup-cli step).
-func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) (bool, []byte, error) {
+func upgradeSetupCliVersionInContent(ctx context.Context, content []byte, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) (bool, []byte, error) {
 	if !actionMode.IsRelease() && !actionMode.IsAction() {
 		return false, content, nil
 	}
@@ -342,7 +342,7 @@ func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionM
 		return false, content, nil
 	}
 
-	actionRef := getActionRef(actionMode, version, resolver)
+	actionRef := getActionRef(ctx, actionMode, version, resolver)
 	actionRepo := "github/gh-aw/actions/setup-cli"
 	if actionMode.IsAction() {
 		actionRepo = "github/gh-aw-actions/setup-cli"

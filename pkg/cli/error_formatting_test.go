@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"bytes"
 	"errors"
 	"fmt"
@@ -38,7 +39,7 @@ This is not valid frontmatter
 
 	// Create compiler and attempt to compile
 	compiler := workflow.NewCompiler()
-	_ = CompileWorkflowWithValidation(compiler, invalidWorkflow, false, false, false, false, false, false)
+	_ = CompileWorkflowWithValidation(context.Background(), compiler, invalidWorkflow, false, false, false, false, false, false)
 
 	// Restore stderr and read captured output
 	w.Close()

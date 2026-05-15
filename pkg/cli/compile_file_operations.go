@@ -35,6 +35,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -51,7 +52,7 @@ var compileHelpersLog = logger.New("cli:compile_file_operations")
 // compileSingleFile compiles a single markdown workflow file and updates compilation statistics
 // If checkExists is true, the function will check if the file exists before compiling
 // Returns true if compilation was attempted (file exists or checkExists is false), false otherwise
-func compileSingleFile(compiler *workflow.Compiler, file string, stats *CompilationStats, verbose bool, checkExists bool) bool {
+func compileSingleFile(ctx context.Context, compiler *workflow.Compiler, file string, stats *CompilationStats, verbose bool, checkExists bool) bool {
 	// Check if file exists if requested (for watch mode)
 	if checkExists {
 		if _, err := os.Stat(file); os.IsNotExist(err) {
@@ -68,7 +69,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Compiling: "+file))
 	}
 
-	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(ctx, compiler, file, verbose, false, false, false, false, false); err != nil {
 		// Always show compilation errors on a new line using standard CLI error styling.
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		stats.Errors++
@@ -81,7 +82,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 }
 
 // compileAllWorkflowFiles compiles all markdown files in the workflows directory
-func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) (*CompilationStats, error) {
+func compileAllWorkflowFiles(ctx context.Context, compiler *workflow.Compiler, workflowsDir string, verbose bool) (*CompilationStats, error) {
 	compileHelpersLog.Printf("Compiling all workflow files in directory: %s", workflowsDir)
 	// Reset warning count before compilation
 	compiler.ResetWarningCount()
@@ -121,7 +122,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		} else {
 			file = absFile
 		}
-		compileSingleFile(compiler, file, stats, verbose, false)
+		compileSingleFile(ctx, compiler, file, stats, verbose, false)
 	}
 
 	// Get warning count from compiler
@@ -137,7 +138,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 }
 
 // compileModifiedFilesWithDependencies compiles modified files and their dependencies using the dependency graph
-func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph *DependencyGraph, files []string, verbose bool) {
+func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflow.Compiler, depGraph *DependencyGraph, files []string, verbose bool) {
 	if len(files) == 0 {
 		return
 	}
@@ -182,7 +183,7 @@ func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph 
 	stats := &CompilationStats{}
 
 	for _, file := range workflowsToCompile {
-		compileSingleFile(compiler, file, stats, verbose, true)
+		compileSingleFile(ctx, compiler, file, stats, verbose, true)
 	}
 
 	// Get warning count from compiler

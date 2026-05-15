@@ -205,7 +205,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor --repo owner/repo  # Enable workflow in specific repository`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoOverride, _ := cmd.Flags().GetString("repo")
-		return cli.EnableWorkflowsByNames(args, repoOverride)
+		return cli.EnableWorkflowsByNames(cmd.Context(), args, repoOverride)
 	},
 }
 
@@ -226,7 +226,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor --repo owner/repo  # Disable workflow in specific repository`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoOverride, _ := cmd.Flags().GetString("repo")
-		return cli.DisableWorkflowsByNames(args, repoOverride)
+		return cli.DisableWorkflowsByNames(cmd.Context(), args, repoOverride)
 	},
 }
 
