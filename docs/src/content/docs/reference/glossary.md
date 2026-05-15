@@ -784,7 +784,7 @@ Scheduled workflows for incremental daily improvements, automating progress towa
 
 ### DataOps
 
-Hybrid pattern combining deterministic data extraction in `steps:` with agentic analysis in the workflow body. Shell commands fetch and structure data, then the AI agent interprets results and produces insights. See [DataOps](/gh-aw/patterns/data-ops/).
+Hybrid pattern combining deterministic data extraction in `steps:` with agentic analysis in the workflow body. Shell commands fetch and structure data, then the AI agent interprets results and produces insights. See [DeterministicOps](/gh-aw/patterns/deterministic-ops/).
 
 ### DispatchOps
 
@@ -818,9 +818,9 @@ Development pattern where workflows run from a separate "side" repository target
 
 Maintaining and propagating W3C-style specifications using the `w3c-specification-writer` agent. Creates formal specifications with RFC 2119 keywords and automatically synchronizes changes to consuming implementations. See [SpecOps](/gh-aw/patterns/spec-ops/).
 
-### TaskOps
+### ResearchPlanAssignOps
 
-Scaffolded AI-powered code improvement strategy with three phases: research agent investigates, developer reviews and invokes planner agent to create actionable issues, then assigns approved issues to Copilot for automated implementation. Keeps developers in control with clear decision points. See [TaskOps](/gh-aw/patterns/task-ops/).
+Scaffolded AI-powered code improvement strategy with four phases: research agent investigates and publishes findings, developer reviews and invokes planner agent to create actionable issues, developer assigns approved issues to Copilot for automated implementation, then reviews and merges PRs. Keeps developers in control with clear decision points at every transition. See [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/).
 
 ### TrialOps
 

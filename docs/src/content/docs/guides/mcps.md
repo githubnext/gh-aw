@@ -1,17 +1,77 @@
 ---
-title: Using Custom MCP Servers
-description: How to use Model Context Protocol (MCP) servers with GitHub Agentic Workflows to connect AI agents to external tools, databases, and services.
+title: Using MCPs
+description: How to use Model Context Protocol (MCP) servers with GitHub Agentic Workflows to connect AI agents to GitHub, databases, and external services.
 sidebar:
-  order: 4
+  order: 2
 ---
 
-[Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) is a standard for AI tool integration, allowing agents to securely connect to external tools, databases, and services. GitHub Agentic Workflows includes built-in GitHub MCP integration (see [GitHub Tools](/gh-aw/reference/github-tools/)); this guide covers adding custom MCP servers for external services.
+[Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) is a standard for AI tool integration, allowing agents to securely connect to external tools, databases, and services. GitHub Agentic Workflows includes built-in GitHub MCP integration and supports custom MCP servers for external services.
+
+## Quick Start
+
+Get your first MCP integration running in under 5 minutes.
+
+### Step 1: Add GitHub Tools
+
+Create a workflow file at `.github/workflows/my-workflow.md`:
+
+```aw wrap
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+tools:
+  github:
+    toolsets: [default]
+---
+
+# Issue Analysis Agent
+
+Analyze the issue and provide a summary of similar existing issues.
+```
+
+The `toolsets: [default]` configuration gives your agentic workflow access to repository, issue, and pull request tools.
+
+### Step 2: Compile and Test
+
+```bash
+gh aw compile my-workflow
+gh aw mcp inspect my-workflow
+```
+
+## GitHub MCP Server
+
+The GitHub MCP server is built into agentic workflows and provides comprehensive access to GitHub's API.
+
+### Available Toolsets
+
+| Toolset | Description | Tools |
+|---------|-------------|-------|
+| `context` | User and team information | `get_teams`, `get_team_members` |
+| `repos` | Repository operations | `get_repository`, `get_file_contents`, `list_commits` |
+| `issues` | Issue management | `list_issues`, `create_issue`, `update_issue` |
+| `pull_requests` | PR operations | `list_pull_requests`, `create_pull_request` |
+| `actions` | Workflow runs and artifacts | `list_workflows`, `list_workflow_runs` |
+| `discussions` | GitHub Discussions | `list_discussions`, `create_discussion` |
+| `code_security` | Security alerts | `list_code_scanning_alerts` |
+| `users` | User profiles | `get_me`, `get_user`, `list_users` |
+
+The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`. When used in workflows, `[default]` expands to action-friendly toolsets that work with GitHub Actions tokens. Note: The `users` toolset is not included by default as GitHub Actions tokens do not support user operations.
+
+### Operating Modes
+
+Remote mode (`mode: remote`) connects to a hosted server for faster startup with no Docker required. Local mode (`mode: local`) runs in Docker, enabling version pinning for offline or restricted environments. See [Remote vs Local Mode](/gh-aw/reference/github-tools/#github-tools-access-modes).
+
+The GitHub MCP server always operates read-only. Write operations are handled through [safe outputs](/gh-aw/reference/safe-outputs/), which run in a separate permission-controlled job.
+
+## Manually Configuring a Custom MCP Server
 
 > [!IMPORTANT]
 >
 > Custom MCP servers should be **read-only**. Write operations must go through [safe outputs](/gh-aw/reference/safe-outputs/) or [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/). Ensure your MCP server implements authentication and authorization to prevent unauthorized write access.
-
-## Manually Configuring a Custom MCP Server
 
 Add MCP servers to your workflow's frontmatter using the `mcp-servers:` section:
 
@@ -164,6 +224,53 @@ gh aw mcp add my-workflow makenotion/notion-mcp-server                          
 gh aw mcp add my-workflow makenotion/notion-mcp-server --transport stdio         # Specify transport
 gh aw mcp add my-workflow makenotion/notion-mcp-server --tool-id my-notion       # Custom tool ID
 gh aw mcp add my-workflow server-name --registry https://custom.registry.com/v1  # Custom registry
+```
+
+## Practical Examples
+
+### Example 1: Basic Issue Triage
+
+```aw wrap
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+tools:
+  github:
+    toolsets: [default]
+safe-outputs:
+  add-comment:
+---
+
+# Issue Triage Agent
+
+Analyze issue #${{ github.event.issue.number }} and add a comment with category, related issues, and suggested labels.
+```
+
+### Example 2: Security Audit with Discussions
+
+```aw wrap
+---
+on: weekly on sunday
+permissions:
+  contents: read
+  security-events: read
+  discussions: write
+tools:
+  github:
+    toolsets: [default, code_security, discussions]
+safe-outputs:
+  create-discussion:
+    category: "Security"
+    title-prefix: "[security-scan] "
+---
+
+# Security Audit Agent
+
+Review code scanning alerts and create weekly security discussions with findings.
 ```
 
 ## Debugging and Troubleshooting

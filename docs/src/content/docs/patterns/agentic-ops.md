@@ -29,5 +29,5 @@ Use this pattern when a repository has enough workflow activity that maintainers
 ## Related documentation
 
 - [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) for durable tracking with Projects and safe outputs
-- [Telemetry](/gh-aw/guides/telemetry/) for enriching workflow telemetry
+- [OpenTelemetry](/gh-aw/reference/open-telemetry/) for enriching workflow telemetry
 - [Audit Commands](/gh-aw/reference/audit/) for investigating individual runs and regressions

@@ -121,7 +121,7 @@ tools:
         allowed: ["api.example.com"]
 ```
 
-See [Getting Started with MCP](/gh-aw/guides/getting-started-mcp/) and [MCP Servers](/gh-aw/guides/mcps/) for configuration guides.
+See [Using MCPs](/gh-aw/guides/mcps/) for configuration guides.
 
 ### The `plugins:` field I was using is gone - how do I install agent plugins now?
 

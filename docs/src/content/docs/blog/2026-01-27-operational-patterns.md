@@ -278,7 +278,7 @@ Here are our tips!
 
 ---
 
-## Pattern 6: TaskOps - Scaffolded Improvement Strategy 🔬
+## Pattern 6: ResearchPlanAssignOps - Scaffolded Improvement Strategy 🔬
 
 A three-phase strategy that keeps developers in control while leveraging AI agents for systematic code improvements. Provides clear decision points at each phase: Research (investigate), Plan (break down work), Assign (execute).
 
@@ -315,7 +315,7 @@ These workflows do the following:
 
 ### Example: Duplicate Code Detection
 
-The [`duplicate-code-detector`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) uses TaskOps:
+The [`duplicate-code-detector`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) uses ResearchPlanAssignOps:
 
 **Research**: Uses Serena MCP for semantic analysis, creates report
 **Plan**: Creates well-scoped issues (max 3 per run) with refactoring strategies
@@ -337,7 +337,7 @@ Here are our tips!
 - Include acceptance criteria
 - Review and iterate
 
-**Learn more**: [TaskOps](/gh-aw/patterns/task-ops/)
+**Learn more**: [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/)
 
 ---
 
@@ -462,7 +462,7 @@ Many successful agent systems combine multiple operational patterns:
 
 - **ChatOps + IssueOps**: User triggers analysis via `/analyze`, which creates issue with results
 - **DailyOps + MultiRepoOps**: Daily dependency updates across organization
-- **TaskOps + ProjectOps**: Research creates project board populated with planned work
+- **ResearchPlanAssignOps + ProjectOps**: Research creates project board populated with planned work
 - **SideRepoOps + TrialOps**: Test in trial repo, then deploy to side repo, then main repo
 
 ## Choosing the Right Operational Pattern
@@ -472,7 +472,7 @@ When designing agent operations, consider:
 1. **Trigger mechanism**: Manual (ChatOps), scheduled (DailyOps), or event-driven (IssueOps, LabelOps)?
 2. **Scope**: Single repo or multi-repo (MultiRepoOps)?
 3. **Isolation needs**: Production or separate (SideRepoOps, TrialOps)?
-4. **Coordination**: Simple or complex (ProjectOps, TaskOps)?
+4. **Coordination**: Simple or complex (ProjectOps, ResearchPlanAssignOps)?
 5. **State management**: Stateless or stateful (LabelOps, ProjectOps)?
 
 ## What's Next?

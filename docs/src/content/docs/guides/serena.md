@@ -153,7 +153,7 @@ Pre-create the cache directory (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for f
 - [Imports Reference](/gh-aw/reference/imports/) - Full imports and `import-schema` syntax
 - [Using MCPs](/gh-aw/guides/mcps/) - General MCP server configuration
 - [Tools Reference](/gh-aw/reference/tools/) - Complete tools configuration
-- [Getting Started with MCPs](/gh-aw/guides/getting-started-mcp/) - MCP introduction
+- [Using MCPs](/gh-aw/guides/mcps/) - MCP introduction
 - [Serena GitHub Repository](https://github.com/oraios/serena) — official repo and [documentation](https://oraios.github.io/serena/)
 - [Language Support](https://oraios.github.io/serena/01-about/020_programming-languages.html) - Supported languages and dependencies
 - [Serena Tools Reference](https://oraios.github.io/serena/01-about/035_tools.html) - Complete tool documentation

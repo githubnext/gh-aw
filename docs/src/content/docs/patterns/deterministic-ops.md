@@ -1,11 +1,12 @@
 ---
 title: DeterministicOps
-description: Learn how to combine deterministic computation steps with agentic reasoning in GitHub Agentic Workflows for powerful hybrid automation.
+description: Combine deterministic computation and data extraction with agentic reasoning in GitHub Agentic Workflows for powerful hybrid automation.
 sidebar:
   order: 6
+  badge: { text: 'Hybrid', variant: 'caution' }
 ---
 
-GitHub Agentic Workflows combine deterministic computation with AI reasoning, enabling data preprocessing, custom trigger filtering, and post-processing patterns.
+GitHub Agentic Workflows combine deterministic computation with AI reasoning, enabling data preprocessing, custom trigger filtering, and post-processing patterns. This includes the **DataOps** sub-pattern where shell commands in `steps:` reliably collect and prepare data — fast, cacheable, and reproducible — then the AI agent reads the results and generates insights. Use this for data aggregation, report generation, trend analysis, auditing, and any hybrid pipeline.
 
 ## When to Use
 
@@ -286,6 +287,199 @@ steps:
 ```
 
 Reference in prompts: "Analyze issues in `/tmp/gh-aw/agent/issues.json` and PRs in `/tmp/gh-aw/agent/pulls.json`."
+
+## DataOps: Scheduled Data Extraction and Analysis
+
+Use `steps:` to collect and preprocess data deterministically, then let the agent analyze and report on the results. This is especially useful for scheduled reporting, trend analysis, and auditing workflows.
+
+### Example: Weekly PR Activity Summary
+
+````aw wrap
+---
+name: Weekly PR Summary
+description: Summarizes pull request activity from the last week
+on:
+  schedule: weekly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+engine: copilot
+strict: true
+
+network:
+  allowed:
+    - defaults
+    - github
+
+safe-outputs:
+  create-discussion:
+    title-prefix: "[weekly-summary] "
+    category: "announcements"
+    max: 1
+    close-older-discussions: true
+
+tools:
+  bash: ["*"]
+
+steps:
+  - name: Fetch recent pull requests
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      mkdir -p /tmp/gh-aw/pr-data
+
+      gh pr list \
+        --repo "${{ github.repository }}" \
+        --state all \
+        --limit 100 \
+        --json number,title,state,author,createdAt,mergedAt,closedAt,additions,deletions,changedFiles,labels \
+        > /tmp/gh-aw/pr-data/recent-prs.json
+
+  - name: Compute summary statistics
+    run: |
+      cd /tmp/gh-aw/pr-data
+
+      jq '{
+        total: length,
+        merged: [.[] | select(.state == "MERGED")] | length,
+        open: [.[] | select(.state == "OPEN")] | length,
+        closed: [.[] | select(.state == "CLOSED")] | length,
+        total_additions: [.[].additions] | add,
+        total_deletions: [.[].deletions] | add,
+        top_authors: ([.[].author.login] | group_by(.) | map({author: .[0], count: length}) | sort_by(-.count) | .[0:5])
+      }' recent-prs.json > stats.json
+
+timeout-minutes: 10
+---
+
+# Weekly Pull Request Summary
+
+Analyze the prepared data:
+- `/tmp/gh-aw/pr-data/recent-prs.json` - Last 100 PRs with full metadata
+- `/tmp/gh-aw/pr-data/stats.json` - Pre-computed statistics
+
+Create a discussion summarizing: total PRs, merge rate, code changes (+/- lines), top contributors, and any notable trends.
+````
+
+### Data Caching
+
+For workflows that run frequently or process large datasets, use caching to avoid redundant API calls:
+
+```aw wrap
+---
+cache:
+  - key: pr-data-${{ github.run_id }}
+    path: /tmp/gh-aw/pr-data
+    restore-keys: |
+      pr-data-
+
+steps:
+  - name: Check cache and fetch only new data
+    run: |
+      if [ -f /tmp/gh-aw/pr-data/recent-prs.json ]; then
+        echo "Using cached data"
+      else
+        gh pr list --limit 100 --json ... > /tmp/gh-aw/pr-data/recent-prs.json
+      fi
+---
+```
+
+### Multi-Source Data
+
+Combine data from multiple sources before analysis:
+
+```aw wrap
+---
+steps:
+  - name: Fetch PR data
+    run: gh pr list --json ... > /tmp/gh-aw/prs.json
+
+  - name: Fetch issue data
+    run: gh issue list --json ... > /tmp/gh-aw/issues.json
+
+  - name: Fetch workflow runs
+    run: gh run list --json ... > /tmp/gh-aw/runs.json
+
+  - name: Combine into unified dataset
+    run: |
+      jq -s '{prs: .[0], issues: .[1], runs: .[2]}' \
+        /tmp/gh-aw/prs.json \
+        /tmp/gh-aw/issues.json \
+        /tmp/gh-aw/runs.json \
+        > /tmp/gh-aw/combined.json
+---
+
+# Repository Health Report
+
+Analyze the combined data at `/tmp/gh-aw/combined.json`.
+```
+
+## Subagents with Smaller Models
+
+After moving computation into `steps:`, the next optimization is to delegate narrow, repetitive reasoning tasks — categorization, per-item summarization, sentiment scoring — to **inline sub-agents** backed by a smaller, cheaper model. The main agent then only needs to read the pre-processed results and synthesize a final output.
+
+```
+steps:          → deterministic shell commands (fast, reproducible, zero AI cost)
+sub-agents:     → small-model agents for per-item analysis  (cheap, parallelizable)
+main agent:     → orchestrates sub-agents, synthesizes final report (high-reasoning)
+```
+
+Enable inline sub-agents by adding `cli-proxy` so they can make authenticated GitHub API calls:
+
+```yaml
+tools:
+  cli-proxy: true
+```
+
+### Example: Issue Triage with Categorization
+
+```aw wrap
+# Weekly Issue Triage
+
+The raw issue data is in `/tmp/gh-aw/triage/` — one file per issue (`issue-<number>.json`).
+
+## Step 1 — categorize each issue
+
+For every file matching `/tmp/gh-aw/triage/issue-*.json`, use the `issue-categorizer`
+agent to classify it. Write the result to `/tmp/gh-aw/triage/category-<number>.json`.
+
+## Step 2 — summarize each issue
+
+For every issue file, use the `issue-summarizer` agent to produce a one-sentence
+summary. Write the result to `/tmp/gh-aw/triage/summary-<number>.json`.
+
+## Step 3 — synthesize triage report
+
+Read all category and summary files, then create a discussion that groups issues
+by category, lists each with its one-sentence summary and a link to the issue,
+and highlights the top 3 issues that need the most urgent attention.
+
+## agent: `issue-categorizer`
+---
+description: Classifies a GitHub issue into exactly one category
+model: claude-haiku-4.5
+---
+Classify the issue into exactly one of: bug, feature-request, question, documentation, performance, security, or other.
+Return a JSON object: `{"number": <issue number>, "category": "<category>"}`.
+
+## agent: `issue-summarizer`
+---
+description: Produces a one-sentence summary of a GitHub issue
+model: claude-haiku-4.5
+---
+Write a single sentence (≤ 20 words) that describes what the issue is about.
+Return a JSON object: `{"number": <issue number>, "summary": "<sentence>"}`.
+```
+
+| Layer | Model | Work done | Cost driver |
+|---|---|---|---|
+| `steps:` | — | Fetch + prepare data | GitHub API only |
+| `issue-categorizer` | Haiku / small | Classify one issue | ~200 tokens per issue |
+| `issue-summarizer` | Haiku / small | Summarize one issue | ~150 tokens per issue |
+| Main agent | Full model | Read all results, write report | One high-quality pass |
 
 ## Related Documentation
 

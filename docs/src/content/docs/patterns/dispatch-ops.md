@@ -239,7 +239,7 @@ gh aw run research --ref feature/improve-workflow          # runs against live r
 
 ## Related Documentation
 
-- [Manual Workflows Example](/gh-aw/examples/manual/) - Example manual workflows
+- [Manual Workflows](/gh-aw/examples/manual/) - Example manual workflows
 - [Triggers Reference](/gh-aw/reference/triggers/) - Complete trigger syntax including workflow_dispatch
 - [TrialOps](/gh-aw/experimental/trial-ops/) - Testing workflows in isolation
 - [CLI Commands](/gh-aw/setup/cli/) - Complete gh aw run command reference

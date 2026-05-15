@@ -75,12 +75,6 @@ Use `{{#runtime-import? filepath}}` to silently skip a missing file instead of f
 
 Paths are resolved within the `.github` folder. You can specify paths with or without the `.github/` prefix — both `.github/shared/editorial.md` and `shared/editorial.md` refer to the same file. See [Runtime Imports](/gh-aw/reference/templating/#runtime-imports) for URLs, line ranges, and security details.
 
-> [!NOTE]
-> `{{#runtime-import}}` injects **content** (markdown text) at the insertion point. It does not merge frontmatter configuration. To share tools, permissions, or MCP servers across workflows, use the `imports:` frontmatter field instead.
-
-> [!WARNING]
-> The `{{#import filepath}}` body-level directive is **deprecated**. Replace it with `{{#runtime-import filepath}}`. The old syntax still works at runtime (it normalizes to `{{#runtime-import}}` automatically) but emits deprecation warnings at both compile time and runtime.
-
 ## Shared Workflow Components
 
 Files without an `on` field are shared workflow components — validated but not compiled into GitHub Actions, only imported by other workflows. Shared components may also define import-safe `on` keys (`skip-if-match`, `skip-if-no-match`, `skip-roles`, `skip-bots`, `github-token`, `github-app`) for reuse through imports.
