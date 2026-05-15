@@ -241,6 +241,51 @@ safe-outputs:
 	}
 }
 
+func TestPushToPullRequestBranchPushSignedCommitsDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    push-signed-commits: false
+---
+
+# Test Push to PR Branch Signed Commits Disabled
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-signed-commits-disabled.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	pushSignedCommits, exists := pushConfig["push_signed_commits"]
+	if !exists {
+		t.Errorf("Generated workflow should contain push_signed_commits in handler config JSON")
+	}
+	pushSignedCommitsBool, isBool := pushSignedCommits.(bool)
+	if !isBool {
+		t.Errorf("Expected push_signed_commits to be a bool, got %#v", pushSignedCommits)
+	}
+	if pushSignedCommitsBool {
+		t.Errorf("Expected push_signed_commits=false, got %#v", pushSignedCommitsBool)
+	}
+}
+
 func TestPushToPullRequestBranchFallbackAsPullRequestEnabled(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 

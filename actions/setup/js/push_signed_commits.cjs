@@ -144,9 +144,10 @@ async function readBlobAsBase64(blobHash, cwd) {
  * @param {string} opts.baseRef - Git ref of the remote head before commits were applied (used for rev-list)
  * @param {string} opts.cwd - Working directory of the local git checkout
  * @param {object} [opts.gitAuthEnv] - Environment variables for git push fallback auth
+ * @param {boolean} [opts.signedCommits=true] - When false, skip GraphQL signed commits and use git push directly
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
-async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
+async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true }) {
   // Orphan branch first push: baseRef is "" when push_experiment_state creates a brand-new
   // branch for the first time (checkoutOrCreateBranch returns "" for new branches).
   // The GraphQL createCommitOnBranch path cannot handle root commits (no parent to resolve),
@@ -174,6 +175,17 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   if (shas.length === 0) {
     core.info("pushSignedCommits: no new commits to push via GraphQL");
     return undefined;
+  }
+
+  if (signedCommits === false) {
+    core.info(`pushSignedCommits: push-signed-commits disabled, using git push directly for branch ${branch}`);
+    await exec.exec("git", ["push", "origin", branch], {
+      cwd,
+      env: { ...process.env, ...(gitAuthEnv || {}) },
+    });
+    const pushedSha = shas[shas.length - 1];
+    core.info(`pushSignedCommits: git push completed with signed commits disabled, using pushed SHA ${pushedSha}`);
+    return pushedSha;
   }
 
   core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch (branch: ${branch}, repo: ${owner}/${repo})`);
