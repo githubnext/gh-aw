@@ -4,12 +4,6 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
- * Mentions that are always allowed in safe-output content.
- * @type {string[]}
- */
-const DEFAULT_ALLOWED_MENTION_ALIASES = ["copilot"];
-
-/**
  * @typedef {Object} MentionResolutionResult
  * @property {string[]} allowedMentions - List of allowed mention usernames
  * @property {number} totalMentions - Total number of mentions found
@@ -196,7 +190,6 @@ async function resolveMentionsLazily(text, knownAuthors, owner, repo, github, co
 }
 
 module.exports = {
-  DEFAULT_ALLOWED_MENTION_ALIASES,
   extractMentions,
   isPayloadUserBot,
   getRecentCollaborators,

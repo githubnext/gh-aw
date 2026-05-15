@@ -2396,7 +2396,7 @@ describe("add_comment", () => {
       expect(capturedBody).not.toContain("`@PRAuthor`");
     });
 
-    it("should preserve @copilot mention by default", async () => {
+    it("should neutralize @copilot mention by default", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
       mockContext.payload = {
@@ -2428,8 +2428,7 @@ describe("add_comment", () => {
 
       expect(result.success).toBe(true);
       expect(capturedBody).toBeDefined();
-      expect(capturedBody).toContain("@copilot");
-      expect(capturedBody).not.toContain("`@copilot`");
+      expect(capturedBody).toContain("`@copilot`");
     });
 
     it("should fetch and preserve issue author for explicit item_number", async () => {

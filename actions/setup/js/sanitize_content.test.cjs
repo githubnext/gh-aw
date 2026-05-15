@@ -207,6 +207,11 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("Hello @Author");
     });
 
+    it("should preserve @copilot when copilot runtime alias is allowlisted", () => {
+      const result = sanitizeContent("Hello @copilot", { allowedAliases: ["copilot-swe-agent"] });
+      expect(result).toBe("Hello @copilot");
+    });
+
     it("should handle multiple allowed aliases", () => {
       const result = sanitizeContent("Hello @user1 and @user2 and @other", {
         allowedAliases: ["user1", "user2"],

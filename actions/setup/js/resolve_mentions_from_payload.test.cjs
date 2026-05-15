@@ -2,10 +2,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock dependencies before importing the module
-vi.mock("./resolve_mentions.cjs", async importOriginal => {
-  const actual = await importOriginal();
+vi.mock("./resolve_mentions.cjs", async () => {
   return {
-    DEFAULT_ALLOWED_MENTION_ALIASES: actual.DEFAULT_ALLOWED_MENTION_ALIASES,
     resolveMentionsLazily: vi.fn(async (_text, knownAuthors) => ({
       allowedMentions: knownAuthors,
       totalMentions: knownAuthors.length,
@@ -295,7 +293,6 @@ describe("resolveAllowedMentionsFromPayload", () => {
     };
     const result = await resolveAllowedMentionsFromPayload(context, mockGithub, mockCore);
     expect(result).toContain("alice");
-    expect(result).toContain("copilot");
   });
 
   it("includes extra known authors", async () => {
@@ -373,7 +370,7 @@ describe("resolveAllowedMentionsFromPayload", () => {
     expect(result).toContain("trusted-user");
   });
 
-  it("always includes copilot in mentions allowlist", async () => {
+  it("does not include copilot by default", async () => {
     const context = {
       eventName: "workflow_dispatch",
       actor: "actor",
@@ -384,6 +381,6 @@ describe("resolveAllowedMentionsFromPayload", () => {
       allowContext: false,
       allowTeamMembers: false,
     });
-    expect(result).toContain("copilot");
+    expect(result).not.toContain("copilot");
   });
 });
