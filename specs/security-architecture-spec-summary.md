@@ -190,7 +190,7 @@ Key implementation files referenced in the specification:
 | Add job dependency diagram to Appendix A | ✅ Done (2026-05-10) | Added to `security-architecture-spec.md` Appendix A |
 | Add lock file validation checklist as Appendix G | ✅ Done (2026-05-10) | Added to `security-architecture-spec.md` as Appendix G; old Appendix G renamed to Appendix H |
 | Document the pre_activation pattern in Section 7.6 | ✅ Done (2026-05-10) | Added Section 7.6.1 "Pre-Activation Pattern" with normative requirements PM-10a through PM-10d |
-| Rerun validation report after Appendix A update | ⏳ Pending | Should re-validate spec-to-implementation match grade |
+| Rerun validation report after Appendix A update | ✅ Done (2026-05-15) | Revalidated against `specs/security-architecture-spec-validation.md`; grade remains pass with job architecture, sanitization, permissions, and threat-detection mappings verified |
 | Update summary to reflect v1.0.2 CTR-012 work | ✅ Done (2026-05-10) | Appendix count updated; security architecture remains at version 1.0.0 |
 | Audit "Next Steps" for stale v1.0.0 tasks | ✅ Done (2026-05-10) | This table replaces the stale untracked list |
 

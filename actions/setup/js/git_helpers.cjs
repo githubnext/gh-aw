@@ -178,9 +178,38 @@ async function ensureFullHistoryForBundle(execApi, options = {}) {
   }
 }
 
+/**
+ * Extract prerequisite commit SHAs from git bundle fetch error output.
+ *
+ * When `git fetch <bundle>` fails because the local repository is missing the
+ * bundle's base commits, git prints:
+ *   error: Repository lacks these prerequisite commits:
+ *   error: <sha1>
+ *   error: <sha2>
+ *   ...
+ *
+ * This function parses the raw stderr/error text and returns the deduplicated
+ * list of missing commit SHAs so callers can fetch them from origin and retry.
+ *
+ * NOTE: The @actions/exec `exec()` function throws with a generic
+ * "The process '...' failed with exit code 1" message that does NOT include
+ * stderr. Callers must use `getExecOutput()` with `ignoreReturnCode: true`
+ * and pass the returned `stderr` field to this function.
+ *
+ * @param {string} message - Raw stderr text from the failed bundle fetch.
+ * @returns {string[]} Deduplicated lowercase 40-character commit SHAs, or [] if none found.
+ */
+function extractBundlePrerequisiteCommits(message) {
+  if (!message || !/lacks these prerequisite commits/i.test(message)) {
+    return [];
+  }
+  return [...new Set((message.match(/\b[0-9a-f]{40}\b/gi) || []).map(sha => sha.toLowerCase()))];
+}
+
 module.exports = {
   execGitSync,
   ensureFullHistoryForBundle,
+  extractBundlePrerequisiteCommits,
   getGitAuthEnv,
   hasMergeCommitsInRange,
 };

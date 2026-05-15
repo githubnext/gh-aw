@@ -59,7 +59,6 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolP("verbose", "v", false, "Show detailed output")
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
 	addOutputFlag(cmd, "")

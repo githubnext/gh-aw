@@ -49,12 +49,6 @@ func WithVersion(version string) CompilerOption {
 	return func(c *Compiler) { c.version = version }
 }
 
-// WithContext sets the context used for network operations such as SHA resolution.
-// Defaults to context.Background() if not specified.
-func WithContext(ctx context.Context) CompilerOption {
-	return func(c *Compiler) { c.ctx = ctx }
-}
-
 // FileCreationTracker interface for tracking files created during compilation
 type FileCreationTracker interface {
 	TrackCreated(filePath string)
@@ -192,11 +186,6 @@ func (c *Compiler) SetApprove(approve bool) {
 // SetForceStaged configures whether safe-outputs should always compile in staged mode.
 func (c *Compiler) SetForceStaged(force bool) {
 	c.forceStaged = force
-}
-
-// IsForceStaged reports whether the compiler forces safe-outputs into staged mode.
-func (c *Compiler) IsForceStaged() bool {
-	return c.forceStaged
 }
 
 // SetFileTracker sets the file tracker for tracking created files

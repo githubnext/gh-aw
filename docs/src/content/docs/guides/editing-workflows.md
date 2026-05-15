@@ -11,8 +11,7 @@ See [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/) for guidance 
 
 ## Editing Without Recompilation
 
-> [!TIP]
-> You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. Changes take effect on the next workflow run.
+You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. Changes take effect on the next workflow run.
 
 ### What You Can Edit
 

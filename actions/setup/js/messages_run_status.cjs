@@ -8,6 +8,7 @@
  */
 
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
+const { getDetectionReasonText, getThreatDetectedMarkerTemplate, normalizeThreatKinds } = require("./threat_detection_warning.cjs");
 
 /**
  * Renders a message using a custom template from config or a default template.
@@ -144,15 +145,9 @@ function getCommitPushedMessage(ctx) {
  * @returns {string} Detection-warning message with caution admonition
  */
 function getDetectionWarningMessage(ctx) {
-  const reasonDescriptions = {
-    threat_detected: "Potential security threats were detected in the agent output.",
-    agent_failure: "The threat detection engine failed to produce results.",
-    parse_error: "The threat detection results could not be parsed.",
-  };
-  const reasonText = reasonDescriptions[ctx.reason] || "The threat detection analysis could not be completed.";
-  const defaultTemplate =
-    "> [!CAUTION]\n> **Security scanning requires review** for [{workflow_name}]({run_url})\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>";
-  return renderConfiguredMessage("detectionWarning", defaultTemplate, { ...ctx, reasonText });
+  const reasonText = getDetectionReasonText(ctx.reason);
+  const defaultTemplate = `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> ${getThreatDetectedMarkerTemplate()}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
+  return renderConfiguredMessage("detectionWarning", defaultTemplate, { ...ctx, reasonText, threatKinds: normalizeThreatKinds(ctx.reason) });
 }
 
 module.exports = {

@@ -77,7 +77,7 @@ Every safe output job follows the same pattern: download the agent artifact, par
 
 ### Custom Jobs
 
-Use `safe-outputs.jobs:` for custom jobs with full GitHub Actions syntax, or `jobs:` for additional workflow jobs with user-defined dependencies. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for examples of multi-stage workflows combining deterministic computation with AI reasoning.
+Use `safe-outputs.jobs:` for custom jobs with full GitHub Actions syntax, or `jobs:` for additional workflow jobs with user-defined dependencies. See [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for examples of multi-stage workflows combining deterministic computation with AI reasoning.
 
 ## Job Dependency Graphs
 

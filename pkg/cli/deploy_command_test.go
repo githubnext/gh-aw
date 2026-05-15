@@ -53,6 +53,15 @@ func TestNewDeployCommand_RegistersCoreFlags(t *testing.T) {
 	}
 }
 
+func TestNewDeployCommand_CoolDownFlagUsageMatchesUpdate(t *testing.T) {
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+
+	coolDownFlag := cmd.Flags().Lookup("cool-down")
+	require.NotNil(t, coolDownFlag)
+	assert.Equal(t, coolDownFlagUsage, coolDownFlag.Usage)
+}
+
 func TestNewDeployCommand_RequiresRepoFlag(t *testing.T) {
 	cmd := NewDeployCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)

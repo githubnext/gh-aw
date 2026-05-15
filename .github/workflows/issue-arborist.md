@@ -1,5 +1,4 @@
 ---
-emoji: "🌳"
 description: Daily workflow that analyzes recent issues and links related issues as sub-issues
 name: Issue Arborist
 on:
@@ -16,28 +15,9 @@ network:
     - github
 imports:
   - shared/github-guard-policy.md
-  - uses: githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@ca993f50371e3fc138e672335bfc5879e60f3e98
-    with:
-      copilot-github-token: ${{ secrets.GH_AW_REPO_MIND_LIGHT_TOKEN }}
-      config:
-        yaml: |
-          slug: ${{ github.repository }}
-          store_path: /var/lib/repo-mind-light/index
-          refresh_if_older_than: 1d
-          conversations:
-            issue_state: open
-            pr_state: none
-            discussion_state: none
-            ignore_bot_authored: true
-          query:
-            preload_query_sources_on_startup: true
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/observability-otlp.md
-sandbox:
-  mcp:
-    env:
-      MCP_GATEWAY_TOOL_TIMEOUT: "300"
 tools:
   cli-proxy: true
   github:
@@ -52,41 +32,21 @@ tools:
 steps:
   - name: Fetch issues
     env:
-      GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      set -euo pipefail
-
       # Create output directory
       mkdir -p /tmp/gh-aw/issues-data
-
+      
       echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
-
-      # Fetch the last 100 open issues that don't have a parent issue.
-      # Use the REST API directly because `gh issue list` probes `/meta`, which
-      # is not exposed by the pre-agent GitHub proxy.
-      curl --fail-with-body --silent --show-error \
-        --cacert /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt \
-        --header "Authorization: Bearer ${GH_TOKEN}" \
-        --header "Accept: application/vnd.github+json" \
-        --header "X-GitHub-Api-Version: 2022-11-28" \
-        --get "${GITHUB_API_URL}/search/issues" \
-        --data-urlencode "q=repo:${GITHUB_REPOSITORY} is:issue is:open -parent-issue:* sort:updated-desc" \
-        --data-urlencode "per_page=100" \
-        | jq '[.items[] | {
-            number,
-            title,
-            author: .user,
-            createdAt: .created_at,
-            state: (.state | ascii_upcase),
-            url: .html_url,
-            body,
-            labels,
-            updatedAt: .updated_at,
-            closedAt: .closed_at,
-            milestone,
-            assignees
-          }]' \
+      
+      # Fetch the last 100 open issues that don't have a parent issue
+      # Using search filter to exclude issues that are already sub-issues
+      gh issue list --repo "$GITHUB_REPOSITORY" \
+        --search "-parent-issue:*" \
+        --state open \
+        --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
+        --limit 100 \
         > /tmp/gh-aw/issues-data/issues.json
 
       # Generate schema for reference using jqschema
@@ -132,7 +92,7 @@ experiments:
 
 ---
 
-{{#if experiments.prompt_style == 'detailed'}}
+{{#if experiments.prompt_style == "detailed"}}
 # Issue Arborist 🌳
 
 You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
@@ -140,7 +100,6 @@ You are the Issue Arborist - an intelligent agent that cultivates the issue gard
 ## Task
 
 Analyze the last 100 open issues in repository $GITHUB_REPOSITORY (see `issues_analyzed` in scratchpad/metrics-glossary.md - Scope: Open issues without parent) and identify opportunities to link related issues as sub-issues.
-Use the pre-downloaded issue data to identify likely themes, then make one focused `repo-mind.query` request before linking decisions. Make at most one follow-up query only when the first result leaves a specific gap that matters to the task.
 
 ## Pre-Downloaded Data
 
@@ -271,15 +230,14 @@ Your discussion should include:
 - When creating parent issues, include references to all related sub-issues in the body
 - Link all related issues as sub-issues immediately after creating the parent issue
 {{else}}
-# Issue Arborist Concise
+# Issue Arborist 🌳
 
 You are the Issue Arborist. Pre-downloaded issue data is at `/tmp/gh-aw/issues-data/issues.json` (last 100 open issues). Your goal:
 
 1. Use `jq` to identify clusters of 5+ related issues that share a theme but lack a parent.
-2. Make one focused `repo-mind.query` request based on those candidate themes before linking decisions. Make at most one follow-up query only when the first result leaves a specific gap that matters to the task.
-3. Create a parent issue (title prefix `[Parent]`) for each cluster and link its members as sub-issues.
-4. Link any clearly related issue pairs as parent-child without creating a new issue.
-5. Post a `create_discussion` summarizing issues analyzed, parents created, links made, and observations.
+2. Create a parent issue (title prefix `[Parent] `) for each cluster and link its members as sub-issues.
+3. Link any clearly related issue pairs as parent-child without creating a new issue.
+4. Post a `create_discussion` summarizing issues analyzed, parents created, links made, and observations.
 
 Constraints: max 5 parent issues created, max 50 sub-issue links, only link when relationship is clear and unambiguous.
 {{/if}}

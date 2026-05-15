@@ -1,4 +1,8 @@
 ---
+network:
+  allowed:
+    - "*.sentry.io"
+    - "*.grafana.net"
 observability:
   otlp:
     endpoint:

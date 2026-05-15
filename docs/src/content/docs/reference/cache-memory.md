@@ -104,7 +104,7 @@ For unlimited retention with version control, see [Repo Memory](/gh-aw/reference
 
 ## Automatic Cleanup
 
-The [agentic maintenance](/gh-aw/guides/ephemerals/#cache-memory-cleanup) workflow automatically cleans up outdated cache-memory entries on a schedule. Caches are grouped by key prefix (everything before the run ID), and only the latest entry per group is kept. Older entries are deleted to prevent unbounded storage growth.
+The [agentic maintenance](/gh-aw/reference/ephemerals/#cache-memory-cleanup) workflow automatically cleans up outdated cache-memory entries on a schedule. Caches are grouped by key prefix (everything before the run ID), and only the latest entry per group is kept. Older entries are deleted to prevent unbounded storage growth.
 
 You can also trigger cleanup manually from the GitHub Actions UI by running the `Agentic Maintenance` workflow with the `clean_cache_memories` operation.
 

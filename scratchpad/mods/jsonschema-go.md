@@ -145,7 +145,7 @@ While not officially released, upstream development suggests:
    - Would provide runtime type safety for AI agent interactions
 
 3. **Leverage Schema Descriptions**
-   - Expand `jsonschema:` tag usage for richer tool documentation
+   - Expand `jsonschema:` tag usage for more detailed tool documentation
    - More detailed descriptions help AI agents understand tool outputs
 
 ### Feature Opportunities

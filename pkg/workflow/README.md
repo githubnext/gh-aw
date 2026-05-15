@@ -511,6 +511,7 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 - `github.com/github/gh-aw/pkg/constants` — engine names, feature flags, job/step IDs
 - `github.com/github/gh-aw/pkg/console` — terminal formatting
 - `github.com/github/gh-aw/pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by workflow package tests
 - `github.com/github/gh-aw/pkg/actionpins` — action pin data and pin lookup helpers
 - `github.com/github/gh-aw/pkg/jsonutil` — compact JSON marshaling for AWF configuration serialization
 - `github.com/github/gh-aw/pkg/semverutil` — semantic version helpers

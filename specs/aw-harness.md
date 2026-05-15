@@ -923,9 +923,13 @@ aw-harness/
 
 Tests use the same Vitest setup as the existing `actions/setup/js/` scripts:
 
-- Unit tests for loader and each extension.
-- Integration tests with mock Pi sessions (`SessionManager.inMemory()`).
-- Tests co-located: `aw_harness.test.cjs` or in a `test/` subdirectory.
+- **Unit: session execution orchestration** — Unit tests **MUST** validate that the harness entry point loads `config.json` and `prompt.txt`, creates exactly one session, passes prompt content once, and disposes the session on success and on failure.
+- **Integration: exit-code contract** — Integration tests **MUST** execute `node aw_harness.cjs --config ... --prompt ...` with controlled fixtures to assert exit codes `0`, `1`, and `2` for success, session failure, and invocation failure respectively.
+- **Mock harness contracts** — Extension-facing tests **SHOULD** use mocked `ExtensionAPI` and mocked `SessionManager.inMemory()` sessions to verify:
+  - budget abort behavior (`budget_exceeded` event + exit code `1`)
+  - steer-message emission thresholds
+  - extension load failure handling (`extensions-required: false` warning vs `true` fatal)
+- Tests are RECOMMENDED to remain co-located as `aw_harness.test.cjs` plus `test/extensions/*.test.ts` to align with existing JS harness patterns.
 
 ### 10.6 Build Integration
 

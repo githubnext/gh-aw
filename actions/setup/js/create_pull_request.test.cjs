@@ -252,18 +252,20 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
-    const bundleFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    // Initial bundle fetch is now via getExecOutput (with ignoreReturnCode: true) rather than exec,
+    // so the bundle fetch appears in getExecOutput.mock.calls.
+    const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     if (!bundleFetchCall) {
-      throw new Error("expected bundle fetch call");
+      throw new Error("expected bundle fetch call via getExecOutput");
     }
     expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/feature\/test:refs\/bundles\/create-pr-feature-test-[a-f0-9]{8}$/);
     const bundleTempRef = bundleFetchCall[1][2].split(":")[1];
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", bundleTempRef]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"]);
     const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
-    const bundleFetchCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    const bundleFetchCallIndex = global.exec.getExecOutput.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
-    expect(bundleFetchCallIndex).toBeGreaterThan(unshallowCallIndex);
+    expect(bundleFetchCallIndex).toBeGreaterThanOrEqual(0);
   });
 
   it("should pass signed_commits false to bundle pushes", async () => {
@@ -297,6 +299,69 @@ index 0000000..abc1234
     expect(pushSignedSpy).toHaveBeenCalledWith(expect.objectContaining({ signedCommits: false }));
   });
 
+  it("should rewrite bundle history to a single commit and retry when signed push rejects merge commits", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    let revParseHeadCallCount = 0;
+    global.exec.getExecOutput.mockImplementation((cmd, args) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+        revParseHeadCallCount += 1;
+        return Promise.resolve({ exitCode: 0, stdout: revParseHeadCallCount === 1 ? "old-head-sha\n" : "new-head-sha\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "log" && args[1] === "-1" && args[2] === "--format=%s" && args[3] === "HEAD") {
+        return Promise.resolve({ exitCode: 0, stdout: "bundle merge headline\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "diff" && args[1] === "--cached" && args[2] === "--name-only") {
+        return Promise.resolve({ exitCode: 0, stdout: "test.txt\n", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    });
+
+    pushSignedSpy
+      .mockRejectedValueOnce(new Error("pushSignedCommits: refusing unsigned push for branch 'feature/test': merge commit detected. " + "GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits."))
+      .mockResolvedValueOnce("bundle-tip");
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).not.toBe(true);
+    expect(pushSignedSpy).toHaveBeenCalledTimes(2);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "origin/main"]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "bundle merge headline"]);
+    expect(global.github.rest.issues.create).not.toHaveBeenCalled();
+  });
+
   it("should resolve bundle source ref from list-heads when JSONL branch ref is missing in bundle", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(
@@ -320,19 +385,16 @@ index 0000000..abc1234
     const bundlePath = path.join(tempDir, "test.bundle");
     fs.writeFileSync(bundlePath, "bundle content");
 
-    global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && /^refs\/heads\/ops-review-may09-2026:refs\/bundles\/create-pr-ops-review-may09-2026-[a-f0-9]{8}$/.test(args[2])) {
-        throw new Error("fatal: couldn't find remote ref refs/heads/ops-review-may09-2026");
-      }
-      return Promise.resolve(0);
-    });
-
-    global.exec.getExecOutput.mockImplementation((cmd, args) => {
+    global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
       if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
         return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
       }
       if (cmd === "git" && args[0] === "rev-list") {
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      // Initial bundle fetch via getExecOutput with ignoreReturnCode: the JSONL branch ref is missing
+      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+        return Promise.resolve({ exitCode: 1, stderr: "fatal: couldn't find remote ref refs/heads/ops-review-may09-2026", stdout: "" });
       }
       if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && args[2] === bundlePath) {
         return Promise.resolve({
@@ -384,13 +446,23 @@ index 0000000..abc1234
     fs.writeFileSync(bundlePath, "bundle content");
 
     const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
-    let firstBundleFetchAttempt = true;
-    global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
-        firstBundleFetchAttempt = false;
-        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+    // The initial bundle fetch uses getExecOutput (ignoreReturnCode: true) so git stderr is captured.
+    // Real @actions/exec.exec only throws "The process '...' failed with exit code 1" — not the
+    // git error text — so the recovery path must read stderr from getExecOutput instead.
+    global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
       }
-      return Promise.resolve(0);
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+        return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
+      }
+      if (cmd === "git" && args && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
     });
 
     const { main } = require("./create_pull_request.cjs");
@@ -398,9 +470,11 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
+    // Prerequisites are fetched from origin via exec
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha]);
-    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
-    expect(bundleFetchCalls.length).toBe(2);
+    // Retry bundle fetch is via exec (only the retry, not the initial attempt which was getExecOutput)
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleRetryFetchCalls.length).toBe(1);
     expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
   });
 
@@ -429,13 +503,20 @@ index 0000000..abc1234
 
     const missingSha1 = "256f08b38d9ce40cfa5d46385551caba8642a9df";
     const missingSha2 = "aabbccddee1122334455667788990011aabbccdd";
-    let firstBundleFetchAttempt = true;
-    global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
-        firstBundleFetchAttempt = false;
-        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha1}\nerror: ${missingSha2}`);
+    global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
       }
-      return Promise.resolve(0);
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+        return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha1}\nerror: ${missingSha2}`, stdout: "" });
+      }
+      if (cmd === "git" && args && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
     });
 
     const { main } = require("./create_pull_request.cjs");
@@ -444,8 +525,8 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha1, missingSha2]);
-    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
-    expect(bundleFetchCalls.length).toBe(2);
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleRetryFetchCalls.length).toBe(1);
     expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
   });
 
@@ -473,12 +554,22 @@ index 0000000..abc1234
     fs.writeFileSync(bundlePath, "bundle content");
 
     const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
-    let firstBundleFetchAttempt = true;
-    global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
-        firstBundleFetchAttempt = false;
-        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+    global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
       }
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+        return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
+      }
+      if (cmd === "git" && args && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    });
+    global.exec.exec.mockImplementation((cmd, args) => {
       if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === "origin" && args[2] === missingSha) {
         throw new Error("fatal: couldn't connect to 'origin'");
       }
@@ -492,8 +583,9 @@ index 0000000..abc1234
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply bundle");
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Failed to apply bundle: fatal: couldn't connect to 'origin'"));
-    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
-    expect(bundleFetchCalls.length).toBe(1);
+    // No retry bundle fetch via exec — failed at prerequisite origin fetch
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleRetryFetchCalls.length).toBe(0);
   });
 
   it("should include retry context when bundle fetch still fails after prerequisite recovery", async () => {
@@ -520,13 +612,23 @@ index 0000000..abc1234
     fs.writeFileSync(bundlePath, "bundle content");
 
     const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
-    let bundleFetchAttempts = 0;
+    global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+        return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
+      }
+      if (cmd === "git" && args && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    });
     global.exec.exec.mockImplementation((cmd, args) => {
       if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath) {
-        bundleFetchAttempts += 1;
-        if (bundleFetchAttempts === 1) {
-          throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
-        }
         throw new Error("fatal: failed to read bundle");
       }
       return Promise.resolve(0);
@@ -539,7 +641,8 @@ index 0000000..abc1234
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply bundle");
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Bundle fetch failed after fetching 1 prerequisite commit(s): fatal: failed to read bundle"));
-    expect(bundleFetchAttempts).toBe(2);
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleRetryFetchCalls.length).toBe(1);
   });
 
   it("should not fetch a bundle directly into the target branch", async () => {
@@ -570,8 +673,9 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"]);
-    const bundleFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    // The initial bundle fetch uses getExecOutput (not exec.exec) — ensure it never uses the direct branch refspec
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"], expect.anything());
+    const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     if (!bundleFetchCall) {
       throw new Error("expected bundle fetch call");
     }

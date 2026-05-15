@@ -49,4 +49,4 @@ Use `call-workflow` when actor attribution matters, workers must finish before t
 
 If your workers need shared context, pass an explicit input such as `tracker_id` (string) and include it in worker outputs (e.g., writing it into a Project custom field).
 
-See also: [Monitoring](/gh-aw/patterns/monitoring/)
+See also: [Monitoring](/gh-aw/experimental/monitoring-with-projects/)

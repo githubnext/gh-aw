@@ -16,11 +16,13 @@ package main
 import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
+	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 )
 
 func main() {
 	multichecker.Main(
+		excessivefuncparams.Analyzer,
 		largefunc.Analyzer,
 	)
 }

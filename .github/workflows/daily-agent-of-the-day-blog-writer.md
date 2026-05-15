@@ -57,7 +57,7 @@ safe-outputs:
     reviewers: [copilot]
     draft: false
     allowed-files:
-      - "docs/**"
+      - "docs/src/content/docs/**"
   upload-asset:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
@@ -82,6 +82,7 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
   - one to optimize SEO metadata (`seoDescription`, `linkedPostText`).
 - Use `agentic-workflows` `logs` and `audit` results as live evidence and include links to referenced issues/PRs.
 - If a chart image is available, include it in the post.
+- The `create_pull_request` patch must contain only text changes under `docs/src/content/docs/**`; never include binary assets in the PR patch — use `upload-asset` for those.
 
 ## Process
 
@@ -112,11 +113,9 @@ If no useful data appears for the selected workflow, pick another active workflo
 
 If logs or audit output provide an image URL, use it.
 
-If no remote image URL is available but `docs/public/blog-combined.png` exists, copy it to:
+If no remote image URL is available but `docs/public/blog-combined.png` exists, emit it as a single `upload-asset` safe-output (`.png`) and use the returned URL as the markdown image source.
 
-- `docs/public/blog/agent-of-the-day-YYYY-MM-DD.png`
-
-Then use `/blog/agent-of-the-day-YYYY-MM-DD.png` as the image URL.
+Do not stage the PNG with `git add` and do not include any binary files in the PR.
 
 ### 4) Generate persona and draft content through sub-agents
 
