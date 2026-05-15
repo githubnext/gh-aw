@@ -1513,25 +1513,23 @@ async function main(config = {}) {
           }
         }
 
-        if (pushRecovered) {
-          core.info("Bundle push recovered after signed-commit rewrite");
-        } else {
+        if (!pushRecovered) {
           core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-        if (!fallbackAsIssue) {
-          const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
-          return { success: false, error, error_type: "push_failed" };
-        }
+          if (!fallbackAsIssue) {
+            const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+            return { success: false, error, error_type: "push_failed" };
+          }
 
-        core.warning("Git push operation failed - creating fallback issue instead of pull request");
+          core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
-        const runUrl = buildWorkflowRunUrl(context, context.repo);
-        const runId = context.runId;
+          const runUrl = buildWorkflowRunUrl(context, context.repo);
+          const runId = context.runId;
 
-        const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
-        const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
-        const fallbackBundleTempRef = createBundleTempRef(branchName);
-        const fallbackBody = `${body}
+          const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
+          const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
+          const fallbackBundleTempRef = createBundleTempRef(branchName);
+          const fallbackBody = `${body}
 
 ---
 
@@ -1564,23 +1562,23 @@ git push origin ${branchName}
 gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\``;
 
-        try {
-          const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+          try {
+            const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
-          core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-          await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
-          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+            core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+            await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+            await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
-          return {
-            success: true,
-            fallback_used: true,
-            issue_number: issue.number,
-            issue_url: issue.html_url,
-          };
-        } catch (issueError) {
-          const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
-          return { success: false, error };
-        }
+            return {
+              success: true,
+              fallback_used: true,
+              issue_number: issue.number,
+              issue_url: issue.html_url,
+            };
+          } catch (issueError) {
+            const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+            return { success: false, error };
+          }
         }
       }
     } else {
