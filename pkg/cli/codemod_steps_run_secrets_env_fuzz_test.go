@@ -155,7 +155,7 @@ func sanitizeHoistName(raw string) string {
 	if s == "" {
 		return "TOKEN"
 	}
-	if len(s) > 0 && s[0] >= '0' && s[0] <= '9' {
+	if s[0] >= '0' && s[0] <= '9' {
 		return "T_" + s
 	}
 	return s
