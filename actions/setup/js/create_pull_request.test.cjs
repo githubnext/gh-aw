@@ -347,12 +347,7 @@ index 0000000..abc1234
     });
 
     pushSignedSpy
-      .mockRejectedValueOnce(
-        new Error(
-          "pushSignedCommits: refusing unsigned push for branch 'feature/test': merge commit detected. " +
-            "GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits."
-        )
-      )
+      .mockRejectedValueOnce(new Error("pushSignedCommits: refusing unsigned push for branch 'feature/test': merge commit detected. " + "GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits."))
       .mockResolvedValueOnce("bundle-tip");
 
     const { main } = require("./create_pull_request.cjs");
@@ -679,11 +674,7 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     // The initial bundle fetch uses getExecOutput (not exec.exec) — ensure it never uses the direct branch refspec
-    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith(
-      "git",
-      ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"],
-      expect.anything()
-    );
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"], expect.anything());
     const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     if (!bundleFetchCall) {
       throw new Error("expected bundle fetch call");

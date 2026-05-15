@@ -359,11 +359,7 @@ describe("git_helpers.cjs", () => {
 
     it("should return multiple SHAs when multiple prerequisite commits are missing", async () => {
       const { extractBundlePrerequisiteCommits } = await import("./git_helpers.cjs");
-      const message = [
-        "error: Repository lacks these prerequisite commits:",
-        "error: 172f87a830f57a29470efe7646d141069434a893",
-        "error: aabbccddee1122334455667788990011aabbccdd",
-      ].join("\n");
+      const message = ["error: Repository lacks these prerequisite commits:", "error: 172f87a830f57a29470efe7646d141069434a893", "error: aabbccddee1122334455667788990011aabbccdd"].join("\n");
       const result = extractBundlePrerequisiteCommits(message);
       expect(result).toEqual(["172f87a830f57a29470efe7646d141069434a893", "aabbccddee1122334455667788990011aabbccdd"]);
     });
