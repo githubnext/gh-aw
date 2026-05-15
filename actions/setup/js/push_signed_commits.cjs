@@ -1,6 +1,19 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * @fileoverview Signed Commit Push Helper
+ *
+ * Pushes local git commits to a remote branch using the GitHub GraphQL
+ * `createCommitOnBranch` mutation, so commits are cryptographically signed
+ * (verified) by GitHub.  Falls back to a plain `git push` when the GraphQL
+ * approach is unavailable (e.g. GitHub Enterprise Server instances that do
+ * not support the mutation, or when branch-protection policies reject it).
+ *
+ * Both `create_pull_request.cjs` and `push_to_pull_request_branch.cjs` use
+ * this helper so the signed-commit logic lives in exactly one place.
+ */
+
 const { ERR_API } = require("./error_codes.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
@@ -146,17 +159,14 @@ async function resolveLocalHeadSha(cwd) {
 }
 
 /**
- * @fileoverview Signed Commit Push Helper
+ * Returns true only when signed commit replay was explicitly disabled.
  *
- * Pushes local git commits to a remote branch using the GitHub GraphQL
- * `createCommitOnBranch` mutation, so commits are cryptographically signed
- * (verified) by GitHub.  Falls back to a plain `git push` when the GraphQL
- * approach is unavailable (e.g. GitHub Enterprise Server instances that do
- * not support the mutation, or when branch-protection policies reject it).
- *
- * Both `create_pull_request.cjs` and `push_to_pull_request_branch.cjs` use
- * this helper so the signed-commit logic lives in exactly one place.
+ * @param {boolean} signedCommits
+ * @returns {boolean}
  */
+function shouldUseDirectGitPush(signedCommits) {
+  return signedCommits === false;
+}
 
 /**
  * Pushes local commits to a remote branch using the GitHub GraphQL
@@ -187,7 +197,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return headSha;
   }
 
-  if (signedCommits === false) {
+  if (shouldUseDirectGitPush(signedCommits)) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
     const pushedSha = await resolveLocalHeadSha(cwd);
