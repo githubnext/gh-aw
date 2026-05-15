@@ -164,7 +164,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {boolean} signedCommits
  * @returns {boolean}
  */
-function isSignedCommitReplayOptedOut(signedCommits) {
+function shouldSkipSignedCommitReplay(signedCommits) {
   return signedCommits === false;
 }
 
@@ -197,9 +197,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return headSha;
   }
 
-  if (isSignedCommitReplayOptedOut(signedCommits)) {
+  if (shouldSkipSignedCommitReplay(signedCommits)) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
+    // git push sends the currently checked-out branch tip; after it succeeds,
+    // local HEAD is the SHA that landed on the remote branch.
     const headSha = await resolveLocalHeadSha(cwd);
     core.info(`pushSignedCommits: git push completed with signed commits disabled, using local HEAD SHA ${headSha}`);
     return headSha;
