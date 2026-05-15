@@ -905,6 +905,10 @@ function generatePlaceholderName(expr) {
  * @returns {{filepath: string, normalizedPath: string}}
  */
 function resolveRuntimeImportFilePath(filepathOrUrl, workspaceDir) {
+  if (/^https?:\/\//i.test(filepathOrUrl)) {
+    throw new Error(`${ERR_VALIDATION}: Expected file path for runtime import, received URL: ${filepathOrUrl}`);
+  }
+
   let filepath = filepathOrUrl;
   let isAgentsPath = false;
 
