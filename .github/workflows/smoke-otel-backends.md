@@ -145,7 +145,7 @@ Use the Grafana MCP server configured in this workflow.
 
 1. Inspect the available Grafana tracing tools first.
 2. Discover the tracing datasource or Tempo surface that contains `gh-aw` spans.
-3. Query the last 30 minutes of traces.
+3. Query the last 24 hours of traces.
 4. First try to locate spans for `${{ github.run_id }}`.
 5. If the current run is not visible, fall back to recent `service.name=gh-aw` spans to distinguish ingestion delay from a broken Grafana query path.
 
