@@ -120,8 +120,8 @@ async function readBlobAsBase64(blobHash, cwd) {
 
 /**
  * Push the local branch to origin using git directly.
- * git push sends the currently checked-out branch tip; after it succeeds,
- * local HEAD is the SHA that landed on the remote branch.
+ * This only performs the push; callers resolve HEAD separately when they need
+ * the resulting branch tip SHA.
  *
  * @param {object} opts
  * @param {string} opts.branch
@@ -176,6 +176,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return headSha;
   }
 
+  // Only an explicit false opts out of signed commit replay; unset/default values keep it enabled.
   if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
