@@ -230,6 +230,31 @@ steps:
 		assert.Contains(t, result, "GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}", "env expression should be bound in step env")
 	})
 
+	t.Run("leaves secrets fallback expression unchanged", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo "${{ secrets.RUNTIME_TOKEN || 'default' }} ${{ github.token }}"
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"run": `echo "${{ secrets.RUNTIME_TOKEN || 'default' }} ${{ github.token }}"`,
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply because github.token is hoisted")
+		assert.Contains(t, result, "${{ secrets.RUNTIME_TOKEN || 'default' }}", "fallback expression should remain unchanged")
+		assert.NotContains(t, result, "RUNTIME_TOKEN: ${{ secrets.RUNTIME_TOKEN }}", "fallback expression should not synthesize secret binding")
+		assert.Contains(t, result, "$GH_AW_GITHUB_TOKEN", "github.token should still be hoisted")
+		assert.Contains(t, result, "GH_AW_GITHUB_TOKEN: ${{ github.token }}", "github.token env binding should be added")
+	})
+
 	t.Run("hoists mixed expressions with deduplicated bindings", func(t *testing.T) {
 		content := `---
 on: push
