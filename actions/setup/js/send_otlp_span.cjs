@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { spawnSync } = require("child_process");
+const childProcess = require("child_process");
 const { randomBytes } = require("crypto");
 const fs = require("fs");
 const { buildWorkflowCallId } = require("./aw_context.cjs");
@@ -620,7 +620,7 @@ function sendOTLPViaCurl(url, headers, body) {
   }
   args.push(url);
 
-  const result = spawnSync("curl", args, {
+  const result = childProcess.spawnSync("curl", args, {
     encoding: "utf8",
     input: body,
     maxBuffer: 1024 * 1024,
