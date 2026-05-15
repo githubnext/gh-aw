@@ -863,11 +863,10 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
   it("should continue title/body updates when updateBranch reports merge conflict", async () => {
     mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("merge conflict between base and head"));
 
-    const handler = await updatePRModule.main({});
+    const handler = await updatePRModule.main({ update_branch: true });
     const result = await handler({
       pull_request_number: 100,
       title: "Updated PR",
-      update_branch: true,
     });
 
     expect(result.success).toBe(true);
