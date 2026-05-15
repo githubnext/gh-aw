@@ -41,7 +41,7 @@ func TestNewSlogLoggerWithHandler(t *testing.T) {
 	if !strings.Contains(output, "test:handler") {
 		t.Errorf("Expected 'test:handler' namespace in output, got: %s", output)
 	}
-	if !strings.Contains(output, "[INFO] test message from handler") {
+	if !strings.Contains(output, "· test message from handler") {
 		t.Errorf("Expected info message in output, got: %s", output)
 	}
 }

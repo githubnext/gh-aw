@@ -55,13 +55,13 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 	levelPrefix := ""
 	switch r.Level {
 	case slog.LevelDebug:
-		levelPrefix = "[DEBUG] "
+		levelPrefix = "· "
 	case slog.LevelInfo:
-		levelPrefix = "[INFO] "
+		levelPrefix = "· "
 	case slog.LevelWarn:
-		levelPrefix = "[WARN] "
+		levelPrefix = "⚠ "
 	case slog.LevelError:
-		levelPrefix = "[ERROR] "
+		levelPrefix = "✗ "
 	}
 
 	h.logger.Print(levelPrefix + msg.String())
