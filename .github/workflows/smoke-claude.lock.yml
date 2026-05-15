@@ -589,7 +589,14 @@ jobs:
           2. **Skip test files** — Never analyze files ending in `_test.go`
           3. **Focus on `pkg/` directory** — Primary analysis area
           4. **Use Serena for semantic analysis** — Leverage LSP capabilities for deeper insights
+          ## Required secrets
           
+          Consumers of this shared import must provision the following secrets:
+          
+          - `GH_AW_OTEL_SENTRY_ENDPOINT`
+          - `GH_AW_OTEL_SENTRY_AUTHORIZATION`
+          - `GH_AW_OTEL_GRAFANA_ENDPOINT`
+          - `GH_AW_OTEL_GRAFANA_AUTHORIZATION`
           **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
           
           ```json
