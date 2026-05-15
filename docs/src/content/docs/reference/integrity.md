@@ -48,9 +48,6 @@ All integrity-filtering inputs are specified under `tools.github` in your workfl
 | `endorser-min-integrity` | string | No | `approved` (when `integrity-reactions` enabled) | Minimum integrity of the reactor for an endorsement or disapproval to take effect. Requires `features.integrity-reactions: true` |
 | `disapproval-integrity` | string | No | `none` (when `integrity-reactions` enabled) | Integrity level assigned when a qualifying disapproval reaction is added. Requires `features.integrity-reactions: true` |
 
-> [!NOTE]
-> `repos` is a deprecated alias for `allowed-repos`. Use `allowed-repos` in new workflows. Run `gh aw fix` to migrate existing workflows automatically.
-
 ## Integrity Levels
 
 The full integrity hierarchy, from highest to lowest:
@@ -282,8 +279,7 @@ tools:
 
 This is an opt-out escape hatch for workflows where pre-agent steps should not be filtered — for example, when custom steps need unfiltered API access for setup purposes.
 
-> [!NOTE]
-> Disabling the proxy only affects pre-agent `gh` CLI calls. The agent itself always operates under the configured guard policy via the MCP gateway.
+Disabling the proxy only affects pre-agent `gh` CLI calls. The agent itself always operates under the configured guard policy via the MCP gateway.
 
 ## Choosing a Level
 

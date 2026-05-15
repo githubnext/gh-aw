@@ -50,9 +50,6 @@ contents. Be concise and factual.
 | `model` | No | AI model to use (e.g. `claude-haiku-4.5`). Defaults to the parent workflow's model. |
 | `description` | No | Short description of the sub-agent's purpose. |
 
-> [!NOTE]
-> Sub-agents do **not** accept an `engine` field. They run within the parent workflow's engine.
-
 ## Runtime behavior
 
 At runtime, `actions/setup` extracts each inline sub-agent block and writes it to:

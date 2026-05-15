@@ -474,7 +474,8 @@ describe("generate_footer.cjs", () => {
         const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
         expect(result).toContain("> [!CAUTION]");
-        expect(result).toContain("Security scanning requires review");
+        expect(result).toContain("agentic threat detected");
+        expect(result).toContain("<!-- agentic threat detected -->");
         expect(result).toContain("Potential security threats were detected");
       });
 

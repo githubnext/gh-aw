@@ -19,8 +19,13 @@ func (s WasmStyle) Render(text ...string) string {
 	return result
 }
 
-// WasmColor is a no-op color placeholder.
+// WasmColor is a no-op color placeholder that implements color.Color.
 type WasmColor struct{}
+
+// RGBA implements color.Color. Returns transparent black (no-op in Wasm).
+func (c WasmColor) RGBA() (r, g, b, a uint32) {
+	return 0, 0, 0, 0
+}
 
 // WasmBorder is a no-op border placeholder.
 type WasmBorder struct{}

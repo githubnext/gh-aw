@@ -303,6 +303,7 @@ SAFE_OUTPUTS_FILES=(
   "messages_run_status.cjs"
   "messages_staged.cjs"
   "messages_close_discussion.cjs"
+  "threat_detection_warning.cjs"
   "effective_tokens.cjs"
   "estimate_tokens.cjs"
   "generate_git_patch.cjs"

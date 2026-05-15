@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import childProcess from "child_process";
 import fs from "fs";
 
 // ---------------------------------------------------------------------------
@@ -32,6 +33,7 @@ const {
   buildCurrentWorkflowCallId,
   buildEpisodeAttributesFromContext,
   buildExperimentAttributes,
+  hasProxyConfigured,
   resolveEngineId,
 } = await import("./send_otlp_span.cjs");
 
@@ -689,18 +691,26 @@ describe("sanitizeOTLPPayload", () => {
 // ---------------------------------------------------------------------------
 
 describe("sendOTLPSpan", () => {
-  let mkdirSpy, appendSpy;
+  let mkdirSpy, appendSpy, spawnSyncSpy;
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
     mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
     appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+    spawnSyncSpy = vi.spyOn(childProcess, "spawnSync");
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     mkdirSpy.mockRestore();
     appendSpy.mockRestore();
+    spawnSyncSpy.mockRestore();
+    delete process.env.HTTPS_PROXY;
+    delete process.env.https_proxy;
+    delete process.env.HTTP_PROXY;
+    delete process.env.http_proxy;
+    delete process.env.ALL_PROXY;
+    delete process.env.all_proxy;
   });
 
   it("POSTs JSON payload to endpoint/v1/traces", async () => {
@@ -725,6 +735,20 @@ describe("sendOTLPSpan", () => {
     await sendOTLPSpan("https://traces.example.com/", {});
     const [url] = mockFetch.mock.calls[0];
     expect(url).toBe("https://traces.example.com/v1/traces");
+  });
+
+  it("uses curl when a proxy is configured", async () => {
+    process.env.HTTPS_PROXY = "http://proxy.internal:3128";
+    spawnSyncSpy.mockReturnValue({ error: undefined, status: 0, stdout: "200", stderr: "" });
+
+    await sendOTLPSpan("https://traces.example.com", { resourceSpans: [] });
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(spawnSyncSpy).toHaveBeenCalledOnce();
+    const [command, args, options] = spawnSyncSpy.mock.calls[0];
+    expect(command).toBe("curl");
+    expect(args).toContain("https://traces.example.com/v1/traces");
+    expect(options.input).toBe(JSON.stringify({ resourceSpans: [] }));
   });
 
   it("warns (does not throw) when server returns non-2xx status on all retries", async () => {
@@ -776,6 +800,26 @@ describe("sendOTLPSpan", () => {
 
     writeSpy.mockRestore();
     warnSpy.mockRestore();
+  });
+});
+
+describe("hasProxyConfigured", () => {
+  afterEach(() => {
+    delete process.env.HTTPS_PROXY;
+    delete process.env.https_proxy;
+    delete process.env.HTTP_PROXY;
+    delete process.env.http_proxy;
+    delete process.env.ALL_PROXY;
+    delete process.env.all_proxy;
+  });
+
+  it("returns false when no proxy environment is set", () => {
+    expect(hasProxyConfigured("https://traces.example.com")).toBe(false);
+  });
+
+  it("detects HTTPS proxy settings for HTTPS endpoints", () => {
+    process.env.HTTPS_PROXY = "http://proxy.internal:3128";
+    expect(hasProxyConfigured("https://traces.example.com")).toBe(true);
   });
 });
 

@@ -260,7 +260,7 @@ Add a final comment with totals and a search link to verify no `bug` labels rema
 ## Related Pages
 
 - [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing with issue checklists, sub-issues, cache-memory, and Discussions
-- [TaskOps](/gh-aw/patterns/task-ops/) — Research → Plan → Assign for developer-supervised work
+- [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign for developer-supervised work
 - [Cache Memory](/gh-aw/reference/cache-memory/) — Persistent state storage across workflow runs
 - [Repo Memory](/gh-aw/reference/repo-memory/) — Git-committed persistent state
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) — Built-in throttling for API-heavy workflows

@@ -3,9 +3,6 @@ title: Sharing Workflows
 description: Share, reuse, and govern workflows across repositories and organizations.
 ---
 
-> [!NOTE]
-> The enterprise sharing model described here reflects the current state of GitHub Agentic Workflows. The recommended patterns, commands, and configuration options may change in future releases as the platform evolves.
-
 Sharing workflows across an organization involves several independent layers. Each layer can be adopted independently; teams do not need all of them at once.
 
 The recommended enterprise pattern is to maintain one central `agentic-workflows` repository with versioned workflow templates and shared components. Consuming repositories then use `gh aw add` to install full workflows and `imports:` to pull in common modules.

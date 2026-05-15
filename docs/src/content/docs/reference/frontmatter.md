@@ -734,7 +734,7 @@ steps:
     run: npm ci
 ```
 
-Use custom steps to precompute data, filter triggers, or prepare context for AI agents. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation with AI reasoning.
+Use custom steps to precompute data, filter triggers, or prepare context for AI agents. See [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for combining computation with AI reasoning.
 
 Custom steps run outside the firewall sandbox. These steps execute with standard GitHub Actions security.
 
@@ -787,7 +787,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-The agentic execution job waits for all custom jobs to complete. Custom jobs can share data through artifacts or job outputs. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for multi-job workflows.
+The agentic execution job waits for all custom jobs to complete. Custom jobs can share data through artifacts or job outputs. See [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for multi-job workflows.
 
 Custom jobs run outside the firewall sandbox. These jobs execute with standard GitHub Actions security.
 

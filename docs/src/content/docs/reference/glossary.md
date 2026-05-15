@@ -113,7 +113,7 @@ Controls full Data Integrity and Flow Control (DIFC) proxy enforcement. When `to
 
 ### Integrity Reactions (`features.integrity-reactions`)
 
-A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/guides/maintaining-repos/#reactions-as-trust-signals).
+A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/practices/maintaining-repos/#reactions-as-trust-signals).
 
 ### Status Comment
 
@@ -440,7 +440,7 @@ A frontmatter field that declares custom jobs that both the `pre_activation` and
 
 ### Stop After
 
-A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601) or relative time deltas (`+48h`, `+7d`). Minimum granularity is hours. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset the deadline. See [Ephemerals](/gh-aw/guides/ephemerals/).
+A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601) or relative time deltas (`+48h`, `+7d`). Minimum granularity is hours. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset the deadline. See [Ephemerals](/gh-aw/reference/ephemerals/).
 
 ### `deployment_status` Trigger
 
@@ -647,7 +647,7 @@ The default coding agent sandbox that isolates AI agent execution in a container
 
 ### AWF Reflect Route (`/reflect`)
 
-A runtime HTTP endpoint exposed by the AWF API proxy at `http://api-proxy:10000/reflect`. Returns the currently configured inference providers and their model availability for the active run. Use this route in shared workflows or tools that need to discover gateway endpoints, check provider availability, or select a model dynamically at runtime without hardcoding upstream API URLs. The response includes an `endpoints` array (with `provider`, `base_url`, `configured`, and `models` fields) and a `models_fetch_complete` flag. See [AWF Reflect Route](/gh-aw/reference/awf-reflect/).
+A runtime HTTP endpoint exposed by the AWF API proxy at `http://api-proxy:10000/reflect`. Returns the currently configured inference providers and their model availability for the active run. Use this route in shared workflows or tools that need to discover gateway endpoints, check provider availability, or select a model dynamically at runtime without hardcoding upstream API URLs. The response includes an `endpoints` array (with `provider`, `base_url`, `configured`, and `models` fields) and a `models_fetch_complete` flag. See [AWF Reflect Route](/gh-aw/experimental/awf-reflect/).
 
 ### Bridge Pattern
 
@@ -687,7 +687,7 @@ Specialized instructions customizing AI agent behavior for specific tasks or rep
 
 ### Ephemerals
 
-A category of features for automatically expiring workflow resources to reduce repository noise and control costs. Includes workflow stop-after scheduling, safe output expiration (auto-closing issues, discussions, and pull requests), and hidden older status comments. See [Ephemerals](/gh-aw/guides/ephemerals/).
+A category of features for automatically expiring workflow resources to reduce repository noise and control costs. Includes workflow stop-after scheduling, safe output expiration (auto-closing issues, discussions, and pull requests), and hidden older status comments. See [Ephemerals](/gh-aw/reference/ephemerals/).
 
 ### Environment Variables (env)
 
@@ -772,7 +772,7 @@ A [MultiRepoOps](#multirepoops) deployment variant where a single private reposi
 
 ### CorrectionOps
 
-Pattern for improving workflows from trusted human corrections without retraining the underlying model. CorrectionOps stores predictions, compares them with later authoritative human decisions, and uses grouped diffs to update instructions, routing, thresholds, or rollout policy. See [CorrectionOps](/gh-aw/patterns/correction-ops/).
+Pattern for improving workflows from trusted human corrections without retraining the underlying model. CorrectionOps stores predictions, compares them with later authoritative human decisions, and uses grouped diffs to update instructions, routing, thresholds, or rollout policy. See [CorrectionOps](/gh-aw/experimental/correction-ops/).
 
 ### ChatOps
 
@@ -784,7 +784,7 @@ Scheduled workflows for incremental daily improvements, automating progress towa
 
 ### DataOps
 
-Hybrid pattern combining deterministic data extraction in `steps:` with agentic analysis in the workflow body. Shell commands fetch and structure data, then the AI agent interprets results and produces insights. See [DataOps](/gh-aw/patterns/data-ops/).
+Hybrid pattern combining deterministic data extraction in `steps:` with agentic analysis in the workflow body. Shell commands fetch and structure data, then the AI agent interprets results and produces insights. See [DeterministicOps](/gh-aw/patterns/deterministic-ops/).
 
 ### DispatchOps
 
@@ -818,13 +818,13 @@ Development pattern where workflows run from a separate "side" repository target
 
 Maintaining and propagating W3C-style specifications using the `w3c-specification-writer` agent. Creates formal specifications with RFC 2119 keywords and automatically synchronizes changes to consuming implementations. See [SpecOps](/gh-aw/patterns/spec-ops/).
 
-### TaskOps
+### ResearchPlanAssignOps
 
-Scaffolded AI-powered code improvement strategy with three phases: research agent investigates, developer reviews and invokes planner agent to create actionable issues, then assigns approved issues to Copilot for automated implementation. Keeps developers in control with clear decision points. See [TaskOps](/gh-aw/patterns/task-ops/).
+Scaffolded AI-powered code improvement strategy with four phases: research agent investigates and publishes findings, developer reviews and invokes planner agent to create actionable issues, developer assigns approved issues to Copilot for automated implementation, then reviews and merges PRs. Keeps developers in control with clear decision points at every transition. See [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/).
 
 ### TrialOps
 
-Testing and validation pattern executing workflows in isolated trial repositories before production deployment. Creates temporary private repositories where workflows run safely, capturing safe outputs without modifying your actual codebase. See [TrialOps](/gh-aw/patterns/trial-ops/).
+Testing and validation pattern executing workflows in isolated trial repositories before production deployment. Creates temporary private repositories where workflows run safely, capturing safe outputs without modifying your actual codebase. See [TrialOps](/gh-aw/experimental/trial-ops/).
 
 ### WorkQueueOps
 

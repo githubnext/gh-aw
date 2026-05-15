@@ -20,7 +20,7 @@ Apply these in order — each check can halve costs:
 - [ ] **Cadence**: If the result is not time-sensitive, schedule less often (`hourly` → `daily`, `daily` → `weekly`)
 - [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
 - [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
-- [ ] **Agentic Ops**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
+- [ ] **AgenticOps**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
 - [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "effective_tokens"` before promoting
 
 ---
@@ -385,7 +385,7 @@ Combine batching with `cache-memory` or `repo-memory` to track what was already 
 
 ---
 
-## Technique 7 — Measure Continuously with OpenTelemetry and Agentic Ops
+## Technique 7 — Measure Continuously with OpenTelemetry and AgenticOps
 
 **Don't rely only on ad hoc audits.** Export telemetry automatically, then add workflows that keep looking for token waste over time.
 
@@ -408,9 +408,9 @@ observability:
 
 See also: [Frontmatter syntax](syntax.md#observability)
 
-### Add Agentic Ops token workflows
+### Add AgenticOps token workflows
 
-Use the token-focused workflows from the Agentic Ops pattern to optimize continuously at the repository level:
+Use the token-focused workflows from the AgenticOps pattern to optimize continuously at the repository level:
 
 - `copilot-token-audit` — scheduled audit of token usage across workflows
 - `copilot-token-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings

@@ -107,6 +107,12 @@ func (c *Compiler) extractTrackerID(frontmatter map[string]any) (string, error) 
 		return "", fmt.Errorf("tracker-id must be at least 8 characters long (got %d)", len(trackerID))
 	}
 
+	// Validate maximum length
+	if len(trackerID) > 128 {
+		frontmatterMetadataLog.Printf("tracker-id too long: %d characters", len(trackerID))
+		return "", fmt.Errorf("tracker-id exceeds maximum length of 128 characters (got %d)", len(trackerID))
+	}
+
 	// Validate that it's a valid identifier (alphanumeric, hyphens, underscores)
 	for i, char := range trackerID {
 		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&

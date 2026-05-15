@@ -19,7 +19,7 @@ Use this router when a user asks for a workflow architecture, strategy, operatin
 
 Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/`
 
-### Agentic Ops
+### AgenticOps
 - **Load when:** The user needs repository-wide workflow observability, trend reporting, and escalation for recurring failures or token waste.
 - **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/agentic-ops.md
 
@@ -63,7 +63,7 @@ Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/cont
 - **Load when:** The user needs label-driven workflow behavior when specific labels are added or removed.
 - **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/label-ops.md
 
-### Projects & Monitoring
+### Monitoring with Projects
 - **Load when:** The user needs durable tracking and monitoring of work items with GitHub Projects and safe outputs.
 - **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/monitoring.md
 

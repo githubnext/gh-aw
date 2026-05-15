@@ -1,5 +1,5 @@
 ---
-title: Projects & Monitoring
+title: Monitoring with Projects
 description: Use GitHub Projects + safe-outputs to track and monitor workflow work items and progress.
 ---
 

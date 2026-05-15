@@ -172,6 +172,20 @@ safe-outputs:
 
 The `duplicate-code-detector` workflow uses this approach—duplication fixes are narrow enough that a planning phase adds no value.
 
+## Customization
+
+Adapt this pattern by varying:
+
+- **Research focus**: static analysis, performance metrics, documentation quality, security, code duplication, test coverage
+- **Frequency**: daily, weekly, on-demand
+- **Report format**: discussions (for open-ended findings), issues (for self-contained tasks)
+- **Planning approach**: automatic (well-scoped research goes straight to Copilot via `assignees: copilot`) vs. manual (developer reviews before assigning)
+- **Assignment method**: pre-assign in the research workflow, bulk-assign via an orchestrator workflow, or assign individually through the GitHub UI
+
+## Limitations
+
+The multi-phase approach takes longer than direct execution and requires developers to review research reports and generated issues. Research agents may surface findings that don't require action (false positives), and each phase transition needs clear handoffs. Research agents often require specialized MCPs (Serena, Tavily, etc.) for deeper analysis.
+
 ## When to Use ResearchPlanAssignOps
 
 This pattern fits when:
@@ -200,7 +214,6 @@ Prefer a simpler pattern when:
 
 ## Related Patterns
 
-- **[TaskOps](/gh-aw/patterns/task-ops/)** — Detailed breakdown of the three-phase Research → Plan → Assign strategy with configuration guidance
 - **[Orchestration](/gh-aw/patterns/orchestration/)** — Fan out work across multiple worker workflows
 - **[DailyOps](/gh-aw/patterns/daily-ops/)** — Scheduled incremental improvements without a separate planning phase
 - **[DispatchOps](/gh-aw/patterns/dispatch-ops/)** — Manually triggered research and one-off investigations

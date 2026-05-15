@@ -1,3 +1,11 @@
+---
+title: Safe Output Outcome Evaluation Specification
+version: 1.0.0
+status: Working Draft
+date: 2026-05-15
+last_updated: 2026-05-15
+---
+
 # Safe Output Outcome Evaluation Specification
 
 Every safe output type has a measurable outcome. This spec defines the exact evaluation logic for each type: what to check, how to classify the outcome, and what OTel attributes to emit.
@@ -8,6 +16,15 @@ Every safe output type has a measurable outcome. This spec defines the exact eva
 2. **Level 2 only.** We check whether the action stuck, not whether it caused downstream effects.
 3. **Bot-aware.** Distinguish bot-initiated closes/edits from human ones.
 4. **Time-bounded.** Check outcomes after a configurable delay (default: 48 hours).
+
+## Norms
+
+The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+
+1. Outcome evaluation workers **MUST** treat GitHub API `404` responses as terminal for deleted or inaccessible objects and classify according to object semantics (for example, a deleted issue/PR should be `rejected`, while a transient target with no persistent evaluable object should be `ignored`).
+2. Outcome evaluation workers **MUST** treat GitHub API `5xx` responses as transient infrastructure failures and return `pending` for that check cycle while recording retry metadata (`status_code`, `retry_after`, `attempt`).
+3. Outcome evaluation workers **MUST** treat GitHub API rate-limit responses (`403` with limit exhaustion or `429`) as transient and **SHOULD** reschedule evaluation using the reset window before emitting final outcomes.
+4. Outcome evaluation workers **MUST NOT** emit `accepted` or `rejected` when API failures prevent verification of the authoritative object state.
 
 ## Outcome Categories
 
@@ -20,6 +37,7 @@ Every evaluation produces one of these outcomes:
 | `ignored` | No human interaction within the evaluation window |
 | `pending` | The object has not reached a terminal state yet |
 | `lifecycle` | Closed/removed by the workflow itself (e.g., `close-older-issues`) — not a rejection |
+| `lifecycle_close` | Closed by lifecycle/noop bot policy and not reopened by humans |
 
 ## Common OTel Attributes
 
@@ -28,7 +46,7 @@ Every outcome span carries these attributes:
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `ghaw.outcome.type` | string | Safe output type (e.g., `create_pull_request`) |
-| `ghaw.outcome.result` | string | One of: `accepted`, `rejected`, `ignored`, `pending`, `lifecycle` |
+| `ghaw.outcome.result` | string | One of: `accepted`, `rejected`, `ignored`, `pending`, `lifecycle`, `lifecycle_close` |
 | `ghaw.outcome.object_url` | string | GitHub URL of the affected object |
 | `ghaw.outcome.object_number` | int | Issue/PR/discussion number |
 | `ghaw.outcome.repo` | string | `owner/repo` |
@@ -40,6 +58,19 @@ Every outcome span carries these attributes:
 | `ghaw.outcome.human_comments` | int | Human (non-bot) comments on the object |
 | `ghaw.outcome.human_edits` | int | Human edits before acceptance (0 = zero-touch) |
 | `ghaw.outcome.zero_touch` | bool | Accepted with no human modifications |
+
+## Implementation
+
+The following implementation areas are responsible for evaluation data capture, outcome classification plumbing, and runtime event artifacts:
+
+| Output type | Go implementation areas | JS/runtime implementation areas |
+|-------------|--------------------------|---------------------------------|
+| `create_pull_request` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_parser.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_config.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
+| `create_issue` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_parser.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_config.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
+| `add_comment` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_dispatch.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_action_outputs.cjs` |
+| `add_labels` | `pkg/workflow/safe_outputs_allowed_labels_validation.go`, `pkg/workflow/safe_outputs_config.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_config.cjs` |
+| `assign_to_agent` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_dispatch.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_bootstrap.cjs` |
+| `close_issue` / `close_pull_request` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_dispatch.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_action_outputs.cjs` |
 
 ---
 
@@ -215,11 +246,14 @@ Same logic as `update_issue` but on a PR object.
 
 **API:** `GET /repos/{owner}/{repo}/issues/{number}`
 
+**Evaluation order:** first check the current issue state. If the issue is currently open (meaning it was reopened after a prior close), classify as `rejected` regardless of prior close actor. Only currently closed issues use actor-based classification below.
+
 **Evaluation:**
 
 | Condition | Outcome |
 |-----------|---------|
-| Issue still closed | `accepted` |
+| Issue still closed and close actor is `github-actions[bot]` or configured lifecycle bot | `lifecycle_close` |
+| Issue still closed and close actor is a non-lifecycle actor (human or non-lifecycle GitHub App/integration) | `rejected` |
 | Issue reopened | `rejected` |
 
 ---
@@ -230,11 +264,14 @@ Same logic as `update_issue` but on a PR object.
 
 **API:** `GET /repos/{owner}/{repo}/pulls/{number}`
 
+**Evaluation order:** first check the current PR state. If the PR is currently open (meaning it was reopened after a prior close), classify as `rejected` regardless of prior close actor. Only currently closed PRs use actor-based classification below.
+
 **Evaluation:**
 
 | Condition | Outcome |
 |-----------|---------|
-| PR still closed | `accepted` |
+| PR still closed and close actor is `github-actions[bot]` or configured lifecycle bot | `lifecycle_close` |
+| PR still closed and close actor is a non-lifecycle actor (human or non-lifecycle GitHub App/integration) | `rejected` |
 | PR reopened | `rejected` |
 
 ---
