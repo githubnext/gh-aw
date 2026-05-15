@@ -41,12 +41,19 @@ pre-agent-steps:
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
 
-      find pkg/linters -type f -name '*.go' -print0 | sort -z | xargs -0 cat > /tmp/gh-aw/agent/linters-src.txt
+      : > /tmp/gh-aw/agent/linters-src.txt
+      while IFS= read -r -d '' file; do
+        printf '\n===== FILE: %s =====\n' "$file" >> /tmp/gh-aw/agent/linters-src.txt
+        cat "$file" >> /tmp/gh-aw/agent/linters-src.txt
+      done < <(find pkg/linters -type f -name '*.go' -print0 | sort -z)
       cat .github/skills/go-linters/SKILL.md > /tmp/gh-aw/agent/go-linters-skill.txt
 
       prior_file=""
       if [ -d /tmp/gh-aw/cache-memory ]; then
-        prior_file="$(find /tmp/gh-aw/cache-memory -maxdepth 4 -type f \( -name 'proposed-linters.json' -o -name 'proposed-linters' \) | head -n 1 || true)"
+        prior_file="$(find /tmp/gh-aw/cache-memory -maxdepth 4 -type f -name 'proposed-linters.json' | sort | head -n 1 || true)"
+        if [ -z "${prior_file}" ]; then
+          prior_file="$(find /tmp/gh-aw/cache-memory -maxdepth 4 -type f -name 'proposed-linters' | sort | head -n 1 || true)"
+        fi
       fi
       if [ -n "${prior_file}" ] && [ -f "${prior_file}" ]; then
         cp "${prior_file}" /tmp/gh-aw/agent/prior-linters.json
@@ -112,7 +119,7 @@ Mine the last **14 days** of GitHub Discussions and Issues in `${{ github.reposi
 - Discussions labelled `go`, `code-quality`, `linting`, or `static-analysis`
 - Any issue or discussion that describes a pattern that *should* be caught automatically
 
-If fewer than 5 relevant discussions/issues are found, extend the window to 30 days.
+First query 14 days and count relevant discussions/issues from the results. If fewer than 5 relevant items are found, rerun discussion mining with a 30-day window.
 
 Extract a bullet list of **candidate linter ideas** from these sources, each including:
 - A short name (kebab-case, e.g. `unchecked-error`)
@@ -226,7 +233,7 @@ model: small
 ---
 You are a Go code-review analyst. Your job is to search GitHub Discussions and Issues in the current repository for evidence of recurring Go code patterns or errors that could benefit from automatic static analysis.
 
-Search the last 14 days of Discussions and Issues using `gh` CLI. If fewer than 5 relevant discussions/issues are found, extend to 30 days:
+Search the last 14 days of Discussions and Issues using `gh` CLI. Count relevant matches in that 14-day slice. If fewer than 5 relevant items are found, rerun with a 30-day window:
 
 ```bash
 gh discussion list --limit 100 --json number,title,body,comments,labels,createdAt
