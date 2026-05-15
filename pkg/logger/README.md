@@ -187,7 +187,7 @@ The package includes a bridge to Go's standard `log/slog` library for libraries 
 
 ### `SlogHandler`
 
-`SlogHandler` implements `slog.Handler` by delegating to an existing `Logger`. It respects the logger's enabled state, formats attributes as `key=value` pairs, and prefixes each message with the slog level (`[DEBUG]`, `[INFO]`, `[WARN]`, `[ERROR]`).
+`SlogHandler` implements `slog.Handler` by delegating to an existing `Logger`. It respects the logger's enabled state, formats attributes as `key=value` pairs, and prefixes each message with compact terminal-friendly glyphs (`·` for debug/info, `⚠` for warning, `✗` for error).
 
 ### `NewSlogHandler(logger *Logger) *SlogHandler`
 
