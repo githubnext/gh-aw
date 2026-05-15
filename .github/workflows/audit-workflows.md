@@ -80,10 +80,19 @@ Output is saved to: /tmp/gh-aw/aw-mcp/logs
 - Performance (token usage, costs, timeouts, efficiency)
 - Patterns (recurring issues, frequent failures)
 
-**Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:
-- `audits/<date>.json` + `audits/index.json`
-- `patterns/{errors,missing-tools,mcp-failures}.json`
-- Compare with historical data
+**Repo Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:
+- `audit-history.jsonl` — append one structured summary entry per audit cycle
+- `workflow-trends.json` — rolling per-workflow cost, duration, success, and reliability trends
+- `known-issues.json` — recurring problems with first-seen, last-seen, recurrence count, affected workflows, and status
+- `recommendations.json` — accumulated recommendations linked back to audits, workflows, and known issues
+- `anomalies.json` — unusual runs or cost spikes with a multi-day persistence score and current escalation state
+- `metrics-summary.json` — aggregate daily metrics used for charts and rollups
+
+When updating repo memory:
+- merge with existing data instead of overwriting useful history
+- keep stable IDs so issues, recommendations, and anomalies can be cross-referenced across days
+- increment recurrence and persistence counters when the same problem reappears
+- compare the current audit with prior entries before deciding whether something is new or ongoing
 
 ## Guidelines
 
@@ -92,7 +101,7 @@ Output is saved to: /tmp/gh-aw/aw-mcp/logs
 **Efficiency**: Use repo memory, batch operations, respect timeouts
 **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
-Memory structure: `/tmp/gh-aw/repo-memory/default/{audits,patterns,metrics}/*.json`
+Memory structure: `/tmp/gh-aw/repo-memory/default/{audit-history.jsonl,workflow-trends.json,known-issues.json,recommendations.json,anomalies.json,metrics-summary.json}`
 
 Always create discussion with findings and update repo memory.
 
