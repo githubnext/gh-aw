@@ -162,7 +162,7 @@ Examples:
 					// When --repo is specified, bypass local file-based workflow name
 					// resolution. Normalize the input (strip .md/.lock.yml extensions)
 					// and use it directly as the workflow filter for the remote repo.
-					workflowName = strings.TrimSuffix(strings.TrimSuffix(args[0], ".md"), ".lock.yml")
+					workflowName = normalizeWorkflowID(args[0])
 					logsCommandLog.Printf("Using normalized workflow name for remote repo: %s", workflowName)
 				} else {
 					// Use flexible workflow name matching (workflow ID or display name)

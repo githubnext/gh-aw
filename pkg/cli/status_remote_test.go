@@ -81,11 +81,11 @@ func TestBuildRemoteWorkflowStatuses(t *testing.T) {
 	})
 }
 
-// TestGetWorkflowStatuses_RemotePath verifies that GetWorkflowStatuses does not
+// TestGetWorkflowStatuses_WithRepoFlag_SkipsLocalFiles verifies that GetWorkflowStatuses does not
 // attempt local filesystem access when repoOverride is provided. It changes to a
 // directory that has no .github/workflows folder; any accidental local-file lookup
 // would cause an error that would propagate to the caller.
-func TestGetWorkflowStatuses_RemotePath_SkipsLocalFiles(t *testing.T) {
+func TestGetWorkflowStatuses_WithRepoFlag_SkipsLocalFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	origDir, err := os.Getwd()

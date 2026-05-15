@@ -185,7 +185,7 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 // --repo is specified. Local-only fields (EngineID, Compiled, TimeRemaining, Labels,
 // On) are not available for remote repositories and are omitted from results.
 func buildRemoteWorkflowStatuses(pattern string, githubWorkflows map[string]*GitHubWorkflow, latestRunsByWorkflow map[string]*WorkflowRun) []WorkflowStatus {
-	var statuses []WorkflowStatus
+	statuses := make([]WorkflowStatus, 0, len(githubWorkflows))
 	for name, wf := range githubWorkflows {
 		// Skip if pattern specified and doesn't match
 		if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
