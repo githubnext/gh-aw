@@ -7,6 +7,7 @@ import (
 
 // validateCommandWorkflowDispatchInputs rejects required workflow_dispatch inputs when
 // slash_command or label_command triggers are configured.
+// Returns an error if any workflow_dispatch input has required: true.
 func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.RawFrontmatter == nil {
 		return nil
@@ -48,11 +49,11 @@ func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 			if hasLabelCommand {
 				triggerNames = append(triggerNames, "label_command")
 			}
-			triggersPhrase := strings.Join(triggerNames, " and ")
+			triggerNamesPhrase := strings.Join(triggerNames, " and ")
 
 			return fmt.Errorf(
 				"on.workflow_dispatch.inputs.%s.required: true is not allowed when using %s; set required: false",
-				inputName, triggersPhrase,
+				inputName, triggerNamesPhrase,
 			)
 		}
 	}

@@ -113,6 +113,11 @@ tools:
 	err := compiler.CompileWorkflow(markdownPath)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed when using slash_command")
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	_, statErr := os.Stat(lockPath)
+	require.Error(t, statErr)
+	require.True(t, os.IsNotExist(statErr))
 }
 
 func TestLabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
@@ -142,4 +147,9 @@ tools:
 	err := compiler.CompileWorkflow(markdownPath)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed when using label_command")
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	_, statErr := os.Stat(lockPath)
+	require.Error(t, statErr)
+	require.True(t, os.IsNotExist(statErr))
 }
