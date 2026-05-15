@@ -23,8 +23,10 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
  * @returns {boolean}
  */
 function isNonFatalUpdateBranchError(error) {
-  const hasStatus = typeof error === "object" && error !== null && "status" in error;
-  if (hasStatus && error.status !== 422) {
+  /** @type {number | undefined} */
+  const status =
+    typeof error === "object" && error !== null && "status" in error ? /** @type {{status?: number}} */ (error).status : undefined;
+  if (status !== undefined && status !== 422) {
     return false;
   }
 
