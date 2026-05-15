@@ -736,6 +736,10 @@ func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflow
 	if workflowData.OTLPEndpoint != "" {
 		containerCmd.WriteString(" -e GITHUB_AW_OTEL_TRACE_ID")
 		containerCmd.WriteString(" -e GITHUB_AW_OTEL_PARENT_SPAN_ID")
+		// Pass OTEL_EXPORTER_OTLP_HEADERS as an env var so that auth credentials
+		// are not embedded in the stdin JSON config pipe. mcpg reads this env var
+		// as the standard OTel mechanism for providing OTLP authentication headers.
+		containerCmd.WriteString(" -e OTEL_EXPORTER_OTLP_HEADERS")
 	}
 	if hasGitHubOIDCAuthInTools(tools) {
 		containerCmd.WriteString(" -e ACTIONS_ID_TOKEN_REQUEST_URL")
@@ -802,6 +806,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 	if workflowData.OTLPEndpoint != "" {
 		addedEnvVars["GITHUB_AW_OTEL_TRACE_ID"] = true
 		addedEnvVars["GITHUB_AW_OTEL_PARENT_SPAN_ID"] = true
+		addedEnvVars["OTEL_EXPORTER_OTLP_HEADERS"] = true
 	}
 	if hasGitHubOIDCAuthInTools(tools) {
 		addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_URL"] = true

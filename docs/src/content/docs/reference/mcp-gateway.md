@@ -500,10 +500,12 @@ The optional `opentelemetry` object in the gateway configuration enables the gat
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `endpoint` | string | Yes (when `opentelemetry` is present) | OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., `https://collector.example.com:4318/v1/traces`). MUST use HTTPS. Supports variable expressions. |
-| `headers` | string | No | Additional HTTP headers sent with every export request to the collector endpoint. Provided as a raw string of headers exactly as supplied by the user. Commonly used for authentication (e.g., `Authorization=Bearer ${OTEL_TOKEN}`). Values MAY contain variable expressions. |
 | `traceId` | string | No | Parent trace ID for context propagation. When set, the gateway attaches all emitted spans as children of this trace, enabling correlation with an existing distributed trace. MUST be a 32-character lowercase hex string (128-bit W3C trace ID format). Supports variable expressions. |
 | `spanId` | string | No | Parent span ID for context propagation. When set together with `traceId`, the gateway sets this span as the direct parent of its root span. MUST be a 16-character lowercase hex string (64-bit W3C span ID format). Ignored when `traceId` is not set. Supports variable expressions. |
 | `serviceName` | string | No | Logical service name reported in the `service.name` resource attribute of all emitted spans. Identifies the gateway in the tracing backend. Defaults to `"mcp-gateway"` when not specified. |
+
+> [!NOTE]
+> Authentication headers (e.g., `Authorization: Bearer <token>`) for the OTLP collector MUST be provided via the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, not through the JSON config. This follows the standard [OTel SDK environment variable convention](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options) and keeps credentials out of the stdin config pipe. The format is a comma-separated list of `key=value` pairs (e.g., `Authorization=Bearer my-token,X-Custom=value`) as defined by the [OpenTelemetry OTLP exporter specification](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options). When gh-aw compiles a workflow with `observability.otlp.headers`, the value is automatically forwarded to the gateway container via `-e OTEL_EXPORTER_OTLP_HEADERS`.
 
 **Configuration Example**:
 
@@ -515,7 +517,6 @@ The optional `opentelemetry` object in the gateway configuration enables the gat
     "apiKey": "${MCP_GATEWAY_API_KEY}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
-      "headers": "Authorization=Bearer ${OTEL_TOKEN}\nX-Custom-Header=value",
       "serviceName": "my-mcp-gateway"
     }
   }
@@ -534,7 +535,7 @@ When `opentelemetry` is configured, the gateway MUST:
    - `http.status_code`: the HTTP status code of the proxied response
 3. Record span start and end timestamps accurately
 4. Export completed spans to the configured `endpoint` using the OTLP/HTTP protocol
-5. Apply any configured `headers` to every export request
+5. Apply any headers from `OTEL_EXPORTER_OTLP_HEADERS` (when set) to every export request
 6. Propagate W3C `traceparent` context when `traceId` and `spanId` are provided
 
 When `traceId` is supplied, the gateway MUST construct a valid W3C `traceparent` header and use it as the parent context for the root span. The trace flags field SHOULD be set to `01` (sampled) when the gateway has no upstream sampling decision available; implementations MAY propagate upstream sampling flags when they are available. When only `traceId` is supplied without `spanId`, the gateway MUST generate a random `spanId` for the `traceparent` header.
@@ -551,7 +552,7 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 - `spanId`, when provided, MUST be a 16-character lowercase hex string
 - `spanId` SHOULD only be set when `traceId` is also set; if `spanId` is provided without `traceId` the gateway SHOULD log a warning and ignore `spanId`
 - Export failures MUST NOT propagate errors to MCP clients
-- `headers` MUST be a string when provided; object form is not supported
+- Authentication headers MUST be provided via `OTEL_EXPORTER_OTLP_HEADERS` env var; the `headers` field is no longer accepted in the JSON config
 
 **Compliance Test**: T-OTEL-001 through T-OTEL-010 (Section 11.1.10)
 
@@ -1648,7 +1649,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-OTEL-003**: Reject `opentelemetry` configuration with missing `endpoint` field
 - **T-OTEL-004**: Reject `opentelemetry` configuration with a non-HTTPS endpoint
 - **T-OTEL-005**: Span emitted for each MCP tool invocation with required attributes (`mcp.server`, `mcp.method`, `mcp.tool`, `http.status_code`)
-- **T-OTEL-006**: Configured `headers` string is passed through as-is and sent with every OTLP export request
+- **T-OTEL-006**: When `OTEL_EXPORTER_OTLP_HEADERS` env var is set, headers are sent with every OTLP export request
 - **T-OTEL-007**: W3C `traceparent` context propagated when both `traceId` and `spanId` are configured
 - **T-OTEL-008**: Gateway generates random `spanId` in `traceparent` when only `traceId` is provided
 - **T-OTEL-009**: Export failure does not affect MCP request processing or gateway availability
@@ -1838,6 +1839,8 @@ The `registry` field documents the MCP server's installation location in an MCP 
 
 #### A.6 Gateway with OpenTelemetry Tracing
 
+The following example configures the gateway to export traces to an OTLP collector. Authentication headers (e.g., `Authorization: Bearer <token>`) are provided via the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, not in the JSON config.
+
 ```json
 {
   "mcpServers": {
@@ -1854,12 +1857,13 @@ The `registry` field documents the MCP server's installation location in an MCP 
     "apiKey": "${MCP_GATEWAY_API_KEY}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
-      "headers": "Authorization=Bearer ${OTEL_TOKEN}",
       "serviceName": "my-workflow-gateway"
     }
   }
 }
 ```
+
+Set `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ${OTEL_TOKEN}` as an environment variable on the gateway container to authenticate with the collector.
 
 #### A.7 Gateway with OpenTelemetry and Parent Trace Context
 
@@ -1881,7 +1885,6 @@ The following example propagates an existing distributed trace into the gateway,
     "apiKey": "${MCP_GATEWAY_API_KEY}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
-      "headers": "Authorization=Bearer ${OTEL_TOKEN}",
       "traceId": "${PARENT_TRACE_ID}",
       "spanId": "${PARENT_SPAN_ID}",
       "serviceName": "my-workflow-gateway"
@@ -2040,6 +2043,16 @@ Content-Type: application/json
 - **Updated**: Compliance Checklist (Section 11.2) — added Guard Policy row (T-GP-*, Level 2, Standard)
 - **Renumbered**: Former Section 10 (Compliance Testing) is now Section 11; all subsection references updated accordingly
 - **Added**: `GH_AW_GITHUB_REFUSAL_LABELS` to the centralized management variables table (Section 10.7)
+
+### Version 1.14.0 (Draft)
+
+- **Breaking**: `headers` field removed from `opentelemetry` configuration in JSON schema and gateway config spec (Section 4.1.3.7)
+  - Authentication headers MUST now be provided via the `OTEL_EXPORTER_OTLP_HEADERS` environment variable (standard OTel convention)
+  - gh-aw automatically forwards `OTEL_EXPORTER_OTLP_HEADERS` to the mcpg container when `observability.otlp` is configured
+  - This keeps credentials out of the stdin JSON config pipe and follows the [OTel SDK environment variable spec](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options)
+- **Updated**: T-OTEL-006 — now verifies `OTEL_EXPORTER_OTLP_HEADERS` env var is read and applied (instead of `headers` JSON field)
+- **Updated**: JSON Schema — removed `headers` property from `opentelemetryConfig` definition
+- **Updated**: Appendix A.6 and A.7 examples to remove `headers` from JSON config and document env var usage
 
 ### Version 1.13.0 (Draft)
 

@@ -18,16 +18,6 @@ engine:
   max-continuations: 1
   bare: true
 strict: true
-mcp-servers:
-  grafana:
-    container: "grafana/mcp-grafana"
-    entrypointArgs:
-      - "-t"
-      - "stdio"
-      - "--disable-write"
-    env:
-      GRAFANA_URL: "${{ secrets.GRAFANA_URL }}"
-      GRAFANA_SERVICE_ACCOUNT_TOKEN: "${{ secrets.GRAFANA_SERVICE_ACCOUNT_TOKEN }}"
 tools:
   bash: true
   cli-proxy: true
@@ -43,6 +33,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 imports:
+  - shared/mcp/grafana.md
   - shared/mcp/sentry.md
   - shared/otel-queries.md
   - shared/observability-otlp.md

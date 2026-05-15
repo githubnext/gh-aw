@@ -12,6 +12,10 @@ permissions:
   actions: read
 tracker-id: linter-miner
 engine: copilot
+network:
+  allowed:
+    - defaults
+    - go
 tools:
   cli-proxy: true
   github:
@@ -27,6 +31,8 @@ tools:
     - "grep -r * pkg/linters --include=*.go"
     - "cat pkg/linters/largefunc/largefunc.go"
     - "cat .github/skills/go-linters/SKILL.md"
+    - "go build:*"
+    - "go test:*"
   edit:
 imports:
   - shared/mcp/serena-go.md
@@ -160,10 +166,10 @@ The sub-agent must create:
 
 After creating the files, verify the implementation compiles:
 ```bash
-cd $GITHUB_WORKSPACE && go build ./cmd/linters
+go build ./cmd/linters
 ```
 
-If compilation fails, fix the errors before proceeding.
+If compilation fails, fix the errors before proceeding. If you cannot fix the compilation errors after two separate fix attempts, call `report_incomplete` with a description of the compilation errors.
 
 ---
 
@@ -189,6 +195,8 @@ Call the `create-pull-request` safe output with:
 - Analyzer `Name` field must match the kebab-case linter name with hyphens replaced by nothing (e.g. `unchecked-error` → `Name: "uncheckederror"`).
 - Always include a `URL` field in the `Analyzer` pointing to `https://github.com/github/gh-aw/tree/main/pkg/linters/<name>`.
 - The `Doc` string must be a single sentence beginning with "reports".
+- If the linter cannot be implemented (e.g., repeated compilation failures after two fix attempts), call `noop` explaining why, rather than ending without a safe output.
+- Always call either `create_pull_request` or `noop` before finishing — never end without a safe output.
 
 ---
 

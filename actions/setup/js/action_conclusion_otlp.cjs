@@ -65,8 +65,8 @@ function parseJobStartMs(raw) {
 }
 
 /**
- * Send the OTLP job-conclusion span.  Non-fatal: all errors are silently
- * swallowed.
+ * Send the OTLP job-conclusion span.  Errors propagate to the caller; when
+ * invoked as a main script the top-level `.catch(() => {})` swallows them.
  * @returns {Promise<void>}
  */
 async function run() {
@@ -85,7 +85,7 @@ async function run() {
   await sendOtlpSpan.sendJobConclusionSpan(spanName, { startMs });
 
   if (endpoints) {
-    console.log(`[otlp] conclusion span export attempted`);
+    console.log("[otlp] conclusion span export attempted");
   }
 }
 

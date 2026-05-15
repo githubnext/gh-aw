@@ -179,12 +179,26 @@ describe("action_conclusion_otlp.cjs", () => {
   });
 
   describe("error handling", () => {
-    it("should propagate errors from sendJobConclusionSpan", async () => {
+    it("should propagate errors from sendJobConclusionSpan when endpoint is configured", async () => {
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:4318" }]);
       mockSendJobConclusionSpan.mockRejectedValueOnce(new Error("Network error"));
 
       // run() propagates the error; callers swallow it via .catch(() => {})
       await expect(run()).rejects.toThrow("Network error");
+    });
+
+    it("should propagate errors from sendJobConclusionSpan even without endpoint (JSONL mirror path)", async () => {
+      mockSendJobConclusionSpan.mockRejectedValueOnce(new Error("JSONL write error"));
+
+      await expect(run()).rejects.toThrow("JSONL write error");
+    });
+
+    it("should not log 'conclusion span export attempted' when an error occurs", async () => {
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:4318" }]);
+      mockSendJobConclusionSpan.mockRejectedValueOnce(new Error("fail"));
+
+      await expect(run()).rejects.toThrow("fail");
+      expect(console.log).not.toHaveBeenCalledWith("[otlp] conclusion span export attempted");
     });
   });
 });

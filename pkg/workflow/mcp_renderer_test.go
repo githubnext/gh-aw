@@ -515,28 +515,24 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 		name         string
 		otlpEndpoint string
 		otlpHeaders  string
-		wantHeaders  bool
 		wantEndpoint bool
 	}{
 		{
 			name:         "OTLP endpoint only (no headers)",
 			otlpEndpoint: "https://otel.example.com:4318",
 			otlpHeaders:  "",
-			wantHeaders:  false,
 			wantEndpoint: true,
 		},
 		{
 			name:         "OTLP endpoint and headers",
 			otlpEndpoint: "https://otel.example.com:4318",
 			otlpHeaders:  "Authorization=Bearer token123",
-			wantHeaders:  true,
 			wantEndpoint: true,
 		},
 		{
 			name:         "no OTLP config",
 			otlpEndpoint: "",
 			otlpHeaders:  "",
-			wantHeaders:  false,
 			wantEndpoint: false,
 		},
 	}
@@ -582,10 +578,10 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 				t.Error("output must not contain _GH_AW_OTLP_HEADERS_ESC preamble")
 			}
 
-			// Verify headers field (raw env var passthrough) is present iff configured
-			hasHeaders := strings.Contains(result, `"headers": "${OTEL_EXPORTER_OTLP_HEADERS}"`)
-			if hasHeaders != tt.wantHeaders {
-				t.Errorf("headers field presence = %v, want %v\noutput:\n%s", hasHeaders, tt.wantHeaders, result)
+			// Verify headers field is never emitted in JSON config; headers are now
+			// passed exclusively via the OTEL_EXPORTER_OTLP_HEADERS container env var.
+			if strings.Contains(result, `"headers"`) {
+				t.Errorf("headers field must not appear in gateway JSON config (use OTEL_EXPORTER_OTLP_HEADERS env var instead)\noutput:\n%s", result)
 			}
 
 			// Verify endpoint is present iff configured
