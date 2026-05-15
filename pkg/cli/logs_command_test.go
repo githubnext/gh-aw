@@ -17,7 +17,7 @@ func TestNewLogsCommand(t *testing.T) {
 	assert.Equal(t, "logs [workflow]", cmd.Use, "Command use should be 'logs [workflow]'")
 	assert.Equal(t, "Download and analyze agentic workflow logs with aggregated metrics", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Download and analyze agentic workflow logs", "Command long description should contain expected text")
-	assert.Contains(t, cmd.Long, "Evict local cache older than 1 week before downloading runs", "Cache maintenance examples should describe eviction plus download behavior")
+	assert.Contains(t, cmd.Long, "logs --cache-before -1w", "Cache maintenance examples should use the cache-before flag name")
 
 	// Verify flags are registered
 	flags := cmd.Flags()
@@ -76,11 +76,16 @@ func TestNewLogsCommand(t *testing.T) {
 	repoFlag := flags.Lookup("repo")
 	assert.NotNil(t, repoFlag, "Should have 'repo' flag")
 
-	// Check after flag (cache maintenance)
-	afterFlag := flags.Lookup("after")
-	assert.NotNil(t, afterFlag, "Should have 'after' flag")
-	assert.Contains(t, afterFlag.Usage, "-1d", "after flag should document day deltas")
-	assert.Contains(t, afterFlag.Usage, "-30d", "after flag should document explicit day-count deltas")
+	// Check cache-before flag (cache maintenance)
+	cacheBeforeFlag := flags.Lookup("cache-before")
+	assert.NotNil(t, cacheBeforeFlag, "Should have 'cache-before' flag")
+	assert.Contains(t, cacheBeforeFlag.Usage, "-1d", "cache-before flag should document day deltas")
+	assert.Contains(t, cacheBeforeFlag.Usage, "-30d", "cache-before flag should document explicit day-count deltas")
+
+	// Backward-compatible alias should remain registered but hidden from help output
+	afterAliasFlag := flags.Lookup("after")
+	assert.NotNil(t, afterAliasFlag, "Should retain hidden 'after' alias")
+	assert.True(t, afterAliasFlag.Hidden, "'after' alias should be hidden from help output")
 }
 
 func TestLogsCommandFlagDefaults(t *testing.T) {

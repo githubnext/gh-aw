@@ -99,7 +99,7 @@ Examples:
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
-	cmd.Flags().String("cool-down", defaultDeployCooldown, "Cool-down period before applying a new release during update (e.g. 7d, 24h, 0)")
+	cmd.Flags().String("cool-down", defaultDeployCooldown, coolDownFlagUsage)
 
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
