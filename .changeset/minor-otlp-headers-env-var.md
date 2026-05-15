@@ -12,9 +12,9 @@ Pass `OTEL_EXPORTER_OTLP_HEADERS` as a container environment variable to the mcp
 ## Why
 
 OTLP auth headers (e.g., `Authorization: Bearer <token>`) are security-sensitive. The correct mechanism is the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, which is:
-- Isolated inside the container (not visible to processes outside)
+- Not expanded into the stdin JSON config pipe or workflow logs where credentials could be inadvertently exposed
 - The standard OTel convention used by all OTel SDKs and collectors
-- Not embedded in logs or config pipes where it could be inadvertently exposed
+- Provided via standard container environment variable configuration, keeping credentials out of config artifacts
 
 ## Migration
 
