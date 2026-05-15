@@ -13,62 +13,15 @@ import (
 // hasNonBuiltinSafeOutputsEnabled use direct nil-checks instead of reflection
 // for performance (these functions are called on every compilation).
 //
-// NOTE: When adding a new pointer field to SafeOutputsConfig that represents
-// a user-facing safe output action, add it to ALL of the following locations:
-//   1. safeOutputFieldMapping (below) — drives imports, prompt generation, etc.
-//   2. hasAnySafeOutputEnabled — performance-critical hot path
-//   3. hasNonBuiltinSafeOutputsEnabled — if it is NOT a builtin (noop/missing-*)
-//   4. hasSafeOutputType in imports.go — used for conflict detection
+// NOTE: Most safe output dispatch behavior is driven by safeOutputHandlers in
+// safe_output_handlers.go. The two functions below intentionally remain direct
+// nil-check cascades because they are hot-path checks executed on every compile.
 
 // safeOutputFieldMapping maps SafeOutputsConfig struct field names to their tool names.
 // This map is used by imports, prompt generation, and other metadata operations.
 // It is NOT used for existence checks — see hasAnySafeOutputEnabled and
 // hasNonBuiltinSafeOutputsEnabled for the performance-critical direct-field versions.
-var safeOutputFieldMapping = map[string]string{
-	"CreateIssues":                    "create_issue",
-	"CreateAgentSessions":             "create_agent_session",
-	"CreateDiscussions":               "create_discussion",
-	"UpdateDiscussions":               "update_discussion",
-	"CloseDiscussions":                "close_discussion",
-	"CloseIssues":                     "close_issue",
-	"ClosePullRequests":               "close_pull_request",
-	"AddComments":                     "add_comment",
-	"CreatePullRequests":              "create_pull_request",
-	"CreatePullRequestReviewComments": "create_pull_request_review_comment",
-	"SubmitPullRequestReview":         "submit_pull_request_review",
-	"ReplyToPullRequestReviewComment": "reply_to_pull_request_review_comment",
-	"ResolvePullRequestReviewThread":  "resolve_pull_request_review_thread",
-	"CreateCodeScanningAlerts":        "create_code_scanning_alert",
-	"AutofixCodeScanningAlert":        "autofix_code_scanning_alert",
-	"AddLabels":                       "add_labels",
-	"RemoveLabels":                    "remove_labels",
-	"AddReviewer":                     "add_reviewer",
-	"AssignMilestone":                 "assign_milestone",
-	"AssignToAgent":                   "assign_to_agent",
-	"AssignToUser":                    "assign_to_user",
-	"UnassignFromUser":                "unassign_from_user",
-	"UpdateIssues":                    "update_issue",
-	"UpdatePullRequests":              "update_pull_request",
-	"MergePullRequest":                "merge_pull_request",
-	"PushToPullRequestBranch":         "push_to_pull_request_branch",
-	"UploadAssets":                    "upload_asset",
-	"UploadArtifact":                  "upload_artifact",
-	"UpdateRelease":                   "update_release",
-	"UpdateProjects":                  "update_project",
-	"CreateProjects":                  "create_project",
-	"CreateProjectStatusUpdates":      "create_project_status_update",
-	"LinkSubIssue":                    "link_sub_issue",
-	"HideComment":                     "hide_comment",
-	"DispatchWorkflow":                "dispatch_workflow",
-	"DispatchRepository":              "dispatch_repository",
-	"CallWorkflow":                    "call_workflow",
-	"MissingTool":                     "missing_tool",
-	"MissingData":                     "missing_data",
-	"SetIssueType":                    "set_issue_type",
-	"SetIssueField":                   "set_issue_field",
-	"NoOp":                            "noop",
-	"MarkPullRequestAsReadyForReview": "mark_pull_request_as_ready_for_review",
-}
+var safeOutputFieldMapping = buildSafeOutputFieldMapping()
 
 // hasAnySafeOutputEnabled reports whether any safe output field is non-nil.
 // It uses direct struct-field nil checks instead of reflection for performance;
