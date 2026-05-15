@@ -14,6 +14,8 @@ mcp-servers:
       - get_event_attachment
       - search_events
       - search_issues
+      - list_events # fallback when search_events is unavailable (no LLM provider)
+      - list_issue_events # fallback when search_issue_events is unavailable (no LLM provider)
       - find_dsns
       - analyze_issue_with_seer
       - search_docs # requires SENTRY_OPENAI_API_KEY

@@ -60,13 +60,21 @@ You are an observability analyst. Generate a daily token consumption report acro
 
 ### Step 2: Fetch Telemetry Events
 
-Call `search_events` using:
+First, attempt to call `search_events` using:
 - `dataset: spans`
 - query constrained to the selected project
 - time range: last 24 hours
 - include enough results to cover the day (use pagination as needed)
 
-If `dataset: spans` returns no usable records, retry with `dataset: transactions`.
+If `search_events` is **not available** (the tool is absent from the available tool list because no embedded LLM provider is configured), fall back to `list_events` with direct Sentry query syntax:
+- `organizationSlug`: the org discovered in Step 1
+- `dataset: spans`
+- `query`: a filter for AI/LLM spans with token data; start with `span.op:ai*` and also try `span.op:gen_ai*` if the first returns no results; if neither matches, try an empty query and filter client-side for records with token fields
+- `fields`: include token-related fields such as `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.total_tokens`, `ai.input_tokens`, `ai.output_tokens`, `ai.total_tokens`, `github.workflow`, `github.run_id`, `span.op`, `span.description`, `timestamp`; omit fields that return errors and retry with remaining fields
+- `sort`: `-timestamp`
+- Use pagination to cover the last 24 hours
+
+If `dataset: spans` returns no usable records with either tool, retry with `dataset: transactions`.
 
 Treat "no usable records" as either:
 - zero events returned after pagination, or
