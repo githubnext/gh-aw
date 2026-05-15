@@ -1,5 +1,5 @@
 ---
-title: Deterministic & Agentic Patterns
+title: DeterministicOps
 description: Learn how to combine deterministic computation steps with agentic reasoning in GitHub Agentic Workflows for powerful hybrid automation.
 sidebar:
   order: 6

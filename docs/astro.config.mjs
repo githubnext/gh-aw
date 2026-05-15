@@ -140,7 +140,8 @@ export default defineConfig({
 		'/patterns/workqueueops/': '/gh-aw/patterns/workqueue-ops/',
 
 		// Guides → new locations
-		'/guides/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-agentic-patterns/',
+		'/guides/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
+		'/patterns/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
 		'/guides/custom-otlp-attributes/': '/gh-aw/guides/telemetry/',
 		'/guides/audit-with-agents/': '/gh-aw/reference/audit/',
 		'/guides/ephemerals/': '/gh-aw/reference/ephemerals/',
@@ -307,7 +308,7 @@ export default defineConfig({
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
 						{ label: 'DailyOps', link: '/patterns/daily-ops/' },
 						{ label: 'DataOps', link: '/patterns/data-ops/' },
-						{ label: 'Deterministic Agentic Patterns', link: '/patterns/deterministic-agentic-patterns/' },
+						{ label: 'DeterministicOps', link: '/patterns/deterministic-ops/' },
 						{ label: 'DispatchOps', link: '/patterns/dispatch-ops/' },
 						{ label: 'ExpertOps', link: '/patterns/expert-ops/' },
 						{ label: 'IssueOps', link: '/patterns/issue-ops/' },

@@ -1,5 +1,5 @@
 ---
-title: Agentic Ops
+title: AgenticOps
 description: Monitor agentic workflows across a repository, publish observability reports, and escalate recurring failures or waste.
 sidebar:
   badge: { text: 'Observability', variant: 'tip' }
@@ -28,6 +28,6 @@ Use this pattern when a repository has enough workflow activity that maintainers
 
 ## Related documentation
 
-- [Projects & Monitoring](/gh-aw/experimental/monitoring-with-projects/) for durable tracking with Projects and safe outputs
-- [Custom OTLP Attributes](/gh-aw/guides/telemetry/) for enriching workflow telemetry
+- [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) for durable tracking with Projects and safe outputs
+- [Telemetry](/gh-aw/guides/telemetry/) for enriching workflow telemetry
 - [Audit Commands](/gh-aw/reference/audit/) for investigating individual runs and regressions

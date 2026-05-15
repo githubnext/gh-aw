@@ -164,5 +164,5 @@ await sendOTLPSpan(endpoint, buildOTLPPayload({
 
 - [OpenTelemetry reference](/gh-aw/reference/open-telemetry/) — configure OTLP endpoints, headers, and runtime behavior
 - [Imports](/gh-aw/reference/imports/) — how shared workflow imports work
-- [Deterministic Agentic Patterns](/gh-aw/patterns/deterministic-agentic-patterns/) — adding custom `steps:` to workflows
+- [Deterministic Agentic Patterns](/gh-aw/patterns/deterministic-ops/) — adding custom `steps:` to workflows
 - [Artifacts](/gh-aw/reference/artifacts/) — downloading the `otel.jsonl` mirror and other artifacts

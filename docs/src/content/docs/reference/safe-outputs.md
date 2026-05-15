@@ -639,7 +639,7 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 > - **Fine-grained PAT**: Organization permissions → Projects: Read & Write
 
 > [!NOTE]
-> You can configure views directly during project creation using the `views` field (see above), or later using `update-project` to add custom fields and additional views. For pattern guidance, see [Projects & Monitoring](/gh-aw/experimental/monitoring-with-projects/).
+> You can configure views directly during project creation using the `views` field (see above), or later using `update-project` to add custom fields and additional views. For pattern guidance, see [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/).
 
 ### Project Board Updates (`update-project:`)
 

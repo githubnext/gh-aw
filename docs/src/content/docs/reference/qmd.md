@@ -179,4 +179,4 @@ tools:
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Cache Memory](/gh-aw/reference/cache-memory/) - Persistent memory across workflow runs
 - [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations
-- [Custom OTLP Attributes](/gh-aw/guides/telemetry/) - Emit telemetry from shared imports
+- [Telemetry](/gh-aw/guides/telemetry/) - Emit telemetry from shared imports
