@@ -318,10 +318,12 @@ func TestLogsCommand_RepoBypassesLocalWorkflowResolution(t *testing.T) {
 
 	execErr := cmd.Execute()
 
+	// The command must fail: there are no local workflows and the --repo target
+	// does not exist / no gh auth in tests, so downstream API calls will error.
+	require.Error(t, execErr, "--repo with a non-existent local workflow must not succeed in unit tests")
+
 	// The "workflow 'X' not found" error from local FindWorkflowName must NOT appear.
 	// (Any other error from downstream API calls is acceptable in unit tests.)
-	if execErr != nil {
-		assert.NotContains(t, execErr.Error(), "workflow 'nonexistent-remote-workflow' not found",
-			"--repo should bypass local workflow name resolution and not produce a local-not-found error")
-	}
+	assert.NotContains(t, execErr.Error(), "workflow 'nonexistent-remote-workflow' not found",
+		"--repo should bypass local workflow name resolution and not produce a local-not-found error")
 }

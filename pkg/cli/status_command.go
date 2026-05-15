@@ -66,6 +66,11 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 	// local-only fields (EngineID, Compiled, TimeRemaining, Labels, On) are
 	// omitted from the results.
 	if repoOverride != "" {
+		// Label metadata is not exposed by the GitHub Actions workflow API, so
+		// filtering by label is not supported when --repo is specified.
+		if labelFilter != "" {
+			return nil, fmt.Errorf("--label filter is not supported with --repo: label information is not available from the GitHub Actions API")
+		}
 		return buildRemoteWorkflowStatuses(pattern, githubWorkflows, latestRunsByWorkflow), nil
 	}
 

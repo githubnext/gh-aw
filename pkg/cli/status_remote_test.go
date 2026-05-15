@@ -102,3 +102,12 @@ func TestGetWorkflowStatuses_WithRepoFlag_SkipsLocalFiles(t *testing.T) {
 	// statuses may be nil (no API mock) or an empty slice; either is acceptable.
 	_ = statuses
 }
+
+// TestGetWorkflowStatuses_LabelFilterWithRepo verifies that combining --label
+// with --repo returns a clear error, since label information is not exposed by
+// the GitHub Actions workflow API.
+func TestGetWorkflowStatuses_LabelFilterWithRepo(t *testing.T) {
+	_, err := GetWorkflowStatuses("", "", "my-label", "owner/repo")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--label filter is not supported with --repo")
+}
