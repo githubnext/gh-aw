@@ -230,7 +230,7 @@ steps:
 		assert.Contains(t, result, "GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}", "env expression should be bound in step env")
 	})
 
-	t.Run("hoists mixed expressions in multiline run block with deduplicated bindings", func(t *testing.T) {
+	t.Run("hoists mixed expressions with deduplicated bindings", func(t *testing.T) {
 		content := `---
 on: push
 steps:

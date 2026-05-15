@@ -13,12 +13,12 @@ func FuzzStepsRunSecretsToEnvCodemod(f *testing.F) {
 	f.Add(uint8(2), "TOKEN_2", "TOKEN_2", true, false, true, true)
 	f.Add(uint8(3), "A", "B", false, false, false, false)
 
-	f.Fuzz(func(t *testing.T, sectionSelector uint8, secretNameRaw, envNameRaw string, includeSecret, includeEnvExpr, includeGitHubToken, preseedBindings bool) {
+	f.Fuzz(func(t *testing.T, sectionSelector uint8, secretNameRaw, envNameRaw string, includeSecret, includeEnvExpression, includeGitHubToken, preseedBindings bool) {
 		secretName := sanitizeHoistName(secretNameRaw)
 		envName := sanitizeHoistName(envNameRaw)
 
 		section := []string{"pre-steps", "steps", "post-steps", "pre-agent-steps"}[int(sectionSelector)%4]
-		run, expectedVars := buildHoistFuzzRun(includeSecret, includeEnvExpr, includeGitHubToken, secretName, envName)
+		run, expectedVars := buildHoistFuzzRun(includeSecret, includeEnvExpression, includeGitHubToken, secretName, envName)
 
 		content := buildHoistFuzzContent(section, run, expectedVars, secretName, envName, preseedBindings)
 		frontmatter := map[string]any{
@@ -79,8 +79,8 @@ func buildHoistFuzzRun(includeSecret, includeEnvExpr, includeGitHubToken bool, s
 	if len(parts) == 0 {
 		return `echo "ok"`, nil
 	}
-	parts = append(parts, parts...)
-	return `echo "` + strings.Join(parts, " ") + `"`, expected
+	duplicated := append(append([]string(nil), parts...), parts...)
+	return `echo "` + strings.Join(duplicated, " ") + `"`, expected
 }
 
 func buildHoistFuzzContent(section, run string, expectedVars []string, secretName, envName string, preseedBindings bool) string {
