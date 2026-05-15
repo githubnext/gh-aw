@@ -1,7 +1,7 @@
 ---
 network:
   allowed:
-    - sentry.io
+    - "*.sentry.io"
     - "*.grafana.net"
 observability:
   otlp:
