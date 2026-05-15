@@ -743,6 +743,7 @@ jobs:
           const cmp = (a, b) => {
             const A = parseSemver(a);
             const B = parseSemver(b);
+            if (!A || !B) throw new Error(`cmp() called with non-semver: '${a}' / '${b}'`);
             for (let i = 0; i < 3; i++) {
               if (A.base[i] !== B.base[i]) return A.base[i] - B.base[i];
             }
@@ -779,6 +780,7 @@ jobs:
             }
           }
 
+          // Keep the agent names here in sync with agent-compat-v1.properties in compat.schema.json.
           const allowedAgentKeys = new Set(['cache-ttl-days', 'copilot', 'claude']);
           for (const key of Object.keys(matrix)) {
             if (!allowedAgentKeys.has(key)) {
@@ -851,6 +853,7 @@ jobs:
                 if (typeof a !== 'object' || a === null || Array.isArray(a)) continue;
                 if (typeof b !== 'object' || b === null || Array.isArray(b)) continue;
                 if (![a['min-gh-aw'], a['max-gh-aw'], b['min-gh-aw'], b['max-gh-aw']].every(v => v === '*' || semverRe.test(v))) continue;
+                // Ranges are closed/inclusive on both ends; two rows that share a boundary version count as overlapping.
                 if (cmpGhAw(a['min-gh-aw'], b['max-gh-aw']) <= 0 && cmpGhAw(b['min-gh-aw'], a['max-gh-aw']) <= 0) {
                   errors.push(`${agent}: rows [${i}] and [${j}] have overlapping gh-aw ranges (${a['min-gh-aw']}..${a['max-gh-aw']} vs ${b['min-gh-aw']}..${b['max-gh-aw']})`);
                 }
@@ -863,7 +866,7 @@ jobs:
             return;
           }
 
-          core.info(`✅ ${CONFIG_FILE} passes shape and cross-row invariant checks (${SCHEMA_FILE} is the schema contract)`);
+          core.info(`✅ ${CONFIG_FILE} passes all structural and cross-row invariant checks`);
 
   bench:
     # Only run benchmarks on main branch for performance tracking

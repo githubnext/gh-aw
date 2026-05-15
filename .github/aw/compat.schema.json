@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/github/gh-aw-actions/.github/aw/compat.schema.json",
+  "$id": "https://github.com/github/gh-aw/.github/aw/compat.schema.json",
   "title": "gh-aw agent compatibility matrix",
   "description": "Pins agentic CLI versions to gh-aw release ranges. Consumed by the setup action to install a known-good agent version per gh-aw release. See ADR for the design rationale.",
   "type": "object",
@@ -55,7 +55,8 @@
         "max-agent": { "$ref": "#/definitions/semver" },
         "open": {
           "type": "boolean",
-          "description": "When false, the setup action stops bumping max-agent for this row (rollback / quarantine state). Permitted only on the catch-all row (max-gh-aw == \"*\"); bounded rows are closed-by-construction."
+          "default": true,
+          "description": "When true (the default), the setup action's weekly release process may continue bumping max-agent for this row. Set to false to freeze during rollback or quarantine. Permitted only on the catch-all row (max-gh-aw == \"*\"); bounded rows are closed-by-construction."
         }
       },
       "if": {
