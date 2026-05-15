@@ -1261,6 +1261,9 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
     // This avoids duplicate expansion when the workflow file self-imports and
     // recursively encounters imports that were already expanded in the outer pass.
     if (resolvedInParent.has(importKey)) {
+      // Intentionally replace with empty string (instead of cached content):
+      // this branch exists specifically to prevent duplicate prompt blocks when
+      // recursively traversing a self-imported workflow body.
       processedContent = processedContent.replace(fullMatch, "");
       core.info(`Skipping already resolved import for ${filepathWithRange}`);
       continue;
