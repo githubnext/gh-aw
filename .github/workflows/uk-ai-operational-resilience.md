@@ -1,5 +1,4 @@
 ---
-emoji: "🛡️"
 name: UK AI Operational Resilience
 description: Applies UK public-sector AI open-code and vulnerability-risk guidance using recent-change governance, risk scoring, and remediation orchestration
 on:
@@ -58,10 +57,10 @@ pre-agent-steps:
       SINCE="$(date -u -d "-${DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
       echo "$SINCE" >/tmp/gh-aw/agent/since.txt
 
-      gh api "repos/${REPO}/commits?since=${SINCE}&per_page=100" > /tmp/gh-aw/agent/recent-commits.json
-      gh api "repos/${REPO}/issues?state=open&labels=security&per_page=100" > /tmp/gh-aw/agent/open-security-issues.json
-      gh api "repos/${REPO}/code-scanning/alerts?state=open&per_page=100" > /tmp/gh-aw/agent/open-code-scanning-alerts.json || echo "[]" >/tmp/gh-aw/agent/open-code-scanning-alerts.json
-      gh api "repos/${REPO}/secret-scanning/alerts?state=open&per_page=100" > /tmp/gh-aw/agent/open-secret-scanning-alerts.json || echo "[]" >/tmp/gh-aw/agent/open-secret-scanning-alerts.json
+      gh api --paginate "repos/${REPO}/commits?since=${SINCE}&per_page=100" | jq -s 'add // []' > /tmp/gh-aw/agent/recent-commits.json
+      gh api --paginate "repos/${REPO}/issues?state=open&labels=security&per_page=100" | jq -s 'add // []' > /tmp/gh-aw/agent/open-security-issues.json
+      gh api --paginate "repos/${REPO}/code-scanning/alerts?state=open&per_page=100" | jq -s 'add // []' > /tmp/gh-aw/agent/open-code-scanning-alerts.json || echo "[]" >/tmp/gh-aw/agent/open-code-scanning-alerts.json
+      gh api --paginate "repos/${REPO}/secret-scanning/alerts?state=open&per_page=100" | jq -s 'add // []' > /tmp/gh-aw/agent/open-secret-scanning-alerts.json || echo "[]" >/tmp/gh-aw/agent/open-secret-scanning-alerts.json
 
       jq -r '
         [.[].commit.message]
@@ -87,7 +86,7 @@ pre-agent-steps:
 imports:
   - uses: shared/daily-audit-base.md
     with:
-      title-prefix: "[uk-ai-resilience] "
+      title-prefix: "[uk ai resilience] "
       expires: 3d
   - shared/observability-otlp.md
 ---
@@ -98,7 +97,7 @@ imports:
 Apply the UK public-sector guidance:
 https://www.gov.uk/guidance/ai-open-code-and-vulnerability-risk-in-the-public-sector
 
-Use a **recent-changes focus strategy** to prioritize repositories areas that changed within the selected lookback window, then evaluate operational resilience instead of relying on concealment.
+Use a **recent-changes focus strategy** to prioritize repository areas that changed within the selected lookback window, then evaluate operational resilience instead of relying on concealment.
 
 ## Inputs (pre-computed)
 
@@ -201,7 +200,7 @@ Create one discussion report with:
 
 ## Sub-agent orchestration rules
 
-- Dispatch all three sub-agents in one parallel tool-use block before synthesis.
+- Prefer dispatching all three sub-agents in one parallel tool-use block before synthesis. If your engine/runtime cannot do true parallel dispatch, run them sequentially in this order: `asset-tier-classifier` → `control-verifier` → `ai-risk-scorer`.
 - Treat sub-agent outputs as structured evidence and cite them in final conclusions.
 - If a sub-agent fails once, retry once; if it fails again, proceed with partial confidence and record that limitation.
 
@@ -227,6 +226,11 @@ Given recent commits and open security signals, produce compact JSON with:
 - `confidence`: low|medium|high
 - `notes`: short rationale
 
+Output contract:
+- Return a single JSON object with keys exactly: `assets`, `summary`, `errors`.
+- `summary` must include `total_assets` and `high_concern_assets`.
+- `errors` must be an array (empty when none).
+
 Focus on changed surfaces first; avoid broad full-repo expansion unless evidence requires it.
 
 ## agent: `control-verifier`
@@ -249,6 +253,12 @@ Each control section must include:
 - `evidence`: concise bullets
 - `gap`: single most important missing control
 
+Output contract:
+- Return a single JSON object with keys exactly: `areas`, `summary`, `errors`.
+- `areas` must be an array where each item has `asset_name` and the six control sections above.
+- `summary` must include `pass_count`, `partial_count`, and `fail_count`.
+- `errors` must be an array (empty when none).
+
 ## agent: `ai-risk-scorer`
 ---
 description: Produces AI-aware risk scoring and action tiering for recently changed areas
@@ -268,3 +278,9 @@ For each candidate area, provide JSON fields:
 - `reason`
 
 Scoring philosophy: higher exposure+fragility and lower patchability+detectability+ownership implies higher operational risk.
+
+Output contract:
+- Return a single JSON object with keys exactly: `scores`, `summary`, `errors`.
+- `scores` must be an array of scored areas using the fields above.
+- `summary` must include `tier_counts` and `highest_priority_assets`.
+- `errors` must be an array (empty when none).
