@@ -64,8 +64,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
   } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
     maxLength = maxLengthOrOptions.maxLength;
     // Pre-process allowed aliases to lowercase for efficient comparison
-    const rawAllowedAliases = maxLengthOrOptions.allowedAliases;
-    const normalizedAllowedAliases = Array.isArray(rawAllowedAliases) ? rawAllowedAliases : typeof rawAllowedAliases === "string" ? [rawAllowedAliases] : [];
+    const normalizedAllowedAliases = normalizeAllowedAliases(maxLengthOrOptions.allowedAliases);
     allowedAliasesLowercase = expandAllowedAliases(normalizedAllowedAliases);
     maxBotMentions = maxLengthOrOptions.maxBotMentions;
   }
@@ -142,6 +141,21 @@ function sanitizeContent(content, maxLengthOrOptions) {
   sanitized = balanceCodeRegions(sanitized);
 
   return sanitized.trim();
+
+  /**
+   * Normalize configured allowed aliases into an array.
+   * @param {unknown} aliases
+   * @returns {string[]}
+   */
+  function normalizeAllowedAliases(aliases) {
+    if (Array.isArray(aliases)) {
+      return aliases;
+    }
+    if (typeof aliases === "string") {
+      return [aliases];
+    }
+    return [];
+  }
 
   /**
    * Expand allowlisted runtime aliases into accepted mention aliases.
