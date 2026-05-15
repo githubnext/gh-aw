@@ -265,7 +265,7 @@ jobs:
 
 	// Call ensureCopilotSetupSteps
 	if err := ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev"); err != nil {
-		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) returned error: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background()) returned error: %v", err)
 	}
 
 	// Verify the file was NOT modified (should render instructions instead)
@@ -334,7 +334,7 @@ jobs:
 
 	// Call ensureCopilotSetupSteps
 	if err := ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev"); err != nil {
-		t.Fatalf("ensureCopilotSetupSteps(context.Background(), ) returned error: %v", err)
+		t.Fatalf("ensureCopilotSetupSteps(context.Background()) returned error: %v", err)
 	}
 
 	// Verify the file was not modified (content should be the same)
