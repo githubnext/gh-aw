@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock dependencies before importing the module
-vi.mock("./resolve_mentions.cjs", async () => {
+vi.mock("./resolve_mentions.cjs", () => {
   return {
     resolveMentionsLazily: vi.fn(async (_text, knownAuthors) => ({
       allowedMentions: knownAuthors,
