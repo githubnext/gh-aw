@@ -86,6 +86,8 @@ func TestHasSafeOutputTypeNewKeys(t *testing.T) {
 			}
 			require.True(t, setSafeOutputField(cfg, handler.StructField, configValue),
 				"failed to set field %q for key %q from descriptor constructor", handler.StructField, key)
+			assert.Equal(t, configValue, field.Interface(),
+				"field %q should hold the descriptor constructor value for key %q", handler.StructField, key)
 
 			assert.True(t, hasSafeOutputType(cfg, key), "hasSafeOutputType should return true for key %q when field is set", key)
 			assert.False(t, hasSafeOutputType(&SafeOutputsConfig{}, key), "hasSafeOutputType should return false for key %q when field is nil", key)
