@@ -27,6 +27,9 @@ _ = largefunc.Analyzer
 
 ## Dependencies
 
+**Internal**:
+- None at the `pkg/linters` namespace level. `pkg/linters/largefunc` is documented above as a subpackage API, not as an internal dependency.
+
 **External**:
 - `golang.org/x/tools/go/analysis` — analyzer framework
 - `golang.org/x/tools/go/analysis/passes/inspect` — AST inspection support
