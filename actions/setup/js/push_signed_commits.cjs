@@ -119,21 +119,21 @@ async function readBlobAsBase64(blobHash, cwd) {
 }
 
 /**
- * Push the local branch to origin using git directly.
- * This only performs the push; callers resolve HEAD separately when they need
- * the resulting branch tip SHA.
+ * Push the local branch to origin using git directly and return the local HEAD
+ * SHA that landed on the remote branch.
  *
  * @param {object} opts
  * @param {string} opts.branch
  * @param {string} opts.cwd
  * @param {object} [opts.gitAuthEnv]
- * @returns {Promise<void>}
+ * @returns {Promise<string>}
  */
-async function pushBranchWithGit({ branch, cwd, gitAuthEnv }) {
+async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv }) {
   await exec.exec("git", ["push", "origin", branch], {
     cwd,
     env: { ...process.env, ...(gitAuthEnv || {}) },
   });
+  return resolveLocalHeadSha(cwd);
 }
 
 /**
@@ -170,8 +170,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // so skip it entirely and fall directly through to git push.
   if (!baseRef) {
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
-    await pushBranchWithGit({ branch, cwd, gitAuthEnv });
-    const headSha = await resolveLocalHeadSha(cwd);
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
     core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
     return headSha;
   }
@@ -179,8 +178,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // Only an explicit false opts out of signed commit replay; unset/default values keep it enabled.
   if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
-    await pushBranchWithGit({ branch, cwd, gitAuthEnv });
-    const headSha = await resolveLocalHeadSha(cwd);
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
     core.info(`pushSignedCommits: git push completed, HEAD=${headSha}`);
     return headSha;
   }
@@ -429,8 +427,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       );
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${err instanceof Error ? err.message : String(err)}`);
-    await pushBranchWithGit({ branch, cwd, gitAuthEnv });
-    const fallbackSha = shas[shas.length - 1];
+    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;
   }
