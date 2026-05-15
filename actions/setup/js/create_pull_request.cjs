@@ -95,6 +95,20 @@ function extractBundlePrerequisiteCommits(message) {
 }
 
 /**
+ * Summarize a list for log output to avoid excessively long lines.
+ * @param {string[]} values
+ * @param {number} limit
+ * @returns {string}
+ */
+function summarizeListForLog(values, limit = 10) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return "(none)";
+  }
+  const preview = values.slice(0, limit).join(", ");
+  return values.length > limit ? `${preview} ... and ${values.length - limit} more` : preview;
+}
+
+/**
  * Apply a git bundle to a local branch without fetching directly into the branch ref.
  * Fetching directly into refs/heads/<branch> fails when that branch is currently checked out.
  *
@@ -126,7 +140,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
       const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorMessage);
       if (prerequisiteCommits.length > 0) {
         core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-        core.info(`Prerequisite commits: ${prerequisiteCommits.join(", ")}`);
+        core.info(`Prerequisite commits: ${summarizeListForLog(prerequisiteCommits)}`);
         core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
         await execApi.exec("git", ["fetch", "origin", ...prerequisiteCommits]);
         core.info("Fetched prerequisite commits from origin successfully");
@@ -147,7 +161,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
           .split("\n")
           .map(line => line.trim().split(/\s+/)[1] || "")
           .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
-        core.info(`Bundle list-heads returned ${branchRefs.length} candidate branch ref(s): ${branchRefs.join(", ") || "(none)"}`);
+        core.info(`Bundle list-heads returned ${branchRefs.length} candidate branch ref(s): ${summarizeListForLog(branchRefs)}`);
 
         if (branchRefs.length === 1) {
           bundleBranchRef = branchRefs[0];
