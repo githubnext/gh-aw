@@ -66,7 +66,7 @@ Focus on:
 
 ### 1) Build AgentRx input trajectory
 
-Use the `trajectory-builder` agent, passing it the path to the MCP run-data file, to produce `/tmp/agentrx/trajectory.json`.
+Invoke `trajectory-builder` with the MCP run-data file path (for example, `trajectory-builder /tmp/agentrx/mcp-runs.json`) to produce `/tmp/agentrx/trajectory.json`.
 
 ### 2) Run AgentRx pipeline
 
@@ -91,7 +91,7 @@ If a later stage fails (for example due to endpoint/auth constraints), continue 
 
 ### 3) Derive one optimization recommendation
 
-First, use the `failure-pattern-classifier` agent to label each AgentRx violation. Then read the labeled table and pick the single highest-impact fix.
+First, invoke `failure-pattern-classifier` on the AgentRx `check`/violation artifacts and capture its markdown table output as the labeled violations list for this section. Then read that labeled table and pick the single highest-impact fix.
 
 Use AgentRx outputs to identify:
 - the most frequent or most expensive failure pattern
@@ -125,7 +125,7 @@ Body structure:
 <details>
 <summary>AgentRx Artifacts</summary>
 
-Use the `artifacts-summarizer` agent to produce the body of this details block.
+Invoke `artifacts-summarizer` on `/tmp/agentrx/runs/gh-aw-daily/` artifacts and paste its markdown output as the body of this details block.
 
 </details>
 
