@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d56b4b4635e47444f79970d2c5ace97790a338a25c39c18030b87370c2fb3ee3","strict":true,"agent_id":"copilot"}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_GRAFANA_HEADERS","GH_AW_OTEL_SENTRY_ENDPOINT","GH_AW_OTEL_SENTRY_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.46"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.9","digest":"sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"0da6104f5b11ca53e6fa98d9457985f688c17e2c077373eadcba8fa7da0d3d98","strict":true,"agent_id":"copilot"}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.46"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.9","digest":"sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -33,10 +33,10 @@
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
 #   - GH_AW_GITHUB_TOKEN
+#   - GH_AW_OTEL_GRAFANA_AUTHORIZATION
 #   - GH_AW_OTEL_GRAFANA_ENDPOINT
-#   - GH_AW_OTEL_GRAFANA_HEADERS
+#   - GH_AW_OTEL_SENTRY_AUTHORIZATION
 #   - GH_AW_OTEL_SENTRY_ENDPOINT
-#   - GH_AW_OTEL_SENTRY_HEADERS
 #   - GITHUB_TOKEN
 #
 # Custom actions used:
@@ -77,9 +77,9 @@ run-name: "Dependabot Dependency Checker"
 env:
   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
   OTEL_SERVICE_NAME: gh-aw
-  OTEL_EXPORTER_OTLP_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_HEADERS }}
-  GH_AW_OTLP_ALL_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_HEADERS }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_HEADERS }}
-  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_SENTRY_HEADERS }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_HEADERS }}"}]'
+  OTEL_EXPORTER_OTLP_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+  GH_AW_OTLP_ALL_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
 
 jobs:
   activation:
@@ -199,20 +199,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF'
+          cat << 'GH_AW_PROMPT_2a4e8c8ed563bee7_EOF'
           <system>
-          GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF
+          GH_AW_PROMPT_2a4e8c8ed563bee7_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF'
+          cat << 'GH_AW_PROMPT_2a4e8c8ed563bee7_EOF'
           <safe-output-tools>
           Tools: create_issue(max:10), close_issue(max:20), missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF
+          GH_AW_PROMPT_2a4e8c8ed563bee7_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF'
+          cat << 'GH_AW_PROMPT_2a4e8c8ed563bee7_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -241,15 +241,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF
+          GH_AW_PROMPT_2a4e8c8ed563bee7_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF'
+          cat << 'GH_AW_PROMPT_2a4e8c8ed563bee7_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/dependabot-go-checker.md}}
-          GH_AW_PROMPT_dd6bd34d1b8ebcfa_EOF
+          GH_AW_PROMPT_2a4e8c8ed563bee7_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -465,9 +465,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_e258d940926e5471_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_88ceb67fbcc3e1ff_EOF'
           {"close_issue":{"max":20,"required_title_prefix":"[deps]","target":"*"},"create_issue":{"expires":48,"group":true,"labels":["dependencies","go","cookie"],"max":10,"title_prefix":"[deps]"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_e258d940926e5471_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_88ceb67fbcc3e1ff_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -696,7 +696,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_6358e0b64055ee8e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_93a39bcedb9c95d9_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -742,7 +742,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_6358e0b64055ee8e_EOF
+          GH_AW_MCP_CONFIG_93a39bcedb9c95d9_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

@@ -121,9 +121,9 @@ Decide:
 Use the Sentry MCP tools configured in this workflow.
 
 1. Discover the organization and project for `${{ github.repository }}`.
-2. Query recent telemetry for the last 30 minutes.
+2. Query recent telemetry for the last 24 hours.
 3. First try to find spans for the current run using `${{ github.run_id }}` plus `service.name=gh-aw` when the MCP tool supports those filters.
-4. If the current run is not visible, run a fallback query for recent `gh-aw` spans to distinguish ingestion delay from a broken Sentry query path.
+4. If the current run is not visible, run a fallback query for `gh-aw` spans from the last 24 hours to distinguish ingestion delay from a broken Sentry query path.
 
 Record all of the following:
 
@@ -145,7 +145,7 @@ Use the Grafana MCP server configured in this workflow.
 
 1. Inspect the available Grafana tracing tools first.
 2. Discover the tracing datasource or Tempo surface that contains `gh-aw` spans.
-3. Query the last 30 minutes of traces.
+3. Query the last 24 hours of traces.
 4. First try to locate spans for `${{ github.run_id }}`.
 5. If the current run is not visible, fall back to recent `service.name=gh-aw` spans to distinguish ingestion delay from a broken Grafana query path.
 

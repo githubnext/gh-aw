@@ -19,6 +19,8 @@ on:
     - '.github/workflows/**/*.md'
     - '.github/aw/releases.json'
     - '.github/aw/releases.schema.json'
+    - '.github/aw/compat.json'
+    - '.github/aw/compat.schema.json'
     - 'install-gh-aw.sh'
   workflow_dispatch:
 jobs:
@@ -684,6 +686,187 @@ jobs:
           }
 
           core.info(`✅ ${CONFIG_FILE} is valid and conforms to ${SCHEMA_FILE}`);
+
+    - name: Validate compat.json structure and version formats
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
+      with:
+        script: |
+          const fs = require('fs');
+          const CONFIG_FILE = '.github/aw/compat.json';
+          const SCHEMA_FILE = '.github/aw/compat.schema.json';
+
+          core.info(`🔍 Validating ${CONFIG_FILE} (shape per ${SCHEMA_FILE} + cross-row invariants)...`);
+
+          if (!fs.existsSync(CONFIG_FILE)) {
+            core.setFailed(`ERROR: ${CONFIG_FILE} not found`);
+            return;
+          }
+          if (!fs.existsSync(SCHEMA_FILE)) {
+            core.setFailed(`ERROR: ${SCHEMA_FILE} not found`);
+            return;
+          }
+
+          let config;
+          try {
+            config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+          } catch (err) {
+            core.setFailed(`ERROR: ${CONFIG_FILE} is not valid JSON: ${err.message}`);
+            return;
+          }
+          core.info(`✅ ${CONFIG_FILE} is valid JSON`);
+
+          const errors = [];
+          const allowedTopKeys = new Set(['$schema', 'agent-compat-v1']);
+          for (const key of Object.keys(config)) {
+            if (!allowedTopKeys.has(key)) {
+              errors.push(`Unknown top-level property: '${key}'`);
+            }
+          }
+
+          const matrix = config['agent-compat-v1'];
+          if (typeof matrix !== 'object' || matrix === null || Array.isArray(matrix)) {
+            core.setFailed(`ERROR: 'agent-compat-v1' must be an object`);
+            return;
+          }
+
+          const semverRe = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/;
+          // Full semver 2.0.0 compare: base triplet, then prerelease identifiers
+          // (numeric < non-numeric, all-prerelease < no-prerelease).
+          const parseSemver = (v) => {
+            const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(v);
+            if (!m) return null;
+            return {
+              base: [Number(m[1]), Number(m[2]), Number(m[3])],
+              pre: m[4] ? m[4].split('.') : null,
+            };
+          };
+          const cmp = (a, b) => {
+            const A = parseSemver(a);
+            const B = parseSemver(b);
+            if (!A || !B) throw new Error(`cmp() called with non-semver: '${a}' / '${b}'`);
+            for (let i = 0; i < 3; i++) {
+              if (A.base[i] !== B.base[i]) return A.base[i] - B.base[i];
+            }
+            if (A.pre === null && B.pre === null) return 0;
+            if (A.pre === null) return 1;
+            if (B.pre === null) return -1;
+            const len = Math.max(A.pre.length, B.pre.length);
+            for (let i = 0; i < len; i++) {
+              if (i >= A.pre.length) return -1;
+              if (i >= B.pre.length) return 1;
+              const ai = A.pre[i], bi = B.pre[i];
+              const aN = /^\d+$/.test(ai), bN = /^\d+$/.test(bi);
+              if (aN && bN) {
+                const da = Number(ai), db = Number(bi);
+                if (da !== db) return da - db;
+              } else if (aN) return -1;
+              else if (bN) return 1;
+              else if (ai !== bi) return ai < bi ? -1 : 1;
+            }
+            return 0;
+          };
+          // Compare gh-aw bounds where '*' means +infinity (only valid on max-gh-aw).
+          const cmpGhAw = (a, b) => {
+            if (a === '*' && b === '*') return 0;
+            if (a === '*') return 1;
+            if (b === '*') return -1;
+            return cmp(a, b);
+          };
+
+          if ('cache-ttl-days' in matrix) {
+            const ttl = matrix['cache-ttl-days'];
+            if (!Number.isInteger(ttl) || ttl < 1) {
+              errors.push(`'agent-compat-v1.cache-ttl-days' must be a positive integer (got ${JSON.stringify(ttl)})`);
+            }
+          }
+
+          // Keep the agent names here in sync with agent-compat-v1.properties in compat.schema.json.
+          const allowedAgentKeys = new Set(['cache-ttl-days', 'copilot', 'claude']);
+          for (const key of Object.keys(matrix)) {
+            if (!allowedAgentKeys.has(key)) {
+              errors.push(`Unknown property under 'agent-compat-v1': '${key}'`);
+            }
+          }
+
+          for (const [agent, rows] of Object.entries(matrix)) {
+            if (agent === 'cache-ttl-days') continue;
+            if (!Array.isArray(rows) || rows.length < 1) {
+              errors.push(`'agent-compat-v1.${agent}' must be a non-empty array`);
+              continue;
+            }
+            const allowedRowKeys = new Set(['min-gh-aw', 'max-gh-aw', 'min-agent', 'max-agent', 'open']);
+            const requiredRowKeys = ['min-gh-aw', 'max-gh-aw', 'min-agent', 'max-agent'];
+
+            rows.forEach((row, idx) => {
+              const where = `${agent}[${idx}]`;
+              if (typeof row !== 'object' || row === null || Array.isArray(row)) {
+                errors.push(`${where} must be an object`);
+                return;
+              }
+              for (const key of Object.keys(row)) {
+                if (!allowedRowKeys.has(key)) {
+                  errors.push(`${where} has unknown property '${key}'`);
+                }
+              }
+              for (const key of requiredRowKeys) {
+                if (!(key in row)) {
+                  errors.push(`${where} is missing required property '${key}'`);
+                }
+              }
+
+              for (const k of ['min-gh-aw', 'min-agent', 'max-agent']) {
+                if (k in row && !semverRe.test(row[k])) {
+                  errors.push(`${where}.${k} ('${row[k]}') is not a valid semver (MAJOR.MINOR.PATCH)`);
+                }
+              }
+              if ('max-gh-aw' in row && row['max-gh-aw'] !== '*' && !semverRe.test(row['max-gh-aw'])) {
+                errors.push(`${where}.max-gh-aw ('${row['max-gh-aw']}') must be either '*' or a valid semver`);
+              }
+
+              if ('min-agent' in row && 'max-agent' in row && semverRe.test(row['min-agent']) && semverRe.test(row['max-agent'])) {
+                if (cmp(row['min-agent'], row['max-agent']) > 0) {
+                  errors.push(`${where}: min-agent (${row['min-agent']}) must be <= max-agent (${row['max-agent']})`);
+                }
+              }
+
+              if (row['max-gh-aw'] === '*') {
+                if ('open' in row && typeof row['open'] !== 'boolean') {
+                  errors.push(`${where}.open must be a boolean`);
+                }
+              } else if ('max-gh-aw' in row) {
+                if (semverRe.test(row['min-gh-aw']) && semverRe.test(row['max-gh-aw'])) {
+                  if (cmp(row['min-gh-aw'], row['max-gh-aw']) > 0) {
+                    errors.push(`${where}: min-gh-aw (${row['min-gh-aw']}) must be <= max-gh-aw (${row['max-gh-aw']})`);
+                  }
+                }
+                if ('open' in row) {
+                  errors.push(`${where}: 'open' is only permitted on the catch-all row (max-gh-aw '*'); bounded rows are closed-by-construction`);
+                }
+              }
+            });
+
+            for (let i = 0; i < rows.length; i++) {
+              for (let j = i + 1; j < rows.length; j++) {
+                const a = rows[i];
+                const b = rows[j];
+                // Skip non-object rows (already reported above) so we do not throw on a/b['min-gh-aw'].
+                if (typeof a !== 'object' || a === null || Array.isArray(a)) continue;
+                if (typeof b !== 'object' || b === null || Array.isArray(b)) continue;
+                if (![a['min-gh-aw'], a['max-gh-aw'], b['min-gh-aw'], b['max-gh-aw']].every(v => v === '*' || semverRe.test(v))) continue;
+                // Ranges are closed/inclusive on both ends; two rows that share a boundary version count as overlapping.
+                if (cmpGhAw(a['min-gh-aw'], b['max-gh-aw']) <= 0 && cmpGhAw(b['min-gh-aw'], a['max-gh-aw']) <= 0) {
+                  errors.push(`${agent}: rows [${i}] and [${j}] have overlapping gh-aw ranges (${a['min-gh-aw']}..${a['max-gh-aw']} vs ${b['min-gh-aw']}..${b['max-gh-aw']})`);
+                }
+              }
+            }
+          }
+
+          if (errors.length > 0) {
+            core.setFailed(`❌ ${CONFIG_FILE} validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+            return;
+          }
+
+          core.info(`✅ ${CONFIG_FILE} passes all structural and cross-row invariant checks`);
 
   bench:
     # Only run benchmarks on main branch for performance tracking

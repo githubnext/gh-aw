@@ -1,0 +1,21 @@
+{
+  "$schema": "./compat.schema.json",
+  "agent-compat-v1": {
+    "cache-ttl-days": 14,
+    "copilot": [
+      {
+        "min-gh-aw": "0.72.0",
+        "max-gh-aw": "*",
+        "min-agent": "1.0.21",
+        "max-agent": "1.0.48",
+        "open": true
+      },
+      {
+        "min-gh-aw": "0.0.1",
+        "max-gh-aw": "0.71.99",
+        "min-agent": "0.0.0",
+        "max-agent": "1.0.21"
+      }
+    ]
+  }
+}
