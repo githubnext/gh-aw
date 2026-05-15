@@ -414,9 +414,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 				return nil
 			}
 			permissions := NewPermissionsContentsReadProjectsWrite()
-			if current, exists := permissions.Get(PermissionIssues); !exists || current != PermissionWrite {
-				permissions.Set(PermissionIssues, PermissionRead)
-			}
+			permissions.Set(PermissionIssues, PermissionRead)
 			return permissions
 		},
 	},
@@ -430,9 +428,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 				return nil
 			}
 			permissions := NewPermissionsContentsReadProjectsWrite()
-			if current, exists := permissions.Get(PermissionIssues); !exists || current != PermissionWrite {
-				permissions.Set(PermissionIssues, PermissionRead)
-			}
+			permissions.Set(PermissionIssues, PermissionRead)
 			return permissions
 		},
 	},

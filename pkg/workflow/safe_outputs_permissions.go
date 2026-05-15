@@ -141,7 +141,13 @@ func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
 		if hasSafeOutputFieldSet(config, handler.StructField) {
 			continue
 		}
-		_ = setSafeOutputField(config, handler.StructField, handler.NewConfig())
+		if !setSafeOutputField(config, handler.StructField, handler.NewConfig()) {
+			safeOutputsPermissionsLog.Printf(
+				"Warning: failed to set safe-output field %q for key %q from descriptor constructor",
+				handler.StructField,
+				key,
+			)
+		}
 	}
 	return config
 }

@@ -75,12 +75,17 @@ func TestHasSafeOutputTypeNewKeys(t *testing.T) {
 			field := reflect.ValueOf(cfg).Elem().FieldByName(handler.StructField)
 			require.True(t, field.IsValid(), "descriptor references unknown field %q", handler.StructField)
 			require.Equal(t, reflect.Ptr, field.Kind(), "descriptor field %q must be a pointer", handler.StructField)
+			var configValue any
 			if handler.NewConfig != nil {
-				constructorType := reflect.ValueOf(handler.NewConfig()).Type()
+				configValue = handler.NewConfig()
+				constructorType := reflect.ValueOf(configValue).Type()
 				require.True(t, constructorType.AssignableTo(field.Type()),
 					"descriptor constructor for key %q returns %v, expected assignable to %v", key, constructorType, field.Type())
+			} else {
+				configValue = reflect.New(field.Type().Elem()).Interface()
 			}
-			field.Set(reflect.New(field.Type().Elem()))
+			require.True(t, setSafeOutputField(cfg, handler.StructField, configValue),
+				"failed to set field %q for key %q from descriptor constructor", handler.StructField, key)
 
 			assert.True(t, hasSafeOutputType(cfg, key), "hasSafeOutputType should return true for key %q when field is set", key)
 			assert.False(t, hasSafeOutputType(&SafeOutputsConfig{}, key), "hasSafeOutputType should return false for key %q when field is nil", key)
