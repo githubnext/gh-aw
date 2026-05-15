@@ -2,16 +2,19 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock dependencies before importing the module
-vi.mock("./resolve_mentions.cjs", () => ({
-  DEFAULT_ALLOWED_MENTION_ALIASES: ["copilot"],
-  resolveMentionsLazily: vi.fn(async (_text, knownAuthors) => ({
-    allowedMentions: knownAuthors,
-    totalMentions: knownAuthors.length,
-    resolvedCount: 0,
-    limitExceeded: false,
-  })),
-  isPayloadUserBot: vi.fn(user => user?.type === "Bot"),
-}));
+vi.mock("./resolve_mentions.cjs", async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    DEFAULT_ALLOWED_MENTION_ALIASES: actual.DEFAULT_ALLOWED_MENTION_ALIASES,
+    resolveMentionsLazily: vi.fn(async (_text, knownAuthors) => ({
+      allowedMentions: knownAuthors,
+      totalMentions: knownAuthors.length,
+      resolvedCount: 0,
+      limitExceeded: false,
+    })),
+    isPayloadUserBot: vi.fn(user => user?.type === "Bot"),
+  };
+});
 
 vi.mock("./error_helpers.cjs", () => ({
   getErrorMessage: vi.fn(err => (err instanceof Error ? err.message : String(err))),
