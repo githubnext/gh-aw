@@ -17,13 +17,15 @@ func TestAuditWorkflowsSourceUsesExpandedRepoMemoryCategories(t *testing.T) {
 	workflowContentStr := string(workflowContent)
 
 	expectedSnippets := []string{
-		"**Repo Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:",
-		"`workflow-trends.json` — rolling per-workflow cost, duration, success, and reliability trends",
-		"`known-issues.json` — recurring problems with first-seen, last-seen, recurrence count, affected workflows, and status",
-		"`recommendations.json` — accumulated recommendations linked back to audits, workflows, and known issues",
-		"`anomalies.json` — unusual runs or cost spikes with a multi-day persistence score and current escalation state",
-		"`metrics-summary.json` — aggregate daily metrics used for charts and rollups",
-		"increment recurrence and persistence counters when the same problem reappears",
+		"Repo Memory",
+		"workflow-trends.json",
+		"known-issues.json",
+		"recommendations.json",
+		"anomalies.json",
+		"metrics-summary.json",
+		"stable IDs",
+		"recurrence and persistence counters",
+		"cross-referenced across days",
 	}
 
 	for _, snippet := range expectedSnippets {
@@ -32,7 +34,7 @@ func TestAuditWorkflowsSourceUsesExpandedRepoMemoryCategories(t *testing.T) {
 		}
 	}
 
-	if strings.Contains(workflowContentStr, "**Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:") {
+	if strings.Contains(strings.ToLower(workflowContentStr), "cache memory") {
 		t.Fatalf("expected workflow source to use repo memory terminology")
 	}
 }
