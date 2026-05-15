@@ -353,6 +353,7 @@ func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
 // the caller-provided prefix with a stable hash of the expression body.
 func hashedBindingName(prefix, body string) string {
 	h := fnv.New32a()
+	// fnv.Hash.Write on in-memory bytes is guaranteed not to return an error.
 	_, _ = h.Write([]byte(body))
 	return fmt.Sprintf("%s_%08x", prefix, h.Sum32())
 }
