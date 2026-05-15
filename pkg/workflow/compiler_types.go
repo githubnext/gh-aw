@@ -62,7 +62,7 @@ type FileCreationTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
-	ctx                     context.Context          // Context for network operations (e.g. SHA resolution); defaults to context.Background()
+	ctx                     context.Context // Context for network operations (e.g. SHA resolution); defaults to context.Background()
 	verbose                 bool
 	quiet                   bool // If true, suppress success messages (for interactive mode)
 	engineOverride          string
@@ -127,7 +127,7 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 
 	// Create compiler with defaults
 	c := &Compiler{
-		ctx:               context.Background(),        // Default context; override with WithContext
+		ctx:               context.Background(), // Default context; override with WithContext
 		verbose:           false,
 		engineOverride:    "",
 		version:           version,

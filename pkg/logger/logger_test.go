@@ -5,7 +5,6 @@ package logger
 import (
 	"bytes"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -278,57 +277,48 @@ func TestLogger_TimeDiff(t *testing.T) {
 }
 
 func TestColorSelection(t *testing.T) {
-	// Test that selectColor returns consistent colors for the same namespace
-	color1 := selectColor("test:namespace")
-	color2 := selectColor("test:namespace")
+	// Test that selectNamespaceLabel returns consistent colors for the same namespace
+	color1 := selectNamespaceLabel("test:namespace")
+	color2 := selectNamespaceLabel("test:namespace")
 	if color1 != color2 {
-		t.Errorf("selectColor should return same color for same namespace")
+		t.Errorf("selectNamespaceLabel should return same color for same namespace")
+	}
+	if color1 == "" {
+		t.Error("selectNamespaceLabel should return non-empty namespace label")
+	}
+	if !strings.Contains(color1, "test:namespace") {
+		t.Errorf("selectNamespaceLabel should include namespace text, got %q", color1)
+	}
+	if !strings.Contains(color1, "\x1b[") {
+		t.Errorf("selectNamespaceLabel should include ANSI styling when colors are enabled, got %q", color1)
 	}
 
-	// Test that different namespaces can get different colors
-	// (not guaranteed but likely with our hash function)
-	color3 := selectColor("other:namespace")
-	// Just verify it's a valid color from palette or empty
-	found := color3 == ""
-	if slices.Contains(colorPalette, color3) {
-		found = true
-	}
-	if !found {
-		t.Errorf("selectColor returned invalid color: %q", color3)
+	// When colors are disabled, selectNamespaceLabel should return plain namespace text.
+	origDebugColors := debugColors
+	debugColors = false
+	t.Cleanup(func() { debugColors = origDebugColors })
+	if got := selectNamespaceLabel("plain:namespace"); got != "plain:namespace" {
+		t.Errorf("selectNamespaceLabel should return plain namespace when debugColors=false, got %q", got)
 	}
 }
 
-func TestColorDisabling(t *testing.T) {
+func TestNoColorEnvironment(t *testing.T) {
 	// Save original values
 	origDebugColors := debugColors
-	origIsTTY := isTTY
 	defer func() {
 		debugColors = origDebugColors
-		isTTY = origIsTTY
 	}()
 
-	// Test with colors disabled via DEBUG_COLORS
-	debugColors = false
-	isTTY = true
-	color := selectColor("test:namespace")
-	if color != "" {
-		t.Errorf("selectColor should return empty when debugColors=false, got %q", color)
-	}
-
-	// Test with TTY disabled
+	debugEnv = "*"
 	debugColors = true
-	isTTY = false
-	color = selectColor("test:namespace")
-	if color != "" {
-		t.Errorf("selectColor should return empty when isTTY=false, got %q", color)
-	}
+	t.Setenv("NO_COLOR", "1")
 
-	// Test with both enabled
-	debugColors = true
-	isTTY = true
-	color = selectColor("test:namespace")
-	if color == "" {
-		t.Error("selectColor should return color when both enabled")
+	logger := New("test:namespace")
+	output := captureStderr(func() {
+		logger.Printf("hello")
+	})
+	if strings.Contains(output, "\x1b[") {
+		t.Errorf("logger output should not contain ANSI color escapes when NO_COLOR is set, got %q", output)
 	}
 }
 

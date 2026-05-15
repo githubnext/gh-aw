@@ -32,7 +32,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: `"on": push`,
+			expectedOn: `on: push`,
 		},
 		{
 			name: "custom on workflow_dispatch",
@@ -43,7 +43,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: `"on":
+			expectedOn: `on:
   workflow_dispatch:`,
 		},
 		{
@@ -58,7 +58,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: `"on":
+			expectedOn: `on:
   pull_request:
     branches:
     - main
@@ -79,7 +79,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: `"on":
+			expectedOn: `on:
   issues:
     types:
     - opened
@@ -276,7 +276,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-dispatch.md",
-			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch:",
+			expectedOn:      "on:\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch:",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "test-bot",
 			shouldError:     false,
@@ -294,7 +294,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-schedule.md",
-			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: \"0 9 * * 1\"",
+			expectedOn:      "on:\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: \"0 9 * * 1\"",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "schedule-bot",
 			shouldError:     false,
@@ -313,7 +313,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-multiple.md",
-			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch:",
+			expectedOn:      "on:\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch:",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "multi-bot",
 			shouldError:     false,
