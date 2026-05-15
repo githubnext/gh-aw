@@ -23,12 +23,15 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
  * @returns {boolean}
  */
 function isNonFatalUpdateBranchError(error) {
-  if (typeof error === "object" && error !== null && "status" in error) {
-    if (error.status !== 422) {
-      return false;
-    }
+  const hasStatus = typeof error === "object" && error !== null && "status" in error;
+  if (hasStatus && error.status !== 422) {
+    return false;
   }
 
+  // GitHub update-branch API can return these 422 messages for benign conditions:
+  // - already up to date ("There are no new commits on the base branch")
+  // - cannot auto-update due to conflict ("merge conflict between base and head")
+  // These should not fail safe output processing.
   const message = getErrorMessage(error).toLowerCase();
   return (
     message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head")
