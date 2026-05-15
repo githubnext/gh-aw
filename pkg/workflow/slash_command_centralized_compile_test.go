@@ -84,3 +84,72 @@ tools:
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'triage'")
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 }
+
+func TestCompileWorkflow_SlashCommandRejectsRequiredDispatchInputs(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-dispatch-inputs-test")
+
+	markdownPath := filepath.Join(tmpDir, "scout.md")
+	content := `---
+on:
+  slash_command:
+    name: scout
+    strategy: centralized
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Research topic"
+        required: true
+        type: string
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Scout
+`
+	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(markdownPath)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed when using slash_command")
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	_, statErr := os.Stat(lockPath)
+	require.Error(t, statErr)
+	require.True(t, os.IsNotExist(statErr))
+}
+
+func TestCompileWorkflow_LabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-label-dispatch-inputs-test")
+
+	markdownPath := filepath.Join(tmpDir, "triage.md")
+	content := `---
+on:
+  label_command:
+    name: triage
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Research topic"
+        required: true
+        type: string
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Triage
+`
+	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(markdownPath)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed when using label_command")
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	_, statErr := os.Stat(lockPath)
+	require.Error(t, statErr)
+	require.True(t, os.IsNotExist(statErr))
+}

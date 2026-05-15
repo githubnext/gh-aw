@@ -2,15 +2,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock dependencies before importing the module
-vi.mock("./resolve_mentions.cjs", () => ({
-  resolveMentionsLazily: vi.fn(async (_text, knownAuthors) => ({
-    allowedMentions: knownAuthors,
-    totalMentions: knownAuthors.length,
-    resolvedCount: 0,
-    limitExceeded: false,
-  })),
-  isPayloadUserBot: vi.fn(user => user?.type === "Bot"),
-}));
+vi.mock("./resolve_mentions.cjs", () => {
+  return {
+    resolveMentionsLazily: vi.fn(async (_text, knownAuthors) => ({
+      allowedMentions: knownAuthors,
+      totalMentions: knownAuthors.length,
+      resolvedCount: 0,
+      limitExceeded: false,
+    })),
+    isPayloadUserBot: vi.fn(user => user?.type === "Bot"),
+  };
+});
 
 vi.mock("./error_helpers.cjs", () => ({
   getErrorMessage: vi.fn(err => (err instanceof Error ? err.message : String(err))),
@@ -366,5 +368,19 @@ describe("resolveAllowedMentionsFromPayload", () => {
       allowTeamMembers: false,
     });
     expect(result).toContain("trusted-user");
+  });
+
+  it("does not include copilot by default", async () => {
+    const context = {
+      eventName: "workflow_dispatch",
+      actor: "actor",
+      payload: {},
+      repo: { owner: "owner", repo: "repo" },
+    };
+    const result = await resolveAllowedMentionsFromPayload(context, mockGithub, mockCore, {
+      allowContext: false,
+      allowTeamMembers: false,
+    });
+    expect(result).not.toContain("copilot");
   });
 });

@@ -2396,6 +2396,41 @@ describe("add_comment", () => {
       expect(capturedBody).not.toContain("`@PRAuthor`");
     });
 
+    it("should neutralize @copilot mention by default", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.payload = {
+        pull_request: {
+          number: 8535,
+          user: { login: "PRAuthor", type: "User" },
+        },
+      };
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedBody = params.body;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "@copilot review all comments",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toBeDefined();
+      expect(capturedBody).toContain("`@copilot`");
+    });
+
     it("should fetch and preserve issue author for explicit item_number", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
