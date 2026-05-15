@@ -69,7 +69,7 @@
 #   - node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
 
 name: "Daily Security Observability Report"
-"on":
+on:
   schedule:
   - cron: "49 15 * * *"
     # Friendly format: daily (scattered)
