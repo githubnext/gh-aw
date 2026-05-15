@@ -183,6 +183,52 @@ steps:
 		assert.Contains(t, result, "run: echo $NEW_TOKEN", "run should be rewritten to env var")
 	})
 
+	t.Run("hoists github token expression from run to env binding", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: 'gh api repos/${{ github.repository }} -H "Authorization: Bearer ${{ github.token }}"'
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"run": `gh api repos/${{ github.repository }} -H "Authorization: Bearer ${{ github.token }}"`,
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, "Authorization: Bearer $GH_AW_GITHUB_TOKEN", "run should use hoisted github token binding")
+		assert.Contains(t, result, "GH_AW_GITHUB_TOKEN: ${{ github.token }}", "github.token expression should be bound in env")
+	})
+
+	t.Run("hoists env expression from run to env binding", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo ${{ env.RUNTIME_TOKEN }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"run": "echo ${{ env.RUNTIME_TOKEN }}",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, "run: echo $GH_AW_ENV_RUNTIME_TOKEN", "run should use hoisted env binding")
+		assert.Contains(t, result, "GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}", "env expression should be bound in step env")
+	})
+
 	t.Run("no-op when no inline run secrets are present", func(t *testing.T) {
 		content := `---
 on: push
