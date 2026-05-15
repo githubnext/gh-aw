@@ -705,31 +705,6 @@ func resolveSafeOutputsEnvironment(data *WorkflowData) string {
 	return data.Environment
 }
 
-// buildDetectionSuccessCondition builds the condition to check if detection passed.
-// Detection runs in a separate detection job that only succeeds (result == 'success') when
-// the analysis worked, the output was parsed, and no threats were found. When threats are
-// detected the detection job exits with a non-zero code, giving it a 'failure' result.
-func buildDetectionSuccessCondition() ConditionNode {
-	return BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
-		BuildStringLiteral("success"),
-	)
-}
-
-// buildDetectionPassedCondition builds the condition to check if the detection job either
-// succeeded (no threats found) or was skipped (agent produced no outputs or patch — nothing
-// to detect against). Use this for downstream jobs that must run in both cases, such as
-// update_cache_memory and push_repo_memory.
-func buildDetectionPassedCondition() ConditionNode {
-	return BuildOr(
-		buildDetectionSuccessCondition(),
-		BuildEquals(
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
-			BuildStringLiteral("skipped"),
-		),
-	)
-}
-
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
 // items manifest and temporary ID map as a separate artifact. The step always runs
 // (if: always()) so the files are available to the audit command even if some safe

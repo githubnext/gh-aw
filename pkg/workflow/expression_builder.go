@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -163,6 +165,123 @@ func buildDispatchSourceEventCondition(includeIssues bool, includePullRequests b
 		return BuildBooleanLiteral(false)
 	}
 	return BuildDisjunction(false, terms...)
+}
+
+// buildCommentAuthorAssociationCondition returns a ConditionNode that passes for non-comment
+// events and for comment events whose author is an OWNER, MEMBER, or COLLABORATOR.
+// Actors listed in bots (from on.bots) are also exempted so that bot/app-triggered workflows
+// continue to work even though bots rarely carry an OWNER/MEMBER/COLLABORATOR association.
+func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
+	notIssueComment := BuildNotEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("issue_comment"),
+	)
+	notPRReviewComment := BuildNotEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("pull_request_review_comment"),
+	)
+	notCommentEvent := BuildAnd(notIssueComment, notPRReviewComment)
+
+	authorizedAssoc := BuildFunctionCall(
+		"contains",
+		BuildFunctionCall("fromJSON", BuildStringLiteral(`["OWNER","MEMBER","COLLABORATOR"]`)),
+		BuildPropertyAccess("github.event.comment.author_association"),
+	)
+
+	result := BuildOr(notCommentEvent, authorizedAssoc)
+	if len(bots) > 0 {
+		botTerms := make([]ConditionNode, len(bots))
+		for i, bot := range bots {
+			botTerms[i] = BuildEquals(
+				BuildPropertyAccess("github.actor"),
+				BuildStringLiteral(bot),
+			)
+		}
+		result = BuildOr(result, BuildDisjunction(false, botTerms...))
+	}
+
+	return result
+}
+
+func buildAuthorAssociationNodeForEvent(eventName string) ConditionNode {
+	switch eventName {
+	case "issue_comment", "pull_request_review_comment", "pull_request_review", "discussion_comment":
+		return BuildPropertyAccess("github.event.comment.author_association")
+	case "issues":
+		return BuildPropertyAccess("github.event.issue.author_association")
+	case "pull_request", "pull_request_target":
+		return BuildPropertyAccess("github.event.pull_request.author_association")
+	default:
+		return &ExpressionNode{Expression: "github.event.comment.author_association || github.event.issue.author_association || github.event.pull_request.author_association || github.event.author_association"}
+	}
+}
+
+// buildSkipAuthorAssociationsCondition returns a condition that evaluates to true when the
+// workflow should continue, and false when the run should be skipped based on:
+// on.skip-author-associations.<event> containing the event-specific author_association field.
+func buildSkipAuthorAssociationsCondition(skipAuthorAssociations map[string][]string) ConditionNode {
+	var eventNames []string
+	for eventName, associations := range skipAuthorAssociations {
+		if len(associations) > 0 {
+			eventNames = append(eventNames, eventName)
+		}
+	}
+	sort.Strings(eventNames)
+
+	var skipTerms []ConditionNode
+	for _, eventName := range eventNames {
+		associations := skipAuthorAssociations[eventName]
+		if len(associations) == 0 {
+			continue
+		}
+
+		associationJSON, err := json.Marshal(associations)
+		if err != nil {
+			continue
+		}
+
+		isConfiguredEvent := BuildEquals(
+			BuildPropertyAccess("github.event_name"),
+			BuildStringLiteral(eventName),
+		)
+		associationIsSkipped := BuildFunctionCall(
+			"contains",
+			BuildFunctionCall("fromJSON", BuildStringLiteral(string(associationJSON))),
+			buildAuthorAssociationNodeForEvent(eventName),
+		)
+		skipTerms = append(skipTerms, BuildAnd(isConfiguredEvent, associationIsSkipped))
+	}
+
+	if len(skipTerms) == 0 {
+		return BuildBooleanLiteral(true)
+	}
+
+	return &NotNode{Child: BuildDisjunction(false, skipTerms...)}
+}
+
+// buildDetectionSuccessCondition builds the condition to check if detection passed.
+// Detection runs in a separate detection job that only succeeds (result == 'success') when
+// the analysis worked, the output was parsed, and no threats were found. When threats are
+// detected the detection job exits with a non-zero code, giving it a 'failure' result.
+func buildDetectionSuccessCondition() ConditionNode {
+	return BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
+		BuildStringLiteral("success"),
+	)
+}
+
+// buildDetectionPassedCondition builds the condition to check if the detection job either
+// succeeded (no threats found) or was skipped (agent produced no outputs or patch — nothing
+// to detect against). Use this for downstream jobs that must run in both cases, such as
+// update_cache_memory and push_repo_memory.
+func buildDetectionPassedCondition() ConditionNode {
+	return BuildOr(
+		buildDetectionSuccessCondition(),
+		BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.DetectionJobName)),
+			BuildStringLiteral("skipped"),
+		),
+	)
 }
 
 // Helper functions for building common GitHub Actions expression patterns

@@ -927,7 +927,7 @@ The codebase uses a consistent pattern for GitHub API operations:
 ```go
 // In create_issue.go
 type CreateIssuesConfig struct { ... }
-func (c *Compiler) parseIssuesConfig(...) *CreateIssuesConfig
+func (c *Compiler) parseCreateIssuesConfig(...) *CreateIssuesConfig
 func (c *Compiler) generateCreateIssuesJob(...) map[string]any
 ```
 

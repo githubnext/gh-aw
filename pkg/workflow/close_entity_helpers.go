@@ -15,8 +15,8 @@
 //
 // # Why Grouped Here vs. Split Like Update-Entity Files
 //
-// The update-entity operations (update_issue_helpers.go,
-// update_discussion_helpers.go, update_pull_request_helpers.go) are split
+// The update-entity operations (update_issue.go,
+// update_discussion.go, update_pull_request.go) are split
 // into one file per entity type because each file owns a distinct type
 // definition (UpdateIssuesConfig, UpdateDiscussionsConfig,
 // UpdatePullRequestsConfig) with different fields per entity.

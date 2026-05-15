@@ -81,6 +81,135 @@ func getEffectiveProjectGitHubToken(customToken string) string {
 	return "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 }
 
+// getEffectivePRCheckoutToken returns the token to use for PR checkout and git operations.
+// Applies the following precedence (highest to lowest):
+//  1. Per-config PAT: create-pull-request.github-token
+//  2. Per-config PAT: push-to-pull-request-branch.github-token
+//  3. GitHub App minted token (if a github-app is configured)
+//  4. safe-outputs level PAT: safe-outputs.github-token
+//  5. Default fallback via getEffectiveSafeOutputGitHubToken()
+//
+// Per-config tokens take precedence over the GitHub App so that individual operations
+// can override the app-wide authentication with a dedicated PAT when needed.
+//
+// Returns:
+//   - token: the effective GitHub Actions token expression to use for git operations
+//   - isCustom: true when a custom non-default token was explicitly configured (per-config PAT, app, or safe-outputs PAT)
+func getEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCustom bool) {
+	if safeOutputs == nil {
+		return getEffectiveSafeOutputGitHubToken(""), false
+	}
+
+	var createPRToken string
+	if safeOutputs.CreatePullRequests != nil {
+		createPRToken = safeOutputs.CreatePullRequests.GitHubToken
+	}
+	var pushToPRBranchToken string
+	if safeOutputs.PushToPullRequestBranch != nil {
+		pushToPRBranchToken = safeOutputs.PushToPullRequestBranch.GitHubToken
+	}
+	perConfigToken := createPRToken
+	if perConfigToken == "" {
+		perConfigToken = pushToPRBranchToken
+	}
+	if perConfigToken != "" {
+		return getEffectiveSafeOutputGitHubToken(perConfigToken), true
+	}
+
+	// GitHub App token takes precedence over the safe-outputs level PAT.
+	if safeOutputs.GitHubApp != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		return "${{ steps.safe-outputs-app-token.outputs.token }}", true
+	}
+
+	if safeOutputs.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.GitHubToken), true
+	}
+
+	return getEffectiveSafeOutputGitHubToken(""), false
+}
+
+// getStaticCheckoutToken returns the effective checkout token as a static GitHub Actions
+// expression (secret reference or default). Unlike getEffectivePRCheckoutToken, this function
+// never returns a step-output expression because step outputs are not accessible outside the job
+// they were created in.
+//
+// Token precedence:
+//  1. checkout.github-token override
+//  2. create-pull-request.github-token
+//  3. push-to-pull-request-branch.github-token
+//  4. safe-outputs.github-token
+//  5. Default fallback (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
+func getStaticCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *CheckoutManager) string {
+	if checkoutMgr != nil {
+		override := checkoutMgr.GetDefaultCheckoutOverride()
+		if override != nil && override.token != "" {
+			return getEffectiveSafeOutputGitHubToken(override.token)
+		}
+	}
+
+	if safeOutputs == nil {
+		return getEffectiveSafeOutputGitHubToken("")
+	}
+
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.CreatePullRequests.GitHubToken)
+	}
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.PushToPullRequestBranch.GitHubToken)
+	}
+	if safeOutputs.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.GitHubToken)
+	}
+
+	return getEffectiveSafeOutputGitHubToken("")
+}
+
+// getEffectiveProjectToken resolves the project token using precedence:
+//  1. Per-config token (e.g., update-project/create-project/create-project-status-update)
+//  2. safe-outputs.github-token
+//  3. GH_AW_PROJECT_GITHUB_TOKEN fallback via getEffectiveProjectGitHubToken()
+func getEffectiveProjectToken(perConfigToken string, safeOutputsToken string) string {
+	token := perConfigToken
+	if token == "" {
+		token = safeOutputsToken
+	}
+	return getEffectiveProjectGitHubToken(token)
+}
+
+// getProjectURLAndToken resolves project URL/token from project-related safe output config.
+// Priority: update-project > create-project-status-update > create-project.
+func getProjectURLAndToken(safeOutputs *SafeOutputsConfig) (projectURL, projectToken string) {
+	if safeOutputs == nil {
+		return "", ""
+	}
+
+	safeOutputsToken := safeOutputs.GitHubToken
+
+	if safeOutputs.UpdateProjects != nil && safeOutputs.UpdateProjects.Project != "" {
+		projectURL = safeOutputs.UpdateProjects.Project
+		projectToken = getEffectiveProjectToken(safeOutputs.UpdateProjects.GitHubToken, safeOutputsToken)
+		tokenLog.Printf("Setting GH_AW_PROJECT_URL from update-project config: %s", projectURL)
+		tokenLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from update-project config")
+		return
+	}
+
+	if safeOutputs.CreateProjectStatusUpdates != nil && safeOutputs.CreateProjectStatusUpdates.Project != "" {
+		projectURL = safeOutputs.CreateProjectStatusUpdates.Project
+		projectToken = getEffectiveProjectToken(safeOutputs.CreateProjectStatusUpdates.GitHubToken, safeOutputsToken)
+		tokenLog.Printf("Setting GH_AW_PROJECT_URL from create-project-status-update config: %s", projectURL)
+		tokenLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project-status-update config")
+		return
+	}
+
+	if safeOutputs.CreateProjects != nil {
+		projectToken = getEffectiveProjectToken(safeOutputs.CreateProjects.GitHubToken, safeOutputsToken)
+		tokenLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project config")
+	}
+
+	return
+}
+
 // getEffectiveCITriggerGitHubToken returns the GitHub token to use for CI trigger operations
 // (pushing empty commits to trigger workflow runs), with precedence:
 // 1. Custom token passed as parameter (e.g., from github-token-for-extra-empty-commit field)

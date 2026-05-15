@@ -28,8 +28,8 @@ type CreateDiscussionsConfig struct {
 	Footer                *string  `yaml:"footer,omitempty"`                  // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
-// parseDiscussionsConfig handles create-discussion configuration
-func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
+// parseCreateDiscussionsConfig handles create-discussion configuration
+func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
 	// Check if the key exists
 	if _, exists := outputMap["create-discussion"]; !exists {
 		return nil

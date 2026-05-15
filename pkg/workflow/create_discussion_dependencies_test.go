@@ -59,9 +59,9 @@ func TestParseDiscussionsConfigDefaultExpiration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := &Compiler{}
-			result := compiler.parseDiscussionsConfig(tt.config)
+			result := compiler.parseCreateDiscussionsConfig(tt.config)
 
-			require.NotNil(t, result, "parseDiscussionsConfig should return a config")
+			require.NotNil(t, result, "parseCreateDiscussionsConfig should return a config")
 			assert.Equal(t, tt.expectedExpires, result.Expires, "Expires value should match expected")
 		})
 	}

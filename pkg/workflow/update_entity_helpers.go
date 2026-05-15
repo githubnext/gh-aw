@@ -14,9 +14,9 @@
 //   - Enable DRY principles for update operations
 //
 // Domain-specific configuration types and parsers live in dedicated files:
-//   - update_issue_helpers.go       — UpdateIssuesConfig, parseUpdateIssuesConfig
-//   - update_discussion_helpers.go  — UpdateDiscussionsConfig, parseUpdateDiscussionsConfig
-//   - update_pull_request_helpers.go — UpdatePullRequestsConfig, parseUpdatePullRequestsConfig
+//   - update_issue.go       — UpdateIssuesConfig, parseUpdateIssuesConfig
+//   - update_discussion.go  — UpdateDiscussionsConfig, parseUpdateDiscussionsConfig
+//   - update_pull_request.go — UpdatePullRequestsConfig, parseUpdatePullRequestsConfig
 //   - update_release.go             — UpdateReleaseConfig, parseUpdateReleaseConfig
 //
 // This follows the helper file conventions documented in the developer instructions.

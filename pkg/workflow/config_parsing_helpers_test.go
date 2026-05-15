@@ -204,7 +204,7 @@ func TestParseIssuesConfigWithHelpers(t *testing.T) {
 		},
 	}
 
-	result := compiler.parseIssuesConfig(outputMap)
+	result := compiler.parseCreateIssuesConfig(outputMap)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -233,7 +233,7 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 		},
 	}
 
-	result := compiler.parsePullRequestsConfig(outputMap)
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -282,7 +282,7 @@ func TestParsePullRequestsConfigExpires(t *testing.T) {
 				},
 			}
 
-			result := compiler.parsePullRequestsConfig(outputMap)
+			result := compiler.parseCreatePullRequestsConfig(outputMap)
 			if result == nil {
 				t.Fatal("expected non-nil result")
 			}
@@ -303,7 +303,7 @@ func TestParseDiscussionsConfigWithHelpers(t *testing.T) {
 		},
 	}
 
-	result := compiler.parseDiscussionsConfig(outputMap)
+	result := compiler.parseCreateDiscussionsConfig(outputMap)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -363,7 +363,7 @@ func TestParseIssuesConfigWithWildcardTargetRepo(t *testing.T) {
 		},
 	}
 
-	result := compiler.parseIssuesConfig(outputMap)
+	result := compiler.parseCreateIssuesConfig(outputMap)
 	if result == nil {
 		t.Errorf("expected non-nil config for wildcard target-repo, got nil")
 	} else if result.TargetRepoSlug != "*" {
@@ -379,7 +379,7 @@ func TestParsePullRequestsConfigWithWildcardTargetRepo(t *testing.T) {
 		},
 	}
 
-	result := compiler.parsePullRequestsConfig(outputMap)
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
 	if result == nil {
 		t.Errorf("expected non-nil config for wildcard target-repo, got nil")
 	} else if result.TargetRepoSlug != "*" {
@@ -396,7 +396,7 @@ func TestParseDiscussionsConfigWithWildcardTargetRepo(t *testing.T) {
 		},
 	}
 
-	result := compiler.parseDiscussionsConfig(outputMap)
+	result := compiler.parseCreateDiscussionsConfig(outputMap)
 	if result == nil {
 		t.Errorf("expected non-nil config for wildcard target-repo, got nil")
 	} else if result.TargetRepoSlug != "*" {
@@ -1165,7 +1165,7 @@ func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
 				},
 			}
 
-			result := compiler.parsePullRequestsConfig(outputMap)
+			result := compiler.parseCreatePullRequestsConfig(outputMap)
 			if result == nil {
 				t.Fatal("expected non-nil result")
 			}
@@ -1394,7 +1394,7 @@ func TestExpressionFieldsRejectedForInvalidStrings(t *testing.T) {
 					field: "not-an-expression",
 				},
 			}
-			result := compiler.parsePullRequestsConfig(outputMap)
+			result := compiler.parseCreatePullRequestsConfig(outputMap)
 			// Must return nil (invalid input is rejected)
 			if result != nil {
 				t.Errorf("expected nil result for invalid bare string in %q, got %+v", field, result)
@@ -1441,7 +1441,7 @@ func TestAllListEncodingForms(t *testing.T) {
 		wantSlice []string // expected []string in the parsed config struct; nil = field absent
 	}
 
-	// Helper: run a single field case through parsePullRequestsConfig.labels and
+	// Helper: run a single field case through parseCreatePullRequestsConfig.labels and
 	// verify the Labels field.
 	runPRLabelsCase := func(t *testing.T, tc listFieldCase) {
 		t.Helper()
@@ -1451,7 +1451,7 @@ func TestAllListEncodingForms(t *testing.T) {
 				"labels": tc.value,
 			},
 		}
-		result := compiler.parsePullRequestsConfig(outputMap)
+		result := compiler.parseCreatePullRequestsConfig(outputMap)
 		if tc.wantSlice == nil {
 			// Invalid input — parser should reject (nil config)
 			if result != nil && len(result.Labels) > 0 {

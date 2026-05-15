@@ -192,7 +192,7 @@ func parseAllowedReposFromConfig(configMap map[string]any) []string {
 //  4. Logs the parsed value with the provided logger
 //
 // Returns true if expires was explicitly disabled with false, false otherwise.
-// This helper consolidates duplicate preprocessing logic used in parseIssuesConfig and parseDiscussionsConfig.
+// This helper consolidates duplicate preprocessing logic used in parseCreateIssuesConfig and parseCreateDiscussionsConfig.
 func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool {
 	expiresDisabled := false
 	if configData != nil {

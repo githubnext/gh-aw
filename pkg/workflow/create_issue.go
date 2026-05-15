@@ -26,8 +26,8 @@ type CreateIssuesConfig struct {
 	Footer               *string  `yaml:"footer,omitempty"`             // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
-// parseIssuesConfig handles create-issue configuration
-func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
+// parseCreateIssuesConfig handles create-issue configuration
+func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
 	// Check if the key exists
 	if _, exists := outputMap["create-issue"]; !exists {
 		return nil

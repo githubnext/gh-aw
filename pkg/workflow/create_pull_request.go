@@ -17,7 +17,7 @@ func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
-	BranchPrefix                   string   `yaml:"branch-prefix,omitempty"`               // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
+	BranchPrefix                   string   `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
 	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`
 	Labels                         []string `yaml:"labels,omitempty"`
 	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
@@ -48,8 +48,8 @@ type CreatePullRequestsConfig struct {
 	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
 }
 
-// parsePullRequestsConfig handles only create-pull-request (singular) configuration
-func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePullRequestsConfig {
+// parseCreatePullRequestsConfig handles only create-pull-request (singular) configuration
+func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *CreatePullRequestsConfig {
 	// Check for singular form only
 	if _, exists := outputMap["create-pull-request"]; !exists {
 		createPRLog.Print("No create-pull-request configuration found")
@@ -88,7 +88,7 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 
 	// Pre-process the expires field (convert to hours before unmarshaling)
 	// Use preprocessExpiresField to handle all types: integers (days), strings (time specs), and boolean false
-	// This is consistent with how parseIssuesConfig and parseDiscussionsConfig handle expires
+	// This is consistent with how parseCreateIssuesConfig and parseCreateDiscussionsConfig handle expires
 	expiresDisabled := preprocessExpiresField(configData, createPRLog)
 	if expiresDisabled {
 		createPRLog.Print("Pull request expiration disabled")

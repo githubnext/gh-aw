@@ -63,7 +63,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			config = &SafeOutputsConfig{}
 
 			// Handle create-issue
-			issuesConfig := c.parseIssuesConfig(outputMap)
+			issuesConfig := c.parseCreateIssuesConfig(outputMap)
 			if issuesConfig != nil {
 				safeOutputsConfigLog.Print("Configured create-issue output handler")
 				config.CreateIssues = issuesConfig
@@ -94,7 +94,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle create-discussion
-			discussionsConfig := c.parseDiscussionsConfig(outputMap)
+			discussionsConfig := c.parseCreateDiscussionsConfig(outputMap)
 			if discussionsConfig != nil {
 				config.CreateDiscussions = discussionsConfig
 			}
@@ -130,7 +130,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle create-pull-request
-			pullRequestsConfig := c.parsePullRequestsConfig(outputMap)
+			pullRequestsConfig := c.parseCreatePullRequestsConfig(outputMap)
 			if pullRequestsConfig != nil {
 				safeOutputsConfigLog.Print("Configured create-pull-request output handler")
 				config.CreatePullRequests = pullRequestsConfig

@@ -103,7 +103,7 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 		// No GitHub App configured for checkout — compute a static secret reference
 		// directly. This is safe because secret references are evaluated in the job's own
 		// context (not through job outputs which would be masked by GitHub Actions).
-		restoreToken = computeStaticCheckoutToken(data.SafeOutputs, checkoutMgr)
+		restoreToken = getStaticCheckoutToken(data.SafeOutputs, checkoutMgr)
 	}
 
 	// Artifact prefix for workflow_call context (so the download name matches the upload name).
@@ -185,7 +185,7 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 // Token precedence:
 //  1. Per-config github-token (configToken)
 //  2. Safe-outputs level github-token
-//  3. fallbackToken (either computeStaticCheckoutToken result or a minted app token)
+//  3. fallbackToken (either getStaticCheckoutToken result or a minted app token)
 func (c *Compiler) addUploadSARIFToken(steps *[]string, data *WorkflowData, configToken string, fallbackToken string) {
 	var safeOutputsToken string
 	if data.SafeOutputs != nil {

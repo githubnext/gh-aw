@@ -138,7 +138,7 @@ func TestParseDiscussionsConfigNormalization(t *testing.T) {
 				},
 			}
 
-			result := compiler.parseDiscussionsConfig(outputMap)
+			result := compiler.parseCreateDiscussionsConfig(outputMap)
 
 			if tt.expectNonNilResult {
 				assert.NotNil(t, result, "Expected non-nil result for category %q", tt.category)
@@ -188,7 +188,7 @@ func TestParseDiscussionsConfigFallbackToIssue(t *testing.T) {
 				"create-discussion": tt.config,
 			}
 
-			result := compiler.parseDiscussionsConfig(outputMap)
+			result := compiler.parseCreateDiscussionsConfig(outputMap)
 
 			assert.NotNil(t, result, "Expected non-nil result")
 			if tt.expectedFallback != nil {
