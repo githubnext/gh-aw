@@ -1397,6 +1397,38 @@ describe("runtime_import", () => {
           expect(core.info).toHaveBeenCalledWith("Skipping already resolved import for shared/agent/foo.md");
         });
 
+        it("should fuzz dedup across equivalent recursive self-import path spellings", async () => {
+          const sharedDir = path.join(workflowsDir, "shared", "agent");
+          fs.mkdirSync(sharedDir, { recursive: true });
+          fs.writeFileSync(path.join(sharedDir, "foo.md"), "<wiki-context>Shared block</wiki-context>");
+
+          const sharedPathVariants = ["shared/agent/foo.md", "./shared/agent/foo.md", ".github/workflows/shared/agent/foo.md", "/.github/workflows/shared/agent/foo.md", "//.github/workflows/shared/agent/foo.md"];
+          const workflowPathVariants = ["my-workflow.md", ".github/workflows/my-workflow.md", "/.github/workflows/my-workflow.md"];
+
+          // Deterministic pseudo-random generator to keep this test stable and reproducible.
+          let seed = 20260515;
+          const nextInt = max => {
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            return seed % max;
+          };
+
+          for (let i = 0; i < 50; i++) {
+            vi.clearAllMocks();
+            const topLevelPath = sharedPathVariants[nextInt(sharedPathVariants.length)];
+            const nestedPath = sharedPathVariants[nextInt(sharedPathVariants.length)];
+            const workflowPath = workflowPathVariants[nextInt(workflowPathVariants.length)];
+
+            fs.writeFileSync(path.join(workflowsDir, "my-workflow.md"), `# Workflow\n\n{{#runtime-import ${nestedPath}}}\n\nDone.`);
+
+            const result = await processRuntimeImports(`{{#runtime-import ${topLevelPath}}}\n{{#runtime-import ${workflowPath}}}`, tempDir);
+
+            expect(result.match(/<wiki-context>Shared block<\/wiki-context>/g)?.length ?? 0).toBe(1);
+            expect(result).toContain("# Workflow");
+            expect(result).toContain("Done.");
+            expect(core.info.mock.calls.some(([msg]) => String(msg).startsWith("Skipping already resolved import for "))).toBe(true);
+          }
+        });
+
         it("should handle deep nesting of imports", async () => {
           // Create a deep chain: level1 -> level2 -> level3 -> level4 -> level5
           fs.writeFileSync(path.join(workflowsDir, "level5.md"), "Level 5");
