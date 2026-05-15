@@ -164,7 +164,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {boolean} signedCommits
  * @returns {boolean}
  */
-function isSignedCommitsDisabled(signedCommits) {
+function isSignedCommitReplayOptedOut(signedCommits) {
   return signedCommits === false;
 }
 
@@ -197,11 +197,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return headSha;
   }
 
-  if (isSignedCommitsDisabled(signedCommits)) {
+  if (isSignedCommitReplayOptedOut(signedCommits)) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
     const headSha = await resolveLocalHeadSha(cwd);
-    core.info(`pushSignedCommits: git push completed with signed commits disabled, using pushed SHA ${headSha}`);
+    core.info(`pushSignedCommits: git push completed with signed commits disabled, using local HEAD SHA ${headSha}`);
     return headSha;
   }
 
