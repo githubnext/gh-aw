@@ -103,7 +103,7 @@
 #   - python:alpine@sha256:6f873e340e6786787a632c919ecfb1d2301eb33ccfbe9f0d0add16cbc0892116
 
 name: "MCP Inspector Agent"
-"on":
+on:
   schedule:
   - cron: "35 18 * * 1"
     # Friendly format: weekly on monday around 18:00 (scattered)

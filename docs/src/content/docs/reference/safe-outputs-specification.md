@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.19.0  
+**Version**: 1.20.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-04-30  
+**Publication Date**: 2026-05-15  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -4229,7 +4229,77 @@ Operations execute in:
 
 **Error Reporting**: All errors collected; execution summary reports per-type results.
 
-### 10.5 Edge Case Behavior
+### 10.5 Warn-Mode Threat Detection Failure Policy
+
+When threat detection executes in `warn` mode and reports a threat signal for a safe output, implementations MUST apply a type-specific fallback policy before any safe output side effect is committed.
+
+**Requirement WTD1 (Reviewable Annotation)**: For safe output types classified as **Reviewable** in Table WTD-A, implementations MUST convert the output into a review-first artifact that includes all of the following:
+
+1. A prominent caution section:
+
+   > [!CAUTION]
+   > agentic threat detected
+   > Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.
+
+2. A visible threat label string: `agentic threat detected`.
+3. An XML comment marker in emitted markdown content: `<!-- agentic threat detected -->`.
+
+**Requirement WTD2 (Convertible Fallback)**: For safe output types classified as **Convertible**, implementations MUST transform the operation into the mapped Reviewable type before execution. For this specification, `push_to_pull_request_branch` (also referred to as `update-pull-request-branch`) MUST fall back to `create_pull_request` with the WTD1 caution, label, and XML marker.
+
+**Requirement WTD3 (Non-Reviewable Abort)**: For safe output types classified as **Abort**, implementations MUST NOT apply the original safe output. Implementations MUST activate a threat-detected code path, emit an explicit failure summary, and return a machine-readable threat-detected error outcome.
+
+**Table WTD-A: Warn-Mode Threat Detection Failure Policy by Safe Output Type**
+
+| Safe output type | Warn-mode failure policy |
+|---|---|
+| `create_issue` | Reviewable |
+| `add_comment` | Reviewable |
+| `create_pull_request` | Reviewable |
+| `noop` | Abort |
+| `comment_memory` | Reviewable |
+| `update_issue` | Reviewable |
+| `close_issue` | Abort |
+| `link_sub_issue` | Abort |
+| `create_discussion` | Reviewable |
+| `update_discussion` | Reviewable |
+| `close_discussion` | Abort |
+| `update_pull_request` | Reviewable |
+| `close_pull_request` | Abort |
+| `merge_pull_request` | Abort |
+| `mark_pull_request_as_ready_for_review` | Abort |
+| `push_to_pull_request_branch` | Convertible (`create_pull_request`) |
+| `create_pull_request_review_comment` | Reviewable |
+| `submit_pull_request_review` | Reviewable |
+| `resolve_pull_request_review_thread` | Abort |
+| `reply_to_pull_request_review_comment` | Reviewable |
+| `add_labels` | Abort |
+| `remove_labels` | Abort |
+| `add_reviewer` | Abort |
+| `assign_milestone` | Abort |
+| `assign_to_agent` | Abort |
+| `assign_to_user` | Abort |
+| `unassign_from_user` | Abort |
+| `hide_comment` | Abort |
+| `create_project` | Abort |
+| `update_project` | Abort |
+| `create_project_status_update` | Reviewable |
+| `update_release` | Reviewable |
+| `upload_asset` | Abort |
+| `dispatch_workflow` | Abort |
+| `create_code_scanning_alert` | Reviewable |
+| `autofix_code_scanning_alert` | Abort |
+| `create_agent_session` | Abort |
+| `missing_tool` | Reviewable |
+| `missing_data` | Reviewable |
+| `report_incomplete` | Reviewable |
+
+**Compliance Testing**:
+
+- **T-WTD-001**: Reviewable outputs include CAUTION block, label text `agentic threat detected`, and XML comment marker.
+- **T-WTD-002**: `push_to_pull_request_branch` in warn-mode threat failure is converted to `create_pull_request`.
+- **T-WTD-003**: Abort-class outputs are not applied and produce threat-detected error outcomes.
+
+### 10.6 Edge Case Behavior
 
 This section defines required behavior for unusual or boundary conditions.
 
@@ -4916,6 +4986,14 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.20.0** (2026-05-15):
+
+- **Added**: Section 10.5 warn-mode threat-detection failure policy with mandatory reviewable annotation requirements (`agentic threat detected` caution, label, and XML marker).
+- **Added**: Per-type policy matrix (Table WTD-A) annotating every safe output type as Reviewable, Convertible, or Abort during warn-mode threat failures.
+- **Added**: Normative conversion fallback from `push_to_pull_request_branch` (`update-pull-request-branch`) to `create_pull_request`.
+- **Added**: Compliance tests T-WTD-001 through T-WTD-003 for warn-mode threat-detection failure handling.
+- **Updated**: Publication metadata to 1.20.0.
 
 **Version 1.19.0** (2026-04-30):
 

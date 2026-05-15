@@ -51,9 +51,9 @@ import (
 var engineValidationLog = newValidationLogger("engine")
 var safeHarnessScriptPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
-// validateEngineVersion warns (non-strict) or errors (strict) when the workflow
-// explicitly pins the engine CLI to "latest". Unpinned "latest" versions change
-// unpredictably and undermine supply chain security guarantees.
+// validateEngineVersion warns when the workflow explicitly pins the engine CLI
+// to "latest". Unpinned "latest" versions change unpredictably and undermine
+// supply chain security guarantees.
 func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Version == "" {
 		// No explicit version set; the compiler uses its own pinned default.
@@ -70,10 +70,6 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 		"This is a supply chain security risk: unpinned 'latest' versions can change unexpectedly " +
 		"and may introduce vulnerabilities or breaking changes. " +
 		"Pin the engine version to a specific version for reproducibility and security."
-
-	if c.strictMode {
-		return fmt.Errorf("strict mode: %s", warningMsg)
-	}
 
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()

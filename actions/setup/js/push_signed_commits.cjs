@@ -184,9 +184,23 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // so skip it entirely and fall directly through to git push.
   if (!baseRef) {
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
-    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
-    core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
-    return headSha;
+    try {
+      const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
+      core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
+      return headSha;
+    } catch (pushErr) {
+      const pushErrMsg = pushErr instanceof Error ? pushErr.message : String(pushErr);
+      throw new Error(
+        `pushSignedCommits: failed to push orphan branch '${branch}' (first commit). ` +
+          `If the repository requires signed commits, the branch must be seeded manually with a signed commit before this workflow can push to it. ` +
+          `Run the following commands locally (requires a GPG key configured with Git):\n\n` +
+          `  git switch --orphan ${branch}\n` +
+          `  git commit --allow-empty -S -m "Initialize ${branch}"\n` +
+          `  git push origin ${branch}\n\n` +
+          `Original error: ${pushErrMsg}`,
+        { cause: pushErr }
+      );
+    }
   }
 
   // Collect the commits introduced (oldest-first) using topological order to ensure

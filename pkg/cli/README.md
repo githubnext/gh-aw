@@ -461,6 +461,7 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/parser` — markdown frontmatter parsing
 - `github.com/github/gh-aw/pkg/console` — terminal output formatting
 - `github.com/github/gh-aw/pkg/logger` — structured debug logging
+- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by CLI package tests
 - `github.com/github/gh-aw/pkg/constants` — engine names, job names, feature flags
 - `github.com/github/gh-aw/pkg/agentdrain` — Drain log anomaly detection for audit analysis
 - `github.com/github/gh-aw/pkg/envutil` — environment variable reading with bounds validation

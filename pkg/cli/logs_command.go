@@ -100,10 +100,10 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository
 
   # Cache maintenance
-  ` + string(constants.CLIExtensionPrefix) + ` logs --after -1w                # Evict local cache older than 1 week before downloading runs
-  ` + string(constants.CLIExtensionPrefix) + ` logs --after -30d               # Evict local cache older than 30 days before downloading runs
-  ` + string(constants.CLIExtensionPrefix) + ` logs --after -1mo               # Evict local cache older than 1 month before downloading runs
-  ` + string(constants.CLIExtensionPrefix) + ` logs --after 2024-01-01         # Evict local cache older than 2024-01-01 before downloading runs`,
+  ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before -1w          # Evict local cache older than 1 week before downloading runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before -30d         # Evict local cache older than 30 days before downloading runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before -1mo         # Evict local cache older than 1 month before downloading runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --cache-before 2024-01-01   # Evict local cache older than 2024-01-01 before downloading runs`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
 
@@ -221,7 +221,12 @@ Examples:
 			train, _ := cmd.Flags().GetBool("train")
 			format, _ := cmd.Flags().GetString("format")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
-			after, _ := cmd.Flags().GetString("after")
+			cacheBefore, _ := cmd.Flags().GetString("cache-before")
+			if !cmd.Flags().Changed("cache-before") {
+				if cmd.Flags().Changed("after") {
+					cacheBefore, _ = cmd.Flags().GetString("after")
+				}
+			}
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -254,7 +259,7 @@ Examples:
 				}
 			}
 
-			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, after=%s", workflowName, count, engine, train, after)
+			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s", workflowName, count, engine, train, cacheBefore)
 
 			return DownloadWorkflowLogs(cmd.Context(), LogsDownloadOptions{
 				WorkflowName:      workflowName,
@@ -281,7 +286,7 @@ Examples:
 				Train:             train,
 				Format:            format,
 				ArtifactSets:      artifacts,
-				After:             after,
+				After:             cacheBefore,
 			})
 		},
 	}
@@ -310,7 +315,10 @@ Examples:
 	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: pretty, markdown (generates security audit report instead of default metrics table)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
 	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
-	logsCmd.Flags().String("after", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1d, -1w, -1mo (or explicit day counts like -30d), or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
+	logsCmd.Flags().String("cache-before", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1d, -1w, -1mo (or explicit day counts like -30d), or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
+	logsCmd.Flags().String("after", "", "Alias for --cache-before")
+	_ = logsCmd.Flags().MarkHidden("after")
+	_ = logsCmd.Flags().MarkDeprecated("after", "use --cache-before")
 	logsCmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of discovering runs via the GitHub API")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 

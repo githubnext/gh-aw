@@ -34,7 +34,7 @@ const { withRetry, isTransientError, RATE_LIMIT_RETRY_CONFIG } = require("./erro
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-const { ensureFullHistoryForBundle } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -83,18 +83,6 @@ function createBundleTempRef(branchName) {
 }
 
 /**
- * Extract prerequisite commit SHAs from git bundle fetch error output.
- * @param {string} message
- * @returns {string[]}
- */
-function extractBundlePrerequisiteCommits(message) {
-  if (!message || !/lacks these prerequisite commits/i.test(message)) {
-    return [];
-  }
-  return [...new Set((message.match(/\b[0-9a-f]{40}\b/gi) || []).map(sha => sha.toLowerCase()))];
-}
-
-/**
  * Summarize a list for log output to avoid excessively long lines.
  * @param {string[]} values
  * @param {number} limit
@@ -129,15 +117,20 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
 
     // Fetch from bundle into a temporary ref, then update the target branch.
     // bundleBranchRef is the source ref inside the bundle (typically refs/heads/<agent-branch>).
-    try {
-      core.info(`Attempting bundle fetch from ${bundleBranchRef} into ${bundleTempRef}`);
-      await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
-    } catch (initialFetchError) {
-      const initialFetchErrorMessage = initialFetchError instanceof Error ? initialFetchError.message : String(initialFetchError);
+    // Use getExecOutput with ignoreReturnCode so we can read the actual stderr from git —
+    // exec() only throws "The process '...' failed with exit code 1" which loses the
+    // "lacks these prerequisite commits" text needed for the recovery path below.
+    core.info(`Attempting bundle fetch from ${bundleBranchRef} into ${bundleTempRef}`);
+    const initialBundleFetch = await execApi.getExecOutput("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`], { ignoreReturnCode: true });
+    if (initialBundleFetch.exitCode !== 0) {
+      const initialFetchErrorOutput = initialBundleFetch.stderr || `exit code ${initialBundleFetch.exitCode}`;
 
       // Recovery path for bundle prerequisite failures: fetch missing prerequisite
       // commit objects, then retry with the original bundle ref.
-      const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorMessage);
+      // This handles the race where main advanced between agent-time and safe_outputs-time:
+      // the bundle's base commit may not be reachable from a fetch-depth:1 shallow clone
+      // even after --unshallow (e.g. when the commit is on a ref not in the fetch refspec).
+      const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
       if (prerequisiteCommits.length > 0) {
         core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
         core.info(`Prerequisite commits: ${summarizeListForLog(prerequisiteCommits)}`);
@@ -154,7 +147,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
       } else {
         // Fallback: resolve the source ref directly from the bundle contents.
         // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
-        core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
+        core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorOutput}; resolving branch ref from bundle heads`);
         core.info(`Inspecting bundle heads from ${bundleFilePath}`);
         const { stdout: bundleHeadsOutput } = await execApi.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
         const branchRefs = bundleHeadsOutput
@@ -169,9 +162,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
           core.info(`Fetching resolved bundle ref ${bundleBranchRef} into ${bundleTempRef}`);
           await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
         } else {
-          throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, {
-            cause: initialFetchError,
-          });
+          throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`);
         }
       }
     }

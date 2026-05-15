@@ -645,6 +645,49 @@ describe("push_signed_commits integration tests", () => {
       // Return value should be the HEAD SHA.
       expect(result).toBe(expectedSha);
     });
+
+    it("should throw with manual seeding instructions when orphan-branch git push fails", async () => {
+      // Simulate a repo where "Require signed commits" is enforced. The orphan-branch
+      // first push uses git push directly, which will be rejected by the remote with
+      // GH013. We simulate this by using a bare repo that refuses the push via a
+      // pre-receive hook.
+      execGit(["checkout", "--orphan", "experiments/signed-required"], { cwd: workDir });
+      execGit(["read-tree", "--empty"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "state.json"), JSON.stringify({ runs: 1 }));
+      execGit(["add", "state.json"], { cwd: workDir });
+      execGit(["commit", "-m", "Initial experiment state"], { cwd: workDir });
+
+      // Install a pre-receive hook in the bare repo that mimics GH013 by rejecting all pushes.
+      const hooksDir = path.join(bareDir, "hooks");
+      fs.mkdirSync(hooksDir, { recursive: true });
+      const hookPath = path.join(hooksDir, "pre-receive");
+      fs.writeFileSync(hookPath, "#!/bin/sh\necho 'remote: error: GH013: Repository rule violations found.' >&2\necho 'remote: - Commits must have verified signatures.' >&2\nexit 1\n");
+      fs.chmodSync(hookPath, "0755");
+
+      // Use the real exec so git push actually runs and hits the hook.
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      let thrownErr;
+      try {
+        await pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "experiments/signed-required",
+          baseRef: "",
+          cwd: workDir,
+        });
+      } catch (err) {
+        thrownErr = err;
+      }
+      expect(thrownErr).toBeDefined();
+      expect(thrownErr.message).toContain("failed to push orphan branch");
+      expect(thrownErr.message).toContain("git switch --orphan experiments/signed-required");
+      expect(thrownErr.message).toContain("git commit --allow-empty -S");
+      expect(thrownErr.message).toContain("git push origin experiments/signed-required");
+      expect(thrownErr.message).toContain("signed commits");
+    });
   });
 
   // ──────────────────────────────────────────────────────

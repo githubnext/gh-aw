@@ -66,7 +66,7 @@
 # Effective stop-time: 2026-02-09 04:24:39
 
 name: "Daily Team Status"
-"on":
+on:
   schedule:
   - cron: "17 9 * * 1-5"
   workflow_dispatch:

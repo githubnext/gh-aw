@@ -142,7 +142,7 @@ Examples:
 	addRepoFlag(cmd)
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
-	cmd.Flags().String("cool-down", "7d", "Cooldown period before applying a new release (e.g. 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories")
+	cmd.Flags().String("cool-down", "7d", coolDownFlagUsage)
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Register completions for update command

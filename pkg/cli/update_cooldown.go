@@ -15,6 +15,8 @@ import (
 
 var cooldownLog = logger.New("cli:update_cooldown")
 
+const coolDownFlagUsage = "Cooldown period before applying a new release (e.g. 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories"
+
 // parseCoolDownFlag parses a cooldown duration string.
 // Accepts day-suffix notation ("7d") or Go duration format ("168h", "0").
 // Returns 0 for "0", "0d", or "0h" (cooldown disabled).

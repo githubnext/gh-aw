@@ -58,7 +58,7 @@
 #   - semgrep/semgrep:latest@sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2
 
 name: "Daily Semgrep Scan"
-"on":
+on:
   schedule:
   - cron: "20 4 * * *"
     # Friendly format: daily (scattered)

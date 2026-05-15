@@ -17,7 +17,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { ensureFullHistoryForBundle, getGitAuthEnv } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 
 /**
@@ -668,8 +668,32 @@ async function main(config = {}) {
             ...baseGitOpts,
           });
 
-          // Fetch from bundle into a temporary ref
-          await exec.exec("git", ["fetch", bundleFilePath, `refs/heads/${message.branch}:${bundleRef}`], baseGitOpts);
+          // Fetch from bundle into a temporary ref.
+          // Use getExecOutput with ignoreReturnCode so we can read the actual stderr from git —
+          // exec() only throws "The process '...' failed with exit code 1" which loses the
+          // "lacks these prerequisite commits" text needed for the recovery path below.
+          const bundleFetchRef = `refs/heads/${message.branch}:${bundleRef}`;
+          const initialBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, bundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
+          if (initialBundleFetch.exitCode !== 0) {
+            const initialFetchErrorOutput = initialBundleFetch.stderr || `exit code ${initialBundleFetch.exitCode}`;
+
+            // Recovery path for bundle prerequisite failures: fetch missing prerequisite
+            // commit objects, then retry with the original bundle ref.
+            // This handles the race where main advanced between agent-time and safe_outputs-time:
+            // the bundle's base commit may not be reachable from a fetch-depth:1 shallow clone
+            // even after --unshallow (e.g. when the commit is on a ref not in the fetch refspec).
+            const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
+            if (prerequisiteCommits.length > 0) {
+              core.warning(`Bundle fetch failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
+              core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
+              await exec.exec("git", ["fetch", "origin", ...prerequisiteCommits], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts });
+              core.info("Fetched prerequisite commits from origin successfully");
+              await exec.exec("git", ["fetch", bundleFilePath, bundleFetchRef], baseGitOpts);
+              core.info("Bundle fetch retry succeeded after prerequisite recovery");
+            } else {
+              throw new Error(`Failed to fetch bundle: ${initialFetchErrorOutput}`);
+            }
+          }
           core.info(`Fetched bundle to ${bundleRef}`);
 
           // Point the checked-out branch at the bundle tip directly. In shallow
