@@ -661,10 +661,7 @@ describe("push_signed_commits integration tests", () => {
       const hooksDir = path.join(bareDir, "hooks");
       fs.mkdirSync(hooksDir, { recursive: true });
       const hookPath = path.join(hooksDir, "pre-receive");
-      fs.writeFileSync(
-        hookPath,
-        "#!/bin/sh\necho 'remote: error: GH013: Repository rule violations found.' >&2\necho 'remote: - Commits must have verified signatures.' >&2\nexit 1\n"
-      );
+      fs.writeFileSync(hookPath, "#!/bin/sh\necho 'remote: error: GH013: Repository rule violations found.' >&2\necho 'remote: - Commits must have verified signatures.' >&2\nexit 1\n");
       fs.chmodSync(hookPath, "0755");
 
       // Use the real exec so git push actually runs and hits the hook.
