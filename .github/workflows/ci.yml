@@ -1008,6 +1008,50 @@ jobs:
 
         echo "✅ **SUCCESS**: All local relative import paths were preserved by gh aw update" >> $GITHUB_STEP_SUMMARY
 
+  integration-update-target-repo:
+    name: Integration Update - Target Repo
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-update-target-repo
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Run gh aw update against githubnext/agentic-ops
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        mkdir -p /tmp/test-update-target-repo-workspace
+        cd /tmp/test-update-target-repo-workspace
+        git init -q
+        git config user.email "test@example.com"
+        git config user.name "Test"
+
+        /home/runner/work/gh-aw/gh-aw/gh-aw update --repo githubnext/agentic-ops --no-compile --verbose
+
   integration-unauthenticated-add:
     name: Integration Unauthenticated Add (Public Repo)
     if: ${{ needs.changes.outputs.has_changes == 'true' }}

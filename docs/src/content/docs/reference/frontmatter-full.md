@@ -4165,6 +4165,12 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
+    # Optional prefix to prepend to the pull request branch name (e.g. "signed/").
+    # Applied before the agent-specified or auto-generated branch name. When set, any
+    # branch name that does not already start with this prefix will have it prepended.
+    # (optional)
+    branch-prefix: "example-value"
+
     # Optional prefix for the pull request title
     # (optional)
     title-prefix: "example-value"

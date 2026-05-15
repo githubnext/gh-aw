@@ -225,6 +225,7 @@ func TestUpdateCommand_HelpText(t *testing.T) {
 	assert.Contains(t, outputStr, "no-merge", "Help should document --no-merge flag")
 	assert.Contains(t, outputStr, "no-redirect", "Help should document --no-redirect flag")
 	assert.Contains(t, outputStr, "disable-security-scanner", "Help should document --disable-security-scanner flag")
+	assert.Contains(t, outputStr, "repo", "Help should document --repo flag")
 	assert.Contains(t, outputStr, "3-way merge", "Help should explain merge behavior")
 
 	// Should reference upgrade for other features
@@ -234,6 +235,21 @@ func TestUpdateCommand_HelpText(t *testing.T) {
 	assert.NotContains(t, outputStr, "--pr", "Help should not mention removed --pr flag")
 	assert.NotContains(t, outputStr, "--audit", "Help should not mention removed --audit flag")
 	assert.NotContains(t, outputStr, "--dry-run", "Help should not mention removed --dry-run flag")
+}
+
+// TestUpdateCommand_RepoFlag verifies that --repo is recognized.
+func TestUpdateCommand_RepoFlag(t *testing.T) {
+	setup := setupUpdateIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Use an invalid repo slug to avoid network calls while still validating flag parsing.
+	cmd := exec.Command(setup.binaryPath, "update", "--repo", "not-a-valid-slug", "--verbose")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	assert.Error(t, err, "Command should fail for invalid repo slug")
+	assert.NotContains(t, outputStr, "unknown flag", "The --repo flag should be recognized")
 }
 
 // --- Merge Behavior Integration Tests ---

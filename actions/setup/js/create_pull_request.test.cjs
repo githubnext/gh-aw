@@ -329,6 +329,188 @@ index 0000000..abc1234
     expect(resolvedFetchCall[1][2]).toMatch(/^refs\/heads\/main:refs\/bundles\/create-pr-ops-review-may09-2026-[a-f0-9]{8}$/);
   });
 
+  it("should fetch prerequisite commits and retry bundle fetch when prerequisites are missing", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    let firstBundleFetchAttempt = true;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
+        firstBundleFetchAttempt = false;
+        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha]);
+    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCalls.length).toBe(2);
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+  });
+
+  it("should fetch all prerequisite commits in a single origin fetch and retry bundle fetch", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha1 = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    const missingSha2 = "aabbccddee1122334455667788990011aabbccdd";
+    let firstBundleFetchAttempt = true;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
+        firstBundleFetchAttempt = false;
+        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha1}\nerror: ${missingSha2}`);
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha1, missingSha2]);
+    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCalls.length).toBe(2);
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+  });
+
+  it("should fail when fetching prerequisite commits from origin fails", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    let firstBundleFetchAttempt = true;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && firstBundleFetchAttempt) {
+        firstBundleFetchAttempt = false;
+        throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+      }
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === "origin" && args[2] === missingSha) {
+        throw new Error("fatal: couldn't connect to 'origin'");
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply bundle");
+    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Failed to apply bundle: fatal: couldn't connect to 'origin'"));
+    const bundleFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(bundleFetchCalls.length).toBe(1);
+  });
+
+  it("should include retry context when bundle fetch still fails after prerequisite recovery", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    const missingSha = "256f08b38d9ce40cfa5d46385551caba8642a9df";
+    let bundleFetchAttempts = 0;
+    global.exec.exec.mockImplementation((cmd, args) => {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath) {
+        bundleFetchAttempts += 1;
+        if (bundleFetchAttempts === 1) {
+          throw new Error(`error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`);
+        }
+        throw new Error("fatal: failed to read bundle");
+      }
+      return Promise.resolve(0);
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to apply bundle");
+    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Bundle fetch failed after fetching 1 prerequisite commit(s): fatal: failed to read bundle"));
+    expect(bundleFetchAttempts).toBe(2);
+  });
+
   it("should not fetch a bundle directly into the target branch", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(
@@ -2594,5 +2776,116 @@ describe("create_pull_request - rate-limit retry", () => {
     expect(secondCall.body).toContain("user1");
     expect(secondCall.body).toContain("user2");
     expect(secondCall.body).toContain("could not be set");
+  });
+});
+
+describe("create_pull_request - branch-prefix config", () => {
+  let originalEnv;
+  let tempDir;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "jsweep";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-branch-prefix-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(undefined) },
+    };
+    global.github = {
+      rest: {
+        pulls: { create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test/pull/1" } }) },
+        repos: { get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }) },
+        issues: { addLabels: vi.fn().mockResolvedValue({}) },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) delete process.env[key];
+    }
+    Object.assign(process.env, originalEnv);
+    if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should prepend branch-prefix to auto-generated branch name when agent provides no branch", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "signed/", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^signed\/jsweep-/);
+  });
+
+  it("should prepend branch-prefix to agent-specified branch name", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "signed/", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body", branch: "my-feature" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^signed\/my-feature/);
+  });
+
+  it("should not double-apply branch-prefix when agent branch already starts with the prefix", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "signed/", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body", branch: "signed/already-prefixed" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^signed\/already-prefixed/);
+    expect(branchArg).not.toMatch(/^signed\/signed\//);
+  });
+
+  it("should not add any prefix when branch-prefix is not configured", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body" }, {});
+
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(branchArg).toMatch(/^jsweep-/);
+    expect(branchArg).not.toContain("signed/");
+  });
+
+  it("should normalize an invalid branch-prefix and emit a warning", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ branch_prefix: "bad prefix: ", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "body" }, {});
+
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringMatching(/branch prefix.*characters that are invalid/i));
+    const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
+    // normalized prefix "bad-prefix" should be applied
+    expect(branchArg).toMatch(/^bad-prefix/);
   });
 });

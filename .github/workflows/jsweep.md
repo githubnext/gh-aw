@@ -30,6 +30,7 @@ safe-outputs:
   create-pull-request:
     expires: 2d
     title-prefix: "[jsweep] "
+    branch-prefix: "signed/"
     labels: [unbloat, automation]
     draft: true
     if-no-changes: "ignore"
