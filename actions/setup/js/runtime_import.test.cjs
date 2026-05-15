@@ -1385,6 +1385,18 @@ describe("runtime_import", () => {
           expect(result).toBe("Outer \nInner  text");
         });
 
+        it("should deduplicate imports already resolved before recursive workflow self-import", async () => {
+          const sharedDir = path.join(workflowsDir, "shared", "agent");
+          fs.mkdirSync(sharedDir, { recursive: true });
+          fs.writeFileSync(path.join(sharedDir, "foo.md"), "<wiki-context>Shared block</wiki-context>");
+          fs.writeFileSync(path.join(workflowsDir, "my-workflow.md"), "# Workflow\n\n{{#runtime-import shared/agent/foo.md}}\n\nDone.");
+
+          const result = await processRuntimeImports("{{#runtime-import .github/workflows/shared/agent/foo.md}}\n{{#runtime-import .github/workflows/my-workflow.md}}", tempDir);
+
+          expect(result).toBe("<wiki-context>Shared block</wiki-context>\n# Workflow\n\n\n\nDone.");
+          expect(core.info).toHaveBeenCalledWith("Skipping already resolved import for shared/agent/foo.md");
+        });
+
         it("should handle deep nesting of imports", async () => {
           // Create a deep chain: level1 -> level2 -> level3 -> level4 -> level5
           fs.writeFileSync(path.join(workflowsDir, "level5.md"), "Level 5");
