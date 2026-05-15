@@ -666,12 +666,12 @@ func TestOTELServiceName(t *testing.T) {
 		assert.Equal(t, "gh-aw.repo-triage-weekly", got)
 	})
 
-	t.Run("falls back to workflow id when workflow name is empty", func(t *testing.T) {
+	t.Run("falls back to workflow ID when workflow name is empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{WorkflowID: "Repo Triage/Weekly"})
 		assert.Equal(t, "gh-aw.repo-triage-weekly", got)
 	})
 
-	t.Run("falls back when workflow name and id are empty", func(t *testing.T) {
+	t.Run("falls back when workflow name and ID are empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{})
 		assert.Equal(t, "gh-aw", got)
 	})
