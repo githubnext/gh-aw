@@ -6,14 +6,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var outcomeEvalEnrichLog = logger.New("cli:outcome_eval_enrich")
 
 // enrichItemsFromAgentOutput reads the raw agent output (safeoutputs.jsonl) and fills in
 // missing fields like issue_number and item_number that the executed manifest may omit.
 func enrichItemsFromAgentOutput(items []CreatedItemReport, runDir string, defaultRepo string) []CreatedItemReport {
+	outcomeEvalEnrichLog.Printf("Enriching items from agent output: items=%d, runDir=%s", len(items), runDir)
 	rawPath := filepath.Join(runDir, "safeoutputs.jsonl")
 	f, err := os.Open(rawPath)
 	if err != nil {
+		outcomeEvalEnrichLog.Printf("No safeoutputs.jsonl available at %s: %v", rawPath, err)
 		return items
 	}
 	defer f.Close()
@@ -41,6 +47,7 @@ func enrichItemsFromAgentOutput(items []CreatedItemReport, runDir string, defaul
 		}
 		rawByType[entry.Type] = append(rawByType[entry.Type], entry)
 	}
+	outcomeEvalEnrichLog.Printf("Parsed safeoutputs.jsonl: %d distinct types", len(rawByType))
 
 	// Match items to raw entries by type and order to fill in missing numbers
 	typeCounters := make(map[string]int)
