@@ -53,6 +53,24 @@ timeout-minutes: 30
 strict: true
 features:
   copilot-requests: true
+experiments:
+  output_format:
+    variants: [detailed, concise]
+    description: "Tests whether a concise executive-summary report outperforms the current exhaustive per-file report on discussion engagement and token efficiency"
+    hypothesis: "H0: no change in discussion engagement. H1: concise variant achieves equal engagement with ≥30% fewer output tokens"
+    metric: discussion_engagement_score
+    secondary_metrics: [output_token_count, run_duration_ms, run_success_rate]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.85"
+      - name: empty_output_rate
+        threshold: "<=0.05"
+    min_samples: 20
+    weight: [50, 50]
+    start_date: "2026-05-16"
+    analysis_type: mann_whitney
+    tags: [output-quality, token-efficiency, daily-workflows]
+    issue: 32390
 
 ---
 {{#runtime-import? .github/shared-instructions.md}}
@@ -359,6 +377,7 @@ Daily Compiler Code Quality Report - YYYY-MM-DD
 
 ---
 
+{{#if experiments.output_format == 'detailed' }}
 ### Files Analyzed Today
 
 <details>
@@ -535,6 +554,31 @@ Based on historical analysis, these files consistently score below 70:
    - Create documentation template
    - Ensure all exported functions have godoc comments
    - Add examples for complex functions
+
+{{/if}}
+{{#if experiments.output_format == 'concise' }}
+### Summary Table
+
+| File | Score | Rating | Top Issue |
+|------|-------|--------|-----------|
+| compiler_orchestrator.go | 82/100 | ✅ Good | File size 859 lines |
+| compiler_jobs.go | 78/100 | ✅ Good | Missing docstrings |
+| compiler_yaml.go | 68/100 | ⚠️ Acceptable | Weak error wrapping |
+[One row per file analyzed today — replace example rows with actual Serena analysis results]
+
+**Avg score**: 76/100 · **Files meeting threshold**: 2/3
+[Replace with real average score and threshold count from today's analysis]
+
+### Top 3 Issues
+1. File size — split `compiler_orchestrator.go` (859 lines)
+2. Missing godoc on 3 exported functions
+3. Weak error context in `compiler_yaml.go`
+[Replace with the actual top 3 issues identified across all analyzed files]
+
+### Recommended Action
+Priority: add godoc comments (estimated 30 min).
+[Replace with the single highest-priority actionable recommendation from today's analysis]
+{{/if}}
 
 ---
 
