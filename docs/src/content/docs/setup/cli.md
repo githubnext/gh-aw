@@ -612,6 +612,20 @@ The `--no-redirect` flag causes `update` to fail when the source workflow has a 
 
 The `--repo/-r` flag runs the update against a different repository. The target repository is checked out in an isolated shallow clone under `.github/aw/updates/<sanitized-repo-id>`. When combined with `--create-pull-request`, the resulting PR is opened against the target repository instead of the current one.
 
+#### `deploy`
+
+Roll out one or more workflows to a target repository through a pull request. The command clones the target repository into an isolated shallow checkout, refreshes existing sourced workflows, adds the requested workflows, recompiles lock files with purge enabled, and opens a pull request against the target repository.
+
+```bash wrap
+gh aw deploy githubnext/agentics/ci-doctor --repo owner/repo
+gh aw deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
+gh aw deploy ./my-workflow.md --repo owner/repo
+```
+
+**Options:** `--repo/-r` (required), `--name/-n`, `--engine/-e`, `--force/-f`, `--append`, `--no-gitattributes`, `--dir/-d`, `--no-stop-after`, `--stop-after`, `--disable-security-scanner`, `--cool-down`
+
+The `--repo` flag is required and accepts `owner/repo` form. The target repository is checked out under `.github/aw/updates/<sanitized-repo-id>` inside the current working tree, so the command must be run from inside a git repository. Workflows already present in the target with a `source` frontmatter field are refreshed through the update phase and skipped by the add phase to avoid duplicate-add errors. The pull request commit title is `chore: deploy agentic workflows`. The default `--cool-down` value is `7d`.
+
 #### `upgrade`
 
 Upgrade repository with latest agent files and apply codemods to all workflows.
