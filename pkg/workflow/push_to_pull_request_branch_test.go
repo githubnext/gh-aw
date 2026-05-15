@@ -241,7 +241,7 @@ safe-outputs:
 	}
 }
 
-func TestPushToPullRequestBranchPushSignedCommitsDisabled(t *testing.T) {
+func TestPushToPullRequestBranchSignedCommitsDisabled(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	testMarkdown := `---
@@ -250,7 +250,7 @@ on:
     types: [opened, synchronize]
 safe-outputs:
   push-to-pull-request-branch:
-    push-signed-commits: false
+    signed-commits: false
 ---
 
 # Test Push to PR Branch Signed Commits Disabled
@@ -273,16 +273,16 @@ safe-outputs:
 	}
 
 	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
-	pushSignedCommits, exists := pushConfig["push_signed_commits"]
+	signedCommits, exists := pushConfig["signed_commits"]
 	if !exists {
-		t.Errorf("Generated workflow should contain push_signed_commits in handler config JSON")
+		t.Errorf("Generated workflow should contain signed_commits in handler config JSON")
 	}
-	pushSignedCommitsBool, isBool := pushSignedCommits.(bool)
+	signedCommitsBool, isBool := signedCommits.(bool)
 	if !isBool {
-		t.Errorf("Expected push_signed_commits to be a bool, got %#v", pushSignedCommits)
+		t.Errorf("Expected signed_commits to be a bool, got %#v", signedCommits)
 	}
-	if pushSignedCommitsBool {
-		t.Errorf("Expected push_signed_commits=false, got %#v", pushSignedCommitsBool)
+	if signedCommitsBool {
+		t.Errorf("Expected signed_commits=false, got %#v", signedCommitsBool)
 	}
 }
 

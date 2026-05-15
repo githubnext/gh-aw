@@ -890,7 +890,7 @@ safe-outputs:
     target: "*"                 # "triggering" (default), "*", or number
     title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
-    push-signed-commits: false  # optional: use git push directly when signed commits are not required
+    signed-commits: false  # optional: use git push directly when signed commits are not required
     protected-files: fallback-to-issue  # create review issue if protected files modified
 ```
 

@@ -757,6 +757,61 @@ This workflow tests the create-pull-request with fallback-as-issue disabled.
 	}
 }
 
+func TestOutputPullRequestSignedCommitsDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "output-pr-signed-commits-test")
+
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[test] "
+    signed-commits: false
+  noop:
+    report-as-issue: false
+---
+
+# Test Output Pull Request Signed Commits Disabled
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr-signed-commits.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with signed-commits: false: %v", err)
+	}
+	if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected create-pull-request configuration to be parsed")
+	}
+	if workflowData.SafeOutputs.CreatePullRequests.SignedCommits == nil {
+		t.Fatal("Expected signed-commits to be set")
+	}
+	if *workflowData.SafeOutputs.CreatePullRequests.SignedCommits {
+		t.Error("Expected signed-commits to be false")
+	}
+
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with signed-commits: false: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+	if !strings.Contains(string(lockContent), `"signed_commits":false`) {
+		t.Error("Expected signed_commits:false in handler config JSON")
+	}
+}
+
 func TestOutputPullRequestFallbackAsIssueDefault(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "output-pr-fallback-default-test")

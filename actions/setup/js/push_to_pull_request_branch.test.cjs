@@ -259,7 +259,7 @@ index 0000000..abc1234
 
     it("should accept disabling signed commits", async () => {
       const module = await loadModule();
-      await module.main({ push_signed_commits: false });
+      await module.main({ signed_commits: false });
 
       expect(mockCore.info).toHaveBeenCalledWith("Push signed commits: false");
     });

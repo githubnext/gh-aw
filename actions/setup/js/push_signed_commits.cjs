@@ -178,7 +178,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   }
 
   if (signedCommits === false) {
-    core.info(`pushSignedCommits: push-signed-commits disabled, using git push directly for branch ${branch}`);
+    core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await exec.exec("git", ["push", "origin", branch], {
       cwd,
       env: { ...process.env, ...(gitAuthEnv || {}) },
@@ -414,7 +414,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
           `submodule entries (mode 160000), or executable bits (mode 100755). ` +
           `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
-          `or set push-signed-commits: false if the repository does not require signed commits.`,
+          `or set signed-commits: false if the repository does not require signed commits.`,
         { cause: err }
       );
     }

@@ -113,7 +113,7 @@ async function main(config = {}) {
   const ignoreMissingBranchFailure = config.ignore_missing_branch_failure === true;
   const fallbackAsPullRequest = config.fallback_as_pull_request !== false;
   const checkBranchProtection = config.check_branch_protection !== false;
-  const signedCommits = config.push_signed_commits !== false;
+  const signedCommits = config.signed_commits !== false;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const maxCount = config.max || 0; // 0 means no limit
