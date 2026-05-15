@@ -97,7 +97,18 @@ const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
  */
 const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
 
-/** @type {Set<string>} Safe output types that remain reviewable in threat-detection warn mode. */
+// Threat-detection warn-mode requirement IDs from safe-outputs specification:
+// - WTD2: Convertible outputs must be mapped to a reviewable type.
+// - WTD3: Non-reviewable outputs must be aborted.
+const WTD2_REQUIREMENT_ID = "WTD2";
+const WTD3_REQUIREMENT_ID = "WTD3";
+
+/**
+ * Safe output types that remain reviewable in threat-detection warn mode.
+ * These handlers produce visible artifacts (issues/comments/PRs/review items) that humans can inspect
+ * before any further automation occurs.
+ * @type {Set<string>}
+ */
 const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
   "create_issue",
   "add_comment",
@@ -124,7 +135,12 @@ const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
 /** @type {Map<string, string>} Safe output types that require conversion to a reviewable type in warn mode. */
 const THREAT_WARNING_CONVERTIBLE_TYPES = new Map([["push_to_pull_request_branch", "create_pull_request"]]);
 
-/** @type {Set<string>} Safe output types that must be aborted in threat-detection warn mode. */
+/**
+ * Safe output types that must be aborted in threat-detection warn mode.
+ * These handlers perform non-reviewable state-changing operations and therefore cannot safely proceed
+ * after a threat warning.
+ * @type {Set<string>}
+ */
 const THREAT_WARNING_ABORT_TYPES = new Set([
   "noop",
   "close_issue",
@@ -518,7 +534,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       const threatPolicy = getThreatWarningPolicy(messageType);
       if (threatPolicy.policy === "abort") {
         const errorCode = "threat_detected_abort_policy";
-        const error = `Threat-detection warn policy aborted "${messageType}" (WTD3): non-reviewable outputs must not be applied when detection conclusion is warning.`;
+        const error = `Threat-detection warn policy aborted "${messageType}" (Requirement ${WTD3_REQUIREMENT_ID}): non-reviewable outputs must not be applied when detection conclusion is warning.`;
         core.warning(`🚫 ${error}`);
         results.push({
           type: messageType,
@@ -532,7 +548,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         continue;
       }
       if (threatPolicy.policy === "convertible") {
-        core.info(`Threat-detection warn policy conversion required for "${messageType}" -> "${threatPolicy.mappedType}" (WTD2)`);
+        core.info(`Threat-detection warn policy conversion required for "${messageType}" -> "${threatPolicy.mappedType}" (${WTD2_REQUIREMENT_ID})`);
       }
     }
 
