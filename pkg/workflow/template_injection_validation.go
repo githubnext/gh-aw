@@ -76,23 +76,6 @@ func hasAnyExpressionInRunContent(yamlContent string) bool {
 	return hasExpressionInRunContent(yamlContent, inlineExpressionRegex)
 }
 
-// hasUnsafeExpressionInRunContent performs a fast line-by-line text scan to determine
-// whether any unsafe context expression (${{ github.event.* }},
-// ${{ steps.*.outputs.* }}, or ${{ inputs.* }}) appears inside the content of a
-// YAML run: block.
-//
-// This is used as an efficient pre-flight check in generateAndValidateYAML.
-// Most compiler-generated workflows place unsafe expressions only in env: values
-// (the compiler's normal output pattern), so the expensive full YAML parse for
-// template-injection validation can be skipped in the common case.
-//
-// The scanner is intentionally lightweight rather than fully conservative: when it
-// encounters `run:` with no inline content (rest == ""), it enters run-block scanning
-// mode and only returns true if a subsequent indented line matches unsafeContextRegex.
-func hasUnsafeExpressionInRunContent(yamlContent string) bool {
-	return hasExpressionInRunContent(yamlContent, unsafeContextRegex)
-}
-
 func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {
 	// Fast-path: no matching expressions anywhere → definitely no violation.
 	if !expressionRegex.MatchString(yamlContent) {
