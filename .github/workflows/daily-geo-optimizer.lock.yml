@@ -1383,8 +1383,10 @@ jobs:
             > /tmp/gh-aw/geo-optimizer/docs-sitemap-audit.json 2>&1 || true
       - name: Audit README via GitHub repository page
         run: |
-          geo audit --url https://github.com/${{ github.repository }} --format json \
+          geo audit --url https://github.com/$GH_AW_GITHUB_REPOSITORY --format json \
             > /tmp/gh-aw/geo-optimizer/readme-audit.json 2>&1 || true
+        env:
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
       - name: Write audit metadata
         run: |
           python3 - <<'EOF'

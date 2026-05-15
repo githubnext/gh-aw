@@ -26,7 +26,7 @@ function isNonFatalUpdateBranchError(error) {
   /** @type {number | undefined} */
   let status;
   if (typeof error === "object" && error !== null && "status" in error) {
-    status = /** @type {{status?: number}} */ error.status;
+    status = /** @type {{status?: number}} */ (error).status;
   }
   if (status !== undefined && status !== 422) {
     return false;
