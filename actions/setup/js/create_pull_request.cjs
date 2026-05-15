@@ -111,10 +111,12 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
 
   try {
     await ensureFullHistoryForBundle(execApi);
+    core.info(`Applying bundle ${bundleFilePath} to ${bundleTargetRef} using temp ref ${bundleTempRef} from ${bundleBranchRef}`);
 
     // Fetch from bundle into a temporary ref, then update the target branch.
     // bundleBranchRef is the source ref inside the bundle (typically refs/heads/<agent-branch>).
     try {
+      core.info(`Attempting bundle fetch from ${bundleBranchRef} into ${bundleTempRef}`);
       await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
     } catch (initialFetchError) {
       const initialFetchErrorMessage = initialFetchError instanceof Error ? initialFetchError.message : String(initialFetchError);
@@ -124,9 +126,14 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
       const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorMessage);
       if (prerequisiteCommits.length > 0) {
         core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
+        core.info(`Prerequisite commits: ${prerequisiteCommits.join(", ")}`);
+        core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
         await execApi.exec("git", ["fetch", "origin", ...prerequisiteCommits]);
+        core.info("Fetched prerequisite commits from origin successfully");
         try {
+          core.info(`Retrying bundle fetch from ${bundleBranchRef} into ${bundleTempRef} after prerequisite recovery`);
           await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
+          core.info("Bundle fetch retry succeeded after prerequisite recovery");
         } catch (retryError) {
           throw new Error(`Bundle fetch failed after fetching ${prerequisiteCommits.length} prerequisite commit(s): ${retryError instanceof Error ? retryError.message : String(retryError)}`, { cause: retryError });
         }
@@ -134,15 +141,18 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
         // Fallback: resolve the source ref directly from the bundle contents.
         // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
         core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorMessage}; resolving branch ref from bundle heads`);
+        core.info(`Inspecting bundle heads from ${bundleFilePath}`);
         const { stdout: bundleHeadsOutput } = await execApi.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
         const branchRefs = bundleHeadsOutput
           .split("\n")
           .map(line => line.trim().split(/\s+/)[1] || "")
           .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
+        core.info(`Bundle list-heads returned ${branchRefs.length} candidate branch ref(s): ${branchRefs.join(", ") || "(none)"}`);
 
         if (branchRefs.length === 1) {
           bundleBranchRef = branchRefs[0];
           core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
+          core.info(`Fetching resolved bundle ref ${bundleBranchRef} into ${bundleTempRef}`);
           await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
         } else {
           throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`, {
@@ -161,8 +171,9 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
   } finally {
     try {
       await execApi.exec("git", ["update-ref", "-d", bundleTempRef]);
-    } catch {
+    } catch (cleanupError) {
       // Non-fatal cleanup
+      core.info(`Non-fatal cleanup: failed to delete temporary bundle ref ${bundleTempRef}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
     }
   }
 }
