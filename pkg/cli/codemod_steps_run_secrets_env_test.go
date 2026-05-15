@@ -282,6 +282,7 @@ steps:
 		assert.Contains(t, result, "$GH_AW_SECRET_RUNTIME_TOKEN_", "run should reference synthesized env vars")
 		envBindings := regexp.MustCompile(`GH_AW_SECRET_RUNTIME_TOKEN_[0-9a-f]{8}:`).FindAllString(result, -1)
 		assert.Len(t, envBindings, 2, "complex expressions should not collide on env var names")
+		assert.NotEqual(t, envBindings[0], envBindings[1], "different expressions should produce different hashed binding names")
 	})
 
 	t.Run("hoists mixed expressions with deduplicated bindings", func(t *testing.T) {

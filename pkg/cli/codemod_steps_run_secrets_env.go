@@ -349,6 +349,8 @@ func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
 	return "", "", false
 }
 
+// hashedBindingName returns a collision-resistant binding key by suffixing
+// the caller-provided prefix with a stable hash of the expression body.
 func hashedBindingName(prefix, body string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(body))

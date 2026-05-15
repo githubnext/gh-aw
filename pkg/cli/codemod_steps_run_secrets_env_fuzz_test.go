@@ -139,6 +139,8 @@ func countEnvBindingKey(content, key string) int {
 	return count
 }
 
+// countEnvBindingKeyPrefix counts env binding keys by prefix for hashed names
+// where only the deterministic prefix is known in advance.
 func countEnvBindingKeyPrefix(content, keyPrefix string) int {
 	count := 0
 	for line := range strings.SplitSeq(content, "\n") {
