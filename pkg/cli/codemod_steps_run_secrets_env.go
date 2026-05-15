@@ -11,10 +11,9 @@ import (
 var stepsRunSecretsEnvCodemodLog = logger.New("cli:codemod_steps_run_secrets_env")
 
 var (
-	stepsAnyExprRe         = regexp.MustCompile(`\$\{\{\s*(.*?)\s*\}\}`)
-	stepsSecretBodyExprRe  = regexp.MustCompile(`^secrets\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\|\|.*)?$`)
-	stepsEnvBodyExprRe     = regexp.MustCompile(`^env\.([A-Za-z_][A-Za-z0-9_]*)$`)
-	stepsGitHubTokenBodyRe = regexp.MustCompile(`^github\.token$`)
+	stepsAnyExprRe        = regexp.MustCompile(`\$\{\{\s*(.*?)\s*\}\}`)
+	stepsSecretBodyExprRe = regexp.MustCompile(`^secrets\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\|\|.*)?$`)
+	stepsEnvBodyExprRe    = regexp.MustCompile(`^env\.([A-Za-z_][A-Za-z0-9_]*)$`)
 )
 
 // getStepsRunSecretsToEnvCodemod creates a codemod that moves secrets interpolated directly
@@ -327,7 +326,7 @@ func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
 		return "GH_AW_ENV_" + envName, fmt.Sprintf("${{ env.%s }}", envName), true
 	}
 
-	if stepsGitHubTokenBodyRe.MatchString(strings.ToLower(body)) {
+	if body == "github.token" {
 		return "GH_AW_GITHUB_TOKEN", "${{ github.token }}", true
 	}
 

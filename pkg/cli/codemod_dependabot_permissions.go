@@ -33,7 +33,7 @@ func getDependabotPermissionsCodemod() Codemod {
 				return ensureToolsetPermissions(lines, missingPermissions)
 			})
 			if applied {
-				dependabotPermissionsCodemodLog.Printf("Added missing permissions for GitHub toolsets: %v", mapsToSortedKeys(missingPermissions))
+				dependabotPermissionsCodemodLog.Printf("Added missing permissions for GitHub toolsets: %v", sortedMissingPermissionKeys(missingPermissions))
 			}
 			return newContent, applied, err
 		},
@@ -245,8 +245,4 @@ func sortedRemainingPermissionKeys(remaining map[string]workflow.PermissionLevel
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-func mapsToSortedKeys(missing map[workflow.PermissionScope]workflow.PermissionLevel) []string {
-	return sortedMissingPermissionKeys(missing)
 }
