@@ -396,6 +396,7 @@ This is a test workflow.
 
 	// Compile without emitting
 	err = CompileWorkflowDataWithValidation(
+		context.Background(),
 		compiler,
 		workflowData,
 		testFile,
@@ -794,6 +795,7 @@ This is a test workflow.
 			// require Docker, but this test verifies the API contract that
 			// security tools are independent of the validate flag.
 			err = CompileWorkflowDataWithValidation(
+				context.Background(),
 				compiler,
 				workflowData,
 				testFile,
