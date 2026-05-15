@@ -143,9 +143,9 @@ function sanitizeContent(content, maxLengthOrOptions) {
   return sanitized.trim();
 
   /**
-   * Normalize configured allowed aliases into an array to avoid iterating string
-   * inputs character-by-character during alias expansion.
-   * @param {unknown} aliases
+   * Normalize configured allowed aliases into an array so string inputs are
+   * treated as one alias instead of being iterated character-by-character.
+   * @param {string | string[] | undefined} aliases
    * @returns {string[]}
    */
   function normalizeAllowedAliases(aliases) {
