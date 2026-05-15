@@ -97,8 +97,8 @@ export default defineConfig({
 
 		// Organization Practices moved under Guides
 		'/organization-practices/': '/gh-aw/guides/organization-practices/',
-		'/organization-practices/safe-rollout/': '/gh-aw/guides/organization-practices/safe-rollout/',
-		'/organization-practices/sharing-workflows/': '/gh-aw/guides/organization-practices/sharing-workflows/',
+		'/organization-practices/safe-rollout/': '/gh-aw/practices/safe-rollout/',
+		'/organization-practices/sharing-workflows/': '/gh-aw/practices/sharing-workflows/',
 
 		// Guides → Patterns renames
 		'/guides/chatops/': '/gh-aw/patterns/chat-ops/',
@@ -142,6 +142,8 @@ export default defineConfig({
 		// Guides → new locations
 		'/guides/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
 		'/patterns/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
+		'/guides/organization-practices/safe-rollout/': '/gh-aw/practices/safe-rollout/',
+		'/guides/organization-practices/sharing-workflows/': '/gh-aw/practices/sharing-workflows/',
 		'/guides/custom-otlp-attributes/': '/gh-aw/reference/open-telemetry/',
 		'/guides/telemetry/': '/gh-aw/reference/open-telemetry/',
 		'/guides/getting-started-mcp/': '/gh-aw/guides/mcps/',
@@ -301,14 +303,20 @@ export default defineConfig({
 						{ label: 'Maintaining Repositories', link: '/guides/maintaining-repos/' },
 						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
 						{ label: 'Organization Practices', link: '/guides/organization-practices/' },
-						{ label: 'Safe Rollout', link: '/guides/organization-practices/safe-rollout/' },
-						{ label: 'Sharing Workflows', link: '/guides/organization-practices/sharing-workflows/' },
+
 						{ label: 'Reusing Workflows', link: '/guides/packaging-imports/' },
 						{ label: 'Serena', link: '/guides/serena/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
 						{ label: 'Upgrading Workflows', link: '/guides/upgrading/' },
 						{ label: 'Self-Hosted Runners', link: '/guides/self-hosted-runners/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
+					],
+				},
+				{
+					label: 'Practices',
+					items: [
+						{ label: 'Safe Rollout', link: '/practices/safe-rollout/' },
+						{ label: 'Sharing Workflows', link: '/practices/sharing-workflows/' },
 					],
 				},
 				{
@@ -404,6 +412,7 @@ export default defineConfig({
 				},
 				{
 					label: 'Experimental',
+					collapsed: true,
 					items: [
 						{ label: 'AWF Reflect Route', link: '/experimental/awf-reflect/' },
 						{ label: 'CorrectionOps', link: '/experimental/correction-ops/' },
