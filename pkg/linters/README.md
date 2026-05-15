@@ -4,8 +4,9 @@ The `linters` package namespace contains custom static analysis linters used by 
 
 ## Overview
 
-This package currently provides one custom Go analyzer in the `largefunc` subpackage:
+This package currently provides custom Go analyzers in the following subpackages:
 
+- `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
 - `largefunc` — reports function bodies that exceed a configurable line-count threshold.
 
 ## Public API
@@ -14,14 +15,19 @@ This package currently provides one custom Go analyzer in the `largefunc` subpac
 
 | Subpackage | Description |
 |------------|-------------|
+| `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
 | `largefunc` | Custom `go/analysis` analyzer that flags large functions with actionable diagnostics |
 
 ## Usage Examples
 
 ```go
-import "github.com/github/gh-aw/pkg/linters/largefunc"
+import (
+	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
+	"github.com/github/gh-aw/pkg/linters/largefunc"
+)
 
 // Use with multichecker, singlechecker, or custom go/analysis driver.
+_ = excessivefuncparams.Analyzer
 _ = largefunc.Analyzer
 ```
 
@@ -38,6 +44,7 @@ _ = largefunc.Analyzer
 ## Design Notes
 
 - The package is intentionally organized as a namespace (`pkg/linters/*`) so individual analyzers remain isolated and independently testable.
+- `excessivefuncparams` exposes a `-max-params` analyzer flag and defaults to `8` parameters (`DefaultMaxParams`).
 - `largefunc` exposes a `-max-lines` analyzer flag and defaults to `60` lines (`DefaultMaxLines`).
 
 ---
