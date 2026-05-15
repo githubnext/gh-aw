@@ -453,14 +453,20 @@ func otelServiceName(workflowData *WorkflowData) string {
 		return defaultServiceName
 	}
 
-	// SanitizeWorkflowName lowercases the workflow ID and converts separators/special
-	// characters (spaces, slashes, etc.) to hyphens so the service suffix is stable
-	// and consistent in backend filtering (for example "Repo Triage/Weekly" becomes
-	// "repo-triage-weekly").
-	sanitizedWorkflowID := SanitizeWorkflowName(workflowData.WorkflowID)
-	if sanitizedWorkflowID == "" {
+	// Prefer the compiled workflow name because it also reflects workflow_call
+	// invocations; fall back to WorkflowID for compatibility in edge/test cases.
+	workflowCallName := strings.TrimSpace(workflowData.Name)
+	if workflowCallName == "" {
+		workflowCallName = workflowData.WorkflowID
+	}
+
+	// SanitizeWorkflowName lowercases the workflow identifier and converts
+	// separators/special characters (spaces, slashes, etc.) to hyphens so the
+	// service suffix is stable and backend-friendly.
+	sanitizedWorkflowName := SanitizeWorkflowName(workflowCallName)
+	if sanitizedWorkflowName == "" {
 		return defaultServiceName
 	}
 
-	return defaultServiceName + "." + sanitizedWorkflowID
+	return defaultServiceName + "." + sanitizedWorkflowName
 }

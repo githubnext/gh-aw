@@ -358,10 +358,10 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Equal(t, 1, strings.Count(wd.Env, "env:"), "should have exactly one env: key")
 	})
 
-	t.Run("OTEL_SERVICE_NAME includes sanitized workflow id when available", func(t *testing.T) {
+	t.Run("OTEL_SERVICE_NAME includes sanitized workflow name when available", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{
-			WorkflowID: "Repo Triage/Weekly",
+			Name: "Repo Triage/Weekly",
 			ParsedFrontmatter: &FrontmatterConfig{
 				Observability: &ObservabilityConfig{
 					OTLP: &OTLPConfig{Endpoint: "https://otel.corp.com"},
@@ -369,7 +369,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 			},
 		}
 		c.injectOTLPConfig(wd)
-		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw.repo-triage-weekly", "service name should include sanitized workflow id")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw.repo-triage-weekly", "service name should include sanitized workflow name")
 	})
 
 	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS when headers are configured", func(t *testing.T) {
@@ -661,12 +661,17 @@ func TestInjectOTLPConfig_HeadersPresenceAfterInjection(t *testing.T) {
 }
 
 func TestOTELServiceName(t *testing.T) {
-	t.Run("uses workflow-specific service name when workflow id is present", func(t *testing.T) {
+	t.Run("uses workflow-specific service name when workflow name is present", func(t *testing.T) {
+		got := otelServiceName(&WorkflowData{Name: "Repo Triage/Weekly"})
+		assert.Equal(t, "gh-aw.repo-triage-weekly", got)
+	})
+
+	t.Run("falls back to workflow id when workflow name is empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{WorkflowID: "Repo Triage/Weekly"})
 		assert.Equal(t, "gh-aw.repo-triage-weekly", got)
 	})
 
-	t.Run("falls back when workflow id is empty", func(t *testing.T) {
+	t.Run("falls back when workflow name and id are empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{})
 		assert.Equal(t, "gh-aw", got)
 	})
