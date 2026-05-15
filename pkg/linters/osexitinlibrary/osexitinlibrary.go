@@ -4,6 +4,7 @@ package osexitinlibrary
 
 import (
 	"go/ast"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -35,6 +36,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
+		if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(filepath.Base(pass.Fset.Position(call.Pos()).Filename), "_test.go") {
+			return
+		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
 		if !ok {
 			return
