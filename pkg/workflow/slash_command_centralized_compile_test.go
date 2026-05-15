@@ -9,7 +9,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
-	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,7 +85,7 @@ tools:
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 }
 
-func TestCompileWorkflow_SlashCommandCentralizedMakesDispatchInputsOptional(t *testing.T) {
+func TestCompileWorkflow_SlashCommandCentralizedRejectsRequiredDispatchInputs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-dispatch-inputs-test")
 
 	markdownPath := filepath.Join(tmpDir, "scout.md")
@@ -111,24 +110,36 @@ tools:
 	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
 
 	compiler := NewCompiler()
-	require.NoError(t, compiler.CompileWorkflow(markdownPath))
+	err := compiler.CompileWorkflow(markdownPath)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed with slash_command or label_command")
+}
 
-	lockPath := stringutil.MarkdownToLockFile(markdownPath)
-	lockContent, err := os.ReadFile(lockPath)
-	require.NoError(t, err)
+func TestCompileWorkflow_LabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-label-dispatch-inputs-test")
 
-	var workflow map[string]any
-	require.NoError(t, yaml.Unmarshal(lockContent, &workflow))
+	markdownPath := filepath.Join(tmpDir, "triage.md")
+	content := `---
+on:
+  label_command:
+    name: triage
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Research topic"
+        required: true
+        type: string
+tools:
+  github:
+    allowed: [list_issues]
+---
 
-	onMap, ok := workflow["on"].(map[string]any)
-	require.True(t, ok, "expected 'on' to be a map")
-	workflowDispatch, ok := onMap["workflow_dispatch"].(map[string]any)
-	require.True(t, ok, "expected 'on.workflow_dispatch' to be a map")
-	inputs, ok := workflowDispatch["inputs"].(map[string]any)
-	require.True(t, ok, "expected 'on.workflow_dispatch.inputs' to be a map")
-	topic, ok := inputs["topic"].(map[string]any)
-	require.True(t, ok, "expected topic input to be present in workflow_dispatch inputs")
-	required, ok := topic["required"].(bool)
-	require.True(t, ok, "expected topic.required to be a boolean")
-	require.False(t, required)
+# Triage
+`
+	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(markdownPath)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed with slash_command or label_command")
 }
