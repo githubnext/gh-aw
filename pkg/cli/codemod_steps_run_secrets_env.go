@@ -11,7 +11,8 @@ import (
 var stepsRunSecretsEnvCodemodLog = logger.New("cli:codemod_steps_run_secrets_env")
 
 var (
-	stepsAnyExprRe        = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
+	stepsAnyExprRe = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
+	// Intentionally excludes fallback forms like `secrets.NAME || 'default'`.
 	stepsSecretBodyExprRe = regexp.MustCompile(`^secrets\.([A-Za-z_][A-Za-z0-9_]*)$`)
 	stepsEnvBodyExprRe    = regexp.MustCompile(`^env\.([A-Za-z_][A-Za-z0-9_]*)$`)
 )
