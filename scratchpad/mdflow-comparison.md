@@ -778,7 +778,7 @@ If you find critical issues, create a GitHub issue with:
 - **More structured**: Expect more configuration, stricter validation
 - **Event-driven**: Workflows run automatically, not on command
 - **Security-focused**: Explicit permissions, sandboxing, validation
-- **GitHub-native**: Deep integration with Issues, PRs, Actions
+- **GitHub-native**: Native integration with Issues, PRs, Actions
 
 ### For gh-aw Users Looking at mdflow:
 

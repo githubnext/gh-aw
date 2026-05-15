@@ -79,6 +79,15 @@ func TestRunForecast_InvalidDays(t *testing.T) {
 	require.Error(t, err, "should error for days=90 (max is 30)")
 }
 
+func TestNewForecastCommand_DaysFlagDocumentsAllowedValues(t *testing.T) {
+	cmd := NewForecastCommand()
+	require.NotNil(t, cmd)
+
+	daysFlag := cmd.Flags().Lookup("days")
+	require.NotNil(t, daysFlag, "forecast command should register --days")
+	assert.Equal(t, "Historical window in days to sample run history (allowed values: 7, 30)", daysFlag.Usage)
+}
+
 // ── Duration enrichment ───────────────────────────────────────────────────────
 
 // TestDurationEnrichment verifies that the forecast loop computes Duration from

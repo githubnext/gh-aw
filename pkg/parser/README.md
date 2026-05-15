@@ -257,6 +257,7 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 - `github.com/github/gh-aw/pkg/fileutil` — file existence and path helper utilities
 - `github.com/github/gh-aw/pkg/gitutil` — Git remote and host detection helpers
 - `github.com/github/gh-aw/pkg/jsonutil` — compact JSON marshaling for frontmatter hash computation
+- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by parser package tests
 - `github.com/github/gh-aw/pkg/types` — `BaseMCPServerConfig`
 - `github.com/github/gh-aw/pkg/typeutil` — safe type conversion helpers for dynamic frontmatter
 - `github.com/github/gh-aw/pkg/logger` — debug logging

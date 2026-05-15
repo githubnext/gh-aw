@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d81851916f1e6c8526ae38935b245d6868c5c6b2a08ea1b5e6f9f985833122b4","strict":true,"agent_id":"codex"}
-# gh-aw-manifest: {"version":1,"secrets":["CODEX_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_GRAFANA_HEADERS","GH_AW_OTEL_SENTRY_ENDPOINT","GH_AW_OTEL_SENTRY_HEADERS","GH_AW_REPO_MIND_LIGHT_TOKEN","GITHUB_TOKEN","OPENAI_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.46"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.9","digest":"sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c704c84156d09e136a4784b5bb31475427d23b7c66f653233ad904a3e4c8dc0a","strict":true,"agent_id":"codex"}
+# gh-aw-manifest: {"version":1,"secrets":["CODEX_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_GRAFANA_HEADERS","GH_AW_OTEL_SENTRY_ENDPOINT","GH_AW_OTEL_SENTRY_HEADERS","GITHUB_TOKEN","OPENAI_API_KEY"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.46"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.9","digest":"sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -27,7 +27,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - ../skills/jqschema/SKILL.md
-#     - githubnext/repo-mind-light-aw/.github/workflows/shared/repo-mind-light.md@ca993f50371e3fc138e672335bfc5879e60f3e98
 #     - shared/github-guard-policy.md
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
@@ -40,13 +39,10 @@
 #   - GH_AW_OTEL_GRAFANA_HEADERS
 #   - GH_AW_OTEL_SENTRY_ENDPOINT
 #   - GH_AW_OTEL_SENTRY_HEADERS
-#   - GH_AW_REPO_MIND_LIGHT_TOKEN
 #   - GITHUB_TOKEN
 #   - OPENAI_API_KEY
 #
 # Custom actions used:
-#   - actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-#   - actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
 #   - actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -144,7 +140,6 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.25.46"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_INFO_FRONTMATTER_EMOJI: "🌳"
           GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -244,20 +239,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_6601e4747db843a5_EOF'
+          cat << 'GH_AW_PROMPT_e342d4f941f36eac_EOF'
           <system>
-          GH_AW_PROMPT_6601e4747db843a5_EOF
+          GH_AW_PROMPT_e342d4f941f36eac_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_6601e4747db843a5_EOF'
+          cat << 'GH_AW_PROMPT_e342d4f941f36eac_EOF'
           <safe-output-tools>
           Tools: create_issue(max:5), create_discussion, link_sub_issue(max:50), missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_6601e4747db843a5_EOF
+          GH_AW_PROMPT_e342d4f941f36eac_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_6601e4747db843a5_EOF'
+          cat << 'GH_AW_PROMPT_e342d4f941f36eac_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -286,42 +281,17 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_6601e4747db843a5_EOF
+          GH_AW_PROMPT_e342d4f941f36eac_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_6601e4747db843a5_EOF'
+          cat << 'GH_AW_PROMPT_e342d4f941f36eac_EOF'
           </system>
-          # Repo Mind Light
-          
-          Use Repo Mind Light for repository-context retrieval before broad repo exploration or final decisions.
-          
-          This import exposes a repository-scoped `query` tool through the `repo-mind` MCP server.
-          
-          The server reads from an index built from the repository configured in `config.yaml`.
-          
-          ## Required Usage Pattern
-          
-          1. Use task-provided context, such as an issue body, error message, downloaded data, or candidate theme, to form a focused query.
-          2. Make one focused `query` request before broad repository exploration or final decisions.
-          3. If the first result is sufficient, do not issue more Repo Mind Light queries.
-          4. Make at most one follow-up `query` only when the first result leaves a specific gap that matters to the task.
-          
-          ## Notes
-          
-          - Repo Mind Light is available at the `repo-mind` MCP server with the `query` tool.
-          - Startup and runtime logs are written under `/tmp/gh-aw/mcp-logs/` for debugging.
-          - Use Repo Mind Light when you need repository-local context such as similar incidents, relevant code areas, ownership hints, or related implementation history.
-          - Prefer focused, discriminating queries over broad prompts.
-          - Consumer workflows should still mention Repo Mind Light explicitly in their own task instructions when they require it as an evidence source; this shared prompt guidance is a baseline, not a substitute for workflow-specific direction.
-          - This shared import enables Repo Mind Light for the whole workflow by default. If a consumer needs event-specific gating, pass a GitHub Actions expression through the `run-if` input.
-          
-          
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/skills/jqschema/SKILL.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/issue-arborist.md}}
-          GH_AW_PROMPT_6601e4747db843a5_EOF
+          GH_AW_PROMPT_e342d4f941f36eac_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -348,7 +318,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: "- `repo-mind` — run `repo-mind --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools"
+          GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -400,9 +370,7 @@ jobs:
           retention-days: 1
 
   agent:
-    needs:
-      - activation
-      - repo-mind-light-prep
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -488,38 +456,18 @@ jobs:
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       - name: Fetch issues
         run: |
-          set -euo pipefail
-
           # Create output directory
           mkdir -p /tmp/gh-aw/issues-data
 
           echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
 
-          # Fetch the last 100 open issues that don't have a parent issue.
-          # Use the REST API directly because `gh issue list` probes `/meta`, which
-          # is not exposed by the pre-agent GitHub proxy.
-          curl --fail-with-body --silent --show-error \
-            --cacert /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt \
-            --header "Authorization: Bearer ${GH_TOKEN}" \
-            --header "Accept: application/vnd.github+json" \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            --get "${GITHUB_API_URL}/search/issues" \
-            --data-urlencode "q=repo:${GITHUB_REPOSITORY} is:issue is:open -parent-issue:* sort:updated-desc" \
-            --data-urlencode "per_page=100" \
-            | jq '[.items[] | {
-                number,
-                title,
-                author: .user,
-                createdAt: .created_at,
-                state: (.state | ascii_upcase),
-                url: .html_url,
-                body,
-                labels,
-                updatedAt: .updated_at,
-                closedAt: .closed_at,
-                milestone,
-                assignees
-              }]' \
+          # Fetch the last 100 open issues that don't have a parent issue
+          # Using search filter to exclude issues that are already sub-issues
+          gh issue list --repo "$GITHUB_REPOSITORY" \
+            --search "-parent-issue:*" \
+            --state open \
+            --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
+            --limit 100 \
             > /tmp/gh-aw/issues-data/issues.json
 
           # Generate schema for reference using jqschema
@@ -534,10 +482,10 @@ jobs:
         env:
           GH_HOST: localhost:18443
           GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
-          GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       - name: Configure Git credentials
         env:
@@ -603,35 +551,6 @@ jobs:
           GH_AW_SUB_AGENT_DIR: ".codex/agents"
           GH_AW_SUB_AGENT_EXT: ".md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
-      - name: Download Repo Mind Light index artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: ${{ needs.activation.outputs.artifact_prefix }}repo-mind-light-index
-          path: .index-store
-      - name: Ensure Repo Mind Light directories exist
-        run: |
-          mkdir -p .index-store /tmp/gh-aw/mcp-logs
-          chmod -R a+rwX .index-store /tmp/gh-aw/mcp-logs
-      - env:
-          REPO_MIND_LIGHT_CONFIG_MAP: "{\"yaml\":\"slug: ${{ github.repository }}\\nstore_path: /var/lib/repo-mind-light/index\\nrefresh_if_older_than: 1d\\nconversations:\\n  issue_state: open\\n  pr_state: none\\n  discussion_state: none\\n  ignore_bot_authored: true\\nquery:\\n  preload_query_sources_on_startup: true\\n\"}"
-        name: Write Repo Mind Light config
-        run: "set -euo pipefail\nif printf '%s' \"$REPO_MIND_LIGHT_CONFIG_MAP\" | jq -e . >/dev/null 2>&1; then\n  config_yaml=\"$(printf '%s' \"$REPO_MIND_LIGHT_CONFIG_MAP\" | jq -re '.yaml | select(type == \"string\")')\"\nelse\n  config_yaml=\"${REPO_MIND_LIGHT_CONFIG_MAP#map[yaml:}\"\n  config_yaml=\"${config_yaml%]}\"\nfi\nprintf '%s\\n' \"$config_yaml\" > .repo-mind-light.config.yml\n"
-      - env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.GH_AW_REPO_MIND_LIGHT_TOKEN }}
-          GITHUB_TOKEN: ${{ github.token }}
-          REPO_MIND_LIGHT_CONTAINER_NAME: repo-mind-light-mcp
-          REPO_MIND_LIGHT_IMAGE: ghcr.io/githubnext/repo-mind-light@sha256:e297865cada91f345269b91ee88bfd1915dbe153678976b521a504a4add47a75
-        name: Start Repo Mind Light MCP server
-        run: "set -euo pipefail\ndocker rm -f \"$REPO_MIND_LIGHT_CONTAINER_NAME\" >/dev/null 2>&1 || true\ndocker pull \"$REPO_MIND_LIGHT_IMAGE\"\n\ndocker run -d \\\n  --name \"$REPO_MIND_LIGHT_CONTAINER_NAME\" \\\n  -p 8000:8000 \\\n  -v \"$PWD/.index-store:/var/lib/repo-mind-light/index\" \\\n  -v \"$PWD/.repo-mind-light.config.yml:/tmp/repo-mind-light.config.yml:ro\" \\\n  -e COPILOT_GITHUB_TOKEN \\\n  -e GITHUB_TOKEN \\\n  -e REPO_MIND_LIGHT_CONFIG=/tmp/repo-mind-light.config.yml \\\n  \"$REPO_MIND_LIGHT_IMAGE\"\n"
-      - env:
-          REPO_MIND_LIGHT_CONTAINER_NAME: repo-mind-light-mcp
-        name: Capture initial Repo Mind Light logs
-        run: "docker logs \"$REPO_MIND_LIGHT_CONTAINER_NAME\" \\\n  > /tmp/gh-aw/mcp-logs/repo-mind-light-startup.log 2>&1 || true\n"
-      - env:
-          REPO_MIND_LIGHT_CONTAINER_NAME: repo-mind-light-mcp
-        name: Wait for Repo Mind Light preload readiness
-        run: "set -euo pipefail\nstatus_file='/tmp/gh-aw/mcp-logs/repo-mind-light-preload-status.json'\nstatus_url='http://127.0.0.1:8000/preload-status'\n\nfor attempt in $(seq 1 120); do\n  if ! docker ps --format '{{.Names}}' | grep -Fxq \"$REPO_MIND_LIGHT_CONTAINER_NAME\"; then\n    echo 'Repo Mind Light MCP container exited before preload completed.' >&2\n    docker logs \"$REPO_MIND_LIGHT_CONTAINER_NAME\" >&2 || true\n    exit 1\n  fi\n\n  if response=\"$(curl --silent --fail --max-time 5 \"$status_url\" 2>/dev/null)\"; then\n    printf '%s\\n' \"$response\" > \"$status_file\"\n    ready=\"$(jq -r '.ready' \"$status_file\")\"\n    state=\"$(jq -r '.state' \"$status_file\")\"\n    echo \"Repo Mind Light preload state: ${state}\"\n\n    if test \"$ready\" = 'true'; then\n      echo 'Repo Mind Light preload completed.'\n      exit 0\n    fi\n\n    if test \"$state\" = 'failed' || test \"$state\" = 'cancelled'; then\n      echo \"Repo Mind Light preload ended in unexpected state: ${state}\" >&2\n      docker logs \"$REPO_MIND_LIGHT_CONTAINER_NAME\" >&2 || true\n      exit 1\n    fi\n  fi\n\n  sleep 5\ndone\n\necho 'Timed out waiting for Repo Mind Light preload readiness.' >&2\ndocker logs \"$REPO_MIND_LIGHT_CONTAINER_NAME\" >&2 || true\nexit 1\n"
-
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.46 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46 ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.46 ghcr.io/github/gh-aw-firewall/squid:0.25.46 ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388 ghcr.io/github/github-mcp-server:v1.0.4 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
       - name: Generate Safe Outputs Config
@@ -639,9 +558,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_4c105a62e35cd4f8_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_3aa4c16ce0b74094_EOF'
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[Issue Arborist] "},"create_issue":{"expires":48,"group":true,"max":5,"title_prefix":"[Parent] "},"create_report_incomplete_issue":{},"link_sub_issue":{"max":50},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_4c105a62e35cd4f8_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_3aa4c16ce0b74094_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -881,9 +800,8 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="codex"
-          export GH_AW_MCP_CLI_SERVERS='["repo-mind","safeoutputs"]'
-          echo GH_AW_MCP_CLI_SERVERS='["repo-mind","safeoutputs"]' >> "$GITHUB_ENV"
-          export MCP_GATEWAY_TOOL_TIMEOUT=300
+          export GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'
+          echo GH_AW_MCP_CLI_SERVERS='["safeoutputs"]' >> "$GITHUB_ENV"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           case "${DOCKER_HOST:-}" in
@@ -892,23 +810,15 @@ jobs:
             * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;
           esac
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e MCP_GATEWAY_TOOL_TIMEOUT -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.9'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.9'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_cb479bf5fc94482b_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_f00f03c511cc2a39_EOF
           [history]
           persistence = "none"
           
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
-          
-          [mcp_servers.repo-mind]
-          url = "http://host.docker.internal:8000/mcp"
-          
-          [mcp_servers.repo-mind."guard-policies"]
-          
-          [mcp_servers.repo-mind."guard-policies".write-sink]
-          accept = ["*"]
           
           [mcp_servers.safeoutputs]
           type = "http"
@@ -921,27 +831,13 @@ jobs:
           
           [mcp_servers.safeoutputs."guard-policies".write-sink]
           accept = ["*"]
-          GH_AW_MCP_CONFIG_cb479bf5fc94482b_EOF
+          GH_AW_MCP_CONFIG_f00f03c511cc2a39_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_cb479bf5fc94482b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_f00f03c511cc2a39_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
-              "repo-mind": {
-              "type": "http",
-              "url": "http://host.docker.internal:8000/mcp",
-              "tools": [
-                "query"
-              ],
-              "guard-policies": {
-                "write-sink": {
-                  "accept": [
-                    "*"
-                  ]
-                }
-              }
-              },
               "safeoutputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
@@ -969,11 +865,11 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_cb479bf5fc94482b_EOF
+          GH_AW_MCP_CONFIG_f00f03c511cc2a39_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_3914f98981f7e7e5_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_9f473f3a3866189a_EOF
 
           model_provider = "openai-proxy"
 
@@ -985,7 +881,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_CODEX_SHELL_POLICY_3914f98981f7e7e5_EOF
+          GH_AW_CODEX_SHELL_POLICY_9f473f3a3866189a_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1033,7 +929,7 @@ jobs:
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           mkdir -p "$CODEX_HOME/logs" && touch /tmp/gh-aw/agent-step-summary.md
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
-          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.25.46/awf-config.schema.json","network":{"allowDomains":["*.githubusercontent.com","127.0.0.1","172.30.0.1","api.openai.com","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","chatgpt.com","codeload.github.com","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","docs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","github.blog","github.com","github.githubassets.com","host.docker.internal","json-schema.org","json.schemastore.org","keyserver.ubuntu.com","lfs.github.com","objects.githubusercontent.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","openai.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","ppa.launchpad.net","raw.githubusercontent.com","s.symcb.com","s.symcd.com","security.ubuntu.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxEffectiveTokens":25000000,"models":{"auto":["large"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-4.1":["copilot/gpt-4.1*","openai/gpt-4.1*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"opus":["copilot/*opus*","anthropic/*opus*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"small":["mini"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"]}},"container":{"imageTag":"0.25.46"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json" && cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
+          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.25.46/awf-config.schema.json","network":{"allowDomains":["*.githubusercontent.com","172.30.0.1","api.openai.com","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","chatgpt.com","codeload.github.com","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","docs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","github.blog","github.com","github.githubassets.com","host.docker.internal","json-schema.org","json.schemastore.org","keyserver.ubuntu.com","lfs.github.com","objects.githubusercontent.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","openai.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","ppa.launchpad.net","raw.githubusercontent.com","s.symcb.com","s.symcd.com","security.ubuntu.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxEffectiveTokens":25000000,"models":{"auto":["large"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-4.1":["copilot/gpt-4.1*","openai/gpt-4.1*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"opus":["copilot/*opus*","anthropic/*opus*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"small":["mini"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"]}},"container":{"imageTag":"0.25.46"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json" && cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
@@ -1049,8 +945,6 @@ jobs:
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_STARTUP_TIMEOUT: 600
-          GH_AW_TOOL_TIMEOUT: 600
           GH_AW_VERSION: dev
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}
           GITHUB_AW: true
@@ -1097,11 +991,10 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GH_AW_REPO_MIND_LIGHT_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
           SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GH_AW_REPO_MIND_LIGHT_TOKEN: ${{ secrets.GH_AW_REPO_MIND_LIGHT_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Append agent step summary
@@ -1120,7 +1013,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,chatgpt.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,chatgpt.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1200,17 +1093,6 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
-      - env:
-          REPO_MIND_LIGHT_CONTAINER_NAME: repo-mind-light-mcp
-        if: always()
-        name: Capture Repo Mind Light logs
-        run: "mkdir -p /tmp/gh-aw/mcp-logs\nif docker ps -a --format '{{.Names}}' | grep -Fxq \"$REPO_MIND_LIGHT_CONTAINER_NAME\"; then\n  docker logs \"$REPO_MIND_LIGHT_CONTAINER_NAME\" \\\n    > /tmp/gh-aw/mcp-logs/repo-mind-light.log 2>&1 || true\nfi\n"
-      - env:
-          REPO_MIND_LIGHT_CONTAINER_NAME: repo-mind-light-mcp
-        if: always()
-        name: Stop Repo Mind Light MCP server
-        run: docker rm -f "$REPO_MIND_LIGHT_CONTAINER_NAME" || true
-
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1246,7 +1128,6 @@ jobs:
       - agent
       - detection
       - push_experiments_state
-      - repo-mind-light-prep
       - safe_outputs
     if: >
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
@@ -1552,18 +1433,18 @@ jobs:
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.9'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_90736338d3cd4fdd_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_8edc655ed76c87c1_EOF
           [history]
           persistence = "none"
           
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_MCP_CONFIG_90736338d3cd4fdd_EOF
+          GH_AW_MCP_CONFIG_8edc655ed76c87c1_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_4b12b9c170d258a3_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_28d33dca5f0ded5a_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
             },
@@ -1574,11 +1455,11 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_4b12b9c170d258a3_EOF
+          GH_AW_MCP_CONFIG_28d33dca5f0ded5a_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_255e867af1145899_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_1a1dcaee46b50668_EOF
           model_provider = "openai-proxy"
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
@@ -1588,7 +1469,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
-          GH_AW_CODEX_SHELL_POLICY_255e867af1145899_EOF
+          GH_AW_CODEX_SHELL_POLICY_1a1dcaee46b50668_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1749,137 +1630,6 @@ jobs:
           sparse-checkout-cone-mode: true
           persist-credentials: false
 
-  repo-mind-light-prep:
-    name: Prepare Repo Mind Light index
-    needs: activation
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: read
-      pull-requests: read
-
-    steps:
-      - name: Configure GH_HOST for enterprise compatibility
-        id: ghes-host-config
-        shell: bash
-        run: |
-          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
-          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
-          GH_HOST="${GITHUB_SERVER_URL#https://}"
-          GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Write Repo Mind Light config
-        run: |
-          set -euo pipefail
-          if printf '%s' "$REPO_MIND_LIGHT_CONFIG_MAP" | jq -e . >/dev/null 2>&1; then
-            config_yaml="$(printf '%s' "$REPO_MIND_LIGHT_CONFIG_MAP" | jq -re '.yaml | select(type == "string")')"
-          else
-            config_yaml="${REPO_MIND_LIGHT_CONFIG_MAP#map[yaml:}"
-            config_yaml="${config_yaml%]}"
-          fi
-          printf '%s\n' "$config_yaml" > .repo-mind-light.config.yml
-        env:
-          REPO_MIND_LIGHT_CONFIG_MAP: "{\"yaml\":\"slug: ${{ github.repository }}\\nstore_path: /var/lib/repo-mind-light/index\\nrefresh_if_older_than: 1d\\nconversations:\\n  issue_state: open\\n  pr_state: none\\n  discussion_state: none\\n  ignore_bot_authored: true\\nquery:\\n  preload_query_sources_on_startup: true\\n\"}"
-      - name: Restore Repo Mind Light index cache
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          key: repo-mind-light-index-restore
-          path: .index-store
-          restore-keys: |
-            repo-mind-light-index-
-      - name: Ensure index directory exists
-        run: |
-          mkdir -p .index-store
-          chmod -R a+rwX .index-store
-      - name: Pull Repo Mind Light image
-        run: docker pull "$REPO_MIND_LIGHT_IMAGE"
-        env:
-          REPO_MIND_LIGHT_IMAGE: ghcr.io/githubnext/repo-mind-light@sha256:e297865cada91f345269b91ee88bfd1915dbe153678976b521a504a4add47a75
-      - name: Run incremental indexing
-        id: incremental-index
-        run: |
-          set -euo pipefail
-          result_json_dir="$RUNNER_TEMP/repo-mind-light-index"
-          result_json_path="$result_json_dir/result.json"
-
-          test -n "$COPILOT_GITHUB_TOKEN" || {
-            echo "COPILOT_GITHUB_TOKEN secret is required" >&2
-            exit 1
-          }
-
-          rm -rf "$result_json_dir"
-          mkdir -p "$result_json_dir"
-          chmod -R a+rwX "$result_json_dir"
-
-          docker run --rm \
-            -v "$PWD/.index-store:/var/lib/repo-mind-light/index" \
-            -v "$result_json_dir:/tmp/repo-mind-light-result" \
-            -v "$PWD/.repo-mind-light.config.yml:/tmp/repo-mind-light.config.yml:ro" \
-            -e COPILOT_GITHUB_TOKEN \
-            -e GITHUB_TOKEN \
-            -e REPO_MIND_LIGHT_CONFIG \
-            "$REPO_MIND_LIGHT_IMAGE" \
-            index --result-json /tmp/repo-mind-light-result/result.json
-
-          test -f "$result_json_path" || {
-            echo "Repo Mind Light did not write the structured result JSON" >&2
-            exit 1
-          }
-
-          refreshed="$(jq -r '
-            if (.refreshed | type) == "boolean" then
-              .refreshed
-            elif (.sources | type) == "array" then
-              any(.sources[]; .refreshed == true)
-            else
-              error("missing refreshed")
-            end
-          ' "$result_json_path")"
-          echo "changed=${refreshed}" >> "$GITHUB_OUTPUT"
-
-          if test "$refreshed" = 'true'; then
-            cache_key="$(jq -re --arg prefix "$REPO_MIND_LIGHT_CACHE_PREFIX" '
-              if (.last_refreshed_at | type) == "string" then
-                .last_refreshed_at
-              elif (.sources | type) == "array" then
-                [
-                  .sources[]
-                  | select(.refreshed == true and (.last_refreshed_at | type) == "string")
-                  | .last_refreshed_at
-                ] | max
-              else
-                null
-              end
-              | if type == "string" and length > 0
-                then $prefix + (split("T")[0])
-                else error("missing last_refreshed_at")
-                end
-            ' "$result_json_path")"
-            echo "cache_key=${cache_key}" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.GH_AW_REPO_MIND_LIGHT_TOKEN }}
-          GITHUB_TOKEN: ${{ github.token }}
-          REPO_MIND_LIGHT_CACHE_PREFIX: repo-mind-light-index-
-          REPO_MIND_LIGHT_CONFIG: /tmp/repo-mind-light.config.yml
-          REPO_MIND_LIGHT_IMAGE: ghcr.io/githubnext/repo-mind-light@sha256:e297865cada91f345269b91ee88bfd1915dbe153678976b521a504a4add47a75
-      - name: Save refreshed Repo Mind Light index cache
-        if: steps.incremental-index.outputs.changed == 'true'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          key: ${{ steps.incremental-index.outputs.cache_key }}
-          path: .index-store
-      - name: Upload Repo Mind Light index artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          if-no-files-found: error
-          include-hidden-files: true
-          name: ${{ needs.activation.outputs.artifact_prefix }}repo-mind-light-index
-          path: .index-store
-          retention-days: "1"
-
   safe_outputs:
     needs:
       - activation
@@ -1899,7 +1649,6 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_WORKFLOW_EMOJI: "🌳"
       GH_AW_WORKFLOW_ID: "issue-arborist"
       GH_AW_WORKFLOW_NAME: "Issue Arborist"
     outputs:
@@ -1961,7 +1710,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,chatgpt.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,chatgpt.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[Issue Arborist] \"},\"create_issue\":{\"expires\":48,\"group\":true,\"max\":5,\"title_prefix\":\"[Parent] \"},\"create_report_incomplete_issue\":{},\"link_sub_issue\":{\"max\":50},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"

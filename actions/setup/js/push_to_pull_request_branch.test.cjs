@@ -1266,7 +1266,7 @@ index 0000000..abc1234
       const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
 
       try {
-        mockExec.getExecOutput.mockImplementation((cmd, args) => {
+        mockExec.getExecOutput.mockImplementation((cmd, args, options) => {
           if (cmd === "git" && args[0] === "ls-remote") {
             return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
           }
@@ -1288,14 +1288,58 @@ index 0000000..abc1234
 
         expect(result.success).toBe(true);
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/feature-branch:refs/bundles/push-feature-branch"], expect.any(Object));
+        // Initial bundle fetch is via getExecOutput (with ignoreReturnCode: true), not exec.exec
+        const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(([, args, options]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode);
+        expect(bundleFetchCall).toBeDefined();
+        expect(bundleFetchCall[1]).toEqual(["fetch", bundlePath, "refs/heads/feature-branch:refs/bundles/push-feature-branch"]);
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature-branch", "refs/bundles/push-feature-branch", "remote-head"], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], expect.any(Object));
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["merge", "--ff-only", "refs/bundles/push-feature-branch"], expect.any(Object));
         const unshallowCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
-        const bundleFetchCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
         expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
-        expect(bundleFetchCallIndex).toBeGreaterThan(unshallowCallIndex);
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
+    it("should fetch prerequisite commits and retry bundle fetch when bundle lacks prerequisites", async () => {
+      const bundlePath = path.join(tempDir, "test.bundle");
+      const patchPath = createPatchFile("small patch content");
+      fs.writeFileSync(bundlePath, "bundle content");
+      const missingSha = "172f87a830f57a29470efe7646d141069434a893";
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+
+      try {
+        mockExec.getExecOutput.mockImplementation((cmd, args, options) => {
+          if (cmd === "git" && args[0] === "ls-remote") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ exitCode: 0, stdout: "false\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+            // Initial bundle fetch fails with prerequisite error (the real race condition scenario)
+            return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        });
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+
+        expect(result.success).toBe(true);
+        // Should have fetched the missing prerequisite from origin
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha], expect.any(Object));
+        // Should have retried the bundle fetch via exec after fetching prerequisites
+        const bundleRetryFetch = mockExec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+        expect(bundleRetryFetch).toBeDefined();
+        expect(bundleRetryFetch[1]).toEqual(["fetch", bundlePath, "refs/heads/feature-branch:refs/bundles/push-feature-branch"]);
       } finally {
         pushSignedSpy.mockRestore();
       }

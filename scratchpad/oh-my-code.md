@@ -92,7 +92,7 @@ GitHub Repository
 **Key Characteristics**:
 - **Single-agent per workflow**: Each workflow run executes one AI agent
 - **Stateless execution**: Each run is independent, no persistent state
-- **GitHub-native**: Deep integration with GitHub API, Issues, PRs, Discussions
+- **GitHub-native**: Native integration with GitHub API, Issues, PRs, Discussions
 - **Security-first**: Sandboxed containers, read-only default, explicit permissions
 - **Event-driven**: Triggered by GitHub events (push, PR, issues, schedule)
 
@@ -106,7 +106,7 @@ GitHub Repository
 
 1. **Large-scale refactoring**: Use LSP and AST-Grep to rename symbols, restructure code, migrate APIs across 100+ files
 2. **Multi-component development**: Frontend agent works on UI while backend agent implements API simultaneously
-3. **Deep code exploration**: Librarian agent searches official docs, codebase history, and GitHub implementations
+3. **Code exploration**: Librarian agent searches official docs, codebase history, and GitHub implementations
 4. **Interactive debugging**: Oracle agent provides design feedback and debugging assistance in real-time
 5. **Code implementation**: Todo Continuation Enforcer ensures tasks complete; Comment Checker prevents unnecessary comments
 
@@ -810,7 +810,7 @@ inputs:
 
 **Magic Word Feature**: `ultrawork` or `ulw`
 - Include in prompt to activate all features automatically
-- Parallel agents, background tasks, deep exploration
+- Parallel agents, background tasks, multi-step exploration
 - Continues execution until all tasks complete
 - Agent figures out coordination automatically
 
@@ -1053,7 +1053,7 @@ gh aw mcp inspect issue-responder
 
 **Optimization Tips**:
 - Use faster models for background agents (Gemini Flash)
-- Use slower, smarter models for main agent (Opus 4.5)
+- Use slower, higher-capability models for main agent (Opus 4.5)
 - Cache context with Librarian agent
 - Leverage LSP for instant code intelligence
 
@@ -1228,7 +1228,7 @@ mode: auto  # Automatically configure tools, permissions based on task
 # Or detect from workflow instructions
 ```
 
-**Benefits**: Lower barrier to entry, easier for beginners
+**Benefits**: Reduces required configuration; minimal setup for common workflows
 
 ### 11.2 What oh-my-opencode Could Learn from gh-aw
 

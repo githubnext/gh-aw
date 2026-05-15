@@ -91,6 +91,15 @@ func TestNewUpdateCommand_HasDisableSecurityScannerFlag(t *testing.T) {
 	assert.Equal(t, "Disable security scanning of workflow markdown content", flag.Usage, "flag help text should match add/trial wording")
 }
 
+func TestNewUpdateCommand_CoolDownFlagUsage(t *testing.T) {
+	cmd := NewUpdateCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+
+	coolDownFlag := cmd.Flags().Lookup("cool-down")
+	require.NotNil(t, coolDownFlag, "update command should register --cool-down")
+	assert.Equal(t, coolDownFlagUsage, coolDownFlag.Usage, "cool-down usage should stay consistent across commands")
+}
+
 // TestMergeWorkflowContent_WithConflicts tests a merge with conflicts
 func TestMergeWorkflowContent_WithConflicts(t *testing.T) {
 	base := `---
