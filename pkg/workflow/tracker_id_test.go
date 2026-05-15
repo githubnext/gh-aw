@@ -59,6 +59,13 @@ func TestExtractTrackerID(t *testing.T) {
 			errorMsg:    "tracker-id must be at least 8 characters long",
 		},
 		{
+			name:        "Tracker-id too long (129 chars)",
+			frontmatter: map[string]any{"tracker-id": strings.Repeat("a", 129)},
+			expected:    "",
+			shouldError: true,
+			errorMsg:    "tracker-id exceeds maximum length of 128 characters",
+		},
+		{
 			name:        "Tracker-id with invalid character (@)",
 			frontmatter: map[string]any{"tracker-id": "test@fp123"},
 			expected:    "",
