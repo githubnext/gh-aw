@@ -120,7 +120,7 @@ async function readBlobAsBase64(blobHash, cwd) {
 
 /**
  * Push the local branch to origin using git directly and return the local HEAD
- * SHA that landed on the remote branch.
+ * SHA after the push succeeds.
  *
  * @param {object} opts
  * @param {string} opts.branch
@@ -164,6 +164,14 @@ async function resolveLocalHeadSha(cwd) {
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true }) {
+  // Only an explicit false opts out of signed commit replay; unset/default values keep it enabled.
+  if (signedCommits === false) {
+    core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
+    core.info(`pushSignedCommits: git push completed, HEAD=${headSha}`);
+    return headSha;
+  }
+
   // Orphan branch first push: baseRef is "" when push_experiment_state creates a brand-new
   // branch for the first time (checkoutOrCreateBranch returns "" for new branches).
   // The GraphQL createCommitOnBranch path cannot handle root commits (no parent to resolve),
@@ -172,14 +180,6 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
     const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
     core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
-    return headSha;
-  }
-
-  // Only an explicit false opts out of signed commit replay; unset/default values keep it enabled.
-  if (signedCommits === false) {
-    core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
-    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
-    core.info(`pushSignedCommits: git push completed, HEAD=${headSha}`);
     return headSha;
   }
 
