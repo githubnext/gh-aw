@@ -223,9 +223,8 @@ Examples:
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 			cacheBefore, _ := cmd.Flags().GetString("cache-before")
 			if !cmd.Flags().Changed("cache-before") {
-				afterAlias, _ := cmd.Flags().GetString("after")
-				if afterAlias != "" {
-					cacheBefore = afterAlias
+				if cmd.Flags().Changed("after") {
+					cacheBefore, _ = cmd.Flags().GetString("after")
 				}
 			}
 
