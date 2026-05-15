@@ -55,8 +55,15 @@
         "max-agent": { "$ref": "#/definitions/semver" },
         "open": {
           "type": "boolean",
-          "description": "When false, the setup action stops bumping max-agent for this row (rollback / quarantine state)."
+          "description": "When false, the setup action stops bumping max-agent for this row (rollback / quarantine state). Permitted only on the catch-all row (max-gh-aw == \"*\"); bounded rows are closed-by-construction."
         }
+      },
+      "if": {
+        "properties": { "max-gh-aw": { "const": "*" } }
+      },
+      "then": {},
+      "else": {
+        "not": { "required": ["open"] }
       }
     }
   }
