@@ -14,6 +14,7 @@ function normalizeThreatKinds(reason) {
     .split(/[\s,]+/)
     .map(kind => kind.toLowerCase())
     .filter(Boolean)
+    // Marker values are machine-readable tokens; keep a strict safe charset.
     .map(kind => kind.replace(/[^a-z0-9_-]/g, ""))
     .filter(Boolean);
   return kinds.length > 0 ? Array.from(new Set(kinds)).join(",") : "unknown";
@@ -50,7 +51,7 @@ function getDetectionReasonText(reason) {
     agent_failure: "The threat detection engine failed to produce results.",
     parse_error: "The threat detection results could not be parsed.",
   };
-  const normalizedReason = reason == null ? "" : String(reason);
+  const normalizedReason = String(reason || "").trim();
   return reasonDescriptions[normalizedReason] || "The threat detection analysis could not be completed.";
 }
 
