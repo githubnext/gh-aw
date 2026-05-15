@@ -55,8 +55,8 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	var steps []string
 
 	// Determine which token to use for checkout
-	// Uses getEffectivePRCheckoutToken for consistent token resolution (GitHub App or PAT chain)
-	checkoutToken, _ := getEffectivePRCheckoutToken(data.SafeOutputs)
+	// Uses resolvePRCheckoutToken for consistent token resolution (GitHub App or PAT chain)
+	checkoutToken, _ := resolvePRCheckoutToken(data.SafeOutputs)
 	gitRemoteToken := checkoutToken
 
 	// Build combined condition: execute if either create_pull_request or push_to_pull_request_branch will run
@@ -287,7 +287,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	//
 	// Note: If multiple project configs are present, we prefer update-project > create-project-status-update > create-project
 	// This is only relevant for the environment variables - each configuration must explicitly specify its own settings
-	projectURL, projectToken := getProjectURLAndToken(data.SafeOutputs)
+	projectURL, projectToken := resolveProjectURLAndToken(data.SafeOutputs)
 
 	if projectURL != "" {
 		steps = append(steps, fmt.Sprintf("          GH_AW_PROJECT_URL: %q\n", projectURL))
@@ -338,7 +338,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	// scenarios (allowed-repos). Without this, the handler falls back to the default
 	// repo-scoped token which lacks access to other repos.
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
-		gitToken, isCustom := getEffectivePRCheckoutToken(data.SafeOutputs)
+		gitToken, isCustom := resolvePRCheckoutToken(data.SafeOutputs)
 		// Only override GITHUB_TOKEN when a custom token (app or PAT) is explicitly configured.
 		// When no custom token is set, the default repo-scoped GITHUB_TOKEN from GitHub Actions
 		// is already in the environment and overriding it with the same default is unnecessary.

@@ -81,7 +81,7 @@ func getEffectiveProjectGitHubToken(customToken string) string {
 	return "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 }
 
-// getEffectivePRCheckoutToken returns the token to use for PR checkout and git operations.
+// resolvePRCheckoutToken returns the token to use for PR checkout and git operations.
 // Applies the following precedence (highest to lowest):
 //  1. Per-config PAT: create-pull-request.github-token
 //  2. Per-config PAT: push-to-pull-request-branch.github-token
@@ -95,7 +95,7 @@ func getEffectiveProjectGitHubToken(customToken string) string {
 // Returns:
 //   - token: the effective GitHub Actions token expression to use for git operations
 //   - isCustom: true when a custom non-default token was explicitly configured (per-config PAT, app, or safe-outputs PAT)
-func getEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCustom bool) {
+func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCustom bool) {
 	if safeOutputs == nil {
 		return getEffectiveSafeOutputGitHubToken(""), false
 	}
@@ -131,8 +131,8 @@ func getEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, 
 	return getEffectiveSafeOutputGitHubToken(""), false
 }
 
-// getStaticCheckoutToken returns the effective checkout token as a static GitHub Actions
-// expression (secret reference or default). Unlike getEffectivePRCheckoutToken, this function
+// resolveStaticCheckoutToken returns the effective checkout token as a static GitHub Actions
+// expression (secret reference or default). Unlike resolvePRCheckoutToken, this function
 // never returns a step-output expression because step outputs are not accessible outside the job
 // they were created in.
 //
@@ -142,7 +142,7 @@ func getEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, 
 //  3. push-to-pull-request-branch.github-token
 //  4. safe-outputs.github-token
 //  5. Default fallback (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
-func getStaticCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *CheckoutManager) string {
+func resolveStaticCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *CheckoutManager) string {
 	if checkoutMgr != nil {
 		override := checkoutMgr.GetDefaultCheckoutOverride()
 		if override != nil && override.token != "" {
@@ -167,11 +167,11 @@ func getStaticCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *Checkou
 	return getEffectiveSafeOutputGitHubToken("")
 }
 
-// getEffectiveProjectToken resolves the project token using precedence:
+// resolveProjectToken resolves the project token using precedence:
 //  1. Per-config token (e.g., update-project/create-project/create-project-status-update)
 //  2. safe-outputs.github-token
 //  3. GH_AW_PROJECT_GITHUB_TOKEN fallback via getEffectiveProjectGitHubToken()
-func getEffectiveProjectToken(perConfigToken string, safeOutputsToken string) string {
+func resolveProjectToken(perConfigToken string, safeOutputsToken string) string {
 	token := perConfigToken
 	if token == "" {
 		token = safeOutputsToken
@@ -179,9 +179,9 @@ func getEffectiveProjectToken(perConfigToken string, safeOutputsToken string) st
 	return getEffectiveProjectGitHubToken(token)
 }
 
-// getProjectURLAndToken resolves project URL/token from project-related safe output config.
+// resolveProjectURLAndToken resolves project URL/token from project-related safe output config.
 // Priority: update-project > create-project-status-update > create-project.
-func getProjectURLAndToken(safeOutputs *SafeOutputsConfig) (projectURL, projectToken string) {
+func resolveProjectURLAndToken(safeOutputs *SafeOutputsConfig) (projectURL, projectToken string) {
 	if safeOutputs == nil {
 		return "", ""
 	}
@@ -190,7 +190,7 @@ func getProjectURLAndToken(safeOutputs *SafeOutputsConfig) (projectURL, projectT
 
 	if safeOutputs.UpdateProjects != nil && safeOutputs.UpdateProjects.Project != "" {
 		projectURL = safeOutputs.UpdateProjects.Project
-		projectToken = getEffectiveProjectToken(safeOutputs.UpdateProjects.GitHubToken, safeOutputsToken)
+		projectToken = resolveProjectToken(safeOutputs.UpdateProjects.GitHubToken, safeOutputsToken)
 		tokenLog.Printf("Setting GH_AW_PROJECT_URL from update-project config: %s", projectURL)
 		tokenLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from update-project config")
 		return
@@ -198,14 +198,14 @@ func getProjectURLAndToken(safeOutputs *SafeOutputsConfig) (projectURL, projectT
 
 	if safeOutputs.CreateProjectStatusUpdates != nil && safeOutputs.CreateProjectStatusUpdates.Project != "" {
 		projectURL = safeOutputs.CreateProjectStatusUpdates.Project
-		projectToken = getEffectiveProjectToken(safeOutputs.CreateProjectStatusUpdates.GitHubToken, safeOutputsToken)
+		projectToken = resolveProjectToken(safeOutputs.CreateProjectStatusUpdates.GitHubToken, safeOutputsToken)
 		tokenLog.Printf("Setting GH_AW_PROJECT_URL from create-project-status-update config: %s", projectURL)
 		tokenLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project-status-update config")
 		return
 	}
 
 	if safeOutputs.CreateProjects != nil {
-		projectToken = getEffectiveProjectToken(safeOutputs.CreateProjects.GitHubToken, safeOutputsToken)
+		projectToken = resolveProjectToken(safeOutputs.CreateProjects.GitHubToken, safeOutputsToken)
 		tokenLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project config")
 	}
 
