@@ -222,6 +222,7 @@ func TestCompileWorkflowWithValidation_InvalidFile(t *testing.T) {
 
 	// Try to compile a non-existent file
 	err := CompileWorkflowWithValidation(
+		context.Background(),
 		compiler,
 		"/nonexistent/file.md",
 		false, // verbose
@@ -445,6 +446,7 @@ This is a test workflow.
 
 	// Compile the workflow
 	err := CompileWorkflowWithValidation(
+		context.Background(),
 		compiler,
 		testFile,
 		false, // verbose

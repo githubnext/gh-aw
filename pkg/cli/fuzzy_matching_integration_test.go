@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,7 +168,7 @@ Test content
 	}
 
 	// Test enable command with typo
-	err = EnableWorkflowsByNames([]string{"audti-workflows"}, "")
+	err = EnableWorkflowsByNames(context.Background(), []string{"audti-workflows"}, "")
 	if err == nil {
 		t.Fatal("Expected error for non-existent workflow")
 	}

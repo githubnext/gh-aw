@@ -165,6 +165,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Use shared action cache and resolver from the compiler
 	actionCache, actionResolver := c.getSharedActionResolver()
+	workflowData.Ctx = c.ctx
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver
 	workflowData.ActionPinWarnings = c.actionPinWarnings

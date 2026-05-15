@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +54,7 @@ jobs:
 
 	// Test 1: Validation with up-to-date actions (should not error)
 	t.Run("UpToDate", func(t *testing.T) {
-		err := ValidateActionSHAsInLockFile(lockFile, cache, false)
+		err := ValidateActionSHAsInLockFile(context.Background(), lockFile, cache, false)
 		if err != nil {
 			t.Errorf("Unexpected error with up-to-date actions: %v", err)
 		}
@@ -79,7 +80,7 @@ jobs:
 	// Test 2: Validation with outdated actions (should emit warnings but not error)
 	t.Run("Outdated", func(t *testing.T) {
 		// Note: This will emit warnings to stderr, but should not return an error
-		err := ValidateActionSHAsInLockFile(outdatedLockFile, cache, false)
+		err := ValidateActionSHAsInLockFile(context.Background(), outdatedLockFile, cache, false)
 		if err != nil {
 			t.Errorf("Unexpected error with outdated actions: %v", err)
 		}
@@ -110,7 +111,7 @@ jobs:
 	cache := NewActionCache(tmpDir)
 
 	// Validation should handle missing cache gracefully
-	err := ValidateActionSHAsInLockFile(lockFile, cache, false)
+	err := ValidateActionSHAsInLockFile(context.Background(), lockFile, cache, false)
 	if err != nil {
 		t.Errorf("Unexpected error with missing cache: %v", err)
 	}
@@ -220,7 +221,7 @@ jobs:
 	// Capture stderr output to verify message format
 	// Note: In a real scenario, we'd redirect stderr, but for this test
 	// we just ensure it doesn't error
-	err := ValidateActionSHAsInLockFile(lockFile, cache, true)
+	err := ValidateActionSHAsInLockFile(context.Background(), lockFile, cache, true)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

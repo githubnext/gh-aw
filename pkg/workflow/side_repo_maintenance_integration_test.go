@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,7 +60,7 @@ This workflow operates on a separate repository.
 
 	workflowDataList, tmpDir := compileSideRepoWorkflow(t, workflowContent)
 
-	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
+	err := GenerateMaintenanceWorkflow(context.Background(), workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
 	require.NoError(t, err, "generate maintenance workflow")
 
 	sideRepoFile := filepath.Join(tmpDir, "agentics-maintenance-my-org-target-repo.yml")
@@ -160,7 +161,7 @@ Create issues that expire after 14 days.
 
 	workflowDataList, tmpDir := compileSideRepoWorkflow(t, workflowContent)
 
-	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
+	err := GenerateMaintenanceWorkflow(context.Background(), workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
 	require.NoError(t, err, "generate maintenance workflow")
 
 	sideRepoFile := filepath.Join(tmpDir, "agentics-maintenance-corp-infra-tools.yml")
@@ -210,7 +211,7 @@ checkout:
 
 	workflowDataList, tmpDir := compileSideRepoWorkflow(t, workflowContent)
 
-	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
+	err := GenerateMaintenanceWorkflow(context.Background(), workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
 	require.NoError(t, err, "generate maintenance workflow")
 
 	sideRepoFile := filepath.Join(tmpDir, "agentics-maintenance-acme-shared-services.yml")
@@ -246,7 +247,7 @@ checkout:
 
 	workflowDataList, tmpDir := compileSideRepoWorkflow(t, workflowContent)
 
-	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
+	err := GenerateMaintenanceWorkflow(context.Background(), workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, "")
 	require.NoError(t, err, "generate maintenance workflow")
 
 	// No side-repo file should be created because the repository is an expression.
@@ -305,7 +306,7 @@ safe-outputs:
 	} {
 		t.Run(tc.repo, func(t *testing.T) {
 			wdl, tmpDir := compileSideRepoWorkflow(t, makeContent(tc.repo))
-			require.NoError(t, GenerateMaintenanceWorkflow(wdl, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, ""))
+			require.NoError(t, GenerateMaintenanceWorkflow(context.Background(), wdl, tmpDir, "v1.0.0", ActionModeDev, "", false, nil, ""))
 
 			slug := stringutil.SanitizeForFilename(tc.repo)
 			sideFile := filepath.Join(tmpDir, "agentics-maintenance-"+slug+".yml")

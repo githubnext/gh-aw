@@ -548,6 +548,7 @@ type WorkflowData struct {
 	ToolsTimeout                   string                          // timeout for tool/MCP operations: numeric string (seconds) or GitHub Actions expression (empty = use engine default)
 	ToolsStartupTimeout            string                          // timeout for MCP server startup: numeric string (seconds) or GitHub Actions expression (empty = use engine default)
 	Features                       map[string]any                  // feature flags and configuration options from frontmatter (supports bool and string values)
+	Ctx                            context.Context                 // context propagated from the caller for network operations (e.g. SHA resolution)
 	ActionCache                    *ActionCache                    // cache for action pin resolutions
 	ActionResolver                 *ActionResolver                 // resolver for action pins
 	DockerImages                   []string                        // container images collected at compile time (pinned refs when pins are cached)
@@ -601,7 +602,8 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	if d.ActionPinWarnings == nil {
 		d.ActionPinWarnings = make(map[string]bool)
 	}
-	ctx := &actionpins.PinContext{
+	pinCtx := &actionpins.PinContext{
+		Ctx:             d.Ctx,
 		StrictMode:      d.StrictMode,
 		EnforcePinned:   true,
 		AllowActionRefs: d.AllowActionRefs,
@@ -617,9 +619,9 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	// Only set Resolver if non-nil to avoid passing a typed nil interface value
 	// (which would be non-nil in actionpins but crash on method call).
 	if d.ActionResolver != nil {
-		ctx.Resolver = d.ActionResolver
+		pinCtx.Resolver = d.ActionResolver
 	}
-	return ctx
+	return pinCtx
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
