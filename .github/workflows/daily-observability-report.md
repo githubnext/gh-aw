@@ -16,6 +16,8 @@ tracker-id: daily-observability-report
 tools:
   agentic-workflows: true
 timeout-minutes: 45
+# Raised from the 25M default because this workflow analyzes multi-run logs and OTEL artifacts.
+# Prompt caps below are intended to keep typical runs well under this ceiling.
 max-effective-tokens: 40000000
 imports:
   - uses: shared/meta-analysis-base.md
@@ -60,6 +62,8 @@ Use the `agentic-workflows` MCP server tools to download and analyze logs from r
 
 Start with a single broad `logs` MCP tool call. The tool will automatically save logs to `/tmp/gh-aw/aw-mcp/logs/`.
 
+Using `count: 30` gives a recent, representative cross-workflow sample without forcing the agent to download and compare every run from the full week.
+
 **Tool**: `logs`  
 **Parameters**:
 ```json
@@ -92,6 +96,7 @@ Keep targeted follow-up minimal:
 - At most **5** targeted `logs` calls total
 - At most **10** runs per targeted call
 - Prefer the most recent failed or cancelled runs first, then successful runs
+- These follow-up calls only expand the candidate pool; they do **not** override the total analysis cap below
 
 ### Step 1.3: Cap Analysis Scope
 
@@ -103,7 +108,7 @@ Prioritize runs in this order:
 3. Runs with MCP servers configured
 4. Most recent successful runs needed to confirm healthy coverage
 
-When multiple runs come from the same workflow, keep at most **2 runs per workflow** unless a third run is needed to confirm a repeated critical gap.
+When multiple runs come from the same workflow, keep at most **2 runs per workflow** within the 20-run total cap unless a third run is needed to confirm a repeated critical gap. If you are near the 20-run cap, prefer breadth across workflows over extra runs from the same workflow.
 
 ### Step 1.4: Collect Run Information
 
