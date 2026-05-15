@@ -8,13 +8,13 @@ import (
 	"testing"
 )
 
-func TestAuditWorkflowsCompiledWorkflowUsesExpandedRepoMemoryCategories(t *testing.T) {
-	lockContent, err := os.ReadFile("../../.github/workflows/audit-workflows.lock.yml")
+func TestAuditWorkflowsSourceUsesExpandedRepoMemoryCategories(t *testing.T) {
+	workflowContent, err := os.ReadFile("../../.github/workflows/audit-workflows.md")
 	if err != nil {
-		t.Fatalf("failed to read compiled workflow: %v", err)
+		t.Fatalf("failed to read workflow source: %v", err)
 	}
 
-	lockContentStr := string(lockContent)
+	workflowContentStr := string(workflowContent)
 
 	expectedSnippets := []string{
 		"**Repo Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:",
@@ -27,12 +27,12 @@ func TestAuditWorkflowsCompiledWorkflowUsesExpandedRepoMemoryCategories(t *testi
 	}
 
 	for _, snippet := range expectedSnippets {
-		if !strings.Contains(lockContentStr, snippet) {
-			t.Fatalf("expected compiled workflow to contain %q", snippet)
+		if !strings.Contains(workflowContentStr, snippet) {
+			t.Fatalf("expected workflow source to contain %q", snippet)
 		}
 	}
 
-	if strings.Contains(lockContentStr, "**Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:") {
-		t.Fatalf("expected compiled workflow to use repo memory terminology")
+	if strings.Contains(workflowContentStr, "**Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:") {
+		t.Fatalf("expected workflow source to use repo memory terminology")
 	}
 }
