@@ -729,7 +729,7 @@ func (e *SimpleEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 }
 ```
 
-### Full-Featured Engine (With MCP and richer capabilities)
+### Full-Featured Engine (With MCP and additional capabilities)
 
 See existing implementations:
 - **Copilot**: MCP allowlist, max continuations, bare mode - `copilot_engine.go`
