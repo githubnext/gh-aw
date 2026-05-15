@@ -1156,7 +1156,7 @@ describe("push_signed_commits integration tests", () => {
       expect(pushedSha).toBe(expectedHead);
       expect(githubClient.graphql).not.toHaveBeenCalled();
       expect(execGit(["rev-parse", "refs/heads/unsigned-merge-test-branch"], { cwd: bareDir }).stdout.trim()).toBe(expectedHead);
-      expect(mockCore.info).toHaveBeenCalledWith("pushSignedCommits: signed-commits disabled, using git push directly for branch unsigned-merge-test-branch");
+      expect(mockCore.info).toHaveBeenCalledWith("pushSignedCommits: signed-commits disabled (using direct git push) for branch unsigned-merge-test-branch");
     });
 
     it("should not trigger merge-commit fallback for a commit message that starts with 'parent '", async () => {
