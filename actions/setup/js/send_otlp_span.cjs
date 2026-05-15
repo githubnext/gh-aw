@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const childProcess = require("child_process");
 const { randomBytes } = require("crypto");
 const fs = require("fs");
 const { buildWorkflowCallId } = require("./aw_context.cjs");
@@ -588,6 +589,65 @@ function parseOTLPHeaders(raw) {
 }
 
 /**
+ * Determine whether OTLP export should use a proxy-aware transport.
+ * Native Node fetch does not honor proxy environment variables by default.
+ *
+ * @param {string} endpoint
+ * @returns {boolean}
+ */
+function hasProxyConfigured(endpoint) {
+  const isHTTPS = /^https:/i.test(endpoint);
+  if (isHTTPS) {
+    return Boolean(process.env.HTTPS_PROXY || process.env.https_proxy || process.env.ALL_PROXY || process.env.all_proxy);
+  }
+  return Boolean(process.env.HTTP_PROXY || process.env.http_proxy || process.env.HTTPS_PROXY || process.env.https_proxy || process.env.ALL_PROXY || process.env.all_proxy);
+}
+
+/**
+ * Send OTLP through curl so standard proxy environment variables are honored.
+ *
+ * @param {string} url
+ * @param {Record<string, string>} headers
+ * @param {string} body
+ * @returns {{ ok: boolean, status: number, statusText: string }}
+ */
+function sendOTLPViaCurl(url, headers, body) {
+  /** @type {string[]} */
+  const args = ["--silent", "--show-error", "--location", "--output", "/dev/null", "--write-out", "%{http_code}", "--request", "POST", "--data-binary", "@-"];
+
+  for (const [key, value] of Object.entries(headers)) {
+    args.push("--header", `${key}: ${value}`);
+  }
+  args.push(url);
+
+  const result = childProcess.spawnSync("curl", args, {
+    encoding: "utf8",
+    input: body,
+    maxBuffer: 1024 * 1024,
+    timeout: 15_000,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const status = Number.parseInt((result.stdout || "").trim(), 10);
+  if (Number.isInteger(status)) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: result.status === 0 ? "OK" : (result.stderr || "curl failed").trim() || "curl failed",
+    };
+  }
+
+  return {
+    ok: false,
+    status: 0,
+    statusText: (result.stderr || "curl failed").trim() || "curl failed",
+  };
+}
+
+/**
  * Regular expression matching attribute key fragments that indicate the value
  * is sensitive and should be redacted before the payload is sent over the
  * wire.  The pattern is case-insensitive.  Word-boundary anchors (`\b`) are
@@ -778,16 +838,19 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
   const rawHeaders = headersOverride !== undefined ? headersOverride : process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
   const extraHeaders = parseOTLPHeaders(rawHeaders);
   const headers = { "Content-Type": "application/json", ...extraHeaders };
+  const sanitizedBody = JSON.stringify(sanitizeOTLPPayload(payload));
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       await new Promise(resolve => setTimeout(resolve, baseDelayMs * 2 ** (attempt - 1)));
     }
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(sanitizeOTLPPayload(payload)),
-      });
+      const response = hasProxyConfigured(endpoint)
+        ? sendOTLPViaCurl(url, headers, sanitizedBody)
+        : await fetch(url, {
+            method: "POST",
+            headers,
+            body: sanitizedBody,
+          });
       if (response.ok) {
         return;
       }
@@ -1742,6 +1805,7 @@ module.exports = {
   parseOTLPEndpoints,
   sendOTLPSpan,
   sendOTLPToAllEndpoints,
+  hasProxyConfigured,
   readJSONIfExists,
   readLastRateLimitEntry,
   buildCurrentWorkflowCallId,

@@ -114,9 +114,6 @@ If commits have been pushed to the base branch after the agent started, two outc
 - **No conflicts** — `git am --3way` resolves the patch cleanly against the updated base. The PR is created normally and targets the current head of the base branch.
 - **Conflicts** — if `--3way` cannot resolve the conflicts automatically, the safe-output job falls back to applying the patch at the commit the agent originally branched from. The PR is created with the branch based on that earlier commit, and GitHub's pull request UI shows the conflicts for manual resolution.
 
-> [!NOTE]
-> The fallback to the original base commit requires that commit to be present in the target repository. In cross-repository scenarios where the agent repository's history is unrelated, only the `--3way` attempt is made and a hard failure is returned if that also fails.
-
 ## Pull Request Updates (`update-pull-request:`)
 
 Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `append` (default), `prepend`, or `replace`.
@@ -504,9 +501,6 @@ Patterns support `*` (any characters except `/`) and `**` (any characters includ
 
 > [!NOTE]
 > When `allowed-files` is not set, only the `protected-files` policy applies and all non-protected files are permitted.
-
-> [!WARNING]
-> `allowed-files` should enumerate exactly the files the workflow legitimately manages. Overly broad patterns (e.g., `**`) disable all protection.
 
 ### Allowing Workflow File Changes with `allow-workflows`
 

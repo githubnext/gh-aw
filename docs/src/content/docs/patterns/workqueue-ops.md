@@ -179,7 +179,7 @@ All WorkQueueOps patterns should be **idempotent**: running the same item twice 
 ## Related Pages
 
 - [BatchOps](/gh-aw/patterns/batch-ops/) — Process large volumes in parallel chunks rather than sequentially
-- [TaskOps](/gh-aw/patterns/task-ops/) — Research → Plan → Assign pattern for developer-supervised work
+- [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign pattern for developer-supervised work
 - [Cache Memory](/gh-aw/reference/cache-memory/) — Persistent state storage across workflow runs
 - [Repo Memory](/gh-aw/reference/repo-memory/) — Git-committed persistent state for cross-branch sharing
 - [Concurrency](/gh-aw/reference/concurrency/) — Prevent race conditions in queue-based workflows

@@ -207,7 +207,7 @@ While agentic workflows compile to GitHub Actions YAML and run on the same infra
 - **[Security Best Practices](/gh-aw/introduction/architecture/)** - Deep dive into agentic security model
 - **[Safe Outputs](/gh-aw/reference/safe-outputs/)** - Learn about validated GitHub operations
 - **[Workflow Structure](/gh-aw/reference/workflow-structure/)** - Understand markdown workflow syntax
-- **[Examples](/gh-aw/examples/scheduled/research-planning/)** - Real-world agentic workflow patterns
+- **[Design Patterns](/gh-aw/patterns/daily-ops/)** - Real-world agentic workflow patterns
 - **[Glossary](/gh-aw/reference/glossary/)** - Key terms and concepts
 - **[GitHub Actions Documentation](https://docs.github.com/en/actions)** - Official reference
 - **[Workflow Syntax](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)** - Complete YAML reference

@@ -191,20 +191,6 @@ Perform web research using Tavily and respond to issues.
 
 **Result**: The compiled workflow includes both the Tavily MCP server from the import and the GitHub tools from the main workflow, with network permissions automatically merged to allow access to both `mcp.tavily.com` and GitHub API endpoints.
 
-## Specification Formats and Validation
-
-Workflow and import specifications require minimum 3 parts (owner/repo/path) for remote imports. Explicit paths must end with `.md`. Versions can be semantic tags (`@v1.0.0`), branches (`@develop`), or commit SHAs. Identifiers use alphanumeric characters with hyphens/underscores (cannot start/end with hyphen).
-
-**Examples:**
-
-- Repository: `owner/repo[@version]`
-- Short workflow: `owner/repo/workflow[@version]` (adds `workflows/` prefix and `.md`)
-- Explicit workflow: `owner/repo/path/to/workflow.md[@version]`
-- Shared import: `owner/repo/shared/tools/config.md[@version]`
-- Copilot agent file import: `owner/repo/.github/agents/agent-name.md[@version]`
-- GitHub URL: `https://github.com/owner/repo/blob/main/workflows/ci-doctor.md`
-- Raw URL: `https://raw.githubusercontent.com/owner/repo/refs/heads/main/workflows/ci-doctor.md`
-
 ## Best Practices
 
 Use semantic versioning for stable workflows and agent files, branches for development, and commit SHAs for immutability.

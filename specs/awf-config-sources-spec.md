@@ -80,6 +80,8 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** in this section ar
 
 **CR-05**: When drift is detected, the detecting agent or workflow SHOULD open a corrective pull request with specific field paths and suggested remediation.
 
+**CR-06**: Drift categorized as "missing in gh-aw" or "spec mismatch" MUST be remediated (merged or explicitly waived with rationale) within **5 business days** of detection. For this requirement, business days are Monday-Friday in UTC, excluding weekends. If this SLA is missed, maintainers MUST open (or update) an escalation tracking issue within 1 business day. The escalation issue MUST include an owner, unblock plan, and revised ETA.
+
 ---
 
 ## 4. Drift Detection Procedure
@@ -150,3 +152,14 @@ A scheduled GitHub Actions workflow in `github/gh-aw` SHOULD automate this proce
 - Fail the check (non-zero exit) when any "missing in gh-aw" drift is found.
 - Post a summary comment on PRs with the drift report.
 - Create a tracking issue when drift is detected on the scheduled run.
+
+Current implementation reference: `.github/workflows/schema-consistency-checker.md` (scheduled daily) is the tracked drift-detection workflow path for schema consistency checks and SHOULD include AWF config source drift checks from this section.
+
+## 5. Safeguards
+
+When canonical sources in `github/gh-aw-firewall` are unavailable (GitHub outage, auth failure, transient fetch errors), agents and automation MUST apply the following safeguards:
+
+1. The workflow **MUST** attempt to use the last-known validated local snapshot (for example cached schema/spec artifacts from the previous successful run) to keep checks deterministic.
+2. The workflow **SHOULD** emit a warning that canonical source retrieval failed, including the failing source path(s) and timestamp.
+3. The workflow **MUST** skip destructive validation actions (for example failing required checks, auto-opening corrective PRs, or auto-creating drift issues from stale snapshots) when canonical data cannot be refreshed, and mark the run as degraded instead of silently passing.
+4. The workflow **SHOULD** open or update a tracking issue when canonical source unavailability persists for more than one consecutive scheduled run.

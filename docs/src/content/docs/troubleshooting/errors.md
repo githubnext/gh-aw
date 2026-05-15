@@ -364,6 +364,6 @@ If you encounter an error not documented here:
 1. Enable verbose mode for details: `gh aw compile --verbose`
 2. Search this page (Ctrl+F / Cmd+F) for keywords from the error message
 3. Use an agent with the [debug.md prompt](https://raw.githubusercontent.com/github/gh-aw/main/debug.md) to investigate failing workflow runs
-4. Review [workflow examples](/gh-aw/examples/issue-pr-events/) in the documentation
+4. Review [workflow patterns](/gh-aw/patterns/issue-ops/) in the documentation
 5. Check [Common Issues](/gh-aw/troubleshooting/common-issues/) for additional guidance
 6. [Report the issue on GitHub](https://github.com/github/gh-aw/issues) if it is not documented

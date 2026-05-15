@@ -7,9 +7,6 @@ sidebar:
 
 [Serena](https://github.com/oraios/serena) is an MCP server that enhances AI agents with IDE-like tools for semantic code analysis and manipulation. It supports **30+ programming languages** through Language Server Protocol (LSP) integration, enabling agents to find symbols, navigate code relationships, and edit at the symbol level — ideal for navigating and editing large, well-structured codebases.
 
-> [!CAUTION]
-> `tools.serena` has been removed. Use the `shared/mcp/serena.md` shared workflow instead (see [Migration](#migration-from-toolsserena) below). Workflows that still use `tools.serena` will fail to compile.
-
 ## Quick Start
 
 ### Recommended: Import shared workflow
@@ -153,7 +150,7 @@ Pre-create the cache directory (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for f
 - [Imports Reference](/gh-aw/reference/imports/) - Full imports and `import-schema` syntax
 - [Using MCPs](/gh-aw/guides/mcps/) - General MCP server configuration
 - [Tools Reference](/gh-aw/reference/tools/) - Complete tools configuration
-- [Getting Started with MCPs](/gh-aw/guides/getting-started-mcp/) - MCP introduction
+- [Using MCPs](/gh-aw/guides/mcps/) - MCP introduction
 - [Serena GitHub Repository](https://github.com/oraios/serena) — official repo and [documentation](https://oraios.github.io/serena/)
 - [Language Support](https://oraios.github.io/serena/01-about/020_programming-languages.html) - Supported languages and dependencies
 - [Serena Tools Reference](https://oraios.github.io/serena/01-about/035_tools.html) - Complete tool documentation
