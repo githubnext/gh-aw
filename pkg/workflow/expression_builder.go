@@ -218,14 +218,16 @@ func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
 
 func buildAuthorAssociationNodeForEvent(eventName string) ConditionNode {
 	switch eventName {
-	case "issue_comment", "pull_request_review_comment", "pull_request_review", "discussion_comment":
+	case "issue_comment", "pull_request_review_comment", "discussion_comment":
 		return BuildPropertyAccess("github.event.comment.author_association")
+	case "pull_request_review":
+		return BuildPropertyAccess("github.event.review.author_association")
 	case "issues":
 		return BuildPropertyAccess("github.event.issue.author_association")
 	case "pull_request", "pull_request_target":
 		return BuildPropertyAccess("github.event.pull_request.author_association")
 	default:
-		return &ExpressionNode{Expression: "github.event.comment.author_association || github.event.issue.author_association || github.event.pull_request.author_association || github.event.author_association"}
+		return &ExpressionNode{Expression: "github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association || github.event.pull_request.author_association || github.event.author_association"}
 	}
 }
 

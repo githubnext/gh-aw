@@ -48,6 +48,8 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  pull_request_review:
+    types: [submitted]
   issues:
     types: [opened]
   pull_request:
@@ -56,6 +58,7 @@ on:
   skip-author-associations:
     issue_comment: contributor
     pull_request_review_comment: [first_time_contributor, none]
+    pull_request_review: collaborator
     issues: owner
     pull_request: member
 engine: copilot
@@ -80,10 +83,12 @@ engine: copilot
 	require.NotEmpty(t, preActivationSection)
 
 	assert.Contains(t, preActivationSection, "github.event.comment.author_association")
+	assert.Contains(t, preActivationSection, "github.event.review.author_association")
 	assert.Contains(t, preActivationSection, "github.event.issue.author_association")
 	assert.Contains(t, preActivationSection, "github.event.pull_request.author_association")
 	assert.Contains(t, preActivationSection, "github.event_name == 'issue_comment'")
 	assert.Contains(t, preActivationSection, "github.event_name == 'pull_request_review_comment'")
+	assert.Contains(t, preActivationSection, "github.event_name == 'pull_request_review'")
 	assert.Contains(t, preActivationSection, "github.event_name == 'issues'")
 	assert.Contains(t, preActivationSection, "github.event_name == 'pull_request'")
 	assert.Contains(t, preActivationSection, "CONTRIBUTOR")
@@ -91,6 +96,7 @@ engine: copilot
 	assert.Contains(t, preActivationSection, "NONE")
 	assert.Contains(t, preActivationSection, "OWNER")
 	assert.Contains(t, preActivationSection, "MEMBER")
+	assert.Contains(t, preActivationSection, "COLLABORATOR")
 	assert.Contains(t, preActivationSection, "!(")
 	assert.Contains(t, preActivationSection, "||")
 	assert.Contains(t, preActivationSection, "&&")
@@ -98,6 +104,7 @@ engine: copilot
 	assert.Contains(t, lockContentStr, "# skip-author-associations:")
 	assert.Contains(t, lockContentStr, "    # issue_comment: contributor")
 	assert.Contains(t, lockContentStr, "    # pull_request_review_comment:")
+	assert.Contains(t, lockContentStr, "    # pull_request_review: collaborator")
 	assert.Contains(t, lockContentStr, "    # issues: owner")
 	assert.Contains(t, lockContentStr, "    # pull_request: member")
 	assert.Contains(t, lockContentStr, "    # - first_time_contributor")
