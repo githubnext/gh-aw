@@ -173,7 +173,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
       await execApi.exec("git", ["update-ref", "-d", bundleTempRef]);
     } catch (cleanupError) {
       // Non-fatal cleanup
-      core.info(`Non-fatal cleanup: failed to delete temporary bundle ref ${bundleTempRef}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+      core.warning(`Non-fatal cleanup: failed to delete temporary bundle ref ${bundleTempRef}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
     }
   }
 }
