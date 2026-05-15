@@ -22,8 +22,8 @@ func FuzzStepsRunSecretsToEnvCodemod(f *testing.F) {
 
 		content := buildHoistFuzzContent(section, run, expectedVars, secretName, envName, preseedBindings)
 		frontmatter := map[string]any{
-			"on":      "push",
-			section:   []any{map[string]any{"run": run}},
+			"on":       "push",
+			section:    []any{map[string]any{"run": run}},
 			"workflow": "fuzz",
 		}
 
@@ -110,7 +110,7 @@ func buildHoistFuzzContent(section, run string, expectedVars []string, secretNam
 }
 
 func extractFuzzRunLine(content string) string {
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "run: ") {
 			return trimmed
@@ -121,7 +121,7 @@ func extractFuzzRunLine(content string) string {
 
 func countEnvBindingKey(content, key string) int {
 	count := 0
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), key+": ") {
 			count++
 		}
@@ -129,6 +129,8 @@ func countEnvBindingKey(content, key string) int {
 	return count
 }
 
+// sanitizeHoistName converts arbitrary fuzz input into a valid env-var style token
+// ([A-Z0-9_], max 20 chars) and ensures the name does not start with a digit.
 func sanitizeHoistName(raw string) string {
 	if raw == "" {
 		return "TOKEN"
@@ -153,7 +155,7 @@ func sanitizeHoistName(raw string) string {
 	if s == "" {
 		return "TOKEN"
 	}
-	if s[0] >= '0' && s[0] <= '9' {
+	if len(s) > 0 && s[0] >= '0' && s[0] <= '9' {
 		return "T_" + s
 	}
 	return s
