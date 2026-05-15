@@ -55,6 +55,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw experiments analyze` | `NewExperimentsAnalyzeSubcommand` | Analyze a specific experiment workflow in detail |
 | `gh aw forecast` | `NewForecastCommand` | Forecast token usage and costs for agentic workflows (experimental) |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
+| `gh aw deploy` | `NewDeployCommand` | Deploy agentic workflows to a target repository using a pull request |
+| `gh aw outcomes` | `NewOutcomesCommand` | Check what happened to a workflow run's safe outputs |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
 | `gh aw version` | `versionCmd` (main.go) | Show version information |
 | `gh aw completion` | `NewCompletionCommand` | Generate shell completion scripts |
@@ -96,6 +98,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `UpgradeConfig` | `upgrade_command.go` | Configuration for `NewUpgradeCommand` |
 | `ChecksConfig` | `checks_command.go` | Configuration for `RunChecks` |
 | `ChecksResult` | `checks_command.go` | Result of `FetchChecksResult` |
+| `OutcomesConfig` | `outcomes_command.go` | Configuration for `RunOutcomes` safe-output outcome evaluation |
+| `OutcomesData` | `outcomes_command.go` | Evaluated outcome data returned by `RunOutcomes` |
 
 ### Key Functions
 
