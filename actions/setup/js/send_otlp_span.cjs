@@ -983,6 +983,8 @@ async function sendJobSetupSpan(options = {}) {
   ];
 
   if (engineId) {
+    const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;
+    attributes.push(buildAttr("gen_ai.system", genAiSystem));
     attributes.push(buildAttr("gh-aw.engine.id", engineId));
   }
   if (eventName) {
@@ -1419,7 +1421,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
-  if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
+  if (engineId) {
+    const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;
+    attributes.push(buildAttr("gen_ai.system", genAiSystem));
+    attributes.push(buildAttr("gh-aw.engine.id", engineId));
+  }
   if (model) attributes.push(buildAttr("gen_ai.request.model", model));
   if (trackerId) attributes.push(buildAttr("gh-aw.tracker.id", trackerId));
   if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
