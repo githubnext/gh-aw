@@ -119,6 +119,33 @@ async function readBlobAsBase64(blobHash, cwd) {
 }
 
 /**
+ * Push the local branch to origin using git directly.
+ *
+ * @param {object} opts
+ * @param {string} opts.branch
+ * @param {string} opts.cwd
+ * @param {object} [opts.gitAuthEnv]
+ * @returns {Promise<void>}
+ */
+async function pushBranchWithGit({ branch, cwd, gitAuthEnv }) {
+  await exec.exec("git", ["push", "origin", branch], {
+    cwd,
+    env: { ...process.env, ...(gitAuthEnv || {}) },
+  });
+}
+
+/**
+ * Resolve the local HEAD SHA.
+ *
+ * @param {string} cwd
+ * @returns {Promise<string>}
+ */
+async function resolveLocalHeadSha(cwd) {
+  const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
+  return stdout.trim();
+}
+
+/**
  * @fileoverview Signed Commit Push Helper
  *
  * Pushes local git commits to a remote branch using the GitHub GraphQL
@@ -154,14 +181,18 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // so skip it entirely and fall directly through to git push.
   if (!baseRef) {
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
-    await exec.exec("git", ["push", "origin", branch], {
-      cwd,
-      env: { ...process.env, ...(gitAuthEnv || {}) },
-    });
-    const { stdout: headOut } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
-    const headSha = headOut.trim();
+    await pushBranchWithGit({ branch, cwd, gitAuthEnv });
+    const headSha = await resolveLocalHeadSha(cwd);
     core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
     return headSha;
+  }
+
+  if (signedCommits === false) {
+    core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
+    await pushBranchWithGit({ branch, cwd, gitAuthEnv });
+    const pushedSha = await resolveLocalHeadSha(cwd);
+    core.info(`pushSignedCommits: git push completed with signed commits disabled, using pushed SHA ${pushedSha}`);
+    return pushedSha;
   }
 
   // Collect the commits introduced (oldest-first) using topological order to ensure
@@ -175,17 +206,6 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   if (shas.length === 0) {
     core.info("pushSignedCommits: no new commits to push via GraphQL");
     return undefined;
-  }
-
-  if (signedCommits === false) {
-    core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
-    await exec.exec("git", ["push", "origin", branch], {
-      cwd,
-      env: { ...process.env, ...(gitAuthEnv || {}) },
-    });
-    const pushedSha = shas[shas.length - 1];
-    core.info(`pushSignedCommits: git push completed with signed commits disabled, using pushed SHA ${pushedSha}`);
-    return pushedSha;
   }
 
   core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch (branch: ${branch}, repo: ${owner}/${repo})`);
@@ -419,10 +439,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       );
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${err instanceof Error ? err.message : String(err)}`);
-    await exec.exec("git", ["push", "origin", branch], {
-      cwd,
-      env: { ...process.env, ...(gitAuthEnv || {}) },
-    });
+    await pushBranchWithGit({ branch, cwd, gitAuthEnv });
     const fallbackSha = shas[shas.length - 1];
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;
