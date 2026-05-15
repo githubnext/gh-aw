@@ -16,6 +16,7 @@ tracker-id: daily-observability-report
 tools:
   agentic-workflows: true
 timeout-minutes: 45
+max-effective-tokens: 40000000
 imports:
   - uses: shared/meta-analysis-base.md
     with:
@@ -36,7 +37,7 @@ You are an expert site reliability engineer analyzing observability coverage for
 
 ## Mission
 
-Generate a comprehensive daily report analyzing workflow runs from the past week to check for proper observability coverage in:
+Generate a daily report analyzing a representative, capped set of workflow runs from the past week to check for proper observability coverage in:
 1. **AWF Firewall (gh-aw-firewall)** - Network egress control with Squid proxy
 2. **MCP Gateway** - Model Context Protocol server execution runtime
 
@@ -55,36 +56,26 @@ Use the `agentic-workflows` MCP server tools to download and analyze logs from r
 
 **⚠️ IMPORTANT**: The `status`, `logs`, and `audit` operations are MCP server tools, NOT shell commands. Call them as tools with JSON parameters, not as `gh aw` shell commands.
 
-### Step 1.1: List Available Workflows
+### Step 1.1: Download Logs from Recent Runs
 
-First, get a list of all agentic workflows in the repository using the `status` MCP tool:
-
-**Tool**: `status`  
-**Parameters**:
-```json
-{
-  "json": true
-}
-```
-
-### Step 1.2: Download Logs from Recent Runs
-
-For each agentic workflow, download logs from the past week using the `logs` MCP tool. The tool will automatically save logs to `/tmp/gh-aw/aw-mcp/logs/`.
+Start with a single broad `logs` MCP tool call. The tool will automatically save logs to `/tmp/gh-aw/aw-mcp/logs/`.
 
 **Tool**: `logs`  
 **Parameters**:
 ```json
 {
   "workflow_name": "",
-  "count": 100,
+  "count": 30,
   "start_date": "-7d",
   "parse": true
 }
 ```
 
-**Note**: For repositories with high activity, you can increase the `count` parameter (e.g., `"count": 500`) or run multiple passes with pagination. Leave `workflow_name` empty to download logs for all workflows.
+Do **not** list every workflow first and do **not** paginate broadly. One repository-wide fetch is the default path.
 
-If there are many workflows, you can also target specific workflows:
+### Step 1.2: Narrow Follow-up Only When Needed
+
+Only if the broad fetch is missing an important class of run (for example, no recent firewall-enabled run or no recent MCP-enabled run), do a small number of targeted follow-up `logs` calls:
 
 **Tool**: `logs`  
 **Parameters**:
@@ -97,7 +88,24 @@ If there are many workflows, you can also target specific workflows:
 }
 ```
 
-### Step 1.3: Collect Run Information
+Keep targeted follow-up minimal:
+- At most **5** targeted `logs` calls total
+- At most **10** runs per targeted call
+- Prefer the most recent failed or cancelled runs first, then successful runs
+
+### Step 1.3: Cap Analysis Scope
+
+Analyze at most **20 runs total** across all fetched results.
+
+Prioritize runs in this order:
+1. Failed or cancelled runs
+2. Runs with firewall enabled
+3. Runs with MCP servers configured
+4. Most recent successful runs needed to confirm healthy coverage
+
+When multiple runs come from the same workflow, keep at most **2 runs per workflow** unless a third run is needed to confirm a repeated critical gap.
+
+### Step 1.4: Collect Run Information
 
 The `logs` MCP tool saves all downloaded run logs to `/tmp/gh-aw/aw-mcp/logs/`. For each downloaded run, note (see standardized metric names in scratchpad/metrics-glossary.md):
 - Workflow name
@@ -359,6 +367,16 @@ Follow the formatting guidelines above. Use the following structure:
 ```
 
 ## Important Guidelines
+
+## Token Budget Guidelines
+
+This workflow uses Codex, so prompt discipline is the main budget control.
+
+- **Start with one broad `logs` call** and avoid repository-wide workflow enumeration
+- **Stay within the 20-run cap** and do not inspect extra runs once coverage status is clear
+- **Use targeted follow-up only to fill a missing category**; do not fan out across every workflow
+- **Summarize, don't exhaustively transcribe** — visible sections should cover only the most important findings, with detailed tables limited to the analyzed run set
+- **Stop immediately after `create_discussion` or `noop`** — no extra tool calls or post-report analysis
 
 ### Data Quality
 
