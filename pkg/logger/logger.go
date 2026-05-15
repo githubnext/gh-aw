@@ -19,7 +19,7 @@ type Logger struct {
 	enabled   bool
 	lastLog   time.Time
 	mu        sync.Mutex
-	color     string
+	label     string
 }
 
 var (
@@ -41,9 +41,9 @@ var (
 		lipgloss.NewStyle().Foreground(styles.ColorComment),
 		lipgloss.NewStyle().Foreground(styles.ColorForeground),
 		lipgloss.NewStyle().Foreground(styles.ColorBorder),
-		lipgloss.NewStyle().Foreground(styles.ColorBackground),
-		lipgloss.NewStyle().Foreground(styles.ColorTableAltRow),
-		lipgloss.NewStyle().Foreground(lipgloss.Color("33")),
+		lipgloss.NewStyle().Foreground(styles.ColorInfo),
+		lipgloss.NewStyle().Foreground(styles.ColorSuccess),
+		lipgloss.NewStyle().Foreground(styles.ColorPurple),
 	}
 )
 
@@ -72,17 +72,17 @@ func initDebugEnv() string {
 // Colors are automatically assigned to each namespace if DEBUG_COLORS != "0".
 func New(namespace string) *Logger {
 	enabled := computeEnabled(namespace)
-	color := selectColor(namespace)
+	label := selectNamespaceLabel(namespace)
 	return &Logger{
 		namespace: namespace,
 		enabled:   enabled,
 		lastLog:   time.Now(),
-		color:     color,
+		label:     label,
 	}
 }
 
-// selectColor selects a color for the namespace based on its hash.
-func selectColor(namespace string) string {
+// selectNamespaceLabel renders the namespace label with a hash-selected style.
+func selectNamespaceLabel(namespace string) string {
 	if !debugColors {
 		return namespace
 	}
@@ -119,7 +119,7 @@ func (l *Logger) Printf(format string, args ...any) {
 	l.mu.Unlock()
 
 	message := fmt.Sprintf(format, args...)
-	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.color, message, timeutil.FormatDuration(diff))
+	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
 }
 
 // Print prints a message if the logger is enabled.
@@ -136,7 +136,7 @@ func (l *Logger) Print(args ...any) {
 	l.mu.Unlock()
 
 	message := fmt.Sprint(args...)
-	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.color, message, timeutil.FormatDuration(diff))
+	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
 }
 
 // computeEnabled computes whether a namespace matches the DEBUG patterns

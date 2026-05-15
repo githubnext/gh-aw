@@ -277,28 +277,28 @@ func TestLogger_TimeDiff(t *testing.T) {
 }
 
 func TestColorSelection(t *testing.T) {
-	// Test that selectColor returns consistent colors for the same namespace
-	color1 := selectColor("test:namespace")
-	color2 := selectColor("test:namespace")
+	// Test that selectNamespaceLabel returns consistent colors for the same namespace
+	color1 := selectNamespaceLabel("test:namespace")
+	color2 := selectNamespaceLabel("test:namespace")
 	if color1 != color2 {
-		t.Errorf("selectColor should return same color for same namespace")
+		t.Errorf("selectNamespaceLabel should return same color for same namespace")
 	}
 	if color1 == "" {
-		t.Error("selectColor should return non-empty namespace label")
+		t.Error("selectNamespaceLabel should return non-empty namespace label")
 	}
 	if !strings.Contains(color1, "test:namespace") {
-		t.Errorf("selectColor should include namespace text, got %q", color1)
+		t.Errorf("selectNamespaceLabel should include namespace text, got %q", color1)
 	}
 	if !strings.Contains(color1, "\x1b[") {
-		t.Errorf("selectColor should include ANSI styling when colors are enabled, got %q", color1)
+		t.Errorf("selectNamespaceLabel should include ANSI styling when colors are enabled, got %q", color1)
 	}
 
-	// When colors are disabled, selectColor should return plain namespace text.
+	// When colors are disabled, selectNamespaceLabel should return plain namespace text.
 	origDebugColors := debugColors
 	debugColors = false
 	t.Cleanup(func() { debugColors = origDebugColors })
-	if got := selectColor("plain:namespace"); got != "plain:namespace" {
-		t.Errorf("selectColor should return plain namespace when debugColors=false, got %q", got)
+	if got := selectNamespaceLabel("plain:namespace"); got != "plain:namespace" {
+		t.Errorf("selectNamespaceLabel should return plain namespace when debugColors=false, got %q", got)
 	}
 }
 
