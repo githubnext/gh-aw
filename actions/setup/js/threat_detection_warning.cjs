@@ -12,7 +12,7 @@ function normalizeThreatKinds(reason) {
   if (!value) return "unknown";
   const kinds = value
     .split(/[\s,]+/)
-    .map(kind => kind.trim().toLowerCase())
+    .map(kind => kind.toLowerCase())
     .filter(Boolean)
     .map(kind => kind.replace(/[^a-z0-9_-]/g, ""))
     .filter(Boolean);
