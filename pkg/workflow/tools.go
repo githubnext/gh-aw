@@ -91,6 +91,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 				if len(data.CommandOtherEvents) > 0 {
 					maps.Copy(commandEventsMap, data.CommandOtherEvents)
 				}
+				setWorkflowDispatchInputsOptional(commandEventsMap)
 				if _, hasWorkflowDispatch := commandEventsMap["workflow_dispatch"]; !hasWorkflowDispatch {
 					commandEventsMap["workflow_dispatch"] = nil
 				}
@@ -418,6 +419,26 @@ func ensureWorkflowDispatchItemNumberInput(eventsMap map[string]any) bool {
 		}
 	}
 	return true
+}
+
+func setWorkflowDispatchInputsOptional(eventsMap map[string]any) {
+	dispatchMap, ok := eventsMap["workflow_dispatch"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	inputsMap, ok := dispatchMap["inputs"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	for _, inputDef := range inputsMap {
+		inputDefMap, ok := inputDef.(map[string]any)
+		if !ok {
+			continue
+		}
+		inputDefMap["required"] = false
+	}
 }
 
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools

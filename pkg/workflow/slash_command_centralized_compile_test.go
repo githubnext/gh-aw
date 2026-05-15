@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,4 +84,51 @@ tools:
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issue_comment'")
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'triage'")
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
+}
+
+func TestCompileWorkflow_SlashCommandCentralizedMakesDispatchInputsOptional(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-dispatch-inputs-test")
+
+	markdownPath := filepath.Join(tmpDir, "scout.md")
+	content := `---
+on:
+  slash_command:
+    name: scout
+    strategy: centralized
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Research topic"
+        required: true
+        type: string
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Scout
+`
+	require.NoError(t, os.WriteFile(markdownPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(markdownPath))
+
+	lockPath := stringutil.MarkdownToLockFile(markdownPath)
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+
+	var workflow map[string]any
+	require.NoError(t, yaml.Unmarshal(lockContent, &workflow))
+
+	onMap, ok := workflow["on"].(map[string]any)
+	require.True(t, ok)
+	workflowDispatch, ok := onMap["workflow_dispatch"].(map[string]any)
+	require.True(t, ok)
+	inputs, ok := workflowDispatch["inputs"].(map[string]any)
+	require.True(t, ok)
+	topic, ok := inputs["topic"].(map[string]any)
+	require.True(t, ok)
+	required, ok := topic["required"].(bool)
+	require.True(t, ok)
+	require.False(t, required)
 }
