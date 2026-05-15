@@ -453,6 +453,8 @@ func otelServiceName(workflowData *WorkflowData) string {
 		return defaultServiceName
 	}
 
+	// SanitizeWorkflowName lowercases the workflow ID and normalizes separators/special
+	// characters to produce a stable service.name-safe suffix.
 	sanitizedWorkflowID := SanitizeWorkflowName(workflowData.WorkflowID)
 	if sanitizedWorkflowID == "" {
 		return defaultServiceName

@@ -660,6 +660,23 @@ func TestInjectOTLPConfig_HeadersPresenceAfterInjection(t *testing.T) {
 	})
 }
 
+func TestOTELServiceName(t *testing.T) {
+	t.Run("uses workflow-specific service name when workflow id is present", func(t *testing.T) {
+		got := otelServiceName(&WorkflowData{WorkflowID: "Repo Triage/Weekly"})
+		assert.Equal(t, "gh-aw.repo-triage-weekly", got)
+	})
+
+	t.Run("falls back when workflow id is empty", func(t *testing.T) {
+		got := otelServiceName(&WorkflowData{})
+		assert.Equal(t, "gh-aw", got)
+	})
+
+	t.Run("falls back when workflow data is nil", func(t *testing.T) {
+		got := otelServiceName(nil)
+		assert.Equal(t, "gh-aw", got)
+	})
+}
+
 // TestInjectOTLPConfig_OTLPEndpointField verifies that injectOTLPConfig sets workflowData.OTLPEndpoint
 // so that downstream code (buildMCPGatewayConfig, mcp_setup_generator) can use it as the
 // single source of truth for "is OTLP configured?" without re-reading raw frontmatter.
