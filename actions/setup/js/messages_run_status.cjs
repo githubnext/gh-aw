@@ -151,7 +151,7 @@ function getDetectionWarningMessage(ctx) {
   };
   const reasonText = reasonDescriptions[ctx.reason] || "The threat detection analysis could not be completed.";
   const defaultTemplate =
-    "> [!CAUTION]\n> **Security scanning requires review** for [{workflow_name}]({run_url})\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>";
+    "> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> <!-- agentic threat detected -->\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>";
   return renderConfiguredMessage("detectionWarning", defaultTemplate, { ...ctx, reasonText });
 }
 

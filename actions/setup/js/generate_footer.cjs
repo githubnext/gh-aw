@@ -132,7 +132,7 @@ function getExpiredEntityCautionAlert(workflowName, runUrl) {
     parse_error: "The threat detection results could not be parsed.",
   };
   const reasonText = reasonDescriptions[detectionReason] || "The threat detection analysis could not be completed.";
-  return `> [!CAUTION]\n> **Security scanning requires review** for [${workflowName}](${runUrl})\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
+  return `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> <!-- agentic threat detected -->\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText}\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
 }
 
 /**

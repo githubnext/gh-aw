@@ -97,6 +97,78 @@ const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
  */
 const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
 
+/** @type {Set<string>} Safe output types that remain reviewable in threat-detection warn mode. */
+const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
+  "create_issue",
+  "add_comment",
+  "create_pull_request",
+  "comment_memory",
+  "update_issue",
+  "create_discussion",
+  "update_discussion",
+  "update_pull_request",
+  "create_pull_request_review_comment",
+  "submit_pull_request_review",
+  "reply_to_pull_request_review_comment",
+  "create_project_status_update",
+  "update_release",
+  "create_code_scanning_alert",
+  "create_missing_tool_issue",
+  "missing_tool",
+  "create_missing_data_issue",
+  "missing_data",
+  "create_report_incomplete_issue",
+  "report_incomplete",
+]);
+
+/** @type {Map<string, string>} Safe output types that require conversion to a reviewable type in warn mode. */
+const THREAT_WARNING_CONVERTIBLE_TYPES = new Map([["push_to_pull_request_branch", "create_pull_request"]]);
+
+/** @type {Set<string>} Safe output types that must be aborted in threat-detection warn mode. */
+const THREAT_WARNING_ABORT_TYPES = new Set([
+  "noop",
+  "close_issue",
+  "link_sub_issue",
+  "close_discussion",
+  "close_pull_request",
+  "merge_pull_request",
+  "mark_pull_request_as_ready_for_review",
+  "resolve_pull_request_review_thread",
+  "add_labels",
+  "remove_labels",
+  "add_reviewer",
+  "assign_milestone",
+  "assign_to_agent",
+  "assign_to_user",
+  "unassign_from_user",
+  "hide_comment",
+  "create_project",
+  "update_project",
+  "upload_asset",
+  "dispatch_workflow",
+  "autofix_code_scanning_alert",
+  "create_agent_session",
+]);
+
+/**
+ * Resolve threat warning policy for a safe output type.
+ * @param {string} messageType
+ * @returns {{policy: "reviewable" | "convertible" | "abort" | "none", mappedType?: string}}
+ */
+function getThreatWarningPolicy(messageType) {
+  if (THREAT_WARNING_ABORT_TYPES.has(messageType)) {
+    return { policy: "abort" };
+  }
+  const mappedType = THREAT_WARNING_CONVERTIBLE_TYPES.get(messageType);
+  if (mappedType) {
+    return { policy: "convertible", mappedType };
+  }
+  if (THREAT_WARNING_REVIEWABLE_TYPES.has(messageType)) {
+    return { policy: "reviewable" };
+  }
+  return { policy: "none" };
+}
+
 function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
   if (!config.comment_memory) {
     return [];
@@ -385,6 +457,7 @@ function formatManifestLogMessage(item) {
  */
 async function processMessages(messageHandlers, messages, onItemCreated = null) {
   const results = [];
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
 
   // Collect missing_tool, missing_data, noop, and report_incomplete messages first
   const missings = collectMissingMessages(messages);
@@ -439,6 +512,28 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
     if (!messageType) {
       core.warning(`Skipping message ${i + 1} without type`);
       continue;
+    }
+
+    if (detectionConclusion === "warning") {
+      const threatPolicy = getThreatWarningPolicy(messageType);
+      if (threatPolicy.policy === "abort") {
+        const errorCode = "threat_detected_abort_policy";
+        const error = `Threat-detection warn policy aborted "${messageType}" (WTD3): non-reviewable outputs must not be applied when detection conclusion is warning.`;
+        core.warning(`🚫 ${error}`);
+        results.push({
+          type: messageType,
+          messageIndex: i,
+          success: false,
+          cancelled: true,
+          threatDetected: true,
+          errorCode,
+          error,
+        });
+        continue;
+      }
+      if (threatPolicy.policy === "convertible") {
+        core.info(`Threat-detection warn policy conversion required for "${messageType}" -> "${threatPolicy.mappedType}" (WTD2)`);
+      }
     }
 
     // Fail-fast: if a previous code-push operation failed, cancel non-code-push messages.
