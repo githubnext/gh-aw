@@ -52,8 +52,7 @@ func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 			triggerNamesPhrase := strings.Join(triggerNames, " and ")
 
 			return fmt.Errorf(
-				"on.workflow_dispatch.inputs.%s.required: true is not allowed when using %s; "+
-					"these triggers are dispatched automatically and cannot enforce required manual inputs; set required: false",
+				"on.workflow_dispatch.inputs.%s.required: true is not allowed when using %s; these triggers are dispatched automatically and cannot enforce required manual inputs; set required: false in workflow_dispatch.inputs",
 				inputName, triggerNamesPhrase,
 			)
 		}
