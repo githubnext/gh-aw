@@ -107,7 +107,10 @@ const WTD3_REQUIREMENT_ID = "WTD3";
  * Safe output types that remain reviewable in threat-detection warn mode.
  * Reviewable means the handler creates visible artifacts (issues, comments, pull requests, review items)
  * that humans can inspect before any follow-up automation or merge decision.
- * If a new safe output type is added, include it here only when it follows that same review-first model.
+ * If a new safe output type is added:
+ * - place it here when it follows that same review-first model;
+ * - place it in THREAT_WARNING_CONVERTIBLE_TYPES when it must be remapped to a reviewable type;
+ * - place it in THREAT_WARNING_ABORT_TYPES when it performs non-reviewable mutation.
  * @type {Set<string>}
  */
 const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
@@ -189,8 +192,9 @@ function getThreatWarningPolicy(messageType) {
   if (THREAT_WARNING_REVIEWABLE_TYPES.has(messageType)) {
     return { policy: "reviewable" };
   }
-  // Unknown types return "none" so the caller can explicitly decide whether to
-  // allow, warn, or fail depending on context.
+  // Unknown types return "none". In warning mode this is currently allow-with-warning
+  // to preserve backward compatibility for custom/extension handlers, but new built-in
+  // safe output types should be explicitly classified in one of the policy sets above.
   return { policy: "none" };
 }
 
@@ -557,9 +561,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         continue;
       }
       if (threatPolicy.policy === "convertible") {
-        // Conversion execution is implemented in the relevant handler.
-        // For push_to_pull_request_branch this occurs inside push_to_pull_request_branch.cjs,
-        // which routes warning-mode outcomes into a reviewable PR flow.
+        // Conversion execution is implemented in the handler for the convertible type.
+        // Keep THREAT_WARNING_CONVERTIBLE_TYPES and handler conversion logic in sync.
+        // Current mapping: push_to_pull_request_branch -> create_pull_request
+        // (implemented in push_to_pull_request_branch.cjs warning-mode review flow).
         core.info(`Threat-detection warn policy conversion required for "${messageType}" -> "${threatPolicy.mappedType}" (${WTD2_REQUIREMENT_ID})`);
       } else if (threatPolicy.policy === "none") {
         core.warning(`Threat-detection warn policy has no explicit classification for "${messageType}"; allowing handler execution by default`);
