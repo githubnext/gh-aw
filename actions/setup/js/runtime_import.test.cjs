@@ -1402,21 +1402,22 @@ describe("runtime_import", () => {
           fs.mkdirSync(sharedDir, { recursive: true });
           fs.writeFileSync(path.join(sharedDir, "foo.md"), "<wiki-context>Shared block</wiki-context>");
 
+          // Include leading "/" and "//" forms to fuzz root-absolute import normalization.
           const sharedPathVariants = ["shared/agent/foo.md", "./shared/agent/foo.md", ".github/workflows/shared/agent/foo.md", "/.github/workflows/shared/agent/foo.md", "//.github/workflows/shared/agent/foo.md"];
           const workflowPathVariants = ["my-workflow.md", ".github/workflows/my-workflow.md", "/.github/workflows/my-workflow.md"];
 
           // Deterministic pseudo-random generator to keep this test stable and reproducible.
-          let seed = 20260515;
-          const nextInt = max => {
+          let seed = 123456789;
+          const nextRandomIndex = max => {
             seed = (seed * 1664525 + 1013904223) >>> 0;
             return seed % max;
           };
 
           for (let i = 0; i < 50; i++) {
             vi.clearAllMocks();
-            const topLevelPath = sharedPathVariants[nextInt(sharedPathVariants.length)];
-            const nestedPath = sharedPathVariants[nextInt(sharedPathVariants.length)];
-            const workflowPath = workflowPathVariants[nextInt(workflowPathVariants.length)];
+            const topLevelPath = sharedPathVariants[nextRandomIndex(sharedPathVariants.length)];
+            const nestedPath = sharedPathVariants[nextRandomIndex(sharedPathVariants.length)];
+            const workflowPath = workflowPathVariants[nextRandomIndex(workflowPathVariants.length)];
 
             fs.writeFileSync(path.join(workflowsDir, "my-workflow.md"), `# Workflow\n\n{{#runtime-import ${nestedPath}}}\n\nDone.`);
 
