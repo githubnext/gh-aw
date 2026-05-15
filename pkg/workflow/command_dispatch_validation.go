@@ -14,8 +14,7 @@ func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 
 	hasSlashCommand := len(workflowData.Command) > 0
 	hasLabelCommand := len(workflowData.LabelCommand) > 0
-	hasSlashOrLabelCommand := hasSlashCommand || hasLabelCommand
-	if !hasSlashOrLabelCommand {
+	if !hasSlashCommand && !hasLabelCommand {
 		return nil
 	}
 
