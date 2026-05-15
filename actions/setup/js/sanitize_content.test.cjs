@@ -212,6 +212,11 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("Hello @copilot");
     });
 
+    it("should treat string allowedAliases as a single alias", () => {
+      const result = sanitizeContent("Hello @copilot and @c", { allowedAliases: "copilot-swe-agent" });
+      expect(result).toBe("Hello @copilot and `@c`");
+    });
+
     it("should handle multiple allowed aliases", () => {
       const result = sanitizeContent("Hello @user1 and @user2 and @other", {
         allowedAliases: ["user1", "user2"],

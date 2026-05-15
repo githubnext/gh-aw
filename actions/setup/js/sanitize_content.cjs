@@ -64,7 +64,9 @@ function sanitizeContent(content, maxLengthOrOptions) {
   } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
     maxLength = maxLengthOrOptions.maxLength;
     // Pre-process allowed aliases to lowercase for efficient comparison
-    allowedAliasesLowercase = expandAllowedAliases(maxLengthOrOptions.allowedAliases || []);
+    const rawAllowedAliases = maxLengthOrOptions.allowedAliases;
+    const normalizedAllowedAliases = Array.isArray(rawAllowedAliases) ? rawAllowedAliases : typeof rawAllowedAliases === "string" ? [rawAllowedAliases] : [];
+    allowedAliasesLowercase = expandAllowedAliases(normalizedAllowedAliases);
     maxBotMentions = maxLengthOrOptions.maxBotMentions;
   }
 
