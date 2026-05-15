@@ -286,6 +286,12 @@ func TestColorSelection(t *testing.T) {
 	if color1 == "" {
 		t.Error("selectColor should return non-empty namespace label")
 	}
+	if !strings.Contains(color1, "test:namespace") {
+		t.Errorf("selectColor should include namespace text, got %q", color1)
+	}
+	if !strings.Contains(color1, "\x1b[") {
+		t.Errorf("selectColor should include ANSI styling when colors are enabled, got %q", color1)
+	}
 
 	// When colors are disabled, selectColor should return plain namespace text.
 	origDebugColors := debugColors

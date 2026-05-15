@@ -36,14 +36,14 @@ var (
 		lipgloss.NewStyle().Foreground(styles.ColorSuccess),
 		lipgloss.NewStyle().Foreground(styles.ColorWarning),
 		lipgloss.NewStyle().Foreground(styles.ColorPurple),
-		lipgloss.NewStyle().Foreground(styles.ColorInfo),
-		lipgloss.NewStyle().Foreground(styles.ColorPurple),
 		lipgloss.NewStyle().Foreground(styles.ColorYellow),
 		lipgloss.NewStyle().Foreground(styles.ColorError),
-		lipgloss.NewStyle().Foreground(styles.ColorSuccess),
-		lipgloss.NewStyle().Foreground(styles.ColorInfo),
-		lipgloss.NewStyle().Foreground(styles.ColorWarning),
-		lipgloss.NewStyle().Foreground(styles.ColorInfo),
+		lipgloss.NewStyle().Foreground(styles.ColorComment),
+		lipgloss.NewStyle().Foreground(styles.ColorForeground),
+		lipgloss.NewStyle().Foreground(styles.ColorBorder),
+		lipgloss.NewStyle().Foreground(styles.ColorBackground),
+		lipgloss.NewStyle().Foreground(styles.ColorTableAltRow),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("33")),
 	}
 )
 
