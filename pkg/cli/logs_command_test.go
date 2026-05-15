@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -292,4 +293,37 @@ func TestLogsCommandStdinRejectsPositionalArgs(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err, "logs --stdin with a positional arg should return an error")
 	assert.Contains(t, err.Error(), "positional arguments are not allowed with --stdin", "error message should explain the conflict")
+}
+
+// TestLogsCommand_RepoBypassesLocalWorkflowResolution verifies that specifying
+// --repo prevents a "workflow not found" error from local file lookup when a
+// positional workflow name argument is supplied. Instead of calling
+// workflow.FindWorkflowName (which requires local lock files), the command
+// normalizes the name and passes it directly to the download orchestrator.
+// Because there is no running GitHub API in unit tests the orchestrator itself
+// will fail; the test asserts only that the error is NOT the local-resolution
+// "workflow not found" message.
+func TestLogsCommand_RepoBypassesLocalWorkflowResolution(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := NewLogsCommand()
+	// Use a workflow name that definitely does not exist locally.
+	cmd.SetArgs([]string{"nonexistent-remote-workflow", "--repo", "owner/repo"})
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+
+	execErr := cmd.Execute()
+
+	// The command must fail: there are no local workflows and the --repo target
+	// does not exist / no gh auth in tests, so downstream API calls will error.
+	require.Error(t, execErr, "--repo with a non-existent local workflow must not succeed in unit tests")
+
+	// The "workflow 'X' not found" error from local FindWorkflowName must NOT appear.
+	// (Any other error from downstream API calls is acceptable in unit tests.)
+	assert.NotContains(t, execErr.Error(), "workflow 'nonexistent-remote-workflow' not found",
+		"--repo should bypass local workflow name resolution and not produce a local-not-found error")
 }

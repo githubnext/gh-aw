@@ -1385,6 +1385,51 @@ describe("runtime_import", () => {
           expect(result).toBe("Outer \nInner  text");
         });
 
+        it("should deduplicate imports already resolved before recursive workflow self-import", async () => {
+          const sharedDir = path.join(workflowsDir, "shared", "agent");
+          fs.mkdirSync(sharedDir, { recursive: true });
+          fs.writeFileSync(path.join(sharedDir, "foo.md"), "<wiki-context>Shared block</wiki-context>");
+          fs.writeFileSync(path.join(workflowsDir, "my-workflow.md"), "# Workflow\n\n{{#runtime-import shared/agent/foo.md}}\n\nDone.");
+
+          const result = await processRuntimeImports("{{#runtime-import .github/workflows/shared/agent/foo.md}}\n{{#runtime-import .github/workflows/my-workflow.md}}", tempDir);
+
+          expect(result).toBe("<wiki-context>Shared block</wiki-context>\n# Workflow\n\n\n\nDone.");
+          expect(core.info).toHaveBeenCalledWith("Skipping already resolved import for shared/agent/foo.md");
+        });
+
+        it("should fuzz dedup across equivalent recursive self-import path spellings", async () => {
+          const sharedDir = path.join(workflowsDir, "shared", "agent");
+          fs.mkdirSync(sharedDir, { recursive: true });
+          fs.writeFileSync(path.join(sharedDir, "foo.md"), "<wiki-context>Shared block</wiki-context>");
+
+          // Include leading "/" and "//" forms to fuzz root-absolute import normalization.
+          const sharedPathVariants = ["shared/agent/foo.md", "./shared/agent/foo.md", ".github/workflows/shared/agent/foo.md", "/.github/workflows/shared/agent/foo.md", "//.github/workflows/shared/agent/foo.md"];
+          const workflowPathVariants = ["my-workflow.md", ".github/workflows/my-workflow.md", "/.github/workflows/my-workflow.md"];
+
+          // Deterministic pseudo-random generator to keep this test stable and reproducible.
+          let seed = 123456789;
+          const nextRandomIndex = max => {
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            return seed % max;
+          };
+
+          for (let i = 0; i < 50; i++) {
+            vi.clearAllMocks();
+            const topLevelPath = sharedPathVariants[nextRandomIndex(sharedPathVariants.length)];
+            const nestedPath = sharedPathVariants[nextRandomIndex(sharedPathVariants.length)];
+            const workflowPath = workflowPathVariants[nextRandomIndex(workflowPathVariants.length)];
+
+            fs.writeFileSync(path.join(workflowsDir, "my-workflow.md"), `# Workflow\n\n{{#runtime-import ${nestedPath}}}\n\nDone.`);
+
+            const result = await processRuntimeImports(`{{#runtime-import ${topLevelPath}}}\n{{#runtime-import ${workflowPath}}}`, tempDir);
+
+            expect(result.match(/<wiki-context>Shared block<\/wiki-context>/g)?.length ?? 0).toBe(1);
+            expect(result).toContain("# Workflow");
+            expect(result).toContain("Done.");
+            expect(core.info.mock.calls.some(([msg]) => String(msg).startsWith("Skipping already resolved import for "))).toBe(true);
+          }
+        });
+
         it("should handle deep nesting of imports", async () => {
           // Create a deep chain: level1 -> level2 -> level3 -> level4 -> level5
           fs.writeFileSync(path.join(workflowsDir, "level5.md"), "Level 5");

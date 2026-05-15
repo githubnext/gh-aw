@@ -1,11 +1,18 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var outcomeEvalLabelLog = logger.New("cli:outcome_eval_label")
 
 // evalAddLabels checks whether labels added by the workflow are still present.
 func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
+	outcomeEvalLabelLog.Printf("Evaluating add_labels outcome: repo=%s, number=%d", repo, num)
 	report := OutcomeReport{
 		Type:         item.Type,
 		ObjectURL:    item.URL,
@@ -13,6 +20,7 @@ func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
+		outcomeEvalLabelLog.Print("Missing issue number or repo, returning error outcome")
 		report.Result = OutcomeError
 		report.EvalError = "missing issue number or repo"
 		return report
@@ -20,6 +28,7 @@ func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 
 	labels, err := ghAPIGetArray(fmt.Sprintf("issues/%d/labels", num), repo)
 	if err != nil {
+		outcomeEvalLabelLog.Printf("Failed to fetch labels for %s#%d: %v", repo, num, err)
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
 		return report
@@ -37,5 +46,6 @@ func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 		report.Detail = "all labels removed"
 	}
 
+	outcomeEvalLabelLog.Printf("Label evaluation result: result=%s, label_count=%d", report.Result, len(labels))
 	return report
 }

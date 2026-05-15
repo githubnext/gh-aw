@@ -94,8 +94,7 @@ Please navigate to example.com and take a screenshot.
 	if uploadArtifactsIndex == -1 {
 		t.Fatal("Upload agent artifacts step not found")
 	}
-	stopGatewayIndex := strings.Index(lockContentStr, "- name: Stop MCP Gateway")
-	if stopGatewayIndex == -1 {
+	if !strings.Contains(lockContentStr, "- name: Stop MCP Gateway") {
 		t.Fatal("Stop MCP Gateway step not found")
 	}
 

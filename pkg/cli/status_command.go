@@ -39,17 +39,6 @@ type WorkflowStatus struct {
 func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOverride string) ([]WorkflowStatus, error) {
 	statusLog.Printf("Getting workflow statuses: pattern=%s, ref=%s, labelFilter=%s, repo=%s", pattern, ref, labelFilter, repoOverride)
 
-	mdFiles, err := getMarkdownWorkflowFiles("")
-	if err != nil {
-		statusLog.Printf("Failed to get markdown workflow files: %v", err)
-		return nil, fmt.Errorf("failed to get markdown workflow files: %w", err)
-	}
-
-	statusLog.Printf("Found %d markdown workflow files", len(mdFiles))
-	if len(mdFiles) == 0 {
-		return []WorkflowStatus{}, nil
-	}
-
 	// Get GitHub workflows data
 	statusLog.Print("Fetching GitHub workflow status")
 	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, false)
@@ -70,6 +59,31 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 		} else {
 			statusLog.Printf("Successfully fetched %d workflow runs for ref %s", len(latestRunsByWorkflow), ref)
 		}
+	}
+
+	// When --repo is specified, build statuses from GitHub API data only.
+	// Local markdown files are not available for a remote repository, so
+	// local-only fields (EngineID, Compiled, TimeRemaining, Labels, On) are
+	// omitted from the results.
+	if repoOverride != "" {
+		// Label metadata is not exposed by the GitHub Actions workflow API, so
+		// filtering by label is not supported when --repo is specified.
+		if labelFilter != "" {
+			return nil, errors.New("--label filter is not supported with --repo: label information is not available from the GitHub Actions API")
+		}
+		return buildRemoteWorkflowStatuses(pattern, githubWorkflows, latestRunsByWorkflow), nil
+	}
+
+	// Local path: discover markdown workflow files from the local filesystem.
+	mdFiles, err := getMarkdownWorkflowFiles("")
+	if err != nil {
+		statusLog.Printf("Failed to get markdown workflow files: %v", err)
+		return nil, fmt.Errorf("failed to get markdown workflow files: %w", err)
+	}
+
+	statusLog.Printf("Found %d markdown workflow files", len(mdFiles))
+	if len(mdFiles) == 0 {
+		return []WorkflowStatus{}, nil
 	}
 
 	// Build status list
@@ -170,6 +184,40 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 	}
 
 	return statuses, nil
+}
+
+// buildRemoteWorkflowStatuses constructs workflow statuses from GitHub API data when
+// --repo is specified. Local-only fields (EngineID, Compiled, TimeRemaining, Labels,
+// On) are not available for remote repositories and are omitted from results.
+func buildRemoteWorkflowStatuses(pattern string, githubWorkflows map[string]*GitHubWorkflow, latestRunsByWorkflow map[string]*WorkflowRun) []WorkflowStatus {
+	statuses := make([]WorkflowStatus, 0, len(githubWorkflows))
+	for name, wf := range githubWorkflows {
+		// Skip if pattern specified and doesn't match
+		if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
+			continue
+		}
+
+		status := wf.State
+		if wf.State == "disabled_manually" {
+			status = "disabled"
+		}
+
+		var runStatus, runConclusion string
+		if latestRunsByWorkflow != nil {
+			if run, exists := latestRunsByWorkflow[name]; exists {
+				runStatus = run.Status
+				runConclusion = run.Conclusion
+			}
+		}
+
+		statuses = append(statuses, WorkflowStatus{
+			Workflow:      name,
+			Status:        status,
+			RunStatus:     runStatus,
+			RunConclusion: runConclusion,
+		})
+	}
+	return statuses
 }
 
 func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error {

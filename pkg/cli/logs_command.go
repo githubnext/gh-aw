@@ -157,28 +157,41 @@ Examples:
 			if len(args) > 0 && args[0] != "" {
 				logsCommandLog.Printf("Resolving workflow name from argument: %s", args[0])
 
-				// Use flexible workflow name matching (workflow ID or display name)
-				resolvedName, err := workflow.FindWorkflowName(args[0])
-				if err != nil {
-					// Workflow not found - provide suggestions
-					suggestions := []string{
-						fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
-						"Check for typos in the workflow name",
-						"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
-					}
+				repoOverrideEarly, _ := cmd.Flags().GetString("repo")
+				if repoOverrideEarly != "" {
+					// When --repo is specified, bypass local file-based workflow name
+					// resolution. Normalize the input (strip .md/.lock.yml extensions)
+					// and use it directly as the workflow filter for the remote repo.
+					//
+					// Note: the argument must be a workflow ID (e.g. "test-claude"),
+					// not a display name (e.g. "Test Claude"). Display-name lookup
+					// requires local lock files, which are unavailable for remote repos.
+					workflowName = normalizeWorkflowID(args[0])
+					logsCommandLog.Printf("Using normalized workflow name for remote repo: %s", workflowName)
+				} else {
+					// Use flexible workflow name matching (workflow ID or display name)
+					resolvedName, err := workflow.FindWorkflowName(args[0])
+					if err != nil {
+						// Workflow not found - provide suggestions
+						suggestions := []string{
+							fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
+							"Check for typos in the workflow name",
+							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
+						}
 
-					// Add fuzzy match suggestions
-					similarNames := suggestWorkflowNames(args[0])
-					if len(similarNames) > 0 {
-						suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
-					}
+						// Add fuzzy match suggestions
+						similarNames := suggestWorkflowNames(args[0])
+						if len(similarNames) > 0 {
+							suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+						}
 
-					return errors.New(console.FormatErrorWithSuggestions(
-						fmt.Sprintf("workflow '%s' not found", args[0]),
-						suggestions,
-					))
+						return errors.New(console.FormatErrorWithSuggestions(
+							fmt.Sprintf("workflow '%s' not found", args[0]),
+							suggestions,
+						))
+					}
+					workflowName = resolvedName
 				}
-				workflowName = resolvedName
 			}
 
 			count, _ := cmd.Flags().GetInt("count")
