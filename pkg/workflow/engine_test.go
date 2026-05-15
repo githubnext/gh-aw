@@ -6,8 +6,32 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/types"
 )
+
+func TestGetAgenticEngine_UnknownEngineHasGuidance(t *testing.T) {
+	compiler := NewCompiler()
+
+	_, err := compiler.getAgenticEngine("copiilot")
+	if err == nil {
+		t.Fatal("expected unknown engine to return an error")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "invalid engine: copiilot") {
+		t.Errorf("error should identify the invalid engine, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "Did you mean: copilot?") {
+		t.Errorf("error should include suggestion, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "Valid engines are:") {
+		t.Errorf("error should list valid engines, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, string(constants.DocsEnginesURL)) {
+		t.Errorf("error should include docs URL, got: %s", errMsg)
+	}
+}
 
 // TestEngineVersionTypeHandling tests that engine.version correctly handles
 // numeric types (int, float) and string types as specified in the schema.

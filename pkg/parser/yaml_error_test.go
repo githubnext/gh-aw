@@ -181,6 +181,12 @@ func TestTranslateYAMLError(t *testing.T) {
 			excludes: "mapping value is not allowed in this context",
 		},
 		{
+			name:     "mapping value not found translated",
+			input:    "[3:1] yaml: mapping value not found\n>  3 | engine copiilot\n       ^",
+			contains: "missing ':' after key",
+			excludes: "mapping value not found",
+		},
+		{
 			name:     "string used where mapping expected translated",
 			input:    "[1:1] string was used where mapping is expected\n>  1 | name value\n       ^",
 			contains: "expected a YAML mapping",
@@ -254,6 +260,12 @@ func TestTranslateYAMLMessage(t *testing.T) {
 			input:    "non-map value is specified",
 			contains: "expected a YAML mapping",
 			excludes: "non-map value is specified",
+		},
+		{
+			name:     "mapping value not found",
+			input:    "yaml: mapping value not found",
+			contains: "missing ':' after key",
+			excludes: "mapping value not found",
 		},
 		{
 			name:     "found character that cannot start any token",

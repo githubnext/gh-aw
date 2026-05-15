@@ -37,6 +37,12 @@ func TestTranslateYAMLMessage(t *testing.T) {
 			wantAny: []string{"indentation"},
 		},
 		{
+			name:    "mapping value not found translated",
+			input:   "yaml: mapping value not found",
+			wantNot: []string{"mapping value not found"},
+			wantAny: []string{"missing ':' after key", "key: value"},
+		},
+		{
 			name:    "unrecognized message returned unchanged",
 			input:   "found unknown escape character 'z'",
 			wantNot: []string{},
