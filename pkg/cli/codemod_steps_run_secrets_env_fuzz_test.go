@@ -8,17 +8,17 @@ import (
 )
 
 func FuzzStepsRunSecretsToEnvCodemod(f *testing.F) {
-	f.Add(uint8(0), "RUNTIME_TOKEN", "RUNTIME_TOKEN", true, true, true, false)
-	f.Add(uint8(1), "abc123", "lower_case", false, true, false, true)
-	f.Add(uint8(2), "TOKEN_2", "TOKEN_2", true, false, true, true)
-	f.Add(uint8(3), "A", "B", false, false, false, false)
+	f.Add(uint8(0), "RUNTIME_TOKEN", "RUNTIME_TOKEN", true, false, true, true, false)
+	f.Add(uint8(1), "abc123", "lower_case", false, false, true, false, true)
+	f.Add(uint8(2), "TOKEN_2", "TOKEN_2", true, true, false, true, true)
+	f.Add(uint8(3), "A", "B", false, false, false, false, false)
 
-	f.Fuzz(func(t *testing.T, sectionSelector uint8, secretNameRaw, envNameRaw string, includeSecret, includeEnvExpression, includeGitHubToken, preseedBindings bool) {
+	f.Fuzz(func(t *testing.T, sectionSelector uint8, secretNameRaw, envNameRaw string, includeSecret, includeComplexSecret, includeEnvExpression, includeGitHubToken, preseedBindings bool) {
 		secretName := sanitizeHoistName(secretNameRaw)
 		envName := sanitizeHoistName(envNameRaw)
 
 		section := []string{"pre-steps", "steps", "post-steps", "pre-agent-steps"}[int(sectionSelector)%4]
-		run, expectedVars := buildHoistFuzzRun(includeSecret, includeEnvExpression, includeGitHubToken, secretName, envName)
+		run, expectedVars := buildHoistFuzzRun(includeSecret, includeComplexSecret, includeEnvExpression, includeGitHubToken, secretName, envName)
 
 		content := buildHoistFuzzContent(section, run, expectedVars, secretName, envName, preseedBindings)
 		frontmatter := map[string]any{
@@ -53,6 +53,12 @@ func FuzzStepsRunSecretsToEnvCodemod(f *testing.F) {
 			if !strings.Contains(runLine, "$"+variable) {
 				t.Fatalf("run line missing rewritten variable %q: %q", variable, runLine)
 			}
+			if strings.HasSuffix(variable, "_") {
+				if countEnvBindingKeyPrefix(result, variable) != 1 {
+					t.Fatalf("expected exactly one env binding with prefix %s", variable)
+				}
+				continue
+			}
 			if countEnvBindingKey(result, variable) != 1 {
 				t.Fatalf("expected exactly one env binding for %s", variable)
 			}
@@ -60,13 +66,17 @@ func FuzzStepsRunSecretsToEnvCodemod(f *testing.F) {
 	})
 }
 
-func buildHoistFuzzRun(includeSecret, includeEnvExpr, includeGitHubToken bool, secretName, envName string) (string, []string) {
+func buildHoistFuzzRun(includeSecret, includeComplexSecret, includeEnvExpr, includeGitHubToken bool, secretName, envName string) (string, []string) {
 	parts := make([]string, 0, 3)
-	expected := make([]string, 0, 3)
+	expected := make([]string, 0, 4)
 
 	if includeSecret {
 		parts = append(parts, "${{ secrets."+secretName+" }}")
 		expected = append(expected, secretName)
+	}
+	if includeComplexSecret {
+		parts = append(parts, "${{ secrets."+secretName+" || 'fallback' }}")
+		expected = append(expected, "GH_AW_SECRET_"+secretName+"_")
 	}
 	if includeEnvExpr {
 		parts = append(parts, "${{ env."+envName+" }}")
@@ -123,6 +133,16 @@ func countEnvBindingKey(content, key string) int {
 	count := 0
 	for line := range strings.SplitSeq(content, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), key+": ") {
+			count++
+		}
+	}
+	return count
+}
+
+func countEnvBindingKeyPrefix(content, keyPrefix string) int {
+	count := 0
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), keyPrefix) {
 			count++
 		}
 	}

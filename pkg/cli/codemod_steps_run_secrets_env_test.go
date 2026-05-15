@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -230,7 +231,7 @@ steps:
 		assert.Contains(t, result, "GH_AW_ENV_RUNTIME_TOKEN: ${{ env.RUNTIME_TOKEN }}", "env expression should be bound in step env")
 	})
 
-	t.Run("leaves secrets fallback expression unchanged", func(t *testing.T) {
+	t.Run("hoists complex secrets fallback expression", func(t *testing.T) {
 		content := `---
 on: push
 steps:
@@ -248,11 +249,39 @@ steps:
 
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "codemod should apply cleanly")
-		assert.True(t, applied, "codemod should apply because github.token is hoisted")
-		assert.Contains(t, result, "${{ secrets.RUNTIME_TOKEN || 'default' }}", "fallback expression should remain unchanged")
-		assert.NotContains(t, result, "RUNTIME_TOKEN: ${{ secrets.RUNTIME_TOKEN }}", "fallback expression should not synthesize secret binding")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, `run: echo "$GH_AW_SECRET_RUNTIME_TOKEN_`, "run should use a synthesized env var for fallback expression")
+		assert.Contains(t, result, "$GH_AW_SECRET_RUNTIME_TOKEN_", "fallback expression should be hoisted to a synthesized env var")
+		assert.Equal(t, 1, strings.Count(result, "${{ secrets.RUNTIME_TOKEN || 'default' }}"), "fallback expression should be preserved only in env binding")
 		assert.Contains(t, result, "$GH_AW_GITHUB_TOKEN", "github.token should still be hoisted")
 		assert.Contains(t, result, "GH_AW_GITHUB_TOKEN: ${{ github.token }}", "github.token env binding should be added")
+	})
+
+	t.Run("uses distinct env bindings for different complex expressions with same secret", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo "${{ secrets.RUNTIME_TOKEN || 'one' }} ${{ secrets.RUNTIME_TOKEN || 'two' }}"
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"run": `echo "${{ secrets.RUNTIME_TOKEN || 'one' }} ${{ secrets.RUNTIME_TOKEN || 'two' }}"`,
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, `run: echo "$GH_AW_SECRET_RUNTIME_TOKEN_`, "run should be rewritten to synthesized env vars")
+		assert.Equal(t, 1, strings.Count(result, "${{ secrets.RUNTIME_TOKEN || 'one' }}"), "first expression should be preserved only in env binding")
+		assert.Equal(t, 1, strings.Count(result, "${{ secrets.RUNTIME_TOKEN || 'two' }}"), "second expression should be preserved only in env binding")
+		assert.Contains(t, result, "$GH_AW_SECRET_RUNTIME_TOKEN_", "run should reference synthesized env vars")
+		envBindings := regexp.MustCompile(`GH_AW_SECRET_RUNTIME_TOKEN_[0-9a-f]{8}:`).FindAllString(result, -1)
+		assert.Len(t, envBindings, 2, "complex expressions should not collide on env var names")
 	})
 
 	t.Run("hoists mixed expressions with deduplicated bindings", func(t *testing.T) {

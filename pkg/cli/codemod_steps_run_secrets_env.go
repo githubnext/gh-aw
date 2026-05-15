@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"strings"
 
@@ -11,10 +12,12 @@ import (
 var stepsRunSecretsEnvCodemodLog = logger.New("cli:codemod_steps_run_secrets_env")
 
 var (
-	stepsAnyExprRe = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
-	// Intentionally excludes fallback forms like `secrets.NAME || 'default'`.
+	stepsAnyExprRe        = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
 	stepsSecretBodyExprRe = regexp.MustCompile(`^secrets\.([A-Za-z_][A-Za-z0-9_]*)$`)
 	stepsEnvBodyExprRe    = regexp.MustCompile(`^env\.([A-Za-z_][A-Za-z0-9_]*)$`)
+	stepsSecretRefExprRe  = regexp.MustCompile(`\bsecrets\.([A-Za-z_][A-Za-z0-9_]*)\b`)
+	stepsEnvRefExprRe     = regexp.MustCompile(`\benv\.([A-Za-z_][A-Za-z0-9_]*)\b`)
+	stepsGitHubTokenRe    = regexp.MustCompile(`\bgithub\.token\b`)
 )
 
 // getStepsRunSecretsToEnvCodemod creates a codemod that moves secrets interpolated directly
@@ -331,7 +334,25 @@ func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
 		return "GH_AW_GITHUB_TOKEN", "${{ github.token }}", true
 	}
 
+	if secretRef := stepsSecretRefExprRe.FindStringSubmatch(body); len(secretRef) == 2 {
+		return hashedBindingName("GH_AW_SECRET_"+secretRef[1], body), fmt.Sprintf("${{ %s }}", body), true
+	}
+
+	if envRef := stepsEnvRefExprRe.FindStringSubmatch(body); len(envRef) == 2 {
+		return hashedBindingName("GH_AW_ENV_"+envRef[1], body), fmt.Sprintf("${{ %s }}", body), true
+	}
+
+	if stepsGitHubTokenRe.MatchString(body) {
+		return hashedBindingName("GH_AW_GITHUB_TOKEN", body), fmt.Sprintf("${{ %s }}", body), true
+	}
+
 	return "", "", false
+}
+
+func hashedBindingName(prefix, body string) string {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(body))
+	return fmt.Sprintf("%s_%08x", prefix, h.Sum32())
 }
 
 // parseStepKeyLine detects a YAML step key in both standard form ("key: value")
