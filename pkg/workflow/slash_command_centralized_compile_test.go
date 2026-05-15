@@ -85,7 +85,7 @@ tools:
 	require.Contains(t, compiled, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues'")
 }
 
-func TestCompileWorkflow_SlashCommandCentralizedRejectsRequiredDispatchInputs(t *testing.T) {
+func TestCompileWorkflow_SlashCommandRejectsRequiredDispatchInputs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-centralized-slash-dispatch-inputs-test")
 
 	markdownPath := filepath.Join(tmpDir, "scout.md")

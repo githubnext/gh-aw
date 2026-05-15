@@ -39,12 +39,12 @@ func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 
 		required, ok := inputDefMap["required"].(bool)
 		if ok && required {
-			triggerName := "slash_command or label_command"
+			var triggerName string
 			if hasSlashCommand && hasLabelCommand {
 				triggerName = "slash_command and label_command"
 			} else if hasSlashCommand {
 				triggerName = "slash_command"
-			} else if hasLabelCommand {
+			} else {
 				triggerName = "label_command"
 			}
 
