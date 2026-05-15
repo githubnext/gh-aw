@@ -129,6 +129,7 @@ timeout-minutes: 15
 strict: false
 experiments:
   caveman: [yes, no]
+  subagent_model: [small, large]
 
 ---
 
@@ -211,7 +212,7 @@ If all tests pass and this workflow was triggered by a pull_request event:
 
 ## agent: `file-summarizer`
 ---
-model: small
+model: ${{ experiments.subagent_model }}
 description: Summarizes the content of a file in a few concise sentences
 ---
 You are a file summarization assistant. When given a file path, read the file and return a brief summary (2–4 sentences) describing its purpose and key contents. Be concise and factual.
