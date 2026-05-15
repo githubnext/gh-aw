@@ -14,7 +14,8 @@ function normalizeThreatKinds(reason) {
     .split(/[\s,]+/)
     .map(kind => kind.trim().toLowerCase())
     .filter(Boolean)
-    .map(kind => kind.replace(/[^a-z0-9_-]/g, ""));
+    .map(kind => kind.replace(/[^a-z0-9_-]/g, ""))
+    .filter(Boolean);
   return kinds.length > 0 ? Array.from(new Set(kinds)).join(",") : "unknown";
 }
 
@@ -49,7 +50,8 @@ function getDetectionReasonText(reason) {
     agent_failure: "The threat detection engine failed to produce results.",
     parse_error: "The threat detection results could not be parsed.",
   };
-  return reasonDescriptions[String(reason || "")] || "The threat detection analysis could not be completed.";
+  const normalizedReason = reason == null ? "" : String(reason);
+  return reasonDescriptions[normalizedReason] || "The threat detection analysis could not be completed.";
 }
 
 module.exports = {
