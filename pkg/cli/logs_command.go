@@ -222,9 +222,11 @@ Examples:
 			format, _ := cmd.Flags().GetString("format")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 			cacheBefore, _ := cmd.Flags().GetString("cache-before")
-			afterAlias, _ := cmd.Flags().GetString("after")
-			if cacheBefore == "" {
-				cacheBefore = afterAlias
+			if !cmd.Flags().Changed("cache-before") {
+				afterAlias, _ := cmd.Flags().GetString("after")
+				if afterAlias != "" {
+					cacheBefore = afterAlias
+				}
 			}
 
 			// Resolve relative dates to absolute dates for GitHub CLI
