@@ -19,6 +19,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { ensureFullHistoryForBundle, getGitAuthEnv } = require("./git_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
+const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -835,7 +836,7 @@ async function main(config = {}) {
             "> [!CAUTION]",
             "> agentic threat detected",
             "> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.",
-            "> <!-- agentic threat detected -->",
+            `> ${getThreatDetectedMarker(detectionReasonEnv)}`,
             ">",
             `> **Reason:** ${detectionReasonEnv}`,
             ">",
