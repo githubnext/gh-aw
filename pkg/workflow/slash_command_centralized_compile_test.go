@@ -76,7 +76,7 @@ tools:
 	require.NoError(t, err)
 	compiled := string(lockContent)
 
-	require.Contains(t, compiled, "\"on\":\n  workflow_dispatch:")
+	require.Contains(t, compiled, "on:\n  workflow_dispatch:")
 	require.Contains(t, compiled, "workflow_dispatch:")
 	require.NotContains(t, compiled, "\n  issues:\n    types:")
 	require.Contains(t, compiled, "github.event_name == 'workflow_dispatch'")

@@ -1,5 +1,5 @@
 name: "with-imports-test"
-"on":
+on:
   workflow_dispatch:
     inputs:
       aw_context:

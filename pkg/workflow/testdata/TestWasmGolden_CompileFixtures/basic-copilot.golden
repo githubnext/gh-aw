@@ -1,5 +1,5 @@
 name: "basic-copilot-test"
-"on":
+on:
   workflow_dispatch:
     inputs:
       aw_context:
