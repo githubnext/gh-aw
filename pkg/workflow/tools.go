@@ -421,6 +421,9 @@ func ensureWorkflowDispatchItemNumberInput(eventsMap map[string]any) bool {
 	return true
 }
 
+// setWorkflowDispatchInputsOptional forces all workflow_dispatch inputs in the given on: map
+// to required: false. This is used for centralized slash-command workflows, which are
+// dispatched by the router and must not be blocked by required manual-dispatch inputs.
 func setWorkflowDispatchInputsOptional(eventsMap map[string]any) {
 	dispatchMap, ok := eventsMap["workflow_dispatch"].(map[string]any)
 	if !ok {
