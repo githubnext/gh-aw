@@ -27,8 +27,6 @@ Apply these in order — each check can halve costs:
 
 ## How to Measure Token Usage
 
-Establish a baseline before optimizing. The audit command is your main instrument.
-
 ### Single-run audit
 
 ```bash
@@ -49,8 +47,6 @@ Use the audit tool with run_id: <run-id>
 
 ### Comparing two runs (regression detection)
 
-Run the baseline and the optimized variant, then diff them:
-
 ```bash
 gh aw audit <base-run-id> <optimized-run-id> --json
 # Or compare multiple variants at once:
@@ -63,7 +59,7 @@ Or via MCP tool:
 Use the audit tool with run_ids_or_urls: ["<base-run-id>", "<optimized-run-id>"]
 ```
 
-The diff output highlights changes in effective tokens, tool calls, and safe outputs between runs — making it easy to confirm that an optimization actually reduced cost without degrading behavior.
+The diff highlights changes in effective tokens, tool calls, and safe outputs between runs.
 
 ### Per-request token detail
 
@@ -74,13 +70,13 @@ gh aw audit <run-id>
 cat logs/run-<run-id>/firewall-audit-logs/api-proxy-logs/token-usage.jsonl
 ```
 
-Each line is one API call with `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens`. Use this to find which API calls are the most expensive.
+Each line is one API call with `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens` — useful for finding the most expensive calls.
 
 ---
 
 ## Technique 1 — DataOps: Move Compute to Steps
 
-**The single biggest optimization.** Replace agentic data fetching with deterministic shell commands in `steps:`. Shell steps run outside the AI sandbox (no tokens), produce structured output the agent reads directly, and are fast and reproducible.
+**The single biggest optimization.** Replace agentic data fetching with deterministic shell commands in `steps:`. Shell steps run outside the AI sandbox (no tokens) and produce structured output the agent reads directly.
 
 ### Before (agent does all the work)
 
@@ -95,8 +91,6 @@ tools:
 
 Fetch all open PRs in ${{ github.repository }}, compute the merge rate, identify authors with the most contributions, and create a weekly summary discussion.
 ```
-
-The agent calls GitHub APIs iteratively, consuming tokens for each call and for processing raw API responses.
 
 ### After (DataOps pattern)
 
@@ -137,11 +131,7 @@ Read the pre-computed stats at `/tmp/gh-aw/data/stats.json` and `/tmp/gh-aw/data
 Create a concise weekly PR summary discussion.
 ```
 
-**Why this saves tokens:**
-
-- API calls happen in shell steps — zero AI tokens spent on fetching
-- The agent receives compact, aggregated JSON instead of raw API responses
-- The agent's context window stays small, reducing per-turn input token counts
+**Why this saves tokens:** API calls run in shell (zero AI tokens), the agent receives compact aggregated JSON instead of raw API responses, and its context window stays small.
 
 **Best practices:**
 
@@ -155,8 +145,6 @@ See also: [DataOps pattern docs](https://github.com/github/gh-aw/blob/main/docs/
 
 ## Technique 2 — Use `gh-proxy` and `cli-proxy` Instead of the MCP Server
 
-**Eliminates Docker startup overhead and reduces per-call context overhead.**
-
 ### `mode: gh-proxy` (GitHub reads)
 
 ```yaml
@@ -166,12 +154,9 @@ tools:
     toolsets: [default]
 ```
 
-`gh-proxy` makes a pre-authenticated `gh` CLI available in bash. The agent reads GitHub data with `gh issue list`, `gh pr view`, etc. — no Docker container, no MCP server initialization, and tighter bash output that the agent can pipe through `jq` before reading.
+`gh-proxy` makes a pre-authenticated `gh` CLI available in bash. The agent reads GitHub data with `gh issue list`, `gh pr view`, etc. — no Docker container, no MCP server initialization, and output the agent can pipe through `jq` before reading.
 
-The alternative (`mode: local`) starts a Docker-based GitHub MCP Server, which:
-- Adds startup latency
-- Registers extra tool descriptions that expand the system prompt
-- Returns verbose JSON that the agent must process in full
+The alternative (`mode: local`) starts a Docker-based GitHub MCP Server, which adds startup latency, registers extra tool descriptions, and returns verbose JSON the agent must process in full.
 
 ### `cli-proxy: true` (other MCP servers as CLIs)
 
@@ -186,7 +171,7 @@ tools:
     ...
 ```
 
-With `cli-proxy`, the agent can call `my-custom-mcp <tool> <args>` from bash, capturing output as text and processing it before passing results back into the conversation. This lets the agent use `jq` or `grep` to extract only the fields it needs — rather than receiving the full MCP tool response as a structured tool result in the conversation context.
+With `cli-proxy`, the agent calls `my-custom-mcp <tool> <args>` from bash and can pipe output through `jq` or `grep` to extract only the fields it needs — instead of receiving the full MCP tool response in the conversation context.
 
 **Summary:**
 
@@ -200,9 +185,7 @@ With `cli-proxy`, the agent can call `my-custom-mcp <tool> <args>` from bash, ca
 
 ## Technique 3 — Inline Sub-Agents with Smaller Models
 
-**Delegate narrow, repetitive tasks to cheap models; reserve the large model for synthesis.**
-
-Sub-agents defined inside the workflow file with `model: small` cost 10–20× less than the parent model and are well-suited for classification, one-sentence summarization, structured extraction, and scoring.
+Sub-agents with `model: small` cost 10–20× less than the parent model. Use them for classification, one-sentence summarization, structured extraction, and scoring; reserve the large model for synthesis.
 
 ### Pattern
 
@@ -256,11 +239,7 @@ Read the JSON file provided. Return only:
 Nothing else.
 ```
 
-**Why this saves tokens:**
-
-- 50 issues × ~200 tokens at `small` pricing = ~10,000 tokens (cheap model)
-- Main agent only reads compact `{"number":…, "category":…}` JSON — far fewer input tokens than reading 50 raw issue bodies
-- Parallelism: the main agent can dispatch multiple sub-agents concurrently
+**Why this saves tokens:** sub-agents run on the cheap `small` model; the main agent only reads compact `{"number":…, "category":…}` JSON; sub-agent dispatches can run in parallel.
 
 **Sub-agent model aliases:**
 
@@ -278,9 +257,7 @@ See also: [Inline Sub-Agents](subagents.md)
 
 ## Technique 4 — Apply the Caveman Technique
 
-**Measure the cost of verbosity with a prompt-style experiment.**
-
-The "caveman" technique uses an A/B experiment to compare a verbose prompt against a stripped-down minimal prompt. If the minimal variant produces equally useful output, adopt it permanently.
+Use an A/B experiment to compare a verbose prompt against a stripped-down minimal one. If the minimal variant produces equally useful output, adopt it permanently.
 
 ```yaml
 experiments:
@@ -308,9 +285,7 @@ Measure `effective_tokens` in each variant's run summary or via `gh aw audit`. I
 
 ## Technique 5 — Use Experiments to Measure Impact
 
-**Never guess — measure every optimization with A/B experiments.**
-
-Declare an experiment before making any prompt or configuration change. Let both variants run for enough cycles to be statistically meaningful (≥ 20 runs per variant for high-frequency workflows).
+Declare an experiment before making any prompt or configuration change. Run ≥ 20 cycles per variant for statistical significance on high-frequency workflows.
 
 ```yaml
 experiments:
@@ -353,41 +328,32 @@ See also: [A/B Testing Experiments](experiments.md)
 
 ## Technique 6 — Reduce Trigger Frequency and Batch Work
 
-**The cheapest run is the one you do not execute.** If a workflow does not need near-real-time feedback, run it less often and process multiple items in one pass.
+The cheapest run is the one you don't execute. If a workflow doesn't need near-real-time feedback, run it less often and batch items in one pass.
 
 ### Prefer slower schedules when latency is acceptable
-
-Move high-frequency schedules down to the slowest cadence that still meets the operational need:
 
 - `hourly` → `daily on weekdays` for team-facing summaries or audits
 - `daily` → `weekly` for trend reports, optimization reviews, and backlog hygiene
 - `every N hours` → a daily or weekly batch when the workflow only produces guidance or reports
 
-This reduces total workflow runs, token usage, GitHub Actions minutes, and notification noise all at once.
-
 ### Prefer scheduled batches over reactive triggers
 
-Reactive triggers (`issues:`, `pull_request:`, comment commands) are appropriate when maintainers need immediate feedback. Otherwise, prefer `schedule:` and batch work:
+Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule:` and batch work:
 
 ```yaml
 on:
   schedule: daily on weekdays
 ```
 
-Typical batch-friendly tasks:
+Typical batch-friendly tasks: triage summaries, stale backlog review, token audits, repository-wide quality or security digests.
 
-- daily or weekly triage summaries
-- stale backlog review
-- token usage audits
-- repository-wide quality or security digests
-
-Combine batching with `cache-memory` or `repo-memory` to track what was already processed so each scheduled run only handles new items.
+Combine batching with `cache-memory` or `repo-memory` to track processed items so each run only handles new ones.
 
 ---
 
 ## Technique 7 — Measure Continuously with OpenTelemetry and AgenticOps
 
-**Don't rely only on ad hoc audits.** Export telemetry automatically, then add workflows that keep looking for token waste over time.
+Export telemetry automatically and add workflows that keep finding token waste over time.
 
 ### Enable OTLP export
 
@@ -400,11 +366,7 @@ observability:
     headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
 ```
 
-`gh-aw` emits setup, agent, and conclusion spans with token usage attributes, which makes it easier to:
-
-- compare workflows over time
-- identify expensive phases before opening logs
-- validate that an optimization reduced cost after rollout
+`gh-aw` emits setup, agent, and conclusion spans with token usage attributes — letting you compare workflows over time, identify expensive phases before opening logs, and validate that an optimization reduced cost after rollout.
 
 See also: [Frontmatter syntax](syntax.md#observability)
 
@@ -415,28 +377,21 @@ Use the token-focused workflows from the AgenticOps pattern to optimize continuo
 - `copilot-token-audit` — scheduled audit of token usage across workflows
 - `copilot-token-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings
 
-This turns token optimization into an ongoing loop:
+Loop: export OTEL → summarize repository-wide usage → open optimization issues for highest-value fixes → re-measure after changes land.
 
-1. export OTEL data
-2. collect and summarize repository-wide token usage
-3. open optimization issues for the highest-value fixes
-4. re-measure after changes land
-
-See the `gh-aw` repository for derived `copilot-token-audit` and `copilot-token-optimizer` examples under `.github/workflows/`.
+See `.github/workflows/` in the `gh-aw` repository for derived `copilot-token-audit` and `copilot-token-optimizer` examples.
 
 ---
 
 ## Technique 8 — Enable Prompt Caching
 
-**Repeated context (system prompt, shared preamble) is charged at ~10× less when cached.**
-
-Prompt caching is automatically enabled by the AWF gateway. Effective cached input tokens are weighted at `0.1` in the effective token formula (versus `1.0` for uncached input).
+Prompt caching is automatic via the AWF gateway. Cached input tokens are weighted at `0.1` versus `1.0` for uncached input — repeated context (system prompt, shared preamble) costs ~10× less when cached.
 
 To maximize cache hits:
 
-- **Keep stable content at the top of the prompt.** Instructions that don't change between runs (role description, output format rules, JSON schema) should appear before dynamic content (issue body, event context).
-- **Use `cache-memory`** for workflows that re-read the same large knowledge base across runs. The memory server avoids injecting duplicate context into every turn.
-- **Minimize dynamic context.** Inject only the fields the agent actually needs: use `${{ github.event.issue.number }}` instead of dumping the full event payload.
+- **Keep stable content at the top of the prompt** — instructions that don't change between runs (role, output format, schema) before dynamic content (issue body, event context).
+- **Use `cache-memory`** for workflows that re-read the same large knowledge base across runs; avoids duplicate context every turn.
+- **Minimize dynamic context** — inject only the fields the agent needs: `${{ github.event.issue.number }}` instead of the full event payload.
 
 ---
 
