@@ -164,6 +164,7 @@ export default defineConfig({
 		'/examples/project-tracking/': '/gh-aw/patterns/project-ops/',
 		'/guides/audit-with-agents/': '/gh-aw/reference/audit/',
 		'/guides/ephemerals/': '/gh-aw/reference/ephemerals/',
+		'/guides/memoryops/': '/gh-aw/guides/memory-ops/',
 
 		'/reference/awf-reflect/': '/gh-aw/experimental/awf-reflect/',
 
@@ -322,7 +323,7 @@ export default defineConfig({
 						{ label: 'DispatchOps', link: '/patterns/dispatch-ops/' },
 						{ label: 'IssueOps', link: '/patterns/issue-ops/' },
 						{ label: 'LabelOps', link: '/patterns/label-ops/' },
-						{ label: 'MemoryOps', link: '/guides/memoryops/' },
+						{ label: 'MemoryOps', link: '/guides/memory-ops/' },
 						{ label: 'MultiRepoOps', link: '/patterns/multi-repo-ops/' },
 						{ label: 'Orchestration', link: '/patterns/orchestration/' },
 						{ label: 'ProjectOps', link: '/patterns/project-ops/' },
