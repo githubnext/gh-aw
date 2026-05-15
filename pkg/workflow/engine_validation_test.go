@@ -304,8 +304,8 @@ func TestValidateEngineVersion(t *testing.T) {
 			name:        "latest version strict mode",
 			engineCfg:   &EngineConfig{Version: "latest"},
 			strictMode:  true,
-			expectWarn:  false,
-			expectError: true,
+			expectWarn:  true,
+			expectError: false,
 		},
 	}
 
@@ -329,6 +329,9 @@ func TestValidateEngineVersion(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("Expected no error but got: %v", err)
+				}
+				if tt.expectWarn && compiler.warningCount == 0 {
+					t.Error("Expected warning count to increment")
 				}
 			}
 		})

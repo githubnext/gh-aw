@@ -1,108 +1,123 @@
 package cli
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var dependabotPermissionsCodemodLog = logger.New("cli:codemod_dependabot_permissions")
 
-// getDependabotPermissionsCodemod ensures vulnerability-alerts: read is present for dependabot toolset usage.
+// getDependabotPermissionsCodemod ensures required read permissions are present for declared GitHub toolsets.
 func getDependabotPermissionsCodemod() Codemod {
 	return Codemod{
 		ID:           "dependabot-toolset-permissions",
-		Name:         "Add missing dependabot permissions",
-		Description:  "Adds permissions.vulnerability-alerts: read when tools.github.toolsets includes dependabot",
+		Name:         "Add missing GitHub toolset permissions",
+		Description:  "Adds missing permissions.<scope>: read when tools.github.toolsets requires them",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			if !hasDependabotToolset(frontmatter) || !needsDependabotPermissionFix(frontmatter) {
+			toolsets, ok := extractGitHubToolsets(frontmatter)
+			if !ok || len(toolsets) == 0 {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, ensureDependabotPermission)
+			missingPermissions := findMissingToolsetPermissions(frontmatter, toolsets)
+			if len(missingPermissions) == 0 {
+				return content, false, nil
+			}
+
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				return ensureToolsetPermissions(lines, missingPermissions)
+			})
 			if applied {
-				dependabotPermissionsCodemodLog.Print("Added permissions.vulnerability-alerts: read for dependabot toolset")
+				dependabotPermissionsCodemodLog.Printf("Added missing permissions for GitHub toolsets: %v", sortedMissingPermissionKeys(missingPermissions))
 			}
 			return newContent, applied, err
 		},
 	}
 }
 
-func hasDependabotToolset(frontmatter map[string]any) bool {
+func extractGitHubToolsets(frontmatter map[string]any) ([]string, bool) {
 	toolsAny, hasTools := frontmatter["tools"]
 	if !hasTools {
-		return false
+		return nil, false
 	}
 	toolsMap, ok := toolsAny.(map[string]any)
 	if !ok {
-		return false
+		return nil, false
 	}
 	githubAny, hasGitHub := toolsMap["github"]
 	if !hasGitHub {
-		return false
+		return nil, false
 	}
 	githubMap, ok := githubAny.(map[string]any)
 	if !ok {
-		return false
+		return nil, false
 	}
 	toolsetsAny, hasToolsets := githubMap["toolsets"]
 	if !hasToolsets {
-		return false
+		return nil, false
 	}
 
-	switch toolsets := toolsetsAny.(type) {
+	var toolsets []string
+	switch configured := toolsetsAny.(type) {
 	case []string:
-		for _, toolset := range toolsets {
-			if strings.TrimSpace(toolset) == "dependabot" {
-				return true
+		for _, toolset := range configured {
+			trimmed := strings.TrimSpace(toolset)
+			if trimmed != "" {
+				toolsets = append(toolsets, trimmed)
 			}
 		}
 	case []any:
-		for _, entry := range toolsets {
+		for _, entry := range configured {
 			toolset, ok := entry.(string)
-			if ok && strings.TrimSpace(toolset) == "dependabot" {
-				return true
+			if ok {
+				trimmed := strings.TrimSpace(toolset)
+				if trimmed != "" {
+					toolsets = append(toolsets, trimmed)
+				}
 			}
 		}
 	case string:
-		for toolset := range strings.SplitSeq(toolsets, ",") {
-			if strings.TrimSpace(toolset) == "dependabot" {
-				return true
+		for toolset := range strings.SplitSeq(configured, ",") {
+			trimmed := strings.TrimSpace(toolset)
+			if trimmed != "" {
+				toolsets = append(toolsets, trimmed)
 			}
 		}
 	}
 
-	return false
+	return toolsets, len(toolsets) > 0
 }
 
-func needsDependabotPermissionFix(frontmatter map[string]any) bool {
-	permissionsAny, hasPermissions := frontmatter["permissions"]
-	if !hasPermissions {
-		return true
+func findMissingToolsetPermissions(frontmatter map[string]any, toolsets []string) map[workflow.PermissionScope]workflow.PermissionLevel {
+	permissionsParser := workflow.NewPermissionsParserFromValue(frontmatter["permissions"])
+	currentPermissions := permissionsParser.ToPermissions()
+	validationResult := workflow.ValidatePermissions(currentPermissions, &workflow.GitHubToolConfig{}, toolsets)
+	if !validationResult.HasValidationIssues || len(validationResult.MissingPermissions) == 0 {
+		return nil
 	}
 
-	switch permissions := permissionsAny.(type) {
-	case string:
-		trimmed := strings.TrimSpace(permissions)
-		return trimmed != "read-all" && trimmed != "write-all"
-	case map[string]any:
-		levelAny, hasVulnerabilityAlerts := permissions["vulnerability-alerts"]
-		if !hasVulnerabilityAlerts {
-			return true
+	missing := make(map[workflow.PermissionScope]workflow.PermissionLevel)
+	for scope, level := range validationResult.MissingPermissions {
+		// Skip GitHub App-only scopes: these are not grantable through workflow
+		// GITHUB_TOKEN permissions and require GitHub App token minting instead.
+		if workflow.IsGitHubAppOnlyScope(scope) {
+			continue
 		}
-		level, ok := levelAny.(string)
-		if !ok {
-			return true
-		}
-		trimmed := strings.TrimSpace(level)
-		return trimmed != "read" && trimmed != "write"
-	default:
-		return true
+		missing[scope] = level
 	}
+	return missing
 }
 
-func ensureDependabotPermission(lines []string) ([]string, bool) {
+func ensureToolsetPermissions(lines []string, missing map[workflow.PermissionScope]workflow.PermissionLevel) ([]string, bool) {
+	if len(missing) == 0 {
+		return lines, false
+	}
+
 	permissionsIdx := -1
 	permissionsIndent := ""
 	permissionsEnd := len(lines)
@@ -123,9 +138,9 @@ func ensureDependabotPermission(lines []string) ([]string, bool) {
 
 	if permissionsIdx == -1 {
 		insertAt := findPermissionsInsertIndex(lines)
-		block := []string{
-			"permissions:",
-			"  vulnerability-alerts: read",
+		block := []string{"permissions:"}
+		for _, key := range sortedMissingPermissionKeys(missing) {
+			block = append(block, fmt.Sprintf("  %s: %s", key, missing[workflow.PermissionScope(key)]))
 		}
 
 		result := make([]string, 0, len(lines)+len(block))
@@ -138,38 +153,58 @@ func ensureDependabotPermission(lines []string) ([]string, bool) {
 	trimmedPermissionsLine := strings.TrimSpace(lines[permissionsIdx])
 	inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmedPermissionsLine, "permissions:"))
 	if inlineValue != "" && !strings.HasPrefix(inlineValue, "#") {
-		block := []string{
-			"permissions:",
-			"  vulnerability-alerts: read",
+		block := []string{"permissions:"}
+		for _, key := range sortedMissingPermissionKeys(missing) {
+			block = append(block, fmt.Sprintf("  %s: %s", key, missing[workflow.PermissionScope(key)]))
 		}
-		result := make([]string, 0, len(lines)+1)
+		result := make([]string, 0, len(lines)+len(block))
 		result = append(result, lines[:permissionsIdx]...)
 		result = append(result, block...)
 		result = append(result, lines[permissionsIdx+1:]...)
 		return result, true
 	}
 
-	permissionKeyPrefix := strings.TrimSpace(permissionsIndent + "  vulnerability-alerts:")
-	for i := permissionsIdx + 1; i < permissionsEnd; i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if afterPrefix, ok := strings.CutPrefix(trimmed, permissionKeyPrefix); ok {
-			level := strings.TrimSpace(afterPrefix)
-			if level == "read" || level == "write" {
-				return lines, false
-			}
-
-			updated := make([]string, len(lines))
-			copy(updated, lines)
-			updated[i] = permissionsIndent + "  vulnerability-alerts: read"
-			return updated, true
-		}
+	updated := make([]string, len(lines))
+	copy(updated, lines)
+	modified := false
+	remaining := make(map[string]workflow.PermissionLevel, len(missing))
+	for scope, level := range missing {
+		remaining[string(scope)] = level
 	}
 
-	insertedLine := permissionsIndent + "  vulnerability-alerts: read"
-	result := make([]string, 0, len(lines)+1)
-	result = append(result, lines[:permissionsEnd]...)
-	result = append(result, insertedLine)
-	result = append(result, lines[permissionsEnd:]...)
+	for i := permissionsIdx + 1; i < permissionsEnd; i++ {
+		trimmed := strings.TrimSpace(updated[i])
+		key := parseYAMLMapKey(trimmed)
+		if key == "" {
+			continue
+		}
+		requiredLevel, needsUpdate := remaining[key]
+		if !needsUpdate {
+			continue
+		}
+		level := strings.TrimSpace(strings.TrimPrefix(trimmed, key+":"))
+		if level == string(requiredLevel) || level == string(workflow.PermissionWrite) {
+			delete(remaining, key)
+			continue
+		}
+		updated[i] = fmt.Sprintf("%s  %s: %s", permissionsIndent, key, requiredLevel)
+		delete(remaining, key)
+		modified = true
+	}
+
+	if len(remaining) == 0 {
+		return updated, modified
+	}
+
+	insertLines := make([]string, 0, len(remaining))
+	for _, key := range sortedRemainingPermissionKeys(remaining) {
+		insertLines = append(insertLines, fmt.Sprintf("%s  %s: %s", permissionsIndent, key, remaining[key]))
+	}
+
+	result := make([]string, 0, len(updated)+len(insertLines))
+	result = append(result, updated[:permissionsEnd]...)
+	result = append(result, insertLines...)
+	result = append(result, updated[permissionsEnd:]...)
 	return result, true
 }
 
@@ -194,4 +229,22 @@ func findPermissionsInsertIndex(lines []string) int {
 	}
 
 	return 0
+}
+
+func sortedMissingPermissionKeys(missing map[workflow.PermissionScope]workflow.PermissionLevel) []string {
+	keys := make([]string, 0, len(missing))
+	for scope := range missing {
+		keys = append(keys, string(scope))
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func sortedRemainingPermissionKeys(remaining map[string]workflow.PermissionLevel) []string {
+	keys := make([]string, 0, len(remaining))
+	for key := range remaining {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }

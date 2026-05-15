@@ -1083,6 +1083,7 @@ describe("runtime_import", () => {
           expect(isSafeExpression("github.event.inputs.branch")).toBe(true);
           expect(isSafeExpression("inputs.version")).toBe(true);
           expect(isSafeExpression("env.NODE_VERSION")).toBe(true);
+          expect(isSafeExpression("experiments.prompt_style")).toBe(true);
         });
 
         it("should reject unsafe expressions", () => {
@@ -1239,6 +1240,12 @@ describe("runtime_import", () => {
         it("should throw error for unsafe expressions", () => {
           const content = "Token: ${{ secrets.GITHUB_TOKEN }}";
           expect(() => processExpressions(content, "test.md")).toThrow("unauthorized GitHub Actions expressions");
+        });
+
+        it("should preserve experiments expressions for downstream interpolation", () => {
+          const content = "Model: ${{ experiments.subagent_model }}";
+          const result = processExpressions(content, "test.md");
+          expect(result).toBe("Model: ${{ experiments.subagent_model }}");
         });
 
         it("should throw error for multiline expressions", () => {

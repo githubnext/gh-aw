@@ -176,6 +176,34 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 	return re.ReplaceAllString(yamlStr, "${1}${2}"+key+":")
 }
 
+// UnquoteYAMLTopLevelKey removes quotes from a YAML key only when it appears
+// at the very start of the YAML content.
+//
+// This intentionally leaves nested quoted keys unchanged.
+// Example:
+//
+//	"on":
+//	  push:
+//
+// becomes:
+//
+//	on:
+//	  push:
+//
+// but:
+//
+//	parent:
+//	  "on":
+//
+// remains unchanged.
+func UnquoteYAMLTopLevelKey(yamlStr string, key string) string {
+	quotedPrefix := `"` + key + `":`
+	if strings.HasPrefix(yamlStr, quotedPrefix) {
+		return key + ":" + yamlStr[len(quotedPrefix):]
+	}
+	return yamlStr
+}
+
 // MarshalWithFieldOrder marshals a map to YAML with fields in a specific order.
 //
 // This function ensures deterministic field ordering in the generated YAML by using

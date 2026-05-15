@@ -1,5 +1,5 @@
 name: "claude-with-network-test"
-"on":
+on:
   workflow_dispatch:
 
 permissions: {}

@@ -8,7 +8,7 @@
 
 ### Action Required
 
-**Assign this issue to Copilot** using the `agentic-workflows` sub-agent to automatically debug and fix the workflow failure.
+**Assign this issue to an agent** to debug and fix the issue.
 
 <details>
 <summary>Debug with any coding agent</summary>

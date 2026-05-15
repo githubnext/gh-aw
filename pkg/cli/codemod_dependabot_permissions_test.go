@@ -43,6 +43,37 @@ permissions:
 		assert.Contains(t, result, "vulnerability-alerts: read", "Codemod should add vulnerability-alerts permission")
 	})
 
+	t.Run("adds missing issues permission for issues toolset", func(t *testing.T) {
+		content := `---
+on:
+  workflow_dispatch:
+tools:
+  github:
+    toolsets: [issues]
+permissions:
+  contents: read
+---
+`
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"workflow_dispatch": map[string]any{},
+			},
+			"tools": map[string]any{
+				"github": map[string]any{
+					"toolsets": []any{"issues"},
+				},
+			},
+			"permissions": map[string]any{
+				"contents": "read",
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Codemod should not return an error")
+		assert.True(t, applied, "Codemod should apply when required permission is missing")
+		assert.Contains(t, result, "issues: read", "Codemod should add issues permission")
+	})
+
 	t.Run("does not modify when permission already present", func(t *testing.T) {
 		content := `---
 tools:
@@ -51,6 +82,7 @@ tools:
 permissions:
   contents: read
   vulnerability-alerts: read
+  security-events: read
 ---
 `
 		frontmatter := map[string]any{
@@ -62,6 +94,7 @@ permissions:
 			"permissions": map[string]any{
 				"contents":             "read",
 				"vulnerability-alerts": "read",
+				"security-events":      "read",
 			},
 		}
 

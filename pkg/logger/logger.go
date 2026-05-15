@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
+	lipgloss "charm.land/lipgloss/v2"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/timeutil"
-	"github.com/github/gh-aw/pkg/tty"
 )
 
 // Logger represents a debug logger for a specific namespace.
@@ -18,7 +19,7 @@ type Logger struct {
 	enabled   bool
 	lastLog   time.Time
 	mu        sync.Mutex
-	color     string
+	label     string
 }
 
 var (
@@ -29,27 +30,21 @@ var (
 	// DEBUG_COLORS environment variable to control color output.
 	debugColors = os.Getenv("DEBUG_COLORS") != "0"
 
-	// Check if stderr is a terminal (for color support).
-	isTTY = tty.IsStderrTerminal()
-
-	// Color palette - chosen to be readable on both light and dark backgrounds.
-	// Using ANSI 256-color codes for better compatibility.
-	colorPalette = []string{
-		"\033[38;5;33m",  // Blue
-		"\033[38;5;35m",  // Green
-		"\033[38;5;166m", // Orange
-		"\033[38;5;125m", // Purple
-		"\033[38;5;37m",  // Cyan
-		"\033[38;5;161m", // Magenta
-		"\033[38;5;136m", // Yellow
-		"\033[38;5;124m", // Red
-		"\033[38;5;28m",  // Dark green
-		"\033[38;5;63m",  // Light blue
-		"\033[38;5;95m",  // Brown
-		"\033[38;5;21m",  // Dark blue
+	// Color palette for namespace coloring, using adaptive styles.
+	colorPalette = []lipgloss.Style{
+		lipgloss.NewStyle().Foreground(styles.ColorInfo),
+		lipgloss.NewStyle().Foreground(styles.ColorSuccess),
+		lipgloss.NewStyle().Foreground(styles.ColorWarning),
+		lipgloss.NewStyle().Foreground(styles.ColorPurple),
+		lipgloss.NewStyle().Foreground(styles.ColorYellow),
+		lipgloss.NewStyle().Foreground(styles.ColorError),
+		lipgloss.NewStyle().Foreground(styles.ColorComment),
+		lipgloss.NewStyle().Foreground(styles.ColorForeground),
+		lipgloss.NewStyle().Foreground(styles.ColorBorder),
+		lipgloss.NewStyle().Foreground(styles.ColorInfo),
+		lipgloss.NewStyle().Foreground(styles.ColorSuccess),
+		lipgloss.NewStyle().Foreground(styles.ColorPurple),
 	}
-
-	colorReset = "\033[0m"
 )
 
 // initDebugEnv resolves the effective debug pattern.
@@ -74,35 +69,35 @@ func initDebugEnv() string {
 //	DEBUG=ns1,ns2        - enables specific namespaces
 //	DEBUG=ns:*,-ns:skip  - enables namespace but excludes specific patterns
 //
-// Colors are automatically assigned to each namespace if DEBUG_COLORS != "0" and stderr is a TTY.
+// Colors are automatically assigned to each namespace if DEBUG_COLORS != "0".
 func New(namespace string) *Logger {
 	enabled := computeEnabled(namespace)
-	color := selectColor(namespace)
+	label := selectNamespaceLabel(namespace)
 	return &Logger{
 		namespace: namespace,
 		enabled:   enabled,
 		lastLog:   time.Now(),
-		color:     color,
+		label:     label,
 	}
 }
 
-// selectColor selects a color for the namespace based on its hash.
-func selectColor(namespace string) string {
-	if !debugColors || !isTTY {
-		return ""
+// selectNamespaceLabel renders the namespace label with a hash-selected style.
+func selectNamespaceLabel(namespace string) string {
+	if !debugColors {
+		return namespace
 	}
 
 	// Use FNV-1a hash for consistent color assignment
 	h := fnv.New32a()
 	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
 	if _, err := h.Write([]byte(namespace)); err != nil {
-		// Return empty string (no color) if write somehow fails
-		return ""
+		// Return plain namespace (no color) if write somehow fails
+		return namespace
 	}
 	hash := h.Sum32()
 
-	// Select color from palette based on hash
-	return colorPalette[hash%uint32(len(colorPalette))]
+	// Select color from palette based on hash and render namespace with it.
+	return colorPalette[hash%uint32(len(colorPalette))].Render(namespace)
 }
 
 // Enabled returns whether this logger is enabled
@@ -124,11 +119,7 @@ func (l *Logger) Printf(format string, args ...any) {
 	l.mu.Unlock()
 
 	message := fmt.Sprintf(format, args...)
-	if l.color != "" {
-		fmt.Fprintf(os.Stderr, "%s%s%s %s +%s\n", l.color, l.namespace, colorReset, message, timeutil.FormatDuration(diff))
-	} else {
-		fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, timeutil.FormatDuration(diff))
-	}
+	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
 }
 
 // Print prints a message if the logger is enabled.
@@ -145,11 +136,7 @@ func (l *Logger) Print(args ...any) {
 	l.mu.Unlock()
 
 	message := fmt.Sprint(args...)
-	if l.color != "" {
-		fmt.Fprintf(os.Stderr, "%s%s%s %s +%s\n", l.color, l.namespace, colorReset, message, timeutil.FormatDuration(diff))
-	} else {
-		fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, timeutil.FormatDuration(diff))
-	}
+	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
 }
 
 // computeEnabled computes whether a namespace matches the DEBUG patterns

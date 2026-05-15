@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -291,6 +292,16 @@ This is a test workflow.
 	// Check that the first content line starts the actual workflow with name:
 	if !strings.HasPrefix(firstContentLine, "name:") {
 		t.Errorf("First non-comment line should start with 'name:', but got: %s", firstContentLine)
+	}
+
+	quotedTopLevelOn := regexp.MustCompile(`(?m)^"on":(?:\s|$)`)
+	unquotedTopLevelOn := regexp.MustCompile(`(?m)^on:(?:\s|$)`)
+
+	if quotedTopLevelOn.MatchString(lockContent) {
+		t.Errorf("Expected top-level on key to be unquoted, but found quoted form in generated YAML:\n%s", lockContent)
+	}
+	if !unquotedTopLevelOn.MatchString(lockContent) {
+		t.Errorf("Expected generated YAML to contain unquoted top-level on key, but it did not:\n%s", lockContent)
 	}
 }
 

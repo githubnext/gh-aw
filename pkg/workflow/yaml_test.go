@@ -217,6 +217,52 @@ on:
 	}
 }
 
+func TestUnquoteYAMLTopLevelKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		key      string
+		expected string
+	}{
+		{
+			name: "unquotes top-level on key",
+			input: `"on":
+  workflow_dispatch:`,
+			key: "on",
+			expected: `on:
+  workflow_dispatch:`,
+		},
+		{
+			name: "does not unquote nested key",
+			input: `parent:
+  "on":
+    value: true`,
+			key: "on",
+			expected: `parent:
+  "on":
+    value: true`,
+		},
+		{
+			name: "no change when top-level key already unquoted",
+			input: `on:
+  push:`,
+			key: "on",
+			expected: `on:
+  push:`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := UnquoteYAMLTopLevelKey(tt.input, tt.key)
+			if result != tt.expected {
+				t.Errorf("UnquoteYAMLTopLevelKey() failed\nInput:\n%s\n\nExpected:\n%s\n\nGot:\n%s",
+					tt.input, tt.expected, result)
+			}
+		})
+	}
+}
+
 func TestMarshalWithFieldOrder(t *testing.T) {
 	tests := []struct {
 		name           string
