@@ -107,7 +107,7 @@ When `observability.otlp` is configured, gh-aw injects:
 | Variable | Description |
 | --- | --- |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Comma-separated `key=value` headers for the first endpoint (when headers are configured). |
-| `OTEL_SERVICE_NAME` | `gh-aw.<workflow-id>` when the workflow ID is available; otherwise `gh-aw`. |
+| `OTEL_SERVICE_NAME` | `gh-aw.<sanitized-workflow-id>` when the workflow ID is available (for example, `Repo Triage/Weekly` → `gh-aw.repo-triage-weekly`); otherwise `gh-aw`. |
 | `GH_AW_OTLP_ENDPOINTS` | JSON array of all endpoint entries, used by gh-aw JavaScript span exporters for fan-out. |
 | `GH_AW_OTLP_IF_MISSING` | Set to `warn` or `ignore` when `observability.otlp.if-missing` is configured. |
 | `COPILOT_OTEL_FILE_EXPORTER_PATH` | Path for Copilot CLI span output (`/tmp/gh-aw/copilot-otel.jsonl`). |
