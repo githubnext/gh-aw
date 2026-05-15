@@ -9,8 +9,10 @@ func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 		return nil
 	}
 
-	hasCommandTrigger := len(workflowData.Command) > 0 || len(workflowData.LabelCommand) > 0
-	if !hasCommandTrigger {
+	hasSlashCommand := len(workflowData.Command) > 0
+	hasLabelCommand := len(workflowData.LabelCommand) > 0
+	hasSlashOrLabelCommand := hasSlashCommand || hasLabelCommand
+	if !hasSlashOrLabelCommand {
 		return nil
 	}
 
@@ -37,9 +39,18 @@ func validateCommandWorkflowDispatchInputs(workflowData *WorkflowData) error {
 
 		required, ok := inputDefMap["required"].(bool)
 		if ok && required {
+			triggerName := "slash_command or label_command"
+			if hasSlashCommand && hasLabelCommand {
+				triggerName = "slash_command and label_command"
+			} else if hasSlashCommand {
+				triggerName = "slash_command"
+			} else if hasLabelCommand {
+				triggerName = "label_command"
+			}
+
 			return fmt.Errorf(
-				"on.workflow_dispatch.inputs.%s.required: true is not allowed with slash_command or label_command; set required: false",
-				inputName,
+				"on.workflow_dispatch.inputs.%s.required: true is not allowed when using %s; set required: false",
+				inputName, triggerName,
 			)
 		}
 	}

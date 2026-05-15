@@ -112,7 +112,7 @@ tools:
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(markdownPath)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed with slash_command or label_command")
+	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed when using slash_command")
 }
 
 func TestCompileWorkflow_LabelCommandRejectsRequiredDispatchInputs(t *testing.T) {
@@ -141,5 +141,5 @@ tools:
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(markdownPath)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed with slash_command or label_command")
+	require.Contains(t, err.Error(), "on.workflow_dispatch.inputs.topic.required: true is not allowed when using label_command")
 }
