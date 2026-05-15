@@ -663,12 +663,12 @@ func TestInjectOTLPConfig_HeadersPresenceAfterInjection(t *testing.T) {
 func TestOTELServiceName(t *testing.T) {
 	t.Run("uses workflow-specific service name when workflow ID is present", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{WorkflowID: "Repo Triage/Weekly"})
-		assert.Equal(t, "gh-aw.repo-triage-weekly", got)
+		assert.Equal(t, "gh-aw.repo-triage-weekly", got, "should use WorkflowID as service name suffix when present")
 	})
 
 	t.Run("falls back to workflow name when workflow ID is empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{Name: "Repo Triage/Weekly"})
-		assert.Equal(t, "gh-aw.repo-triage-weekly", got)
+		assert.Equal(t, "gh-aw.repo-triage-weekly", got, "should fall back to workflow name when WorkflowID is empty")
 	})
 
 	t.Run("workflow ID takes precedence over workflow name", func(t *testing.T) {
@@ -676,17 +676,17 @@ func TestOTELServiceName(t *testing.T) {
 			WorkflowID: "Unique Workflow ID",
 			Name:       "Shared Display Name",
 		})
-		assert.Equal(t, "gh-aw.unique-workflow-id", got)
+		assert.Equal(t, "gh-aw.unique-workflow-id", got, "should prefer WorkflowID over workflow name when both are present")
 	})
 
 	t.Run("falls back when workflow ID and name are empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{})
-		assert.Equal(t, "gh-aw", got)
+		assert.Equal(t, "gh-aw", got, "should return default service name when WorkflowID and name are empty")
 	})
 
 	t.Run("falls back when workflow data is nil", func(t *testing.T) {
 		got := otelServiceName(nil)
-		assert.Equal(t, "gh-aw", got)
+		assert.Equal(t, "gh-aw", got, "should return default service name when workflow data is nil")
 	})
 }
 
