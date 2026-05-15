@@ -164,7 +164,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {boolean} signedCommits
  * @returns {boolean}
  */
-function isSignedCommitsExplicitlyDisabled(signedCommits) {
+function isSignedCommitsDisabled(signedCommits) {
   return signedCommits === false;
 }
 
@@ -197,7 +197,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return headSha;
   }
 
-  if (isSignedCommitsExplicitlyDisabled(signedCommits)) {
+  if (isSignedCommitsDisabled(signedCommits)) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
     const headSha = await resolveLocalHeadSha(cwd);
