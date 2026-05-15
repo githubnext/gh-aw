@@ -1,5 +1,4 @@
 ---
-emoji: "🧪"
 name: "Chaos PR Bundle Fuzzer"
 description: Stress-tests safe-output create-pull-request git patch/bundle handling with randomized small-change personas
 on:
@@ -18,7 +17,7 @@ tools:
 safe-outputs:
   create-pull-request:
     title-prefix: "[chaos-test] "
-    branch-prefix: "chaos/"
+    preserve-branch-name: true
     labels: [test-in-progress]
     draft: true
     max: 5
