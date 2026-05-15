@@ -28,16 +28,21 @@ name: "My Workflow"
 # (optional)
 description: "Description of the workflow"
 
+# Optional emoji to represent the workflow visually (e.g. in listings and UI
+# surfaces).
+# (optional)
+emoji: "example-value"
+
 # Optional source reference indicating where this workflow was added from. Format:
 # owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0).
 # Rendered as a comment in the generated lock file.
 # (optional)
 source: "example-value"
 
-# Optional workflow location redirect for add/add-wizard/update. Format: workflow spec or GitHub
+# Optional workflow location redirect for updates. Format: workflow spec or GitHub
 # URL (e.g., owner/repo/path@ref or
-# https://github.com/owner/repo/blob/main/path.md). When present, remote add/add-wizard/update
-# follows this location and writes/rewrites source.
+# https://github.com/owner/repo/blob/main/path.md). When present, update follows
+# this location and rewrites source.
 # (optional)
 redirect: "example-value"
 
@@ -152,14 +157,6 @@ on:
     name: []
       # Array items: Command name without leading slash
 
-    # Trigger compilation strategy for slash commands.
-    # - "inline" (default): compile comment/body listeners directly in this workflow
-    # - "centralized" (experimental): compile this workflow as
-    #   workflow_dispatch-centric and route slash command events via the generated
-    #   central trigger workflow.
-    # (optional)
-    strategy: "centralized"
-
     # Events where the command should be active. Default is all comment-related events
     # ('*'). Use GitHub Actions event names.
     # (optional)
@@ -174,6 +171,13 @@ on:
     # least one). Use GitHub Actions event names.
     events: []
       # Array items: GitHub Actions event name.
+
+    # Slash command trigger compilation strategy. 'inline' (default) compiles direct
+    # comment listeners in this workflow. 'centralized' compiles this workflow as
+    # workflow_dispatch-centric and routes slash events via the generated central
+    # trigger workflow.
+    # (optional)
+    strategy: "inline"
 
   # DEPRECATED: Use 'slash_command' instead. Special command trigger for /command
   # workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash
@@ -282,6 +286,13 @@ on:
     # permissions required for label removal are also omitted.
     # (optional)
     remove_label: true
+
+    # Label command trigger compilation strategy. 'inline' (default) compiles direct
+    # labeled listeners in this workflow. 'decentralized' compiles this workflow as
+    # workflow_dispatch-centric and routes labeled events via the generated
+    # agentic_commands.yml workflow.
+    # (optional)
+    strategy: "inline"
 
   # Push event trigger that runs the workflow when code is pushed to the repository
   # (optional)
@@ -924,6 +935,18 @@ on:
   skip-bots: []
     # Array items: string
 
+  # Skip workflow execution when an event-specific payload author_association field
+  # (for example: github.event.comment.author_association,
+  # github.event.issue.author_association,
+  # github.event.pull_request.author_association) matches configured associations
+  # for specific events. Keys are event names (for example: issue_comment,
+  # pull_request_review_comment, issues, pull_request). Values accept a single
+  # string or an array of strings. Association values are case-insensitive in
+  # frontmatter.
+  # (optional)
+  skip-author-associations:
+    {}
+
   # Repository access roles required to trigger agentic workflows. Defaults to
   # ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any
   # authenticated user (⚠️ security consideration).
@@ -1562,6 +1585,12 @@ concurrency:
   # (optional)
   cancel-in-progress: true
 
+  # Pending run queue behavior for this concurrency group. 'single' (default) allows
+  # one pending run and replaces older pending runs. 'max' allows up to 100 pending
+  # runs in FIFO order.
+  # (optional)
+  queue: "single"
+
   # Additional discriminator expression appended to compiler-generated job-level
   # concurrency groups (agent, output jobs). Use this when multiple workflow
   # instances are dispatched concurrently with different inputs (fan-out pattern) to
@@ -1583,9 +1612,8 @@ env:
 # Format 2: string
 env: "example-value"
 
-# Deprecated switch for inline sub-agent support. Inline sub-agents are enabled
-# by default. Setting this to false is not supported and causes a compilation
-# error.
+# Deprecated switch for inline sub-agent support. Inline sub-agents are enabled by
+# default. Setting this to false is not supported and causes a compilation error.
 # (optional)
 inline-sub-agents: true
 
@@ -2055,6 +2083,12 @@ engine:
     # (optional)
     cancel-in-progress: true
 
+    # Pending run queue behavior for this concurrency group. 'single' (default) allows
+    # one pending run and replaces older pending runs. 'max' allows up to 100 pending
+    # runs in FIFO order.
+    # (optional)
+    queue: "single"
+
   # Custom user agent string for GitHub MCP server configuration (codex engine only)
   # (optional)
   user-agent: "example-value"
@@ -2076,6 +2110,35 @@ engine:
   # (optional)
   env:
     {}
+
+  # Engine-level authentication configuration for AWF API proxy sidecar integration
+  # (for example, Azure OpenAI via GitHub OIDC). Values are mapped to AWF_AUTH_*
+  # environment variables.
+  # (optional)
+  auth:
+    # Authentication type. Currently only 'github-oidc' is supported.
+    type: "github-oidc"
+
+    # OIDC audience to request from GitHub Actions for token exchange.
+    # (optional)
+    audience: "example-value"
+
+    # Optional Azure tenant ID for token exchange.
+    # (optional)
+    azure-tenant-id: "example-value"
+
+    # Optional Azure client ID for token exchange.
+    # (optional)
+    azure-client-id: "example-value"
+
+    # Optional Azure OAuth scope (defaults to
+    # https://cognitiveservices.azure.com/.default in AWF sidecar).
+    # (optional)
+    azure-scope: "example-value"
+
+    # Optional Azure cloud name (for example, public, usgovernment, china).
+    # (optional)
+    azure-cloud: "example-value"
 
   # Additional TOML configuration text that will be appended to the generated
   # config.toml in the action (codex engine only)
@@ -2353,17 +2416,62 @@ engine:
   options:
     {}
 
-# Maximum effective-token (ET) budget for AWF API proxy enforcement. Defaults to
-# 25000000 when omitted.
+# Format 5: MCP gateway configuration for shared workflows. Declares engine.mcp
+# settings (tool-timeout, session-timeout) that consumers inherit during import
+# without specifying an engine identifier. The engine is always inherited from the
+# importing workflow.
+engine:
+  # Engine-level MCP gateway configuration. Settings here apply to the MCP gateway
+  # used by this engine.
+  mcp:
+    # Session timeout for MCP gateway sessions as a Go duration string (e.g. "30m",
+    # "4h", "24h"). Must be at least 5m (no upper bound). Omitted or empty uses the
+    # effective gateway default (precedence: this field > MCP_GATEWAY_SESSION_TIMEOUT
+    # env var > built-in default 6h).
+    # (optional)
+    session-timeout: "example-value"
+
+    # Timeout for individual MCP tool calls as a Go duration string (e.g. "30s", "2m",
+    # "10m"). Must be between 10s and 600s inclusive. Omitted or empty uses the
+    # gateway built-in default (60s). Use a higher value for slow MCP backends such as
+    # full-text search over large indexes.
+    # (optional)
+    tool-timeout: "example-value"
+
+# Format 6: Engine object with only a model preference (no engine.id). Allows
+# workflow authors to express a model-size hint (e.g. 'small', 'large') without
+# committing to a specific engine. The runtime selects an appropriate engine using
+# its default, and the model preference is applied to it.
+engine:
+  # Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to
+  # the default engine when engine.id is not specified.
+  model: "example-value"
+
+# Explicit ET budget control for firewall cost enforcement. Defaults to 25000000
+# when omitted. Set to a negative value to disable budget enforcement and token
+# steering.
 # (optional)
 # Accepted formats:
 
-# Format 1: integer
+# Format 1: Maximum effective-token (ET) budget for AWF API proxy enforcement. Use
+# a negative value to disable budget enforcement and token steering.
 max-effective-tokens: 1
 
-# Format 2: Numeric string or GitHub Actions expression that resolves to an
-# integer at runtime
+# Format 2: Maximum effective-token (ET) budget as a numeric string or GitHub
+# Actions expression.
 max-effective-tokens: "example-value"
+
+# AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.
+# Defaults to 500 when omitted.
+# (optional)
+# Accepted formats:
+
+# Format 1: Maximum number of LLM invocations allowed per run.
+max-runs: 1
+
+# Format 2: Maximum number of LLM invocations allowed per run as a numeric string
+# or GitHub Actions expression.
+max-runs: "example-value"
 
 # MCP server definitions
 # (optional)
@@ -3073,10 +3181,6 @@ tools:
   repo-memory: []
     # Array items: object
 
-# Command name for the workflow
-# (optional)
-command: "example-value"
-
 # Cache configuration for workflow (uses actions/cache syntax)
 # (optional)
 # Accepted formats:
@@ -3176,6 +3280,13 @@ safe-outputs:
     # the agent can only use labels from this list.
     # (optional)
     allowed-labels: []
+      # Array of strings
+
+    # Optional list of issue field names that can be modified by create-issue field
+    # updates. If omitted or empty, any issue field may be set. Use ['*'] to
+    # explicitly allow all.
+    # (optional)
+    allowed-fields: []
       # Array of strings
 
     # GitHub usernames to assign the created issue to. Can be a single username string
@@ -3657,11 +3768,11 @@ safe-outputs:
     # (optional)
     category: null
 
-    # Minimum required length of the discussion body content (before
-    # footer/metadata) in characters. If a create_discussion message body is
-    # shorter than this value, the safe-outputs job fails.
+    # Minimum required length of the discussion body content (before footer/metadata)
+    # in characters. If a create_discussion message body is shorter than this value,
+    # the safe-outputs job fails.
     # (optional)
-    min-body-length: 200
+    min-body-length: 1
 
     # Optional list of labels to attach to created discussions. Also used for matching
     # when close-older-discussions is enabled - discussions must have ALL specified
@@ -4166,8 +4277,7 @@ safe-outputs:
     max: "example-value"
 
     # Optional prefix to prepend to the pull request branch name (e.g. "signed/").
-    # Applied before the agent-specified or auto-generated branch name. When set, any
-    # branch name that does not already start with this prefix will have it prepended.
+    # Applied before the agent-specified or auto-generated branch name.
     # (optional)
     branch-prefix: "example-value"
 
@@ -4448,16 +4558,16 @@ safe-outputs:
     excluded-files: []
       # Array of strings
 
-    # Transport format for packaging changes. "bundle" (default) uses git bundle.
-    # "am" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
+    # Transport format for packaging changes. "bundle" (default) uses git bundle. "am"
+    # uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
     # workflows.
     # (optional)
     # Accepted formats:
 
     # Format 1: Transport format for packaging changes. "bundle" (default) uses git
-    # bundle. "am" uses git format-patch/git am, while "bundle" preserves merge commit
-    # topology, per-commit authorship, and merge-resolution-only content.
-    patch-format: "bundle"
+    # bundle, which preserves merge commit topology, per-commit authorship, and
+    # merge-resolution-only content. "am" uses git format-patch/git am.
+    patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
     # runtime. Use in reusable workflow_call workflows to parameterise the transport
@@ -5661,16 +5771,16 @@ safe-outputs:
     excluded-files: []
       # Array of strings
 
-    # Transport format for packaging changes. "bundle" (default) uses git bundle.
-    # "am" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
+    # Transport format for packaging changes. "bundle" (default) uses git bundle. "am"
+    # uses git format-patch/git am. Accepts a GitHub Actions expression for reusable
     # workflows.
     # (optional)
     # Accepted formats:
 
     # Format 1: Transport format for packaging changes. "bundle" (default) uses git
-    # bundle. "am" uses git format-patch/git am, while "bundle" preserves merge commit
-    # topology, per-commit authorship, and merge-resolution-only content.
-    patch-format: "bundle"
+    # bundle, which preserves merge commit topology, per-commit authorship, and
+    # merge-resolution-only content. "am" uses git format-patch/git am.
+    patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
     # runtime. Use in reusable workflow_call workflows to parameterise the transport
@@ -5778,6 +5888,61 @@ safe-outputs:
     # set. When specified, the agent can use a 'repo' field in the output to specify
     # which repository to target. The target repository (current or target-repo) is
     # always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # If true, emit step summary messages instead of making GitHub API calls for this
+    # specific output type (preview mode)
+    # (optional)
+    staged: true
+
+  # Enable AI agents to set one issue field value by field name and value.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Null configuration enables set-issue-field with defaults.
+  set-issue-field: null
+
+  # Format 2: Configuration for setting one issue field value by field name and
+  # value.
+  set-issue-field:
+    # Optional maximum number of set-issue-field operations (default: 5). Supports
+    # integer or GitHub Actions expression (e.g. '${{ inputs.max }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # Target for issue field updates: 'triggering' (default), '*' (any issue), or
+    # explicit issue number
+    # (optional)
+    target: "example-value"
+
+    # Optional list of issue field names that can be modified by set-issue-field. If
+    # omitted or empty, any issue field may be set. Use ['*'] to explicitly allow all.
+    # (optional)
+    allowed-fields: []
+      # Array of strings
+
+    # Target repository in format 'owner/repo' for cross-repository issue field
+    # updates. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' where issue fields can be
+    # updated. When specified, the agent can use a 'repo' field in the output to
+    # specify which repository to target. The target repository (current or
+    # target-repo) is always implicitly allowed.
     # (optional)
     allowed-repos: []
       # Array of strings
@@ -6897,6 +7062,14 @@ observability:
     # variable.
     headers: "example-value"
 
+    # How to handle missing OTLP endpoint/header values at runtime (for example from
+    # unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning
+    # and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP
+    # configuration without warning. This affects MCP gateway setup only;
+    # workflow-level OTEL_* environment variables are still injected.
+    # (optional)
+    if-missing: "error"
+
 # Rate limiting configuration to restrict how frequently users can trigger the
 # workflow. Helps prevent abuse and resource exhaustion from programmatically
 # triggered events.
@@ -6929,6 +7102,45 @@ user-rate-limit:
   # 'maintain', 'write'] if not specified. Users with any of these roles will not be
   # subject to rate limiting checks. To apply rate limiting to all users, set to an
   # empty array: []
+  # (optional)
+  ignored-roles: []
+    # Array of strings
+
+# Legacy alias for 'user-rate-limit'. Prefer 'user-rate-limit' with
+# 'max-runs-per-window'.
+# (optional)
+rate-limit:
+  # Legacy maximum runs key. Prefer 'max-runs-per-window'.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: integer
+  max-runs: 1
+
+  # Format 2: GitHub Actions expression that resolves to an integer at runtime
+  max-runs: "example-value"
+
+  # Legacy maximum runs key. Prefer 'max-runs-per-window'.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: integer
+  max: 1
+
+  # Format 2: GitHub Actions expression that resolves to an integer at runtime
+  max: "example-value"
+
+  # Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180
+  # (3 hours).
+  # (optional)
+  window: 1
+
+  # Optional list of event types to apply rate limiting to.
+  # (optional)
+  events: []
+    # Array of strings
+
+  # Optional list of roles that are exempt from rate limiting.
   # (optional)
   ignored-roles: []
     # Array of strings
