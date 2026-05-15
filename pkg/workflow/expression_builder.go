@@ -171,6 +171,19 @@ func buildDispatchSourceEventCondition(includeIssues bool, includePullRequests b
 // events and for comment events whose author is an OWNER, MEMBER, or COLLABORATOR.
 // Actors listed in bots (from on.bots) are also exempted so that bot/app-triggered workflows
 // continue to work even though bots rarely carry an OWNER/MEMBER/COLLABORATOR association.
+//
+// The generated expression (without bots) is:
+//
+//	(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment')
+//	|| contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+//
+// With one or more bots an additional OR clause is appended for each bot:
+//
+//	|| github.actor == 'dependabot[bot]'
+//
+// This satisfies the RGS-004 rule (explicit author_association check for comment-triggered
+// workflows) while remaining transparent to non-comment events such as push or schedule,
+// and preserves existing on.bots allow-list behaviour.
 func buildCommentAuthorAssociationCondition(bots []string) ConditionNode {
 	notIssueComment := BuildNotEquals(
 		BuildPropertyAccess("github.event_name"),

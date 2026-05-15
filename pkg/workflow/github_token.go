@@ -108,6 +108,8 @@ func getEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, 
 	if safeOutputs.PushToPullRequestBranch != nil {
 		pushToPRBranchToken = safeOutputs.PushToPullRequestBranch.GitHubToken
 	}
+
+	// Per-config PAT tokens take highest precedence (overrides GitHub App)
 	perConfigToken := createPRToken
 	if perConfigToken == "" {
 		perConfigToken = pushToPRBranchToken
@@ -116,7 +118,7 @@ func getEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, 
 		return getEffectiveSafeOutputGitHubToken(perConfigToken), true
 	}
 
-	// GitHub App token takes precedence over the safe-outputs level PAT.
+	// GitHub App token takes precedence over the safe-outputs level PAT
 	if safeOutputs.GitHubApp != nil {
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		return "${{ steps.safe-outputs-app-token.outputs.token }}", true
