@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * @fileoverview Shared helper for pushing local commits either through
+ * GitHub's signed-commit GraphQL API or, when explicitly configured, direct
+ * `git push`.
+ */
+
 const { ERR_API } = require("./error_codes.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
@@ -164,7 +170,7 @@ async function resolveLocalHeadSha(cwd) {
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true }) {
-  // Only an explicit false opts out of signed commit replay; unset/default values keep it enabled.
+  // The default parameter converts missing/undefined values to true; only explicit false disables signed commit replay.
   if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
