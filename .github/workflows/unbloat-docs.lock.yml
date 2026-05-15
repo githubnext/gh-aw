@@ -63,7 +63,7 @@
 #   - node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
 
 name: "Documentation Unbloat"
-"on":
+on:
   schedule:
   - cron: "24 16 * * *"
   # skip-if-match: is:pr is:open is:draft label:doc-unbloat # Skip-if-match processed as search check in pre-activation job
