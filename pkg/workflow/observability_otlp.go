@@ -453,17 +453,18 @@ func otelServiceName(workflowData *WorkflowData) string {
 		return defaultServiceName
 	}
 
-	// Prefer the compiled workflow name because it also reflects workflow_call
-	// invocations; fall back to WorkflowID for compatibility in edge/test cases.
-	workflowNameOrID := strings.TrimSpace(workflowData.Name)
-	if workflowNameOrID == "" {
-		workflowNameOrID = workflowData.WorkflowID
+	// Prefer the file-based WorkflowID to avoid collisions across workflows that
+	// may share display names; fall back to workflow Name when WorkflowID is
+	// unavailable (for workflow_call-only contexts).
+	workflowIDOrName := strings.TrimSpace(workflowData.WorkflowID)
+	if workflowIDOrName == "" {
+		workflowIDOrName = workflowData.Name
 	}
 
 	// SanitizeWorkflowName lowercases the workflow identifier and converts
 	// separators/special characters (spaces, slashes, etc.) to hyphens so the
 	// service suffix is stable and backend-friendly.
-	sanitizedWorkflowName := SanitizeWorkflowName(workflowNameOrID)
+	sanitizedWorkflowName := SanitizeWorkflowName(workflowIDOrName)
 	if sanitizedWorkflowName == "" {
 		return defaultServiceName
 	}
