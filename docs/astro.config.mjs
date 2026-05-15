@@ -165,6 +165,7 @@ export default defineConfig({
 		'/guides/audit-with-agents/': '/gh-aw/reference/audit/',
 		'/guides/ephemerals/': '/gh-aw/reference/ephemerals/',
 		'/guides/memoryops/': '/gh-aw/guides/memory-ops/',
+		'/guides/serena/': '/gh-aw/reference/serena/',
 
 		'/reference/awf-reflect/': '/gh-aw/experimental/awf-reflect/',
 
@@ -407,8 +408,7 @@ export default defineConfig({
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Tools (Cache Memory)', link: '/reference/cache-memory/' },
 						{ label: 'Tools (Repo Memory)', link: '/reference/repo-memory/' },
-						{ label: 'Tools (Playwright)', link: '/reference/playwright/' },
-						{ label: 'Tools (Web Search)', link: '/reference/web-search/' },
+						{ label: 'Tools (Playwright)', link: '/reference/playwright/' },					{ label: 'Tools (Serena)', link: '/reference/serena/' },						{ label: 'Tools (Web Search)', link: '/reference/web-search/' },
 						{ label: 'Triggering CI', link: '/reference/triggering-ci/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
 					],
@@ -427,7 +427,7 @@ export default defineConfig({
 						{ label: 'TrialOps', link: '/experimental/trial-ops/' },
 						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
 						{ label: 'Experiments (Spec)', link: '/reference/experiments-specification/' },
-						{ label: 'Serena', link: '/guides/serena/' },
+
 					],
 				},
 				{ label: 'Agent Factory', link: '/agent-factory-status/' },
