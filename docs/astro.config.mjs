@@ -96,7 +96,7 @@ export default defineConfig({
 		'/reference/custom-agent/': '/gh-aw/reference/custom-agent-for-aw/',
 
 		// Organization Practices moved under Guides
-		'/organization-practices/': '/gh-aw/guides/organization-practices/',
+		'/organization-practices/': '/gh-aw/practices/organization-practices/',
 		'/organization-practices/safe-rollout/': '/gh-aw/practices/safe-rollout/',
 		'/organization-practices/sharing-workflows/': '/gh-aw/practices/sharing-workflows/',
 
@@ -144,6 +144,7 @@ export default defineConfig({
 		'/patterns/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
 		'/guides/organization-practices/safe-rollout/': '/gh-aw/practices/safe-rollout/',
 		'/guides/organization-practices/sharing-workflows/': '/gh-aw/practices/sharing-workflows/',
+		'/guides/organization-practices/': '/gh-aw/practices/organization-practices/',
 		'/guides/maintaining-repos/': '/gh-aw/practices/maintaining-repos/',
 		'/guides/web-search/': '/gh-aw/reference/web-search/',
 		'/guides/custom-otlp-attributes/': '/gh-aw/reference/open-telemetry/',
@@ -304,7 +305,6 @@ export default defineConfig({
 						{ label: 'Upgrading Workflows', link: '/guides/upgrading/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
 						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
-						{ label: 'Organization Practices', link: '/guides/organization-practices/' },
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
 						{ label: 'Self-Hosted Runners', link: '/guides/self-hosted-runners/' },
 					],
@@ -336,6 +336,7 @@ export default defineConfig({
 					items: [
 						{ label: 'A/B Experiments', link: '/guides/experiments/' },
 						{ label: 'Maintaining Repositories', link: '/practices/maintaining-repos/' },
+						{ label: 'Organization Practices', link: '/practices/organization-practices/' },
 						{ label: 'Safe Rollout', link: '/practices/safe-rollout/' },
 						{ label: 'Sharing Workflows', link: '/practices/sharing-workflows/' },
 					],
