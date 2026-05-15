@@ -159,16 +159,6 @@ async function resolveLocalHeadSha(cwd) {
 }
 
 /**
- * Returns true only when signed commit replay was explicitly disabled.
- *
- * @param {boolean} signedCommits
- * @returns {boolean}
- */
-function shouldSkipSignedCommitReplay(signedCommits) {
-  return signedCommits === false;
-}
-
-/**
  * Pushes local commits to a remote branch using the GitHub GraphQL
  * `createCommitOnBranch` mutation so commits are cryptographically signed.
  * Falls back to `git push` if the GraphQL approach fails (e.g. on GHES).
@@ -197,13 +187,13 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     return headSha;
   }
 
-  if (shouldSkipSignedCommitReplay(signedCommits)) {
+  if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled, using git push directly for branch ${branch}`);
     await pushBranchWithGit({ branch, cwd, gitAuthEnv });
     // git push sends the currently checked-out branch tip; after it succeeds,
     // local HEAD is the SHA that landed on the remote branch.
     const headSha = await resolveLocalHeadSha(cwd);
-    core.info(`pushSignedCommits: git push completed with signed commits disabled, using local HEAD SHA ${headSha}`);
+    core.info(`pushSignedCommits: git push completed, HEAD=${headSha}`);
     return headSha;
   }
 
