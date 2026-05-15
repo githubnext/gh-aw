@@ -66,7 +66,11 @@ Focus on:
 
 ### 1) Build AgentRx input trajectory
 
-Invoke `trajectory-builder` with the MCP run-data file path (for example, `trajectory-builder /tmp/agentrx/mcp-runs.json`) to produce `/tmp/agentrx/trajectory.json`.
+Invoke `trajectory-builder` by passing this exact input block:
+```text
+run_data_path: /tmp/agentrx/mcp-runs.json
+```
+It must produce `/tmp/agentrx/trajectory.json`.
 
 ### 2) Run AgentRx pipeline
 
@@ -91,7 +95,12 @@ If a later stage fails (for example due to endpoint/auth constraints), continue 
 
 ### 3) Derive one optimization recommendation
 
-First, invoke `failure-pattern-classifier` on the AgentRx `check`/violation artifacts and capture its markdown table output as the labeled violations list for this section. Then read that labeled table and pick the single highest-impact fix.
+First, invoke `failure-pattern-classifier` by passing this exact input block:
+```text
+check_path: /tmp/agentrx/runs/gh-aw-daily/check.json
+judge_path: /tmp/agentrx/runs/gh-aw-daily/judge.json
+```
+Capture its markdown table output as the labeled violations list for this section. Then read that labeled table and pick the single highest-impact fix.
 
 Use AgentRx outputs to identify:
 - the most frequent or most expensive failure pattern
@@ -125,7 +134,11 @@ Body structure:
 <details>
 <summary>AgentRx Artifacts</summary>
 
-Invoke `artifacts-summarizer` on `/tmp/agentrx/runs/gh-aw-daily/` artifacts and paste its markdown output as the body of this details block.
+Invoke `artifacts-summarizer` by passing this exact input block:
+```text
+run_dir: /tmp/agentrx/runs/gh-aw-daily
+```
+Paste its markdown output as the body of this details block.
 
 </details>
 
@@ -156,7 +169,9 @@ description: Builds AgentRx trajectory input from MCP run and log data
 model: small
 ---
 You are a structured-data extraction agent.
-Given the path to MCP-downloaded run data, create `/tmp/agentrx/trajectory.json`.
+Expected input format:
+`run_data_path: <absolute-path-to-mcp-run-data-json>`
+Read the file at `run_data_path` and create `/tmp/agentrx/trajectory.json`.
 Use the last 24h of data and prioritize failed or high-latency runs.
 Map `runs[]` session records to ordered workflow steps.
 Include when present: step index, `github.workflow_ref`, `github.run_id`, status/error signal, `duration`, `effective_tokens`, `estimated_cost`, `turns`, `agentic_assessments`, `behavior_fingerprint`, `missing_tool_count`.
@@ -168,7 +183,9 @@ description: Summarizes AgentRx stage artifacts for issue details output
 model: small
 ---
 You are an artifact summarization agent.
-Read AgentRx stage outputs from `/tmp/agentrx/runs/<run_name>/` (`ir`, `static`, `dynamic`, `check`, `judge`, `report`).
+Expected input format:
+`run_dir: <absolute-path-to-agentrx-run-dir>`
+Read AgentRx stage outputs from `run_dir` (`ir`, `static`, `dynamic`, `check`, `judge`, `report`).
 Produce concise markdown bullets for the AgentRx Artifacts details block.
 Cover: IR summary, invariant/checker highlights, judge classification output when available, and known limitations such as missing fields or auth-limited stages.
 Do not invent values.
@@ -179,6 +196,10 @@ description: Classifies AgentRx violations into predefined optimization fix type
 model: small
 ---
 You are a violation classification agent.
+Expected input format:
+`check_path: <absolute-path-to-check-artifact-json>`
+`judge_path: <absolute-path-to-judge-artifact-json>`
+Read `check_path` (required) and `judge_path` (if present).
 Label every AgentRx violation with exactly one fix type from this taxonomy:
 - prompt tightening to reduce invalid tool invocations
 - adding precondition checks before expensive tools
