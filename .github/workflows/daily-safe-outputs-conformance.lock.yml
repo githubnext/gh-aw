@@ -120,6 +120,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -375,6 +376,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1077,6 +1079,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1225,6 +1228,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1459,6 +1463,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact

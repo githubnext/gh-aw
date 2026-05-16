@@ -130,6 +130,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: scoped/approved"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-scoped-approved.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -409,6 +410,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: scoped/approved"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-scoped-approved.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -1079,6 +1081,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: scoped/approved"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-scoped-approved.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1242,6 +1245,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: scoped/approved"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-scoped-approved.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1455,6 +1459,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: scoped/approved"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-scoped-approved.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1521,6 +1526,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Smoke Agent: scoped/approved"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/smoke-agent-scoped-approved.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
