@@ -14,6 +14,29 @@ function parseDiffGitHeader(headerLine) {
     return { oldPath: null, newPath: null, parseable: false };
   }
 
+  // Git may emit unquoted paths that still contain spaces in `diff --git`
+  // headers. In that case, split using the required ` b/` token boundary
+  // instead of generic whitespace tokenization.
+  if (rest.startsWith("a/")) {
+    const quotedSep = rest.indexOf(' "b/');
+    const unquotedSep = rest.indexOf(" b/");
+    const sepCandidates = [quotedSep, unquotedSep].filter(idx => idx > 0);
+    if (sepCandidates.length > 0) {
+      const sep = Math.min(...sepCandidates);
+      const oldPath = rest.slice(0, sep).slice(2) || null;
+      const newToken = rest.slice(sep + 1).trimEnd();
+      let newPath = null;
+      if (newToken.startsWith('"b/')) {
+        newPath = newToken.slice(3, newToken.endsWith('"') ? -1 : undefined) || null;
+      } else if (newToken.startsWith("b/")) {
+        newPath = newToken.slice(2) || null;
+      }
+      if (oldPath || newPath) {
+        return { oldPath, newPath, parseable: true };
+      }
+    }
+  }
+
   /** @type {string[]} */
   const tokens = [];
   const isWhitespace = ch => ch === " " || ch === "\t" || ch === "\r" || ch === "\n";
