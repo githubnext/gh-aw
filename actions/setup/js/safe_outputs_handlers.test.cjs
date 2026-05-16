@@ -755,6 +755,9 @@ describe("safe_outputs_handlers", () => {
 
       expect(result.isError).toBeUndefined();
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Found repo checkout at: ${targetRepoDir}`));
+      // No base-branch override is configured and the repo default branch is main,
+      // so matching release-1.12.x here confirms the handler derived the base branch
+      // from the checked-out side-repo branch.
       expect(mockAppendSafeOutput).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "create_pull_request",

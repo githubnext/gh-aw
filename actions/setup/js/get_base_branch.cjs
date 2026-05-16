@@ -96,7 +96,7 @@ async function getBaseBranch(targetRepo = null, options = null) {
       }
     } catch (/** @type {any} */ error) {
       if (typeof core !== "undefined" && typeof core.debug === "function") {
-        core.debug(`Failed to detect checked-out branch from git: ${getErrorMessage(error)}`);
+        core.debug(`Failed to detect checked-out branch from git, falling back to repository default branch: ${getErrorMessage(error)}`);
       }
       // Ignore and continue with default branch resolution
     }
