@@ -223,9 +223,10 @@ function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
       error: `Line ${lineNum}: ${fieldName} must be a number or string`,
     };
   }
-  // Check if it's a temporary ID
-  if (isTemporaryId(value)) {
-    return { isValid: true, normalizedValue: String(value).toLowerCase(), isTemporary: true };
+  // Check if it's a temporary ID (accept both bare form 'aw_abc1' and '#aw_abc1' with leading #)
+  const withoutHash = typeof value === "string" && value.startsWith("#") ? value.substring(1) : value;
+  if (isTemporaryId(withoutHash)) {
+    return { isValid: true, normalizedValue: String(withoutHash).toLowerCase(), isTemporary: true };
   }
   // Try to parse as positive integer
   const parsed = typeof value === "string" ? parseInt(value, 10) : value;

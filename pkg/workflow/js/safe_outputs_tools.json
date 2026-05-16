@@ -621,8 +621,8 @@
         },
         "item_number": {
           "type": ["number", "string"],
-          "pattern": "^(\\d+|aw_[A-Za-z0-9]{3,12})$",
-          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run (e.g., 'aw_abc123' \u2014 without leading '#'). If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
+          "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run (e.g., 'aw_abc123'). Both the bare form ('aw_abc123') and the hash-prefixed form ('#aw_abc123') are accepted — the '#' is stripped automatically. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
         },
         "secrecy": {
           "type": "string",
@@ -654,8 +654,8 @@
         },
         "item_number": {
           "type": ["number", "string"],
-          "pattern": "^(\\d+|aw_[A-Za-z0-9]{3,12})$",
-          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run (e.g., 'aw_abc123' \u2014 without leading '#'). If omitted, removes labels from the item that triggered this workflow."
+          "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run (e.g., 'aw_abc123'). Both the bare form ('aw_abc123') and the hash-prefixed form ('#aw_abc123') are accepted — the '#' is stripped automatically. If omitted, removes labels from the item that triggered this workflow."
         },
         "secrecy": {
           "type": "string",
