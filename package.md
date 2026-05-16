@@ -45,6 +45,7 @@ Create `aw.yml` in the package root using the supported manifest format:
 manifest-version: "1"
 name: Repo Assist
 description: Reusable agentic workflows for <domain/use-case>.
+emoji: 🤖
 files:
   - workflows/example.md
   - .github/workflows/repo-workflow.md
@@ -55,6 +56,7 @@ Requirements:
 - `manifest-version`: use `"1"` (or omit and rely on default `"1"`)
 - `name`: human-readable package name
 - `description`: concise and relevant to the actual workflows
+- `emoji`: optional package emoji (string)
 - `files`: complete list of installable agentic/shared workflows in this repository
 - File paths must be package-root-relative and point to existing markdown workflow files under `workflows/` or `.github/workflows/`
 
@@ -64,7 +66,7 @@ Do not invent custom package metadata fields.
 
 Keep package manifest simple:
 
-- Use only `manifest-version`, `name`, `description`, and `files`
+- Use only `manifest-version`, `name`, `description`, optional `emoji`, and `files`
 - Keep `description` short
 - Put only real installable workflow markdown files in `files`
 
