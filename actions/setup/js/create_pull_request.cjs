@@ -449,6 +449,25 @@ function renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fi
 }
 
 /**
+ * Neutralizes issue-closing keywords in body text to avoid unintended cross-issue closure
+ * when PR content is reused in fallback issue bodies.
+ *
+ * Example: "Closes #123" -> "Closes \\#123"
+ *
+ * @param {string} content
+ * @returns {string}
+ */
+function neutralizeClosingKeywordsForIssueBody(content) {
+  if (!content) {
+    return content;
+  }
+  return String(content).replace(
+    /\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+((?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+)\b/gi,
+    (_match, keyword, issueRef) => `${keyword} ${String(issueRef).replace("#", "\\#")}`
+  );
+}
+
+/**
  * Maximum limits for pull request parameters to prevent resource exhaustion.
  * These limits align with GitHub's API constraints and security best practices.
  */
@@ -1345,6 +1364,7 @@ async function main(config = {}) {
     // The protected-files section must appear before the footer (including guard notices such as
     // the integrity-filtering note) so that the footer always comes last in the issue body.
     const mainBodyContent = bodyLines.join("\n").trim();
+    const issueSafeMainBodyContent = neutralizeClosingKeywordsForIssueBody(mainBodyContent);
 
     // Generate footer using messages template system (respects custom messages.footer config)
     // When footer is disabled, only add XML markers (no visible footer content)
@@ -1382,6 +1402,7 @@ async function main(config = {}) {
 
     // Prepare the body content
     const body = bodyLines.join("\n").trim();
+    const issueSafeBody = neutralizeClosingKeywordsForIssueBody(body);
     // Footer section (footer + workflow-id marker) used when ordering protected-files notices
     const footerContent = footerParts.join("\n\n");
 
@@ -1458,29 +1479,32 @@ async function main(config = {}) {
       }
 
       // Push the commits from the bundle to the remote branch
-      try {
-        branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
-
-        await pushSignedCommits({
-          githubClient,
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          branch: branchName,
-          baseRef: `origin/${baseBranch}`,
-          cwd: process.cwd(),
-          signedCommits,
-        });
-        core.info("Changes pushed to branch (from bundle)");
-
-        // Count new commits on PR branch relative to base
+      if (manifestProtectionFallback) {
+        core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
+      } else {
         try {
-          const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
-          newCommitCount = parseInt(countStr.trim(), 10);
-          core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
-        } catch {
-          core.info("Could not count new commits - extra empty commit will be skipped");
-        }
-      } catch (initialPushError) {
+          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+
+          await pushSignedCommits({
+            githubClient,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            branch: branchName,
+            baseRef: `origin/${baseBranch}`,
+            cwd: process.cwd(),
+            signedCommits,
+          });
+          core.info("Changes pushed to branch (from bundle)");
+
+          // Count new commits on PR branch relative to base
+          try {
+            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+            newCommitCount = parseInt(countStr.trim(), 10);
+            core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+          } catch {
+            core.info("Could not count new commits - extra empty commit will be skipped");
+          }
+        } catch (initialPushError) {
         /** @type {unknown} */
         let pushError = initialPushError;
         let pushRecovered = false;
@@ -1515,23 +1539,23 @@ async function main(config = {}) {
           }
         }
 
-        if (!pushRecovered) {
-          core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+          if (!pushRecovered) {
+            core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-          if (!fallbackAsIssue) {
-            const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
-            return { success: false, error, error_type: "push_failed" };
-          }
+            if (!fallbackAsIssue) {
+              const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+              return { success: false, error, error_type: "push_failed" };
+            }
 
-          core.warning("Git push operation failed - creating fallback issue instead of pull request");
+            core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
-          const runUrl = buildWorkflowRunUrl(context, context.repo);
-          const runId = context.runId;
+            const runUrl = buildWorkflowRunUrl(context, context.repo);
+            const runId = context.runId;
 
-          const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
-          const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
-          const fallbackBundleTempRef = createBundleTempRef(branchName);
-          const fallbackBody = `${body}
+            const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
+            const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
+            const fallbackBundleTempRef = createBundleTempRef(branchName);
+            const fallbackBody = `${issueSafeBody}
 
 ---
 
@@ -1564,22 +1588,23 @@ git push origin ${branchName}
 gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\``;
 
-          try {
-            const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+            try {
+              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
-            core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-            await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
-            await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+              core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+              await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+              await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
-            return {
-              success: true,
-              fallback_used: true,
-              issue_number: issue.number,
-              issue_url: issue.html_url,
-            };
-          } catch (issueError) {
-            const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
-            return { success: false, error };
+              return {
+                success: true,
+                fallback_used: true,
+                issue_number: issue.number,
+                issue_url: issue.html_url,
+              };
+            } catch (issueError) {
+              const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+              return { success: false, error };
+            }
           }
         }
       }
@@ -1711,31 +1736,34 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
         }
 
         // Push the applied commits to the branch (with fallback to issue creation on failure)
-        try {
-          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
-
-          await pushSignedCommits({
-            githubClient,
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            branch: branchName,
-            baseRef: `origin/${baseBranch}`,
-            cwd: process.cwd(),
-            signedCommits,
-          });
-          core.info("Changes pushed to branch");
-
-          // Count new commits on PR branch relative to base, used to restrict
-          // the extra empty CI-trigger commit to exactly 1 new commit.
+        if (manifestProtectionFallback) {
+          core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
+        } else {
           try {
-            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
-            newCommitCount = parseInt(countStr.trim(), 10);
-            core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
-          } catch {
-            // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
-            core.info("Could not count new commits - extra empty commit will be skipped");
-          }
-        } catch (pushError) {
+            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+
+            await pushSignedCommits({
+              githubClient,
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              branch: branchName,
+              baseRef: `origin/${baseBranch}`,
+              cwd: process.cwd(),
+              signedCommits,
+            });
+            core.info("Changes pushed to branch");
+
+            // Count new commits on PR branch relative to base, used to restrict
+            // the extra empty CI-trigger commit to exactly 1 new commit.
+            try {
+              const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+              newCommitCount = parseInt(countStr.trim(), 10);
+              core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+            } catch {
+              // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
+              core.info("Could not count new commits - extra empty commit will be skipped");
+            }
+          } catch (pushError) {
           // Push failed - create fallback issue instead of PR (if fallback is enabled)
           core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
@@ -1769,7 +1797,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             }
 
             const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
-            const fallbackBody = `${body}
+            const fallbackBody = `${issueSafeBody}
 
 ---
 
@@ -1844,6 +1872,7 @@ ${patchPreview}`;
               };
             }
           } // end else (generic push-failed fallback)
+          }
         }
       } else {
         core.info("Skipping patch application (empty patch)");
@@ -1932,7 +1961,7 @@ ${patchPreview}`;
         const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
         const pushFailedTemplatePath = getPromptPath("manifest_protection_push_failed_fallback.md");
         fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
-          main_body: mainBodyContent,
+          main_body: issueSafeMainBodyContent,
           footer: footerContent,
           files: fileList,
           run_id: String(runId),
@@ -1945,7 +1974,7 @@ ${patchPreview}`;
       } else {
         // Normal case — push succeeded, provide compare URL.
         const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title);
-        fallbackBody = renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fileList, createPrUrl);
+        fallbackBody = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, footerContent, fileList, createPrUrl);
       }
 
       try {
@@ -1956,7 +1985,7 @@ ${patchPreview}`;
         if (!manifestProtectionPushFailedError) {
           try {
             const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, issue.number);
-            const fallbackBodyWithCloseKeyword = renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fileList, createPrUrl);
+            const fallbackBodyWithCloseKeyword = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, footerContent, fileList, createPrUrl);
 
             await withRetry(
               () =>
@@ -2228,7 +2257,7 @@ ${patchPreview}`;
         patchPreview = generatePatchPreview(patchContent);
       }
 
-      const fallbackBody = `${body}
+      const fallbackBody = `${issueSafeBody}
 
 ---
 

@@ -423,14 +423,14 @@ safe-outputs:
 ```
 :::
 
-**`create-pull-request` with `fallback-to-issue`**: the branch is pushed normally, then a review issue is created with a PR creation intent link, a `[!WARNING]` banner explaining why the fallback was triggered, and instructions to review carefully before creating the PR.
+**`create-pull-request` with `fallback-to-issue`**: when protected files are detected, gh-aw skips pushing and creates a review issue with a PR creation intent link, a `[!WARNING]` banner explaining why the fallback was triggered, and instructions to review carefully before creating the PR.
 
 **`push-to-pull-request-branch` with `fallback-to-issue`**: instead of pushing to the PR branch, a review issue is created with the target PR link, patch download/apply instructions, and a review warning.
 
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-    protected-files: fallback-to-issue  # push branch, require human review before PR
+    protected-files: fallback-to-issue  # skip push and require human review before PR
 
   push-to-pull-request-branch:
     protected-files: fallback-to-issue  # create issue instead of pushing when protected files change

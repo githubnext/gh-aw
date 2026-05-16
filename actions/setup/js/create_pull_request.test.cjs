@@ -671,7 +671,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
     // The initial bundle fetch uses getExecOutput (not exec.exec) — ensure it never uses the direct branch refspec
@@ -726,6 +726,9 @@ index 0000000..abc1234
     expect(fallbackIssueBody).toContain("git reset --hard");
     expect(fallbackIssueBody).toContain(`git update-ref -d ${fallbackBundleTempRef}`);
     expect(fallbackIssueBody).not.toContain("refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison");
+    expect(fallbackIssueBody).toContain("Test body");
+    expect(fallbackIssueBody).not.toContain("Closes #57");
+    expect(fallbackIssueBody).not.toContain("Resolves test-owner/test-repo#58");
   });
 });
 
@@ -1284,6 +1287,7 @@ describe("create_pull_request - normalizeBranchName: salt argument", () => {
 describe("create_pull_request - allowed-files strict allowlist", () => {
   let tempDir;
   let originalEnv;
+  let pushSignedSpy;
 
   beforeEach(() => {
     originalEnv = { ...process.env };
@@ -1326,12 +1330,17 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" }),
     };
+    const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+    pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
 
     // Clear module cache so globals are picked up fresh
     delete require.cache[require.resolve("./create_pull_request.cjs")];
   });
 
   afterEach(() => {
+    if (pushSignedSpy) {
+      pushSignedSpy.mockRestore();
+    }
     for (const key of Object.keys(process.env)) {
       if (!(key in originalEnv)) {
         delete process.env[key];
@@ -1484,6 +1493,7 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
+    expect(pushSignedSpy).not.toHaveBeenCalled();
     expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
     expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
 
@@ -1518,6 +1528,7 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
+    expect(pushSignedSpy).not.toHaveBeenCalled();
     expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
 
     const updateCall = global.github.rest.issues.update.mock.calls[0][0];
