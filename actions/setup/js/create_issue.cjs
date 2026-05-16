@@ -421,6 +421,9 @@ async function searchTitleDedupIssues(githubClient, query) {
     });
     const items = Array.isArray(response?.data?.items) ? response.data.items : [];
     const pageTotalCount = Number.isFinite(response?.data?.total_count) ? Number(response.data.total_count) : items.length;
+    if (!Number.isFinite(response?.data?.total_count)) {
+      core.warning(`Title dedup search response missing numeric total_count for query "${query}" (page ${page}); using page item count fallback`);
+    }
     totalCount = Math.max(totalCount, pageTotalCount);
     fetchedItems += items.length;
 
