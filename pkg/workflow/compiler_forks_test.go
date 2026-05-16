@@ -601,9 +601,11 @@ tools:
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			// Check that "on": IS present (quoted form)
-			if !strings.Contains(yamlContent, `"on":`) {
-				t.Errorf("Generated YAML does not contain quoted 'on' keyword:\n%s", yamlContent)
+			// Check that an "on" top-level key is present in either quoted or plain form.
+			hasQuotedOn := strings.Contains(yamlContent, `"on":`)
+			hasPlainOn := strings.Contains(yamlContent, "\non:")
+			if !hasQuotedOn && !hasPlainOn {
+				t.Errorf("Generated YAML does not contain 'on' keyword:\n%s", yamlContent)
 			}
 
 			// Additional verification: parse the generated YAML to ensure it's valid

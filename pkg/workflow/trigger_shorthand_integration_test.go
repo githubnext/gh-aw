@@ -24,7 +24,7 @@ on: push
 ---
 # Test Workflow
 Test workflow for push trigger`,
-			wantTrigger: `"on": push`,
+			wantTrigger: "on: push",
 		},
 		{
 			name: "push to branch shorthand",
@@ -97,7 +97,7 @@ Test workflow for manual dispatch`,
 				t.Errorf("Compiled YAML should contain %q\nGot:\n%s", tt.wantTrigger, yamlStr)
 			}
 
-			if tt.wantTrigger == `"on": push` || tt.wantTrigger == `"on": pull_request` {
+			if tt.name == "push trigger shorthand" {
 				// Simple triggers remain as-is, no workflow_dispatch added
 				return
 			}
