@@ -1,4 +1,7 @@
 // @ts-check
+const A_PREFIX_LENGTH = 2;
+const B_PREFIX_LENGTH = 2;
+const QUOTED_PREFIX_LENGTH = 3;
 
 /**
  * Parses a single `diff --git` header line and extracts both old/new paths.
@@ -23,17 +26,17 @@ function parseDiffGitHeader(headerLine) {
     const foundSeparatorIndices = [quotedSep, unquotedSep].filter(idx => idx >= 0);
     if (foundSeparatorIndices.length > 0) {
       const sep = Math.min(...foundSeparatorIndices);
-      const oldPath = rest.slice(2, sep) || null;
+      const oldPath = rest.slice(A_PREFIX_LENGTH, sep) || null;
       const newToken = rest.slice(sep + 1).trimEnd();
       let newPath = null;
       if (newToken.startsWith('"b/')) {
         if (newToken.endsWith('"')) {
-          newPath = newToken.slice(3, -1) || null;
+          newPath = newToken.slice(QUOTED_PREFIX_LENGTH, -1) || null;
         } else {
-          newPath = newToken.slice(3) || null;
+          newPath = newToken.slice(QUOTED_PREFIX_LENGTH) || null;
         }
       } else if (newToken.startsWith("b/")) {
-        newPath = newToken.slice(2) || null;
+        newPath = newToken.slice(B_PREFIX_LENGTH) || null;
       }
       if (oldPath || newPath) {
         return { oldPath, newPath, parseable: true };
@@ -84,10 +87,10 @@ function parseDiffGitHeader(headerLine) {
 
   const stripPrefix = tok => {
     if (tok.startsWith('"a/') || tok.startsWith('"b/')) {
-      return tok.slice(3, tok.endsWith('"') ? -1 : undefined);
+      return tok.slice(QUOTED_PREFIX_LENGTH, tok.endsWith('"') ? -1 : undefined);
     }
     if (tok.startsWith("a/") || tok.startsWith("b/")) {
-      return tok.slice(2);
+      return tok.slice(B_PREFIX_LENGTH);
     }
     return tok;
   };

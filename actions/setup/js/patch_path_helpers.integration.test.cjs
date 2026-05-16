@@ -18,7 +18,7 @@ function execGit(args, options = {}) {
 }
 
 function createRepo() {
-  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "patch-path-helper-it-"));
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "patch-path-helpers-it-"));
   execGit(["init", "-q"], { cwd: repoDir });
   execGit(["config", "user.name", "Test"], { cwd: repoDir });
   execGit(["config", "user.email", "test@example.com"], { cwd: repoDir });
