@@ -11,6 +11,7 @@ import (
 // If the repository already ends with ".wiki" it is returned unchanged to prevent double-suffixing.
 func wikiRepository(repository string) string {
 	if repository == "" {
+		checkoutManagerLog.Print("Wiki checkout using default current repository")
 		return "${{ github.repository }}.wiki"
 	}
 	if strings.HasSuffix(repository, ".wiki") {
@@ -27,6 +28,7 @@ func wikiRepository(repository string) string {
 // The step ID for each checkout is "checkout-app-token-{index}" where index is
 // the position in the ordered checkout list.
 func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permissions *Permissions) []string {
+	checkoutManagerLog.Printf("Building app token minting steps for %d checkout entries", len(cm.ordered))
 	var steps []string
 	for i, entry := range cm.ordered {
 		if entry.githubApp == nil {
@@ -54,6 +56,7 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 // The tokens were minted in the agent job and are referenced via
 // steps.checkout-app-token-{index}.outputs.token.
 func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler) []string {
+	checkoutManagerLog.Printf("Building app token invalidation steps for %d checkout entries", len(cm.ordered))
 	var steps []string
 	for i, entry := range cm.ordered {
 		if entry.githubApp == nil {
@@ -320,8 +323,10 @@ func checkoutStepName(key checkoutKey) string {
 func fetchRefToRefspec(pattern string) string {
 	switch pattern {
 	case "*":
+		checkoutManagerLog.Print("Fetch refspec: wildcard expanded to all branches")
 		return "+refs/heads/*:refs/remotes/origin/*"
 	case "refs/pulls/open/*":
+		checkoutManagerLog.Print("Fetch refspec: open PRs pattern expanded")
 		return "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
 	default:
 		// Treat as branch name or glob: map to remote tracking ref

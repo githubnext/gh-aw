@@ -38,6 +38,7 @@ type SideRepoTarget struct {
 // preferred over an empty one so that the generated workflow uses the custom
 // token rather than falling back to GH_AW_GITHUB_TOKEN.
 func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
+	maintenanceLog.Printf("Scanning %d workflows for side-repo targets", len(workflowDataList))
 	// Use a map to accumulate the best token seen for each slug.
 	// Order slice preserves first-seen repository discovery order for stable output;
 	// tokens may be upgraded to non-empty values from later occurrences.
@@ -99,6 +100,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 	minExpiresDays int,
 ) error {
 	targets := collectSideRepoTargets(workflowDataList)
+	maintenanceLog.Printf("Generating maintenance workflows for %d side-repo target(s): hasExpires=%t, minExpiresDays=%d", len(targets), hasExpires, minExpiresDays)
 
 	// Track which side-repo maintenance files we (re-)generate so we can identify
 	// and remove stale files from previous runs when target repos are renamed or removed.
@@ -163,6 +165,7 @@ func generateSideRepoMaintenanceWorkflow(
 ) error {
 	token := effectiveSideRepoToken(target)
 	repoSlug := target.Repository
+	maintenanceLog.Printf("Building side-repo workflow content: repo=%s, actionMode=%s, hasExpires=%t", repoSlug, actionMode, hasExpires)
 
 	var yaml strings.Builder
 
@@ -243,6 +246,7 @@ jobs:
 
 	// Add close-expired-entities job only when any workflow uses expires.
 	if hasExpires {
+		maintenanceLog.Printf("Including close-expired-entities job for %s (cron=%s)", repoSlug, cronSchedule)
 		closeExpiredCondition := buildNotForkAndScheduled()
 		yaml.WriteString(`  close-expired-entities:
     if: ${{ ` + RenderCondition(closeExpiredCondition) + ` }}
