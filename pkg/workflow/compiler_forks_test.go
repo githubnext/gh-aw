@@ -13,6 +13,8 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+var topLevelOnKeyPattern = regexp.MustCompile(`(?m)^on:`)
+
 func TestPullRequestForksArrayFilter(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "forks-array-filter-test")
@@ -604,7 +606,7 @@ tools:
 
 			// Check that an "on" top-level key is present in either quoted or plain form.
 			hasQuotedOn := strings.Contains(yamlContent, `"on":`)
-			hasPlainOn := regexp.MustCompile(`(?m)^on:`).MatchString(yamlContent)
+			hasPlainOn := topLevelOnKeyPattern.MatchString(yamlContent)
 			if !hasQuotedOn && !hasPlainOn {
 				t.Errorf("Generated YAML does not contain 'on' keyword:\n%s", yamlContent)
 			}
