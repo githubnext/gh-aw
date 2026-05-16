@@ -98,9 +98,14 @@ func compileSpecificFiles(
 
 		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
-			ctx, compiler, resolvedFile, config.Verbose, config.JSONOutput,
-			config.NoEmit, false, false, false, // Disable per-file security tools
-			config.Strict, shouldValidate,
+			ctx, compiler, resolvedFile, compileWorkflowFileOptions{
+				verbose:    config.Verbose,
+				jsonOutput: config.JSONOutput,
+				noEmit:     config.NoEmit,
+				strict:     config.Strict,
+				validate:   shouldValidate,
+				// zizmor, poutine, actionlint disabled per-file (batched instead)
+			},
 		)
 
 		if !fileResult.success {
@@ -276,9 +281,14 @@ func compileAllFilesInDirectory(
 
 		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
-			ctx, compiler, file, config.Verbose, config.JSONOutput,
-			config.NoEmit, false, false, false, // Disable per-file security tools
-			config.Strict, shouldValidate,
+			ctx, compiler, file, compileWorkflowFileOptions{
+				verbose:    config.Verbose,
+				jsonOutput: config.JSONOutput,
+				noEmit:     config.NoEmit,
+				strict:     config.Strict,
+				validate:   shouldValidate,
+				// zizmor, poutine, actionlint disabled per-file (batched instead)
+			},
 		)
 
 		if !fileResult.success {

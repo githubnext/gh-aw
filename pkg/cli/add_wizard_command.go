@@ -77,7 +77,16 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 				return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")
 			}
 
-			return RunAddInteractive(cmd.Context(), workflows, verbose, engineOverride, noGitattributes, workflowDir, noStopAfter, stopAfter, skipSecret)
+			return RunAddInteractive(cmd.Context(), &AddInteractiveConfig{
+				WorkflowSpecs:   workflows,
+				Verbose:         verbose,
+				EngineOverride:  engineOverride,
+				NoGitattributes: noGitattributes,
+				WorkflowDir:     workflowDir,
+				NoStopAfter:     noStopAfter,
+				StopAfter:       stopAfter,
+				SkipSecret:      skipSecret,
+			})
 		},
 	}
 

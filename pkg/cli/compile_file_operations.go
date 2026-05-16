@@ -69,7 +69,7 @@ func compileSingleFile(ctx context.Context, compiler *workflow.Compiler, file st
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Compiling: "+file))
 	}
 
-	if err := CompileWorkflowWithValidation(ctx, compiler, file, verbose, false, false, false, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(ctx, compiler, file, CompileValidationOptions{Verbose: verbose}); err != nil {
 		// Always show compilation errors on a new line using standard CLI error styling.
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		stats.Errors++
