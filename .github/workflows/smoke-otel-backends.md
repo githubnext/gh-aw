@@ -177,18 +177,27 @@ Create exactly one GitHub issue with:
 
 - Title: `Smoke Test: OTEL Backends - ${{ github.run_id }}`
 - A short executive summary with overall `PASS`, `INCONCLUSIVE`, or `FAIL`
-- A flat checklist for:
-  - local send verification
-  - Sentry query verification
-  - Grafana query verification
+- A markdown table with one row per backend and these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
+- Use `[x]` for pass and `[ ]` for fail in every status cell
+- Use this table form:
+
+  ```markdown
+  | Backend | Write Config Present | Write Export Succeeded | Read Config Present | Read Query Succeeded | Overall |
+  | --- | --- | --- | --- | --- | --- |
+  | Sentry | [x] | [x] | [x] | [ ] | [ ] |
+  | Grafana | [x] | [ ] | [x] | [x] | [ ] |
+  ```
+
 - The exact evidence used for each backend
-- A short blocker section for every failed check
+- A `## Failure Analysis` section after the table
 - The run URL: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
 
-If the overall result is `FAIL` or `INCONCLUSIVE`, make the issue body immediately actionable and specific about whether the problem is:
+For every unchecked cell in the table, add a dedicated subsection under `## Failure Analysis` that explains:
 
-- emit-side configuration
-- local export failure
-- Sentry read-side auth or query failure
-- Grafana read-side auth or query failure
-- backend ingestion delay
+- the exact failing step
+- the evidence you observed
+- the most likely root cause
+- whether the problem is on the write path, read path, auth, configuration, propagation, or the backend itself
+- the next concrete debug step or fix
+
+Do not stop after the first failure. Report the full Sentry and Grafana matrix even if one backend is completely broken.
