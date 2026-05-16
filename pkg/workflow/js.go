@@ -9,12 +9,6 @@ import (
 
 var jsLog = logger.New("workflow:js")
 
-// init registers scripts from js.go with the DefaultScriptRegistry
-// Note: Embedded scripts have been removed - scripts are now provided by actions/setup at runtime
-func init() {
-	jsLog.Print("Script registration completed (embedded scripts removed)")
-}
-
 // All getter functions return empty strings since embedded scripts were removed
 
 func getNotifyCommentErrorScript() string { return "" }
