@@ -24,6 +24,8 @@ func validateMountsSyntax(mounts []string) error {
 	for i, mount := range mounts {
 		parts, kind := parseMountEntry(mount)
 		switch kind {
+		case mountValidationOK:
+			sandboxValidationLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, parts.source, parts.dest, parts.mode)
 		case mountValidationFormatError:
 			return NewValidationError(
 				fmt.Sprintf("sandbox.mounts[%d]", i),
@@ -52,9 +54,9 @@ func validateMountsSyntax(mounts []string) error {
 				"destination path cannot be empty",
 				fmt.Sprintf("Provide a valid destination path.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
 			)
+		default:
+			return fmt.Errorf("internal error: unsupported mount validation kind %d for sandbox mount %q", kind, mount)
 		}
-
-		sandboxValidationLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, parts.source, parts.dest, parts.mode)
 	}
 
 	return nil

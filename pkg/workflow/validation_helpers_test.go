@@ -583,8 +583,8 @@ func TestParseMountEntry(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, gotKind := parseMountEntry(tt.mount)
-			assert.Equal(t, tt.wantKind, gotKind)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantKind, gotKind, "mount kind for %q", tt.mount)
+			assert.Equal(t, tt.want, got, "mount parts for %q", tt.mount)
 		})
 	}
 }
