@@ -2,6 +2,7 @@
 
 const { levenshteinDistance } = require("./levenshtein_distance.cjs");
 const MAX_DEDUPLICATE_BY_TITLE_DISTANCE = 100;
+const DEFAULT_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = 50;
 
 /**
  * Parse create-issue deduplication config.
@@ -66,8 +67,77 @@ function findDuplicateByTitle(normalizedTitle, candidates, maxDistance) {
   return bestMatch;
 }
 
+/**
+ * Parse rollout percentage for create-issue title deduplication.
+ *
+ * @param {unknown} value
+ * @returns {number}
+ */
+function parseCreateIssueTitleDedupRolloutPercent(value) {
+  if (value === undefined || value === null || value === "") {
+    return DEFAULT_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT;
+  }
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 0 && parsed <= 100) {
+    return parsed;
+  }
+  return DEFAULT_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT;
+}
+
+/**
+ * Deterministically map a seed string to a bucket in [0, 99].
+ *
+ * @param {string} seed
+ * @returns {number}
+ */
+function dedupRolloutBucket(seed) {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 100;
+}
+
+/**
+ * Resolve effective create-issue title dedup configuration.
+ * Explicit config wins; otherwise a deterministic rollout is applied.
+ *
+ * @param {unknown} value
+ * @param {string} rolloutSeed
+ * @param {number} rolloutPercent
+ * @returns {{ enabled: boolean, maxDistance: number }}
+ */
+function resolveDeduplicateByTitle(value, rolloutSeed, rolloutPercent) {
+  if (value !== undefined) {
+    return parseDeduplicateByTitle(value);
+  }
+
+  if (rolloutPercent <= 0) {
+    return { enabled: false, maxDistance: 0 };
+  }
+
+  const normalizedSeed = String(rolloutSeed || "").trim();
+  if (!normalizedSeed) {
+    return { enabled: false, maxDistance: 0 };
+  }
+
+  if (rolloutPercent >= 100) {
+    return { enabled: true, maxDistance: 0 };
+  }
+
+  const bucket = dedupRolloutBucket(normalizedSeed);
+  return {
+    enabled: bucket < rolloutPercent,
+    maxDistance: 0,
+  };
+}
+
 module.exports = {
   parseDeduplicateByTitle,
   normalizeTitleForDedup,
   findDuplicateByTitle,
+  parseCreateIssueTitleDedupRolloutPercent,
+  resolveDeduplicateByTitle,
+  dedupRolloutBucket,
 };

@@ -4949,7 +4949,7 @@
                   ]
                 },
                 "deduplicate-by-title": {
-                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Applies within-run and against open/recently-closed repository issues.",
+                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Applies within-run and against open/recently-closed repository issues. When omitted, exact-match deduplication is rollout-gated to a deterministic subset of workflows.",
                   "oneOf": [
                     {
                       "type": "boolean"
@@ -4959,8 +4959,7 @@
                       "minimum": 0,
                       "maximum": 100
                     }
-                  ],
-                  "default": false
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
