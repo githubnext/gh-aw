@@ -195,6 +195,20 @@ assert "file with space and .json kept"    "[ -f '${D}/my data.json' ]"
 assert "file with space and .sh removed"   "[ ! -f '${D}/my script.sh' ]"
 echo ""
 
+# ── Test 12: Legacy nested artifact layout is flattened before git setup ─────
+echo "Test 12: Legacy nested cache directory is flattened"
+D="${WORKSPACE}/test12"
+mkdir -p "${D}/$(basename "${D}")"
+echo '{"totalRuns":15}' > "${D}/$(basename "${D}")/chaos-pr-bundle-fuzzer.json"
+OUTPUT="$(run_script "${D}" none)"
+assert "legacy nested file moved to cache root" \
+  "[ -f '${D}/chaos-pr-bundle-fuzzer.json' ]"
+assert "legacy nested directory removed" \
+  "[ ! -d '${D}/$(basename "${D}")' ]"
+assert "flattening message logged" \
+  "printf '%s' \"${OUTPUT}\" | grep -q 'Flattening legacy nested cache directory'"
+echo ""
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "Tests passed: ${TESTS_PASSED}"
 echo "Tests failed: ${TESTS_FAILED}"
