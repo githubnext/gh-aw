@@ -122,6 +122,11 @@ const GithubRateLimitsFilename = "github_rate_limits.jsonl"
 // Included in the agent artifact so spans are available without a live collector.
 const OtelJsonlFilename = "otel.jsonl"
 
+// OtlpExportErrorsFilename is the filename of the OTLP per-endpoint export failure log
+// written to /tmp/gh-aw/ by send_otlp_span.cjs. Each line is a JSON object containing the
+// collector host, optional status, and sanitized failure reason for one terminal export failure.
+const OtlpExportErrorsFilename = "otlp-export-errors.jsonl"
+
 // ArtifactPrefixOutputName is the job output name that exposes the artifact name prefix.
 // In workflow_call context, the prefix is a stable hash derived from the workflow inputs,
 // ensuring artifact names are unique when the same workflow is called multiple times in

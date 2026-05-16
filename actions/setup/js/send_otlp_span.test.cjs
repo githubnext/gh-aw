@@ -771,6 +771,42 @@ describe("sendOTLPSpan", () => {
     warnSpy.mockRestore();
   });
 
+  it("records OTLP export failure host, status, and reason details", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 401, statusText: "Unauthorized" });
+    vi.stubGlobal("fetch", mockFetch);
+    const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+
+    await expect(sendOTLPSpan("https://collector.example.com:4318", {}, { maxRetries: 0, skipJSONL: true })).resolves.toBeUndefined();
+
+    expect(appendSpy).toHaveBeenCalledWith("/tmp/gh-aw/otlp-export-errors.jsonl", `${JSON.stringify({ host: "collector.example.com:4318", status: 401, reason: "Unauthorized" })}\n`);
+
+    appendSpy.mockRestore();
+  });
+
+  it("falls back to HTTP status when curl reports non-2xx with statusText OK", async () => {
+    process.env.HTTPS_PROXY = "http://proxy.internal:3128";
+    spawnSyncSpy.mockReturnValue({ error: undefined, status: 0, stdout: "401", stderr: "" });
+    const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+
+    await expect(sendOTLPSpan("https://collector.example.com:4318", {}, { maxRetries: 0, skipJSONL: true })).resolves.toBeUndefined();
+
+    expect(appendSpy).toHaveBeenCalledWith("/tmp/gh-aw/otlp-export-errors.jsonl", `${JSON.stringify({ host: "collector.example.com:4318", status: 401, reason: "HTTP 401" })}\n`);
+
+    appendSpy.mockRestore();
+  });
+
+  it("sanitizes OTLP export failure reasons before persisting them", async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error("Failed to parse URL from https://user:secret@collector.example.com/v1/traces?token=abc"));
+    vi.stubGlobal("fetch", mockFetch);
+    const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+
+    await expect(sendOTLPSpan("https://user:secret@collector.example.com:4318?token=abc", {}, { maxRetries: 0, skipJSONL: true })).resolves.toBeUndefined();
+
+    expect(appendSpy).toHaveBeenCalledWith("/tmp/gh-aw/otlp-export-errors.jsonl", `${JSON.stringify({ host: "collector.example.com:4318", reason: "Failed to parse URL from [REDACTED]" })}\n`);
+
+    appendSpy.mockRestore();
+  });
+
   it("retries on failure and succeeds on second attempt", async () => {
     const mockFetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 503, statusText: "Service Unavailable" }).mockResolvedValueOnce({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -968,8 +1004,9 @@ describe("sendOTLPSpan JSONL mirror", () => {
     const payload = { resourceSpans: [{ note: "retry-test" }] };
     await sendOTLPSpan("https://traces.example.com", payload, { maxRetries: 1, baseDelayMs: 1 });
 
-    expect(appendSpy).toHaveBeenCalledOnce();
-    expect(appendSpy.mock.calls[0][1]).toBe(JSON.stringify(payload) + "\n");
+    const otelCall = appendSpy.mock.calls.find(([filePath]) => filePath === OTEL_JSONL_PATH);
+    expect(otelCall).toBeTruthy();
+    expect(otelCall[1]).toBe(JSON.stringify(payload) + "\n");
 
     warnSpy.mockRestore();
   });
@@ -3225,6 +3262,64 @@ describe("sendJobConclusionSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
     expect(attrs["gh-aw.otlp.export_errors"]).toBe(3);
+  });
+
+  it("emits gh-aw.otlp.export_error_details on the conclusion job span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/otlp-export-errors.count") {
+        return "2";
+      }
+      if (filePath === "/tmp/gh-aw/otlp-export-errors.jsonl") {
+        return [JSON.stringify({ host: "sentry.example.com:4318", status: 401, reason: "Unauthorized" }), "{not-json", JSON.stringify({ host: "grafana.example.com:4318", status: 503, reason: "Service Unavailable" })].join("\n") + "\n";
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+    expect(attrs["gh-aw.otlp.export_error_details"]).toBe("sentry.example.com:4318 status=401 reason=Unauthorized | grafana.example.com:4318 status=503 reason=Service Unavailable");
+  });
+
+  it("summarizes OTLP export error details before they exceed the attribute limit", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    const longReason = "x".repeat(700);
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/otlp-export-errors.count") {
+        return "3";
+      }
+      if (filePath === "/tmp/gh-aw/otlp-export-errors.jsonl") {
+        return (
+          [
+            JSON.stringify({ host: "first.example.com:4318", status: 500, reason: longReason }),
+            JSON.stringify({ host: "second.example.com:4318", status: 503, reason: longReason }),
+            JSON.stringify({ host: "third.example.com:4318", status: 504, reason: longReason }),
+          ].join("\n") + "\n"
+        );
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+    expect(attrs["gh-aw.otlp.export_error_details"].length).toBeLessThanOrEqual(1024);
+    expect(attrs["gh-aw.otlp.export_error_details"]).toContain("… (+");
+    expect(attrs["gh-aw.otlp.export_error_details"]).toContain("first.example.com:4318 status=500 reason=");
   });
 
   it("emits gh-aw.otlp.export_errors on non-conclusion job spans", async () => {

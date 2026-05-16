@@ -18,6 +18,7 @@ For the normative file-format definition, see the [aw.yml repository package man
 ```yaml
 min-version: v0.38.0
 name: Repo Assist
+emoji: 🤖
 description: Friendly repository automation for review and issue triage
 files:
   - workflows/review.md
@@ -31,6 +32,7 @@ files:
 | `manifest-version` | string | No | Current supported value: `"1"`. Defaults to `"1"` when omitted. |
 | `min-version` | string | No | Minimum compatible `gh aw` version. Must use the exact `vMAJOR.minor.patch` form, such as `v0.38.0`. |
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
+| `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
 | `files` | array of strings | No | Package-root-relative markdown files under `workflows/` or `.github/workflows/`. |
 

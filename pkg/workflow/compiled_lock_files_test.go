@@ -375,6 +375,8 @@ func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
 	t.Run("LockUploadsOTELMirrorInAgentArtifact", func(t *testing.T) {
 		assert.Contains(t, lockContent, "/tmp/gh-aw/otel.jsonl",
 			"smoke-workflow-call agent artifact should include the OTEL JSONL mirror")
+		assert.Contains(t, lockContent, "/tmp/gh-aw/otlp-export-errors.jsonl",
+			"smoke-workflow-call agent artifact should include OTLP export failure details")
 	})
 
 	// The smoke workflow uses add-comment – verify its outputs appear in both places.

@@ -36,6 +36,7 @@ func TestResolveRepositoryPackage(t *testing.T) {
 			switch path {
 			case "aw.yml":
 				return []byte(`name: Repo Assist
+emoji: 🤖
 description: Friendly repository automation
 files:
   - workflows/review.md
@@ -57,6 +58,7 @@ files:
 		require.NoError(t, err)
 		assert.Equal(t, "aw.yml", pkg.ManifestPath)
 		assert.Equal(t, "Repo Assist", pkg.Name)
+		assert.Equal(t, "🤖", pkg.Emoji)
 		assert.Equal(t, "README.md", pkg.DocsPath)
 		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
 		require.NotEmpty(t, pkg.Warnings)
@@ -251,6 +253,22 @@ docs: docs/overview.md
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `docs`)
+	})
+
+	t.Run("rejects non-string emoji field", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`name: Repo Assist
+emoji:
+  icon: 🤖
+`), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `emoji`)
 	})
 
 	t.Run("rejects incompatible min-version", func(t *testing.T) {

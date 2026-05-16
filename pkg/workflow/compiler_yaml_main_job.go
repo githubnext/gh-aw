@@ -612,6 +612,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// Only included when OTLP is configured for this workflow.
 	if isOTLPEnabled(data) {
 		paths = append(paths, "/tmp/gh-aw/"+constants.OtelJsonlFilename)
+		paths = append(paths, "/tmp/gh-aw/"+constants.OtlpExportErrorsFilename)
 	}
 
 	// Collect safe outputs and agent output paths for the unified artifact.
