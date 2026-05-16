@@ -1057,7 +1057,8 @@ jobs:
         if: always()
         with:
           name: cache-memory
-          path: /tmp/gh-aw/cache-memory
+          include-hidden-files: true
+          path: /tmp/gh-aw/cache-memory/.
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true

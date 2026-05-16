@@ -31,6 +31,28 @@ LEVELS=("merged" "approved" "unapproved" "none")
 mkdir -p "$CACHE_DIR"
 cd "$CACHE_DIR"
 
+# --- Flatten legacy nested artifact layout before git setup ---
+# Older cache-memory artifact uploads could restore into a nested directory whose
+# name matched the cache directory basename (for example ./cache-memory/* inside
+# /tmp/gh-aw/cache-memory). If that layout is restored, move the nested contents
+# back to the cache root before cache-hit detection so the agent sees the files
+# at the expected paths again.
+CACHE_BASENAME="$(basename "$CACHE_DIR")"
+LEGACY_NESTED_DIR="./${CACHE_BASENAME}"
+if [ -d "$LEGACY_NESTED_DIR" ] && [ ! -d .git ]; then
+  _root_non_git_entries=$(find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name "$CACHE_BASENAME" | wc -l | tr -d ' ')
+  if [ "${_root_non_git_entries}" = "0" ]; then
+    echo "Flattening legacy nested cache directory: ${LEGACY_NESTED_DIR}"
+    shopt -s dotglob nullglob
+    _legacy_nested_entries=("${LEGACY_NESTED_DIR}"/*)
+    if [ "${#_legacy_nested_entries[@]}" -gt 0 ] && [ -e "${_legacy_nested_entries[0]}" ]; then
+      mv "${_legacy_nested_entries[@]}" .
+    fi
+    shopt -u dotglob nullglob
+    rmdir "${LEGACY_NESTED_DIR}" 2>/dev/null || true
+  fi
+fi
+
 # --- Detect cache hit before any git operations ---
 # A pre-existing .git directory indicates the cache was restored from a previous run.
 IS_CACHE_HIT=false
