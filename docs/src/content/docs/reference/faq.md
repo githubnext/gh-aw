@@ -595,7 +595,7 @@ imports:
 ---
 ```
 
-See [Cross-Organization `workflow_call`](/gh-aw/reference/imports/#cross-organization-workflow_call) for the full details.
+See [Self-Contained Lock Files](/gh-aw/reference/imports/#self-contained-lock-files-inlined-imports-true) for the full details.
 
 ### My workflow checkout is very slow because my repository is a large monorepo. How can I speed it up?
 
