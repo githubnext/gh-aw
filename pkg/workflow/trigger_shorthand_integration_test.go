@@ -97,8 +97,10 @@ Test workflow for manual dispatch`,
 
 			if tt.simpleTrigger {
 				// Top-level "on" may be rendered in quoted or plain form depending on YAML rendering.
-				// Replace only the first "on:" prefix because this assertion targets the top-level key form.
-				quotedTrigger := strings.Replace(tt.wantTrigger, "on:", `"on":`, 1)
+				quotedTrigger := tt.wantTrigger
+				if strings.HasPrefix(tt.wantTrigger, "on:") {
+					quotedTrigger = `"on":` + strings.TrimPrefix(tt.wantTrigger, "on:")
+				}
 				if !strings.Contains(yamlStr, tt.wantTrigger) && !strings.Contains(yamlStr, quotedTrigger) {
 					t.Errorf("Compiled YAML should contain %q (plain or quoted key form)\nGot:\n%s", tt.wantTrigger, yamlStr)
 				}
