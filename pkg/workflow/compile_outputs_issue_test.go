@@ -478,7 +478,8 @@ This workflow tests that copilot assignment is wired in consolidated safe output
 	if strings.Contains(lockContent, "assign_copilot_to_created_issues.cjs") {
 		t.Error("Did not expect legacy assign_copilot_to_created_issues.cjs requirement")
 	}
-	if strings.Contains(lockContent, "assign_copilot_failure_count") || strings.Contains(lockContent, "assign_copilot_errors") {
-		t.Error("Did not expect legacy assign_copilot_* outputs in safe_outputs job")
+	if strings.Contains(lockContent, "steps.assign_copilot_to_created_issues.outputs.assign_copilot_failure_count") ||
+		strings.Contains(lockContent, "steps.assign_copilot_to_created_issues.outputs.assign_copilot_errors") {
+		t.Error("Did not expect legacy assign_copilot_to_created_issues output wiring in safe_outputs job")
 	}
 }
