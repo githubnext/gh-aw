@@ -738,6 +738,46 @@ function sanitizeOTLPPayload(payload) {
   };
 }
 
+/**
+ * Sanitize persisted OTLP export failure reasons before they are mirrored into
+ * JSONL artifacts or exported on conclusion spans.
+ *
+ * @param {string} reason
+ * @returns {string}
+ */
+function sanitizeOTLPExportErrorReason(reason) {
+  return reason
+    .trim()
+    .replace(/\bhttps?:\/\/[^\s"'`<>]+/gi, REDACTED)
+    .slice(0, MAX_ATTR_VALUE_LENGTH);
+}
+
+/**
+ * @param {{ ok: boolean, status?: number, statusText?: string }} response
+ * @returns {string}
+ */
+function getOTLPExportFailureReason(response) {
+  const statusText = typeof response.statusText === "string" ? response.statusText.trim() : "";
+  if (statusText && !(response.ok === false && /^ok$/i.test(statusText))) {
+    return statusText;
+  }
+  const status = typeof response.status === "number" ? response.status : 0;
+  return Number.isInteger(status) && status > 0 ? `HTTP ${status}` : "HTTP request failed";
+}
+
+/**
+ * @param {{ status?: number }} response
+ * @param {string} reason
+ * @returns {string}
+ */
+function formatOTLPExportFailureMessage(response, reason) {
+  if (reason.startsWith("HTTP ")) {
+    return reason;
+  }
+  const status = typeof response.status === "number" ? response.status : 0;
+  return Number.isInteger(status) && status > 0 ? `HTTP ${status} ${reason}` : reason;
+}
+
 // ---------------------------------------------------------------------------
 // Multi-endpoint support
 // ---------------------------------------------------------------------------
@@ -861,7 +901,8 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
       if (response.ok) {
         return;
       }
-      const msg = `HTTP ${response.status} ${response.statusText}`;
+      const reason = getOTLPExportFailureReason(response);
+      const msg = formatOTLPExportFailureMessage(response, reason);
       if (attempt < maxRetries) {
         console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} failed: ${msg}, retrying…`);
       } else {
@@ -869,7 +910,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
         recordOTLPExportError({
           endpoint,
           ...(Number.isInteger(response.status) && response.status > 0 ? { status: response.status } : {}),
-          reason: response.statusText || msg,
+          reason,
         });
       }
     } catch (err) {
@@ -1253,7 +1294,11 @@ function isValidOTLPExportErrorStatus(status) {
  * @returns {entry is OTLPExportErrorDetail}
  */
 function isValidOTLPExportErrorDetail(entry) {
-  return entry !== null && typeof entry === "object" && !Array.isArray(entry) && typeof entry.host === "string" && entry.host.trim() !== "" && typeof entry.reason === "string" && entry.reason.trim() !== "";
+  if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+    return false;
+  }
+  const candidate = /** @type {Record<string, unknown>} */ entry;
+  return typeof candidate["host"] === "string" && candidate["host"].trim() !== "" && typeof candidate["reason"] === "string" && candidate["reason"].trim() !== "";
 }
 
 /**
@@ -1264,7 +1309,7 @@ function normalizeOTLPExportErrorDetail(detail) {
   return {
     host: detail.host.trim(),
     ...(isValidOTLPExportErrorStatus(detail.status) ? { status: detail.status } : {}),
-    reason: detail.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
+    reason: sanitizeOTLPExportErrorReason(detail.reason),
   };
 }
 
@@ -1276,12 +1321,23 @@ function normalizeOTLPExportErrorDetail(detail) {
 function readOTLPExportErrorDetails() {
   try {
     const content = fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8");
-    return content
-      .split("\n")
-      .filter(line => line.trim() !== "")
-      .map(line => JSON.parse(line))
-      .filter(isValidOTLPExportErrorDetail)
-      .map(normalizeOTLPExportErrorDetail);
+    /** @type {OTLPExportErrorDetail[]} */
+    const details = [];
+    for (const rawLine of content.split("\n")) {
+      const line = rawLine.trim();
+      if (!line) {
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(line);
+        if (isValidOTLPExportErrorDetail(parsed)) {
+          details.push(normalizeOTLPExportErrorDetail(parsed));
+        }
+      } catch {
+        // Ignore malformed and partially written JSONL lines.
+      }
+    }
+    return details;
   } catch {
     return [];
   }
@@ -1305,7 +1361,34 @@ function formatOTLPExportErrorDetails() {
   if (details.length === 0) {
     return "";
   }
-  return details.map(formatOTLPExportErrorDetail).join(" | ");
+  const formattedDetails = details.map(formatOTLPExportErrorDetail);
+  let summary = "";
+
+  for (let i = 0; i < formattedDetails.length; i++) {
+    const entry = formattedDetails[i];
+    const candidate = summary ? `${summary} | ${entry}` : entry;
+    if (candidate.length <= MAX_ATTR_VALUE_LENGTH) {
+      summary = candidate;
+      continue;
+    }
+
+    const remaining = formattedDetails.length - i;
+    const suffix = summary && remaining > 0 ? ` | … (+${remaining} more)` : "";
+    if (summary && summary.length + suffix.length <= MAX_ATTR_VALUE_LENGTH) {
+      return summary + suffix;
+    }
+
+    if (!summary) {
+      const prefix = `${details[i].host}${isValidOTLPExportErrorStatus(details[i].status) ? ` status=${details[i].status}` : ""} reason=`;
+      const available = Math.max(0, MAX_ATTR_VALUE_LENGTH - prefix.length - 1);
+      const truncatedReason = available > 0 ? `${details[i].reason.slice(0, available)}…` : "…";
+      return `${prefix}${truncatedReason}`;
+    }
+
+    return summary;
+  }
+
+  return summary;
 }
 
 /**
@@ -1332,7 +1415,7 @@ function recordOTLPExportError(detail = {}) {
         normalizeOTLPExportErrorDetail({
           host: getOTLPExportErrorHost(detail.endpoint),
           ...(isValidOTLPExportErrorStatus(detail.status) ? { status: detail.status } : {}),
-          reason: detail.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
+          reason: detail.reason,
         })
       ) + "\n"
     );
