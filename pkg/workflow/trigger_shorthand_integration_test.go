@@ -95,13 +95,17 @@ Test workflow for manual dispatch`,
 
 			yamlStr := string(yamlOutput)
 
-			if !strings.Contains(yamlStr, tt.wantTrigger) {
-				t.Errorf("Compiled YAML should contain %q\nGot:\n%s", tt.wantTrigger, yamlStr)
+			if tt.simpleTrigger {
+				// Top-level "on" may be rendered in quoted or plain form depending on YAML rendering.
+				if !strings.Contains(yamlStr, "on: push") && !strings.Contains(yamlStr, `"on": push`) {
+					t.Errorf("Compiled YAML should contain simple push trigger\nGot:\n%s", yamlStr)
+				}
+				// Simple triggers remain as-is, no workflow_dispatch added.
+				return
 			}
 
-			if tt.simpleTrigger {
-				// Simple triggers remain as-is, no workflow_dispatch added
-				return
+			if !strings.Contains(yamlStr, tt.wantTrigger) {
+				t.Errorf("Compiled YAML should contain %q\nGot:\n%s", tt.wantTrigger, yamlStr)
 			}
 
 			// Verify workflow_dispatch is added for most triggers
