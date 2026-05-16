@@ -332,7 +332,7 @@ func sanitizeHoistPropertySegment(raw string) string {
 		return "prop"
 	}
 	// Ensure the segment starts with a letter or underscore.
-	if s[0] >= '0' && s[0] <= '9' || s[0] == '-' {
+	if (s[0] >= '0' && s[0] <= '9') || s[0] == '-' {
 		return "p" + s
 	}
 	return s
