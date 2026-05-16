@@ -22,7 +22,7 @@ func TestTriggerShorthandIntegration(t *testing.T) {
 			name: "push trigger shorthand",
 			markdown: `---
 on: push
-			---
+---
 # Test Workflow
 Test workflow for push trigger`,
 			wantTrigger:   "on: push",
@@ -99,6 +99,7 @@ Test workflow for manual dispatch`,
 				// Top-level "on" may be rendered in quoted or plain form depending on YAML rendering.
 				quotedTrigger := tt.wantTrigger
 				if strings.HasPrefix(tt.wantTrigger, "on:") {
+					// Works for both "on: <value>" and bare "on:" forms.
 					quotedTrigger = `"on":` + strings.TrimPrefix(tt.wantTrigger, "on:")
 				}
 				if !strings.Contains(yamlStr, tt.wantTrigger) && !strings.Contains(yamlStr, quotedTrigger) {

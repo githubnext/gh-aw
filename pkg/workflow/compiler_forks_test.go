@@ -13,6 +13,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// topLevelOnKeyPattern matches the top-level `on:` key at line start (not nested keys).
 var topLevelOnKeyPattern = regexp.MustCompile(`(?m)^on:`)
 
 func TestPullRequestForksArrayFilter(t *testing.T) {
