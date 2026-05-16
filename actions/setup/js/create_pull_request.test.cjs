@@ -1,6 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -3040,7 +3041,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
     // Set up prompts directory with the E003 template so getPromptPath resolves
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
-    const templateSrc = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../md/e003_file_limit_fallback.md");
+    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/e003_file_limit_fallback.md");
     fs.copyFileSync(templateSrc, path.join(promptsDir, "e003_file_limit_fallback.md"));
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
