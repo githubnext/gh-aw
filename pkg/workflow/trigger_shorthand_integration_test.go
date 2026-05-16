@@ -14,6 +14,7 @@ func TestTriggerShorthandIntegration(t *testing.T) {
 		name           string
 		markdown       string
 		wantTrigger    string
+		simpleTrigger  bool
 		wantNoCompile  bool
 		wantErrContain string
 	}{
@@ -21,10 +22,11 @@ func TestTriggerShorthandIntegration(t *testing.T) {
 			name: "push trigger shorthand",
 			markdown: `---
 on: push
----
+			---
 # Test Workflow
 Test workflow for push trigger`,
-			wantTrigger: "on: push",
+			wantTrigger:   "on: push",
+			simpleTrigger: true,
 		},
 		{
 			name: "push to branch shorthand",
@@ -97,7 +99,7 @@ Test workflow for manual dispatch`,
 				t.Errorf("Compiled YAML should contain %q\nGot:\n%s", tt.wantTrigger, yamlStr)
 			}
 
-			if tt.name == "push trigger shorthand" {
+			if tt.simpleTrigger {
 				// Simple triggers remain as-is, no workflow_dispatch added
 				return
 			}
