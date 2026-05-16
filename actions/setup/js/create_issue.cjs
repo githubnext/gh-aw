@@ -32,6 +32,8 @@ const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
+const TITLE_DEDUP_SEARCH_PER_PAGE = 100;
+const TITLE_DEDUP_MAX_SEARCH_PAGES = 3;
 
 /**
  * Create a dedicated GitHub client for copilot assignment operations.
@@ -404,9 +406,46 @@ async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields
   );
 }
 
+async function searchTitleDedupIssues(githubClient, query) {
+  const candidates = [];
+  let fetchedItems = 0;
+  let totalCount = 0;
+
+  for (let page = 1; page <= TITLE_DEDUP_MAX_SEARCH_PAGES; page += 1) {
+    const response = await githubClient.rest.search.issuesAndPullRequests({
+      q: query,
+      per_page: TITLE_DEDUP_SEARCH_PER_PAGE,
+      page,
+      sort: "updated",
+      order: "desc",
+    });
+    const items = Array.isArray(response?.data?.items) ? response.data.items : [];
+    const pageTotalCount = Number.isFinite(response?.data?.total_count) ? Number(response.data.total_count) : items.length;
+    totalCount = Math.max(totalCount, pageTotalCount);
+    fetchedItems += items.length;
+
+    for (const item of items) {
+      if (!item.pull_request && typeof item.title === "string") {
+        candidates.push({ title: item.title });
+      }
+    }
+
+    if (items.length < TITLE_DEDUP_SEARCH_PER_PAGE) {
+      break;
+    }
+  }
+
+  return {
+    candidates,
+    fetchedItems,
+    totalCount,
+    truncated: totalCount > fetchedItems,
+  };
+}
+
 /**
  * Search for existing issues that are potential title-duplicates.
- * Includes all open issues and recently closed issues.
+ * Includes open issues and recently closed issues, with paginated search up to a capped page count.
  *
  * @param {Object} githubClient
  * @param {string} owner
@@ -416,22 +455,18 @@ async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields
 async function getRepoTitleDedupCandidates(githubClient, owner, repo) {
   const sinceDate = new Date(Date.now() - RECENTLY_CLOSED_DEDUP_DAYS * MS_PER_DAY).toISOString().slice(0, 10);
   const [openIssues, recentlyClosedIssues] = await Promise.all([
-    githubClient.rest.search.issuesAndPullRequests({
-      q: `repo:${owner}/${repo} is:issue is:open`,
-      per_page: 100,
-      sort: "updated",
-      order: "desc",
-    }),
-    githubClient.rest.search.issuesAndPullRequests({
-      q: `repo:${owner}/${repo} is:issue is:closed closed:>=${sinceDate}`,
-      per_page: 100,
-      sort: "updated",
-      order: "desc",
-    }),
+    searchTitleDedupIssues(githubClient, `repo:${owner}/${repo} is:issue is:open`),
+    searchTitleDedupIssues(githubClient, `repo:${owner}/${repo} is:issue is:closed closed:>=${sinceDate}`),
   ]);
 
-  const items = [...(openIssues?.data?.items || []), ...(recentlyClosedIssues?.data?.items || [])];
-  return items.filter(item => !item.pull_request && typeof item.title === "string").map(item => ({ title: item.title }));
+  if (openIssues.truncated) {
+    core.warning(`Title dedup search (open issues) truncated for ${owner}/${repo}: fetched ${openIssues.fetchedItems} of ${openIssues.totalCount} results (cap ${TITLE_DEDUP_MAX_SEARCH_PAGES} pages)`);
+  }
+  if (recentlyClosedIssues.truncated) {
+    core.warning(`Title dedup search (recently closed issues) truncated for ${owner}/${repo}: fetched ${recentlyClosedIssues.fetchedItems} of ${recentlyClosedIssues.totalCount} results (cap ${TITLE_DEDUP_MAX_SEARCH_PAGES} pages)`);
+  }
+
+  return [...openIssues.candidates, ...recentlyClosedIssues.candidates];
 }
 
 /**
@@ -529,6 +564,8 @@ async function main(config = {}) {
   // Track created issue titles by repo for within-run deduplication
   /** @type {Map<string, Array<{title: string, normalizedTitle: string}>>} */
   const createdTitlesByRepo = new Map();
+  /** @type {Map<string, Promise<Array<{title: string}>>>} */
+  const repoTitleDedupCandidatesCache = new Map();
 
   // Map to track temporary_id -> {repo, number} relationships across messages
   const temporaryIdMap = new Map();
@@ -722,7 +759,16 @@ async function main(config = {}) {
       }
 
       try {
-        const repoCandidates = await getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo);
+        const repoCacheKey = `${repoParts.owner}/${repoParts.repo}`;
+        if (!repoTitleDedupCandidatesCache.has(repoCacheKey)) {
+          const cachedCandidatesPromise = getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo).catch(error => {
+            repoTitleDedupCandidatesCache.delete(repoCacheKey);
+            throw error;
+          });
+          repoTitleDedupCandidatesCache.set(repoCacheKey, cachedCandidatesPromise);
+        }
+
+        const repoCandidates = await repoTitleDedupCandidatesCache.get(repoCacheKey);
         const repoDuplicate = findDuplicateByTitle(normalizedTitle, repoCandidates, deduplicateByTitle.maxDistance);
         if (repoDuplicate) {
           core.warning(`Dropping duplicate create_issue (repo-level) in ${qualifiedItemRepo}: "${title}" (matched "${repoDuplicate.title}", distance=${repoDuplicate.distance})`);

@@ -508,6 +508,95 @@ describe("create_issue", () => {
       expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
     });
 
+    it("should cache repo-level dedup candidates within a run", async () => {
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+
+      const first = await handler({ title: "First unique title" });
+      const second = await handler({ title: "Second unique title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledTimes(2);
+    });
+
+    it("should paginate repo-level dedup searches", async () => {
+      const openPageOneItems = Array.from({ length: 100 }, (_, index) => ({ title: `Open issue ${index}` }));
+      mockGithub.rest.search.issuesAndPullRequests.mockImplementation(({ q, page = 1 }) => {
+        if (q.includes("is:open")) {
+          if (page === 1) {
+            return Promise.resolve({
+              data: {
+                total_count: 101,
+                items: openPageOneItems,
+              },
+            });
+          }
+          return Promise.resolve({
+            data: {
+              total_count: 101,
+              items: [{ title: "Existing title in repo" }],
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Existing title in repo" });
+
+      expect(result.success).toBe(true);
+      expect(result.dropped_duplicate).toBe(true);
+      expect(result.dedup_source).toBe("repo-level");
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          q: expect.stringContaining("is:open"),
+          page: 2,
+        })
+      );
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should warn when repo-level dedup search is truncated at page cap", async () => {
+      const pageItems = Array.from({ length: 100 }, (_, index) => ({ title: `Open issue ${index}` }));
+      mockGithub.rest.search.issuesAndPullRequests.mockImplementation(({ q, page = 1 }) => {
+        if (q.includes("is:open")) {
+          return Promise.resolve({
+            data: {
+              total_count: 305,
+              items: page <= 3 ? pageItems : [],
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Completely new title" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("truncated"));
+    });
+
     it("should reject invalid deduplicate-by-title configuration", async () => {
       await expect(main({ deduplicate_by_title: "invalid" })).rejects.toThrow("deduplicate-by-title");
       await expect(main({ deduplicate_by_title: 101 })).rejects.toThrow("deduplicate-by-title");
