@@ -7,8 +7,8 @@ This prompt guides you, a coding agent, to convert a repository that contains **
 Configure the repository so others can install workflows from it with `gh aw add` by:
 
 1. Standardizing package structure when needed
-2. Creating an `aw.json` package file at the package root
-3. Listing all package workflows in `aw.json`
+2. Creating an `aw.yml` repository package manifest at the package root
+3. Listing all package workflows in `aw.yml`
 4. Generating a clear package description
 5. Updating `README.md` with installation instructions for consumers
 
@@ -37,33 +37,28 @@ If structure is inconsistent, organize it into one clear package root:
 
 Do not break existing references; update relative imports/paths when files move.
 
-## Step 3: Create `aw.json` Package File
+## Step 3: Create `aw.yml` Package Manifest
 
-Create `aw.json` in the package root using this format:
+Create `aw.yml` in the package root using the supported manifest format:
 
-```json
-{
-  "name": "owner/repo-or-package-name",
-  "description": "Reusable agentic workflows for <domain/use-case>.",
-  "workflows": [
-    {
-      "path": "workflows/example.md",
-      "type": "shared"
-    },
-    {
-      "path": ".github/workflows/repo-workflow.md",
-      "type": "agentic"
-    }
-  ]
-}
+```yaml
+manifest-version: "1"
+name: Repo Assist
+description: Reusable agentic workflows for <domain/use-case>.
+files:
+  - workflows/example.md
+  - .github/workflows/repo-workflow.md
 ```
 
 Requirements:
 
-- `name`: package identifier suitable for `gh aw add`
+- `manifest-version`: use `"1"` (or omit and rely on default `"1"`)
+- `name`: human-readable package name
 - `description`: concise and relevant to the actual workflows
-- `workflows`: complete list of installable agentic/shared workflows in this repository
-- Paths must be repository-relative and point to existing markdown workflow files
+- `files`: complete list of installable agentic/shared workflows in this repository
+- File paths must be package-root-relative and point to existing markdown workflow files under `workflows/` or `.github/workflows/`
+
+Do not invent custom package metadata fields. Follow the supported `aw.yml` manifest schema used by `gh aw add`.
 
 Documentation link (reference when writing/validating the package metadata and install flow):
 
@@ -98,7 +93,7 @@ The README instructions must be clear enough that another repository can adopt t
 
 Before finishing:
 
-- Verify `aw.json` exists and is valid JSON
-- Verify every listed workflow path exists
+- Verify `aw.yml` exists and is valid YAML
+- Verify every listed `files` path exists
 - Confirm README instructions match the final package structure
 - Summarize what was standardized, what dependencies were cleaned up, and any remaining follow-up items
