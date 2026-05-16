@@ -19,6 +19,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
+	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 )
 
 func main() {
@@ -26,5 +27,6 @@ func main() {
 		excessivefuncparams.Analyzer,
 		largefunc.Analyzer,
 		osexitinlibrary.Analyzer,
+		rawloginlib.Analyzer,
 	)
 }
