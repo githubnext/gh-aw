@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -603,7 +604,7 @@ tools:
 
 			// Check that an "on" top-level key is present in either quoted or plain form.
 			hasQuotedOn := strings.Contains(yamlContent, `"on":`)
-			hasPlainOn := strings.Contains(yamlContent, "\non:")
+			hasPlainOn := regexp.MustCompile(`(?m)^on:`).MatchString(yamlContent)
 			if !hasQuotedOn && !hasPlainOn {
 				t.Errorf("Generated YAML does not contain 'on' keyword:\n%s", yamlContent)
 			}

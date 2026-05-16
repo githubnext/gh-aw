@@ -97,8 +97,9 @@ Test workflow for manual dispatch`,
 
 			if tt.simpleTrigger {
 				// Top-level "on" may be rendered in quoted or plain form depending on YAML rendering.
-				if !strings.Contains(yamlStr, "on: push") && !strings.Contains(yamlStr, `"on": push`) {
-					t.Errorf("Compiled YAML should contain simple push trigger\nGot:\n%s", yamlStr)
+				quotedTrigger := strings.Replace(tt.wantTrigger, "on:", `"on":`, 1)
+				if !strings.Contains(yamlStr, tt.wantTrigger) && !strings.Contains(yamlStr, quotedTrigger) {
+					t.Errorf("Compiled YAML should contain %q (plain or quoted key form)\nGot:\n%s", tt.wantTrigger, yamlStr)
 				}
 				// Simple triggers remain as-is, no workflow_dispatch added.
 				return
