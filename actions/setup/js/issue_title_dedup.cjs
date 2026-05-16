@@ -3,6 +3,8 @@
 const { levenshteinDistance } = require("./levenshtein_distance.cjs");
 const MAX_DEDUPLICATE_BY_TITLE_DISTANCE = 100;
 const DEFAULT_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = 50;
+const FNV1A_OFFSET_BASIS_32 = 2166136261;
+const FNV1A_PRIME_32 = 16777619;
 
 /**
  * Parse create-issue deduplication config.
@@ -85,23 +87,44 @@ function parseCreateIssueTitleDedupRolloutPercent(value) {
 }
 
 /**
+ * Resolve the stable workflow identifier seed used for create-issue title dedup rollout.
+ * Precedence order (most specific to most general):
+ * 1) GH_AW_CALLER_WORKFLOW_ID for workflow_call callers
+ * 2) GH_AW_WORKFLOW_ID for compiled workflow identity
+ * 3) GITHUB_WORKFLOW_REF for GitHub-native workflow ref fallback
+ * 4) GITHUB_REPOSITORY as a final deterministic fallback
+ * @returns {string}
+ */
+function getCreateIssueDedupWorkflowSeed() {
+  return process.env.GH_AW_CALLER_WORKFLOW_ID || process.env.GH_AW_WORKFLOW_ID || process.env.GITHUB_WORKFLOW_REF || process.env.GITHUB_REPOSITORY || "";
+}
+
+/**
  * Deterministically map a seed string to a bucket in [0, 99].
+ * This bucket is compared via `bucket < rolloutPercent`.
  *
- * @param {string} seed
+ * @param {unknown} seed
  * @returns {number}
  */
 function dedupRolloutBucket(seed) {
-  let hash = 2166136261;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+  const normalizedSeed = String(seed || "").trim();
+  if (!normalizedSeed) {
+    return 100;
   }
+
+  // Use 32-bit FNV-1a for stable, fast deterministic bucketing.
+  let hash = FNV1A_OFFSET_BASIS_32;
+  for (let i = 0; i < normalizedSeed.length; i += 1) {
+    hash ^= normalizedSeed.charCodeAt(i);
+    hash = Math.imul(hash, FNV1A_PRIME_32);
+  }
+  // Convert to unsigned 32-bit then map into [0,99] for percentage rollout checks.
   return (hash >>> 0) % 100;
 }
 
 /**
  * Resolve effective create-issue title dedup configuration.
- * Explicit config wins; otherwise a deterministic rollout is applied.
+ * Any explicit config value (including false) wins; otherwise a deterministic rollout is applied.
  *
  * @param {unknown} value
  * @param {string} rolloutSeed
@@ -117,8 +140,7 @@ function resolveDeduplicateByTitle(value, rolloutSeed, rolloutPercent) {
     return { enabled: false, maxDistance: 0 };
   }
 
-  const normalizedSeed = String(rolloutSeed || "").trim();
-  if (!normalizedSeed) {
+  if (!String(rolloutSeed || "").trim()) {
     return { enabled: false, maxDistance: 0 };
   }
 
@@ -126,7 +148,7 @@ function resolveDeduplicateByTitle(value, rolloutSeed, rolloutPercent) {
     return { enabled: true, maxDistance: 0 };
   }
 
-  const bucket = dedupRolloutBucket(normalizedSeed);
+  const bucket = dedupRolloutBucket(rolloutSeed);
   return {
     enabled: bucket < rolloutPercent,
     maxDistance: 0,
@@ -138,6 +160,7 @@ module.exports = {
   normalizeTitleForDedup,
   findDuplicateByTitle,
   parseCreateIssueTitleDedupRolloutPercent,
+  getCreateIssueDedupWorkflowSeed,
   resolveDeduplicateByTitle,
   dedupRolloutBucket,
 };
