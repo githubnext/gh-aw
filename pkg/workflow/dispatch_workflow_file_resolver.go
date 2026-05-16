@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -66,8 +67,8 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 	githubDir := filepath.Dir(currentDir) // .github
 	repoRoot := filepath.Dir(githubDir)   // repo root
 
-	// Only search in .github/workflows (standard GitHub Actions location)
-	searchDir := filepath.Join(repoRoot, ".github", "workflows")
+	// Only search in the configured workflows directory.
+	searchDir := filepath.Join(repoRoot, constants.GetWorkflowDir())
 
 	// Build paths for the workflows directory
 	mdPath := filepath.Clean(filepath.Join(searchDir, workflowName+".md"))

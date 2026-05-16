@@ -198,6 +198,48 @@ jobs:
 	assert.NoError(t, err, "Valid worker with workflow_call should pass validation")
 }
 
+func TestValidateCallWorkflow_UsesWorkflowDirEnvOverride(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	overrideWorkflowsDir := filepath.Join(tmpDir, "custom", "workflows")
+	err := os.MkdirAll(awDir, 0755)
+	require.NoError(t, err, "Failed to create aw directory")
+	err = os.MkdirAll(overrideWorkflowsDir, 0755)
+	require.NoError(t, err, "Failed to create override workflows directory")
+
+	t.Setenv("GH_AW_WORKFLOWS_DIR", filepath.Join("custom", "workflows"))
+
+	workerContent := `name: Worker A
+on:
+  workflow_call:
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Working"
+`
+	err = os.WriteFile(filepath.Join(overrideWorkflowsDir, "worker-a.lock.yml"), []byte(workerContent), 0644)
+	require.NoError(t, err, "Failed to write worker file")
+
+	gatewayFile := filepath.Join(awDir, "gateway.md")
+
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				Workflows: []string{"worker-a"},
+			},
+		},
+	}
+
+	err = compiler.validateCallWorkflow(workflowData, gatewayFile)
+	assert.NoError(t, err, "Workflow should resolve from GH_AW_WORKFLOWS_DIR override")
+}
+
 // TestValidateCallWorkflow_MDSourceWithWorkflowCall tests that a .md source with workflow_call
 // trigger passes validation (same-batch compilation target)
 func TestValidateCallWorkflow_MDSourceWithWorkflowCall(t *testing.T) {
