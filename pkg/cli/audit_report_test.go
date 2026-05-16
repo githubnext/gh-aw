@@ -186,6 +186,31 @@ func TestGenerateFindings(t *testing.T) {
 			},
 		},
 		{
+			name: "failed workflow uses actual error count not stale metrics.ErrorCount",
+			processedRun: func() ProcessedRun {
+				pr := createTestProcessedRun()
+				pr.Run.Conclusion = "failure"
+				return pr
+			}(),
+			metrics: MetricsData{
+				ErrorCount: 0, // metrics are wrong / stale — should not be used when errors slice is populated
+			},
+			errors: []ErrorInfo{
+				{Type: "step_failure", Message: "##[error]Process completed with exit code 1."},
+				{Type: "step_failure", Message: "##[error]Process completed with exit code 1."},
+			},
+			expectedCount: 1,
+			checkFindings: func(t *testing.T, findings []Finding) {
+				finding := findFindingByCategory(findings, "error")
+				require.NotNil(t, finding, "Failed workflow should generate an error finding")
+				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Contains(t, finding.Description, "2 error(s)",
+					"Description should reflect the actual number of errors, not metrics.ErrorCount")
+				assert.NotContains(t, finding.Description, "0 error(s)",
+					"Description must not show 0 errors when the errors slice is non-empty")
+			},
+		},
+		{
 			name: "failed workflow with zero errors and no error details uses pre-activation message",
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()
