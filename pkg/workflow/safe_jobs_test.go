@@ -596,6 +596,77 @@ func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 	}
 }
 
+// TestBuildSafeJobsEnvExpressionHoisting verifies that env vars containing GitHub Actions
+// expressions (${{ ... }}) are placed in the step's env: block instead of being inlined
+// directly in the run: script. This prevents compiler regression guardrail failures.
+func TestBuildSafeJobsEnvExpressionHoisting(t *testing.T) {
+	c := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"publish": {
+					RunsOn: "ubuntu-latest",
+					Env: map[string]string{
+						"GH_TOKEN":   "${{ github.token }}",
+						"STATIC_VAR": "literal-value",
+					},
+					Steps: []any{
+						map[string]any{
+							"name": "Publish",
+							"run":  "echo 'Publishing'",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.buildSafeJobs(workflowData, false)
+	if err != nil {
+		t.Fatalf("Unexpected error building safe jobs: %v", err)
+	}
+
+	jobs := c.jobManager.GetAllJobs()
+	if len(jobs) != 1 {
+		t.Fatalf("Expected 1 job to be created, got %d", len(jobs))
+	}
+
+	var job *Job
+	for _, j := range jobs {
+		job = j
+		break
+	}
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Expression values must NOT be inlined in the run: script
+	if strings.Contains(stepsContent, `echo "GH_TOKEN=${{ github.token }}"`) {
+		t.Error("Expression ${{ github.token }} must not be inlined in run: script (compiler regression guardrail violation)")
+	}
+
+	// Expression values must be placed in the env: block of the setup step
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ github.token }}") {
+		t.Error("Expected GH_TOKEN expression to be placed in step env: block")
+	}
+
+	// Shell variable reference must be used in the run: script instead
+	if !strings.Contains(stepsContent, `echo "GH_TOKEN=${GH_TOKEN}"`) {
+		t.Error("Expected shell variable reference ${GH_TOKEN} in run: script")
+	}
+
+	// Literal values can still be written directly in the run: script
+	if !strings.Contains(stepsContent, `echo "STATIC_VAR=literal-value"`) {
+		t.Error("Expected literal env var to be written directly in run: script")
+	}
+
+	// Literal values must NOT be placed in the env: block
+	if strings.Contains(stepsContent, "STATIC_VAR: literal-value") {
+		t.Error("Literal values should not be placed in the env: block, only expressions")
+	}
+}
+
 // TestSafeJobsInputTypes tests that safe-jobs inputs support all input types
 // and share the same InputDefinition type with workflow_dispatch inputs
 func TestSafeJobsInputTypes(t *testing.T) {

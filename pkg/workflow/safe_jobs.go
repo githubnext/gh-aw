@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -250,19 +251,53 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// the download artifacts always creates a folder, then unpacks in that folder
 		agentOutputArtifactFilename := "${RUNNER_TEMP}/gh-aw/safe-jobs/" + constants.AgentOutputFilename
 
+		// Separate job-specific env vars into expression-based (contain ${{) and literal values.
+		// Expression-based values must not be inlined directly into run: shell scripts because
+		// the compiler regression guardrail rejects ${{ ... }} in run: blocks.
+		// Instead, add them to the step's env: block so GitHub Actions evaluates the expression
+		// before the shell runs, and then reference them via shell variable syntax.
+		var expressionEnvKeys []string
+		var literalEnvKeys []string
+		if jobConfig.Env != nil {
+			allKeys := make([]string, 0, len(jobConfig.Env))
+			for key := range jobConfig.Env {
+				allKeys = append(allKeys, key)
+			}
+			sort.Strings(allKeys)
+			for _, key := range allKeys {
+				if strings.Contains(jobConfig.Env[key], "${{") {
+					expressionEnvKeys = append(expressionEnvKeys, key)
+				} else {
+					literalEnvKeys = append(literalEnvKeys, key)
+				}
+			}
+		}
+
 		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
 		steps = append(steps, "      - name: Configure Safe Outputs Job Environment Variables\n")
 		steps = append(steps, "        id: setup-safe-job-env\n")
+
+		// Add env: block for expression-based values so ${{ }} is never inlined in run:
+		if len(expressionEnvKeys) > 0 {
+			steps = append(steps, "        env:\n")
+			for _, key := range expressionEnvKeys {
+				steps = append(steps, fmt.Sprintf("          %s: %s\n", key, jobConfig.Env[key]))
+			}
+		}
+
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, "          find \"${RUNNER_TEMP}/gh-aw/safe-jobs/\" -type f -print\n")
 		// Configure GH_AW_AGENT_OUTPUT to point to downloaded artifact file
 		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> \"$GITHUB_OUTPUT\"\n", agentOutputArtifactFilename))
 
-		// Add job-specific environment variables
-		if jobConfig.Env != nil {
-			for key, value := range jobConfig.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_OUTPUT\"\n", key, value))
-			}
+		// Add literal env vars directly in the run script
+		for _, key := range literalEnvKeys {
+			steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_OUTPUT\"\n", key, jobConfig.Env[key]))
+		}
+
+		// Add expression env vars using shell variable reference (expression evaluated in env: block above)
+		for _, key := range expressionEnvKeys {
+			steps = append(steps, fmt.Sprintf("          echo \"%s=${%s}\" >> \"$GITHUB_OUTPUT\"\n", key, key))
 		}
 
 		// Add custom steps from the job configuration, injecting env vars from the
