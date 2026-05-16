@@ -1087,18 +1087,32 @@ async function main(config = {}) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Pull request limit exceeded: ${errorMessage}`);
 
+      // In staged mode, show a preview instead of performing API side effects
+      if (isStaged) {
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ⚠️ Patch file limit exceeded\n\n`;
+        summaryContent += `**Message:** ${errorMessage}\n\n`;
+
+        await core.summary.addRaw(summaryContent).write();
+        core.info("📝 Pull request creation preview written to step summary (file limit exceeded)");
+        return { success: true, staged: true };
+      }
+
       if (!fallbackAsIssue) {
         return { success: false, error: errorMessage };
       }
 
       // Surface the limit error in a fallback issue so it appears in the agent failure
       // issue/comment thread and the workflow operator knows exactly how to fix it.
-      const fallbackTitle = pullRequestItem.title?.trim() || "Agent Output";
+      const rawFallbackTitle = pullRequestItem.title?.trim() || "Agent Output";
+      const fallbackTitle = applyTitlePrefix(sanitizeTitle(rawFallbackTitle, titlePrefix), titlePrefix);
       const fallbackLabels = mergeFallbackIssueLabels(configFallbackLabels.length > 0 ? configFallbackLabels : envLabels);
+      const receivedFileCount = countUniquePatchFiles(patchContent);
       const fallbackTemplatePath = getPromptPath("e003_file_limit_fallback.md");
       const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
         error_message: errorMessage,
-        suggested_limit: maxFiles * 2,
+        suggested_limit: receivedFileCount,
       });
 
       try {

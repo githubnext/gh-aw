@@ -3132,8 +3132,60 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
     expect(issueCall.body).toContain("E003");
     expect(issueCall.body).toContain("max-patch-files");
 
+    // The suggested limit must be >= the actual file count (101), not maxFiles * 2 (200)
+    expect(issueCall.body).toContain("max-patch-files: 101");
+
     // PR creation should NOT have been attempted
     expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
+  it("should use the actual received file count (not maxFiles*2) as the suggested limit", async () => {
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(220));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "API regen PR", body: "Daily update", branch: "api/regen", patch_path: patchPath }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    // With default limit=100 and 220 files, old code would suggest 200; correct is 220
+    expect(issueCall.body).toContain("max-patch-files: 220");
+  });
+
+  it("should sanitize and apply title prefix to fallback issue title", async () => {
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ title_prefix: "[bot]" });
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+
+    expect(result.success).toBe(true);
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    // Title prefix should be applied
+    expect(issueCall.title).toMatch(/^\[bot\]/);
+  });
+
+  it("should return staged preview instead of creating a fallback issue when in staged mode", async () => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+
+    // Staged mode: no API side effects, just a preview
+    expect(result.success).toBe(true);
+    expect(result.staged).toBe(true);
+    expect(result.fallback_used).toBeUndefined();
+    expect(global.github.rest.issues.create).not.toHaveBeenCalled();
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+    expect(global.core.summary.addRaw).toHaveBeenCalled();
   });
 
   it("should return success: false when E003 fires and fallback_as_issue is false", async () => {
