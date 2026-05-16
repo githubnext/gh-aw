@@ -51,7 +51,9 @@ type AddInteractiveConfig struct {
 }
 
 // RunAddInteractive runs the interactive add workflow
-// This walks the user through adding an agentic workflow to their repository
+// This walks the user through adding an agentic workflow to their repository.
+// ctx is applied to config.Ctx; callers should not rely on config.Ctx after this call
+// as it will be overwritten by the provided ctx.
 func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error {
 	addInteractiveLog.Print("Starting interactive add workflow")
 
