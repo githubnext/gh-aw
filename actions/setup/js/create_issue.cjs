@@ -410,8 +410,11 @@ async function searchTitleDedupIssues(githubClient, query) {
   const candidates = [];
   let fetchedItems = 0;
   let totalCount = 0;
+  let sawNumericTotalCount = false;
+  let fetchedPageCount = 0;
 
   for (let page = 1; page <= TITLE_DEDUP_MAX_SEARCH_PAGES; page += 1) {
+    fetchedPageCount = page;
     const response = await githubClient.rest.search.issuesAndPullRequests({
       q: query,
       per_page: TITLE_DEDUP_SEARCH_PER_PAGE,
@@ -420,8 +423,12 @@ async function searchTitleDedupIssues(githubClient, query) {
       order: "desc",
     });
     const items = Array.isArray(response?.data?.items) ? response.data.items : [];
-    const pageTotalCount = Number.isFinite(response?.data?.total_count) ? Number(response.data.total_count) : items.length;
-    if (!Number.isFinite(response?.data?.total_count)) {
+    const hasNumericTotalCount = Number.isFinite(response?.data?.total_count);
+    const pageTotalCount = hasNumericTotalCount ? Number(response.data.total_count) : items.length;
+    if (hasNumericTotalCount) {
+      sawNumericTotalCount = true;
+    }
+    if (!hasNumericTotalCount) {
       core.warning(`Title dedup search response missing numeric total_count for query "${query}" (page ${page}); using page item count fallback`);
     }
     totalCount = Math.max(totalCount, pageTotalCount);
@@ -438,11 +445,15 @@ async function searchTitleDedupIssues(githubClient, query) {
     }
   }
 
+  const reachedPageCap = fetchedPageCount === TITLE_DEDUP_MAX_SEARCH_PAGES;
+  const fetchedFullPages = fetchedItems === fetchedPageCount * TITLE_DEDUP_SEARCH_PER_PAGE;
+  const reachedPageCapWithoutCount = !sawNumericTotalCount && reachedPageCap && fetchedFullPages;
+
   return {
     candidates,
     fetchedItems,
     totalCount,
-    truncated: totalCount > fetchedItems,
+    truncated: totalCount > fetchedItems || reachedPageCapWithoutCount,
   };
 }
 
@@ -764,11 +775,13 @@ async function main(config = {}) {
       try {
         const repoCacheKey = `${repoParts.owner}/${repoParts.repo}`;
         if (!repoTitleDedupCandidatesCache.has(repoCacheKey)) {
-          const cachedCandidatesPromise = getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo).catch(error => {
-            repoTitleDedupCandidatesCache.delete(repoCacheKey);
-            throw error;
+          const dedupCandidatesPromise = getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo);
+          dedupCandidatesPromise.catch(() => {
+            if (repoTitleDedupCandidatesCache.get(repoCacheKey) === dedupCandidatesPromise) {
+              repoTitleDedupCandidatesCache.delete(repoCacheKey);
+            }
           });
-          repoTitleDedupCandidatesCache.set(repoCacheKey, cachedCandidatesPromise);
+          repoTitleDedupCandidatesCache.set(repoCacheKey, dedupCandidatesPromise);
         }
 
         const repoCandidates = await repoTitleDedupCandidatesCache.get(repoCacheKey);
