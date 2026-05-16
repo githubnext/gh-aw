@@ -368,8 +368,65 @@ Test workflow content
 	}
 }
 
-// TestIsThreatDetectionExplicitlyDisabledInConfigs verifies the helper function
-// that checks whether any imported safe-outputs config explicitly disables detection.
+// TestSafeJobsExpressionEnvNeverWrittenToOutput verifies that job-level env vars containing
+// GitHub Actions expressions are never written to $GITHUB_OUTPUT in the compiled lock file.
+// This is a security guardrail: tokens like ${{ github.token }} must never be stored in outputs.
+func TestSafeJobsExpressionEnvNeverWrittenToOutput(t *testing.T) {
+	c := NewCompiler()
+
+	markdown := `---
+on: issues
+safe-outputs:
+  jobs:
+    publish:
+      env:
+        GH_TOKEN: ${{ github.token }}
+        STATIC: literal-value
+      steps:
+        - name: Do work
+          run: echo "working"
+---
+
+# Test Workflow
+Test workflow content
+`
+
+	tmpDir := testutil.TempDir(t, "test-*")
+	testFile := tmpDir + "/test-safe-jobs-secret.md"
+	if err := os.WriteFile(testFile, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	if err := c.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := tmpDir + "/test-safe-jobs-secret.lock.yml"
+	workflowBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	workflowStr := string(workflowBytes)
+
+	// No line in the compiled output may write an expression-based value to $GITHUB_OUTPUT.
+	for _, line := range strings.Split(workflowStr, "\n") {
+		if strings.Contains(line, "GITHUB_OUTPUT") && strings.Contains(line, "${{") {
+			t.Errorf("Compiled workflow contains an expression written to GITHUB_OUTPUT (secret leak): %s", strings.TrimSpace(line))
+		}
+	}
+
+	// The token must be injected into the step env: block, not through step outputs.
+	if !strings.Contains(workflowStr, "GH_TOKEN: ${{ github.token }}") {
+		t.Error("Expected GH_TOKEN expression to be injected into step env: block in compiled output")
+	}
+
+	// Literal value should flow through $GITHUB_OUTPUT as normal.
+	if !strings.Contains(workflowStr, `echo "STATIC=literal-value"`) {
+		t.Error("Expected literal env var to be written to GITHUB_OUTPUT in compiled output")
+	}
+}
+
+
 func TestIsThreatDetectionExplicitlyDisabledInConfigs(t *testing.T) {
 	tests := []struct {
 		name     string
