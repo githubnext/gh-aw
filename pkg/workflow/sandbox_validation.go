@@ -22,44 +22,41 @@ var sandboxValidationLog = newValidationLogger("sandbox")
 // Expected format: "source:destination:mode" where mode is either "ro" or "rw"
 func validateMountsSyntax(mounts []string) error {
 	for i, mount := range mounts {
-		source, dest, mode, err := validateMountStringFormat(mount)
-		if err != nil {
-			// Distinguish format error (3-parts) from mode error
-			if source == "" && dest == "" && mode == "" {
-				return NewValidationError(
-					fmt.Sprintf("sandbox.mounts[%d]", i),
-					mount,
-					"mount syntax must follow 'source:destination:mode' format with exactly 3 colon-separated parts",
-					fmt.Sprintf("Use the format 'source:destination:mode'.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
-				)
-			}
+		parts, kind := parseMountEntry(mount)
+		switch kind {
+		case mountValidationOK:
+			sandboxValidationLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, parts.source, parts.dest, parts.mode)
+		case mountValidationFormatError:
+			return NewValidationError(
+				fmt.Sprintf("sandbox.mounts[%d]", i),
+				mount,
+				"mount syntax must follow 'source:destination:mode' format with exactly 3 colon-separated parts",
+				fmt.Sprintf("Use the format 'source:destination:mode'.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
+			)
+		case mountValidationModeError:
 			return NewValidationError(
 				fmt.Sprintf("sandbox.mounts[%d].mode", i),
-				mode,
+				parts.mode,
 				"mount mode must be 'ro' (read-only) or 'rw' (read-write)",
 				fmt.Sprintf("Change the mount mode to either 'ro' or 'rw'.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"  # read-only\n    - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", constants.DocsSandboxURL),
 			)
-		}
-
-		// Validate that source and destination are not empty
-		if source == "" {
+		case mountValidationEmptySource:
 			return NewValidationError(
 				fmt.Sprintf("sandbox.mounts[%d].source", i),
 				mount,
 				"source path cannot be empty",
 				fmt.Sprintf("Provide a valid source path.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
 			)
-		}
-		if dest == "" {
+		case mountValidationEmptyDestination:
 			return NewValidationError(
 				fmt.Sprintf("sandbox.mounts[%d].destination", i),
 				mount,
 				"destination path cannot be empty",
 				fmt.Sprintf("Provide a valid destination path.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
 			)
+		default:
+			return fmt.Errorf("internal error: unsupported mount validation kind %d for sandbox mount %q", kind, mount)
 		}
-
-		sandboxValidationLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, source, dest, mode)
 	}
 
 	return nil

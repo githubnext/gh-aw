@@ -542,6 +542,53 @@ func TestContainsTrigger(t *testing.T) {
 	}
 }
 
+func TestParseMountEntry(t *testing.T) {
+	tests := []struct {
+		name     string
+		mount    string
+		wantKind mountValidationKind
+		want     mountParts
+	}{
+		{
+			name:     "valid mount",
+			mount:    "/host/data:/data:ro",
+			wantKind: mountValidationOK,
+			want:     mountParts{source: "/host/data", dest: "/data", mode: "ro"},
+		},
+		{
+			name:     "format error",
+			mount:    "/host/data:/data",
+			wantKind: mountValidationFormatError,
+		},
+		{
+			name:     "mode error",
+			mount:    "/host/data:/data:nope",
+			wantKind: mountValidationModeError,
+			want:     mountParts{source: "/host/data", dest: "/data", mode: "nope"},
+		},
+		{
+			name:     "empty source",
+			mount:    ":/data:ro",
+			wantKind: mountValidationEmptySource,
+			want:     mountParts{source: "", dest: "/data", mode: "ro"},
+		},
+		{
+			name:     "empty destination",
+			mount:    "/host/data::ro",
+			wantKind: mountValidationEmptyDestination,
+			want:     mountParts{source: "/host/data", dest: "", mode: "ro"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotKind := parseMountEntry(tt.mount)
+			assert.Equal(t, tt.wantKind, gotKind, "mount kind for %q", tt.mount)
+			assert.Equal(t, tt.want, got, "mount parts for %q", tt.mount)
+		})
+	}
+}
+
 // TestPreprocessProtectedFilesField tests the preprocessProtectedFilesField helper.
 func TestPreprocessProtectedFilesField(t *testing.T) {
 	tests := []struct {

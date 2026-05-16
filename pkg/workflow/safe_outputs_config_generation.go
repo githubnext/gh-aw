@@ -39,7 +39,7 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	// Standard handler configs — sourced from handlerRegistry (same as GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
 	for handlerName, builder := range handlerRegistry {
 		if handlerCfg := builder(data.SafeOutputs); handlerCfg != nil {
-			excludeFiles := extractStringSliceFromConfig(handlerCfg, "_protected_files_exclude")
+			excludeFiles := ParseStringArrayFromConfig(handlerCfg, "_protected_files_exclude", nil)
 			// Strip the internal sentinel key used by the handler manager for compile-time
 			// exclusion processing — it must not be forwarded to the runtime config.json.
 			delete(handlerCfg, "_protected_files_exclude")

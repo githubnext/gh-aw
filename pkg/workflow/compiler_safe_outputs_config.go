@@ -67,7 +67,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			if _, hasProtected := handlerConfig["protected_files"]; hasProtected {
 				// Extract per-handler exclusions set by the handler builder (sentinel key).
 				// These are compile-time overrides and must not be forwarded to the runtime.
-				excludeFiles := extractStringSliceFromConfig(handlerConfig, "_protected_files_exclude")
+				excludeFiles := ParseStringArrayFromConfig(handlerConfig, "_protected_files_exclude", nil)
 				delete(handlerConfig, "_protected_files_exclude")
 
 				handlerConfig["protected_files"] = sliceutil.Exclude(fullManifestFiles, excludeFiles...)

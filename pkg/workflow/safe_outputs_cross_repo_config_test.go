@@ -519,8 +519,8 @@ func TestHandlerManagerStepPerOutputTokenInHandlerConfig(t *testing.T) {
 	}
 }
 
-// TestParseAllowedReposFromConfig verifies the parseAllowedReposFromConfig helper function.
-func TestParseAllowedReposFromConfig(t *testing.T) {
+// TestParseAllowedRepos verifies the shared array parser for allowed-repos.
+func TestParseAllowedRepos(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    map[string]any
@@ -563,11 +563,11 @@ func TestParseAllowedReposFromConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseAllowedReposFromConfig(tt.input)
+			result := ParseStringArrayFromConfig(tt.input, "allowed-repos", nil)
 			if tt.expected == nil {
-				assert.Emptyf(t, result, "parseAllowedReposFromConfig should return nil or empty for: %s", tt.name)
+				assert.Emptyf(t, result, "ParseStringArrayFromConfig should return nil or empty for: %s", tt.name)
 			} else {
-				assert.Equal(t, tt.expected, result, "parseAllowedReposFromConfig mismatch")
+				assert.Equal(t, tt.expected, result, "ParseStringArrayFromConfig mismatch")
 			}
 		})
 	}

@@ -376,7 +376,7 @@ func TestParseUpdateEntityConfigTypedWithCustomParser(t *testing.T) {
 			}
 		},
 		func(cm map[string]any, cfg *UpdateDiscussionsConfig) {
-			cfg.AllowedLabels = parseAllowedLabelsFromConfig(cm)
+			cfg.AllowedLabels = ParseStringArrayFromConfig(cm, "allowed-labels", nil)
 		})
 
 	if result == nil {

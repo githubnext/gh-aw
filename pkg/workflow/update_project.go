@@ -67,7 +67,7 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 			updateProjectConfig.TargetRepoSlug = targetRepoSlug
 
 			// Parse allowed-repos for cross-repo content resolution
-			updateProjectConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+			updateProjectConfig.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", updateProjectLog)
 
 			// Parse views if specified
 			updateProjectConfig.Views = parseProjectViews(configMap, updateProjectLog)
