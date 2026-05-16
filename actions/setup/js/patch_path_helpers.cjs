@@ -8,16 +8,18 @@
  * @returns {{ oldPath: string|null, newPath: string|null, parseable: boolean }}
  */
 function parseDiffGitHeader(headerLine) {
-  const rest = headerLine.replace(/^diff --git /, "");
-  if (rest === headerLine) {
+  const sanitizedHeaderLine = headerLine.endsWith("\r") ? headerLine.slice(0, -1) : headerLine;
+  const rest = sanitizedHeaderLine.replace(/^diff --git /, "");
+  if (rest === sanitizedHeaderLine) {
     return { oldPath: null, newPath: null, parseable: false };
   }
 
   /** @type {string[]} */
   const tokens = [];
+  const isWhitespace = ch => ch === " " || ch === "\t" || ch === "\r" || ch === "\n";
   let i = 0;
   while (i < rest.length && tokens.length < 2) {
-    while (i < rest.length && rest[i] === " ") {
+    while (i < rest.length && isWhitespace(rest[i])) {
       i++;
     }
     if (i >= rest.length) {
@@ -42,7 +44,7 @@ function parseDiffGitHeader(headerLine) {
         return { oldPath: null, newPath: null, parseable: false };
       }
     } else {
-      while (i < rest.length && rest[i] !== " ") {
+      while (i < rest.length && !isWhitespace(rest[i])) {
         token += rest[i++];
       }
     }

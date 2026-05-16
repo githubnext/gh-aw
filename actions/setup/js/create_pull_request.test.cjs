@@ -1052,6 +1052,8 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(parseDiffGitHeader("diff --git a/foo.txt b/foo.txt")).toBe("foo.txt");
     // Path with spaces (git always emits quoted form when path contains spaces)
     expect(parseDiffGitHeader('diff --git "a/dir/with space/x" "b/dir/with space/x"')).toBe("dir/with space/x");
+    // CRLF line ending should not leak trailing carriage-return into path
+    expect(parseDiffGitHeader("diff --git a/crlf.txt b/crlf.txt\r")).toBe("crlf.txt");
 
     // A patch with three different quoted/escaped files should count as 3.
     const patch = [

@@ -249,6 +249,12 @@ index 0000000..abc
       expect(result).not.toContain("dev/null");
     });
 
+    it("should parse CRLF patch headers without trailing carriage returns", () => {
+      const patch = "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\r\nindex abc..def 100644\r\n";
+      const result = extractPathsFromPatch(patch);
+      expect(result).toEqual([".github/workflows/ci.yml"]);
+    });
+
     it("should parse quoted headers and ignore malformed headers", () => {
       const patch = [`diff --git "a/.github/workflows/ci file.yml" "b/.github/workflows/ci file.yml"`, "index abc..def 100644", "diff --git ", "index abc..def 100644"].join("\n");
       const result = extractPathsFromPatch(patch);
