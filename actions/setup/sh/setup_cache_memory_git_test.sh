@@ -200,7 +200,16 @@ echo "Test 12: Legacy nested cache directory is flattened"
 D="${WORKSPACE}/test12"
 mkdir -p "${D}/$(basename "${D}")"
 echo '{"totalRuns":15}' > "${D}/$(basename "${D}")/chaos-pr-bundle-fuzzer.json"
-OUTPUT="$(run_script "${D}" none)"
+set +e
+OUTPUT="$(
+  GH_AW_CACHE_DIR="${D}" \
+  GH_AW_MIN_INTEGRITY="none" \
+    bash "${SCRIPT}" 2>&1
+)"
+EXIT_CODE=$?
+set -e
+assert "legacy nested layout exits successfully" \
+  "[ '${EXIT_CODE}' -eq 0 ]"
 assert "legacy nested file moved to cache root" \
   "[ -f '${D}/chaos-pr-bundle-fuzzer.json' ]"
 assert "legacy nested directory removed" \

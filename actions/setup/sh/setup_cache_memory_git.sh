@@ -44,7 +44,10 @@ if [ -d "$LEGACY_NESTED_DIR" ] && [ ! -d .git ]; then
   if [ "${_root_non_git_entries}" = "0" ]; then
     echo "Flattening legacy nested cache directory: ${LEGACY_NESTED_DIR}"
     shopt -s dotglob nullglob
-    mv "${LEGACY_NESTED_DIR}"/* .
+    _legacy_nested_entries=("${LEGACY_NESTED_DIR}"/*)
+    if [ "${#_legacy_nested_entries[@]}" -gt 0 ]; then
+      mv "${_legacy_nested_entries[@]}" .
+    fi
     shopt -u dotglob nullglob
     rmdir "${LEGACY_NESTED_DIR}" 2>/dev/null || true
   fi
