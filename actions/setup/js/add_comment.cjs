@@ -362,12 +362,7 @@ async function main(config = {}) {
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = parseBoolTemplatable(config.footer, true);
-  const configuredMentionAliases = Array.isArray(config.mentions?.allowed)
-    ? config.mentions.allowed
-        .filter(alias => typeof alias === "string" && alias.trim().length > 0)
-        .map(alias => alias.trim().replace(/^@+/, ""))
-        .filter(alias => alias.length > 0)
-    : [];
+  const configuredMentionAliases = Array.isArray(config.mentions?.allowed) ? config.mentions.allowed.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
@@ -569,7 +564,15 @@ async function main(config = {}) {
     }
     const allowedMentionAliases = [];
     const seenAllowedMentionAliases = new Set();
-    for (const alias of [...parentAuthors, ...configuredMentionAliases]) {
+    for (const alias of parentAuthors) {
+      const key = alias.toLowerCase();
+      if (seenAllowedMentionAliases.has(key)) {
+        continue;
+      }
+      seenAllowedMentionAliases.add(key);
+      allowedMentionAliases.push(alias);
+    }
+    for (const alias of configuredMentionAliases) {
       const key = alias.toLowerCase();
       if (seenAllowedMentionAliases.has(key)) {
         continue;
