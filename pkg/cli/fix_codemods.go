@@ -47,6 +47,7 @@ func GetAllCodemods() []Codemod {
 		getEngineStepsToTopLevelCodemod(),             // Move engine.steps to top-level steps
 		getEngineMaxRunsToTopLevelCodemod(),           // Move engine.max-runs to top-level max-runs
 		getStepsRunSecretsToEnvCodemod(),              // Move inline secrets in step run fields to step env bindings
+		getAutoHoistRunExpressionsCodemod(),            // Hoist ALL ${{ ... }} run-block expressions to EXPR_* env bindings
 		getEngineEnvSecretsCodemod(),                  // Remove unsafe secret-bearing engine.env entries
 		getAssignToAgentDefaultAgentCodemod(),         // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(), // Migrate tools.playwright.allowed_domains to network.allowed

@@ -245,6 +245,7 @@ Available codemods include:
 
 - `expires-integer-to-string` — converts bare integer `expires` values (e.g., `expires: 7`) to the preferred day-string format (e.g., `expires: 7d`) in all `safe-outputs` blocks.
 - `steps-run-secrets-to-env` — rewrites inline `${{ secrets.NAME }}` interpolations in step `run:` commands to `$NAME` and adds step-level `env` bindings. Required for strict-mode compliance.
+- `auto-hoist-run-expressions` — rewrites **all** `${{ ... }}` expressions in step `run:` scripts to `$VARNAME` references (or `$env:VARNAME` for PowerShell steps) and adds `EXPR_*` step-level `env` bindings. Catches any expression not already handled by `steps-run-secrets-to-env`, preventing the "compiler regression detected" hard error.
 - `engine-env-secrets-to-engine-config` — removes secret-bearing entries from `engine.env` that are unsafe under strict mode, preserving required engine credential keys.
 
 Run `gh aw fix --list-codemods` to see all available codemods.
