@@ -60,7 +60,7 @@ Requirements:
 
 Do not invent custom package metadata fields.
 
-### Caveman optimization
+### Minimal manifest (caveman optimization)
 
 Keep package manifest simple:
 
