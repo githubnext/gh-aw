@@ -3,6 +3,8 @@
 const { levenshteinDistance } = require("./levenshtein_distance.cjs");
 const MAX_DEDUPLICATE_BY_TITLE_DISTANCE = 100;
 const DEFAULT_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = 50;
+const FNV1A_OFFSET_BASIS_32 = 2166136261;
+const FNV1A_PRIME_32 = 16777619;
 
 /**
  * Parse create-issue deduplication config.
@@ -86,15 +88,19 @@ function parseCreateIssueTitleDedupRolloutPercent(value) {
 
 /**
  * Deterministically map a seed string to a bucket in [0, 99].
+ * Returns 100 for empty seeds (out-of-rollout).
  *
  * @param {string} seed
  * @returns {number}
  */
 function dedupRolloutBucket(seed) {
-  let hash = 2166136261;
+  if (!seed) {
+    return 100;
+  }
+  let hash = FNV1A_OFFSET_BASIS_32;
   for (let i = 0; i < seed.length; i += 1) {
     hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+    hash = Math.imul(hash, FNV1A_PRIME_32);
   }
   return (hash >>> 0) % 100;
 }
