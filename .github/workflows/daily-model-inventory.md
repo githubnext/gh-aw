@@ -303,20 +303,7 @@ tools:
   playwright:
     mode: cli
   bash:
-    - "cat /tmp/gh-aw/model-inventory/inventory.json"
-    - "jq . /tmp/gh-aw/model-inventory/inventory.json"
-    - "jq . /tmp/gh-aw/model-inventory/artifacts/*/models.json"
-    - "jq . /tmp/gh-aw/model-inventory/artifacts/*/raw.json"
-    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/openai-models/raw.json"
-    - "jq '[.data[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/anthropic-models/raw.json"
-    - "jq '[.models[] | keys] | add | unique' /tmp/gh-aw/model-inventory/artifacts/gemini-models/raw.json"
-    - "jq . /tmp/gh-aw/model-inventory/reflect.json"
-    - "cat /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
-    - "jq . /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
-    - "jq '.models[]' /tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json"
-    - "find /tmp/gh-aw/model-inventory -type f"
-    - "cat pkg/workflow/data/model_aliases.json"
-    - "cat pkg/cli/data/model_multipliers.json"
+    - "*"
   github:
     toolsets: [default]
 

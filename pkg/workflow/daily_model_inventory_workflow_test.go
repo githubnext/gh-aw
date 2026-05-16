@@ -20,6 +20,10 @@ func TestDailyModelInventoryWorkflowPrefetchesReflectBeforeAgent(t *testing.T) {
 		t.Fatalf("expected compiled workflow to prefetch Copilot reflect inventory")
 	}
 
+	if !strings.Contains(lockContentStr, "--allow-all-tools") {
+		t.Fatalf("expected compiled workflow to allow full bash tool access")
+	}
+
 	if strings.Contains(lockContentStr, `shell(mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf "%s" "{\"endpoints\":[],\"error\":\"reflect endpoint unavailable\"}" > /tmp/gh-aw/model-inventory/reflect.json))`) {
 		t.Fatalf("expected compiled workflow to avoid the complex Copilot shell allow-tool for /reflect fallback")
 	}
