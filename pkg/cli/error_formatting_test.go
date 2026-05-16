@@ -39,7 +39,7 @@ This is not valid frontmatter
 
 	// Create compiler and attempt to compile
 	compiler := workflow.NewCompiler()
-	_ = CompileWorkflowWithValidation(context.Background(), compiler, invalidWorkflow, false, false, false, false, false, false)
+	_ = CompileWorkflowWithValidation(context.Background(), compiler, invalidWorkflow, CompileValidationOptions{})
 
 	// Restore stderr and read captured output
 	w.Close()

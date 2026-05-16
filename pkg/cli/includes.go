@@ -152,8 +152,32 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 	// levels so that every import (at any depth) is downloaded at most once and import
 	// cycles (A imports B, B imports A) are broken without infinite recursion.
 	seen := make(map[string]bool)
-	fetchFrontmatterImportsRecursive(content, owner, repo, ref, workflowBaseDir, workflowBaseDir, targetDir, verbose, force, tracker, seen)
+	fetchFrontmatterImportsRecursive(content, workflowBaseDir, frontmatterImportsOpts{
+		owner:           owner,
+		repo:            repo,
+		ref:             ref,
+		originalBaseDir: workflowBaseDir,
+		targetDir:       targetDir,
+		verbose:         verbose,
+		force:           force,
+		tracker:         tracker,
+		seen:            seen,
+	})
 	return nil
+}
+
+// frontmatterImportsOpts holds the constant parameters for fetchFrontmatterImportsRecursive.
+// Only `content` and `currentBaseDir` change per recursion level; everything else is constant.
+type frontmatterImportsOpts struct {
+	owner           string
+	repo            string
+	ref             string
+	originalBaseDir string
+	targetDir       string
+	verbose         bool
+	force           bool
+	tracker         *FileTracker
+	seen            map[string]bool
 }
 
 // fetchFrontmatterImportsRecursive is the internal worker for fetchAndSaveRemoteFrontmatterImports.
@@ -162,12 +186,12 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 //   - content: the text of the file whose imports are being processed
 //   - currentBaseDir: directory of that file inside the source repo (used to resolve relative paths)
 //
-// Parameters that remain constant across all recursion levels:
+// Parameters that remain constant across all recursion levels (in opts):
 //   - owner, repo, ref: source repository coordinates
 //   - originalBaseDir: directory of the top-level workflow (used to map remote paths → local paths)
 //   - targetDir: the `.github/workflows` directory in the user's repo
 //   - seen: shared visited set (keyed by fully-resolved remote path) — prevents cycles & duplicates
-func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir, originalBaseDir, targetDir string, verbose, force bool, tracker *FileTracker, seen map[string]bool) {
+func fetchFrontmatterImportsRecursive(content, currentBaseDir string, opts frontmatterImportsOpts) {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil || result.Frontmatter == nil {
 		return
@@ -206,10 +230,10 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		return
 	}
 
-	remoteWorkflowLog.Printf("Processing %d frontmatter imports recursively: owner=%s, repo=%s, ref=%s", len(importPaths), owner, repo, ref)
+	remoteWorkflowLog.Printf("Processing %d frontmatter imports recursively: owner=%s, repo=%s, ref=%s", len(importPaths), opts.owner, opts.repo, opts.ref)
 
 	// Pre-compute the absolute target directory once for path-traversal boundary checks.
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := filepath.Abs(opts.targetDir)
 	if err != nil {
 		return
 	}
@@ -253,7 +277,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 			// ensures that a file at ".github/workflows/shared/base.md" can import
 			// "shared/helper.md" and have it resolve to ".github/workflows/shared/helper.md"
 			// rather than the incorrect ".github/workflows/shared/shared/helper.md".
-			baseDir := originalBaseDir
+			baseDir := opts.originalBaseDir
 			if baseDir == "" {
 				baseDir = currentBaseDir
 			}
@@ -267,18 +291,18 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 
 		// Reject paths that try to escape the repository root (e.g. "../../etc/passwd")
 		if remoteFilePath == ".." || strings.HasPrefix(remoteFilePath, "../") {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping import with unsafe path: %q", importPath)))
 			}
 			continue
 		}
 
 		// Cycle/duplicate prevention: use the fully-resolved remote path as the key.
-		if seen[remoteFilePath] {
+		if opts.seen[remoteFilePath] {
 			remoteWorkflowLog.Printf("Skipping already-seen import: %s", remoteFilePath)
 			continue
 		}
-		seen[remoteFilePath] = true
+		opts.seen[remoteFilePath] = true
 
 		// Derive the local path relative to targetDir by stripping the original base-dir
 		// prefix from the remote path. This ensures that imports in nested files resolve
@@ -288,8 +312,8 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		//   remoteFilePath=".github/workflows/shared/analysis.md" → localRelPath="shared/analysis.md"
 		//   (nested) remoteFilePath=".github/workflows/other.md"  → localRelPath="other.md"
 		var localRelPath string
-		if originalBaseDir != "" && strings.HasPrefix(remoteFilePath, originalBaseDir+"/") {
-			localRelPath = remoteFilePath[len(originalBaseDir)+1:]
+		if opts.originalBaseDir != "" && strings.HasPrefix(remoteFilePath, opts.originalBaseDir+"/") {
+			localRelPath = remoteFilePath[len(opts.originalBaseDir)+1:]
 		} else {
 			// Workflow at repo root, or import outside the original base dir:
 			// use the full remote path relative to targetDir.
@@ -304,7 +328,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		if localRelPath == "" || localRelPath == "." {
 			continue
 		}
-		targetPath := filepath.Join(targetDir, localRelPath)
+		targetPath := filepath.Join(opts.targetDir, localRelPath)
 
 		// Belt-and-suspenders: verify the resolved path is inside targetDir
 		absTargetPath, absErr := filepath.Abs(targetPath)
@@ -312,7 +336,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 			continue
 		}
 		if rel, relErr := filepath.Rel(absTargetDir, absTargetPath); relErr != nil || strings.HasPrefix(rel, "..") {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Refusing to write import outside target directory: %q", importPath)))
 			}
 			continue
@@ -323,8 +347,8 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		fileExists := false
 		if _, statErr := os.Stat(targetPath); statErr == nil {
 			fileExists = true
-			if !force {
-				if verbose {
+			if !opts.force {
+				if opts.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Import file already exists, skipping: "+targetPath))
 				}
 				continue
@@ -332,10 +356,10 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 		}
 
 		// Download from the source repository
-		importContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
+		importContent, err := parser.DownloadFileFromGitHub(opts.owner, opts.repo, remoteFilePath, opts.ref)
 		if err != nil {
-			remoteWorkflowLog.Printf("Failed to download import %s from %s/%s@%s: %v", remoteFilePath, owner, repo, ref, err)
-			if verbose {
+			remoteWorkflowLog.Printf("Failed to download import %s from %s/%s@%s: %v", remoteFilePath, opts.owner, opts.repo, opts.ref, err)
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch import %s: %v", remoteFilePath, err)))
 			}
 			continue
@@ -343,7 +367,7 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 
 		// Create the parent directory if needed
 		if err := os.MkdirAll(filepath.Dir(targetPath), constants.DirPermPublic); err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for import %s: %v", remoteFilePath, err)))
 			}
 			continue
@@ -351,29 +375,29 @@ func fetchFrontmatterImportsRecursive(content, owner, repo, ref, currentBaseDir,
 
 		// Write the file
 		if err := os.WriteFile(targetPath, importContent, constants.FilePermSensitive); err != nil {
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write import %s: %v", remoteFilePath, err)))
 			}
 			continue
 		}
 
-		if verbose {
+		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched import: "+targetPath))
 		}
 
 		// Track the file for git staging and potential rollback
-		if tracker != nil {
+		if opts.tracker != nil {
 			if fileExists {
-				tracker.TrackModified(targetPath)
+				opts.tracker.TrackModified(targetPath)
 			} else {
-				tracker.TrackCreated(targetPath)
+				opts.tracker.TrackCreated(targetPath)
 			}
 		}
 
 		// Recurse into the imported file's imports. Use the imported file's directory as
 		// currentBaseDir so that relative paths inside it resolve correctly.
 		importedBaseDir := path.Dir(remoteFilePath)
-		fetchFrontmatterImportsRecursive(string(importContent), owner, repo, ref, importedBaseDir, originalBaseDir, targetDir, verbose, force, tracker, seen)
+		fetchFrontmatterImportsRecursive(string(importContent), importedBaseDir, opts)
 	}
 }
 
