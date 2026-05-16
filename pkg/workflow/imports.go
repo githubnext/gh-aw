@@ -323,100 +323,12 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return false
 	}
 
-	switch key {
-	case "create-issue":
-		return config.CreateIssues != nil
-	case "create-discussion":
-		return config.CreateDiscussions != nil
-	case "close-discussion":
-		return config.CloseDiscussions != nil
-	case "close-issue":
-		return config.CloseIssues != nil
-	case "close-pull-request":
-		return config.ClosePullRequests != nil
-	case "add-comment":
-		return config.AddComments != nil
-	case "create-pull-request":
-		return config.CreatePullRequests != nil
-	case "create-pull-request-review-comment":
-		return config.CreatePullRequestReviewComments != nil
-	case "submit-pull-request-review":
-		return config.SubmitPullRequestReview != nil
-	case "reply-to-pull-request-review-comment":
-		return config.ReplyToPullRequestReviewComment != nil
-	case "resolve-pull-request-review-thread":
-		return config.ResolvePullRequestReviewThread != nil
-	case "create-code-scanning-alert":
-		return config.CreateCodeScanningAlerts != nil
-	case "add-labels":
-		return config.AddLabels != nil
-	case "remove-labels":
-		return config.RemoveLabels != nil
-	case "add-reviewer":
-		return config.AddReviewer != nil
-	case "assign-milestone":
-		return config.AssignMilestone != nil
-	case "assign-to-agent":
-		return config.AssignToAgent != nil
-	case "update-issue":
-		return config.UpdateIssues != nil
-	case "update-pull-request":
-		return config.UpdatePullRequests != nil
-	case "merge-pull-request":
-		return config.MergePullRequest != nil
-	case "push-to-pull-request-branch":
-		return config.PushToPullRequestBranch != nil
-	case "upload-asset":
-		return config.UploadAssets != nil
-	case "upload-artifact":
-		return config.UploadArtifact != nil
-	case "update-release":
-		return config.UpdateRelease != nil
-	case "create-agent-session":
-		return config.CreateAgentSessions != nil
-	case "create-agent-task": // Backward compatibility
-		return config.CreateAgentSessions != nil
-	case "update-project":
-		return config.UpdateProjects != nil
-	case "update-discussion":
-		return config.UpdateDiscussions != nil
-	case "mark-pull-request-as-ready-for-review":
-		return config.MarkPullRequestAsReadyForReview != nil
-	case "autofix-code-scanning-alert":
-		return config.AutofixCodeScanningAlert != nil
-	case "assign-to-user":
-		return config.AssignToUser != nil
-	case "unassign-from-user":
-		return config.UnassignFromUser != nil
-	case "create-project":
-		return config.CreateProjects != nil
-	case "create-project-status-update":
-		return config.CreateProjectStatusUpdates != nil
-	case "link-sub-issue":
-		return config.LinkSubIssue != nil
-	case "hide-comment":
-		return config.HideComment != nil
-	case "set-issue-type":
-		return config.SetIssueType != nil
-	case "set-issue-field":
-		return config.SetIssueField != nil
-	case "dispatch-workflow":
-		return config.DispatchWorkflow != nil
-	case "call-workflow":
-		return config.CallWorkflow != nil
-	case "missing-data":
-		return config.MissingData != nil
-	case "missing-tool":
-		return config.MissingTool != nil
-	case "noop":
-		return config.NoOp != nil
-	case "report-incomplete":
-		return config.ReportIncomplete != nil
-	case "threat-detection":
-		return config.ThreatDetection != nil
-	default:
+	handler, ok := getSafeOutputHandlerByKey(key)
+	if !ok {
 		return false
 	}
+
+	return hasSafeOutputFieldSet(config, handler.StructField)
 }
 
 // mergeSafeOutputConfig merges a single imported config map into the result SafeOutputsConfig
@@ -434,31 +346,24 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		return result, nil
 	}
 
-	// Merge each safe output type (only set if nil in result)
-	if result.CreateIssues == nil && importedConfig.CreateIssues != nil {
-		result.CreateIssues = importedConfig.CreateIssues
+	// Merge each safe output type (only set if nil in result).
+	// Types with custom merge semantics are handled below.
+	specialMergeFields := map[string]bool{
+		"CreatePullRequests":      true,
+		"PushToPullRequestBranch": true,
+		"MissingTool":             true,
+		"MissingData":             true,
+		"NoOp":                    true,
+		"ReportIncomplete":        true,
+		"ThreatDetection":         true,
 	}
-	if result.CreateDiscussions == nil && importedConfig.CreateDiscussions != nil {
-		result.CreateDiscussions = importedConfig.CreateDiscussions
+	for _, handler := range safeOutputHandlers {
+		if specialMergeFields[handler.StructField] {
+			continue
+		}
+		mergeSafeOutputFieldIfNil(result, importedConfig, handler.StructField)
 	}
-	if result.UpdateDiscussions == nil && importedConfig.UpdateDiscussions != nil {
-		result.UpdateDiscussions = importedConfig.UpdateDiscussions
-	}
-	if result.CloseDiscussions == nil && importedConfig.CloseDiscussions != nil {
-		result.CloseDiscussions = importedConfig.CloseDiscussions
-	}
-	if result.CloseIssues == nil && importedConfig.CloseIssues != nil {
-		result.CloseIssues = importedConfig.CloseIssues
-	}
-	if result.ClosePullRequests == nil && importedConfig.ClosePullRequests != nil {
-		result.ClosePullRequests = importedConfig.ClosePullRequests
-	}
-	if result.MarkPullRequestAsReadyForReview == nil && importedConfig.MarkPullRequestAsReadyForReview != nil {
-		result.MarkPullRequestAsReadyForReview = importedConfig.MarkPullRequestAsReadyForReview
-	}
-	if result.AddComments == nil && importedConfig.AddComments != nil {
-		result.AddComments = importedConfig.AddComments
-	}
+
 	if result.CreatePullRequests == nil && importedConfig.CreatePullRequests != nil {
 		result.CreatePullRequests = importedConfig.CreatePullRequests
 	} else if result.CreatePullRequests != nil && importedConfig.CreatePullRequests != nil {
@@ -469,51 +374,6 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 			importedConfig.CreatePullRequests.ProtectedFilesExclude...,
 		)
 	}
-	if result.CreatePullRequestReviewComments == nil && importedConfig.CreatePullRequestReviewComments != nil {
-		result.CreatePullRequestReviewComments = importedConfig.CreatePullRequestReviewComments
-	}
-	if result.SubmitPullRequestReview == nil && importedConfig.SubmitPullRequestReview != nil {
-		result.SubmitPullRequestReview = importedConfig.SubmitPullRequestReview
-	}
-	if result.ReplyToPullRequestReviewComment == nil && importedConfig.ReplyToPullRequestReviewComment != nil {
-		result.ReplyToPullRequestReviewComment = importedConfig.ReplyToPullRequestReviewComment
-	}
-	if result.ResolvePullRequestReviewThread == nil && importedConfig.ResolvePullRequestReviewThread != nil {
-		result.ResolvePullRequestReviewThread = importedConfig.ResolvePullRequestReviewThread
-	}
-	if result.CreateCodeScanningAlerts == nil && importedConfig.CreateCodeScanningAlerts != nil {
-		result.CreateCodeScanningAlerts = importedConfig.CreateCodeScanningAlerts
-	}
-	if result.AutofixCodeScanningAlert == nil && importedConfig.AutofixCodeScanningAlert != nil {
-		result.AutofixCodeScanningAlert = importedConfig.AutofixCodeScanningAlert
-	}
-	if result.AddLabels == nil && importedConfig.AddLabels != nil {
-		result.AddLabels = importedConfig.AddLabels
-	}
-	if result.RemoveLabels == nil && importedConfig.RemoveLabels != nil {
-		result.RemoveLabels = importedConfig.RemoveLabels
-	}
-	if result.AddReviewer == nil && importedConfig.AddReviewer != nil {
-		result.AddReviewer = importedConfig.AddReviewer
-	}
-	if result.AssignMilestone == nil && importedConfig.AssignMilestone != nil {
-		result.AssignMilestone = importedConfig.AssignMilestone
-	}
-	if result.AssignToAgent == nil && importedConfig.AssignToAgent != nil {
-		result.AssignToAgent = importedConfig.AssignToAgent
-	}
-	if result.AssignToUser == nil && importedConfig.AssignToUser != nil {
-		result.AssignToUser = importedConfig.AssignToUser
-	}
-	if result.UpdateIssues == nil && importedConfig.UpdateIssues != nil {
-		result.UpdateIssues = importedConfig.UpdateIssues
-	}
-	if result.UpdatePullRequests == nil && importedConfig.UpdatePullRequests != nil {
-		result.UpdatePullRequests = importedConfig.UpdatePullRequests
-	}
-	if result.MergePullRequest == nil && importedConfig.MergePullRequest != nil {
-		result.MergePullRequest = importedConfig.MergePullRequest
-	}
 	if result.PushToPullRequestBranch == nil && importedConfig.PushToPullRequestBranch != nil {
 		result.PushToPullRequestBranch = importedConfig.PushToPullRequestBranch
 	} else if result.PushToPullRequestBranch != nil && importedConfig.PushToPullRequestBranch != nil {
@@ -523,45 +383,6 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 			result.PushToPullRequestBranch.ProtectedFilesExclude,
 			importedConfig.PushToPullRequestBranch.ProtectedFilesExclude...,
 		)
-	}
-	if result.UploadAssets == nil && importedConfig.UploadAssets != nil {
-		result.UploadAssets = importedConfig.UploadAssets
-	}
-	if result.UploadArtifact == nil && importedConfig.UploadArtifact != nil {
-		result.UploadArtifact = importedConfig.UploadArtifact
-	}
-	if result.UpdateRelease == nil && importedConfig.UpdateRelease != nil {
-		result.UpdateRelease = importedConfig.UpdateRelease
-	}
-	if result.CreateAgentSessions == nil && importedConfig.CreateAgentSessions != nil {
-		result.CreateAgentSessions = importedConfig.CreateAgentSessions
-	}
-	if result.UpdateProjects == nil && importedConfig.UpdateProjects != nil {
-		result.UpdateProjects = importedConfig.UpdateProjects
-	}
-	if result.CreateProjects == nil && importedConfig.CreateProjects != nil {
-		result.CreateProjects = importedConfig.CreateProjects
-	}
-	if result.CreateProjectStatusUpdates == nil && importedConfig.CreateProjectStatusUpdates != nil {
-		result.CreateProjectStatusUpdates = importedConfig.CreateProjectStatusUpdates
-	}
-	if result.LinkSubIssue == nil && importedConfig.LinkSubIssue != nil {
-		result.LinkSubIssue = importedConfig.LinkSubIssue
-	}
-	if result.HideComment == nil && importedConfig.HideComment != nil {
-		result.HideComment = importedConfig.HideComment
-	}
-	if result.SetIssueType == nil && importedConfig.SetIssueType != nil {
-		result.SetIssueType = importedConfig.SetIssueType
-	}
-	if result.SetIssueField == nil && importedConfig.SetIssueField != nil {
-		result.SetIssueField = importedConfig.SetIssueField
-	}
-	if result.DispatchWorkflow == nil && importedConfig.DispatchWorkflow != nil {
-		result.DispatchWorkflow = importedConfig.DispatchWorkflow
-	}
-	if result.CallWorkflow == nil && importedConfig.CallWorkflow != nil {
-		result.CallWorkflow = importedConfig.CallWorkflow
 	}
 	// missing-tool, missing-data, noop, and report-incomplete are auto-defaulted by
 	// extractSafeOutputsConfig whenever any safe-outputs are present, even when the user

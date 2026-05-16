@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -14,79 +15,82 @@ import (
 // hasSafeOutputType new switch cases
 // ========================================
 
-// TestHasSafeOutputTypeNewKeys verifies that the 11 operation types added to hasSafeOutputType
-// are correctly detected. These were previously silently returning false, causing import
-// conflict detection to pass through conflicts for those types.
+// TestHasSafeOutputTypeNewKeys validates that all previously-supported hasSafeOutputType switch keys
+// are represented by the canonical safe output descriptor table.
 func TestHasSafeOutputTypeNewKeys(t *testing.T) {
-	tests := []struct {
-		name   string
-		key    string
-		config *SafeOutputsConfig
-	}{
-		{
-			name:   "update-discussion",
-			key:    "update-discussion",
-			config: &SafeOutputsConfig{UpdateDiscussions: &UpdateDiscussionsConfig{}},
-		},
-		{
-			name:   "mark-pull-request-as-ready-for-review",
-			key:    "mark-pull-request-as-ready-for-review",
-			config: &SafeOutputsConfig{MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{}},
-		},
-		{
-			name:   "autofix-code-scanning-alert",
-			key:    "autofix-code-scanning-alert",
-			config: &SafeOutputsConfig{AutofixCodeScanningAlert: &AutofixCodeScanningAlertConfig{}},
-		},
-		{
-			name:   "assign-to-user",
-			key:    "assign-to-user",
-			config: &SafeOutputsConfig{AssignToUser: &AssignToUserConfig{}},
-		},
-		{
-			name:   "unassign-from-user",
-			key:    "unassign-from-user",
-			config: &SafeOutputsConfig{UnassignFromUser: &UnassignFromUserConfig{}},
-		},
-		{
-			name:   "create-project",
-			key:    "create-project",
-			config: &SafeOutputsConfig{CreateProjects: &CreateProjectsConfig{}},
-		},
-		{
-			name:   "create-project-status-update",
-			key:    "create-project-status-update",
-			config: &SafeOutputsConfig{CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{}},
-		},
-		{
-			name:   "link-sub-issue",
-			key:    "link-sub-issue",
-			config: &SafeOutputsConfig{LinkSubIssue: &LinkSubIssueConfig{}},
-		},
-		{
-			name:   "hide-comment",
-			key:    "hide-comment",
-			config: &SafeOutputsConfig{HideComment: &HideCommentConfig{}},
-		},
-		{
-			name:   "dispatch-workflow",
-			key:    "dispatch-workflow",
-			config: &SafeOutputsConfig{DispatchWorkflow: &DispatchWorkflowConfig{}},
-		},
-		{
-			name:   "missing-data",
-			key:    "missing-data",
-			config: &SafeOutputsConfig{MissingData: &MissingDataConfig{}},
-		},
+	legacySwitchKeys := []string{
+		"create-issue",
+		"create-discussion",
+		"close-discussion",
+		"close-issue",
+		"close-pull-request",
+		"add-comment",
+		"create-pull-request",
+		"create-pull-request-review-comment",
+		"submit-pull-request-review",
+		"reply-to-pull-request-review-comment",
+		"resolve-pull-request-review-thread",
+		"create-code-scanning-alert",
+		"add-labels",
+		"remove-labels",
+		"add-reviewer",
+		"assign-milestone",
+		"assign-to-agent",
+		"update-issue",
+		"update-pull-request",
+		"merge-pull-request",
+		"push-to-pull-request-branch",
+		"upload-asset",
+		"upload-artifact",
+		"update-release",
+		"create-agent-session",
+		"create-agent-task",
+		"update-project",
+		"update-discussion",
+		"mark-pull-request-as-ready-for-review",
+		"autofix-code-scanning-alert",
+		"assign-to-user",
+		"unassign-from-user",
+		"create-project",
+		"create-project-status-update",
+		"link-sub-issue",
+		"hide-comment",
+		"set-issue-type",
+		"set-issue-field",
+		"dispatch-workflow",
+		"call-workflow",
+		"missing-data",
+		"missing-tool",
+		"noop",
+		"report-incomplete",
+		"threat-detection",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Should return true when the field is set
-			assert.True(t, hasSafeOutputType(tt.config, tt.key), "hasSafeOutputType should return true for key %q when field is set", tt.key)
+	for _, key := range legacySwitchKeys {
+		t.Run(key, func(t *testing.T) {
+			handler, ok := getSafeOutputHandlerByKey(key)
+			require.True(t, ok, "descriptor table must include hasSafeOutputType key %q", key)
 
-			// Should return false when the field is nil (empty config)
-			assert.False(t, hasSafeOutputType(&SafeOutputsConfig{}, tt.key), "hasSafeOutputType should return false for key %q when field is nil", tt.key)
+			cfg := &SafeOutputsConfig{}
+			field := reflect.ValueOf(cfg).Elem().FieldByName(handler.StructField)
+			require.True(t, field.IsValid(), "descriptor references unknown field %q", handler.StructField)
+			require.Equal(t, reflect.Ptr, field.Kind(), "descriptor field %q must be a pointer", handler.StructField)
+			var configValue any
+			if handler.NewConfig != nil {
+				configValue = handler.NewConfig()
+				constructorType := reflect.ValueOf(configValue).Type()
+				require.True(t, constructorType.AssignableTo(field.Type()),
+					"descriptor constructor for key %q returns %v, expected assignable to %v", key, constructorType, field.Type())
+			} else {
+				configValue = reflect.New(field.Type().Elem()).Interface()
+			}
+			require.True(t, setSafeOutputField(cfg, handler.StructField, configValue),
+				"failed to set field %q for key %q from descriptor constructor", handler.StructField, key)
+			assert.Equal(t, configValue, field.Interface(),
+				"field %q should hold the descriptor constructor value for key %q", handler.StructField, key)
+
+			assert.True(t, hasSafeOutputType(cfg, key), "hasSafeOutputType should return true for key %q when field is set", key)
+			assert.False(t, hasSafeOutputType(&SafeOutputsConfig{}, key), "hasSafeOutputType should return false for key %q when field is nil", key)
 		})
 	}
 }

@@ -564,6 +564,36 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 	}
 }
 
+func TestMergeSafeOutputsDescriptorMergedFieldsUnit(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	t.Run("imports unassign-from-user", func(t *testing.T) {
+		result, err := compiler.MergeSafeOutputs(nil, []string{
+			`{"unassign-from-user":{"max":1}}`,
+		}, nil)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.NotNil(t, result.UnassignFromUser)
+		assert.Equal(t, strPtr("1"), result.UnassignFromUser.Max)
+	})
+
+	t.Run("imports dispatch_repository", func(t *testing.T) {
+		result, err := compiler.MergeSafeOutputs(nil, []string{
+			`{"dispatch_repository":{"trigger_ci":{"workflow":"ci.yml","event_type":"ci_trigger","repository":"org/target-repo","max":1}}}`,
+		}, nil)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.NotNil(t, result.DispatchRepository)
+		require.Len(t, result.DispatchRepository.Tools, 1)
+		tool := result.DispatchRepository.Tools["trigger_ci"]
+		require.NotNil(t, tool)
+		assert.Equal(t, "ci.yml", tool.Workflow)
+		assert.Equal(t, "ci_trigger", tool.EventType)
+		assert.Equal(t, "org/target-repo", tool.Repository)
+		assert.Equal(t, strPtr("1"), tool.Max)
+	})
+}
+
 // TestMergeSafeOutputsMessagesUnit tests the MergeSafeOutputs function for messages field
 func TestMergeSafeOutputsMessagesUnit(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))

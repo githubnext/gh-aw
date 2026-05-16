@@ -341,7 +341,7 @@ See [Engines Reference](/gh-aw/reference/engines/).
 
 A frontmatter section that enables A/B testing of workflow prompt variants across successive runs. Each key in the `experiments:` map names an experiment; the value is either a bare array of variant strings or a rich object with additional fields (`variants`, `description`, `hypothesis`, `metric`, `weight`, `min_samples`, `start_date`, `end_date`). At runtime the activation job selects one variant per experiment using a balanced round-robin counter and exposes the selection as `${{ experiments.<name> }}` for use anywhere in the workflow body.
 
-Experiment state is persisted to dedicated `experiments/<name>` git branches in the workflow repository. Use `gh aw experiments list` and `gh aw experiments analyze` to inspect variant distribution and statistical readiness (chi-square balance test, Bonferroni correction, EXTEND / READY_FOR_ANALYSIS recommendation). See [A/B Experiments](/gh-aw/guides/experiments/) and the [Experiments Specification](/gh-aw/reference/experiments-specification/).
+Experiment state is persisted to dedicated `experiments/<name>` git branches in the workflow repository. Use `gh aw experiments list` and `gh aw experiments analyze` to inspect variant distribution and statistical readiness (chi-square balance test, Bonferroni correction, EXTEND / READY_FOR_ANALYSIS recommendation). See [A/B Experiments](/gh-aw/practices/experiments/) and the [Experiments Specification](/gh-aw/practices/experiments-specification/).
 
 ```aw wrap
 experiments:
