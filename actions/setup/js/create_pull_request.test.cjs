@@ -1381,6 +1381,11 @@ ${diffs}
     return p;
   }
 
+  function extractCompareUrlFromIssueBody(issueBody) {
+    const match = String(issueBody).match(/https:\/\/[^)\s]+\/compare\/[^)\s]+/);
+    return match ? match[0] : null;
+  }
+
   it("should reject files outside the allowed-files allowlist", async () => {
     const patchPath = writePatch(createPatchWithFiles("src/index.js"));
 
@@ -1454,7 +1459,7 @@ ${diffs}
     expect(result.error).toContain("protected files");
   });
 
-  it("should create protected-files fallback issue body before the issue number is known", async () => {
+  it("should create fallback issue body without Closes keyword when issue number is not yet known", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
@@ -1483,7 +1488,7 @@ ${diffs}
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
     expect(createCall.body).toContain("/compare/main...");
     expect(createCall.body).not.toContain("&body=Closes");
-    const createCompareUrl = createCall.body.match(/\((https:\/\/github\.com\/[^)\s]+\/compare\/[^)\s]+)\)/)?.[1];
+    const createCompareUrl = extractCompareUrlFromIssueBody(createCall.body);
     expect(createCompareUrl).toBeTruthy();
     expect(new URL(createCompareUrl).searchParams.get("body")).toBeNull();
   });
@@ -1516,7 +1521,7 @@ ${diffs}
     const updateCall = global.github.rest.issues.update.mock.calls[0][0];
     expect(updateCall.body).toContain("/compare/main...");
     expect(updateCall.body).toContain("&body=Closes%20%2377");
-    const compareUrl = updateCall.body.match(/\((https:\/\/github\.com\/[^)\s]+\/compare\/[^)\s]+)\)/)?.[1];
+    const compareUrl = extractCompareUrlFromIssueBody(updateCall.body);
     expect(compareUrl).toBeTruthy();
     expect(new URL(compareUrl).searchParams.get("body")).toBe("Closes #77");
   });

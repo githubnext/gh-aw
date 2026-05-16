@@ -416,15 +416,15 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
  * @param {string} baseBranch
  * @param {string} branchName
  * @param {string} title
- * @param {number} [closingIssueNumber]
+ * @param {number} [fallbackIssueNumber]
  * @returns {string}
  */
-function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, closingIssueNumber) {
+function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, fallbackIssueNumber) {
   const encodedBase = encodePathSegments(baseBranch);
   const encodedHead = encodePathSegments(branchName);
   let createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
-  if (typeof closingIssueNumber === "number") {
-    createPrUrl += `&body=${encodeURIComponent(`Closes #${closingIssueNumber}`)}`;
+  if (typeof fallbackIssueNumber === "number") {
+    createPrUrl += `&body=${encodeURIComponent(`Closes #${fallbackIssueNumber}`)}`;
   }
   return createPrUrl;
 }
