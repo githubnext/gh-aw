@@ -252,10 +252,10 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		agentOutputArtifactFilename := "${RUNNER_TEMP}/gh-aw/safe-jobs/" + constants.AgentOutputFilename
 
 		// Separate job-specific env vars into expression-based (contain ${{) and literal values.
-		// Expression-based values must not be inlined directly into run: shell scripts because
-		// the compiler regression guardrail rejects ${{ ... }} in run: blocks.
-		// Instead, add them to the step's env: block so GitHub Actions evaluates the expression
-		// before the shell runs, and then reference them via shell variable syntax.
+		// Expression-based values (e.g. ${{ github.token }}) must never be written to
+		// $GITHUB_OUTPUT — that would expose secrets in the output file. Instead, inject
+		// the original expression directly into the env: block of each downstream step.
+		// Literal values continue to flow through $GITHUB_OUTPUT as before.
 		var expressionEnvKeys []string
 		var literalEnvKeys []string
 		if jobConfig.Env != nil {
@@ -270,31 +270,18 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			sort.Strings(literalEnvKeys)
 		}
 
-		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
+		// Add environment variables step with GH_AW_AGENT_OUTPUT and literal job-specific env vars
 		steps = append(steps, "      - name: Configure Safe Outputs Job Environment Variables\n")
 		steps = append(steps, "        id: setup-safe-job-env\n")
-
-		// Add env: block for expression-based values so ${{ }} is never inlined in run:
-		if len(expressionEnvKeys) > 0 {
-			steps = append(steps, "        env:\n")
-			for _, key := range expressionEnvKeys {
-				steps = append(steps, fmt.Sprintf("          %s: %s\n", key, jobConfig.Env[key]))
-			}
-		}
-
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, "          find \"${RUNNER_TEMP}/gh-aw/safe-jobs/\" -type f -print\n")
 		// Configure GH_AW_AGENT_OUTPUT to point to downloaded artifact file
 		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> \"$GITHUB_OUTPUT\"\n", agentOutputArtifactFilename))
 
-		// Add literal env vars directly in the run script
+		// Write only literal env vars to $GITHUB_OUTPUT; expression-based values are
+		// injected directly into downstream step env: blocks and never stored as outputs.
 		for _, key := range literalEnvKeys {
 			steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_OUTPUT\"\n", key, jobConfig.Env[key]))
-		}
-
-		// Add expression env vars using shell variable reference (expression evaluated in env: block above)
-		for _, key := range expressionEnvKeys {
-			steps = append(steps, fmt.Sprintf("          echo \"%s=${%s}\" >> \"$GITHUB_OUTPUT\"\n", key, key))
 		}
 
 		// Add custom steps from the job configuration, injecting env vars from the
@@ -304,10 +291,14 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			setupEnvVars := map[string]string{
 				"GH_AW_AGENT_OUTPUT": "${{ steps.setup-safe-job-env.outputs.GH_AW_AGENT_OUTPUT }}",
 			}
-			if jobConfig.Env != nil {
-				for key := range jobConfig.Env {
-					setupEnvVars[key] = fmt.Sprintf("${{ steps.setup-safe-job-env.outputs.%s }}", key)
-				}
+			// Literal vars are available via step outputs.
+			for _, key := range literalEnvKeys {
+				setupEnvVars[key] = fmt.Sprintf("${{ steps.setup-safe-job-env.outputs.%s }}", key)
+			}
+			// Expression-based vars are injected with their original expression so that secrets
+			// are never stored in $GITHUB_OUTPUT or step outputs.
+			for _, key := range expressionEnvKeys {
+				setupEnvVars[key] = jobConfig.Env[key]
 			}
 			for _, step := range jobConfig.Steps {
 				if stepMap, ok := step.(map[string]any); ok {

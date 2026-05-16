@@ -597,8 +597,8 @@ func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 }
 
 // TestBuildSafeJobsEnvExpressionHoisting verifies that env vars containing GitHub Actions
-// expressions (${{ ... }}) are placed in the step's env: block instead of being inlined
-// directly in the run: script. This prevents compiler regression guardrail failures.
+// expressions (${{ ... }}) are never written to $GITHUB_OUTPUT (to avoid leaking secrets),
+// and are instead injected directly into each downstream step's env: block.
 func TestBuildSafeJobsEnvExpressionHoisting(t *testing.T) {
 	c := NewCompiler()
 
@@ -641,29 +641,29 @@ func TestBuildSafeJobsEnvExpressionHoisting(t *testing.T) {
 
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Expression values must NOT be inlined in the run: script
-	if strings.Contains(stepsContent, `echo "GH_TOKEN=${{ github.token }}"`) {
-		t.Error("Expression ${{ github.token }} must not be inlined in run: script (compiler regression guardrail violation)")
+	// Expression values must never be written to $GITHUB_OUTPUT — that would leak secrets.
+	if strings.Contains(stepsContent, `echo "GH_TOKEN=`) {
+		t.Error("Expression-based env var GH_TOKEN must never be written to $GITHUB_OUTPUT (secret leak)")
 	}
 
-	// Expression values must be placed in the env: block of the setup step
+	// Expression values must NOT appear in the setup step run: script at all.
+	if strings.Contains(stepsContent, `github.token`) && strings.Contains(stepsContent, `GITHUB_OUTPUT`) {
+		// More targeted: github.token must not appear on the same line as GITHUB_OUTPUT
+		for _, line := range strings.Split(stepsContent, "\n") {
+			if strings.Contains(line, "github.token") && strings.Contains(line, "GITHUB_OUTPUT") {
+				t.Errorf("github.token must not appear in a line that writes to GITHUB_OUTPUT: %s", line)
+			}
+		}
+	}
+
+	// Expression-based values must be injected directly into downstream step env: blocks.
 	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ github.token }}") {
-		t.Error("Expected GH_TOKEN expression to be placed in step env: block")
+		t.Error("Expected GH_TOKEN expression to be injected directly into a downstream step env: block")
 	}
 
-	// Shell variable reference must be used in the run: script instead
-	if !strings.Contains(stepsContent, `echo "GH_TOKEN=${GH_TOKEN}"`) {
-		t.Error("Expected shell variable reference ${GH_TOKEN} in run: script")
-	}
-
-	// Literal values can still be written directly in the run: script
+	// Literal values continue to flow through $GITHUB_OUTPUT as before.
 	if !strings.Contains(stepsContent, `echo "STATIC_VAR=literal-value"`) {
-		t.Error("Expected literal env var to be written directly in run: script")
-	}
-
-	// Literal values must NOT be placed in the env: block
-	if strings.Contains(stepsContent, "STATIC_VAR: literal-value") {
-		t.Error("Literal values should not be placed in the env: block, only expressions")
+		t.Error("Expected literal env var to be written to $GITHUB_OUTPUT in run: script")
 	}
 }
 
