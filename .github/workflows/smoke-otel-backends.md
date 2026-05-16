@@ -179,6 +179,9 @@ Compute the overall result:
 
 Create exactly one GitHub issue with:
 
+- Draft the body locally first if needed, but emit only one final `create_issue` safe output after the full report is complete.
+- Never create a placeholder, empty, `-`, or partial issue body.
+- Do not retry `create_issue`: this workflow allows only one issue, so a premature call leaves the final report empty.
 - Title: `Smoke Test: OTEL Backends - ${{ github.run_id }}`
 - A short executive summary with overall `PASS`, `INCONCLUSIVE`, or `FAIL`
 - A markdown table with one row for `Local OTLP`, one row for `Sentry`, and one row for `Grafana`, using these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
