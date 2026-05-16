@@ -255,13 +255,11 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			// GH_AW_AGENT_OUTPUT uses the runner.temp Actions expression so the path is
 			// resolved by the runner without requiring a $GITHUB_OUTPUT write.
 			setupEnvVars := map[string]string{
-				"GH_AW_AGENT_OUTPUT": fmt.Sprintf("${{ runner.temp }}/gh-aw/safe-jobs/%s", constants.AgentOutputFilename),
+				"GH_AW_AGENT_OUTPUT": "${{ runner.temp }}/gh-aw/safe-jobs/" + constants.AgentOutputFilename,
 			}
 			// All job-specific env vars (literal or expression-based) are injected with
 			// their original values. Nothing goes through $GITHUB_OUTPUT.
-			for key, value := range jobConfig.Env {
-				setupEnvVars[key] = value
-			}
+			maps.Copy(setupEnvVars, jobConfig.Env)
 			for _, step := range jobConfig.Steps {
 				if stepMap, ok := step.(map[string]any); ok {
 					// Convert to typed step for action pinning
