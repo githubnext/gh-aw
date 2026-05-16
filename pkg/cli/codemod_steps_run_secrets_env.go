@@ -18,15 +18,24 @@ var (
 	stepsSecretRefExprRe  = regexp.MustCompile(`\bsecrets\.([A-Za-z_][A-Za-z0-9_]*)\b`)
 	stepsEnvRefExprRe     = regexp.MustCompile(`\benv\.([A-Za-z_][A-Za-z0-9_]*)\b`)
 	stepsGitHubTokenRe    = regexp.MustCompile(`\bgithub\.token\b`)
+	// stepsSimpleExprRe matches simple JavaScript property-access chains such as
+	// "github.repository", "inputs.my-input", "steps.my-step.outputs.result".
+	// Only word characters and hyphens separated by dots are allowed; anything
+	// containing spaces, operators, or other punctuation falls through to a
+	// hash-based name.
+	stepsSimpleExprRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$`)
 )
 
-// getStepsRunSecretsToEnvCodemod creates a codemod that moves secrets interpolated directly
-// in run fields to step-level env bindings in steps-like sections.
+// getStepsRunSecretsToEnvCodemod creates a codemod that moves all ${{ ... }}
+// expressions interpolated directly in run fields to step-level env bindings.
+// Secrets, env refs, and github.token are given stable legacy names; all other
+// expressions receive an EXPR_* name. PowerShell steps (shell: pwsh / powershell)
+// receive $env:VARNAME references instead of $VARNAME.
 func getStepsRunSecretsToEnvCodemod() Codemod {
 	return Codemod{
 		ID:           "steps-run-secrets-to-env",
-		Name:         "Move step run secrets to env bindings",
-		Description:  "Rewrites secrets interpolated directly in run commands to $VARS and adds step-level env bindings for strict-mode compatibility.",
+		Name:         "Move step run expressions to env bindings",
+		Description:  "Rewrites all ${{ ... }} expressions interpolated directly in run commands to $VARS (or $env:VARS for PowerShell steps) and adds step-level env bindings for strict-mode compatibility.",
 		IntroducedIn: "0.26.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			sections := []string{"pre-steps", "steps", "post-steps", "pre-agent-steps"}
@@ -153,6 +162,21 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 	var envKeyIndentLen int
 	existingEnvKeys := make(map[string]bool)
 
+	// First pass: detect shell type so PowerShell steps get $env:VARNAME syntax.
+	shellIsPowerShell := false
+	for _, line := range stepLines {
+		trimmed := strings.TrimSpace(line)
+		indent := getIndentation(line)
+		shellMatch, shellValue, _ := parseStepKeyLine(trimmed, indent, stepIndent, "shell")
+		if shellMatch {
+			v := strings.ToLower(strings.TrimSpace(shellValue))
+			if v == "pwsh" || v == "powershell" {
+				shellIsPowerShell = true
+			}
+			break
+		}
+	}
+
 	for i := 0; i < len(stepLines); i++ {
 		line := stepLines[i]
 		trimmed := strings.TrimSpace(line)
@@ -198,7 +222,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
 					break
 				}
-				updatedLine, bindings := replaceStepExpressionRefs(stepLines[j])
+				updatedLine, bindings := replaceStepExpressionRefs(stepLines[j], shellIsPowerShell)
 				if len(bindings) > 0 {
 					stepLines[j] = updatedLine
 					modified = true
@@ -214,7 +238,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 			continue
 		}
 
-		newLine, bindings := replaceStepExpressionRefs(line)
+		newLine, bindings := replaceStepExpressionRefs(line, shellIsPowerShell)
 		if len(bindings) > 0 {
 			stepLines[i] = newLine
 			modified = true
@@ -275,7 +299,7 @@ type stepExpressionBinding struct {
 	Expression string
 }
 
-func replaceStepExpressionRefs(line string) (string, []stepExpressionBinding) {
+func replaceStepExpressionRefs(line string, shellIsPowerShell bool) (string, []stepExpressionBinding) {
 	matches := stepsAnyExprRe.FindAllStringSubmatchIndex(line, -1)
 	if len(matches) == 0 {
 		return line, nil
@@ -304,7 +328,11 @@ func replaceStepExpressionRefs(line string) (string, []stepExpressionBinding) {
 			continue
 		}
 
-		result.WriteString("$" + envName)
+		if shellIsPowerShell {
+			result.WriteString("$env:" + envName)
+		} else {
+			result.WriteString("$" + envName)
+		}
 		if !seen[envName] {
 			seen[envName] = true
 			ordered = append(ordered, stepExpressionBinding{
@@ -346,7 +374,15 @@ func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
 		return hashedBindingName("GH_AW_GITHUB_TOKEN", body), fmt.Sprintf("${{ %s }}", body), true
 	}
 
-	return "", "", false
+	// Catch-all: hoist any remaining expression using EXPR_ naming.
+	if stepsSimpleExprRe.MatchString(body) {
+		replacer := strings.NewReplacer(".", "_", "-", "_")
+		name := "EXPR_" + strings.ToUpper(replacer.Replace(body))
+		return name, fmt.Sprintf("${{ %s }}", body), true
+	}
+	// Complex expression: use a hash suffix for collision safety.
+	name := hashedBindingName("EXPR", body)
+	return name, fmt.Sprintf("${{ %s }}", body), true
 }
 
 // hashedBindingName returns a collision-resistant binding key by suffixing
