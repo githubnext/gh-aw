@@ -336,6 +336,8 @@ SAFE_OUTPUTS_FILES=(
   "gateway_difc_filtered.cjs"
   "missing_info_formatter.cjs"
   "sanitize_content_core.cjs"
+  "sanitize_title.cjs"
+  "issue_title_dedup.cjs"
   "markdown_code_region_balancer.cjs"
   "temporary_id.cjs"
 )
