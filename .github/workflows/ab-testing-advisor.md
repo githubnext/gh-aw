@@ -152,7 +152,16 @@ Read the selected workflow file in full. Study:
 
 ### Step 3 — Devise an Experiment Campaign
 
-Based on your analysis, identify **one high-impact dimension** to experiment on. Choose from:
+Since the selected workflow has no experiment history, pick the dimension to test **at random** to avoid always gravitating to the most salient choice. Run:
+
+```bash
+printf '%s\n' engine_variant max_turns tool_verbosity model_size sub_agent_strategy caveman_mode \
+  prompt_style reasoning_depth output_format \
+  timeout_setting prefetch_strategy \
+  tone_variant detail_level emoji_density | shuf -n 1
+```
+
+Use the randomly selected dimension as your starting point. If after reading the workflow you judge it clearly inapplicable (e.g., `caveman_mode` on a workflow that already has a minimal one-line prompt), re-run `shuf -n 1` to get the next candidate. Otherwise proceed with the randomly selected dimension.
 
 #### Dimension Categories
 
