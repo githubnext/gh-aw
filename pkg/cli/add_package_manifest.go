@@ -33,6 +33,7 @@ const repositoryPackageManifestVersion = "1"
 type resolvedRepositoryPackage struct {
 	ManifestPath       string
 	Name               string
+	Emoji              string
 	Description        string
 	DocsPath           string
 	InstallationSource []string
@@ -99,6 +100,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
 		Name:               manifest.Name,
+		Emoji:              manifest.Emoji,
 		Description:        manifest.Description,
 		DocsPath:           docsPath,
 		InstallationSource: installationSources,
@@ -128,6 +130,7 @@ type repositoryPackageManifest struct {
 	ManifestVersion string
 	MinVersion      string
 	Name            string
+	Emoji           string
 	Description     string
 	Files           []string
 }
@@ -184,6 +187,10 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		if len(description) > 255 {
 			warnings = append(warnings, fmt.Sprintf("Manifest %s description exceeds the 255-character marketplace display limit", manifestPath))
 		}
+	}
+
+	if emoji, ok := stringValue(root["emoji"]); ok {
+		manifest.Emoji = emoji
 	}
 
 	if filesValue, ok := root["files"]; ok {
