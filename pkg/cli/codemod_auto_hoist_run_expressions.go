@@ -10,12 +10,12 @@ import (
 
 var autoHoistRunExpressionsLog = logger.New("cli:codemod_auto_hoist_run_expressions")
 
-// autoHoistSimpleExprBodyRe matches simple JavaScript property-access chains such as
+// autoHoistSimpleExprRe matches simple JavaScript property-access chains such as
 // "github.token", "env.FOO", "inputs.my-input", "steps.my-step.outputs.result".
 // Only word characters and hyphens separated by dots are allowed; any expression
 // containing spaces, operators, or other punctuation falls through to the hash-based
 // name generator.
-var autoHoistSimpleExprBodyRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$`)
+var autoHoistSimpleExprRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$`)
 
 // getAutoHoistRunExpressionsCodemod creates a codemod that hoists ALL ${{ ... }}
 // expressions from run: blocks into step-level env bindings.
@@ -362,7 +362,7 @@ func replaceAutoHoistExpressionRefs(line string, shellIsPowerShell bool) (string
 //
 //	secrets.TOKEN || '' → EXPR_<8-char-fnv32-hex>
 func mapAutoHoistExpressionToEnvBinding(body string) (string, string, bool) {
-	if autoHoistSimpleExprBodyRe.MatchString(body) {
+	if autoHoistSimpleExprRe.MatchString(body) {
 		replacer := strings.NewReplacer(".", "_", "-", "_")
 		name := "EXPR_" + strings.ToUpper(replacer.Replace(body))
 		return name, fmt.Sprintf("${{ %s }}", body), true
