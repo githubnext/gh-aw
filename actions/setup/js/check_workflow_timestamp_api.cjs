@@ -249,40 +249,19 @@ async function main() {
   async function compareFrontmatterHashes() {
     try {
       // Fetch lock file content to extract stored hash.
-      // Call the API directly (instead of via getFileContent) so we can capture the HTTP status
-      // code for cross-repo auth failure detection: the caller's GITHUB_TOKEN is repo-scoped and
-      // cannot read from a private callee repo, returning 404/401/403.
-      let lockFileContent = null;
+      // errorStatus is populated when the API call fails so we can detect cross-repo auth
+      // failures: the caller's GITHUB_TOKEN is repo-scoped and cannot read from a private
+      // callee repo, returning 404/401/403.
+      const { content: lockFileContent, errorStatus } = await getFileContent(github, owner, repo, lockFilePath, ref);
+
+      // When the callee is a private repo, the caller's GITHUB_TOKEN (which is scoped to the
+      // caller repo) will receive a 404/401/403 from the callee's Contents API.  Record this so
+      // that the final error message can give actionable remediation guidance instead of
+      // directing the user to re-run `gh aw compile`.
       let crossRepoAuthFailure = null;
-      try {
-        const response = await github.rest.repos.getContent({
-          owner,
-          repo,
-          path: lockFilePath,
-          ref,
-        });
-        if (Array.isArray(response.data)) {
-          core.info(`Path ${lockFilePath} is a directory, not a file`);
-        } else if (response.data && response.data.type === "file") {
-          if (response.data.encoding === "base64" && response.data.content) {
-            lockFileContent = Buffer.from(response.data.content, "base64").toString("utf8");
-          } else {
-            lockFileContent = response.data.content || null;
-          }
-        } else if (response.data && response.data.type) {
-          core.info(`Path ${lockFilePath} is not a file (type: ${response.data.type})`);
-        }
-      } catch (fetchErr) {
-        const status = fetchErr.status;
-        core.info(`Could not fetch content for ${lockFilePath}: ${getErrorMessage(fetchErr)}`);
-        // When the callee is a private repo, the caller's GITHUB_TOKEN (which is scoped to the
-        // caller repo) will receive a 404/401/403 from the callee's Contents API.  Record this so
-        // that the final error message can give actionable remediation guidance instead of
-        // directing the user to re-run `gh aw compile`.
-        if (workflowRepo !== currentRepo && (status === 401 || status === 403 || status === 404)) {
-          crossRepoAuthFailure = { status, repo: workflowRepo };
-          core.info(`Cross-repo API access failed (HTTP ${status}): GITHUB_TOKEN is scoped to the caller repo and cannot read from '${workflowRepo}'. Configure GH_AW_GITHUB_TOKEN with read access to '${workflowRepo}' to resolve this.`);
-        }
+      if (!lockFileContent && workflowRepo !== currentRepo && (errorStatus === 401 || errorStatus === 403 || errorStatus === 404)) {
+        crossRepoAuthFailure = { status: errorStatus, repo: workflowRepo };
+        core.info(`Cross-repo API access failed (HTTP ${errorStatus}): GITHUB_TOKEN is scoped to the caller repo and cannot read from '${workflowRepo}'. Configure GH_AW_GITHUB_TOKEN with read access to '${workflowRepo}' to resolve this.`);
       }
 
       if (!lockFileContent) {
@@ -334,7 +313,7 @@ async function main() {
       // Try API first (same strategy as compareFrontmatterHashes)
       let fileReader;
       try {
-        const testContent = await getFileContent(github, owner, repo, workflowMdPath, ref);
+        const { content: testContent } = await getFileContent(github, owner, repo, workflowMdPath, ref);
         if (testContent) {
           fileReader = createGitHubFileReader(github, owner, repo, ref);
           core.info("  Using GitHub API file reader for debug pass");
