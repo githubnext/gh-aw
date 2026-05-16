@@ -35,6 +35,7 @@ const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
+const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -417,93 +418,14 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
 const MAX_FILES = 100;
 
 /**
- * Parses a single `diff --git` header line and returns the post-image (`b/`)
- * path, the pre-image (`a/`) path, or `null` if the header could not be
- * parsed. Handles both unquoted paths and C-style quoted paths emitted by
- * git when filenames contain unusual characters (e.g. backslash-escaped
- * quotes, control characters, or non-ASCII bytes when `core.quotepath=true`).
+ * Parses one `diff --git` header line and returns the preferred file path key.
  *
- * Examples of supported forms:
- *   diff --git a/foo.txt b/foo.txt
- *   diff --git a/dir/with space/x b/dir/with space/x
- *   diff --git "a/foo\"bar" "b/foo\"bar"
- *   diff --git "a/foo\\bar" "b/foo\\bar"
- *
- * @param {string} headerLine - The full header line (must start with `diff --git `)
- * @returns {string|null} The extracted file path, or null if parsing failed.
+ * @param {string} headerLine
+ * @returns {string|null}
  */
 function parseDiffGitHeader(headerLine) {
-  // Strip the `diff --git ` prefix.
-  const rest = headerLine.replace(/^diff --git /, "");
-  if (rest === headerLine) {
-    return null;
-  }
-
-  // Walk the string and pull out the two pathspecs. Each is either:
-  //   - A quoted C-style string ("..."), where backslash escapes any character
-  //     including embedded quotes and backslashes.
-  //   - An unquoted run of non-space characters.
-  // We don't actually need to unescape the contents; the raw token is fine
-  // for use as a Set key (uniqueness is preserved). All we need is to
-  // correctly delimit the two path tokens.
-  /** @type {string[]} */
-  const tokens = [];
-  let i = 0;
-  while (i < rest.length && tokens.length < 2) {
-    // Skip leading whitespace between tokens.
-    while (i < rest.length && rest[i] === " ") {
-      i++;
-    }
-    if (i >= rest.length) {
-      break;
-    }
-    let token = "";
-    if (rest[i] === '"') {
-      // Quoted form: consume until the matching unescaped quote.
-      token += rest[i++];
-      while (i < rest.length) {
-        const ch = rest[i++];
-        token += ch;
-        if (ch === "\\" && i < rest.length) {
-          // Escaped char: consume the next character verbatim.
-          token += rest[i++];
-        } else if (ch === '"') {
-          break;
-        }
-      }
-    } else {
-      // Unquoted form: consume up to the next space.
-      while (i < rest.length && rest[i] !== " ") {
-        token += rest[i++];
-      }
-    }
-    tokens.push(token);
-  }
-
-  if (tokens.length < 2) {
-    return null;
-  }
-
-  // Prefer the "b/" (post-image) token, falling back to "a/" if needed.
-  // The leading "a/" or "b/" prefix is preserved in the returned key so
-  // that quoted vs. unquoted forms of the same path don't collide
-  // accidentally with unrelated files; uniqueness is the only invariant
-  // that matters here.
-  const stripPrefix = tok => {
-    if (tok.startsWith('"a/') || tok.startsWith('"b/')) {
-      return tok.slice(3, tok.endsWith('"') ? -1 : undefined);
-    }
-    if (tok.startsWith("a/") || tok.startsWith("b/")) {
-      return tok.slice(2);
-    }
-    return tok;
-  };
-  const bPath = stripPrefix(tokens[1]);
-  if (bPath) {
-    return bPath;
-  }
-  const aPath = stripPrefix(tokens[0]);
-  return aPath || null;
+  const parsed = parseDiffGitHeaderPaths(headerLine);
+  return parsed.newPath || parsed.oldPath || null;
 }
 
 /**
@@ -527,22 +449,14 @@ function countUniquePatchFiles(patchContent) {
     return 0;
   }
   const files = new Set();
-  // Find all `diff --git` headers (start of line). Each header corresponds
-  // to one file diff; we try to extract its path and fall back to a unique
-  // synthetic key per unparseable header so the file is still counted in
-  // the limit. This is a conservative choice: it never undercounts, so a
-  // single malformed header cannot bypass the safety limit.
-  const headerRe = /^diff --git .*$/gm;
-  let match;
+  const entries = extractDiffGitHeaderEntries(patchContent);
   let unparseableIdx = 0;
-  while ((match = headerRe.exec(patchContent)) !== null) {
-    const path = parseDiffGitHeader(match[0]);
+  for (const entry of entries) {
+    const path = entry.newPath || entry.oldPath;
     if (path) {
       files.add(path);
     } else {
-      // Use the byte offset of the header to ensure uniqueness across
-      // multiple unparseable headers, so each is counted exactly once.
-      files.add(`__unparseable_header_${match.index}_${unparseableIdx++}`);
+      files.add(`__unparseable_header_${entry.headerIndex}_${unparseableIdx++}`);
     }
   }
   return files.size;
