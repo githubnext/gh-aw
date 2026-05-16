@@ -607,7 +607,19 @@ async function main(config = {}) {
   const createdTitlesByRepo = new Map();
   /** @type {Map<string, Promise<Array<{title: string}>>>} */
   const repoTitleDedupCandidatesCache = new Map();
-  let hasSkippedRepoLevelSearch = false;
+  let skipRepoLevelSearch = false;
+
+  /**
+   * @param {string} repo
+   * @param {string} seenTitle
+   * @param {string} seenNormalizedTitle
+   * @returns {void}
+   */
+  function recordSeenTitle(repo, seenTitle, seenNormalizedTitle) {
+    const titles = createdTitlesByRepo.get(repo) || [];
+    titles.push({ title: seenTitle, normalizedTitle: seenNormalizedTitle });
+    createdTitlesByRepo.set(repo, titles);
+  }
 
   // Map to track temporary_id -> {repo, number} relationships across messages
   const temporaryIdMap = new Map();
@@ -802,9 +814,9 @@ async function main(config = {}) {
 
       try {
         const repoCacheKey = `${repoParts.owner}/${repoParts.repo}`;
-        if (!repoTitleDedupCandidatesCache.has(repoCacheKey) && !hasSkippedRepoLevelSearch) {
-          hasSkippedRepoLevelSearch = await shouldSkipRepoTitleDedupSearch(githubClient, repoParts.owner, repoParts.repo);
-          if (!hasSkippedRepoLevelSearch) {
+        if (!repoTitleDedupCandidatesCache.has(repoCacheKey) && !skipRepoLevelSearch) {
+          skipRepoLevelSearch = await shouldSkipRepoTitleDedupSearch(githubClient, repoParts.owner, repoParts.repo);
+          if (!skipRepoLevelSearch) {
             const dedupCandidatesPromise = getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo);
             dedupCandidatesPromise.catch(() => {
               if (repoTitleDedupCandidatesCache.get(repoCacheKey) === dedupCandidatesPromise) {
@@ -820,9 +832,7 @@ async function main(config = {}) {
           const repoCandidates = await repoCandidatesPromise;
           const repoDuplicate = findDuplicateByTitle(normalizedTitle, repoCandidates, deduplicateByTitle.maxDistance);
           if (repoDuplicate) {
-            const titles = createdTitlesByRepo.get(qualifiedItemRepo) || [];
-            titles.push({ title, normalizedTitle });
-            createdTitlesByRepo.set(qualifiedItemRepo, titles);
+            recordSeenTitle(qualifiedItemRepo, title, normalizedTitle);
             core.warning(`Dropping duplicate create_issue (repo-level) in ${qualifiedItemRepo}: "${title}" (matched "${repoDuplicate.title}", distance=${repoDuplicate.distance})`);
             return {
               success: true,
@@ -984,9 +994,7 @@ async function main(config = {}) {
     if (isStaged) {
       logStagedPreviewInfo(`Would create issue in ${qualifiedItemRepo} with title: ${title}`);
       if (deduplicateByTitle.enabled) {
-        const titles = createdTitlesByRepo.get(qualifiedItemRepo) || [];
-        titles.push({ title, normalizedTitle });
-        createdTitlesByRepo.set(qualifiedItemRepo, titles);
+        recordSeenTitle(qualifiedItemRepo, title, normalizedTitle);
       }
       // Return success with staged flag and preview info
       return {
@@ -1022,9 +1030,7 @@ async function main(config = {}) {
       core.info(`Created issue ${qualifiedItemRepo}#${issue.number}: ${issue.html_url}`);
       createdIssues.push({ ...issue, _repo: qualifiedItemRepo });
       if (deduplicateByTitle.enabled) {
-        const titles = createdTitlesByRepo.get(qualifiedItemRepo) || [];
-        titles.push({ title, normalizedTitle });
-        createdTitlesByRepo.set(qualifiedItemRepo, titles);
+        recordSeenTitle(qualifiedItemRepo, title, normalizedTitle);
       }
 
       if (issueFields.length > 0) {
