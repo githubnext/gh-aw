@@ -1483,6 +1483,9 @@ ${diffs}
     const updateCall = global.github.rest.issues.update.mock.calls[0][0];
     expect(updateCall.body).toContain("/compare/main...");
     expect(updateCall.body).toContain("&body=Closes%20%2377");
+    const compareUrl = updateCall.body.match(/\((https:\/\/github\.com\/[^)\s]+\/compare\/[^)\s]+)\)/)?.[1];
+    expect(compareUrl).toBeTruthy();
+    expect(new URL(compareUrl).searchParams.get("body")).toBe("Closes #77");
   });
 });
 
