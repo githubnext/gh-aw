@@ -134,37 +134,17 @@ You MUST NOT:
    }
    ```
 
-3. If `rotation.json` is missing or empty, recover round-robin state from the most recently merged PR with the `pkg-specifications` label:
-   - Use `gh pr list --repo ${{ github.repository }} --state merged --label pkg-specifications --limit 1 --json number,body` to find the latest merged PR in this repository
-   - Parse this line from the PR body:
-     - `- **Next packages in rotation**: <list>`
-   - Use this matching pattern:
-     - `^- \*\*Next packages in rotation\*\*:\s*([A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+)*(?:\s*,\s*[A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+)*)*)\s*$`
-     - This is the final regex pattern (it already escapes literal `**` as `\*\*`)
-   - If you implement this in a string-literal context, escape backslashes as required by that language
-     - YAML/Markdown plain text: `\s`
-     - JSON string: `\\s`
-     - JavaScript/TypeScript string literal: `\\s`
-   - Expected list format: `pkg1, pkg2, pkg3` (comma-separated package directory names; the regex enforces package-name character constraints)
-     - Valid examples: `actionpins, cli`, `123-pkg, console`
-     - Invalid examples: `pkg1,,pkg2`, `pkg1, pkg two`, `pkg-, nextpkg`
-     - The regex requires at least one valid package token between commas, so consecutive commas are rejected
-   - Split the captured value by comma, trim each entry, and (defensively) discard empty entries
-   - Reconstruct `rotation.json` as:
-     - `last_packages`: recovered package list
-     - `last_index`: build a map of `eligible_package -> eligible_list_index`, then scan recovered packages left-to-right and keep the index for the last package in the recovered list that exists in the eligible map; if no recovered package matches, use `-1`
-       - Example: eligible=`[a,b,c,d]`, recovered=`[c,x,b]` → `last_index=1` (package `b`)
-     - `last_run`: merge date of the source PR (UTC date)
-     - `total_eligible`: current count of eligible packages with `README.md`
-   - If no such PR (or no parsable line) exists, initialize fallback state:
-     ```json
-     {
-       "last_index": -1,
-       "last_packages": [],
-       "last_run": "unknown",
-       "total_eligible": 0
-     }
-     ```
+3. If `rotation.json` is missing or empty, fetch the most recently merged PR with:
+   - `gh pr list --repo ${{ github.repository }} --state merged --label pkg-specifications --limit 1 --json number,body,mergedAt`
+   Then use the `rotation-state-recoverer` agent — pass it the PR body text and the eligible package list — to produce the rotation JSON. Write the agent's output to `rotation.json` (set `last_run` to the PR's `mergedAt` UTC date). If no matching PR exists, write fallback state:
+   ```json
+   {
+     "last_index": -1,
+     "last_packages": [],
+     "last_run": "unknown",
+     "total_eligible": N
+   }
+   ```
 
 ## Phase 1: Select Packages
 
@@ -202,18 +182,9 @@ Determine the run mode first:
 
 For each selected package:
 
-### Step 1: Read the README.md
+### Step 1: Extract the specification
 
-```bash
-cat pkg/<package>/README.md
-```
-
-Extract from the specification:
-- **Public API**: Functions, types, constants documented
-- **Behavioral contracts**: What each function MUST do
-- **Usage examples**: Expected input/output patterns
-- **Design constraints**: Thread safety, error handling, etc.
-- **Edge cases**: Documented limitations or special behavior
+For each selected package, invoke the `readme-spec-extractor` agent in parallel — pass it the contents of `pkg/<package>/README.md`. Use the returned JSON as the source of truth when generating tests in Phase 3.
 
 ### Step 2: Minimal Source Code Reading
 
@@ -326,7 +297,7 @@ Every test file MUST have the build tag as the first line:
 
 ## Phase 4: Validate Tests
 
-After generating tests, validate they compile and pass:
+After generating tests, run:
 
 ```bash
 # Check compilation
@@ -336,11 +307,11 @@ go build ./pkg/<package>/...
 go test -v -run "TestSpec" ./pkg/<package>/
 ```
 
-If tests fail:
-1. Re-read the specification section that the test maps to
-2. Verify the test matches the specification (not implementation)
-3. If the specification is ambiguous, add a `// SPEC_AMBIGUITY: <description>` comment in the test
-4. If the implementation doesn't match the specification, add a `// SPEC_MISMATCH: <description>` comment and document it in the PR body
+Then pass both outputs to the `test-output-classifier` agent. Use the returned JSON to decide per failure:
+1. `fix_test` → revise the test against the spec
+2. `flag_spec_ambiguity` → add `// SPEC_AMBIGUITY: <description>`
+3. `flag_spec_mismatch` → add `// SPEC_MISMATCH: <description>` and document it in the PR body
+4. `investigate` → re-read the spec section before deciding
 
 ## Phase 5: Save Cache and Create PR
 
@@ -429,3 +400,61 @@ All tests are derived from README.md specifications, not from implementation sou
 - ✅ PR created with test changes **OR** `noop` called when all tests are already up-to-date
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `rotation-state-recoverer`
+---
+description: Parse merged PR body text to recover package rotation state.
+model: small
+---
+You receive:
+- `pr_body`: the merged PR body text
+- `eligible_packages`: array of currently eligible package names
+
+Extract `last_packages` from this PR-body line when present:
+- `- **Next packages in rotation**: <list>`
+
+Use this regex exactly:
+`^- \*\*Next packages in rotation\*\*:\s*([A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+)*(?:\s*,\s*[A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+)*)*)\s*$`
+
+Rules:
+- Parse the captured comma-separated list, trim whitespace, discard empty entries.
+- Compute `last_index` by mapping `eligible_packages` to indexes, scanning parsed `last_packages` left-to-right, and keeping the index of the last package that exists in `eligible_packages`. If none match, use `-1`.
+- Set `total_eligible` to `len(eligible_packages)`.
+- Do not invent packages.
+
+Output JSON only:
+`{"last_index": <int>, "last_packages": ["..."], "total_eligible": <int>}`
+
+## agent: `readme-spec-extractor`
+---
+description: Extract structured API contract from a Go package README.md.
+model: small
+---
+You are given the full contents of a single Go package README.md.
+
+Emit a JSON object with these fields (omit any field that the README does not document):
+- `public_api`: list of `{name, kind: "func"|"type"|"const", documented_signature_or_value, behavior_summary}` items
+- `behavioral_contracts`: list of short bullet strings (one obligation each)
+- `usage_examples`: list of `{label, input, expected_output}` items, verbatim from the README where possible
+- `design_constraints`: list of short bullet strings (thread safety, error handling, etc.)
+- `edge_cases`: list of short bullet strings (documented limitations)
+- `ambiguities`: list of short bullet strings — any places the spec is unclear and a test will need to make assumptions
+
+Do not invent details that the README does not state. Output JSON only.
+
+## agent: `test-output-classifier`
+---
+description: Classify go test/go build failures into a fixed taxonomy.
+model: small
+---
+You receive raw `go build` and `go test` output for a single package.
+
+For each failure, emit one entry with these fields:
+- `test_or_symbol`: the test function name or compile symbol
+- `category`: one of `compile_error`, `missing_symbol`, `signature_mismatch`, `assertion_failure`, `panic`, `other`
+- `evidence`: one verbatim line from the output that justifies the category
+- `suggested_action`: one of `fix_test`, `flag_spec_mismatch`, `flag_spec_ambiguity`, `investigate`
+
+Also emit a top-level `summary`: `{total_failures, by_category: {...}, all_passing: bool}`.
+
+Output JSON only — no prose. If output shows all tests passing, emit `{"summary": {"total_failures": 0, "by_category": {}, "all_passing": true}, "failures": []}`.
