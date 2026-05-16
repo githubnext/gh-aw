@@ -34,6 +34,7 @@ const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
 const TITLE_DEDUP_SEARCH_PER_PAGE = 100;
 const TITLE_DEDUP_MAX_SEARCH_PAGES = 3;
+const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING = 5;
 
 /**
  * Create a dedicated GitHub client for copilot assignment operations.
@@ -484,6 +485,27 @@ async function getRepoTitleDedupCandidates(githubClient, owner, repo) {
 }
 
 /**
+ * @param {Object} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<boolean>}
+ */
+async function shouldSkipRepoTitleDedupSearch(githubClient, owner, repo) {
+  try {
+    const response = await githubClient.rest.rateLimit.get();
+    const remaining = Number(response?.data?.resources?.search?.remaining);
+    if (Number.isFinite(remaining) && remaining <= TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING) {
+      core.warning(`Skipping repo-level title dedup search for ${owner}/${repo}: search rate limit remaining is ${remaining} (threshold <= ${TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING})`);
+      return true;
+    }
+  } catch (error) {
+    core.warning(`Could not check search rate limit before title dedup search: ${getErrorMessage(error)} — proceeding with repo-level dedup search`);
+  }
+
+  return false;
+}
+
+/**
  * Main handler factory for create_issue
  * Returns a message handler function that processes individual create_issue messages
  * @type {HandlerFactoryFunction}
@@ -575,11 +597,12 @@ async function main(config = {}) {
   // Track created issues for outputs
   const createdIssues = [];
 
-  // Track created issue titles by repo for within-run deduplication
+  // Track seen issue titles by repo for within-run deduplication
   /** @type {Map<string, Array<{title: string, normalizedTitle: string}>>} */
   const createdTitlesByRepo = new Map();
   /** @type {Map<string, Promise<Array<{title: string}>>>} */
   const repoTitleDedupCandidatesCache = new Map();
+  let repoLevelTitleDedupSearchSkipped = false;
 
   // Map to track temporary_id -> {repo, number} relationships across messages
   const temporaryIdMap = new Map();
@@ -774,7 +797,10 @@ async function main(config = {}) {
 
       try {
         const repoCacheKey = `${repoParts.owner}/${repoParts.repo}`;
-        if (!repoTitleDedupCandidatesCache.has(repoCacheKey)) {
+        if (!repoTitleDedupCandidatesCache.has(repoCacheKey) && !repoLevelTitleDedupSearchSkipped) {
+          repoLevelTitleDedupSearchSkipped = await shouldSkipRepoTitleDedupSearch(githubClient, repoParts.owner, repoParts.repo);
+        }
+        if (!repoTitleDedupCandidatesCache.has(repoCacheKey) && !repoLevelTitleDedupSearchSkipped) {
           const dedupCandidatesPromise = getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo);
           dedupCandidatesPromise.catch(() => {
             if (repoTitleDedupCandidatesCache.get(repoCacheKey) === dedupCandidatesPromise) {
@@ -784,18 +810,24 @@ async function main(config = {}) {
           repoTitleDedupCandidatesCache.set(repoCacheKey, dedupCandidatesPromise);
         }
 
-        const repoCandidates = await repoTitleDedupCandidatesCache.get(repoCacheKey);
-        const repoDuplicate = findDuplicateByTitle(normalizedTitle, repoCandidates, deduplicateByTitle.maxDistance);
-        if (repoDuplicate) {
-          core.warning(`Dropping duplicate create_issue (repo-level) in ${qualifiedItemRepo}: "${title}" (matched "${repoDuplicate.title}", distance=${repoDuplicate.distance})`);
-          return {
-            success: true,
-            dropped_duplicate: true,
-            dedup_source: "repo-level",
-            title,
-            duplicate_of_title: repoDuplicate.title,
-            duplicate_distance: repoDuplicate.distance,
-          };
+        const repoCandidatesPromise = repoTitleDedupCandidatesCache.get(repoCacheKey);
+        if (repoCandidatesPromise) {
+          const repoCandidates = await repoCandidatesPromise;
+          const repoDuplicate = findDuplicateByTitle(normalizedTitle, repoCandidates, deduplicateByTitle.maxDistance);
+          if (repoDuplicate) {
+            const titles = createdTitlesByRepo.get(qualifiedItemRepo) || [];
+            titles.push({ title, normalizedTitle });
+            createdTitlesByRepo.set(qualifiedItemRepo, titles);
+            core.warning(`Dropping duplicate create_issue (repo-level) in ${qualifiedItemRepo}: "${title}" (matched "${repoDuplicate.title}", distance=${repoDuplicate.distance})`);
+            return {
+              success: true,
+              dropped_duplicate: true,
+              dedup_source: "repo-level",
+              title,
+              duplicate_of_title: repoDuplicate.title,
+              duplicate_distance: repoDuplicate.distance,
+            };
+          }
         }
       } catch (error) {
         core.warning(`Title deduplication search failed: ${getErrorMessage(error)} — proceeding with issue creation`);

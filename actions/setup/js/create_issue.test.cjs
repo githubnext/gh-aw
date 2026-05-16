@@ -41,6 +41,17 @@ describe("create_issue", () => {
             },
           }),
         },
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              resources: {
+                search: {
+                  remaining: 10,
+                },
+              },
+            },
+          }),
+        },
       },
       graphql: vi.fn(),
     };
@@ -508,6 +519,37 @@ describe("create_issue", () => {
       expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
     });
 
+    it("should deduplicate repeated repo-level duplicates within the same run", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: {
+            total_count: 1,
+            items: [{ title: "Existing title in repo", number: 99 }],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const first = await handler({ title: "Existing title in repo" });
+      const second = await handler({ title: "Existing title in repo" });
+
+      expect(first.success).toBe(true);
+      expect(first.dropped_duplicate).toBe(true);
+      expect(first.dedup_source).toBe("repo-level");
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
     it("should cache repo-level dedup candidates within a run", async () => {
       const handler = await main({
         deduplicate_by_title: true,
@@ -595,6 +637,32 @@ describe("create_issue", () => {
       expect(result.success).toBe(true);
       expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("truncated"));
+    });
+
+    it("should skip repo-level search when search rate limit is low and still deduplicate within-run", async () => {
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          resources: {
+            search: {
+              remaining: 1,
+            },
+          },
+        },
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const first = await handler({ title: "Rate limited title" });
+      const second = await handler({ title: "Rate limited title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.rateLimit.get).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping repo-level title dedup search"));
     });
 
     it("should reject invalid deduplicate-by-title configuration", async () => {
