@@ -8,6 +8,7 @@ This package currently provides custom Go analyzers in the following subpackages
 
 - `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
 - `largefunc` — reports function bodies that exceed a configurable line-count threshold.
+- `osexitinlibrary` — reports `os.Exit` calls in library packages (`pkg/*`) where process termination should be delegated to `cmd/*` entry points.
 
 ## Public API
 
@@ -17,6 +18,7 @@ This package currently provides custom Go analyzers in the following subpackages
 |------------|-------------|
 | `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
 | `largefunc` | Custom `go/analysis` analyzer that flags large functions with actionable diagnostics |
+| `osexitinlibrary` | Custom `go/analysis` analyzer that flags `os.Exit` usage in library packages |
 
 ## Usage Examples
 
@@ -24,17 +26,19 @@ This package currently provides custom Go analyzers in the following subpackages
 import (
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 )
 
 // Use with multichecker, singlechecker, or custom go/analysis driver.
 _ = excessivefuncparams.Analyzer
 _ = largefunc.Analyzer
+_ = osexitinlibrary.Analyzer
 ```
 
 ## Dependencies
 
 **Internal**:
-- None at the `pkg/linters` namespace level. `pkg/linters/largefunc` is documented above as a subpackage API, not as an internal dependency.
+- None at the `pkg/linters` namespace level. `pkg/linters/{excessivefuncparams,largefunc,osexitinlibrary}` are documented above as subpackage APIs, not internal dependencies.
 
 **External**:
 - `golang.org/x/tools/go/analysis` — analyzer framework
@@ -46,6 +50,7 @@ _ = largefunc.Analyzer
 - The package is intentionally organized as a namespace (`pkg/linters/*`) so individual analyzers remain isolated and independently testable.
 - `excessivefuncparams` exposes a `-max-params` analyzer flag and defaults to `8` parameters (`DefaultMaxParams`).
 - `largefunc` exposes a `-max-lines` analyzer flag and defaults to `60` lines (`DefaultMaxLines`).
+- `osexitinlibrary` helps enforce separation between library logic and process-level termination.
 
 ---
 
