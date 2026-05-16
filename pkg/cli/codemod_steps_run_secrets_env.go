@@ -18,12 +18,12 @@ var (
 	stepsSecretRefExprRe  = regexp.MustCompile(`\bsecrets\.([A-Za-z_][A-Za-z0-9_]*)\b`)
 	stepsEnvRefExprRe     = regexp.MustCompile(`\benv\.([A-Za-z_][A-Za-z0-9_]*)\b`)
 	stepsGitHubTokenRe    = regexp.MustCompile(`\bgithub\.token\b`)
-	// stepsSimpleExprRe matches simple JavaScript property-access chains such as
+	// stepsGenericExprRe matches simple GitHub Actions property-access chains such as
 	// "github.repository", "inputs.my-input", "steps.my-step.outputs.result".
 	// Only word characters and hyphens separated by dots are allowed; anything
 	// containing spaces, operators, or other punctuation falls through to a
 	// hash-based name.
-	stepsSimpleExprRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$`)
+	stepsGenericExprRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*(\.[a-zA-Z_][a-zA-Z0-9_-]*)*$`)
 )
 
 // getStepsRunSecretsToEnvCodemod creates a codemod that moves all ${{ ... }}
@@ -375,7 +375,7 @@ func mapRunExpressionToEnvBinding(body string) (string, string, bool) {
 	}
 
 	// Catch-all: hoist any remaining expression using EXPR_ naming.
-	if stepsSimpleExprRe.MatchString(body) {
+	if stepsGenericExprRe.MatchString(body) {
 		replacer := strings.NewReplacer(".", "_", "-", "_")
 		name := "EXPR_" + strings.ToUpper(replacer.Replace(body))
 		return name, fmt.Sprintf("${{ %s }}", body), true
