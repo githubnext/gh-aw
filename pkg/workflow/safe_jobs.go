@@ -249,14 +249,6 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		// the download artifacts always creates a folder, then unpacks in that folder
 
-		// Add a step to list downloaded artifacts (debug visibility).
-		// No env vars are written to $GITHUB_OUTPUT — all values are injected directly
-		// into each downstream step's env: block to ensure secrets such as github.token
-		// are never stored in the output file.
-		steps = append(steps, "      - name: Configure Safe Outputs Job Environment Variables\n")
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          find \"${RUNNER_TEMP}/gh-aw/safe-jobs/\" -type f -print\n")
-
 		// Add custom steps from the job configuration, injecting env vars directly so
 		// user steps can access GH_AW_AGENT_OUTPUT and all job-specific env vars.
 		if len(jobConfig.Steps) > 0 {

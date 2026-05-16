@@ -1334,9 +1334,6 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
-      - name: Configure Safe Outputs Job Environment Variables
-        run: |
-          find "${RUNNER_TEMP}/gh-aw/safe-jobs/" -type f -print
       - name: Add comment to Notion page
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
         env:

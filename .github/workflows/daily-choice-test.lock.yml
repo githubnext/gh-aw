@@ -1473,9 +1473,6 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
-      - name: Configure Safe Outputs Job Environment Variables
-        run: |
-          find "${RUNNER_TEMP}/gh-aw/safe-jobs/" -type f -print
       - name: Display Test Config
         run: |
           if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
