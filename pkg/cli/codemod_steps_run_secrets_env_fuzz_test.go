@@ -99,8 +99,8 @@ func FuzzStepsRunSecretsToEnvCodemodExpr(f *testing.F) {
 		content := strings.Join(lines, "\n") + "\n"
 
 		frontmatter := map[string]any{
-			"on":      "push",
-			section:   []any{map[string]any{"name": "fuzz", "run": run}},
+			"on":       "push",
+			section:    []any{map[string]any{"name": "fuzz", "run": run}},
 			"workflow": "fuzz",
 		}
 
@@ -337,4 +337,3 @@ func sanitizeHoistPropertySegment(raw string) string {
 	}
 	return s
 }
-
