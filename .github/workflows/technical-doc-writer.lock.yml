@@ -1063,7 +1063,8 @@ jobs:
         if: always()
         with:
           name: cache-memory
-          path: /tmp/gh-aw/cache-memory
+          include-hidden-files: true
+          path: /tmp/gh-aw/cache-memory/.
       # Upload safe-outputs upload-artifact staging for the upload_artifact job
       - name: Upload upload-artifact staging
         if: always()

@@ -20,6 +20,8 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
+const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -87,6 +89,17 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       ],
     };
   };
+
+  const createIssueConfig = config.create_issue || {};
+  let deduplicateByTitle = { enabled: false, maxDistance: 0 };
+  try {
+    deduplicateByTitle = parseDeduplicateByTitle(createIssueConfig.deduplicate_by_title);
+  } catch (error) {
+    throw new Error(`${ERR_VALIDATION}: ${getErrorMessage(error)}`);
+  }
+  const createIssueTitlePrefix = createIssueConfig.title_prefix ?? "";
+  /** @type {Map<string, Array<{title: string, normalizedTitle: string}>>} */
+  const seenIssueTitlesByRepo = new Map();
 
   /**
    * Handler for upload_asset tool
@@ -953,6 +966,77 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Handler for create_issue tool
+   * Applies title-based within-run deduplication for immediate feedback.
+   */
+  const createIssueHandler = args => {
+    const entry = { ...(args || {}), type: "create_issue" };
+
+    const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(createIssueConfig);
+    const repoResult = resolveAndValidateRepo(entry, defaultTargetRepo, allowedRepos, "issue");
+    if (!repoResult.success) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: repoResult.error,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+    const resolvedRepo = repoResult.repo;
+
+    let resolvedTitle = entry.title?.trim() || "";
+    if (!resolvedTitle) {
+      resolvedTitle = entry.body?.trim() || "Agent Output";
+    }
+    resolvedTitle = applyTitlePrefix(sanitizeTitle(resolvedTitle, createIssueTitlePrefix), createIssueTitlePrefix);
+
+    if (deduplicateByTitle.enabled) {
+      const normalizedTitle = normalizeTitleForDedup(resolvedTitle);
+      const seenTitles = seenIssueTitlesByRepo.get(resolvedRepo) || [];
+      const duplicate = findDuplicateByTitle(normalizedTitle, seenTitles, deduplicateByTitle.maxDistance);
+      if (duplicate) {
+        const droppedEntry = {
+          ...entry,
+          _dropped_duplicate_by_title: true,
+          _dedup_source: "mcp-within-run",
+          _duplicate_title: duplicate.title,
+          _duplicate_distance: duplicate.distance,
+        };
+        appendSafeOutput(droppedEntry);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "duplicate_dropped",
+                reason: `Duplicate create_issue title matched "${duplicate.title}" (distance=${duplicate.distance})`,
+              }),
+            },
+          ],
+        };
+      }
+      seenTitles.push({ title: resolvedTitle, normalizedTitle });
+      seenIssueTitlesByRepo.set(resolvedRepo, seenTitles);
+    }
+
+    appendSafeOutput(entry);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ result: "success" }),
+        },
+      ],
+    };
+  };
+
+  /**
    * Handler for create_project tool
    * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    * Auto-generates a temporary ID if not provided and returns it to the agent
@@ -1154,6 +1238,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     createPullRequestHandler,
     pushToPullRequestBranchHandler,
     pushRepoMemoryHandler,
+    createIssueHandler,
     createProjectHandler,
     addCommentHandler,
   };

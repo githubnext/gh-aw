@@ -4948,6 +4948,19 @@
                     }
                   ]
                 },
+                "deduplicate-by-title": {
+                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Applies within-run and against open/recently-closed repository issues.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  ]
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository issue creation. Takes precedence over trial target repo settings."

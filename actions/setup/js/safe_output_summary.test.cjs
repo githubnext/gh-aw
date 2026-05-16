@@ -80,6 +80,32 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("permission denied");
     });
 
+    it("should generate summary for dropped duplicate issue", () => {
+      const options = {
+        type: "create_issue",
+        messageIndex: 3,
+        success: true,
+        result: {
+          dropped_duplicate: true,
+          title: "Duplicate title",
+          duplicate_of_title: "Duplicate title",
+          duplicate_distance: 0,
+          dedup_source: "within-run",
+        },
+        message: {
+          title: "Duplicate title",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("⚠️");
+      expect(summary).toContain("Duplicate Dropped");
+      expect(summary).toContain("Matched Existing Title");
+      expect(summary).toContain("Levenshtein Distance");
+      expect(summary).toContain("Dedup Source");
+    });
+
     it("should truncate long body content", () => {
       const longBody = "a".repeat(1000);
 

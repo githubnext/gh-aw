@@ -44,8 +44,6 @@ describe("safe_outputs_handlers", () => {
 
     mockAppendSafeOutput = vi.fn();
 
-    handlers = createHandlers(mockServer, mockAppendSafeOutput);
-
     // Create temporary workspace directory
     const testId = Math.random().toString(36).substring(7);
     testWorkspaceDir = `/tmp/test-handlers-workspace-${testId}`;
@@ -55,6 +53,9 @@ describe("safe_outputs_handlers", () => {
     process.env.GITHUB_WORKSPACE = testWorkspaceDir;
     process.env.GITHUB_SERVER_URL = "https://github.com";
     process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+
+    handlers = createHandlers(mockServer, mockAppendSafeOutput);
   });
 
   afterEach(() => {
@@ -71,6 +72,7 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GH_AW_WORKFLOW_ID;
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
@@ -1186,6 +1188,7 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
       expect(handlers.pushRepoMemoryHandler).toBeDefined();
+      expect(handlers.createIssueHandler).toBeDefined();
       expect(handlers.addCommentHandler).toBeDefined();
     });
 
@@ -1243,6 +1246,63 @@ describe("safe_outputs_handlers", () => {
       const longBody = "a".repeat(70000);
 
       expect(() => handlers.addCommentHandler({ body: longBody })).toThrow();
+    });
+  });
+
+  describe("createIssueHandler", () => {
+    it("should append create_issue entry when dedup is disabled", () => {
+      handlers.createIssueHandler({ title: "Issue A", body: "Body A" });
+      handlers.createIssueHandler({ title: "Issue A", body: "Body A again" });
+
+      expect(mockAppendSafeOutput).toHaveBeenCalledTimes(2);
+      const first = mockAppendSafeOutput.mock.calls[0][0];
+      const second = mockAppendSafeOutput.mock.calls[1][0];
+      expect(first.type).toBe("create_issue");
+      expect(second.type).toBe("create_issue");
+      expect(second._dropped_duplicate_by_title).toBeUndefined();
+    });
+
+    it("should drop duplicate create_issue titles in MCP pre-check when enabled", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: true,
+        },
+      });
+
+      const first = h.createIssueHandler({ title: "Duplicate Issue", body: "First body" });
+      const second = h.createIssueHandler({ title: "Duplicate Issue", body: "Second body" });
+
+      const firstResponse = JSON.parse(first.content[0].text);
+      const secondResponse = JSON.parse(second.content[0].text);
+      expect(firstResponse.result).toBe("success");
+      expect(secondResponse.result).toBe("duplicate_dropped");
+      const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
+      expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
+      expect(droppedEntry._duplicate_distance).toBe(0);
+    });
+
+    it("should support Levenshtein distance threshold in MCP pre-check", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: 1,
+        },
+      });
+
+      h.createIssueHandler({ title: "Fix login bug", body: "A" });
+      const second = h.createIssueHandler({ title: "Fix login bag", body: "B" });
+      const secondResponse = JSON.parse(second.content[0].text);
+
+      expect(secondResponse.result).toBe("duplicate_dropped");
+    });
+
+    it("should reject invalid deduplicate-by-title configuration", () => {
+      expect(() =>
+        createHandlers(mockServer, mockAppendSafeOutput, {
+          create_issue: {
+            deduplicate_by_title: "invalid",
+          },
+        })
+      ).toThrow("deduplicate-by-title");
     });
   });
 
