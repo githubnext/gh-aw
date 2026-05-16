@@ -3089,7 +3089,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
     vi.clearAllMocks();
   });
 
-  /** Build a patch string touching `n` unique files */
+  // Build a patch string touching `n` unique files
   function buildOversizedPatch(n) {
     const lines = [];
     for (let i = 0; i < n; i++) {
