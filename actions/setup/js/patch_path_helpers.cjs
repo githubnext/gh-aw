@@ -20,10 +20,10 @@ function parseDiffGitHeader(headerLine) {
   if (rest.startsWith("a/")) {
     const quotedSep = rest.indexOf(' "b/');
     const unquotedSep = rest.indexOf(" b/");
-    const sepCandidates = [quotedSep, unquotedSep].filter(idx => idx > 0);
-    if (sepCandidates.length > 0) {
-      const sep = Math.min(...sepCandidates);
-      const oldPath = rest.slice(0, sep).slice(2) || null;
+    const foundSeparatorIndices = [quotedSep, unquotedSep].filter(idx => idx > 0);
+    if (foundSeparatorIndices.length > 0) {
+      const sep = Math.min(...foundSeparatorIndices);
+      const oldPath = rest.slice(2, sep) || null;
       const newToken = rest.slice(sep + 1).trimEnd();
       let newPath = null;
       if (newToken.startsWith('"b/')) {

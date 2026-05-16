@@ -12,7 +12,7 @@ function execGit(args, options = {}) {
   const result = spawnSync("git", args, { encoding: "utf8", ...options });
   if (result.error) throw result.error;
   if (result.status !== 0 && !options.allowFailure) {
-    throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
+    throw new Error(`git ${args.join(" ")} failed:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
   }
   return result;
 }
