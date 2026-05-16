@@ -58,11 +58,20 @@ Requirements:
 - `files`: complete list of installable agentic/shared workflows in this repository
 - File paths must be package-root-relative and point to existing markdown workflow files under `workflows/` or `.github/workflows/`
 
-Do not invent custom package metadata fields. Follow the supported `aw.yml` manifest schema used by `gh aw add`.
+Do not invent custom package metadata fields.
 
-Documentation link (reference when writing/validating the package metadata and install flow):
+### Caveman optimization
+
+Keep package manifest simple:
+
+- Use only `manifest-version`, `name`, `description`, and `files`
+- Keep `description` short
+- Put only real installable workflow markdown files in `files`
+
+Documentation links:
 
 - https://github.github.com/gh-aw/reference/repository-package-manifest/
+- https://github.github.com/gh-aw/reference/repository-package-manifest-specification/
 
 ## Step 4: Dependency Cleanup for Reusability
 
