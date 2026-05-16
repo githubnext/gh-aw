@@ -203,21 +203,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_4beb7ac5e590862b_EOF'
+          cat << 'GH_AW_PROMPT_04c8251975e742fc_EOF'
           <system>
-          GH_AW_PROMPT_4beb7ac5e590862b_EOF
+          GH_AW_PROMPT_04c8251975e742fc_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4beb7ac5e590862b_EOF'
+          cat << 'GH_AW_PROMPT_04c8251975e742fc_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_4beb7ac5e590862b_EOF
+          GH_AW_PROMPT_04c8251975e742fc_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_4beb7ac5e590862b_EOF'
+          cat << 'GH_AW_PROMPT_04c8251975e742fc_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -246,15 +246,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_4beb7ac5e590862b_EOF
+          GH_AW_PROMPT_04c8251975e742fc_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4beb7ac5e590862b_EOF'
+          cat << 'GH_AW_PROMPT_04c8251975e742fc_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otel.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-model-inventory.md}}
-          GH_AW_PROMPT_4beb7ac5e590862b_EOF
+          GH_AW_PROMPT_04c8251975e742fc_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -498,9 +498,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_23b064ae0499db90_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_a31ecd2b69f3aaa1_EOF'
           {"create_issue":{"close_older_issues":true,"expires":168,"labels":["automation","models"],"max":1,"title_prefix":"[model-inventory] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_23b064ae0499db90_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_a31ecd2b69f3aaa1_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -710,7 +710,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ef719422760c1562_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_971187abc08ce778_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -756,7 +756,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_ef719422760c1562_EOF
+          GH_AW_MCP_CONFIG_971187abc08ce778_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1752,3 +1752,4 @@ jobs:
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/temporary-id-map.json
           if-no-files-found: ignore
+
