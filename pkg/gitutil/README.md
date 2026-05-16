@@ -22,7 +22,8 @@ This package contains helpers for:
 | `IsHexString` | `func(s string) bool` | Returns `true` if `s` consists entirely of hexadecimal characters (`0–9`, `a–f`, `A–F`); returns `false` for the empty string |
 | `IsValidFullSHA` | `func(s string) bool` | Returns `true` if `s` is a valid 40-character lowercase hexadecimal SHA |
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
-| `FindGitRoot` | `func() (string, error)` | Returns the absolute path of the root directory of the current Git repository by running `git rev-parse --show-toplevel` |
+| `FindGitRoot` | `func() (string, error)` | Returns the absolute path of the root directory of the current Git repository using pure Go filesystem traversal (no `git` subprocess); starts from the current working directory |
+| `FindGitRootFrom` | `func(startDir string) (string, error)` | Like `FindGitRoot` but starts from `startDir`; traverses upward looking for a `.git` directory or worktree marker file |
 | `ReadFileFromHEADWithRoot` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without touching the working tree; rejects paths that escape the repository |
 
 ## Usage Examples
@@ -40,8 +41,14 @@ if gitutil.IsValidFullSHA(commitSHA) {
     fmt.Println("Valid 40-character commit SHA")
 }
 
-// Find the git repository root
+// Find the git repository root (pure Go, no git subprocess)
 root, err := gitutil.FindGitRoot()
+if err != nil {
+    return fmt.Errorf("not in a git repository: %w", err)
+}
+
+// Find the git root starting from a specific directory
+root, err = gitutil.FindGitRootFrom("/some/subdir")
 if err != nil {
     return fmt.Errorf("not in a git repository: %w", err)
 }
@@ -57,9 +64,8 @@ content, err := gitutil.ReadFileFromHEADWithRoot("go.mod", root)
 
 ## Design Notes
 
-- All debug output uses `logger.New("gitutil:gitutil")` and is only emitted when `DEBUG=gitutil:*`.
-- Error classification is case-insensitive string matching — no external dependency on GitHub API client types.
-- `ReadFileFromHEADWithRoot` uses `git show HEAD:<relpath>` and resolves paths with `filepath.Rel` to prevent path-traversal attacks.
+- `FindGitRoot` uses pure Go filesystem traversal (walking up the directory tree looking for `.git`), avoiding the need for a `git` executable on `PATH`. This is important for Rosetta 2 compatibility on macOS ARM64 and restricted environments.
+- `FindGitRootFrom` accepts both normal `.git` directories and worktree marker files (a `.git` file starting with `gitdir:`).
 
 ---
 
