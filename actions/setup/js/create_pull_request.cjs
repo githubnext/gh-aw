@@ -1086,7 +1086,33 @@ async function main(config = {}) {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Pull request limit exceeded: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+
+      if (!fallbackAsIssue) {
+        return { success: false, error: errorMessage };
+      }
+
+      // Surface the limit error in a fallback issue so it appears in the agent failure
+      // issue/comment thread and the workflow operator knows exactly how to fix it.
+      const fallbackTitle = pullRequestItem.title?.trim() || "Agent Output";
+      const fallbackLabels = mergeFallbackIssueLabels(configFallbackLabels.length > 0 ? configFallbackLabels : envLabels);
+      const fallbackBody = `> [!WARNING]\n> ${errorMessage}\n\nThe pull request could not be created because the patch contains more files than the configured limit.\n\nTo increase the limit, add \`max-patch-files\` to your workflow frontmatter:\n\n\`\`\`yaml\nsafe-outputs:\n  create-pull-request:\n    max-patch-files: ${maxFiles * 2}  # adjust as needed\n\`\`\``;
+
+      try {
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees);
+        core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+        await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+        await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+        return {
+          success: true,
+          fallback_used: true,
+          issue_number: issue.number,
+          issue_url: issue.html_url,
+        };
+      } catch (issueError) {
+        const combinedError = `Pull request limit exceeded and failed to create fallback issue. Limit error: ${errorMessage}. Issue error: ${getErrorMessage(issueError)}`;
+        core.error(combinedError);
+        return { success: false, error: combinedError };
+      }
     }
 
     // Check for actual error conditions (but allow empty patches as valid noop)
