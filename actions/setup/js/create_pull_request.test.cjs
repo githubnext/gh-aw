@@ -3037,6 +3037,13 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
     process.env.GITHUB_BASE_REF = "main";
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-e003-test-"));
 
+    // Set up prompts directory with the E003 template so getPromptPath resolves
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const templateSrc = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../md/e003_file_limit_fallback.md");
+    fs.copyFileSync(templateSrc, path.join(promptsDir, "e003_file_limit_fallback.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
     global.core = {
       info: vi.fn(),
       warning: vi.fn(),

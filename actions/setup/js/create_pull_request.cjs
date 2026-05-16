@@ -1095,20 +1095,11 @@ async function main(config = {}) {
       // issue/comment thread and the workflow operator knows exactly how to fix it.
       const fallbackTitle = pullRequestItem.title?.trim() || "Agent Output";
       const fallbackLabels = mergeFallbackIssueLabels(configFallbackLabels.length > 0 ? configFallbackLabels : envLabels);
-      const fallbackBody = [
-        `> [!WARNING]`,
-        `> ${errorMessage}`,
-        ``,
-        `The pull request could not be created because the patch contains more files than the configured limit.`,
-        ``,
-        `To increase the limit, add \`max-patch-files\` to your workflow frontmatter:`,
-        ``,
-        `\`\`\`yaml`,
-        `safe-outputs:`,
-        `  create-pull-request:`,
-        `    max-patch-files: ${maxFiles * 2}  # adjust as needed`,
-        `\`\`\``,
-      ].join("\n");
+      const fallbackTemplatePath = getPromptPath("e003_file_limit_fallback.md");
+      const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
+        error_message: errorMessage,
+        suggested_limit: maxFiles * 2,
+      });
 
       try {
         const { data: issue } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees);
