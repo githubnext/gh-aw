@@ -259,18 +259,15 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		var expressionEnvKeys []string
 		var literalEnvKeys []string
 		if jobConfig.Env != nil {
-			allKeys := make([]string, 0, len(jobConfig.Env))
-			for key := range jobConfig.Env {
-				allKeys = append(allKeys, key)
-			}
-			sort.Strings(allKeys)
-			for _, key := range allKeys {
-				if strings.Contains(jobConfig.Env[key], "${{") {
+			for key, value := range jobConfig.Env {
+				if strings.Contains(value, "${{") {
 					expressionEnvKeys = append(expressionEnvKeys, key)
 				} else {
 					literalEnvKeys = append(literalEnvKeys, key)
 				}
 			}
+			sort.Strings(expressionEnvKeys)
+			sort.Strings(literalEnvKeys)
 		}
 
 		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
