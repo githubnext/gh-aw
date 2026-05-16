@@ -493,7 +493,7 @@ async function getRepoTitleDedupCandidates(githubClient, owner, repo) {
 async function shouldSkipRepoTitleDedupSearch(githubClient, owner, repo) {
   try {
     const response = await githubClient.rest.rateLimit.get();
-    const remaining = Number(response?.data?.resources?.search?.remaining);
+    const remaining = Number(response?.data?.resources?.search?.remaining ?? Number.POSITIVE_INFINITY);
     if (Number.isFinite(remaining) && remaining <= TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING) {
       core.warning(`Skipping repo-level title dedup search for ${owner}/${repo}: search rate limit remaining is ${remaining} (threshold <= ${TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING})`);
       return true;
@@ -602,7 +602,7 @@ async function main(config = {}) {
   const createdTitlesByRepo = new Map();
   /** @type {Map<string, Promise<Array<{title: string}>>>} */
   const repoTitleDedupCandidatesCache = new Map();
-  let repoLevelTitleDedupSearchSkipped = false;
+  let hasSkippedRepoLevelSearch = false;
 
   // Map to track temporary_id -> {repo, number} relationships across messages
   const temporaryIdMap = new Map();
@@ -797,10 +797,12 @@ async function main(config = {}) {
 
       try {
         const repoCacheKey = `${repoParts.owner}/${repoParts.repo}`;
-        if (!repoTitleDedupCandidatesCache.has(repoCacheKey) && !repoLevelTitleDedupSearchSkipped) {
-          repoLevelTitleDedupSearchSkipped = await shouldSkipRepoTitleDedupSearch(githubClient, repoParts.owner, repoParts.repo);
+        let shouldFetchRepoCandidates = !repoTitleDedupCandidatesCache.has(repoCacheKey) && !hasSkippedRepoLevelSearch;
+        if (shouldFetchRepoCandidates) {
+          hasSkippedRepoLevelSearch = await shouldSkipRepoTitleDedupSearch(githubClient, repoParts.owner, repoParts.repo);
+          shouldFetchRepoCandidates = !hasSkippedRepoLevelSearch;
         }
-        if (!repoTitleDedupCandidatesCache.has(repoCacheKey) && !repoLevelTitleDedupSearchSkipped) {
+        if (shouldFetchRepoCandidates) {
           const dedupCandidatesPromise = getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo);
           dedupCandidatesPromise.catch(() => {
             if (repoTitleDedupCandidatesCache.get(repoCacheKey) === dedupCandidatesPromise) {
