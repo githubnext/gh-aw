@@ -409,6 +409,45 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
 }
 
 /**
+ * Builds a compare URL used in protected-files fallback issue bodies.
+ * Optionally appends a prefilled PR body that closes the fallback issue.
+ * @param {string} githubServer
+ * @param {{owner: string, repo: string}} repoParts
+ * @param {string} baseBranch
+ * @param {string} branchName
+ * @param {string} title
+ * @param {number} [closingIssueNumber]
+ * @returns {string}
+ */
+function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, closingIssueNumber) {
+  const encodedBase = encodePathSegments(baseBranch);
+  const encodedHead = encodePathSegments(branchName);
+  let createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
+  if (typeof closingIssueNumber === "number") {
+    createPrUrl += `&body=${encodeURIComponent(`Closes #${closingIssueNumber}`)}`;
+  }
+  return createPrUrl;
+}
+
+/**
+ * Renders protected-files fallback issue body with a prefilled compare URL.
+ * @param {string} mainBodyContent
+ * @param {string} footerContent
+ * @param {string} fileList
+ * @param {string} createPrUrl
+ * @returns {string}
+ */
+function renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fileList, createPrUrl) {
+  const templatePath = getPromptPath("manifest_protection_create_pr_fallback.md");
+  return renderTemplateFromFile(templatePath, {
+    main_body: mainBodyContent,
+    footer: footerContent,
+    files: fileList,
+    create_pr_url: createPrUrl,
+  });
+}
+
+/**
  * Maximum limits for pull request parameters to prevent resource exhaustion.
  * These limits align with GitHub's API constraints and security best practices.
  */
@@ -1991,16 +2030,8 @@ ${patchPreview}`;
         });
       } else {
         // Normal case — push succeeded, provide compare URL.
-        const encodedBase = encodePathSegments(baseBranch);
-        const encodedHead = encodePathSegments(branchName);
-        const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
-        const templatePath = getPromptPath("manifest_protection_create_pr_fallback.md");
-        fallbackBody = renderTemplateFromFile(templatePath, {
-          main_body: mainBodyContent,
-          footer: footerContent,
-          files: fileList,
-          create_pr_url: createPrUrl,
-        });
+        const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title);
+        fallbackBody = renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fileList, createPrUrl);
       }
 
       try {
@@ -2010,16 +2041,8 @@ ${patchPreview}`;
 
         if (!manifestProtectionPushFailedError && typeof githubClient?.rest?.issues?.update === "function") {
           try {
-            const encodedBase = encodePathSegments(baseBranch);
-            const encodedHead = encodePathSegments(branchName);
-            const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}&body=${encodeURIComponent(`Closes #${issue.number}`)}`;
-            const templatePath = getPromptPath("manifest_protection_create_pr_fallback.md");
-            const fallbackBodyWithCloseKeyword = renderTemplateFromFile(templatePath, {
-              main_body: mainBodyContent,
-              footer: footerContent,
-              files: fileList,
-              create_pr_url: createPrUrl,
-            });
+            const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, issue.number);
+            const fallbackBodyWithCloseKeyword = renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fileList, createPrUrl);
 
             await withRetry(
               () =>
