@@ -25,8 +25,8 @@ var repoMemoryLog = logger.New("workflow:repo_memory")
 const (
 	// defaultRepoMemoryMaxPatchSize is the default maximum total patch size in bytes (10KB).
 	defaultRepoMemoryMaxPatchSize = 10240
-	// maxRepoMemoryPatchSize is the maximum allowed value for max-patch-size (100KB).
-	maxRepoMemoryPatchSize = 102400
+	// maxRepoMemoryPatchSize is the maximum allowed value for max-patch-size (1MB).
+	maxRepoMemoryPatchSize = 1048576
 )
 
 // Pre-compiled regexes for performance (avoid recompilation in hot paths)
@@ -49,7 +49,7 @@ type RepoMemoryEntry struct {
 	FileGlob          []string `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
 	MaxFileSize       int      `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 10KB)
 	MaxFileCount      int      `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
-	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB, max: 100KB)
+	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB, max: 1MB)
 	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
 	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
 	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
