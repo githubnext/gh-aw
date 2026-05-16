@@ -168,7 +168,7 @@ For each PR that is not skipped:
 2. **Nudge unresolved review feedback**
    - Check pull request review threads/comments.
    - If unresolved or active review feedback exists, add a PR comment that includes:
-     - `@copilot review all comments`
+     - @copilot review all comments
      - a short sentence asking Copilot to address unresolved review feedback.
 
 3. **Apply one additional forward-progress nudge**
