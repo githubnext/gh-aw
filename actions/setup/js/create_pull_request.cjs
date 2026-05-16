@@ -2007,6 +2007,36 @@ ${patchPreview}`;
         const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
         core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
+
+        if (!manifestProtectionPushFailedError && typeof githubClient?.rest?.issues?.update === "function") {
+          try {
+            const encodedBase = encodePathSegments(baseBranch);
+            const encodedHead = encodePathSegments(branchName);
+            const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}&body=${encodeURIComponent(`Closes #${issue.number}`)}`;
+            const templatePath = getPromptPath("manifest_protection_create_pr_fallback.md");
+            const fallbackBodyWithCloseKeyword = renderTemplateFromFile(templatePath, {
+              main_body: mainBodyContent,
+              footer: footerContent,
+              files: fileList,
+              create_pr_url: createPrUrl,
+            });
+
+            await withRetry(
+              () =>
+                githubClient.rest.issues.update({
+                  owner: repoParts.owner,
+                  repo: repoParts.repo,
+                  issue_number: issue.number,
+                  body: fallbackBodyWithCloseKeyword,
+                }),
+              RATE_LIMIT_RETRY_CONFIG,
+              `update protected-file-protection fallback issue #${issue.number} with auto-close link`
+            );
+          } catch (updateIssueBodyError) {
+            core.warning(`Failed to update protected-file-protection fallback issue #${issue.number} with auto-close link: ${updateIssueBodyError instanceof Error ? updateIssueBodyError.message : String(updateIssueBodyError)}`);
+          }
+        }
+
         await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
 
         await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");

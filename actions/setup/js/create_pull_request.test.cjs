@@ -1453,6 +1453,37 @@ ${diffs}
     expect(result.success).toBe(false);
     expect(result.error).toContain("protected files");
   });
+
+  it("should prefill compare URL with Closes #N for protected-files fallback-to-issue", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
+    fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.github.rest.issues = {
+      create: vi.fn().mockResolvedValue({ data: { number: 77, html_url: "https://github.com/test-owner/test-repo/issues/77" } }),
+      update: vi.fn().mockResolvedValue({ data: {} }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "fallback-to-issue",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(77);
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
+
+    const updateCall = global.github.rest.issues.update.mock.calls[0][0];
+    expect(updateCall.body).toContain("/compare/main...");
+    expect(updateCall.body).toContain("&body=Closes%20%2377");
+  });
 });
 
 // excluded-files exclusion list
