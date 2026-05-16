@@ -154,7 +154,7 @@ func compileWorkflowFile(
 	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
 
 	// Compile the workflow
-	// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
+	// Per-file actionlint is always disabled here; actionlint runs in batch after all files are compiled.
 	if err := CompileWorkflowDataWithValidation(ctx, compiler, workflowData, resolvedFile, CompileValidationOptions{
 		Verbose:            opts.verbose && !opts.jsonOutput,
 		RunZizmorPerFile:   opts.zizmor && !opts.noEmit,

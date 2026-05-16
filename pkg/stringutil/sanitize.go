@@ -75,7 +75,7 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 	}
 
 	result := normalizeSanitizeSeparators(strings.ToLower(name), opts)
-	result = applySanitizePattern(result, buildSanitizePreservePattern(opts))
+	result = applySanitizePattern(result, buildSanitizePreservePattern(opts), len(opts.PreserveSpecialChars) > 0)
 
 	// Consolidate multiple consecutive hyphens into a single hyphen
 	result = multipleHyphens.ReplaceAllString(result, "-")
@@ -137,15 +137,14 @@ func buildSanitizePreservePattern(opts *SanitizeOptions) string {
 }
 
 // applySanitizePattern removes or replaces characters not in the allowed set.
-// When preserveSpecialChars are configured, unwanted chars are replaced with hyphens;
-// otherwise they are removed entirely.
-func applySanitizePattern(result, allowedChars string) string {
+// When the caller has requested preservation of special chars, unwanted chars are
+// replaced with hyphens; otherwise they are removed entirely.
+func applySanitizePattern(result, allowedChars string, preserveSpecialChars bool) string {
 	pattern := regexp.MustCompile(`[^` + allowedChars + `]+`)
-	// "a-z0-9-" is the base-only pattern (no extra preserve chars appended)
-	if allowedChars == "a-z0-9-" {
-		return pattern.ReplaceAllString(result, "")
+	if preserveSpecialChars {
+		return pattern.ReplaceAllString(result, "-")
 	}
-	return pattern.ReplaceAllString(result, "-")
+	return pattern.ReplaceAllString(result, "")
 }
 
 // SanitizeErrorMessage removes potential secret key names from error messages to prevent

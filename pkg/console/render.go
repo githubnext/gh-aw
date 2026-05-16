@@ -522,9 +522,14 @@ func applyNumberFormat(val reflect.Value, baseValue string) string {
 			return FormatNumber(int(v))
 		}
 	}
-	// Fallback: use integer kind directly
-	if val.Kind() >= reflect.Int && val.Kind() <= reflect.Uint64 {
+	// Fallback: use integer kind directly, keeping signed and unsigned separate
+	// to avoid calling Int() on an unsigned kind (which panics).
+	switch {
+	case val.Kind() >= reflect.Int && val.Kind() <= reflect.Int64:
 		return FormatNumber(int(val.Int()))
+	case val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64:
+		// #nosec G115 - Converting uint to int for display formatting
+		return FormatNumber(int(val.Uint()))
 	}
 	return baseValue
 }
