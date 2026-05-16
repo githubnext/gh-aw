@@ -241,13 +241,11 @@ async function main() {
     }
   }
 
-  // Track whether a cross-repo API auth failure was the root cause of the hash check failure.
-  // Used to surface targeted remediation guidance instead of the generic "run gh aw compile" message.
-  // Set inside compareFrontmatterHashes() when an HTTP 401/403/404 is returned for a cross-repo fetch.
-  let crossRepoAuthFailure = null;
-
   // Primary: compare frontmatter hashes using the GitHub API.
   // Falls back to local filesystem if the API is inaccessible.
+  // Returns { result, crossRepoAuthFailure } where:
+  //   result             — { match, storedHash, recomputedHash } | null
+  //   crossRepoAuthFailure — { status, repo } when a cross-repo 401/403/404 was the root cause, else null
   async function compareFrontmatterHashes() {
     try {
       // Fetch lock file content to extract stored hash.
@@ -255,6 +253,7 @@ async function main() {
       // code for cross-repo auth failure detection: the caller's GITHUB_TOKEN is repo-scoped and
       // cannot read from a private callee repo, returning 404/401/403.
       let lockFileContent = null;
+      let crossRepoAuthFailure = null;
       try {
         const response = await github.rest.repos.getContent({
           owner,
@@ -288,13 +287,13 @@ async function main() {
 
       if (!lockFileContent) {
         core.info("Unable to fetch lock file content for hash comparison via API, trying local filesystem fallback");
-        return await compareFrontmatterHashesFromLocalFiles();
+        return { result: await compareFrontmatterHashesFromLocalFiles(), crossRepoAuthFailure };
       }
 
       const storedHash = extractHashFromLockFile(lockFileContent);
       if (!storedHash) {
         core.info("No frontmatter hash found in lock file");
-        return null;
+        return { result: null, crossRepoAuthFailure: null };
       }
 
       // Compute hash using pure JavaScript implementation
@@ -310,13 +309,13 @@ async function main() {
       core.info(`  Recomputed hash:   ${recomputedHash}`);
       core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
 
-      return { match, storedHash, recomputedHash };
+      return { result: { match, storedHash, recomputedHash }, crossRepoAuthFailure: null };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.info(`Could not compute frontmatter hash via API: ${errorMessage}`);
       // Fall back to local filesystem when API is unavailable
       // (e.g., cross-org reusable workflow where caller token lacks source repo access)
-      return await compareFrontmatterHashesFromLocalFiles();
+      return { result: await compareFrontmatterHashesFromLocalFiles(), crossRepoAuthFailure: null };
     }
   }
 
@@ -372,7 +371,7 @@ async function main() {
     core.info("═══ End of debug hash recomputation ═══");
   }
 
-  const hashComparison = await compareFrontmatterHashes();
+  const { result: hashComparison, crossRepoAuthFailure } = await compareFrontmatterHashes();
 
   if (!hashComparison) {
     // Could not compute hash - run verbose pass for debugging then fail
