@@ -139,7 +139,12 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 			fmt.Fprintln(os.Stderr, "Finished updating local branch.")
 		}
 
-		if err := RunSpecificWorkflowInteractively(ctx, workflowName, c.Verbose, c.EngineOverride, c.RepoOverride, "", false, false, false); err != nil {
+		if err := RunSpecificWorkflowInteractively(ctx, RunWorkflowOptions{
+			WorkflowName:   workflowName,
+			Verbose:        c.Verbose,
+			EngineOverride: c.EngineOverride,
+			RepoOverride:   c.RepoOverride,
+		}); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to run workflow: %v", err)))
 			c.showFinalInstructions()
 			return nil

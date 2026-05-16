@@ -17,9 +17,19 @@ import (
 
 var compileValidationLog = logger.New("cli:compile_validation")
 
+// CompileValidationOptions holds optional validation flags for workflow compilation.
+type CompileValidationOptions struct {
+	Verbose              bool
+	RunZizmorPerFile     bool
+	RunPoutinePerFile    bool
+	RunActionlintPerFile bool
+	Strict               bool
+	ValidateActionSHAs   bool
+}
+
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
-func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
-	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, strict, validateActionSHAs)
+func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compiler, filePath string, opts CompileValidationOptions) error {
+	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, opts.Strict, opts.ValidateActionSHAs)
 
 	compiler.SetContext(ctx)
 
@@ -72,34 +82,34 @@ func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compi
 	}
 
 	// Validate action SHAs if requested
-	if validateActionSHAs {
+	if opts.ValidateActionSHAs {
 		compileValidationLog.Print("Validating action SHAs in lock file")
 		// Use the compiler's shared action cache to benefit from cached resolutions
 		actionCache := compiler.GetSharedActionCache()
-		if err := workflow.ValidateActionSHAsInLockFile(ctx, lockFile, actionCache, verbose); err != nil {
+		if err := workflow.ValidateActionSHAsInLockFile(ctx, lockFile, actionCache, opts.Verbose); err != nil {
 			// Action SHA validation warnings are non-fatal
 			compileValidationLog.Printf("Action SHA validation completed with warnings: %v", err)
 		}
 	}
 
 	// Run zizmor on the generated lock file if requested
-	if runZizmorPerFile {
-		if err := runZizmorOnFile(lockFile, verbose, strict); err != nil {
+	if opts.RunZizmorPerFile {
+		if err := runZizmorOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
 			return fmt.Errorf("zizmor security scan failed: %w", err)
 		}
 	}
 
 	// Run poutine on the generated lock file if requested
-	if runPoutinePerFile {
-		if err := runPoutineOnFile(lockFile, verbose, strict); err != nil {
+	if opts.RunPoutinePerFile {
+		if err := runPoutineOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
 			return fmt.Errorf("poutine security scan failed: %w", err)
 		}
 	}
 
 	// Run actionlint on the generated lock file if requested
 	// Note: For batch processing, use RunActionlintOnFiles instead
-	if runActionlintPerFile {
-		if err := runActionlintOnFiles(ctx, []string{lockFile}, verbose, strict); err != nil {
+	if opts.RunActionlintPerFile {
+		if err := runActionlintOnFiles(ctx, []string{lockFile}, opts.Verbose, opts.Strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}
@@ -109,7 +119,7 @@ func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compi
 
 // CompileWorkflowDataWithValidation compiles from already-parsed WorkflowData with validation
 // This avoids re-parsing when the workflow data has already been parsed
-func CompileWorkflowDataWithValidation(ctx context.Context, compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
+func CompileWorkflowDataWithValidation(ctx context.Context, compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, opts CompileValidationOptions) error {
 	compileValidationLog.Printf("Compiling from parsed WorkflowData: file=%s", filePath)
 
 	compiler.SetContext(ctx)
@@ -142,34 +152,34 @@ func CompileWorkflowDataWithValidation(ctx context.Context, compiler *workflow.C
 	}
 
 	// Validate action SHAs if requested
-	if validateActionSHAs {
+	if opts.ValidateActionSHAs {
 		compileValidationLog.Print("Validating action SHAs in lock file")
 		// Use the compiler's shared action cache to benefit from cached resolutions
 		actionCache := compiler.GetSharedActionCache()
-		if err := workflow.ValidateActionSHAsInLockFile(ctx, lockFile, actionCache, verbose); err != nil {
+		if err := workflow.ValidateActionSHAsInLockFile(ctx, lockFile, actionCache, opts.Verbose); err != nil {
 			// Action SHA validation warnings are non-fatal
 			compileValidationLog.Printf("Action SHA validation completed with warnings: %v", err)
 		}
 	}
 
 	// Run zizmor on the generated lock file if requested
-	if runZizmorPerFile {
-		if err := runZizmorOnFile(lockFile, verbose, strict); err != nil {
+	if opts.RunZizmorPerFile {
+		if err := runZizmorOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
 			return fmt.Errorf("zizmor security scan failed: %w", err)
 		}
 	}
 
 	// Run poutine on the generated lock file if requested
-	if runPoutinePerFile {
-		if err := runPoutineOnFile(lockFile, verbose, strict); err != nil {
+	if opts.RunPoutinePerFile {
+		if err := runPoutineOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
 			return fmt.Errorf("poutine security scan failed: %w", err)
 		}
 	}
 
 	// Run actionlint on the generated lock file if requested
 	// Note: For batch processing, use RunActionlintOnFiles instead
-	if runActionlintPerFile {
-		if err := runActionlintOnFiles(ctx, []string{lockFile}, verbose, strict); err != nil {
+	if opts.RunActionlintPerFile {
+		if err := runActionlintOnFiles(ctx, []string{lockFile}, opts.Verbose, opts.Strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}

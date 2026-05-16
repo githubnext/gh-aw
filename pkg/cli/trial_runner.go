@@ -119,7 +119,18 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !opts.Quiet {
-		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, opts.DeleteHostRepo, opts.ForceDelete, opts.AutoMergePRs, opts.RepeatCount, directTrialMode, opts.EngineOverride); err != nil {
+		if err := showTrialConfirmation(trialConfirmationOptions{
+			parsedSpecs:         parsedSpecs,
+			logicalRepoSlug:     logicalRepoSlug,
+			cloneRepoSlug:       cloneRepoSlug,
+			hostRepoSlug:        hostRepoSlug,
+			deleteHostRepo:      opts.DeleteHostRepo,
+			forceDeleteHostRepo: opts.ForceDelete,
+			autoMergePRs:        opts.AutoMergePRs,
+			repeatCount:         opts.RepeatCount,
+			directTrialMode:     directTrialMode,
+			engineOverride:      opts.EngineOverride,
+		}); err != nil {
 			return err
 		}
 	}

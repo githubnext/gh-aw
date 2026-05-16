@@ -67,26 +67,7 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 		}
 	}
 
-	// Track the longest field name for alignment
-	maxFieldLen := 0
-	for i := range val.NumField() {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-		tag := parseConsoleTag(fieldType.Tag.Get("console"))
-
-		if tag.skip || (tag.omitempty && isZeroValue(field)) {
-			continue
-		}
-
-		fieldName := fieldType.Name
-		if tag.header != "" {
-			fieldName = tag.header
-		}
-
-		if len(fieldName) > maxFieldLen {
-			maxFieldLen = len(fieldName)
-		}
-	}
+	maxFieldLen := computeMaxFieldLen(val, typ)
 
 	// Iterate through struct fields
 	for i := range val.NumField() {
@@ -110,42 +91,64 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 			fieldName = tag.header
 		}
 
-		// Render based on field type
-		// Check for pointer to struct (dereference to get underlying type)
-		fieldToCheck := field
-		if field.Kind() == reflect.Ptr && !field.IsNil() {
-			fieldToCheck = field.Elem()
-		}
-
-		if fieldToCheck.Kind() == reflect.Struct && fieldToCheck.Type().String() != "time.Time" {
-			// Nested struct (or pointer to struct) - render recursively with title (but not time.Time)
-			subTitle := tag.title
-			if subTitle == "" {
-				subTitle = fieldName
-			}
-			renderValue(field, subTitle, output, depth+1)
-		} else if fieldToCheck.Kind() == reflect.Slice || fieldToCheck.Kind() == reflect.Array {
-			// Slice - render as table
-			sliceTitle := tag.title
-			if sliceTitle == "" {
-				sliceTitle = fieldName
-			}
-			renderValue(field, sliceTitle, output, depth+1)
-		} else if fieldToCheck.Kind() == reflect.Map {
-			// Map - render as headers
-			mapTitle := tag.title
-			if mapTitle == "" {
-				mapTitle = fieldName
-			}
-			renderValue(field, mapTitle, output, depth+1)
-		} else {
-			// Simple field - render as key-value pair with proper alignment
-			paddedName := fmt.Sprintf("%-*s", maxFieldLen, fieldName)
-			fmt.Fprintf(output, "  %s: %v\n", paddedName, formatFieldValueWithTag(field, tag))
-		}
+		renderStructField(field, fieldName, tag, maxFieldLen, output, depth)
 	}
 
 	output.WriteString("\n")
+}
+
+// computeMaxFieldLen computes the longest visible field name for alignment.
+func computeMaxFieldLen(val reflect.Value, typ reflect.Type) int {
+	maxFieldLen := 0
+	for i := range val.NumField() {
+		field := val.Field(i)
+		fieldType := typ.Field(i)
+		tag := parseConsoleTag(fieldType.Tag.Get("console"))
+
+		if tag.skip || (tag.omitempty && isZeroValue(field)) {
+			continue
+		}
+
+		fieldName := fieldType.Name
+		if tag.header != "" {
+			fieldName = tag.header
+		}
+
+		if len(fieldName) > maxFieldLen {
+			maxFieldLen = len(fieldName)
+		}
+	}
+	return maxFieldLen
+}
+
+// renderStructField renders a single struct field to output, dispatching on its kind.
+func renderStructField(field reflect.Value, fieldName string, tag consoleTag, maxFieldLen int, output *strings.Builder, depth int) {
+	// Dereference pointer to check underlying type
+	fieldToCheck := field
+	if field.Kind() == reflect.Ptr && !field.IsNil() {
+		fieldToCheck = field.Elem()
+	}
+
+	subTitle := tag.title
+	if subTitle == "" {
+		subTitle = fieldName
+	}
+
+	switch {
+	case fieldToCheck.Kind() == reflect.Struct && fieldToCheck.Type().String() != "time.Time":
+		// Nested struct – render recursively
+		renderValue(field, subTitle, output, depth+1)
+	case fieldToCheck.Kind() == reflect.Slice || fieldToCheck.Kind() == reflect.Array:
+		// Slice – render as table
+		renderValue(field, subTitle, output, depth+1)
+	case fieldToCheck.Kind() == reflect.Map:
+		// Map – render as headers
+		renderValue(field, subTitle, output, depth+1)
+	default:
+		// Simple field – render as key-value pair with alignment
+		paddedName := fmt.Sprintf("%-*s", maxFieldLen, fieldName)
+		fmt.Fprintf(output, "  %s: %v\n", paddedName, formatFieldValueWithTag(field, tag))
+	}
 }
 
 // renderSlice renders a slice as a table using the console table renderer
@@ -227,10 +230,17 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 	}
 
 	// Build headers from struct fields
-	var headers []string
-	var fieldIndices []int
-	var fieldTags []consoleTag
+	headers, fieldIndices, fieldTags := buildTableHeaders(elemType)
+	config.Headers = headers
 
+	// Build rows
+	config.Rows = buildTableRows(val, fieldIndices, fieldTags)
+
+	return config
+}
+
+// buildTableHeaders extracts column headers, field indices, and tags from a struct type.
+func buildTableHeaders(elemType reflect.Type) (headers []string, fieldIndices []int, fieldTags []consoleTag) {
 	for i := range elemType.NumField() {
 		field := elemType.Field(i)
 		tag := parseConsoleTag(field.Tag.Get("console"))
@@ -250,10 +260,12 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 		fieldIndices = append(fieldIndices, i)
 		fieldTags = append(fieldTags, tag)
 	}
+	return headers, fieldIndices, fieldTags
+}
 
-	config.Headers = headers
-
-	// Build rows
+// buildTableRows builds the row data for a slice of struct elements.
+func buildTableRows(val reflect.Value, fieldIndices []int, fieldTags []consoleTag) [][]string {
+	var rows [][]string
 	for i := range val.Len() {
 		elem := val.Index(i)
 		// Dereference pointer if needed
@@ -273,10 +285,9 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 			field := elem.Field(fieldIdx)
 			row = append(row, formatFieldValueWithTag(field, fieldTags[j]))
 		}
-		config.Rows = append(config.Rows, row)
+		rows = append(rows, row)
 	}
-
-	return config
+	return rows
 }
 
 // consoleTag represents parsed console struct tag
@@ -374,68 +385,80 @@ func formatFieldValue(val reflect.Value) string {
 
 	// Handle zero values
 	if isZeroValue(val) {
-		// Special case: empty string should return "-", but 0 for numbers might be valid
 		if val.Kind() == reflect.String {
 			return "-"
 		}
-		// For numeric types, return "0" or the actual value
+		// For numeric types, return the actual value
 		if val.Kind() >= reflect.Int && val.Kind() <= reflect.Float64 {
-			// For numeric types, we can safely use Interface()
 			if val.CanInterface() {
 				return fmt.Sprintf("%v", val.Interface())
 			}
-			// Fallback for unexported fields
-			switch val.Kind() {
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				return strconv.FormatInt(val.Int(), 10)
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				return strconv.FormatUint(val.Uint(), 10)
-			case reflect.Float32, reflect.Float64:
-				return fmt.Sprintf("%f", val.Float())
-			}
+			return formatNumericKind(val)
 		}
 		return "-"
 	}
 
 	// Special handling for time.Time to avoid unexported field panic
 	if val.Type().String() == "time.Time" {
-		// Can't use Interface() on unexported fields, so use Format method via reflection
-		if val.CanInterface() {
-			if timeVal, ok := val.Interface().(time.Time); ok {
-				return timeVal.Format("2006-01-02 15:04:05")
-			}
-		}
-		// For unexported time.Time fields, try to call the String method
-		stringMethod := val.MethodByName("String")
-		if stringMethod.IsValid() {
-			result := stringMethod.Call(nil)
-			if len(result) > 0 {
-				return result[0].String()
-			}
-		}
-		return val.Type().String() // return type name as fallback
+		return formatTimeValue(val)
 	}
 
 	// Only call Interface() if we can
 	if !val.CanInterface() {
-		// For unexported fields, try to format based on kind
-		switch val.Kind() {
-		case reflect.Bool:
-			return strconv.FormatBool(val.Bool())
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			return strconv.FormatInt(val.Int(), 10)
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			return strconv.FormatUint(val.Uint(), 10)
-		case reflect.Float32, reflect.Float64:
-			return fmt.Sprintf("%f", val.Float())
-		case reflect.String:
-			return val.String()
-		default:
-			return val.Type().String()
-		}
+		return formatUnexportedValue(val)
 	}
 
 	return fmt.Sprintf("%v", val.Interface())
+}
+
+// formatTimeValue formats a time.Time reflect value as a display string.
+func formatTimeValue(val reflect.Value) string {
+	if val.CanInterface() {
+		if timeVal, ok := val.Interface().(time.Time); ok {
+			return timeVal.Format("2006-01-02 15:04:05")
+		}
+	}
+	// For unexported time.Time fields, try to call the String method
+	stringMethod := val.MethodByName("String")
+	if stringMethod.IsValid() {
+		result := stringMethod.Call(nil)
+		if len(result) > 0 {
+			return result[0].String()
+		}
+	}
+	return val.Type().String()
+}
+
+// formatUnexportedValue formats unexported struct fields by kind without using Interface().
+func formatUnexportedValue(val reflect.Value) string {
+	switch val.Kind() {
+	case reflect.Bool:
+		return strconv.FormatBool(val.Bool())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(val.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(val.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%f", val.Float())
+	case reflect.String:
+		return val.String()
+	default:
+		return val.Type().String()
+	}
+}
+
+// formatNumericKind formats numeric kinds without Interface() as a fallback.
+func formatNumericKind(val reflect.Value) string {
+	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(val.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(val.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%f", val.Float())
+	default:
+		return val.Type().String()
+	}
 }
 
 // formatFieldValueWithTag formats a reflect.Value as a string for display with format tag support
@@ -450,82 +473,7 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 
 	// Apply format based on tag
 	if tag.format != "" && baseValue != "-" {
-		switch tag.format {
-		case "number":
-			// Format as human-readable number (e.g., "1k", "1.2M")
-			if val.CanInterface() {
-				switch v := val.Interface().(type) {
-				case int:
-					return FormatNumber(v)
-				case int64:
-					// #nosec G115 - Converting int64 to int for display formatting
-					// Values are display counters/sizes that won't overflow in practice
-					return FormatNumber(int(v))
-				case int32:
-					return FormatNumber(int(v))
-				case uint:
-					// #nosec G115 - Converting uint to int for display formatting
-					return FormatNumber(int(v))
-				case uint64:
-					// #nosec G115 - Converting uint64 to int for display formatting
-					// Values are display counters/sizes that won't overflow in practice
-					return FormatNumber(int(v))
-				case uint32:
-					return FormatNumber(int(v))
-				}
-			}
-			// Fallback: try to parse from baseValue if it's an integer
-			if val.Kind() >= reflect.Int && val.Kind() <= reflect.Uint64 {
-				return FormatNumber(int(val.Int()))
-			}
-		case "cost":
-			// Format as currency with $ prefix
-			if val.CanInterface() {
-				switch v := val.Interface().(type) {
-				case float64:
-					if v > 0 {
-						return fmt.Sprintf("$%.3f", v)
-					}
-				case float32:
-					if v > 0 {
-						return fmt.Sprintf("$%.3f", v)
-					}
-				}
-			}
-			if val.Kind() == reflect.Float64 || val.Kind() == reflect.Float32 {
-				if val.Float() > 0 {
-					return fmt.Sprintf("$%.3f", val.Float())
-				}
-			}
-		case "filesize":
-			// Format as human-readable file size (e.g., "1.2 MB", "3.4 KB")
-			if val.CanInterface() {
-				switch v := val.Interface().(type) {
-				case int:
-					return FormatFileSize(int64(v))
-				case int64:
-					return FormatFileSize(v)
-				case int32:
-					return FormatFileSize(int64(v))
-				case uint:
-					// #nosec G115 - Converting uint to int64 for file size display
-					return FormatFileSize(int64(v))
-				case uint64:
-					// #nosec G115 - Converting uint64 to int64 for file size display
-					return FormatFileSize(int64(v))
-				case uint32:
-					return FormatFileSize(int64(v))
-				}
-			}
-			// Fallback for integer kinds
-			if val.Kind() >= reflect.Int && val.Kind() <= reflect.Int64 {
-				return FormatFileSize(val.Int())
-			}
-			if val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64 {
-				// #nosec G115 - Converting uint to int64 for file size display
-				return FormatFileSize(int64(val.Uint()))
-			}
-		}
+		baseValue = applyTagFormat(val, tag.format, baseValue)
 	}
 
 	// Apply maxlen truncation if specified
@@ -537,6 +485,105 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 		}
 	}
 
+	return baseValue
+}
+
+// applyTagFormat applies a named format (number, cost, filesize) to baseValue.
+func applyTagFormat(val reflect.Value, format, baseValue string) string {
+	switch format {
+	case "number":
+		return applyNumberFormat(val, baseValue)
+	case "cost":
+		return applyCostFormat(val, baseValue)
+	case "filesize":
+		return applyFilesizeFormat(val, baseValue)
+	}
+	return baseValue
+}
+
+// applyNumberFormat formats a value as a human-readable number (e.g., "1k", "1.2M").
+func applyNumberFormat(val reflect.Value, baseValue string) string {
+	if val.CanInterface() {
+		switch v := val.Interface().(type) {
+		case int:
+			return FormatNumber(v)
+		case int64:
+			// #nosec G115 - Converting int64 to int for display formatting
+			return FormatNumber(int(v))
+		case int32:
+			return FormatNumber(int(v))
+		case uint:
+			// #nosec G115 - Converting uint to int for display formatting
+			return FormatNumber(int(v))
+		case uint64:
+			// #nosec G115 - Converting uint64 to int for display formatting
+			return FormatNumber(int(v))
+		case uint32:
+			return FormatNumber(int(v))
+		}
+	}
+	// Fallback: use integer kind directly, keeping signed and unsigned separate
+	// to avoid calling Int() on an unsigned kind (which panics).
+	switch {
+	case val.Kind() >= reflect.Int && val.Kind() <= reflect.Int64:
+		return FormatNumber(int(val.Int()))
+	case val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64:
+		// #nosec G115 - Converting uint to int for display formatting
+		return FormatNumber(int(val.Uint()))
+	}
+	return baseValue
+}
+
+// applyCostFormat formats a value as currency with $ prefix.
+func applyCostFormat(val reflect.Value, baseValue string) string {
+	if val.CanInterface() {
+		switch v := val.Interface().(type) {
+		case float64:
+			if v > 0 {
+				return fmt.Sprintf("$%.3f", v)
+			}
+		case float32:
+			if v > 0 {
+				return fmt.Sprintf("$%.3f", v)
+			}
+		}
+	}
+	if val.Kind() == reflect.Float64 || val.Kind() == reflect.Float32 {
+		if val.Float() > 0 {
+			return fmt.Sprintf("$%.3f", val.Float())
+		}
+	}
+	return baseValue
+}
+
+// applyFilesizeFormat formats a value as a human-readable file size (e.g., "1.2 MB").
+func applyFilesizeFormat(val reflect.Value, baseValue string) string {
+	if val.CanInterface() {
+		switch v := val.Interface().(type) {
+		case int:
+			return FormatFileSize(int64(v))
+		case int64:
+			return FormatFileSize(v)
+		case int32:
+			return FormatFileSize(int64(v))
+		case uint:
+			// #nosec G115 - Converting uint to int64 for file size display
+			return FormatFileSize(int64(v))
+		case uint64:
+			// #nosec G115 - Converting uint64 to int64 for file size display
+			return FormatFileSize(int64(v))
+		case uint32:
+			return FormatFileSize(int64(v))
+		}
+	}
+	// Fallback for integer kinds
+	if val.Kind() >= reflect.Int && val.Kind() <= reflect.Int64 {
+		return FormatFileSize(val.Int())
+	}
+	if val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64 {
+		// #nosec G115 - Converting uint to int64 for file size display
+		return FormatFileSize(int64(val.Uint()))
+	}
 	return baseValue
 }
 

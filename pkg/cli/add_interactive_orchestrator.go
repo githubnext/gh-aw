@@ -51,8 +51,10 @@ type AddInteractiveConfig struct {
 }
 
 // RunAddInteractive runs the interactive add workflow
-// This walks the user through adding an agentic workflow to their repository
-func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool, engineOverride string, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string, skipSecret bool) error {
+// This walks the user through adding an agentic workflow to their repository.
+// ctx is applied to config.Ctx; callers should not rely on config.Ctx after this call
+// as it will be overwritten by the provided ctx.
+func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error {
 	addInteractiveLog.Print("Starting interactive add workflow")
 
 	// Assert this function is not running in automated unit tests or CI
@@ -60,28 +62,19 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 		return errors.New("interactive add cannot be used in automated tests or CI environments")
 	}
 
+	// Set context on the config
+	config.Ctx = ctx
+
 	// Auto-detect GHES host from git remote if not already set
 	if os.Getenv("GH_HOST") == "" {
 		detectedHost := getHostFromOriginRemote()
 		if detectedHost != "github.com" {
 			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
 			os.Setenv("GH_HOST", detectedHost)
-			if verbose {
+			if config.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
 			}
 		}
-	}
-
-	config := &AddInteractiveConfig{
-		Ctx:             ctx,
-		WorkflowSpecs:   workflowSpecs,
-		Verbose:         verbose,
-		EngineOverride:  engineOverride,
-		NoGitattributes: noGitattributes,
-		WorkflowDir:     workflowDir,
-		NoStopAfter:     noStopAfter,
-		StopAfter:       stopAfter,
-		SkipSecret:      skipSecret,
 	}
 
 	// Step 1: Welcome message

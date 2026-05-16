@@ -44,20 +44,24 @@ type compileWorkflowFileResult struct {
 	success          bool
 }
 
+// compileWorkflowFileOptions holds flags for compileWorkflowFile.
+type compileWorkflowFileOptions struct {
+	verbose    bool
+	jsonOutput bool
+	noEmit     bool
+	zizmor     bool
+	poutine    bool
+	strict     bool
+	validate   bool
+}
+
 // compileWorkflowFile compiles a single workflow file (not a campaign spec)
 // Returns the workflow data, lock file path, validation result, and success status
 func compileWorkflowFile(
 	ctx context.Context,
 	compiler *workflow.Compiler,
 	resolvedFile string,
-	verbose bool,
-	jsonOutput bool,
-	noEmit bool,
-	zizmor bool,
-	poutine bool,
-	actionlint bool,
-	strict bool,
-	validate bool,
+	opts compileWorkflowFileOptions,
 ) compileWorkflowFileResult {
 	compileWorkflowProcessorLog.Printf("Processing workflow file: %s", resolvedFile)
 
@@ -105,7 +109,7 @@ func compileWorkflowFile(
 		// Check if this is a shared workflow (not an error, just info)
 		var sharedErr *workflow.SharedWorkflowError
 		if errors.As(err, &sharedErr) {
-			if !jsonOutput {
+			if !opts.jsonOutput {
 				// Print info message instead of error
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(sharedErr.Error()))
 			}
@@ -122,7 +126,7 @@ func compileWorkflowFile(
 		// Check if this is a redirect-only workflow (not an error, just info)
 		var redirectErr *workflow.RedirectOnlyWorkflowError
 		if errors.As(err, &redirectErr) {
-			if !jsonOutput {
+			if !opts.jsonOutput {
 				// Print info message instead of error
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(redirectErr.Error()))
 			}
@@ -150,8 +154,14 @@ func compileWorkflowFile(
 	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
 
 	// Compile the workflow
-	// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
-	if err := CompileWorkflowDataWithValidation(ctx, compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
+	// Per-file actionlint is always disabled here; actionlint runs in batch after all files are compiled.
+	if err := CompileWorkflowDataWithValidation(ctx, compiler, workflowData, resolvedFile, CompileValidationOptions{
+		Verbose:            opts.verbose && !opts.jsonOutput,
+		RunZizmorPerFile:   opts.zizmor && !opts.noEmit,
+		RunPoutinePerFile:  opts.poutine && !opts.noEmit,
+		Strict:             opts.strict,
+		ValidateActionSHAs: opts.validate && !opts.noEmit,
+	}); err != nil {
 		// Don't print error here - it will be displayed in the compilation summary
 		// The error is stored in ValidationResult for JSON output and summary display
 		result.validationResult.Valid = false
@@ -163,7 +173,7 @@ func compileWorkflowFile(
 	}
 
 	result.success = true
-	if !noEmit {
+	if !opts.noEmit {
 		result.validationResult.CompiledFile = lockFile
 	}
 
