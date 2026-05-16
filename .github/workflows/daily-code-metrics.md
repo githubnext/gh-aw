@@ -223,6 +223,8 @@ All charts must meet these quality standards:
 
 Create a Python script to collect data, analyze metrics, and generate the charts required for the selected output format variant:
 
+Read the selected variant from environment variable `GH_AW_EXPERIMENTS_OUTPUT_FORMAT` and branch chart generation logic accordingly.
+
 ```python
 #!/usr/bin/env python3
 """
