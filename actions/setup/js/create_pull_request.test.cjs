@@ -1,6 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -958,6 +959,7 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(() => enforcePullRequestLimits(patchContent)).toThrow("E003");
     expect(() => enforcePullRequestLimits(patchContent)).toThrow("Cannot create pull request with more than 100 files");
     expect(() => enforcePullRequestLimits(patchContent)).toThrow("received 101");
+    expect(() => enforcePullRequestLimits(patchContent)).toThrow("max-patch-files");
   });
 
   it("should allow patches under the file limit", () => {
@@ -3022,5 +3024,199 @@ describe("create_pull_request - branch-prefix config", () => {
     const branchArg = global.github.rest.pulls.create.mock.calls[0][0].head;
     // normalized prefix "bad-prefix" should be applied
     expect(branchArg).toMatch(/^bad-prefix/);
+  });
+});
+
+describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
+  let originalEnv;
+  let tempDir;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-e003-test-"));
+
+    // Set up prompts directory with the E003 template so getPromptPath resolves
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/e003_file_limit_fallback.md");
+    fs.copyFileSync(templateSrc, path.join(promptsDir, "e003_file_limit_fallback.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    global.github = {
+      rest: {
+        pulls: { create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test/pull/1" } }) },
+        repos: { get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }) },
+        issues: {
+          create: vi.fn().mockResolvedValue({ data: { number: 55, html_url: "https://github.com/test/issues/55" } }),
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+      runId: "99999",
+    };
+
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) delete process.env[key];
+    }
+    Object.assign(process.env, originalEnv);
+    if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  // Build a patch string touching `n` unique files
+  function buildOversizedPatch(n) {
+    const lines = [];
+    for (let i = 0; i < n; i++) {
+      lines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
+      lines.push("index 1234567..abcdefg 100644");
+      lines.push(`--- a/file${i}.txt`);
+      lines.push(`+++ b/file${i}.txt`);
+      lines.push("@@ -1,1 +1,1 @@");
+      lines.push("-old");
+      lines.push("+new");
+    }
+    return lines.join("\n");
+  }
+
+  it("should create a fallback issue when E003 fires and fallback_as_issue is true (default)", async () => {
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(55);
+
+    // A fallback issue should have been created
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+
+    // The body should contain the E003 error message and the actionable fix
+    expect(issueCall.body).toContain("E003");
+    expect(issueCall.body).toContain("max-patch-files");
+
+    // The suggested limit must be >= the actual file count (101), not maxFiles * 2 (200)
+    expect(issueCall.body).toContain("max-patch-files: 101");
+    expect(issueCall.body).not.toContain("max-patch-files: 200");
+
+    // PR creation should NOT have been attempted
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
+  it("should use the actual received file count (not maxFiles*2) as the suggested limit", async () => {
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(220));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "API regen PR", body: "Daily update", branch: "api/regen", patch_path: patchPath }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    // With default limit=100 and 220 files, old code would suggest 200; correct is 220
+    expect(issueCall.body).toContain("max-patch-files: 220");
+    expect(issueCall.body).not.toContain("max-patch-files: 200");
+  });
+
+  it("should sanitize and apply title prefix to fallback issue title", async () => {
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ title_prefix: "[bot]" });
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+
+    expect(result.success).toBe(true);
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    // Title prefix should be applied
+    expect(issueCall.title).toMatch(/^\[bot\]/);
+  });
+
+  it("should return staged preview instead of creating a fallback issue when in staged mode", async () => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+
+    // Staged mode: no API side effects, just a preview
+    expect(result.success).toBe(true);
+    expect(result.staged).toBe(true);
+    expect(result.fallback_used).toBeUndefined();
+    expect(global.github.rest.issues.create).not.toHaveBeenCalled();
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+    expect(global.core.summary.addRaw).toHaveBeenCalled();
+  });
+
+  it("should return success: false when E003 fires and fallback_as_issue is false", async () => {
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ fallback_as_issue: false });
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("E003");
+
+    // No fallback issue should have been created
+    expect(global.github.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("should pass when max_patch_files is raised above the file count", async () => {
+    const patchPath = path.join(tempDir, "aw-test.patch");
+    fs.writeFileSync(patchPath, buildOversizedPatch(150));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ max_patch_files: 200 });
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh", patch_path: patchPath }, {});
+
+    // Should succeed — limit was raised
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBeUndefined();
+    expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.create).not.toHaveBeenCalled();
   });
 });
