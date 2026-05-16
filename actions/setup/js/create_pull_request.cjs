@@ -570,7 +570,11 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
 
   // Check file count - max limit exceeded check
   if (fileCount > limit) {
-    throw new Error(`E003: Cannot create pull request with more than ${limit} files (received ${fileCount})`);
+    throw new Error(
+      `E003: Cannot create pull request with more than ${limit} files (received ${fileCount}). ` +
+        `To increase the limit, set \`max-patch-files: ${fileCount}\` (or higher) under ` +
+        `\`safe-outputs.create-pull-request\` in your workflow frontmatter.`
+    );
   }
 }
 

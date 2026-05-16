@@ -958,6 +958,7 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(() => enforcePullRequestLimits(patchContent)).toThrow("E003");
     expect(() => enforcePullRequestLimits(patchContent)).toThrow("Cannot create pull request with more than 100 files");
     expect(() => enforcePullRequestLimits(patchContent)).toThrow("received 101");
+    expect(() => enforcePullRequestLimits(patchContent)).toThrow("max-patch-files");
   });
 
   it("should allow patches under the file limit", () => {
