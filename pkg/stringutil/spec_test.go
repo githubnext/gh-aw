@@ -621,7 +621,7 @@ func TestSpec_Constants_PATType(t *testing.T) {
 		"PATTypeClassic should have documented value 'classic'")
 	assert.Equal(t, PATTypeOAuth, PATType("oauth"),
 		"PATTypeOAuth should have documented value 'oauth'")
-	assert.Equal(t, PATType("unknown"), PATTypeUnknown,
+	assert.Equal(t, PATTypeUnknown, PATType("unknown"),
 		"PATTypeUnknown should have documented value 'unknown'")
 }
 
