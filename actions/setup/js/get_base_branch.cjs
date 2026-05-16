@@ -94,7 +94,10 @@ async function getBaseBranch(targetRepo = null, options = null) {
       if (checkedOutBranch && checkedOutBranch !== "HEAD") {
         return checkedOutBranch;
       }
-    } catch {
+    } catch (/** @type {any} */ error) {
+      if (typeof core !== "undefined" && typeof core.debug === "function") {
+        core.debug(`Failed to detect checked-out branch from git: ${getErrorMessage(error)}`);
+      }
       // Ignore and continue with default branch resolution
     }
   }

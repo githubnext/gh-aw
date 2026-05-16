@@ -441,6 +441,16 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createPullRequestHandler", () => {
+    /**
+     * Creates a side-repo checkout where:
+     * - main is the default branch
+     * - release-1.12.x has an existing remote-tracked commit not on main
+     * - the checked-out local release branch has one extra local-only commit
+     *
+     * This lets the test verify that create_pull_request diffs against
+     * origin/release-1.12.x instead of origin/main, so only the local fix
+     * ends up in the generated patch.
+     */
     function createSideRepoOnReleaseBranchWithLocalCommit() {
       const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
       fs.mkdirSync(targetRepoDir, { recursive: true });
@@ -457,18 +467,18 @@ describe("safe_outputs_handlers", () => {
       fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release tracked\n");
       execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
       execSync("git commit -m 'release tracked commit'", { cwd: targetRepoDir, stdio: "pipe" });
-      const releaseTrackedCommit = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+      const releaseCommitSha = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
 
       execSync("git checkout main", { cwd: targetRepoDir, stdio: "pipe" });
       fs.writeFileSync(path.join(targetRepoDir, "MAIN_ONLY.md"), "main only\n");
       execSync("git add MAIN_ONLY.md", { cwd: targetRepoDir, stdio: "pipe" });
       execSync("git commit -m 'main only commit'", { cwd: targetRepoDir, stdio: "pipe" });
-      const mainTrackedCommit = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+      const mainCommitSha = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
 
       execSync("git checkout release-1.12.x", { cwd: targetRepoDir, stdio: "pipe" });
       execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: targetRepoDir, stdio: "pipe" });
-      execSync(`git update-ref refs/remotes/origin/main ${mainTrackedCommit}`, { cwd: targetRepoDir, stdio: "pipe" });
-      execSync(`git update-ref refs/remotes/origin/release-1.12.x ${releaseTrackedCommit}`, { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/main ${mainCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/release-1.12.x ${releaseCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
 
       fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release local only\n");
       execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
