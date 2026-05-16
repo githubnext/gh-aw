@@ -46,7 +46,7 @@ describe("create_issue", () => {
             data: {
               resources: {
                 search: {
-                  remaining: 10,
+                  remaining: 1000,
                 },
               },
             },
@@ -631,7 +631,7 @@ describe("create_issue", () => {
           return Promise.resolve({
             data: {
               total_count: 305,
-              items: page <= 3 ? pageItems : [],
+              items: page <= 2 ? pageItems : [],
             },
           });
         }

@@ -33,8 +33,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
 const TITLE_DEDUP_SEARCH_PER_PAGE = 100;
-const TITLE_DEDUP_MAX_SEARCH_PAGES = 3;
-const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING = 5;
+const TITLE_DEDUP_MAX_SEARCH_PAGES = 2;
+const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING = 500;
 
 /**
  * Create a dedicated GitHub client for copilot assignment operations.
