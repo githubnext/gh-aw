@@ -570,7 +570,11 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
 
   // Check file count - max limit exceeded check
   if (fileCount > limit) {
-    throw new Error(`E003: Cannot create pull request with more than ${limit} files (received ${fileCount})`);
+    throw new Error(
+      `E003: Cannot create pull request with more than ${limit} files (received ${fileCount}). ` +
+        `To increase the limit, set \`max-patch-files: ${fileCount}\` (or higher) under ` +
+        `\`safe-outputs.create-pull-request\` in your workflow frontmatter.`
+    );
   }
 }
 
@@ -1076,13 +1080,58 @@ async function main(config = {}) {
       isEmpty = !patchContent || !patchContent.trim();
     }
 
-    // Enforce max limits on patch before processing
+    // Enforce max limits on patch before processing.
+    // Count files once here so the catch block can reuse the value without re-parsing.
+    const patchFileCount = countUniquePatchFiles(patchContent);
     try {
       enforcePullRequestLimits(patchContent, maxFiles);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Pull request limit exceeded: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+
+      // In staged mode, show a preview instead of performing API side effects
+      if (isStaged) {
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ⚠️ Patch file limit exceeded\n\n`;
+        summaryContent += `**Message:** ${errorMessage}\n\n`;
+
+        await core.summary.addRaw(summaryContent).write();
+        core.info("📝 Pull request creation preview written to step summary (file limit exceeded)");
+        return { success: true, staged: true };
+      }
+
+      if (!fallbackAsIssue) {
+        return { success: false, error: errorMessage };
+      }
+
+      // Surface the limit error in a fallback issue so it appears in the agent failure
+      // issue/comment thread and the workflow operator knows exactly how to fix it.
+      const rawFallbackTitle = pullRequestItem.title?.trim() || "Agent Output";
+      const fallbackTitle = applyTitlePrefix(sanitizeTitle(rawFallbackTitle, titlePrefix), titlePrefix);
+      const fallbackLabels = mergeFallbackIssueLabels(configFallbackLabels.length > 0 ? configFallbackLabels : envLabels);
+      const fallbackTemplatePath = getPromptPath("e003_file_limit_fallback.md");
+      const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
+        error_message: errorMessage,
+        suggested_limit: patchFileCount,
+      });
+
+      try {
+        const { data: issue } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees);
+        core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+        await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+        await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+        return {
+          success: true,
+          fallback_used: true,
+          issue_number: issue.number,
+          issue_url: issue.html_url,
+        };
+      } catch (issueError) {
+        const combinedError = `Pull request limit exceeded and failed to create fallback issue. Limit error: ${errorMessage}. Issue error: ${getErrorMessage(issueError)}`;
+        core.error(combinedError);
+        return { success: false, error: combinedError };
+      }
     }
 
     // Check for actual error conditions (but allow empty patches as valid noop)

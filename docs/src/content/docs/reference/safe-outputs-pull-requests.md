@@ -52,6 +52,8 @@ safe-outputs:
     excluded-files:               # files to omit from the patch entirely
       - "**/*.lock"
       - "dist/**"
+    max-patch-files: 300          # max unique files in the patch (default: 100)
+    max-patch-size: 2048          # max patch size in KB (default: 1024)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     signed-commits: true          # signed commits are required (default); set false to use git push directly
@@ -83,6 +85,22 @@ safe-outputs:
 ```
 
 The `excluded-files` field accepts a list of glob patterns. Each matching file is stripped from the patch using `git format-patch`'s `:(exclude)` magic pathspec at generation time, so the file never appears in the commit. Excluded files are also exempt from `allowed-files` and `protected-files` checks. This is useful for suppressing auto-generated or lock files that the agent must not commit (e.g. `**/*.lock`, `dist/**`). Supports `*` (any characters except `/`) and `**` (any characters including `/`).
+
+The `max-patch-files` field sets the maximum number of unique files allowed in a single PR's patch (default: `100`). Workflows that regenerate large sets of data or documentation files — for example, per-package API schemas or integration metadata — can raise this limit to accommodate their output. If the limit is exceeded, PR creation fails with an actionable error message that tells you the exact count and the field to set. Example for a workflow that routinely touches ~250 generated files:
+
+```yaml
+safe-outputs:
+  create-pull-request:
+    max-patch-files: 300
+```
+
+The `max-patch-size` field sets the maximum patch size in kilobytes (default: `1024` KB). Raise this for workflows that produce large generated files.
+
+```yaml
+safe-outputs:
+  create-pull-request:
+    max-patch-size: 2048   # allow up to 2 MB patches
+```
 
 The `preserve-branch-name` field, when set to `true`, omits the random hex salt suffix that is normally appended to the agent-specified branch name. This is useful when the target repository enforces branch naming conventions such as Jira keys in uppercase (e.g., `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for security, and casing is always preserved regardless of this setting. Defaults to `false`.
 

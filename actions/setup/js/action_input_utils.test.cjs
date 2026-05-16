@@ -26,6 +26,14 @@ describe("getActionInput", () => {
       vi.stubEnv("INPUT_JOB-NAME", "");
       expect(getActionInput("JOB_NAME")).toBe("");
     });
+
+    it("does not fall back to hyphen form when underscore form is whitespace-only (whitespace is truthy)", () => {
+      // "   " is truthy, so the || chain short-circuits and hyphen form is never tried.
+      // The result after .trim() is "". This documents the intentional precedence behaviour.
+      vi.stubEnv("INPUT_JOB_NAME", "   ");
+      vi.stubEnv("INPUT_JOB-NAME", "real-value");
+      expect(getActionInput("JOB_NAME")).toBe("");
+    });
   });
 
   describe("hyphen form (INPUT_<NAM-E>)", () => {

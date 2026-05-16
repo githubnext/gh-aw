@@ -111,21 +111,12 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
 	}
 
-	// Validate that if agent sandbox is enabled, MCP gateway is always enabled
-	// The MCP gateway is enabled when MCP servers are configured (tools that use MCP)
-	// Only validate this when sandbox is explicitly configured (not nil)
-	// If SandboxConfig is nil, defaults will be applied later and MCP check doesn't apply yet
-	//
+	// Validate that if agent sandbox is enabled, MCP gateway is always enabled.
+	// The MCP gateway is enabled when MCP servers are configured (tools that use MCP).
 	// Note: Even if agent sandbox is disabled (sandbox.agent: false), the MCP gateway
 	// must still be enabled. Agent sandbox and MCP gateway are now independent.
 	if sandboxConfig.Agent != nil && !sandboxConfig.Agent.Disabled {
-		// Agent sandbox is enabled - check if MCP gateway is enabled
-		// Only enforce this if sandbox was explicitly configured (has agent or type set)
-		// This prevents false positives for workflows where sandbox defaults haven't been applied yet
-		hasExplicitSandboxConfig := (sandboxConfig.Agent != nil && !sandboxConfig.Agent.Disabled) ||
-			sandboxConfig.Type != ""
-
-		if hasExplicitSandboxConfig && !HasMCPServers(workflowData) {
+		if !HasMCPServers(workflowData) {
 			return NewConfigurationError(
 				"sandbox",
 				"enabled without MCP servers",
@@ -133,9 +124,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 				"Add MCP tools to your workflow:\n\ntools:\n  github:\n    mode: remote\n  playwright: null\n\nOr disable the agent sandbox:\nsandbox:\n  agent: false",
 			)
 		}
-		if hasExplicitSandboxConfig {
-			sandboxValidationLog.Print("Agent sandbox enabled with MCP gateway - validation passed")
-		}
+		sandboxValidationLog.Print("Agent sandbox enabled with MCP gateway - validation passed")
 	}
 
 	return nil

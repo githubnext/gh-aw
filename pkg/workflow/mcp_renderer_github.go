@@ -47,6 +47,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		githubType, readOnly, lockdown, hasGitHubLockdownExplicitlySet(githubTool), shouldUseStepOutputForGuardPolicy, toolsets, r.options.Format)
 
 	if r.options.Format == "toml" {
+		mcpRendererLog.Print("GitHub MCP format=toml, dispatching to renderGitHubTOML")
 		r.renderGitHubTOML(yaml, githubTool, workflowData)
 		return
 	}
@@ -55,6 +56,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 
 	// Check if remote mode is enabled (type: remote)
 	if githubType == "remote" {
+		mcpRendererLog.Printf("GitHub MCP remote mode selected: copilot_fields=%t", r.options.IncludeCopilotFields)
 		// Determine authorization value based on engine requirements
 		// Copilot uses MCP passthrough syntax: "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"
 		// Other engines use shell variable: "Bearer $GITHUB_MCP_SERVER_TOKEN"
@@ -79,6 +81,8 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
+
+		mcpRendererLog.Printf("GitHub MCP local docker mode: image_version=%s, custom_args=%d", githubDockerImageVersion, len(customArgs))
 
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
 			ReadOnly:              readOnly,
@@ -149,6 +153,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 
 	// Check if remote mode is enabled
 	if githubType == "remote" {
+		mcpRendererLog.Printf("GitHub MCP TOML remote mode: readonly_endpoint=%t", readOnly)
 		// Remote mode - use hosted GitHub MCP server with streamable HTTP
 		// Use readonly endpoint if read-only mode is enabled
 		if readOnly {
