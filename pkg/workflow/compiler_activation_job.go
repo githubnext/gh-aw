@@ -91,15 +91,15 @@ func addActivationInteractionPermissions(
 }
 
 type activationInteractionPermissionsOptions struct {
-	onSection                    string
-	hasReaction                  bool
-	reactionIncludesIssues       bool
-	reactionIncludesPullRequests bool
-	reactionIncludesDiscussions  bool
-	hasStatusComment             bool
-	statusCommentIncludesIssues  bool
-	statusCommentIncludesPulls   bool
-	statusCommentIncludesDiscuss bool
+	onSection                         string
+	hasReaction                       bool
+	reactionIncludesIssues            bool
+	reactionIncludesPullRequests      bool
+	reactionIncludesDiscussions       bool
+	hasStatusComment                  bool
+	statusCommentIncludesIssues       bool
+	statusCommentIncludesPullRequests bool
+	statusCommentIncludesDiscussions  bool
 }
 
 func addActivationInteractionPermissionsMap(
@@ -155,11 +155,11 @@ func addActivationInteractionPermissionsMap(
 	if options.hasStatusComment {
 		// Status comments for issue and pull request related events use issue comment endpoints.
 		if (options.statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)) ||
-			(options.statusCommentIncludesPulls && (hasPullRequestEvent || hasPullRequestReviewCommentEvent)) {
+			(options.statusCommentIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent)) {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Status comments for discussions use discussion comment APIs and can be disabled via frontmatter.
-		if options.statusCommentIncludesDiscuss && (hasDiscussionEvent || hasDiscussionCommentEvent) {
+		if options.statusCommentIncludesDiscussions && (hasDiscussionEvent || hasDiscussionCommentEvent) {
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
@@ -174,14 +174,14 @@ func addBroadActivationInteractionPermissions(
 	}
 
 	needsIssuesWriteForReaction := options.hasReaction && (options.reactionIncludesIssues || options.reactionIncludesPullRequests)
-	needsIssuesWriteForStatusComment := options.statusCommentIncludesIssues || options.statusCommentIncludesPulls
+	needsIssuesWriteForStatusComment := options.statusCommentIncludesIssues || options.statusCommentIncludesPullRequests
 	if needsIssuesWriteForReaction || needsIssuesWriteForStatusComment {
 		permsMap[PermissionIssues] = PermissionWrite
 	}
 	if options.hasReaction && options.reactionIncludesPullRequests {
 		permsMap[PermissionPullRequests] = PermissionWrite
 	}
-	if (options.hasReaction && options.reactionIncludesDiscussions) || options.statusCommentIncludesDiscuss {
+	if (options.hasReaction && options.reactionIncludesDiscussions) || options.statusCommentIncludesDiscussions {
 		permsMap[PermissionDiscussions] = PermissionWrite
 	}
 }

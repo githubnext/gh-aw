@@ -136,15 +136,15 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		addActivationInteractionPermissions(
 			appPerms,
 			activationInteractionPermissionsOptions{
-				onSection:                    data.On,
-				hasReaction:                  ctx.hasReaction,
-				reactionIncludesIssues:       ctx.reactionIssues,
-				reactionIncludesPullRequests: ctx.reactionPullRequests,
-				reactionIncludesDiscussions:  ctx.reactionDiscussions,
-				hasStatusComment:             ctx.hasStatusComment,
-				statusCommentIncludesIssues:  ctx.statusCommentIssues,
-				statusCommentIncludesPulls:   ctx.statusCommentPRs,
-				statusCommentIncludesDiscuss: ctx.statusCommentDiscussions,
+				onSection:                         data.On,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 			},
 		)
 		if ctx.shouldRemoveLabel {
@@ -493,15 +493,15 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 		permsMap[PermissionActions] = PermissionRead
 	}
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
-		onSection:                    ctx.data.On,
-		hasReaction:                  ctx.hasReaction,
-		reactionIncludesIssues:       ctx.reactionIssues,
-		reactionIncludesPullRequests: ctx.reactionPullRequests,
-		reactionIncludesDiscussions:  ctx.reactionDiscussions,
-		hasStatusComment:             ctx.hasStatusComment,
-		statusCommentIncludesIssues:  ctx.statusCommentIssues,
-		statusCommentIncludesPulls:   ctx.statusCommentPRs,
-		statusCommentIncludesDiscuss: ctx.statusCommentDiscussions,
+		onSection:                         ctx.data.On,
+		hasReaction:                       ctx.hasReaction,
+		reactionIncludesIssues:            ctx.reactionIssues,
+		reactionIncludesPullRequests:      ctx.reactionPullRequests,
+		reactionIncludesDiscussions:       ctx.reactionDiscussions,
+		hasStatusComment:                  ctx.hasStatusComment,
+		statusCommentIncludesIssues:       ctx.statusCommentIssues,
+		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 	})
 	// For centralized slash_command workflows, the compiled "on" section only contains
 	// workflow_dispatch, so addActivationInteractionPermissionsMap above cannot detect the
@@ -511,15 +511,15 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
 		if syntheticOn != "" {
 			addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
-				onSection:                    syntheticOn,
-				hasReaction:                  ctx.hasReaction,
-				reactionIncludesIssues:       ctx.reactionIssues,
-				reactionIncludesPullRequests: ctx.reactionPullRequests,
-				reactionIncludesDiscussions:  ctx.reactionDiscussions,
-				hasStatusComment:             ctx.hasStatusComment,
-				statusCommentIncludesIssues:  ctx.statusCommentIssues,
-				statusCommentIncludesPulls:   ctx.statusCommentPRs,
-				statusCommentIncludesDiscuss: ctx.statusCommentDiscussions,
+				onSection:                         syntheticOn,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 			})
 		}
 	}

@@ -186,15 +186,15 @@ func TestAddActivationInteractionPermissionsMapFallsBackOnInvalidOnYAML(t *testi
 	permsMap := map[PermissionScope]PermissionLevel{}
 
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
-		onSection:                    "on: [",
-		hasReaction:                  true,
-		reactionIncludesIssues:       true,
-		reactionIncludesPullRequests: true,
-		reactionIncludesDiscussions:  true,
-		hasStatusComment:             true,
-		statusCommentIncludesIssues:  true,
-		statusCommentIncludesPulls:   true,
-		statusCommentIncludesDiscuss: true,
+		onSection:                         "on: [",
+		hasReaction:                       true,
+		reactionIncludesIssues:            true,
+		reactionIncludesPullRequests:      true,
+		reactionIncludesDiscussions:       true,
+		hasStatusComment:                  true,
+		statusCommentIncludesIssues:       true,
+		statusCommentIncludesPullRequests: true,
+		statusCommentIncludesDiscussions:  true,
 	})
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write")
@@ -206,15 +206,15 @@ func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentDisc
 	permsMap := map[PermissionScope]PermissionLevel{}
 
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
-		onSection:                    "name: no-on-key",
-		hasReaction:                  false,
-		reactionIncludesIssues:       true,
-		reactionIncludesPullRequests: true,
-		reactionIncludesDiscussions:  true,
-		hasStatusComment:             true,
-		statusCommentIncludesIssues:  true,
-		statusCommentIncludesPulls:   true,
-		statusCommentIncludesDiscuss: false,
+		onSection:                         "name: no-on-key",
+		hasReaction:                       false,
+		reactionIncludesIssues:            true,
+		reactionIncludesPullRequests:      true,
+		reactionIncludesDiscussions:       true,
+		hasStatusComment:                  true,
+		statusCommentIncludesIssues:       true,
+		statusCommentIncludesPullRequests: true,
+		statusCommentIncludesDiscussions:  false,
 	})
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write for status comments")
@@ -265,15 +265,15 @@ func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentIssu
 	permsMap := map[PermissionScope]PermissionLevel{}
 
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
-		onSection:                    "name: no-on-key",
-		hasReaction:                  false,
-		reactionIncludesIssues:       true,
-		reactionIncludesPullRequests: true,
-		reactionIncludesDiscussions:  true,
-		hasStatusComment:             true,
-		statusCommentIncludesIssues:  false,
-		statusCommentIncludesPulls:   false,
-		statusCommentIncludesDiscuss: true,
+		onSection:                         "name: no-on-key",
+		hasReaction:                       false,
+		reactionIncludesIssues:            true,
+		reactionIncludesPullRequests:      true,
+		reactionIncludesDiscussions:       true,
+		hasStatusComment:                  true,
+		statusCommentIncludesIssues:       false,
+		statusCommentIncludesPullRequests: false,
+		statusCommentIncludesDiscussions:  true,
 	})
 
 	_, hasIssues := permsMap[PermissionIssues]
@@ -349,15 +349,15 @@ func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentPull
 	permsMap := map[PermissionScope]PermissionLevel{}
 
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
-		onSection:                    "name: no-on-key",
-		hasReaction:                  false,
-		reactionIncludesIssues:       true,
-		reactionIncludesPullRequests: true,
-		reactionIncludesDiscussions:  true,
-		hasStatusComment:             true,
-		statusCommentIncludesIssues:  false,
-		statusCommentIncludesPulls:   false,
-		statusCommentIncludesDiscuss: true,
+		onSection:                         "name: no-on-key",
+		hasReaction:                       false,
+		reactionIncludesIssues:            true,
+		reactionIncludesPullRequests:      true,
+		reactionIncludesDiscussions:       true,
+		hasStatusComment:                  true,
+		statusCommentIncludesIssues:       false,
+		statusCommentIncludesPullRequests: false,
+		statusCommentIncludesDiscussions:  true,
 	})
 
 	_, hasIssues := permsMap[PermissionIssues]
@@ -376,15 +376,15 @@ func TestActivationPermissionsIssueCommentReactionRequiresPullRequestsWrite(t *t
 
 	onSection := "on:\n  issue_comment:\n    types: [created]\n"
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
-		onSection:                    onSection,
-		hasReaction:                  true,
-		reactionIncludesIssues:       true,
-		reactionIncludesPullRequests: true,
-		reactionIncludesDiscussions:  false,
-		hasStatusComment:             false,
-		statusCommentIncludesIssues:  false,
-		statusCommentIncludesPulls:   false,
-		statusCommentIncludesDiscuss: false,
+		onSection:                         onSection,
+		hasReaction:                       true,
+		reactionIncludesIssues:            true,
+		reactionIncludesPullRequests:      true,
+		reactionIncludesDiscussions:       false,
+		hasStatusComment:                  false,
+		statusCommentIncludesIssues:       false,
+		statusCommentIncludesPullRequests: false,
+		statusCommentIncludesDiscussions:  false,
 	})
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "issue_comment reaction should include issues:write")
