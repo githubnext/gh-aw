@@ -50,6 +50,8 @@ Validate the full OTEL loop for this repository:
 
 The goal is to verify the current run end to end, not just prove that the backends contain some older telemetry.
 
+Step 1 keeps that local OTEL infrastructure coverage by explicitly checking env injection, the local JSONL mirror, span emission for the current run, and zero OTLP export errors before any remote backend queries begin.
+
 ## Required Secrets
 
 This workflow expects these secrets to be present:
@@ -69,6 +71,8 @@ This workflow expects these secrets to be present:
 - Prefer proving the current run is visible in each backend.
 - Distinguish `pass`, `fail`, and `inconclusive` explicitly.
 - Do not browse unrelated dashboards, issues, or traces.
+- Always complete the workflow in this order: Step 1 local OTEL checks, Step 2 Sentry, then Step 3 Grafana.
+- Do not skip Grafana because Sentry failed or consumed time. Report both backends in the same run.
 
 ## Status model
 
@@ -177,15 +181,16 @@ Create exactly one GitHub issue with:
 
 - Title: `Smoke Test: OTEL Backends - ${{ github.run_id }}`
 - A short executive summary with overall `PASS`, `INCONCLUSIVE`, or `FAIL`
-- A markdown table with one row per backend and these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
-- Use `[x]` for pass and `[ ]` for fail in every status cell
+- A markdown table with one row for `Local OTLP`, one row for `Sentry`, and one row for `Grafana`, using these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
+- Use `✅` for pass, `❌` for fail, `⚪` for inconclusive, and `—` where a cell does not apply
 - Use this table form:
 
   ```markdown
   | Backend | Write Config Present | Write Export Succeeded | Read Config Present | Read Query Succeeded | Overall |
   | --- | --- | --- | --- | --- | --- |
-  | Sentry | [x] | [x] | [x] | [ ] | [ ] |
-  | Grafana | [x] | [ ] | [x] | [x] | [ ] |
+  | Local OTLP | ✅ | ✅ | — | — | ✅ |
+  | Sentry | ✅ | ✅ | ✅ | ⚪ | ⚪ |
+  | Grafana | ✅ | ❌ | ✅ | ✅ | ❌ |
   ```
 
 - The exact evidence used for each backend
