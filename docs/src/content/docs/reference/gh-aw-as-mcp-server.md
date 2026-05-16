@@ -204,7 +204,7 @@ Apply automatic codemod-style fixes to workflow files.
 - `write` (optional): Write changes to files (default is dry-run)
 - `list_codemods` (optional): List available codemods and exit
 
-Available codemods: `timeout-minutes-migration`, `network-firewall-migration`, `sandbox-agent-false-removal`, `mcp-scripts-mode-removal`.
+Available codemods: `timeout-minutes-migration`, `network-firewall-migration`, `sandbox-agent-false-removal`, `mcp-scripts-mode-removal`, `steps-run-secrets-to-env`.
 
 ## Using GH-AW as an MCP from an Agentic Workflow
 

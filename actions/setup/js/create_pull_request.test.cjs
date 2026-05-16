@@ -1052,6 +1052,8 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(parseDiffGitHeader("diff --git a/foo.txt b/foo.txt")).toBe("foo.txt");
     // Path with spaces (git always emits quoted form when path contains spaces)
     expect(parseDiffGitHeader('diff --git "a/dir/with space/x" "b/dir/with space/x"')).toBe("dir/with space/x");
+    // CRLF line ending should not leak trailing carriage-return into path
+    expect(parseDiffGitHeader("diff --git a/crlf.txt b/crlf.txt\r")).toBe("crlf.txt");
 
     // A patch with three different quoted/escaped files should count as 3.
     const patch = [
@@ -1089,7 +1091,7 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(countUniquePatchFiles(patchContent)).toBe(3);
 
     // Mixed: 2 parseable + 2 unparseable = 4 unique entries.
-    const mixed = ["diff --git a/a.txt b/a.txt", "diff --git ", "diff --git b/b.txt c/b.txt", "diff --git "].join("\n");
+    const mixed = ["diff --git a/a.txt b/a.txt", 'diff --git "a/missing b/missing', "diff --git b/b.txt c/b.txt", "diff --git "].join("\n");
     expect(countUniquePatchFiles(mixed)).toBe(4);
 
     // 200 unparseable headers must still trigger the default 100-file limit.
@@ -1381,6 +1383,11 @@ ${diffs}
     return p;
   }
 
+  function extractCompareUrlFromIssueBody(issueBody) {
+    const match = String(issueBody).match(/https:\/\/[^)\s]+\/compare\/[^)\s]+/);
+    return match ? match[0] : null;
+  }
+
   it("should reject files outside the allowed-files allowlist", async () => {
     const patchPath = writePatch(createPatchWithFiles("src/index.js"));
 
@@ -1452,6 +1459,73 @@ ${diffs}
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("protected files");
+  });
+
+  it("should create fallback issue body without Closes keyword when issue number is not yet known", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
+    fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.github.rest.issues = {
+      create: vi.fn().mockResolvedValue({ data: { number: 77, html_url: "https://github.com/test-owner/test-repo/issues/77" } }),
+      update: vi.fn().mockResolvedValue({ data: {} }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "fallback-to-issue",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(77);
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
+
+    const createCall = global.github.rest.issues.create.mock.calls[0][0];
+    expect(createCall.body).toContain("/compare/main...");
+    expect(createCall.body).not.toContain("&body=Closes");
+    const createCompareUrl = extractCompareUrlFromIssueBody(createCall.body);
+    expect(createCompareUrl).toBeTruthy();
+    expect(new URL(createCompareUrl).searchParams.get("body")).toBeNull();
+  });
+
+  it("should prefill compare URL update with Closes #N for protected-files fallback-to-issue", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
+    fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.github.rest.issues = {
+      create: vi.fn().mockResolvedValue({ data: { number: 77, html_url: "https://github.com/test-owner/test-repo/issues/77" } }),
+      update: vi.fn().mockResolvedValue({ data: {} }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "fallback-to-issue",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(77);
+    expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
+
+    const updateCall = global.github.rest.issues.update.mock.calls[0][0];
+    expect(updateCall.body).toContain("/compare/main...");
+    expect(updateCall.body).toContain("&body=Closes%20%2377");
+    const compareUrl = extractCompareUrlFromIssueBody(updateCall.body);
+    expect(compareUrl).toBeTruthy();
+    expect(new URL(compareUrl).searchParams.get("body")).toBe("Closes #77");
   });
 });
 

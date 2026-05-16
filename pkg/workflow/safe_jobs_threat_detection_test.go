@@ -429,7 +429,6 @@ Test workflow content
 	}
 }
 
-
 func TestIsThreatDetectionExplicitlyDisabledInConfigs(t *testing.T) {
 	tests := []struct {
 		name     string

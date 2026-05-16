@@ -182,8 +182,8 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 		resolver = workflow.NewActionResolver(cache)
 	}
 
-	// Create .github/workflows directory if it doesn't exist
-	workflowsDir := filepath.Join(".github", "workflows")
+	// Create workflow directory if it doesn't exist.
+	workflowsDir := constants.GetWorkflowDir()
 	if err := os.MkdirAll(workflowsDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create workflows directory: %w", err)
 	}

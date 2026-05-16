@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -46,7 +47,8 @@ func FuzzStepsRunSecretsToEnvCodemod(f *testing.F) {
 			t.Fatalf("expected mutation for run=%q", run)
 		}
 		runLine := extractFuzzRunLine(result)
-		if strings.Contains(runLine, "${{ secrets.") || strings.Contains(runLine, "${{ env.") || strings.Contains(runLine, "${{ github.token") {
+		// No ${{ ... }} expression should remain in the run line after applying.
+		if strings.Contains(runLine, "${{") {
 			t.Fatalf("run line still contains expression interpolation: %q", runLine)
 		}
 		for _, variable := range expectedVars {
@@ -62,6 +64,125 @@ func FuzzStepsRunSecretsToEnvCodemod(f *testing.F) {
 			if countEnvBindingKey(result, variable) != 1 {
 				t.Fatalf("expected exactly one env binding for %s", variable)
 			}
+		}
+	})
+}
+
+// FuzzStepsRunSecretsToEnvCodemodExpr tests the EXPR_* catch-all path that hoists
+// arbitrary GitHub Actions property-access chains (e.g. github.repository,
+// inputs.my-input, steps.step-id.outputs.result) to EXPR_* env bindings.
+func FuzzStepsRunSecretsToEnvCodemodExpr(f *testing.F) {
+	f.Add(uint8(0), "github", "repository", false)
+	f.Add(uint8(1), "inputs", "my-input", false)
+	f.Add(uint8(2), "github", "sha", true)
+	f.Add(uint8(3), "runner", "os", false)
+
+	f.Fuzz(func(t *testing.T, sectionSelector uint8, namespace, propNameRaw string, preseedBinding bool) {
+		namespace = sanitizeHoistPropertySegment(namespace)
+		propName := sanitizeHoistPropertySegment(propNameRaw)
+		section := []string{"pre-steps", "steps", "post-steps", "pre-agent-steps"}[int(sectionSelector)%4]
+
+		// Build a simple two-segment property-access expression like "github.sha".
+		// stepsGenericExprRe requires valid property-chain characters; both
+		// segments are sanitised above.
+		expr := namespace + "." + propName
+		run := fmt.Sprintf(`echo "${{ %s }}"`, expr)
+
+		expectedEnvVar := "EXPR_" + strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(expr))
+
+		var lines []string
+		lines = append(lines, "---", "on: push", section+":", "  - name: fuzz")
+		if preseedBinding {
+			lines = append(lines, "    env:", "      "+expectedEnvVar+": ${{ "+expr+" }}")
+		}
+		lines = append(lines, "    run: "+run, "---")
+		content := strings.Join(lines, "\n") + "\n"
+
+		frontmatter := map[string]any{
+			"on":       "push",
+			section:    []any{map[string]any{"name": "fuzz", "run": run}},
+			"workflow": "fuzz",
+		}
+
+		result, applied, err := getStepsRunSecretsToEnvCodemod().Apply(content, frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !applied {
+			t.Fatalf("expected codemod to apply for expr=%q run=%q", expr, run)
+		}
+		runLine := extractFuzzRunLine(result)
+		if strings.Contains(runLine, "${{") {
+			t.Fatalf("run line still contains expression interpolation after apply: %q", runLine)
+		}
+		if !strings.Contains(runLine, "$"+expectedEnvVar) {
+			t.Fatalf("run line missing %q: %q", "$"+expectedEnvVar, runLine)
+		}
+		if countEnvBindingKey(result, expectedEnvVar) != 1 {
+			t.Fatalf("expected exactly one env binding for %s, result:\n%s", expectedEnvVar, result)
+		}
+	})
+}
+
+// FuzzStepsRunSecretsToEnvCodemodPowerShell tests that PowerShell steps
+// (shell: pwsh / shell: powershell) receive $env:VARNAME references instead
+// of $VARNAME for all hoisted expressions.
+func FuzzStepsRunSecretsToEnvCodemodPowerShell(f *testing.F) {
+	f.Add(uint8(0), "MY_TOKEN", true)
+	f.Add(uint8(1), "DEPLOY_KEY", false)
+	f.Add(uint8(2), "A", true)
+
+	f.Fuzz(func(t *testing.T, shellSelector uint8, secretNameRaw string, includeGitHubToken bool) {
+		secretName := sanitizeHoistName(secretNameRaw)
+		shell := []string{"pwsh", "powershell"}[int(shellSelector)%2]
+		section := "steps"
+
+		parts := []string{"${{ secrets." + secretName + " }}"}
+		if includeGitHubToken {
+			parts = append(parts, "${{ github.token }}")
+		}
+		run := `Write-Output "` + strings.Join(parts, " ") + `"`
+
+		content := strings.Join([]string{
+			"---",
+			"on: push",
+			section + ":",
+			"  - name: ps fuzz",
+			"    shell: " + shell,
+			"    run: " + run,
+			"---",
+		}, "\n") + "\n"
+
+		frontmatter := map[string]any{
+			"on": "push",
+			section: []any{map[string]any{
+				"name":  "ps fuzz",
+				"shell": shell,
+				"run":   run,
+			}},
+		}
+
+		result, applied, err := getStepsRunSecretsToEnvCodemod().Apply(content, frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !applied {
+			t.Fatalf("expected codemod to apply for shell=%s run=%q", shell, run)
+		}
+		runLine := extractFuzzRunLine(result)
+		if strings.Contains(runLine, "${{") {
+			t.Fatalf("run line still contains expression interpolation: %q", runLine)
+		}
+		// PowerShell steps must use $env:VARNAME — never bare $VARNAME for the
+		// secret binding (the plain $NAME form must not appear in the run line).
+		if strings.Contains(runLine, "run: Write-Output \"$"+secretName) {
+			t.Fatalf("PowerShell run line uses bare $VARNAME instead of $env:VARNAME: %q", runLine)
+		}
+		if !strings.Contains(runLine, "$env:"+secretName) {
+			t.Fatalf("PowerShell run line missing $env:%s: %q", secretName, runLine)
+		}
+		if countEnvBindingKey(result, secretName) != 1 {
+			t.Fatalf("expected exactly one env binding for %s", secretName)
 		}
 	})
 }
@@ -179,6 +300,40 @@ func sanitizeHoistName(raw string) string {
 	}
 	if s[0] >= '0' && s[0] <= '9' {
 		return "T_" + s
+	}
+	return s
+}
+
+// sanitizeHoistPropertySegment converts arbitrary fuzz input into a valid
+// GitHub Actions property-access segment accepted by stepsGenericExprRe:
+// [a-zA-Z_][a-zA-Z0-9_-]*, max 20 chars.
+func sanitizeHoistPropertySegment(raw string) string {
+	if raw == "" {
+		return "prop"
+	}
+	var b strings.Builder
+	for _, r := range raw {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r + ('a' - 'A')) // lowercase
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '_' || r == '-':
+			b.WriteRune(r)
+		}
+		if b.Len() >= 20 {
+			break
+		}
+	}
+	s := b.String()
+	if s == "" {
+		return "prop"
+	}
+	// Ensure the segment starts with a letter or underscore.
+	if (s[0] >= '0' && s[0] <= '9') || s[0] == '-' {
+		return "p" + s
 	}
 	return s
 }

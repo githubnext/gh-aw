@@ -17,6 +17,12 @@ The `stringutil` package is organized into focused sub-files:
 | `urls.go` | URL normalization and domain extraction |
 | `pat_validation.go` | GitHub PAT classification and validation |
 
+### Exported Types
+
+| Type | Description |
+|------|-------------|
+| `SanitizeOptions` | Options for `SanitizeName` (preserved characters, hyphen trimming, and default value) |
+
 ## General Utilities (`stringutil.go`)
 
 ### `Truncate(s string, maxLen int) string`
@@ -32,6 +38,10 @@ stringutil.Truncate("hi", 8)          // "hi"
 
 Normalizes trailing whitespace in multi-line content. Trims trailing spaces and tabs from every line, then ensures the content ends with exactly one newline (or is empty). This reduces spurious diffs caused by trailing-whitespace differences.
 
+### `NormalizeLeadingWhitespace(content string) string`
+
+Removes shared leading indentation from non-empty lines in a multi-line string. This is useful for normalizing heredoc-like blocks while preserving relative indentation.
+
 ### `ParseVersionValue(version any) string`
 
 Converts a `any`-typed version value (typically from YAML parsing, which may produce `int`, `float64`, or `string`) into a string. Returns an empty string for nil.
@@ -40,6 +50,14 @@ Converts a `any`-typed version value (typically from YAML parsing, which may pro
 stringutil.ParseVersionValue("20")    // "20"
 stringutil.ParseVersionValue(20)      // "20"
 stringutil.ParseVersionValue(20.0)    // "20"
+```
+
+### `FormatList(items []string) string`
+
+Formats a slice of strings as a natural-language list with an Oxford comma.
+
+```go
+stringutil.FormatList([]string{"a", "b", "c"}) // "a, b, and c"
 ```
 
 ### `IsPositiveInteger(s string) bool`
@@ -99,6 +117,10 @@ stringutil.LockFileToMarkdown(".github/workflows/test.lock.yml")
 ## Sanitization (`sanitize.go`)
 
 These functions remove sensitive information to prevent accidental leakage in logs or error messages.
+
+### `SanitizeName(name string, opts *SanitizeOptions) string`
+
+Sanitizes a name for identifiers and filenames using configurable behavior (preserved special characters, optional hyphen trimming, and fallback default value).
 
 ### `SanitizeErrorMessage(message string) string`
 

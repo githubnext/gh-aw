@@ -244,7 +244,7 @@ gh aw fix --list-codemods              # List available codemods
 Available codemods include:
 
 - `expires-integer-to-string` — converts bare integer `expires` values (e.g., `expires: 7`) to the preferred day-string format (e.g., `expires: 7d`) in all `safe-outputs` blocks.
-- `steps-run-secrets-to-env` — rewrites inline `${{ secrets.NAME }}` interpolations in step `run:` commands to `$NAME` and adds step-level `env` bindings. Required for strict-mode compliance.
+- `steps-run-secrets-to-env` — rewrites **all** `${{ ... }}` expressions in step `run:` commands to `$VARNAME` references (or `$env:VARNAME` for PowerShell steps) and adds step-level `env` bindings. Secrets, `env.*`, and `github.token` use stable legacy names; all other expressions receive `EXPR_*` names. Required for strict-mode compliance.
 - `engine-env-secrets-to-engine-config` — removes secret-bearing entries from `engine.env` that are unsafe under strict mode, preserving required engine credential keys.
 
 Run `gh aw fix --list-codemods` to see all available codemods.
