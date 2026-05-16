@@ -45,9 +45,12 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 		case mountValidationModeError:
 			mcpMountValidationLog.Printf("Mount[%d] invalid mode for tool %q: got %q", i, toolName, parts.mode)
 			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] mode must be 'ro' or 'rw', got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"  # read-only\n      - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", toolName, i, parts.mode, toolName, constants.DocsToolsURL)
-		case mountValidationEmptySource, mountValidationEmptyDestination:
-			mcpMountValidationLog.Printf("Mount[%d] has empty path for tool %q: %q", i, toolName, mount)
-			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must include non-empty source and destination paths, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
+		case mountValidationEmptySource:
+			mcpMountValidationLog.Printf("Mount[%d] has empty source for tool %q: %q", i, toolName, mount)
+			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] source path cannot be empty, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
+		case mountValidationEmptyDestination:
+			mcpMountValidationLog.Printf("Mount[%d] has empty destination for tool %q: %q", i, toolName, mount)
+			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] destination path cannot be empty, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
 		}
 		mcpMountValidationLog.Printf("Mount[%d] valid for tool %q: source=%s, dest=%s, mode=%s", i, toolName, parts.source, parts.dest, parts.mode)
 	}
