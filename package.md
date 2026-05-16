@@ -1,6 +1,6 @@
 # Configure Repository as Agentic Workflows Package
 
-This prompt guides you, a coding agent, to convert a repository that contains **agentic-workflows** and/or **shared agentic-workflows** into a reusable package repository.
+This prompt guides you, a coding agent, to convert the current repository (unless the request explicitly specifies a different target repository) that contains **agentic-workflows** and/or **shared agentic-workflows** into a reusable package repository.
 
 ## Your Task
 
