@@ -18,7 +18,7 @@ tools:
 timeout-minutes: 45
 # Raised from the 25M default because this workflow analyzes multi-run logs and OTEL artifacts.
 # Prompt caps below are intended to keep typical runs well under this ceiling.
-max-effective-tokens: 40000000
+max-effective-tokens: 80000000
 imports:
   - uses: shared/meta-analysis-base.md
     with:
