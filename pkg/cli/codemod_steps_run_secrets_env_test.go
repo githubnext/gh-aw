@@ -593,7 +593,7 @@ steps:
 		// The first expression gets the canonical sanitized name; the second gets a hash-based name.
 		assert.Contains(t, result, "EXPR_INPUTS_MY_INPUT: ${{ inputs.my-input }}", "first expression should use sanitized EXPR_ name")
 		// The run line must not contain any raw ${{ ... }} interpolation.
-		for _, line := range strings.Split(result, "\n") {
+		for line := range strings.SplitSeq(result, "\n") {
 			if strings.HasPrefix(strings.TrimSpace(line), "run:") {
 				assert.NotContains(t, line, "${{", "run line must not contain raw expression interpolation")
 				assert.Contains(t, line, "$EXPR_INPUTS_MY_INPUT", "run line should reference sanitized name for first expression")

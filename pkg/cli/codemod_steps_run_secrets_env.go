@@ -173,7 +173,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 		indent := getIndentation(line)
 		// Accept only direct step-key lines: standard form at exactly stepIndent+"  ",
 		// or list-item-inline form "- key:" at exactly stepIndent.
-		if indent != directKeyIndent && !(indent == stepIndent && strings.HasPrefix(trimmed, "- ")) {
+		if indent != directKeyIndent && (indent != stepIndent || !strings.HasPrefix(trimmed, "- ")) {
 			continue
 		}
 		shellMatch, shellValue, _ := parseStepKeyLine(trimmed, indent, stepIndent, "shell")

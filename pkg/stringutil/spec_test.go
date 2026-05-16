@@ -74,7 +74,7 @@ func TestSpec_PublicAPI_NormalizeWhitespace(t *testing.T) {
 	t.Run("trims trailing spaces from each line", func(t *testing.T) {
 		input := "line one   \nline two\t\t\nline three"
 		result := NormalizeWhitespace(input)
-		for _, line := range strings.Split(strings.TrimRight(result, "\n"), "\n") {
+		for line := range strings.SplitSeq(strings.TrimRight(result, "\n"), "\n") {
 			assert.Equal(t, strings.TrimRight(line, " \t"), line,
 				"each line should have no trailing spaces or tabs")
 		}
@@ -90,7 +90,7 @@ func TestSpec_PublicAPI_NormalizeWhitespace(t *testing.T) {
 
 	t.Run("empty input returns empty (no trailing newline added)", func(t *testing.T) {
 		result := NormalizeWhitespace("")
-		assert.Equal(t, "", result,
+		assert.Empty(t, result,
 			"empty input should remain empty (no trailing newline added)")
 	})
 }
@@ -615,13 +615,13 @@ func TestSpec_PublicAPI_SanitizeErrorMessage(t *testing.T) {
 //	| PATTypeOAuth        | "oauth"        | gho_         |
 //	| PATTypeUnknown      | "unknown"      | (other)      |
 func TestSpec_Constants_PATType(t *testing.T) {
-	assert.Equal(t, PATType("fine-grained"), PATTypeFineGrained,
+	assert.Equal(t, PATTypeFineGrained, PATType("fine-grained"),
 		"PATTypeFineGrained should have documented value 'fine-grained'")
-	assert.Equal(t, PATType("classic"), PATTypeClassic,
+	assert.Equal(t, PATTypeClassic, PATType("classic"),
 		"PATTypeClassic should have documented value 'classic'")
-	assert.Equal(t, PATType("oauth"), PATTypeOAuth,
+	assert.Equal(t, PATTypeOAuth, PATType("oauth"),
 		"PATTypeOAuth should have documented value 'oauth'")
-	assert.Equal(t, PATType("unknown"), PATTypeUnknown,
+	assert.Equal(t, PATTypeUnknown, PATType("unknown"),
 		"PATTypeUnknown should have documented value 'unknown'")
 }
 

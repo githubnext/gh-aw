@@ -409,7 +409,7 @@ Test workflow content
 	workflowStr := string(workflowBytes)
 
 	// No env var at all may be written to $GITHUB_OUTPUT by safe-jobs.
-	for _, line := range strings.Split(workflowStr, "\n") {
+	for line := range strings.SplitSeq(workflowStr, "\n") {
 		if strings.Contains(line, "GH_TOKEN") && strings.Contains(line, "GITHUB_OUTPUT") {
 			t.Errorf("GH_TOKEN must never be written to GITHUB_OUTPUT (secret leak): %s", strings.TrimSpace(line))
 		}
