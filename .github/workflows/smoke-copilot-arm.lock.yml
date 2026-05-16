@@ -2449,10 +2449,8 @@ jobs:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
       - name: Configure Safe Outputs Job Environment Variables
-        id: setup-safe-job-env
         run: |
           find "${RUNNER_TEMP}/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=${RUNNER_TEMP}/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_OUTPUT"
       - name: Stub Slack message
         run: |
           echo "🎭 This is a stub - not sending to Slack"
@@ -2469,7 +2467,7 @@ jobs:
             echo "No agent output found"
           fi
         env:
-          GH_AW_AGENT_OUTPUT: ${{ steps.setup-safe-job-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
 
   update_cache_memory:
     needs:

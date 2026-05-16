@@ -1335,14 +1335,12 @@ jobs:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
       - name: Configure Safe Outputs Job Environment Variables
-        id: setup-safe-job-env
         run: |
           find "${RUNNER_TEMP}/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=${RUNNER_TEMP}/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_OUTPUT"
       - name: Add comment to Notion page
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
         env:
-          GH_AW_AGENT_OUTPUT: ${{ steps.setup-safe-job-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
         with:
