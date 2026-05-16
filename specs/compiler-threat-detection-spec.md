@@ -30,14 +30,15 @@ This is a Candidate Recommendation specification. It may be revised based on ope
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
-2. [Conformance](#2-conformance)
-3. [Threat Detection Rule Model](#3-threat-detection-rule-model)
-4. [Normative Rule Requirements](#4-normative-rule-requirements)
-5. [Daily Optimizer Maintenance Protocol](#5-daily-optimizer-maintenance-protocol)
-6. [Implementation Mapping](#6-implementation-mapping)
-7. [Compliance Testing](#7-compliance-testing)
-8. [References](#8-references)
-9. [Change Log](#9-change-log)
+2. [Spec-to-Implementation Sync](#2-spec-to-implementation-sync)
+3. [Conformance](#3-conformance)
+4. [Threat Detection Rule Model](#4-threat-detection-rule-model)
+5. [Normative Rule Requirements](#5-normative-rule-requirements)
+6. [Daily Optimizer Maintenance Protocol](#6-daily-optimizer-maintenance-protocol)
+7. [Implementation Mapping](#7-implementation-mapping)
+8. [Compliance Testing](#8-compliance-testing)
+9. [References](#9-references)
+10. [Change Log](#10-change-log)
 
 ---
 
@@ -71,23 +72,35 @@ This specification does NOT cover:
 
 ---
 
-## 2. Conformance
+## 2. Spec-to-Implementation Sync
 
-An implementation conforms to this specification if it satisfies all MUST requirements in Sections 3-7.
+This section anchors the specification version to the minimum gh-aw binary version expected to implement it and to the lock-file behavior that must remain compatible.
 
-### 2.1 Conformance Targets
+| Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
+|--------------|------------------------------|-------------------------------|
+| `1.0.8` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). |
+
+When this specification version changes, maintainers MUST update this table in the same pull request as any lock-file compatibility changes.
+
+---
+
+## 3. Conformance
+
+An implementation conforms to this specification if it satisfies all MUST requirements in Sections 4-8.
+
+### 3.1 Conformance Targets
 
 - Compiler source in `pkg/workflow/`
 - Related schema/validation sources in `pkg/parser/` and `actions/setup/` where applicable
 - Daily optimizer workflow that enforces ongoing coverage
 
-### 2.2 Requirement Keywords
+### 3.2 Requirement Keywords
 
 The key words **MUST**, **MUST NOT**, **SHALL**, **SHOULD**, and **MAY** are to be interpreted as described in RFC 2119.
 
 ---
 
-## 3. Threat Detection Rule Model
+## 4. Threat Detection Rule Model
 
 Each rule SHALL be represented with:
 
@@ -102,9 +115,9 @@ Rule definitions SHOULD remain implementation-agnostic while preserving testabil
 
 ---
 
-## 4. Normative Rule Requirements
+## 5. Normative Rule Requirements
 
-### 4.1 Core Rule Catalog
+### 5.1 Core Rule Catalog
 
 A conforming implementation MUST include detection coverage for at least the following rules:
 
@@ -127,7 +140,7 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-017 Secret Leakage via Environment Variables**: Detect secrets expressions (`${{ secrets.* }}`) in the top-level `env:` section, in `engine.env` (excluding allowed engine-required vars), and in custom step fields (`pre-steps`, `steps`, `pre-agent-steps`, `post-steps`) outside controlled `env:` bindings and `with:` inputs for `uses:` action steps; these placements expose secrets to the agent container environment. Warn in non-strict mode; reject in strict mode.
 - **CTR-018 Version Integrity Bypass**: Detect `check-for-updates: false` in workflow frontmatter, which disables the compile-agentic version update check that ensures the workflow was compiled with a supported version of gh-aw. Warn in non-strict mode; reject in strict mode.
 
-### 4.2 Compiler Response Requirements
+### 5.2 Compiler Response Requirements
 
 For each triggered rule, the compiler MUST:
 
@@ -136,7 +149,7 @@ For each triggered rule, the compiler MUST:
 3. Emit actionable remediation guidance.
 4. Include stable identifiers so tests can assert rule behavior.
 
-### 4.3 Rule Lifecycle Requirements
+### 5.3 Rule Lifecycle Requirements
 
 When a new threat class is identified:
 
@@ -150,16 +163,16 @@ When a compiler feature that a `CTR-*` rule depends on is removed, the rule MUST
 - The rule's status MUST be updated to `Deprecated` in this specification in the same change set as the implementation removal.
 - The rule catalog entry MUST be retained (not deleted) with a deprecation notice indicating the version in which the rule was retired and the reason.
 - All test IDs mapped to the deprecated rule in Section 7 MUST be marked as `[DEPRECATED]` and MUST NOT be required for conformance after the deprecation version.
-- The implementation mapping in Section 6.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
+- The implementation mapping in Section 7.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
 - A change-log entry MUST document the deprecation with the rule ID, deprecation version, and rationale.
 
 ---
 
-## 5. Daily Optimizer Maintenance Protocol
+## 6. Daily Optimizer Maintenance Protocol
 
 A daily optimizer process MUST execute threat coverage reconciliation.
 
-### 5.1 Daily Inputs
+### 6.1 Daily Inputs
 
 The optimizer MUST inspect at least:
 
@@ -168,7 +181,7 @@ The optimizer MUST inspect at least:
 - Open and recent security findings (issues, PRs, and code scanning context where available)
 - Current rule catalog in this specification
 
-### 5.2 Daily Decision Procedure
+### 6.2 Daily Decision Procedure
 
 For each discovered or candidate threat:
 
@@ -176,7 +189,7 @@ For each discovered or candidate threat:
 2. If covered, update the specification (rule catalog/mapping/tests references).
 3. If uncovered, implement detection/remediation in compiler code and tests, then update the specification.
 
-### 5.3 Daily Output Requirements
+### 6.3 Daily Output Requirements
 
 The optimizer MUST produce one of:
 
@@ -185,7 +198,7 @@ The optimizer MUST produce one of:
 
 ---
 
-## 6. Implementation Mapping
+## 7. Implementation Mapping
 
 This specification maps primarily to:
 
@@ -195,7 +208,7 @@ This specification maps primarily to:
 
 Implementations MUST maintain a clear mapping from each active `CTR-*` rule to concrete source locations and test coverage.
 
-### 6.1 Baseline Rule Mapping
+### 7.1 Baseline Rule Mapping
 
 | Rule ID | Primary Implementation Areas | Test Coverage Targets |
 |---------|-------------------------------|-----------------------|
@@ -222,7 +235,7 @@ The mappings above are pattern-based references and MUST be validated against co
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 6.2 Mapping Audit (2026-05-15)
+### 7.2 Mapping Audit (2026-05-15)
 
 Audit result: ✅ all listed `CTR-001` through `CTR-018` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table.
 
@@ -230,7 +243,7 @@ Implementation note: entries that use glob patterns (for example, `pkg/workflow/
 
 ---
 
-## 7. Compliance Testing
+## 8. Compliance Testing
 
 A conforming implementation MUST provide tests that validate:
 
@@ -241,9 +254,9 @@ A conforming implementation MUST provide tests that validate:
 
 Test updates SHOULD be included whenever rules are added or modified.
 
-### 7.1 Test ID Catalog
+### 8.1 Test ID Catalog
 
-The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test case MUST exercise the described detection trigger and verify the expected compiler action.
+The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test case MUST exercise the described detection trigger and verify the expected compiler action.
 
 | Test ID | Rule | Detection Trigger | Expected Compiler Action | Stable Diagnostic ID |
 |---------|------|-------------------|--------------------------|----------------------|
@@ -266,17 +279,17 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 | **T-CTR-017** | CTR-017 Secret Leakage via Environment Variables | A workflow frontmatter declares a secrets expression (e.g., `${{ secrets.MY_SECRET }}`) in the top-level `env:` section, in `engine.env` for a non-engine var, or in a custom step's `run:` field | Compilation warning in non-strict mode identifying the secrets expression and the section where it appears; compilation failure in strict mode | `CTR-017` |
 | **T-CTR-018** | CTR-018 Version Integrity Bypass | A workflow frontmatter sets `check-for-updates: false` | Compilation warning in non-strict mode identifying the disabled version check and advising removal; compilation failure in strict mode | `CTR-018` |
 
-### 7.2 Test Coverage Requirements
+### 8.2 Test Coverage Requirements
 
-- Each active CTR rule MUST have at least one test ID in Section 7.1 that covers the primary detection trigger.
+- Each active CTR rule MUST have at least one test ID in Section 8.1 that covers the primary detection trigger.
 - Tests MUST be deterministic: given the same malicious or unsafe input, the compiler MUST always emit the same diagnostic.
 - Tests MUST assert the stable diagnostic ID (e.g., `CTR-006`) appears in the compiler error output so that CI can mechanically verify rule coverage.
-- When a new rule is added to Section 4.1, at least one new test ID MUST be added to Section 7.1 in the same change set.
-- When a rule is deprecated per Section 4.3.1, its test IDs MUST be marked `[DEPRECATED]` and removed from the required compliance gate.
+- When a new rule is added to Section 5.1, at least one new test ID MUST be added to Section 8.1 in the same change set.
+- When a rule is deprecated per Section 5.3.1, its test IDs MUST be marked `[DEPRECATED]` and removed from the required compliance gate.
 
 ---
 
-## 8. References
+## 9. References
 
 - RFC 2119: Key words for use in RFCs to Indicate Requirement Levels
 - GitHub Actions syntax and permissions documentation
@@ -284,44 +297,44 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 
 ---
 
-## 9. Change Log
+## 10. Change Log
 
 ### 1.0.8 (2026-05-16)
 
 - Added CTR-018 Version Integrity Bypass (warn/reject when `check-for-updates: false` disables the compile-agentic version update check; implemented in `update_check_validation.go`)
-- Added T-CTR-018 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-018 implementation references (`update_check_validation.go`)
+- Added T-CTR-018 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-018 implementation references (`update_check_validation.go`)
 
 ### 1.0.7 (2026-05-16)
 
 - Added CTR-017 Secret Leakage via Environment Variables (warn/reject when secrets expressions appear in top-level `env:`, `engine.env`, or in uncontrolled custom step fields; implemented in `strict_mode_env_validation.go` and `strict_mode_steps_validation.go`)
-- Added T-CTR-017 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-017 implementation references (`strict_mode_env_validation.go`, `strict_mode_steps_validation.go`)
+- Added T-CTR-017 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-017 implementation references (`strict_mode_env_validation.go`, `strict_mode_steps_validation.go`)
 - Updated mapping audit note to cover CTR-001 through CTR-018
 
 ### 1.0.6 (2026-05-15)
 
 - Added CTR-016 Compile-Time Manifest Drift (compilation rejection when recompilation of an existing workflow would introduce new restricted secrets or unapproved action references beyond the previously approved lock file manifest baseline; detected by `EnforceSafeUpdate` in `safe_update_enforcement.go`, called from `compiler.go`)
-- Added T-CTR-016 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-016 implementation references (`safe_update_enforcement.go`, `compiler.go`)
+- Added T-CTR-016 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-016 implementation references (`safe_update_enforcement.go`, `compiler.go`)
 
 ### 1.0.5 (2026-05-14)
 
 - Added CTR-015 Allowed Label Glob Scope (compilation error when `safe-outputs.*.allowed-labels` contains a bare `"*"` wildcard that effectively disables label restrictions and may permit unintended label-driven automation; triggered by the new glob pattern support for `allowed-labels` introduced in gh-aw #32027)
-- Added T-CTR-015 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-015 implementation references (`safe_outputs_allowed_labels_validation.go`)
+- Added T-CTR-015 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-015 implementation references (`safe_outputs_allowed_labels_validation.go`)
 
 ### 1.0.4 (2026-05-13)
 
 - Added CTR-014 Supply Chain Attack via Install Scripts (warn/reject when `run-install-scripts: true` is configured; protects against malicious npm pre/post install hooks)
-- Added T-CTR-014 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-014 implementation references (`run_install_scripts_validation.go`)
+- Added T-CTR-014 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-014 implementation references (`run_install_scripts_validation.go`)
 
 ### 1.0.3 (2026-05-11)
 
 - Added CTR-013 Argument Injection via Package/Image Names (hyphen-prefix package/image name rejection for npm/npx, pip/uv, and Docker to prevent exec.Command argument injection)
-- Added T-CTR-013 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-013 implementation references
+- Added T-CTR-013 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-013 implementation references
 
 ### 1.0.2 (2026-05-09)
 
@@ -330,7 +343,7 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 - Extended CTR-006 mapping with `heredoc_validation.go` (heredoc delimiter injection defense)
 - Extended CTR-010 mapping with `expression_syntax_validation.go` (structural expression syntax validation)
 - Extended CTR-011 rule description and mapping with `strict_mode_network_validation.go` (wildcard domain rejection in strict mode)
-- Updated Section 6.1 baseline rule mapping table for CTR-001, CTR-006, CTR-010, CTR-011, and CTR-012
+- Updated Section 7.1 baseline rule mapping table for CTR-001, CTR-006, CTR-010, CTR-011, and CTR-012
 
 ### 1.0.1 (2026-05-08)
 
@@ -341,7 +354,7 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 - Added CTR-009 Shell Expansion in Safe-Outputs (dangerous bash expansion detection at compile time)
 - Added CTR-010 Expression Safety Allowlist (approved expression enforcement, multi-line rejection)
 - Added CTR-011 Network Firewall Configuration (firewall dependency and domain pattern validation)
-- Updated Section 6.1 baseline rule mapping table with concrete file references for CTR-006 through CTR-011
+- Updated Section 7.1 baseline rule mapping table with concrete file references for CTR-006 through CTR-011
 
 ### 1.0.0 (2026-05-06)
 

@@ -5,6 +5,7 @@ Here are some pointers to get you started in using this tool.
 
 - Create a new workflow: https://raw.githubusercontent.com/github/gh-aw/main/create.md
 - Install: https://raw.githubusercontent.com/github/gh-aw/main/install.md
+- Package a workflow repository: https://raw.githubusercontent.com/github/gh-aw/main/package.md
 - Reference: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md
 
 -->

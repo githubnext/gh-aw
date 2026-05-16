@@ -671,7 +671,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
     // The initial bundle fetch uses getExecOutput (not exec.exec) — ensure it never uses the direct branch refspec
@@ -711,7 +711,7 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler({ title: "Test PR", body: "Test body", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
+    const result = await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58", branch: "autoloop/perf-comparison", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
@@ -726,6 +726,11 @@ index 0000000..abc1234
     expect(fallbackIssueBody).toContain("git reset --hard");
     expect(fallbackIssueBody).toContain(`git update-ref -d ${fallbackBundleTempRef}`);
     expect(fallbackIssueBody).not.toContain("refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison");
+    expect(fallbackIssueBody).toContain("Test body");
+    expect(fallbackIssueBody).toContain("Closes \\#57");
+    expect(fallbackIssueBody).toContain("Resolves test-owner/test-repo\\#58");
+    expect(fallbackIssueBody).not.toContain("Closes #57");
+    expect(fallbackIssueBody).not.toContain("Resolves test-owner/test-repo#58");
   });
 });
 
@@ -1284,6 +1289,7 @@ describe("create_pull_request - normalizeBranchName: salt argument", () => {
 describe("create_pull_request - allowed-files strict allowlist", () => {
   let tempDir;
   let originalEnv;
+  let pushSignedSpy;
 
   beforeEach(() => {
     originalEnv = { ...process.env };
@@ -1326,12 +1332,17 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" }),
     };
+    const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+    pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
 
     // Clear module cache so globals are picked up fresh
     delete require.cache[require.resolve("./create_pull_request.cjs")];
   });
 
   afterEach(() => {
+    if (pushSignedSpy) {
+      pushSignedSpy.mockRestore();
+    }
     for (const key of Object.keys(process.env)) {
       if (!(key in originalEnv)) {
         delete process.env[key];
@@ -1461,12 +1472,14 @@ ${diffs}
     expect(result.error).toContain("protected files");
   });
 
-  it("should create fallback issue body without Closes keyword when issue number is not yet known", async () => {
+  it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
     const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
     fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
+    const pushFailedTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_push_failed_fallback.md");
+    fs.copyFileSync(pushFailedTemplateSrc, path.join(promptsDir, "manifest_protection_push_failed_fallback.md"));
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     global.github.rest.issues = {
@@ -1484,23 +1497,26 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
+    expect(pushSignedSpy).not.toHaveBeenCalled();
     expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
-    expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
 
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
-    expect(createCall.body).toContain("/compare/main...");
-    expect(createCall.body).not.toContain("&body=Closes");
-    const createCompareUrl = extractCompareUrlFromIssueBody(createCall.body);
-    expect(createCompareUrl).toBeTruthy();
-    expect(new URL(createCompareUrl).searchParams.get("body")).toBeNull();
+    expect(createCall.body).toContain("gh run download");
+    expect(createCall.body).toContain("git am --3way");
+    expect(createCall.body).not.toContain("/compare/main...");
   });
 
-  it("should prefill compare URL update with Closes #N for protected-files fallback-to-issue", async () => {
+  it("should use patch-artifact fallback instructions for protected-files fallback in bundle transport", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const bundlePath = path.join(tempDir, "aw-protected.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
     const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
     fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
+    const pushFailedTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_push_failed_fallback.md");
+    fs.copyFileSync(pushFailedTemplateSrc, path.join(promptsDir, "manifest_protection_push_failed_fallback.md"));
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     global.github.rest.issues = {
@@ -1513,19 +1529,18 @@ ${diffs}
       protected_path_prefixes: [".github/"],
       protected_files_policy: "fallback-to-issue",
     });
-    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+    const result = await handler({ patch_path: patchPath, bundle_path: bundlePath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
 
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
-    expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
+    expect(pushSignedSpy).not.toHaveBeenCalled();
+    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
 
-    const updateCall = global.github.rest.issues.update.mock.calls[0][0];
-    expect(updateCall.body).toContain("/compare/main...");
-    expect(updateCall.body).toContain("&body=Closes%20%2377");
-    const compareUrl = extractCompareUrlFromIssueBody(updateCall.body);
-    expect(compareUrl).toBeTruthy();
-    expect(new URL(compareUrl).searchParams.get("body")).toBe("Closes #77");
+    const createCall = global.github.rest.issues.create.mock.calls[0][0];
+    expect(createCall.body).toContain("gh run download");
+    expect(createCall.body).toContain("git am --3way");
+    expect(createCall.body).not.toContain("/compare/main...");
   });
 });
 
@@ -2648,6 +2663,18 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
 
     const issueCall = global.github.rest.issues.create.mock.calls[0][0];
     expect(issueCall.labels).toEqual(["agentic-workflows", "failure", "automated"]);
+  });
+
+  it("should sanitize closing keywords in permission-denied fallback issue body", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+    await handler({ title: "Test PR", body: "Test body\n\nCloses #57\nResolves test-owner/test-repo#58" }, {});
+
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    expect(issueCall.body).toContain("Closes \\#57");
+    expect(issueCall.body).toContain("Resolves test-owner/test-repo\\#58");
+    expect(issueCall.body).not.toContain("Closes #57");
+    expect(issueCall.body).not.toContain("Resolves test-owner/test-repo#58");
   });
 });
 

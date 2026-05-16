@@ -3,7 +3,7 @@ title: Safe Output Outcome Evaluation Specification
 version: 1.0.0
 status: Working Draft
 date: 2026-05-15
-last_updated: 2026-05-15
+last_updated: 2026-05-16
 ---
 
 # Safe Output Outcome Evaluation Specification
@@ -61,16 +61,44 @@ Every outcome span carries these attributes:
 
 ## Implementation
 
-The following implementation areas are responsible for evaluation data capture, outcome classification plumbing, and runtime event artifacts:
+The following implementation areas are responsible for evaluation data capture, outcome classification plumbing, and runtime event artifacts.
 
-| Output type | Go implementation areas | JS/runtime implementation areas |
-|-------------|--------------------------|---------------------------------|
-| `create_pull_request` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_parser.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_config.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
-| `create_issue` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_parser.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_config.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
-| `add_comment` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_dispatch.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_action_outputs.cjs` |
-| `add_labels` | `pkg/workflow/safe_outputs_allowed_labels_validation.go`, `pkg/workflow/safe_outputs_config.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_config.cjs` |
-| `assign_to_agent` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_dispatch.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_bootstrap.cjs` |
-| `close_issue` / `close_pull_request` | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/safe_outputs_dispatch.go`, `pkg/workflow/compiler_safe_outputs.go` | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_action_outputs.cjs` |
+Status meanings:
+- `implemented`: dedicated evaluator logic exists in both Go and JS.
+- `partial`: dedicated evaluator exists in one runtime; the other relies on generic fallback logic.
+- `not-started`: no dedicated evaluator exists yet; current behavior is generic/no-op only.
+
+| Output type | Implementation status | Go implementation areas | JS/runtime implementation areas |
+|-------------|------------------------|--------------------------|---------------------------------|
+| `create_pull_request` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/compiler_safe_outputs.go`, `pkg/cli/outcome_eval.go` (`evalCreatePullRequest`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (PR-specific path) |
+| `create_issue` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/compiler_safe_outputs.go`, `pkg/cli/outcome_eval.go` (`evalCreateIssue`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (issue-specific path) |
+| `add_comment` | implemented | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalAddComment`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (issue-comment URL path) |
+| `add_labels` | partial | `pkg/workflow/safe_outputs_allowed_labels_validation.go`, `pkg/cli/outcome_eval.go` (`evalAddLabels`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `add_reviewer` | not-started | `pkg/workflow/add_reviewer.go`, `pkg/workflow/safe_outputs_config.go` | `actions/setup/js/add_reviewer.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
+| `update_issue` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `update_pull_request` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `close_issue` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `close_pull_request` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `close_discussion` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseDiscussion`) | `actions/setup/js/close_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `create_discussion` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCreateDiscussion`) | `actions/setup/js/create_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `update_discussion` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `create_pull_request_review_comment` | partial | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalReviewComment`) | `actions/setup/js/create_pr_review_comment.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `submit_pull_request_review` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/submit_pr_review.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `reply_to_pull_request_review_comment` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/reply_to_pr_review_comment.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `resolve_pull_request_review_thread` | partial | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalResolveThread`) | `actions/setup/js/resolve_pr_review_thread.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `push_to_pull_request_branch` | partial | `pkg/workflow/push_to_pull_request_branch_validation.go`, `pkg/cli/outcome_eval.go` (`evalPushToPRBranch`) | `actions/setup/js/push_to_pull_request_branch.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `mark_pull_request_as_ready_for_review` | partial | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalMarkReady`) | `actions/setup/js/mark_pull_request_as_ready_for_review.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `assign_to_agent` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalAssignToAgent`) | `actions/setup/js/assign_to_agent.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `dispatch_workflow` | not-started | `pkg/workflow/dispatch_workflow.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/dispatch_workflow.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `autofix_code_scanning_alert` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/autofix_code_scanning_alert.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `create_code_scanning_alert` | not-started | `pkg/workflow/create_code_scanning_alert.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/create_code_scanning_alert.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `link_sub_issue` | not-started | `pkg/workflow/link_sub_issue.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/link_sub_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `hide_comment` | partial | `pkg/workflow/hide_comment.go`, `pkg/cli/outcome_eval.go` (`evalHideComment`) | `actions/setup/js/hide_comment.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `assign_milestone` | partial | `pkg/workflow/assign_milestone.go`, `pkg/cli/outcome_eval.go` (`evalAssignMilestone`) | `actions/setup/js/assign_milestone.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `update_project` | not-started | `pkg/workflow/update_project.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_project.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `update_release` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_release.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `noop` | implemented | `pkg/cli/outcome_eval.go` (explicit skip in `EvaluateOutcomes`) | `actions/setup/js/evaluate_outcomes.cjs` (`NOOP_TYPES`) |
+| `missing_tool` | implemented | `pkg/cli/outcome_eval.go` (explicit skip in `EvaluateOutcomes`) | `actions/setup/js/missing_tool.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (`NOOP_TYPES`) |
 
 ---
 
@@ -586,14 +614,14 @@ No outcome to evaluate. Skip.
 
 From the outcome evaluations above, compute:
 
-| Metric | Formula | Description |
-|--------|---------|-------------|
-| `acceptance_rate` | accepted / (accepted + rejected) | How often actions are kept |
-| `waste_rate` | rejected / total | How often actions are undone |
-| `ignore_rate` | ignored / total | How often actions get no response |
-| `zero_touch_rate` | zero_touch / accepted | How often accepted actions need no human edits |
-| `time_to_outcome` | median(time_to_outcome_hours) | How fast outcomes resolve |
-| `cost_per_accepted_outcome` | total_run_cost / accepted_count | Efficiency metric |
+| Metric | Formula | Description | Go aggregation owner | OTel emission owner |
+|--------|---------|-------------|----------------------|---------------------|
+| `acceptance_rate` | accepted / (accepted + rejected) | How often actions are kept | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
+| `waste_rate` | rejected / total | How often actions are undone | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
+| `ignore_rate` | ignored / total | How often actions get no response | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
+| `zero_touch_rate` | zero_touch / accepted | How often accepted actions need no human edits | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
+| `time_to_outcome` | median(time_to_outcome_hours) | How fast outcomes resolve | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
+| `cost_per_accepted_outcome` | total_run_cost / accepted_count | Efficiency metric | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
 
 ## Implementation Priority
 

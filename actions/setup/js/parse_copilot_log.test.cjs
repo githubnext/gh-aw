@@ -254,15 +254,7 @@ describe("parse_copilot_log.cjs", () => {
     });
 
     it("suppresses the new Copilot CLI footer stats (Changes/Duration/Tokens) from agent text", () => {
-      const prettyLog = [
-        "● Bash",
-        "    └ ok",
-        "The work is done.",
-        "",
-        "Changes   +0 -0",
-        "Duration  31s",
-        "Tokens    ↑ 290.1k • ↓ 1.4k • 247.4k (cached)",
-      ].join("\n");
+      const prettyLog = ["● Bash", "    └ ok", "The work is done.", "", "Changes   +0 -0", "Duration  31s", "Tokens    ↑ 290.1k • ↓ 1.4k • 247.4k (cached)"].join("\n");
 
       const result = parseCopilotLog(prettyLog);
 

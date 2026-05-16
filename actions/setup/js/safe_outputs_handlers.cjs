@@ -33,6 +33,7 @@ const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } 
 function createHandlers(server, appendSafeOutput, config = {}) {
   /**
    * Default handler for safe output tools
+   * Spec cross-reference: Safe Output Outcome Evaluation §2/§4/§5/§6/§7/§8/§9/§10/§11/§12/§13/§14/§15/§16/§18/§19/§20/§21/§22/§23/§24/§25/§26/§27/§28/§29.
    * @param {string} type - The tool type
    * @returns {Function} Handler function
    */
@@ -102,6 +103,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for upload_asset tool
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    */
   const uploadAssetHandler = args => {
     const branchName = process.env.GH_AW_ASSETS_BRANCH;
@@ -219,6 +221,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for create_pull_request tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §1 (`create_pull_request`).
    * Resolves the current branch if branch is not provided or is the base branch
    * Generates git patch for the changes (unless allow-empty is true)
    * Supports multi-repo scenarios via the optional 'repo' parameter
@@ -498,6 +501,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for push_to_pull_request_branch tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §17 (`push_to_pull_request_branch`).
    * Resolves the current branch if branch is not provided or is the base branch
    * Generates git patch for the changes
    *
@@ -769,6 +773,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for push_repo_memory tool
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    * Validates that memory files in the configured memory directory are within size limits.
    * Returns an error if any file or the total size exceeds the configured limits,
    * with guidance to reduce memory size before the workflow completes.
@@ -1021,6 +1026,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for create_project tool
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    * Auto-generates a temporary ID if not provided and returns it to the agent
    */
   const createProjectHandler = args => {
@@ -1057,6 +1063,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for add_comment tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §3 (`add_comment`).
    * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
    * to provide immediate feedback to the LLM before recording to NDJSON
    * Also auto-generates a temporary_id if not provided and returns it to the agent
@@ -1134,6 +1141,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for upload_artifact tool.
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    *
    * When the agent calls upload_artifact with an absolute path (e.g.,
    * /tmp/gh-aw/python/charts/loc_by_language.png), the file lives only inside the

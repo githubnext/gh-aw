@@ -1026,6 +1026,10 @@ This section specifies normative failure-mode responses that a conforming implem
 - When effective tokens reach the **hard limit** (`max-effective-tokens`), the cost-tracker extension **MUST** abort the session immediately by invoking the session's abort API. The harness **MUST NOT** allow additional turns to proceed after the hard limit is reached.
 - Upon hard-limit abort, the harness **MUST** emit a `budget_exceeded` JSONL event to stderr containing the final cumulative token count and the configured limit.
 - The harness **MUST** write a step summary entry to `$GITHUB_STEP_SUMMARY` (if set) indicating that the session was terminated due to budget exhaustion, showing the final token count versus the limit.
+- On forced budget termination, the harness **MUST** preserve durable artifacts that were finalized before abort (`safe-outputs.ndjson` entries already appended, JSONL events already emitted, and step-summary rows for completed turns).
+- On forced budget termination, the harness **MUST** discard in-flight turn state that did not reach a completed turn boundary (partial assistant output, partially collected tool results, and uncommitted per-turn aggregates).
+- A "completed turn boundary" means the `turn_end` event has been emitted and all per-turn persistence for that turn (JSONL line, counters, and step-summary row) has succeeded.
+- The `budget_exceeded` event **MUST** explicitly signal forced termination (`reason: "hard_limit"` and `forced_termination: true`) so downstream consumers can distinguish budget aborts from other session failures.
 - The harness **MUST** exit with code `1` (session failure) after a hard-limit abort, so that the GitHub Actions job is marked as failed.
 
 #### 11.2.3 Extension Crash Isolation
@@ -1038,6 +1042,20 @@ This section specifies normative failure-mode responses that a conforming implem
 - **During event handling:** If an extension's event handler (registered via `pi.on()`) throws or rejects, the Pi SDK event dispatch **MUST** catch the error. If the Pi SDK does not isolate handler errors, the harness **MUST** wrap all user extension event handlers in a try/catch that emits a structured JSONL warning and allows the session to continue.
 - **Built-in extensions are never skipped:** The five built-in gh-aw extensions (provider setup, cost-tracker, steering, repair, observability) **MUST NOT** be subject to the skip-on-error policy described above. If a built-in extension fails to load, the harness **MUST** treat it as a fatal startup error and exit with code `2`.
 - The harness **MUST NOT** allow a crashing user extension to terminate the entire harness process without first completing the cleanup described above (step summary, final JSONL event).
+
+### 11.3 MUST/MUST NOT Traceability (Spec ↔ Harness Source)
+
+The following matrix records where each normative harness requirement is enforced in source. Until `actions/setup/js/aw_harness.cjs` is present in-repo, rows remain pending and serve as implementation obligations.
+
+| Requirement anchor | Normative statement (summary) | Expected source assertion/guard | Status |
+|--------------------|-------------------------------|----------------------------------|--------|
+| §5.1 | MUST consume compiler-generated `config.json`/`prompt.txt`; MUST NOT parse markdown directly | `actions/setup/js/aw_harness.cjs` argument parser + loader guard | Pending (`aw_harness.cjs` not present) |
+| §5.3 | MUST return exit code `0` only on clean completion; non-zero on unrecovered failure | `actions/setup/js/aw_harness.cjs` top-level process exit mapping | Pending (`aw_harness.cjs` not present) |
+| §5.4 | MUST write diagnostics to stderr and summary to `$GITHUB_STEP_SUMMARY` | `actions/setup/js/aw_harness.cjs` output routing and summary writer | Pending (`aw_harness.cjs` not present) |
+| §6.2 | MUST force-enable `gh-proxy` and `cli-proxy`; MUST NOT allow disabling | `actions/setup/js/aw_harness.cjs` config normalization guard | Pending (`aw_harness.cjs` not present) |
+| §11.2.1 | MUST fail fast with exit `2` when Pi SDK cannot load; MUST NOT create partial session | `actions/setup/js/aw_harness.cjs` SDK import try/catch guard | Pending (`aw_harness.cjs` not present) |
+| §11.2.2 | MUST hard-abort on budget limit; MUST NOT continue turns after hard limit | `actions/setup/js/aw_harness.cjs` cost-tracker abort gate and post-abort turn guard | Pending (`aw_harness.cjs` not present) |
+| §11.2.3 | MUST isolate crashing user extensions; built-in extension failures are fatal | `actions/setup/js/aw_harness.cjs` extension loader policy checks | Pending (`aw_harness.cjs` not present) |
 
 ---
 

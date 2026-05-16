@@ -127,21 +127,33 @@ Drift detection MUST be triggered when:
 ### 4.3 Example Drift Check (CLI)
 
 ```bash
-# Fetch both schema files
-gh api repos/github/gh-aw-firewall/contents/docs/awf-config.schema.json \
+# Requires GH_TOKEN (or GITHUB_TOKEN) with repo read access
+: "${GH_TOKEN:?Set GH_TOKEN (or map GITHUB_TOKEN to GH_TOKEN) before running this check}"
+
+# Fetch both schema files from gh-aw-firewall
+gh api /repos/github/gh-aw-firewall/contents/docs/awf-config.schema.json \
   --jq '.content' | base64 -d > /tmp/published-schema.json
 
-gh api repos/github/gh-aw-firewall/contents/src/awf-config-schema.json \
+gh api /repos/github/gh-aw-firewall/contents/src/awf-config-schema.json \
   --jq '.content' | base64 -d > /tmp/runtime-schema.json
 
-# Extract all property keys
-jq '[.. | objects | keys[]] | unique | sort' /tmp/published-schema.json > /tmp/schema-keys.txt
+# Extract nested schema property paths
+jq -r '
+  def walk_props(prefix):
+    (.properties // {} | to_entries[]) as $p
+    | ($p.key) as $k
+    | ((if prefix == "" then $k else prefix + "." + $k end)),
+      ($p.value | walk_props(if prefix == "" then $k else prefix + "." + $k end));
+  walk_props("")
+' /tmp/published-schema.json | sort -u > /tmp/schema-keys.txt
 
-# Compare against gh-aw source references
-grep -rh '"apiProxy\|"network\|"model\|"auth' pkg/workflow/ | sort -u > /tmp/ghaw-refs.txt
+# Compare against awf-config references in gh-aw implementation
+rg --no-heading --no-filename --only-matching 'apiProxy\.[A-Za-z0-9_.]+' pkg/workflow actions/setup \
+  | sort -u > /tmp/ghaw-refs.txt
 
 # Review diff for drift
-diff /tmp/schema-keys.txt /tmp/ghaw-refs.txt
+# Keep command non-fatal so investigators can review drift output before deciding whether to fail the run.
+diff -u /tmp/schema-keys.txt /tmp/ghaw-refs.txt || true
 ```
 
 ### 4.4 Automation
@@ -153,7 +165,30 @@ A scheduled GitHub Actions workflow in `github/gh-aw` SHOULD automate this proce
 - Post a summary comment on PRs with the drift report.
 - Create a tracking issue when drift is detected on the scheduled run.
 
-Current implementation reference: `.github/workflows/schema-consistency-checker.md` (scheduled daily) is the tracked drift-detection workflow path for schema consistency checks and SHOULD include AWF config source drift checks from this section.
+Current implementation reference: [`/.github/workflows/schema-consistency-checker.md`](../.github/workflows/schema-consistency-checker.md) (scheduled daily) is the tracked drift-detection workflow path for schema consistency checks and SHOULD include AWF config source drift checks from this section.
+
+#### 4.4.1 Drift SLA tracking (CR-06)
+
+To satisfy CR-06 tracking obligations, drift escalation records SHOULD use:
+
+- **Label(s)**: `workflow` + `bug` (both exist in `github/gh-aw`)
+- **Escalation issue title prefix**: `[Schema Drift SLA]`
+- **Escalation template** (minimum required fields):
+
+```markdown
+## Schema Drift SLA Escalation
+
+- Drift detected on: <YYYY-MM-DD>
+- Source workflow run: <run-url>
+- Owner: <github-handle>
+- Unblock plan:
+  1. ...
+  2. ...
+- Revised ETA (UTC): <YYYY-MM-DD>
+- Waiver rationale (if any): <text>
+```
+
+The scheduled schema consistency workflow SHOULD open or update one such issue when drift remains unresolved beyond 5 business days.
 
 ## 5. Safeguards
 
