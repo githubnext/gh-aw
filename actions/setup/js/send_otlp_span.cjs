@@ -749,6 +749,13 @@ function sanitizeOTLPPayload(payload) {
  */
 
 /**
+ * @typedef {Object} OTLPExportErrorDetail
+ * @property {string} host
+ * @property {number} [status]
+ * @property {string} reason
+ */
+
+/**
  * Resolve the list of configured OTLP endpoints for the current run.
  *
  * Reads `GH_AW_OTLP_ENDPOINTS` (JSON-encoded array produced by the gh-aw
@@ -859,7 +866,11 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
         console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} failed: ${msg}, retrying…`);
       } else {
         console.warn(`OTLP export failed after ${maxRetries + 1} attempts: ${msg}`);
-        recordOTLPExportError();
+        recordOTLPExportError({
+          endpoint,
+          ...(Number.isInteger(response.status) && response.status > 0 ? { status: response.status } : {}),
+          reason: response.statusText || msg,
+        });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -867,7 +878,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
         console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} error: ${msg}, retrying…`);
       } else {
         console.warn(`OTLP export error after ${maxRetries + 1} attempts: ${msg}`);
-        recordOTLPExportError();
+        recordOTLPExportError({ endpoint, reason: msg });
       }
     }
   }
@@ -1159,6 +1170,12 @@ const GITHUB_RATE_LIMITS_JSONL_PATH = "/tmp/gh-aw/github_rate_limits.jsonl";
 const OTLP_EXPORT_ERRORS_PATH = "/tmp/gh-aw/otlp-export-errors.count";
 
 /**
+ * Path to the persisted OTLP export failure detail log.
+ * @type {string}
+ */
+const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
+
+/**
  * Path to the agent stdio log file.
  * @type {string}
  */
@@ -1209,14 +1226,82 @@ function readOTLPExportErrorCount() {
 }
 
 /**
+ * Extract a collector host label from an OTLP endpoint URL.
+ *
+ * @param {string} endpoint
+ * @returns {string}
+ */
+function getOTLPExportErrorHost(endpoint) {
+  try {
+    const parsed = new URL(endpoint);
+    return parsed.host || endpoint;
+  } catch {
+    return endpoint.replace(/^[a-z]+:\/\//i, "").replace(/\/.*$/, "") || endpoint;
+  }
+}
+
+/**
+ * Read persisted OTLP export failure details.
+ *
+ * @returns {OTLPExportErrorDetail[]}
+ */
+function readOTLPExportErrorDetails() {
+  try {
+    const content = fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8");
+    return content
+      .split("\n")
+      .filter(line => line.trim() !== "")
+      .map(line => JSON.parse(line))
+      .filter(entry => entry && typeof entry === "object" && !Array.isArray(entry) && typeof entry.host === "string" && entry.host.trim() !== "" && typeof entry.reason === "string" && entry.reason.trim() !== "")
+      .map(entry => ({
+        host: entry.host.trim(),
+        ...(typeof entry.status === "number" && Number.isInteger(entry.status) && entry.status > 0 ? { status: entry.status } : {}),
+        reason: entry.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Format persisted OTLP export failure details for a conclusion span attribute.
+ *
+ * @returns {string}
+ */
+function formatOTLPExportErrorDetails() {
+  const details = readOTLPExportErrorDetails();
+  if (details.length === 0) {
+    return "";
+  }
+  return details.map(detail => `${detail.host}${typeof detail.status === "number" ? ` status=${detail.status}` : ""} reason=${detail.reason}`).join(" | ");
+}
+
+/**
  * Persist one additional OTLP export failure.
  *
+ * @param {{ endpoint?: string, status?: number, reason?: string }} [detail]
  * @returns {void}
  */
-function recordOTLPExportError() {
+function recordOTLPExportError(detail = {}) {
   try {
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
     fs.writeFileSync(OTLP_EXPORT_ERRORS_PATH, String(readOTLPExportErrorCount() + 1));
+  } catch {
+    // Export-health tracking is best-effort only.
+  }
+  if (!detail.endpoint || typeof detail.reason !== "string" || detail.reason.trim() === "") {
+    return;
+  }
+  try {
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+    fs.appendFileSync(
+      OTLP_EXPORT_ERROR_DETAILS_PATH,
+      JSON.stringify({
+        host: getOTLPExportErrorHost(detail.endpoint),
+        ...(typeof detail.status === "number" && Number.isInteger(detail.status) && detail.status > 0 ? { status: detail.status } : {}),
+        reason: detail.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
+      }) + "\n"
+    );
   } catch {
     // Export-health tracking is best-effort only.
   }
@@ -1531,6 +1616,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
   }
   attributes.push(buildAttr("gh-aw.otlp.export_errors", readOTLPExportErrorCount()));
+  const otlpExportErrorDetails = formatOTLPExportErrorDetails();
+  if (otlpExportErrorDetails) {
+    attributes.push(buildAttr("gh-aw.otlp.export_error_details", otlpExportErrorDetails));
+  }
   if (errorMessages.length > 0) {
     attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));

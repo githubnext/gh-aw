@@ -771,6 +771,18 @@ describe("sendOTLPSpan", () => {
     warnSpy.mockRestore();
   });
 
+  it("records OTLP export failure host, status, and reason details", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 401, statusText: "Unauthorized" });
+    vi.stubGlobal("fetch", mockFetch);
+    const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+
+    await expect(sendOTLPSpan("https://collector.example.com:4318", {}, { maxRetries: 0, skipJSONL: true })).resolves.toBeUndefined();
+
+    expect(appendSpy).toHaveBeenCalledWith("/tmp/gh-aw/otlp-export-errors.jsonl", `${JSON.stringify({ host: "collector.example.com:4318", status: 401, reason: "Unauthorized" })}\n`);
+
+    appendSpy.mockRestore();
+  });
+
   it("retries on failure and succeeds on second attempt", async () => {
     const mockFetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 503, statusText: "Service Unavailable" }).mockResolvedValueOnce({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -968,8 +980,9 @@ describe("sendOTLPSpan JSONL mirror", () => {
     const payload = { resourceSpans: [{ note: "retry-test" }] };
     await sendOTLPSpan("https://traces.example.com", payload, { maxRetries: 1, baseDelayMs: 1 });
 
-    expect(appendSpy).toHaveBeenCalledOnce();
-    expect(appendSpy.mock.calls[0][1]).toBe(JSON.stringify(payload) + "\n");
+    const otelCall = appendSpy.mock.calls.find(([filePath]) => filePath === OTEL_JSONL_PATH);
+    expect(otelCall).toBeTruthy();
+    expect(otelCall[1]).toBe(JSON.stringify(payload) + "\n");
 
     warnSpy.mockRestore();
   });
@@ -3225,6 +3238,31 @@ describe("sendJobConclusionSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
     expect(attrs["gh-aw.otlp.export_errors"]).toBe(3);
+  });
+
+  it("emits gh-aw.otlp.export_error_details on the conclusion job span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/otlp-export-errors.count") {
+        return "2";
+      }
+      if (filePath === "/tmp/gh-aw/otlp-export-errors.jsonl") {
+        return `${JSON.stringify({ host: "sentry.example.com:4318", status: 401, reason: "Unauthorized" })}\n${JSON.stringify({ host: "grafana.example.com:4318", status: 503, reason: "Service Unavailable" })}\n`;
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+    expect(attrs["gh-aw.otlp.export_error_details"]).toBe("sentry.example.com:4318 status=401 reason=Unauthorized | grafana.example.com:4318 status=503 reason=Service Unavailable");
   });
 
   it("emits gh-aw.otlp.export_errors on non-conclusion job spans", async () => {
