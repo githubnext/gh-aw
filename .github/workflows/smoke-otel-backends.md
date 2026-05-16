@@ -182,14 +182,15 @@ Create exactly one GitHub issue with:
 - Title: `Smoke Test: OTEL Backends - ${{ github.run_id }}`
 - A short executive summary with overall `PASS`, `INCONCLUSIVE`, or `FAIL`
 - A markdown table with one row for `Local OTLP`, one row for `Sentry`, and one row for `Grafana`, using these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
-- Use `✅` for pass, `❌` for fail, `⚪` for inconclusive, and `—` where a cell does not apply
+- Use `✅` for pass, `❌` for fail, `🔶` for inconclusive, and `—` where a cell does not apply
+- For the `Local OTLP` row, map `Write Config Present` to OTEL env vars being injected and map `Write Export Succeeded` to the local JSONL mirror containing current-run spans with zero export errors.
 - Use this table form:
 
   ```markdown
   | Backend | Write Config Present | Write Export Succeeded | Read Config Present | Read Query Succeeded | Overall |
   | --- | --- | --- | --- | --- | --- |
   | Local OTLP | ✅ | ✅ | — | — | ✅ |
-  | Sentry | ✅ | ✅ | ✅ | ⚪ | ⚪ |
+  | Sentry | ✅ | ✅ | ✅ | 🔶 | 🔶 |
   | Grafana | ✅ | ❌ | ✅ | ✅ | ❌ |
   ```
 
