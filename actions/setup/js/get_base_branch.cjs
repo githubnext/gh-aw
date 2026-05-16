@@ -1,10 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { execSync } = require("child_process");
-
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { execGitSync } = require("./git_helpers.cjs");
 
 /**
  * Get the base branch name, resolving dynamically based on event context.
@@ -86,8 +85,7 @@ async function getBaseBranch(targetRepo = null, options = null) {
   // re-anchors the checkout to a non-default release branch before generating the patch.
   if (options?.preferCheckedOutBranch && options.cwd) {
     try {
-      const checkedOutBranch = execSync("git rev-parse --abbrev-ref HEAD", {
-        encoding: "utf8",
+      const checkedOutBranch = execGitSync(["rev-parse", "--abbrev-ref", "HEAD"], {
         cwd: options.cwd,
         stdio: ["pipe", "pipe", "pipe"],
       }).trim();
