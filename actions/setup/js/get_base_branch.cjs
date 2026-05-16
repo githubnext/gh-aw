@@ -19,9 +19,9 @@ const { execGitSync } = require("./git_helpers.cjs");
  * 7. Fallback to DEFAULT_BRANCH env var or "main"
  *
  * @param {{owner: string, repo: string}|null} [targetRepo] - Optional target repository.
- *   If provided, API calls (steps 4 and 5) use this instead of context.repo,
- *   which is needed for cross-repo scenarios where the target repo differs
- *   from the workflow repository.
+ *   If provided, the issue_comment PR lookup (step 4) and repository default-branch
+ *   lookup (step 6b) use this instead of context.repo, which is needed for
+ *   cross-repo scenarios where the target repo differs from the workflow repository.
  * @param {{preferCheckedOutBranch?: boolean, cwd?: string}|null} [options] - Optional resolution hints.
  *   When preferCheckedOutBranch is true and cwd is set, git is queried directly for the
  *   checked-out branch in that repository before falling back to the repository default branch.
