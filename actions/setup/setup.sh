@@ -339,6 +339,7 @@ SAFE_OUTPUTS_FILES=(
   "sanitize_content_core.cjs"
   "sanitize_title.cjs"
   "issue_title_dedup.cjs"
+  "levenshtein_distance.cjs"
   "markdown_code_region_balancer.cjs"
   "temporary_id.cjs"
 )
