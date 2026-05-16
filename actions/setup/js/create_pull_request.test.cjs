@@ -3134,6 +3134,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     // The suggested limit must be >= the actual file count (101), not maxFiles * 2 (200)
     expect(issueCall.body).toContain("max-patch-files: 101");
+    expect(issueCall.body).not.toContain("max-patch-files: 200");
 
     // PR creation should NOT have been attempted
     expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -3153,6 +3154,7 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
     const issueCall = global.github.rest.issues.create.mock.calls[0][0];
     // With default limit=100 and 220 files, old code would suggest 200; correct is 220
     expect(issueCall.body).toContain("max-patch-files: 220");
+    expect(issueCall.body).not.toContain("max-patch-files: 200");
   });
 
   it("should sanitize and apply title prefix to fallback issue title", async () => {

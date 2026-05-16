@@ -1080,7 +1080,9 @@ async function main(config = {}) {
       isEmpty = !patchContent || !patchContent.trim();
     }
 
-    // Enforce max limits on patch before processing
+    // Enforce max limits on patch before processing.
+    // Count files once here so the catch block can reuse the value without re-parsing.
+    const patchFileCount = countUniquePatchFiles(patchContent);
     try {
       enforcePullRequestLimits(patchContent, maxFiles);
     } catch (error) {
@@ -1108,11 +1110,10 @@ async function main(config = {}) {
       const rawFallbackTitle = pullRequestItem.title?.trim() || "Agent Output";
       const fallbackTitle = applyTitlePrefix(sanitizeTitle(rawFallbackTitle, titlePrefix), titlePrefix);
       const fallbackLabels = mergeFallbackIssueLabels(configFallbackLabels.length > 0 ? configFallbackLabels : envLabels);
-      const receivedFileCount = countUniquePatchFiles(patchContent);
       const fallbackTemplatePath = getPromptPath("e003_file_limit_fallback.md");
       const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
         error_message: errorMessage,
-        suggested_limit: receivedFileCount,
+        suggested_limit: patchFileCount,
       });
 
       try {
