@@ -54,7 +54,6 @@ describe("safe_outputs_handlers", () => {
     process.env.GITHUB_SERVER_URL = "https://github.com";
     process.env.GITHUB_REPOSITORY = "owner/repo";
     process.env.GH_AW_WORKFLOW_ID = "test-workflow";
-    process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = "0";
 
     handlers = createHandlers(mockServer, mockAppendSafeOutput);
   });
@@ -74,7 +73,6 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_REPOSITORY;
     delete process.env.GH_AW_WORKFLOW_ID;
-    delete process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT;
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
@@ -1170,24 +1168,6 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createIssueHandler", () => {
-    it("should drop duplicate create_issue titles in MCP pre-check via rollout", () => {
-      process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = "100";
-      const h = createHandlers(mockServer, mockAppendSafeOutput, {
-        create_issue: {},
-      });
-
-      const first = h.createIssueHandler({ title: "Rollout Issue", body: "First body" });
-      const second = h.createIssueHandler({ title: "Rollout Issue", body: "Second body" });
-
-      const firstResponse = JSON.parse(first.content[0].text);
-      const secondResponse = JSON.parse(second.content[0].text);
-      expect(firstResponse.result).toBe("success");
-      expect(secondResponse.result).toBe("duplicate_dropped");
-      const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
-      expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
-      expect(droppedEntry._duplicate_distance).toBe(0);
-    });
-
     it("should append create_issue entry when dedup is disabled", () => {
       handlers.createIssueHandler({ title: "Issue A", body: "Body A" });
       handlers.createIssueHandler({ title: "Issue A", body: "Body A again" });

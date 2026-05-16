@@ -21,7 +21,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
-const { normalizeTitleForDedup, findDuplicateByTitle, parseCreateIssueTitleDedupRolloutPercent, resolveDeduplicateByTitle, dedupRolloutBucket } = require("./issue_title_dedup.cjs");
+const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -91,17 +91,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   const createIssueConfig = config.create_issue || {};
-  const dedupRolloutSeed = process.env.GH_AW_CALLER_WORKFLOW_ID || process.env.GH_AW_WORKFLOW_ID || process.env.GITHUB_WORKFLOW_REF || process.env.GITHUB_REPOSITORY || "";
-  const dedupRolloutPercent = parseCreateIssueTitleDedupRolloutPercent(process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT);
   let deduplicateByTitle = { enabled: false, maxDistance: 0 };
   try {
-    deduplicateByTitle = resolveDeduplicateByTitle(createIssueConfig.deduplicate_by_title, dedupRolloutSeed, dedupRolloutPercent);
+    deduplicateByTitle = parseDeduplicateByTitle(createIssueConfig.deduplicate_by_title);
   } catch (error) {
     throw new Error(`${ERR_VALIDATION}: ${getErrorMessage(error)}`);
-  }
-  if (createIssueConfig.deduplicate_by_title === undefined && dedupRolloutSeed && dedupRolloutPercent > 0) {
-    const rolloutBucket = dedupRolloutBucket(dedupRolloutSeed);
-    server.debug(`create_issue title dedup rollout bucket ${rolloutBucket} (enabled when < ${dedupRolloutPercent})`);
   }
   const createIssueTitlePrefix = createIssueConfig.title_prefix ?? "";
   /** @type {Map<string, Array<{title: string, normalizedTitle: string}>>} */

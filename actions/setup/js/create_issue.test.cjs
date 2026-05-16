@@ -91,7 +91,6 @@ describe("create_issue", () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GH_AW_WORKFLOW_ID = "test-workflow";
     process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/owner/repo/blob/main/workflow.md";
-    process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = "0";
   });
 
   afterEach(() => {
@@ -466,20 +465,6 @@ describe("create_issue", () => {
   });
 
   describe("deduplicate-by-title", () => {
-    it("should enable exact-match deduplication via rollout when config is not set", async () => {
-      process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = "100";
-      const handler = await main({});
-
-      const first = await handler({ title: "Rollout title" });
-      const second = await handler({ title: "Rollout title" });
-
-      expect(first.success).toBe(true);
-      expect(second.success).toBe(true);
-      expect(second.dropped_duplicate).toBe(true);
-      expect(second.dedup_source).toBe("within-run");
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
-    });
-
     it("should drop within-run duplicates when enabled as boolean", async () => {
       const handler = await main({
         deduplicate_by_title: true,

@@ -28,7 +28,7 @@ const { parseAllowedIssueFields, validateAllowedIssueFields } = require("./allow
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { normalizeTitleForDedup, findDuplicateByTitle, parseCreateIssueTitleDedupRolloutPercent, resolveDeduplicateByTitle, dedupRolloutBucket } = require("./issue_title_dedup.cjs");
+const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
@@ -527,11 +527,9 @@ async function main(config = {}) {
   const groupEnabled = parseBoolTemplatable(config.group, false);
   const closeOlderIssuesEnabled = parseBoolTemplatable(config.close_older_issues, false);
   const groupByDayEnabled = parseBoolTemplatable(config.group_by_day, false);
-  const dedupRolloutSeed = process.env.GH_AW_CALLER_WORKFLOW_ID || process.env.GH_AW_WORKFLOW_ID || process.env.GITHUB_WORKFLOW_REF || process.env.GITHUB_REPOSITORY || "";
-  const dedupRolloutPercent = parseCreateIssueTitleDedupRolloutPercent(process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT);
   let deduplicateByTitle;
   try {
-    deduplicateByTitle = resolveDeduplicateByTitle(config.deduplicate_by_title, dedupRolloutSeed, dedupRolloutPercent);
+    deduplicateByTitle = parseDeduplicateByTitle(config.deduplicate_by_title);
   } catch (error) {
     throw new Error(`${ERR_VALIDATION}: ${getErrorMessage(error)}`);
   }
@@ -596,9 +594,6 @@ async function main(config = {}) {
   if (deduplicateByTitle.enabled) {
     const mode = deduplicateByTitle.maxDistance === 0 ? "exact title match" : `Levenshtein distance <= ${deduplicateByTitle.maxDistance}`;
     core.info(`Title deduplication enabled (${mode})`);
-  } else if (config.deduplicate_by_title === undefined && dedupRolloutSeed && dedupRolloutPercent > 0) {
-    const rolloutBucket = dedupRolloutBucket(dedupRolloutSeed);
-    core.info(`Title deduplication rollout disabled for this workflow bucket (${rolloutBucket} >= ${dedupRolloutPercent})`);
   }
 
   // Track how many items we've processed for max limit
