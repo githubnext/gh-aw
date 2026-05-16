@@ -35,7 +35,7 @@ func getStepsRunSecretsToEnvCodemod() Codemod {
 	return Codemod{
 		ID:           "steps-run-secrets-to-env",
 		Name:         "Move step run expressions to env bindings",
-		Description:  "Rewrites all ${{ ... }} expressions interpolated directly in run commands to $VARS (or $env:VARS for PowerShell steps) and adds step-level env bindings for strict-mode compatibility.",
+		Description:  "Rewrites all ${{ ... }} expressions interpolated directly in run commands to $VARS (or $env:VARS for PowerShell steps) and adds step-level env bindings for strict-mode compatibility. Note: expressions inside single-quoted strings are rewritten too; since single quotes suppress shell variable expansion, those sections should be double-quoted if the substituted value is required.",
 		IntroducedIn: "0.26.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			sections := []string{"pre-steps", "steps", "post-steps", "pre-agent-steps"}
@@ -163,10 +163,19 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 	existingEnvKeys := make(map[string]bool)
 
 	// First pass: detect shell type so PowerShell steps get $env:VARNAME syntax.
+	// Restrict the scan to lines at the direct step-key indentation level so
+	// that a run-block body line that happens to contain a literal substring
+	// like "shell: pwsh" is not misclassified as PowerShell.
 	shellIsPowerShell := false
+	directKeyIndent := stepIndent + "  "
 	for _, line := range stepLines {
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
+		// Accept only direct step-key lines: standard form at exactly stepIndent+"  ",
+		// or list-item-inline form "- key:" at exactly stepIndent.
+		if indent != directKeyIndent && !(indent == stepIndent && strings.HasPrefix(trimmed, "- ")) {
+			continue
+		}
 		shellMatch, shellValue, _ := parseStepKeyLine(trimmed, indent, stepIndent, "shell")
 		if shellMatch {
 			v := strings.ToLower(strings.TrimSpace(shellValue))
@@ -222,7 +231,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
 					break
 				}
-				updatedLine, bindings := replaceStepExpressionRefs(stepLines[j], shellIsPowerShell)
+				updatedLine, bindings := replaceStepExpressionRefs(stepLines[j], shellIsPowerShell, bindingExprs)
 				if len(bindings) > 0 {
 					stepLines[j] = updatedLine
 					modified = true
@@ -238,7 +247,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 			continue
 		}
 
-		newLine, bindings := replaceStepExpressionRefs(line, shellIsPowerShell)
+		newLine, bindings := replaceStepExpressionRefs(line, shellIsPowerShell, bindingExprs)
 		if len(bindings) > 0 {
 			stepLines[i] = newLine
 			modified = true
@@ -299,7 +308,7 @@ type stepExpressionBinding struct {
 	Expression string
 }
 
-func replaceStepExpressionRefs(line string, shellIsPowerShell bool) (string, []stepExpressionBinding) {
+func replaceStepExpressionRefs(line string, shellIsPowerShell bool, existingBindings map[string]string) (string, []stepExpressionBinding) {
 	matches := stepsAnyExprRe.FindAllStringSubmatchIndex(line, -1)
 	if len(matches) == 0 {
 		return line, nil
@@ -307,7 +316,15 @@ func replaceStepExpressionRefs(line string, shellIsPowerShell bool) (string, []s
 
 	var result strings.Builder
 	last := 0
-	seen := make(map[string]bool)
+	// bodyToName maps expression body → assigned env-var name for same-body dedup
+	// within this line (avoids re-computing the name for repeated occurrences).
+	bodyToName := make(map[string]string)
+	// localNames maps env-var name → canonical expression for within-line
+	// collision detection (two different bodies that sanitize to the same name).
+	localNames := make(map[string]string)
+	// registeredNames tracks which names already appear in ordered, so we never
+	// add a duplicate binding entry.
+	registeredNames := make(map[string]bool)
 	ordered := make([]stepExpressionBinding, 0, len(matches))
 
 	for _, match := range matches {
@@ -321,6 +338,17 @@ func replaceStepExpressionRefs(line string, shellIsPowerShell bool) (string, []s
 
 		result.WriteString(line[last:fullStart])
 
+		// Same expression body already resolved in this line – reuse the name.
+		if cachedName, done := bodyToName[body]; done {
+			if shellIsPowerShell {
+				result.WriteString("$env:" + cachedName)
+			} else {
+				result.WriteString("$" + cachedName)
+			}
+			last = fullEnd
+			continue
+		}
+
 		envName, canonicalExpression, ok := mapRunExpressionToEnvBinding(body)
 		if !ok {
 			result.WriteString(fullExpression)
@@ -328,13 +356,26 @@ func replaceStepExpressionRefs(line string, shellIsPowerShell bool) (string, []s
 			continue
 		}
 
+		// Collision guard: if this env-var name is already bound to a *different*
+		// expression (from a previous line in this step via existingBindings, or
+		// from an earlier occurrence within this line via localNames), fall back
+		// to a hash-based name so both expressions receive unique bindings.
+		if crossLine := existingBindings[envName]; (crossLine != "" && crossLine != canonicalExpression) ||
+			(localNames[envName] != "" && localNames[envName] != canonicalExpression) {
+			envName = hashedBindingName("EXPR", body)
+			canonicalExpression = fmt.Sprintf("${{ %s }}", body)
+		}
+
+		bodyToName[body] = envName
+		localNames[envName] = canonicalExpression
+
 		if shellIsPowerShell {
 			result.WriteString("$env:" + envName)
 		} else {
 			result.WriteString("$" + envName)
 		}
-		if !seen[envName] {
-			seen[envName] = true
+		if !registeredNames[envName] {
+			registeredNames[envName] = true
 			ordered = append(ordered, stepExpressionBinding{
 				Name:       envName,
 				Expression: canonicalExpression,
