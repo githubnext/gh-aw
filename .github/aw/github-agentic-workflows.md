@@ -36,8 +36,7 @@ safe-outputs:
     labels: [automation]
   add-comment:
   upload-artifact:
-    allow:
-      skip-archive: true
+    skip-archive: true
 ---
 
 # Workflow Title

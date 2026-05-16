@@ -878,7 +878,7 @@ Based on the parsed requirements, determine:
 4. **Safe Outputs**: For any write operations:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`
-   - Posting attachment-style outputs or arbitrary downloadable files → `safe-outputs: upload-artifact:` (set `allow.skip-archive: true` when consumers should download files directly without uncompressing)
+   - Posting attachment-style outputs or arbitrary downloadable files → `safe-outputs: upload-artifact:` (set `skip-archive: true` when consumers should download files directly without uncompressing)
    - Creating PRs → `safe-outputs: create-pull-request:` — **always specify `allowed-files`** scoped to the file extensions or paths the workflow is meant to touch. This is the primary guardrail; omitting it allows the agent to modify any file in the repository. Example:
      ```yaml
      safe-outputs:

@@ -370,8 +370,7 @@ safe-outputs:
   add-comment:   # NEW - just add this line and its config
     max: 1
   upload-artifact:  # NEW - for attachment-style outputs
-    allow:
-      skip-archive: true
+    skip-archive: true
 ```
 **After making this change**: Run `gh aw compile <workflow-id>` (recompilation required)
 
