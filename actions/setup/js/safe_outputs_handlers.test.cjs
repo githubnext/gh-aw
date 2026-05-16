@@ -441,6 +441,42 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createPullRequestHandler", () => {
+    function createSideRepoOnReleaseBranchWithLocalCommit() {
+      const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
+      fs.mkdirSync(targetRepoDir, { recursive: true });
+
+      execSync("git init -b main", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      execSync("git checkout -b release-1.12.x", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release tracked\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'release tracked commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      const releaseTrackedCommit = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+
+      execSync("git checkout main", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "MAIN_ONLY.md"), "main only\n");
+      execSync("git add MAIN_ONLY.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'main only commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      const mainTrackedCommit = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+
+      execSync("git checkout release-1.12.x", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/main ${mainTrackedCommit}`, { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/release-1.12.x ${releaseTrackedCommit}`, { cwd: targetRepoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release local only\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'local only fix'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      return { targetRepoDir };
+    }
+
     it("should be defined", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
     });
@@ -689,6 +725,39 @@ describe("safe_outputs_handlers", () => {
       } finally {
         delete process.env.GITHUB_BASE_REF;
       }
+    });
+
+    it("should derive base_branch from the checked out side-repo branch for patch generation", async () => {
+      const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          "target-repo": "test-owner/test-repo",
+          patch_format: "am",
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "release-1.12.x",
+        title: "Release fix",
+        body: "Prepare release branch fix",
+      });
+
+      expect(result.isError).toBeUndefined();
+      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Found repo checkout at: ${targetRepoDir}`));
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "create_pull_request",
+          base_branch: "release-1.12.x",
+          branch: "release-1.12.x",
+          patch_path: expect.any(String),
+        })
+      );
+
+      const appendedEntry = mockAppendSafeOutput.mock.calls.at(-1)[0];
+      const patchContent = fs.readFileSync(appendedEntry.patch_path, "utf8");
+      expect(patchContent).toContain("Subject: [PATCH] local only fix");
+      expect(patchContent).not.toContain("Subject: [PATCH] release tracked commit");
     });
   });
 

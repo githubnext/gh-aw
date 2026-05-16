@@ -245,23 +245,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     const { repoParts } = repoResult;
 
-    // Get base branch for the resolved target repository.
-    // Prefer explicit safe-output config value when provided, otherwise fall back
-    // to dynamic resolution from trigger context/default branch.
-    const baseBranch = prConfig.base_branch || (await getBaseBranch(repoParts));
-
-    // Store the resolved base branch in the entry so the apply-time checkout step
-    // can use it directly instead of inferring from event context.
-    // This makes the safe output "self-describing" and fixes checkout for events
-    // like issue_comment on PRs targeting non-default branches.
-    entry.base_branch = baseBranch;
-
     // Determine the working directory for git operations
-    // If repo is specified, find where it's checked out
+    // If repo is specified or configured, find where it's checked out
     let repoCwd = null;
     let repoSlug = null;
 
-    if (entry.repo && entry.repo.trim()) {
+    if ((entry.repo && entry.repo.trim()) || prConfig["target-repo"]) {
       // Use the validated/qualified repo slug from repoResult to avoid divergence
       // between the raw user input and the normalized/qualified repo name
       repoSlug = repoResult.repo;
@@ -291,6 +280,24 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       repoCwd = checkoutResult.path;
       server.debug(`Found repo checkout at: ${repoCwd}`);
     }
+
+    // Get base branch for the resolved target repository.
+    // Prefer explicit safe-output config value when provided, otherwise fall back
+    // to dynamic resolution from trigger context/default branch. For side-repo
+    // checkouts, prefer the actual checked-out branch before the repository default
+    // branch so release-branch workflows generate patches against the right base.
+    const baseBranch =
+      prConfig.base_branch ||
+      (await getBaseBranch(repoParts, {
+        preferCheckedOutBranch: Boolean(repoCwd),
+        cwd: repoCwd || undefined,
+      }));
+
+    // Store the resolved base branch in the entry so the apply-time checkout step
+    // can use it directly instead of inferring from event context.
+    // This makes the safe output "self-describing" and fixes checkout for events
+    // like issue_comment on PRs targeting non-default branches.
+    entry.base_branch = baseBranch;
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -522,15 +529,6 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     const { repoParts } = repoResult;
 
-    // Get base branch for the resolved target repository
-    const baseBranch = await getBaseBranch(repoParts);
-
-    // Store the resolved base branch in the entry so the apply-time checkout step
-    // can use it directly instead of inferring from event context.
-    // This makes the safe output "self-describing" and fixes checkout for events
-    // like issue_comment on PRs targeting non-default branches.
-    entry.base_branch = baseBranch;
-
     // Determine the working directory for git operations.
     // Look up the checkout path when the target repo is explicitly provided by the agent
     // or explicitly configured via target-repo in the workflow config — this ensures patch
@@ -558,6 +556,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       entry.repo_cwd = repoCwd;
       server.debug(`Selected checkout folder for ${itemRepo}: ${repoCwd}`);
     }
+
+    // Get base branch for the resolved target repository.
+    // For side-repo checkouts, prefer the actual checked-out branch before falling
+    // back to the repository default branch.
+    const baseBranch = await getBaseBranch(repoParts, {
+      preferCheckedOutBranch: Boolean(repoCwd),
+      cwd: repoCwd || undefined,
+    });
+
+    // Store the resolved base branch in the entry so the apply-time checkout step
+    // can use it directly instead of inferring from event context.
+    // This makes the safe output "self-describing" and fixes checkout for events
+    // like issue_comment on PRs targeting non-default branches.
+    entry.base_branch = baseBranch;
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
