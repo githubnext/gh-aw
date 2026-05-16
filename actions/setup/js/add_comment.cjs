@@ -362,6 +362,12 @@ async function main(config = {}) {
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = parseBoolTemplatable(config.footer, true);
+  const configuredMentionAliases = Array.isArray(config.mentions?.allowed)
+    ? config.mentions.allowed
+        .filter(alias => typeof alias === "string" && alias.trim().length > 0)
+        .map(alias => alias.trim().replace(/^@+/, ""))
+        .filter(alias => alias.length > 0)
+    : [];
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
@@ -561,8 +567,19 @@ async function main(config = {}) {
         parentAuthors.push(context.payload.discussion.user.login);
       }
     }
-    if (parentAuthors.length > 0) {
-      core.info(`[MENTIONS] Allowing parent entity authors in comment: ${parentAuthors.join(", ")}`);
+    const allowedMentionAliases = [];
+    const seenAllowedMentionAliases = new Set();
+    for (const alias of [...parentAuthors, ...configuredMentionAliases]) {
+      const key = alias.toLowerCase();
+      if (seenAllowedMentionAliases.has(key)) {
+        continue;
+      }
+      seenAllowedMentionAliases.add(key);
+      allowedMentionAliases.push(alias);
+    }
+
+    if (allowedMentionAliases.length > 0) {
+      core.info(`[MENTIONS] Allowing aliases in comment: ${allowedMentionAliases.join(", ")}`);
     }
 
     // Replace temporary ID references in body
@@ -570,7 +587,7 @@ async function main(config = {}) {
 
     // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
     // so they can be @mentioned in the generated comment.
-    processedBody = sanitizeContent(processedBody, { allowedAliases: parentAuthors });
+    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
 
     // Enforce max limits before processing (validates user-provided content)
     try {

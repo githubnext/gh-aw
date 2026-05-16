@@ -299,6 +299,12 @@ async function loadHandlers(config, prReviewBuffer) {
           // Call the factory function with config to get the message handler
           const handlerConfig = { ...(config[type] || {}) };
 
+          // Pass top-level mentions policy through to add_comment so the handler can
+          // preserve the same allowed mention aliases used during collection.
+          if (type === "add_comment" && handlerConfig.mentions == null && config.mentions != null) {
+            handlerConfig.mentions = config.mentions;
+          }
+
           // Inject shared PR review buffer into handlers that need it
           if (PR_REVIEW_HANDLER_TYPES.has(type)) {
             handlerConfig._prReviewBuffer = prReviewBuffer;
