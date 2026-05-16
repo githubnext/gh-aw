@@ -128,6 +128,15 @@ func setupParentSpanNeedsExpr(upstreamJob constants.JobName) string {
 }
 
 func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string) []string {
+	setupEngineID := ""
+	if data != nil {
+		if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+			setupEngineID = data.EngineConfig.ID
+		} else if data.AI != "" {
+			setupEngineID = data.AI
+		}
+	}
+
 	// Script mode: run the setup.sh script directly
 	if c.actionMode.IsScript() {
 		lines := []string{
@@ -149,6 +158,9 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 			}
 			if data.Source != "" {
 				lines = append(lines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
+			}
+			if setupEngineID != "" {
+				lines = append(lines, fmt.Sprintf("          GH_AW_INFO_ENGINE_ID: %q\n", setupEngineID))
 			}
 		}
 		if traceID != "" {
@@ -192,6 +204,9 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 	}
 	if data.Source != "" {
 		lines = append(lines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
+	}
+	if setupEngineID != "" {
+		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_ENGINE_ID: %q\n", setupEngineID))
 	}
 	if hasWorkflowCallTrigger(data.On) {
 		lines = append(lines, "          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}\n")
