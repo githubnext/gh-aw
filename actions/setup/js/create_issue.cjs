@@ -29,6 +29,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
 
@@ -413,7 +414,7 @@ async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields
  * @returns {Promise<Array<{title: string}>>}
  */
 async function getRepoTitleDedupCandidates(githubClient, owner, repo) {
-  const sinceDate = new Date(Date.now() - RECENTLY_CLOSED_DEDUP_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const sinceDate = new Date(Date.now() - RECENTLY_CLOSED_DEDUP_DAYS * MS_PER_DAY).toISOString().slice(0, 10);
   const [openIssues, recentlyClosedIssues] = await Promise.all([
     githubClient.rest.search.issuesAndPullRequests({
       q: `repo:${owner}/${repo} is:issue is:open`,
