@@ -453,6 +453,66 @@ describe("create_issue", () => {
     });
   });
 
+  describe("deduplicate-by-title", () => {
+    it("should drop within-run duplicates when enabled as boolean", async () => {
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+
+      const first = await handler({ title: "Duplicate title" });
+      const second = await handler({ title: "Duplicate title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should drop fuzzy duplicates based on Levenshtein distance", async () => {
+      const handler = await main({
+        deduplicate_by_title: 1,
+      });
+
+      const first = await handler({ title: "Fix login bug" });
+      const second = await handler({ title: "Fix login bag" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.duplicate_distance).toBe(1);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should drop duplicates that already exist in the repository", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: {
+            items: [{ title: "Existing title in repo", number: 99 }],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            items: [],
+          },
+        });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Existing title in repo" });
+
+      expect(result.success).toBe(true);
+      expect(result.dropped_duplicate).toBe(true);
+      expect(result.dedup_source).toBe("repo-level");
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject invalid deduplicate-by-title configuration", async () => {
+      await expect(main({ deduplicate_by_title: "invalid" })).rejects.toThrow("deduplicate-by-title");
+    });
+  });
+
   describe("repository targeting", () => {
     it("should create issue in specified repo", async () => {
       const handler = await main({

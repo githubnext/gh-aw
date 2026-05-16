@@ -28,7 +28,9 @@ const { parseAllowedIssueFields, validateAllowedIssueFields } = require("./allow
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
+const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const RECENTLY_CLOSED_DEDUP_DAYS = 30;
 
 /**
  * Create a dedicated GitHub client for copilot assignment operations.
@@ -402,6 +404,36 @@ async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields
 }
 
 /**
+ * Search for existing issues that are potential title-duplicates.
+ * Includes all open issues and recently closed issues.
+ *
+ * @param {Object} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<Array<{title: string}>>}
+ */
+async function getRepoTitleDedupCandidates(githubClient, owner, repo) {
+  const sinceDate = new Date(Date.now() - RECENTLY_CLOSED_DEDUP_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [openIssues, recentlyClosedIssues] = await Promise.all([
+    githubClient.rest.search.issuesAndPullRequests({
+      q: `repo:${owner}/${repo} is:issue is:open`,
+      per_page: 100,
+      sort: "updated",
+      order: "desc",
+    }),
+    githubClient.rest.search.issuesAndPullRequests({
+      q: `repo:${owner}/${repo} is:issue is:closed closed:>=${sinceDate}`,
+      per_page: 100,
+      sort: "updated",
+      order: "desc",
+    }),
+  ]);
+
+  const items = [...(openIssues?.data?.items || []), ...(recentlyClosedIssues?.data?.items || [])];
+  return items.filter(item => !item.pull_request && typeof item.title === "string").map(item => ({ title: item.title }));
+}
+
+/**
  * Main handler factory for create_issue
  * Returns a message handler function that processes individual create_issue messages
  * @type {HandlerFactoryFunction}
@@ -418,6 +450,12 @@ async function main(config = {}) {
   const groupEnabled = parseBoolTemplatable(config.group, false);
   const closeOlderIssuesEnabled = parseBoolTemplatable(config.close_older_issues, false);
   const groupByDayEnabled = parseBoolTemplatable(config.group_by_day, false);
+  let deduplicateByTitle;
+  try {
+    deduplicateByTitle = parseDeduplicateByTitle(config.deduplicate_by_title);
+  } catch (error) {
+    throw new Error(`${ERR_VALIDATION}: ${getErrorMessage(error)}`);
+  }
   const rawCloseOlderKey = config.close_older_key ? String(config.close_older_key) : "";
   const closeOlderKey = rawCloseOlderKey ? normalizeCloseOlderKey(rawCloseOlderKey) : "";
   if (rawCloseOlderKey && !closeOlderKey) {
@@ -476,12 +514,20 @@ async function main(config = {}) {
       core.warning(`Group-by-day mode has no effect: neither close-older-key nor GH_AW_WORKFLOW_ID is set — issues cannot be searched`);
     }
   }
+  if (deduplicateByTitle.enabled) {
+    const mode = deduplicateByTitle.maxDistance === 0 ? "exact title match" : `Levenshtein distance <= ${deduplicateByTitle.maxDistance}`;
+    core.info(`Title deduplication enabled (${mode})`);
+  }
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
 
   // Track created issues for outputs
   const createdIssues = [];
+
+  // Track created issue titles by repo for within-run deduplication
+  /** @type {Map<string, Array<{title: string, normalizedTitle: string}>>} */
+  const createdTitlesByRepo = new Map();
 
   // Map to track temporary_id -> {repo, number} relationships across messages
   const temporaryIdMap = new Map();
@@ -643,6 +689,56 @@ async function main(config = {}) {
     // Apply title prefix (only if it doesn't already exist)
     title = applyTitlePrefix(title, titlePrefix);
 
+    const normalizedTitle = normalizeTitleForDedup(title);
+
+    if (message._dropped_duplicate_by_title === true) {
+      const existingTitle = typeof message._duplicate_title === "string" ? message._duplicate_title : title;
+      const distance = typeof message._duplicate_distance === "number" ? message._duplicate_distance : 0;
+      core.warning(`Dropping duplicate create_issue from MCP pre-check in ${qualifiedItemRepo}: "${title}" (matched "${existingTitle}", distance=${distance})`);
+      return {
+        success: true,
+        dropped_duplicate: true,
+        dedup_source: "mcp-precheck",
+        title,
+        duplicate_of_title: existingTitle,
+        duplicate_distance: distance,
+      };
+    }
+
+    if (deduplicateByTitle.enabled) {
+      const withinRunCandidates = createdTitlesByRepo.get(qualifiedItemRepo) || [];
+      const withinRunDuplicate = findDuplicateByTitle(normalizedTitle, withinRunCandidates, deduplicateByTitle.maxDistance);
+      if (withinRunDuplicate) {
+        core.warning(`Dropping duplicate create_issue (within-run) in ${qualifiedItemRepo}: "${title}" (matched "${withinRunDuplicate.title}", distance=${withinRunDuplicate.distance})`);
+        return {
+          success: true,
+          dropped_duplicate: true,
+          dedup_source: "within-run",
+          title,
+          duplicate_of_title: withinRunDuplicate.title,
+          duplicate_distance: withinRunDuplicate.distance,
+        };
+      }
+
+      try {
+        const repoCandidates = await getRepoTitleDedupCandidates(githubClient, repoParts.owner, repoParts.repo);
+        const repoDuplicate = findDuplicateByTitle(normalizedTitle, repoCandidates, deduplicateByTitle.maxDistance);
+        if (repoDuplicate) {
+          core.warning(`Dropping duplicate create_issue (repo-level) in ${qualifiedItemRepo}: "${title}" (matched "${repoDuplicate.title}", distance=${repoDuplicate.distance})`);
+          return {
+            success: true,
+            dropped_duplicate: true,
+            dedup_source: "repo-level",
+            title,
+            duplicate_of_title: repoDuplicate.title,
+            duplicate_distance: repoDuplicate.distance,
+          };
+        }
+      } catch (error) {
+        core.warning(`Title deduplication search failed: ${getErrorMessage(error)} — proceeding with issue creation`);
+      }
+    }
+
     // Add parent reference
     if (effectiveParentIssueNumber) {
       core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
@@ -787,6 +883,11 @@ async function main(config = {}) {
     // If in staged mode, preview the issue without creating it
     if (isStaged) {
       logStagedPreviewInfo(`Would create issue in ${qualifiedItemRepo} with title: ${title}`);
+      if (deduplicateByTitle.enabled) {
+        const titles = createdTitlesByRepo.get(qualifiedItemRepo) || [];
+        titles.push({ title, normalizedTitle });
+        createdTitlesByRepo.set(qualifiedItemRepo, titles);
+      }
       // Return success with staged flag and preview info
       return {
         success: true,
@@ -820,6 +921,11 @@ async function main(config = {}) {
 
       core.info(`Created issue ${qualifiedItemRepo}#${issue.number}: ${issue.html_url}`);
       createdIssues.push({ ...issue, _repo: qualifiedItemRepo });
+      if (deduplicateByTitle.enabled) {
+        const titles = createdTitlesByRepo.get(qualifiedItemRepo) || [];
+        titles.push({ title, normalizedTitle });
+        createdTitlesByRepo.set(qualifiedItemRepo, titles);
+      }
 
       if (issueFields.length > 0) {
         try {

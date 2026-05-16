@@ -72,6 +72,7 @@ function loadTools(server) {
  */
 function attachHandlers(tools, handlers) {
   const handlerMap = {
+    create_issue: handlers.createIssueHandler,
     create_pull_request: handlers.createPullRequestHandler,
     push_to_pull_request_branch: handlers.pushToPullRequestBranchHandler,
     push_repo_memory: handlers.pushRepoMemoryHandler,
