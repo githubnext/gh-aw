@@ -152,6 +152,7 @@ rg --no-heading --no-filename --only-matching 'apiProxy\.[A-Za-z0-9_.]+' pkg/wor
   | sort -u > /tmp/ghaw-refs.txt
 
 # Review diff for drift
+# Keep command non-fatal so investigators can review drift output before deciding whether to fail the run.
 diff -u /tmp/schema-keys.txt /tmp/ghaw-refs.txt || true
 ```
 

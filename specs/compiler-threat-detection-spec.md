@@ -163,7 +163,7 @@ When a compiler feature that a `CTR-*` rule depends on is removed, the rule MUST
 - The rule's status MUST be updated to `Deprecated` in this specification in the same change set as the implementation removal.
 - The rule catalog entry MUST be retained (not deleted) with a deprecation notice indicating the version in which the rule was retired and the reason.
 - All test IDs mapped to the deprecated rule in Section 7 MUST be marked as `[DEPRECATED]` and MUST NOT be required for conformance after the deprecation version.
-- The implementation mapping in Section 6.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
+- The implementation mapping in Section 7.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
 - A change-log entry MUST document the deprecation with the rule ID, deprecation version, and rationale.
 
 ---
@@ -303,38 +303,38 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 
 - Added CTR-018 Version Integrity Bypass (warn/reject when `check-for-updates: false` disables the compile-agentic version update check; implemented in `update_check_validation.go`)
 - Added T-CTR-018 test ID entry in Section 8.1
-- Extended Section 6.1 baseline rule mapping table with CTR-018 implementation references (`update_check_validation.go`)
+- Extended Section 7.1 baseline rule mapping table with CTR-018 implementation references (`update_check_validation.go`)
 
 ### 1.0.7 (2026-05-16)
 
 - Added CTR-017 Secret Leakage via Environment Variables (warn/reject when secrets expressions appear in top-level `env:`, `engine.env`, or in uncontrolled custom step fields; implemented in `strict_mode_env_validation.go` and `strict_mode_steps_validation.go`)
 - Added T-CTR-017 test ID entry in Section 8.1
-- Extended Section 6.1 baseline rule mapping table with CTR-017 implementation references (`strict_mode_env_validation.go`, `strict_mode_steps_validation.go`)
+- Extended Section 7.1 baseline rule mapping table with CTR-017 implementation references (`strict_mode_env_validation.go`, `strict_mode_steps_validation.go`)
 - Updated mapping audit note to cover CTR-001 through CTR-018
 
 ### 1.0.6 (2026-05-15)
 
 - Added CTR-016 Compile-Time Manifest Drift (compilation rejection when recompilation of an existing workflow would introduce new restricted secrets or unapproved action references beyond the previously approved lock file manifest baseline; detected by `EnforceSafeUpdate` in `safe_update_enforcement.go`, called from `compiler.go`)
 - Added T-CTR-016 test ID entry in Section 8.1
-- Extended Section 6.1 baseline rule mapping table with CTR-016 implementation references (`safe_update_enforcement.go`, `compiler.go`)
+- Extended Section 7.1 baseline rule mapping table with CTR-016 implementation references (`safe_update_enforcement.go`, `compiler.go`)
 
 ### 1.0.5 (2026-05-14)
 
 - Added CTR-015 Allowed Label Glob Scope (compilation error when `safe-outputs.*.allowed-labels` contains a bare `"*"` wildcard that effectively disables label restrictions and may permit unintended label-driven automation; triggered by the new glob pattern support for `allowed-labels` introduced in gh-aw #32027)
 - Added T-CTR-015 test ID entry in Section 8.1
-- Extended Section 6.1 baseline rule mapping table with CTR-015 implementation references (`safe_outputs_allowed_labels_validation.go`)
+- Extended Section 7.1 baseline rule mapping table with CTR-015 implementation references (`safe_outputs_allowed_labels_validation.go`)
 
 ### 1.0.4 (2026-05-13)
 
 - Added CTR-014 Supply Chain Attack via Install Scripts (warn/reject when `run-install-scripts: true` is configured; protects against malicious npm pre/post install hooks)
 - Added T-CTR-014 test ID entry in Section 8.1
-- Extended Section 6.1 baseline rule mapping table with CTR-014 implementation references (`run_install_scripts_validation.go`)
+- Extended Section 7.1 baseline rule mapping table with CTR-014 implementation references (`run_install_scripts_validation.go`)
 
 ### 1.0.3 (2026-05-11)
 
 - Added CTR-013 Argument Injection via Package/Image Names (hyphen-prefix package/image name rejection for npm/npx, pip/uv, and Docker to prevent exec.Command argument injection)
 - Added T-CTR-013 test ID entry in Section 8.1
-- Extended Section 6.1 baseline rule mapping table with CTR-013 implementation references
+- Extended Section 7.1 baseline rule mapping table with CTR-013 implementation references
 
 ### 1.0.2 (2026-05-09)
 
@@ -343,7 +343,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 - Extended CTR-006 mapping with `heredoc_validation.go` (heredoc delimiter injection defense)
 - Extended CTR-010 mapping with `expression_syntax_validation.go` (structural expression syntax validation)
 - Extended CTR-011 rule description and mapping with `strict_mode_network_validation.go` (wildcard domain rejection in strict mode)
-- Updated Section 6.1 baseline rule mapping table for CTR-001, CTR-006, CTR-010, CTR-011, and CTR-012
+- Updated Section 7.1 baseline rule mapping table for CTR-001, CTR-006, CTR-010, CTR-011, and CTR-012
 
 ### 1.0.1 (2026-05-08)
 
@@ -354,7 +354,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 - Added CTR-009 Shell Expansion in Safe-Outputs (dangerous bash expansion detection at compile time)
 - Added CTR-010 Expression Safety Allowlist (approved expression enforcement, multi-line rejection)
 - Added CTR-011 Network Firewall Configuration (firewall dependency and domain pattern validation)
-- Updated Section 6.1 baseline rule mapping table with concrete file references for CTR-006 through CTR-011
+- Updated Section 7.1 baseline rule mapping table with concrete file references for CTR-006 through CTR-011
 
 ### 1.0.0 (2026-05-06)
 
