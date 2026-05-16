@@ -2039,7 +2039,7 @@ ${patchPreview}`;
 
         core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
 
-        if (!manifestProtectionPushFailedError && typeof githubClient?.rest?.issues?.update === "function") {
+        if (!manifestProtectionPushFailedError) {
           try {
             const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, issue.number);
             const fallbackBodyWithCloseKeyword = renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fileList, createPrUrl);
