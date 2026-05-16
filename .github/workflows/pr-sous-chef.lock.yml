@@ -412,6 +412,7 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           candidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json
           eligible_file=/tmp/gh-aw/agent/pr-sous-chef-eligible.json
+          sous_chef_nudge_marker='<!-- gh-aw-pr-sous-chef-nudge -->'
           filtered_checks_pending=0
           filtered_last_comment_from_sous_chef=0
 
@@ -446,10 +447,9 @@ jobs:
                 --jq '
                   if length == 0 then false
                   else (
-                    ((.[0].user.login // "" | ascii_downcase | contains("pr-sous-chef")) or
-                     ((.[0].body // "" | ascii_downcase | contains("pr-sous-chef")))
+                    ((.[0].body // "" | contains($marker)))
                   ) end
-                ' 2>/dev/null || echo "false"
+                ' --arg marker "$sous_chef_nudge_marker" 2>/dev/null || echo "false"
             )"
             if [ "$last_comment_is_sous_chef" = "true" ]; then
               filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))
@@ -1596,4 +1596,3 @@ jobs:
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/temporary-id-map.json
           if-no-files-found: ignore
-
