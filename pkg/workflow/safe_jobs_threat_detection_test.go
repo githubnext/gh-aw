@@ -408,10 +408,13 @@ Test workflow content
 	}
 	workflowStr := string(workflowBytes)
 
-	// No line in the compiled output may write an expression-based value to $GITHUB_OUTPUT.
+	// No env var at all may be written to $GITHUB_OUTPUT by safe-jobs.
 	for _, line := range strings.Split(workflowStr, "\n") {
-		if strings.Contains(line, "GITHUB_OUTPUT") && strings.Contains(line, "${{") {
-			t.Errorf("Compiled workflow contains an expression written to GITHUB_OUTPUT (secret leak): %s", strings.TrimSpace(line))
+		if strings.Contains(line, "GH_TOKEN") && strings.Contains(line, "GITHUB_OUTPUT") {
+			t.Errorf("GH_TOKEN must never be written to GITHUB_OUTPUT (secret leak): %s", strings.TrimSpace(line))
+		}
+		if strings.Contains(line, "STATIC") && strings.Contains(line, "GITHUB_OUTPUT") {
+			t.Errorf("STATIC env var must not be written to GITHUB_OUTPUT: %s", strings.TrimSpace(line))
 		}
 	}
 
@@ -420,9 +423,9 @@ Test workflow content
 		t.Error("Expected GH_TOKEN expression to be injected into step env: block in compiled output")
 	}
 
-	// Literal value should flow through $GITHUB_OUTPUT as normal.
-	if !strings.Contains(workflowStr, `echo "STATIC=literal-value"`) {
-		t.Error("Expected literal env var to be written to GITHUB_OUTPUT in compiled output")
+	// Literal value must also be injected directly into the step env: block.
+	if !strings.Contains(workflowStr, "STATIC: literal-value") {
+		t.Error("Expected literal env var to be injected directly into step env: block in compiled output")
 	}
 }
 

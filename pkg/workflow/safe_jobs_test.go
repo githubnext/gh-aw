@@ -596,9 +596,9 @@ func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 	}
 }
 
-// TestBuildSafeJobsEnvExpressionHoisting verifies that env vars containing GitHub Actions
-// expressions (${{ ... }}) are never written to $GITHUB_OUTPUT (to avoid leaking secrets),
-// and are instead injected directly into each downstream step's env: block.
+// TestBuildSafeJobsEnvExpressionHoisting verifies that no env vars — whether expression-based
+// or literal — are ever written to $GITHUB_OUTPUT, and that all values are injected directly
+// into each downstream step's env: block.
 func TestBuildSafeJobsEnvExpressionHoisting(t *testing.T) {
 	c := NewCompiler()
 
@@ -641,19 +641,9 @@ func TestBuildSafeJobsEnvExpressionHoisting(t *testing.T) {
 
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Expression values must never be written to $GITHUB_OUTPUT — that would leak secrets.
-	if strings.Contains(stepsContent, `echo "GH_TOKEN=`) {
-		t.Error("Expression-based env var GH_TOKEN must never be written to $GITHUB_OUTPUT (secret leak)")
-	}
-
-	// Expression values must NOT appear in the setup step run: script at all.
-	if strings.Contains(stepsContent, `github.token`) && strings.Contains(stepsContent, `GITHUB_OUTPUT`) {
-		// More targeted: github.token must not appear on the same line as GITHUB_OUTPUT
-		for _, line := range strings.Split(stepsContent, "\n") {
-			if strings.Contains(line, "github.token") && strings.Contains(line, "GITHUB_OUTPUT") {
-				t.Errorf("github.token must not appear in a line that writes to GITHUB_OUTPUT: %s", line)
-			}
-		}
+	// Neither expression-based nor literal env vars must ever be written to $GITHUB_OUTPUT.
+	if strings.Contains(stepsContent, `GITHUB_OUTPUT`) {
+		t.Error("No env var must ever be written to $GITHUB_OUTPUT in safe-jobs (secrets must not be stored in outputs)")
 	}
 
 	// Expression-based values must be injected directly into downstream step env: blocks.
@@ -661,9 +651,9 @@ func TestBuildSafeJobsEnvExpressionHoisting(t *testing.T) {
 		t.Error("Expected GH_TOKEN expression to be injected directly into a downstream step env: block")
 	}
 
-	// Literal values continue to flow through $GITHUB_OUTPUT as before.
-	if !strings.Contains(stepsContent, `echo "STATIC_VAR=literal-value"`) {
-		t.Error("Expected literal env var to be written to $GITHUB_OUTPUT in run: script")
+	// Literal values must also be injected directly into downstream step env: blocks.
+	if !strings.Contains(stepsContent, "STATIC_VAR: literal-value") {
+		t.Error("Expected literal env var STATIC_VAR to be injected directly into a downstream step env: block")
 	}
 }
 
