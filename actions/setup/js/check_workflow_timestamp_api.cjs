@@ -241,12 +241,51 @@ async function main() {
     }
   }
 
+  // Track whether a cross-repo API auth failure was the root cause of the hash check failure.
+  // Used to surface targeted remediation guidance instead of the generic "run gh aw compile" message.
+  // Set inside compareFrontmatterHashes() when an HTTP 401/403/404 is returned for a cross-repo fetch.
+  let crossRepoAuthFailure = null;
+
   // Primary: compare frontmatter hashes using the GitHub API.
   // Falls back to local filesystem if the API is inaccessible.
   async function compareFrontmatterHashes() {
     try {
-      // Fetch lock file content to extract stored hash
-      const lockFileContent = await getFileContent(github, owner, repo, lockFilePath, ref);
+      // Fetch lock file content to extract stored hash.
+      // Call the API directly (instead of via getFileContent) so we can capture the HTTP status
+      // code for cross-repo auth failure detection: the caller's GITHUB_TOKEN is repo-scoped and
+      // cannot read from a private callee repo, returning 404/401/403.
+      let lockFileContent = null;
+      try {
+        const response = await github.rest.repos.getContent({
+          owner,
+          repo,
+          path: lockFilePath,
+          ref,
+        });
+        if (Array.isArray(response.data)) {
+          core.info(`Path ${lockFilePath} is a directory, not a file`);
+        } else if (response.data && response.data.type === "file") {
+          if (response.data.encoding === "base64" && response.data.content) {
+            lockFileContent = Buffer.from(response.data.content, "base64").toString("utf8");
+          } else {
+            lockFileContent = response.data.content || null;
+          }
+        } else if (response.data && response.data.type) {
+          core.info(`Path ${lockFilePath} is not a file (type: ${response.data.type})`);
+        }
+      } catch (fetchErr) {
+        const status = fetchErr.status;
+        core.info(`Could not fetch content for ${lockFilePath}: ${getErrorMessage(fetchErr)}`);
+        // When the callee is a private repo, the caller's GITHUB_TOKEN (which is scoped to the
+        // caller repo) will receive a 404/401/403 from the callee's Contents API.  Record this so
+        // that the final error message can give actionable remediation guidance instead of
+        // directing the user to re-run `gh aw compile`.
+        if (workflowRepo !== currentRepo && (status === 401 || status === 403 || status === 404)) {
+          crossRepoAuthFailure = { status, repo: workflowRepo };
+          core.info(`Cross-repo API access failed (HTTP ${status}): GITHUB_TOKEN is scoped to the caller repo and cannot read from '${workflowRepo}'. Configure GH_AW_GITHUB_TOKEN with read access to '${workflowRepo}' to resolve this.`);
+        }
+      }
+
       if (!lockFileContent) {
         core.info("Unable to fetch lock file content for hash comparison via API, trying local filesystem fallback");
         return await compareFrontmatterHashesFromLocalFiles();
@@ -340,7 +379,18 @@ async function main() {
     core.warning("Could not compare frontmatter hashes - assuming lock file is outdated");
     await recomputeHashWithDebugLogging();
 
-    const warningMessage = `Lock file '${lockFilePath}' is outdated or unverifiable! Could not verify frontmatter hash for '${workflowMdPath}'. Run 'gh aw compile' to regenerate the lock file.`;
+    let warningMessage;
+    let actionRequiredText;
+
+    if (crossRepoAuthFailure) {
+      // The root cause is an auth gap, not a stale lock file. Direct the user to fix the token,
+      // not to re-run `gh aw compile` (which would not resolve the issue).
+      warningMessage = `Lock file '${lockFilePath}' could not be verified: GITHUB_TOKEN cannot access the callee repo '${crossRepoAuthFailure.repo}' (HTTP ${crossRepoAuthFailure.status}). Configure GH_AW_GITHUB_TOKEN with read access to '${crossRepoAuthFailure.repo}'.`;
+      actionRequiredText = `**Root cause:** \`GITHUB_TOKEN\` is scoped to the caller repo and cannot read from the private callee repo \`${crossRepoAuthFailure.repo}\`.\n\n**Action Required:** Configure \`GH_AW_GITHUB_TOKEN\` with \`contents: read\` access to \`${crossRepoAuthFailure.repo}\`.\n\n`;
+    } else {
+      warningMessage = `Lock file '${lockFilePath}' is outdated or unverifiable! Could not verify frontmatter hash for '${workflowMdPath}'. Run 'gh aw compile' to regenerate the lock file.`;
+      actionRequiredText = "**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n";
+    }
 
     let summary = core.summary
       .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
@@ -348,7 +398,7 @@ async function main() {
       .addRaw("**Files:**\n")
       .addRaw(`- Source: \`${workflowMdPath}\`\n`)
       .addRaw(`- Lock: \`${lockFilePath}\`\n\n`)
-      .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
+      .addRaw(actionRequiredText);
 
     await summary.write();
 
