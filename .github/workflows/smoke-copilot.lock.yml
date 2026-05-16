@@ -2672,9 +2672,6 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
-      - name: Configure Safe Outputs Job Environment Variables
-        run: |
-          find "${RUNNER_TEMP}/gh-aw/safe-jobs/" -type f -print
       - name: Stub Slack message
         run: |
           echo "🎭 This is a stub - not sending to Slack"
