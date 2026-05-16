@@ -3245,13 +3245,17 @@ describe("sendJobConclusionSpan", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    const errorDetails = [
+      { host: "sentry.example.com:4318", status: 401, reason: "Unauthorized" },
+      { host: "grafana.example.com:4318", status: 503, reason: "Service Unavailable" },
+    ];
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/otlp-export-errors.count") {
         return "2";
       }
       if (filePath === "/tmp/gh-aw/otlp-export-errors.jsonl") {
-        return `${JSON.stringify({ host: "sentry.example.com:4318", status: 401, reason: "Unauthorized" })}\n${JSON.stringify({ host: "grafana.example.com:4318", status: 503, reason: "Service Unavailable" })}\n`;
+        return errorDetails.map(detail => JSON.stringify(detail)).join("\n") + "\n";
       }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });

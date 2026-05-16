@@ -1241,6 +1241,34 @@ function getOTLPExportErrorHost(endpoint) {
 }
 
 /**
+ * @param {unknown} status
+ * @returns {status is number}
+ */
+function isValidOTLPExportErrorStatus(status) {
+  return typeof status === "number" && Number.isInteger(status) && status > 0;
+}
+
+/**
+ * @param {unknown} entry
+ * @returns {entry is OTLPExportErrorDetail}
+ */
+function isValidOTLPExportErrorDetail(entry) {
+  return entry !== null && typeof entry === "object" && !Array.isArray(entry) && typeof entry.host === "string" && entry.host.trim() !== "" && typeof entry.reason === "string" && entry.reason.trim() !== "";
+}
+
+/**
+ * @param {OTLPExportErrorDetail} detail
+ * @returns {OTLPExportErrorDetail}
+ */
+function normalizeOTLPExportErrorDetail(detail) {
+  return {
+    host: detail.host.trim(),
+    ...(isValidOTLPExportErrorStatus(detail.status) ? { status: detail.status } : {}),
+    reason: detail.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
+  };
+}
+
+/**
  * Read persisted OTLP export failure details.
  *
  * @returns {OTLPExportErrorDetail[]}
@@ -1252,15 +1280,19 @@ function readOTLPExportErrorDetails() {
       .split("\n")
       .filter(line => line.trim() !== "")
       .map(line => JSON.parse(line))
-      .filter(entry => entry && typeof entry === "object" && !Array.isArray(entry) && typeof entry.host === "string" && entry.host.trim() !== "" && typeof entry.reason === "string" && entry.reason.trim() !== "")
-      .map(entry => ({
-        host: entry.host.trim(),
-        ...(typeof entry.status === "number" && Number.isInteger(entry.status) && entry.status > 0 ? { status: entry.status } : {}),
-        reason: entry.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
-      }));
+      .filter(isValidOTLPExportErrorDetail)
+      .map(normalizeOTLPExportErrorDetail);
   } catch {
     return [];
   }
+}
+
+/**
+ * @param {OTLPExportErrorDetail} detail
+ * @returns {string}
+ */
+function formatOTLPExportErrorDetail(detail) {
+  return `${detail.host}${isValidOTLPExportErrorStatus(detail.status) ? ` status=${detail.status}` : ""} reason=${detail.reason}`;
 }
 
 /**
@@ -1273,7 +1305,7 @@ function formatOTLPExportErrorDetails() {
   if (details.length === 0) {
     return "";
   }
-  return details.map(detail => `${detail.host}${typeof detail.status === "number" ? ` status=${detail.status}` : ""} reason=${detail.reason}`).join(" | ");
+  return details.map(formatOTLPExportErrorDetail).join(" | ");
 }
 
 /**
@@ -1296,11 +1328,13 @@ function recordOTLPExportError(detail = {}) {
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
     fs.appendFileSync(
       OTLP_EXPORT_ERROR_DETAILS_PATH,
-      JSON.stringify({
-        host: getOTLPExportErrorHost(detail.endpoint),
-        ...(typeof detail.status === "number" && Number.isInteger(detail.status) && detail.status > 0 ? { status: detail.status } : {}),
-        reason: detail.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
-      }) + "\n"
+      JSON.stringify(
+        normalizeOTLPExportErrorDetail({
+          host: getOTLPExportErrorHost(detail.endpoint),
+          ...(isValidOTLPExportErrorStatus(detail.status) ? { status: detail.status } : {}),
+          reason: detail.reason.slice(0, MAX_ATTR_VALUE_LENGTH),
+        })
+      ) + "\n"
     );
   } catch {
     // Export-health tracking is best-effort only.
