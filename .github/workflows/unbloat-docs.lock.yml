@@ -1232,7 +1232,8 @@ jobs:
         if: always()
         with:
           name: cache-memory
-          path: /tmp/gh-aw/cache-memory
+          include-hidden-files: true
+          path: /tmp/gh-aw/cache-memory/.
       # Upload safe-outputs assets for upload_assets job
       - name: Upload Safe Outputs Assets
         if: always()
