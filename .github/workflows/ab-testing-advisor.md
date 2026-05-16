@@ -160,6 +160,9 @@ Based on your analysis, identify **one high-impact dimension** to experiment on.
 - `engine_variant`: Test different AI engines (e.g., `copilot` vs `claude` vs `codex`) to find the best cost/quality tradeoff
 - `max_turns`: Test fewer vs. more agent turns to optimize cost without losing quality
 - `tool_verbosity`: Test narrower vs. broader tool allowlists to reduce unnecessary tool calls
+- `model_size`: Test smaller vs. larger model variants (e.g., `small`, `medium`, `large`) to find the best cost/quality tradeoff for the workflow's reasoning demands
+- `sub_agent_strategy`: Test single-agent vs. sub-agent decomposition (e.g., `single_agent`, `sub_agents`) to determine whether delegating per-item work to smaller sub-agents reduces cost without sacrificing quality
+- `caveman_mode`: Test whether extreme prompt compression (the "caveman" principle: "why use many token when few do trick") preserves output quality to identify prompt verbosity waste (variants: `yes`, `no`)
 
 **Accuracy & Quality**
 - `prompt_style`: Test concise vs. detailed instructions to find the right prompt density
