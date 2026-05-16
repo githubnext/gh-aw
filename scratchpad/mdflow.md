@@ -199,7 +199,7 @@ Interactive debugging session for issue #${{ inputs.issue_number }}
 #### 1. **Minimal Configuration Model**
 - **Line Count**: ~32,584 lines of TypeScript
 - **Core Concept**: Filename → Command mapping
-- **Zero Config**: Works immediately with `mdflow task.claude.md`
+- **No required configuration**: Runs with `mdflow task.claude.md`
 
 **Lesson for gh-aw**: Provide "Quick Start" templates that abstract complexity:
 ```bash
