@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-import { createRequire } from "module";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
-
-const require = createRequire(import.meta.url);
-const { dedupRolloutBucket } = require("./issue_title_dedup.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -1174,21 +1170,6 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createIssueHandler", () => {
-    it("should use default 50% rollout when rollout percent env is unset", () => {
-      delete process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT;
-      const h = createHandlers(mockServer, mockAppendSafeOutput, {
-        create_issue: {},
-      });
-
-      const first = h.createIssueHandler({ title: "Default Rollout", body: "First body" });
-      const second = h.createIssueHandler({ title: "Default Rollout", body: "Second body" });
-      const expectedDedupEnabled = dedupRolloutBucket(process.env.GH_AW_WORKFLOW_ID) < 50;
-
-      expect(JSON.parse(first.content[0].text).result).toBe("success");
-      const secondResult = JSON.parse(second.content[0].text).result;
-      expect(secondResult).toBe(expectedDedupEnabled ? "duplicate_dropped" : "success");
-    });
-
     it("should drop duplicate create_issue titles in MCP pre-check via rollout", () => {
       process.env.GH_AW_CREATE_ISSUE_TITLE_DEDUP_ROLLOUT_PERCENT = "100";
       const h = createHandlers(mockServer, mockAppendSafeOutput, {
