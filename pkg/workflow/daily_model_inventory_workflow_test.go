@@ -23,4 +23,8 @@ func TestDailyModelInventoryWorkflowPrefetchesReflectBeforeAgent(t *testing.T) {
 	if strings.Contains(lockContentStr, `shell(mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf "%s" "{\"endpoints\":[],\"error\":\"reflect endpoint unavailable\"}" > /tmp/gh-aw/model-inventory/reflect.json))`) {
 		t.Fatalf("expected compiled workflow to avoid the complex Copilot shell allow-tool for /reflect fallback")
 	}
+
+	if strings.Contains(lockContentStr, `shell(jq ".endpoints[] | select(.provider == \"copilot\") | .models" /tmp/gh-aw/model-inventory/reflect.json)`) {
+		t.Fatalf("expected compiled workflow to avoid quoted jq filters in Copilot shell allow-tool entries")
+	}
 }
