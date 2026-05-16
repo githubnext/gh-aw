@@ -30,11 +30,13 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-5-mini` | `copilot/gpt-5*mini*`, `openai/gpt-5*mini*` |
 | `gpt-5-nano` | `copilot/gpt-5*nano*`, `openai/gpt-5*nano*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
+| `coding` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*`, `gpt-5-codex` |
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
 | `gemini-flash-lite` | `copilot/gemini-*flash*lite*`, `google/gemini-*flash*lite*`, `gemini/gemini-*flash*lite*` |
 | `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*`, `gemini/gemini-*pro*` |
+| `vision` | `copilot/gemini-*image*`, `gemini/gemini-*image*`, `copilot/gemini-*flash*`, `gemini/gemini-*flash*` |
 | `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
 
@@ -83,6 +85,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `claude-sonnet-4-5` | 6 |
 | `claude-sonnet-4.5` | 6 |
 | `claude-sonnet-4-5-20250929` | 6 |
+| `claude-sonnet-4-6` | 9 |
 | `claude-sonnet-4.6` | 9 |
 | `claude-3-5-sonnet` | 1 |
 | `claude-3-7-sonnet` | 1 |
