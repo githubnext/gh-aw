@@ -39,13 +39,13 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		}
 
 		// Parse target-repo
-		securityReportsConfig.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
+		securityReportsConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", createCodeScanningAlertLog)
 		if securityReportsConfig.TargetRepoSlug != "" {
 			createCodeScanningAlertLog.Printf("Target repo for code scanning alerts: %s", securityReportsConfig.TargetRepoSlug)
 		}
 
 		// Parse allowed-repos
-		securityReportsConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+		securityReportsConfig.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", createCodeScanningAlertLog)
 		if len(securityReportsConfig.AllowedRepos) > 0 {
 			createCodeScanningAlertLog.Printf("Allowed repos for cross-repo alerts: %d configured", len(securityReportsConfig.AllowedRepos))
 		}

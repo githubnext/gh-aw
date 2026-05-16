@@ -37,16 +37,19 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 
 	mcpMountValidationLog.Printf("Validating %d mount(s) for tool %q", len(mounts), toolName)
 	for i, mount := range mounts {
-		source, dest, mode, err := validateMountStringFormat(mount)
-		if err != nil {
-			if source == "" && dest == "" && mode == "" {
-				mcpMountValidationLog.Printf("Mount[%d] format error for tool %q: %q", i, toolName, mount)
-				return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must follow 'source:destination:mode' format, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
-			}
-			mcpMountValidationLog.Printf("Mount[%d] invalid mode for tool %q: got %q", i, toolName, mode)
-			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] mode must be 'ro' or 'rw', got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"  # read-only\n      - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", toolName, i, mode, toolName, constants.DocsToolsURL)
+		parts, kind := parseMountEntry(mount)
+		switch kind {
+		case mountValidationFormatError:
+			mcpMountValidationLog.Printf("Mount[%d] format error for tool %q: %q", i, toolName, mount)
+			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must follow 'source:destination:mode' format, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
+		case mountValidationModeError:
+			mcpMountValidationLog.Printf("Mount[%d] invalid mode for tool %q: got %q", i, toolName, parts.mode)
+			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] mode must be 'ro' or 'rw', got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"  # read-only\n      - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", toolName, i, parts.mode, toolName, constants.DocsToolsURL)
+		case mountValidationEmptySource, mountValidationEmptyDestination:
+			mcpMountValidationLog.Printf("Mount[%d] has empty path for tool %q: %q", i, toolName, mount)
+			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must include non-empty source and destination paths, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
 		}
-		mcpMountValidationLog.Printf("Mount[%d] valid for tool %q: source=%s, dest=%s, mode=%s", i, toolName, source, dest, mode)
+		mcpMountValidationLog.Printf("Mount[%d] valid for tool %q: source=%s, dest=%s, mode=%s", i, toolName, parts.source, parts.dest, parts.mode)
 	}
 
 	return nil

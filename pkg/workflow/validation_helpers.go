@@ -96,6 +96,39 @@ func validateMountStringFormat(mount string) (source, dest, mode string, err err
 	return parts[0], parts[1], parts[2], nil
 }
 
+type mountValidationKind int
+
+const (
+	mountValidationOK mountValidationKind = iota
+	mountValidationFormatError
+	mountValidationModeError
+	mountValidationEmptySource
+	mountValidationEmptyDestination
+)
+
+type mountParts struct {
+	source string
+	dest   string
+	mode   string
+}
+
+func parseMountEntry(mount string) (mountParts, mountValidationKind) {
+	source, dest, mode, err := validateMountStringFormat(mount)
+	if err != nil {
+		if source == "" && dest == "" && mode == "" {
+			return mountParts{}, mountValidationFormatError
+		}
+		return mountParts{source: source, dest: dest, mode: mode}, mountValidationModeError
+	}
+	if source == "" {
+		return mountParts{source: source, dest: dest, mode: mode}, mountValidationEmptySource
+	}
+	if dest == "" {
+		return mountParts{source: source, dest: dest, mode: mode}, mountValidationEmptyDestination
+	}
+	return mountParts{source: source, dest: dest, mode: mode}, mountValidationOK
+}
+
 // validateStringEnumField checks that a config field, if present, contains one
 // of the allowed string values. Non-string values and unrecognised strings are
 // removed from the map (treated as absent) and a warning is logged. Use this

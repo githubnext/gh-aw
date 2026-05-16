@@ -125,7 +125,7 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			}
 
 			// Parse title-prefix using shared helper
-			pushToBranchConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
+			pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
 
 			// Parse labels using expression-aware shared helper
 			pushToBranchConfig.Labels = ParseStringArrayOrExprFromConfig(configMap, "labels", pushToPullRequestBranchLog)
@@ -146,7 +146,7 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			}
 
 			// Parse target-repo for cross-repository push
-			pushToBranchConfig.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
+			pushToBranchConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", pushToPullRequestBranchLog)
 
 			// Parse allowed-repos for cross-repository push (expression-aware)
 			pushToBranchConfig.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", pushToPullRequestBranchLog)

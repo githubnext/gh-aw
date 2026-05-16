@@ -90,7 +90,7 @@ func TestExtractStringFromMap(t *testing.T) {
 	}
 }
 
-func TestParseTitlePrefixFromConfig(t *testing.T) {
+func TestExtractTitlePrefixFromMap(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    map[string]any
@@ -133,7 +133,7 @@ func TestParseTitlePrefixFromConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseTitlePrefixFromConfig(tt.input)
+			result := extractStringFromMap(tt.input, "title-prefix", nil)
 			if result != tt.expected {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
@@ -141,7 +141,7 @@ func TestParseTitlePrefixFromConfig(t *testing.T) {
 	}
 }
 
-func TestParseTargetRepoFromConfig(t *testing.T) {
+func TestExtractTargetRepoFromMap(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    map[string]any
@@ -184,7 +184,7 @@ func TestParseTargetRepoFromConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseTargetRepoFromConfig(tt.input)
+			result := extractStringFromMap(tt.input, "target-repo", nil)
 			if result != tt.expected {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}

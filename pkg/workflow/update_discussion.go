@@ -33,7 +33,7 @@ func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *Updat
 		},
 		func(cm map[string]any, cfg *UpdateDiscussionsConfig) {
 			// Parse allowed-labels using shared helper
-			cfg.AllowedLabels = parseAllowedLabelsFromConfig(cm)
+			cfg.AllowedLabels = ParseStringArrayFromConfig(cm, "allowed-labels", updateDiscussionLog)
 			if len(cfg.AllowedLabels) > 0 {
 				updateDiscussionLog.Printf("Allowed labels configured: %v", cfg.AllowedLabels)
 				// If allowed-labels is specified, implicitly enable labels
