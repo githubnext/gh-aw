@@ -1089,7 +1089,7 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(countUniquePatchFiles(patchContent)).toBe(3);
 
     // Mixed: 2 parseable + 2 unparseable = 4 unique entries.
-    const mixed = ["diff --git a/a.txt b/a.txt", "diff --git ", "diff --git b/b.txt c/b.txt", "diff --git "].join("\n");
+    const mixed = ["diff --git a/a.txt b/a.txt", 'diff --git "a/missing b/missing', "diff --git b/b.txt c/b.txt", "diff --git "].join("\n");
     expect(countUniquePatchFiles(mixed)).toBe(4);
 
     // 200 unparseable headers must still trigger the default 100-file limit.

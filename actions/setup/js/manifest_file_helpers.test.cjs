@@ -255,6 +255,14 @@ index 0000000..abc
       expect(result).toContain(".github/workflows/ci file.yml");
       expect(result).toHaveLength(1);
     });
+
+    it("should preserve full escaped paths from quoted headers", () => {
+      const patch = `diff --git "a/foo\\\\bar/config.json" "b/foo\\\\bar/config.json"
+index abc..def 100644
+`;
+      const result = extractPathsFromPatch(patch);
+      expect(result).toContain("foo\\\\bar/config.json");
+    });
   });
 
   describe("checkForProtectedPaths", () => {

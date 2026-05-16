@@ -27,14 +27,19 @@ function parseDiffGitHeader(headerLine) {
     let token = "";
     if (rest[i] === '"') {
       token += rest[i++];
+      let closedQuote = false;
       while (i < rest.length) {
         const ch = rest[i++];
         token += ch;
         if (ch === "\\" && i < rest.length) {
           token += rest[i++];
         } else if (ch === '"') {
+          closedQuote = true;
           break;
         }
+      }
+      if (!closedQuote) {
+        return { oldPath: null, newPath: null, parseable: false };
       }
     } else {
       while (i < rest.length && rest[i] !== " ") {
