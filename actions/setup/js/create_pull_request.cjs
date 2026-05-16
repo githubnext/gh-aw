@@ -1478,6 +1478,7 @@ async function main(config = {}) {
       // Push the commits from the bundle to the remote branch
       if (manifestProtectionFallback) {
         core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
+        manifestProtectionPushFailedError = new Error("Push skipped because protected-files fallback-to-issue was triggered");
       } else {
         try {
           branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
@@ -1735,6 +1736,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
         // Push the applied commits to the branch (with fallback to issue creation on failure)
         if (manifestProtectionFallback) {
           core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
+          manifestProtectionPushFailedError = new Error("Push skipped because protected-files fallback-to-issue was triggered");
         } else {
           try {
             branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
@@ -2197,7 +2199,7 @@ ${patchPreview}`;
 
         const fallbackTemplatePath = getPromptPath("pr_permission_denied_fallback.md");
         const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
-          body,
+          body: issueSafeBody,
           branch_name: branchName,
           create_pr_url: createPrUrl,
           faq_url: FAQ_CREATE_PR_PERMISSIONS_URL,
