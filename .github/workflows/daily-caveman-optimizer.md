@@ -46,8 +46,6 @@ tools:
 timeout-minutes: 30
 
 imports:
-  - shared/otel.md
-
   - shared/otlp.md
 ---
 

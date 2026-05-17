@@ -316,8 +316,6 @@ safe-outputs:
     close-older-issues: true
 
 imports:
-  - shared/otel.md
-
   - shared/otlp.md
 ---
 

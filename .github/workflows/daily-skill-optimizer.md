@@ -146,8 +146,6 @@ tools:
   edit:
 
 imports:
-  - shared/otel.md
-
   - shared/otlp.md
 ---
 

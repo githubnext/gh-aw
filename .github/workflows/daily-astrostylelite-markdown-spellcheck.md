@@ -276,9 +276,6 @@ experiments:
     weight: [50, 50]
 
 imports:
-  - shared/otel.md
-
-
   - shared/otlp.md
 ---
 

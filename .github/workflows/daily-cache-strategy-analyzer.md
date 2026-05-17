@@ -40,8 +40,6 @@ imports:
       toolsets: [default, actions]
   - shared/reporting.md
   - shared/noop-reminder.md
-  - shared/otel.md
-
   - shared/otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
