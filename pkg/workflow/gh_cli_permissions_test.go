@@ -1005,4 +1005,12 @@ jobs:
 	// Should compile without error — the write command in jobs.activation.steps is not
 	// executed so it must not trigger a validation error.
 	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	// The compiled activation job must not contain the label-create step because
+	// jobs.activation.steps is not injected into built-in jobs.
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err)
+	activationSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.NotContains(t, activationSection, "gh label create",
+		"jobs.activation.steps should not be injected into the compiled activation job")
 }

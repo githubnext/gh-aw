@@ -219,6 +219,11 @@ func parseGHAPIEndpoint(args string) string {
 // splitShellTokens splits a shell argument string by whitespace while respecting
 // single and double quoted regions. Quotes are preserved in the returned tokens so
 // that the caller can strip them as needed.
+//
+// Backslash escape sequences (e.g. \" inside a double-quoted string) are treated as
+// opaque two-character sequences and passed through unchanged; the caller is
+// responsible for any further unescaping. This is sufficient for the practical
+// `gh api` invocation patterns handled here.
 func splitShellTokens(s string) []string {
 	var tokens []string
 	var cur strings.Builder
@@ -227,6 +232,12 @@ func splitShellTokens(s string) []string {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		switch {
+		case c == '\\' && !inSingle && i+1 < len(s):
+			// Escape sequence outside single quotes: consume the backslash and the
+			// next character as a single unit so that \" does not close a quoted string.
+			cur.WriteByte(c)
+			i++
+			cur.WriteByte(s[i])
 		case c == '\'' && !inDouble:
 			inSingle = !inSingle
 			cur.WriteByte(c)
