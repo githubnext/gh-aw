@@ -1316,7 +1316,6 @@ describe("handle_agent_failure", () => {
     let tmpDir;
 
     beforeEach(() => {
-      vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-permission-denied-"));
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
