@@ -33,6 +33,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	}
 
 	compilerSafeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
+	// config holds both per-handler configs (keyed by handler name, e.g. "add_comment") and
+	// global runtime knobs (e.g. "mentions") that safe_output_handler_manager.cjs forwards to
+	// specific handlers at startup. Handler names are the reserved keys defined in handlerRegistry;
+	// non-handler keys ("mentions") are documented in safe_outputs_config_generation.go.
 	config := make(map[string]any)
 
 	// Collect engine-specific manifest files and path prefixes (AgentFileProvider interface).

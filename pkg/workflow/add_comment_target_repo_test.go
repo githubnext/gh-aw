@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -273,8 +274,8 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 	tests := []struct {
 		name            string
 		safeOutputs     *SafeOutputsConfig
-		wantInConfig    []string
-		wantNotInConfig []string
+		wantMentions    map[string]any // nil means no "mentions" key expected
+		wantNoMentions  bool
 	}{
 		{
 			name: "mentions.allowed propagates to handler config",
@@ -284,7 +285,9 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 					Allowed: []string{"copilot"},
 				},
 			},
-			wantInConfig: []string{`"mentions":`, `"allowed"`, `"copilot"`},
+			wantMentions: map[string]any{
+				"allowed": []any{"copilot"},
+			},
 		},
 		{
 			name: "mentions.enabled=false propagates to handler config",
@@ -294,14 +297,16 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 					Enabled: boolPtr(false),
 				},
 			},
-			wantInConfig: []string{`"mentions":`, `"enabled":false`},
+			wantMentions: map[string]any{
+				"enabled": false,
+			},
 		},
 		{
 			name: "no mentions config omits mentions from handler config",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{},
 			},
-			wantNotInConfig: []string{`"mentions":`},
+			wantNoMentions: true,
 		},
 	}
 
@@ -316,29 +321,40 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("buildHandlerManagerStep returned error: %v", err)
 			}
-			stepsContent := strings.Join(steps, "")
 
-			// Find and unescape the HANDLER_CONFIG line so we can check the JSON content.
-			var handlerConfigJSON string
-			for _, line := range strings.Split(stepsContent, "\n") {
-				if strings.Contains(line, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
-					// The JSON is %q-formatted in the YAML, so unescape \".
-					handlerConfigJSON = strings.ReplaceAll(line, `\"`, `"`)
-					break
+			// Extract and parse the HANDLER_CONFIG JSON using the shared helper which
+			// properly unquotes the %q-encoded YAML value.
+			config := extractHandlerConfig(t, strings.Join(steps, ""))
+
+			if tt.wantNoMentions {
+				if _, ok := config["mentions"]; ok {
+					t.Error("expected no 'mentions' key in handler config, but it was present")
 				}
-			}
-			if handlerConfigJSON == "" {
-				t.Fatal("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG not found in steps")
+				return
 			}
 
-			for _, want := range tt.wantInConfig {
-				if !strings.Contains(handlerConfigJSON, want) {
-					t.Errorf("expected handler config to contain %q, got: %s", want, handlerConfigJSON)
-				}
+			mentionsRaw, ok := config["mentions"]
+			if !ok {
+				t.Fatal("expected 'mentions' key in handler config, but it was absent")
 			}
-			for _, notWant := range tt.wantNotInConfig {
-				if strings.Contains(handlerConfigJSON, notWant) {
-					t.Errorf("expected handler config NOT to contain %q, got: %s", notWant, handlerConfigJSON)
+			mentionsJSON, err := json.Marshal(mentionsRaw)
+			if err != nil {
+				t.Fatalf("failed to marshal mentions config: %v", err)
+			}
+			var got map[string]any
+			if err := json.Unmarshal(mentionsJSON, &got); err != nil {
+				t.Fatalf("failed to unmarshal mentions config: %v", err)
+			}
+			for k, wantVal := range tt.wantMentions {
+				gotVal, exists := got[k]
+				if !exists {
+					t.Errorf("mentions config missing key %q", k)
+					continue
+				}
+				wantJSON, _ := json.Marshal(wantVal)
+				gotJSON, _ := json.Marshal(gotVal)
+				if string(wantJSON) != string(gotJSON) {
+					t.Errorf("mentions[%q]: want %s, got %s", k, wantJSON, gotJSON)
 				}
 			}
 		})
