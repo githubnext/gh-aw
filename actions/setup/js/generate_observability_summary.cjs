@@ -5,6 +5,8 @@ const fs = require("fs");
 
 const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
 const AGENT_OUTPUT_PATH = "/tmp/gh-aw/agent_output.json";
+const OTLP_EXPORT_ERRORS_PATH = "/tmp/gh-aw/otlp-export-errors.count";
+const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
 const gatewayEventPaths = ["/tmp/gh-aw/mcp-logs/gateway.jsonl", "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl"];
 
 function readJSONIfExists(path) {
@@ -55,6 +57,49 @@ function uniqueCreatedItemTypes(items) {
   return [...types].sort();
 }
 
+function readOTLPExportErrorCount() {
+  if (!fs.existsSync(OTLP_EXPORT_ERRORS_PATH)) {
+    return 0;
+  }
+
+  try {
+    const raw = fs.readFileSync(OTLP_EXPORT_ERRORS_PATH, "utf8").trim();
+    const parsed = parseInt(raw, 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function readOTLPExportErrorDetails() {
+  if (!fs.existsSync(OTLP_EXPORT_ERROR_DETAILS_PATH)) {
+    return [];
+  }
+
+  const details = [];
+  try {
+    for (const rawLine of fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8").split("\n")) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      try {
+        const entry = JSON.parse(line);
+        if (!entry || typeof entry !== "object") continue;
+        const host = typeof entry.host === "string" ? entry.host.trim() : "";
+        const reason = typeof entry.reason === "string" ? entry.reason.trim() : "";
+        const status = Number.isInteger(entry.status) && entry.status > 0 ? entry.status : undefined;
+        if (!host || !reason) continue;
+        details.push(`${host}${status ? ` status=${status}` : ""} reason=${reason}`);
+      } catch {
+        // Ignore malformed JSONL lines.
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  return details;
+}
+
 function collectObservabilityData() {
   const awInfo = readJSONIfExists(AW_INFO_PATH) || {};
   const agentOutput = readJSONIfExists(AGENT_OUTPUT_PATH) || { items: [], errors: [] };
@@ -76,6 +121,8 @@ function collectObservabilityData() {
     createdItemTypes: uniqueCreatedItemTypes(items),
     outputErrorCount: errors.length,
     blockedRequests: countBlockedRequests(),
+    otlpExportErrors: readOTLPExportErrorCount(),
+    otlpExportErrorDetails: readOTLPExportErrorDetails(),
   };
 }
 
@@ -101,13 +148,25 @@ function buildObservabilitySummary(data) {
   lines.push(`- **created items**: ${data.createdItemCount}`);
   lines.push(`- **blocked requests**: ${data.blockedRequests}`);
   lines.push(`- **agent output errors**: ${data.outputErrorCount}`);
+  lines.push(`- **otlp export errors**: ${data.otlpExportErrors}`);
   lines.push(`- **firewall enabled**: ${data.firewallEnabled}`);
   lines.push(`- **staged**: ${data.staged}`);
+
+  if (data.otlpExportErrors > 0) {
+    lines.push("- ⚠️ OTLP export failures detected; telemetry may not be visible in the backend.");
+  }
 
   if (data.createdItemTypes.length > 0) {
     lines.push("- **item types**:");
     for (const itemType of data.createdItemTypes) {
       lines.push(`  - ${itemType}`);
+    }
+  }
+
+  if (data.otlpExportErrorDetails.length > 0) {
+    lines.push("- **otlp export failure details**:");
+    for (const detail of data.otlpExportErrorDetails) {
+      lines.push(`  - ${detail}`);
     }
   }
 
