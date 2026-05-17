@@ -48,8 +48,10 @@ func (c *Compiler) newActivationJobBuildContext(
 	workflowRunRepoSafety string,
 	lockFilename string,
 ) (*activationJobBuildContext, error) {
+	compilerActivationJobLog.Printf("Initializing activation job build context: pre_activation=%t, lock=%s", preActivationJobCreated, lockFilename)
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
+		compilerActivationJobLog.Print("Failed to resolve setup action reference for activation job")
 		return nil, errors.New("failed to resolve setup action reference; ensure ./actions/setup exists and is accessible")
 	}
 
@@ -131,19 +133,23 @@ func (c *Compiler) newActivationJobBuildContext(
 // addActivationFeedbackAndValidationSteps appends token minting, reactions, secret validation, and guidance.
 func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Adding activation feedback/validation steps: reaction=%t, status_comment=%t, remove_label=%t, app_token_for_access=%t",
+		ctx.hasReaction, ctx.hasStatusComment, ctx.shouldRemoveLabel, ctx.needsAppTokenForAccess)
 	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess) {
 		appPerms := NewPermissions()
 		addActivationInteractionPermissions(
 			appPerms,
-			data.On,
-			ctx.hasReaction,
-			ctx.reactionIssues,
-			ctx.reactionPullRequests,
-			ctx.reactionDiscussions,
-			ctx.hasStatusComment,
-			ctx.statusCommentIssues,
-			ctx.statusCommentPRs,
-			ctx.statusCommentDiscussions,
+			activationInteractionPermissionsOptions{
+				onSection:                         data.On,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+			},
 		)
 		if ctx.shouldRemoveLabel {
 			if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
@@ -206,6 +212,8 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 // addActivationRepositoryAndOutputSteps appends checkout, validation, sanitization, comment, and lock steps.
 func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Adding activation repository/output steps: stale_check_disabled=%t, needs_text_output=%t, lock_for_agent=%t",
+		data.StaleCheckDisabled, data.NeedsTextOutput, data.LockForAgent)
 
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	ctx.steps = append(ctx.steps, checkoutSteps...)
@@ -405,6 +413,7 @@ func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildCo
 // This helper mutates the context but only derives values from workflow data and has no error paths.
 func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildContext) {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Configuring activation needs and condition: pre_activation=%t, has_if=%t", ctx.preActivationJob, data.If != "")
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
 	for _, jobName := range data.OnNeeds {
 		if !slices.Contains(customJobsBeforeActivation, jobName) {
@@ -490,18 +499,17 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 	if !ctx.data.StaleCheckDisabled {
 		permsMap[PermissionActions] = PermissionRead
 	}
-	addActivationInteractionPermissionsMap(
-		permsMap,
-		ctx.data.On,
-		ctx.hasReaction,
-		ctx.reactionIssues,
-		ctx.reactionPullRequests,
-		ctx.reactionDiscussions,
-		ctx.hasStatusComment,
-		ctx.statusCommentIssues,
-		ctx.statusCommentPRs,
-		ctx.statusCommentDiscussions,
-	)
+	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
+		onSection:                         ctx.data.On,
+		hasReaction:                       ctx.hasReaction,
+		reactionIncludesIssues:            ctx.reactionIssues,
+		reactionIncludesPullRequests:      ctx.reactionPullRequests,
+		reactionIncludesDiscussions:       ctx.reactionDiscussions,
+		hasStatusComment:                  ctx.hasStatusComment,
+		statusCommentIncludesIssues:       ctx.statusCommentIssues,
+		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+	})
 	// For centralized slash_command workflows, the compiled "on" section only contains
 	// workflow_dispatch, so addActivationInteractionPermissionsMap above cannot detect the
 	// original event types and skips write permissions. Supplement with a synthetic section
@@ -509,18 +517,17 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 	if ctx.data.CommandCentralized && (ctx.hasReaction || ctx.hasStatusComment) {
 		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
 		if syntheticOn != "" {
-			addActivationInteractionPermissionsMap(
-				permsMap,
-				syntheticOn,
-				ctx.hasReaction,
-				ctx.reactionIssues,
-				ctx.reactionPullRequests,
-				ctx.reactionDiscussions,
-				ctx.hasStatusComment,
-				ctx.statusCommentIssues,
-				ctx.statusCommentPRs,
-				ctx.statusCommentDiscussions,
-			)
+			addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
+				onSection:                         syntheticOn,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+			})
 		}
 	}
 	if ctx.data.LockForAgent {
@@ -542,5 +549,6 @@ func (c *Compiler) buildActivationEnvironment(ctx *activationJobBuildContext) st
 	if ctx.data.ManualApproval == "" {
 		return ""
 	}
+	compilerActivationJobLog.Print("Activation job uses manual-approval environment gate")
 	return "environment: " + stringutil.StripANSI(ctx.data.ManualApproval)
 }

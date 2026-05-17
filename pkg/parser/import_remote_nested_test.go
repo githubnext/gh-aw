@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -522,45 +524,45 @@ func TestImportQueueItemRemoteOriginField(t *testing.T) {
 func TestIsNotFoundError_RemoteNested(t *testing.T) {
 	tests := []struct {
 		name     string
-		errMsg   string
+		err      error
 		expected bool
 	}{
 		{
 			name:     "HTTP 404 message",
-			errMsg:   "HTTP 404: Not Found",
+			err:      errors.New("HTTP 404: Not Found"),
 			expected: true,
 		},
 		{
 			name:     "lowercase not found",
-			errMsg:   "failed to fetch file: not found",
+			err:      errors.New("failed to fetch file: not found"),
 			expected: true,
 		},
 		{
 			name:     "404 status code in message",
-			errMsg:   "server returned 404 for request",
+			err:      errors.New("server returned 404 for request"),
 			expected: true,
 		},
 		{
 			name:     "authentication error",
-			errMsg:   "HTTP 401: Unauthorized",
+			err:      errors.New("HTTP 401: Unauthorized"),
 			expected: false,
 		},
 		{
 			name:     "server error",
-			errMsg:   "HTTP 500: Internal Server Error",
+			err:      errors.New("HTTP 500: Internal Server Error"),
 			expected: false,
 		},
 		{
-			name:     "empty string",
-			errMsg:   "",
+			name:     "nil error",
+			err:      nil,
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isNotFoundError(tt.errMsg)
-			assert.Equal(t, tt.expected, result, "isNotFoundError(%q)", tt.errMsg)
+			result := errorutil.IsNotFoundError(tt.err)
+			assert.Equal(t, tt.expected, result, "errorutil.IsNotFoundError(%v)", tt.err)
 		})
 	}
 }

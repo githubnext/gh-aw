@@ -83,6 +83,22 @@ func TestModelMultipliersInventoryUpdate20260510(t *testing.T) {
 	assert.InDelta(t, 1.0, loadedMultipliers["deep-research-max-preview-04-2026"], 1e-9, "deep-research-max-preview-04-2026 should be present")
 }
 
+func TestModelMultipliersInventoryUpdate20260517(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 1.0, loadedMultipliers["gpt-5-2025-08-07"], 1e-9, "gpt-5-2025-08-07 should be present")
+	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-chat-latest"], 1e-9, "gpt-5.2-chat-latest should be present")
+	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.3-codex-api-preview"], 1e-9, "gpt-5.3-codex-api-preview should be present")
+	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should be present")
+	assert.InDelta(t, 3.0, loadedMultipliers["o3-deep-research-2025-06-26"], 1e-9, "o3-deep-research-2025-06-26 should be present")
+	assert.InDelta(t, 0.5, loadedMultipliers["o4-mini-deep-research-2025-06-26"], 1e-9, "o4-mini-deep-research-2025-06-26 should be present")
+	assert.InDelta(t, 0.2, loadedMultipliers["gemini-2.5-flash-native-audio-preview-12-2025"], 1e-9, "gemini-2.5-flash-native-audio-preview-12-2025 should be present")
+	assert.InDelta(t, 1.0, loadedMultipliers["gemini-2.5-pro-preview-tts"], 1e-9, "gemini-2.5-pro-preview-tts should be present")
+	assert.InDelta(t, 0.1, loadedMultipliers["gemini-2.0-flash-lite-001"], 1e-9, "gemini-2.0-flash-lite-001 should be present")
+}
+
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
 	loadedMultipliers = nil
 

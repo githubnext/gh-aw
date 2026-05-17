@@ -4,10 +4,12 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -859,55 +861,55 @@ This include defines an engine.`
 	}
 }
 
-// TestProcessIncludedFileWithNameAndDescription verifies that name and description fields
-// do not generate warnings when processing included files outside .github/workflows/
+// TestIsNotFoundError verifies the shared errorutil.IsNotFoundError helper covers
+// all known forms of 404/not-found errors returned by the GitHub API and gh CLI.
 func TestIsNotFoundError(t *testing.T) {
 	tests := []struct {
 		name     string
-		errMsg   string
+		err      error
 		expected bool
 	}{
 		{
 			name:     "HTTP 404 text",
-			errMsg:   "HTTP 404: Not Found",
+			err:      errors.New("HTTP 404: Not Found"),
 			expected: true,
 		},
 		{
 			name:     "not found phrase",
-			errMsg:   "failed to fetch file: not found",
+			err:      errors.New("failed to fetch file: not found"),
 			expected: true,
 		},
 		{
 			name:     "uppercase not found phrase",
-			errMsg:   "RESOURCE NOT FOUND",
+			err:      errors.New("RESOURCE NOT FOUND"),
 			expected: true,
 		},
 		{
 			name:     "non-404 status",
-			errMsg:   "HTTP 401: Unauthorized",
+			err:      errors.New("HTTP 401: Unauthorized"),
 			expected: false,
 		},
 		{
 			name:     "word without space",
-			errMsg:   "remote returned notfound response",
+			err:      errors.New("remote returned notfound response"),
 			expected: false,
 		},
 		{
-			name:     "empty string",
-			errMsg:   "",
+			name:     "nil error",
+			err:      nil,
 			expected: false,
 		},
 		{
 			name:     "whitespace-only message",
-			errMsg:   "   ",
+			err:      errors.New("   "),
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isNotFoundError(tt.errMsg)
-			assert.Equal(t, tt.expected, result, "isNotFoundError(%q)", tt.errMsg)
+			result := errorutil.IsNotFoundError(tt.err)
+			assert.Equal(t, tt.expected, result, "errorutil.IsNotFoundError(%v)", tt.err)
 		})
 	}
 }

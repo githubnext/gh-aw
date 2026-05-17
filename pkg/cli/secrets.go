@@ -109,8 +109,8 @@ func checkSecretsAvailability(secrets []SecretInfo, useActionsSecrets bool) []Se
 		if useActionsSecrets {
 			exists, err := checkSecretExists(secrets[i].Name)
 			if err != nil {
-				// If we get a 403 error, skip silently
-				if !strings.Contains(err.Error(), "403") {
+				// If we get a 403 error, skip silently (no permission to check)
+				if is403Error(err) {
 					continue
 				}
 			}

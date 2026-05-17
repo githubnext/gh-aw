@@ -64,6 +64,7 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 		currentTargets[key] = struct{}{}
 	}
 	if len(currentTargets) > 1 {
+		checkoutManagerLog.Printf("Rejecting checkout config: %d distinct current targets, only one allowed", len(currentTargets))
 		return nil, fmt.Errorf("only one checkout target may have current: true, found %d", len(currentTargets))
 	}
 
@@ -134,6 +135,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 
 	// Validate mutual exclusivity of github-token and github-app
 	if cfg.GitHubToken != "" && cfg.GitHubApp != nil {
+		checkoutManagerLog.Print("Rejecting checkout config: github-token and github-app are mutually exclusive")
 		return nil, errors.New("checkout: github-token and github-app are mutually exclusive; use one or the other")
 	}
 
@@ -250,6 +252,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 // so the placeholder substitution step can resolve them at runtime.
 func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 	if len(checkouts) == 0 {
+		checkoutManagerLog.Print("buildCheckoutsPromptContent: no checkouts configured, returning empty content")
 		return ""
 	}
 	checkoutManagerLog.Printf("Building checkouts prompt content for %d checkout(s)", len(checkouts))

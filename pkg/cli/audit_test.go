@@ -58,6 +58,21 @@ func TestIsPermissionError(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "Not logged into any GitHub hosts error",
+			err:      errors.New("not logged into any GitHub hosts"),
+			expected: true,
+		},
+		{
+			name:     "GitHub Actions workflow auth error",
+			err:      errors.New("To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable"),
+			expected: true,
+		},
+		{
+			name:     "gh auth login message",
+			err:      errors.New("run gh auth login to authenticate"),
+			expected: true,
+		},
+		{
 			name:     "Other error",
 			err:      errors.New("some other error"),
 			expected: false,
@@ -67,6 +82,87 @@ func TestIsPermissionError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isPermissionError(tt.err)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestIsPermissionErrorStr(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		expected bool
+	}{
+		{
+			name:     "Combined message with exit status 4",
+			s:        "exit status 4 not logged into any GitHub hosts",
+			expected: true,
+		},
+		{
+			name:     "Output only contains gh auth login",
+			s:        "Run gh auth login to proceed",
+			expected: true,
+		},
+		{
+			name:     "Empty string",
+			s:        "",
+			expected: false,
+		},
+		{
+			name:     "Unrelated combined message",
+			s:        "exit status 1 unknown field",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isPermissionErrorStr(tt.s)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestIs403Error(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "Nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "403 access denied",
+			err:      errors.New("403 access denied"),
+			expected: true,
+		},
+		{
+			name:     "HTTP 403 response",
+			err:      errors.New("HTTP 403: Forbidden"),
+			expected: true,
+		},
+		{
+			name:     "404 not found",
+			err:      errors.New("404 not found"),
+			expected: false,
+		},
+		{
+			name:     "Other error",
+			err:      errors.New("some other error"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := is403Error(tt.err)
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}

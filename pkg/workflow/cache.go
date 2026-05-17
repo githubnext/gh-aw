@@ -703,7 +703,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 			fmt.Fprintf(builder, "          name: %scache-memory-%s\n", prefix, cache.ID)
 		}
 		builder.WriteString("          include-hidden-files: true\n")
-		fmt.Fprintf(builder, "          path: %s/.\n", cacheDir)
+		fmt.Fprintf(builder, "          path: %s\n", cacheDir)
 		// Add retention-days if configured
 		if cache.RetentionDays != nil {
 			fmt.Fprintf(builder, "          retention-days: %d\n", *cache.RetentionDays)

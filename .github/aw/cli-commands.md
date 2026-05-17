@@ -106,6 +106,7 @@ gh aw logs -c 10                    # Last 10 runs
 gh aw logs --start-date -1w         # Last week's runs
 gh aw logs --start-date 2024-01-01 --end-date 2024-01-31
 gh aw logs -o ./workflow-logs       # Save to directory
+gh aw logs --repo owner/repo        # Query logs in another repository
 ```
 
 **MCP equivalent**: `logs` tool
@@ -141,6 +142,7 @@ Show the status of all agentic workflows in the repository.
 
 ```bash
 gh aw status
+gh aw status --repo owner/repo    # Query status in another repository
 ```
 
 **MCP equivalent**: `status` tool
@@ -203,10 +205,32 @@ gh aw add <workflow-url>
 Update imported shared workflow components.
 
 ```bash
-gh aw update
+gh aw update                                # Update all workflows from source
+gh aw update <workflow-name>                # Update a specific workflow
+gh aw update --major                        # Allow major version updates
+gh aw update --create-pull-request          # Update and open a PR (alias: --pr)
+gh aw update --repo owner/repo              # Update workflows in another repository (isolated shallow checkout)
+gh aw update --cool-down 3d                 # Custom cooldown before applying pending releases
 ```
 
 **MCP equivalent**: `update` tool
+
+---
+
+### `gh aw deploy`
+
+Deploy one or more workflows to a target repository by chaining update, add, compile --purge, and opening a pull request.
+
+```bash
+gh aw deploy <workflow>... --repo owner/repo            # Deploy listed workflows to target repo
+gh aw deploy githubnext/agentics/ci-doctor --repo o/r   # Deploy a shared workflow
+gh aw deploy ./local-workflow.md --repo owner/repo      # Deploy a local workflow
+gh aw deploy <workflow> --repo owner/repo --force       # Overwrite existing files without confirmation
+```
+
+`--repo` is required. Useful for orchestrating remote rollouts across multiple repositories from a central deployer workflow.
+
+**MCP equivalent**: Not available — run from a local terminal or invoke the CLI inside a workflow step with `github/gh-aw/actions/setup-cli`.
 
 ---
 
@@ -240,4 +264,5 @@ gh aw mcp list                                   # List workflows with MCP serve
 | `gh aw update` | `update` |
 | `gh aw fix` | `fix` |
 | `gh aw upgrade` | `upgrade` |
+| `gh aw deploy` | *(local only)* |
 | `gh aw init` | *(local only)* |

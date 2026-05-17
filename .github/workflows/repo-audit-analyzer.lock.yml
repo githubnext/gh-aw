@@ -963,7 +963,7 @@ jobs:
         with:
           name: cache-memory-repo-audits
           include-hidden-files: true
-          path: /tmp/gh-aw/cache-memory-repo-audits/.
+          path: /tmp/gh-aw/cache-memory-repo-audits
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true

@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveCodexPromptFileArgs, isRateLimitError, isServerError, countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, buildMissingToolPermissionIssuePayload } = require("./codex_harness.cjs");
+const { resolveCodexPromptFileArgs, isRateLimitError, isServerError, countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./codex_harness.cjs");
 
 describe("codex_harness.cjs", () => {
   describe("resolveCodexPromptFileArgs", () => {
@@ -128,6 +128,98 @@ describe("codex_harness.cjs", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
       expect(payload.type).toBe("missing_tool");
       expect(payload.reason).toContain("missing tool/permission issue");
+      expect(payload.denied_commands).toEqual([]);
+    });
+
+    it("builds missing_tool payload with denied commands", () => {
+      const payload = JSON.parse(buildMissingToolPermissionIssuePayload(["go version", "ls /usr/local/go"]));
+      expect(payload.type).toBe("missing_tool");
+      expect(payload.denied_commands).toEqual(["go version", "ls /usr/local/go"]);
+    });
+  });
+
+  describe("extractDeniedCommands", () => {
+    it("returns empty array for empty output", () => {
+      expect(extractDeniedCommands("")).toEqual([]);
+      expect(extractDeniedCommands(null)).toEqual([]);
+    });
+
+    it("extracts command from line with box-drawing pipe marker (│) before permission denied", () => {
+      const output = [
+        "\u2713 Some successful step",
+        "\u2717 Check if go command works (shell)",
+        "  \u2502 go version 2>&1",
+        "  \u2514 Permission denied and could not request permission from user",
+      ].join("\n");
+      expect(extractDeniedCommands(output)).toEqual(["go version 2>&1"]);
+    });
+
+    it("extracts command with plain pipe (|) before permission denied", () => {
+      const output = ["| ls -la", "Permission denied"].join("\n");
+      expect(extractDeniedCommands(output)).toEqual(["ls -la"]);
+    });
+
+    it("deduplicates repeated denied commands", () => {
+      const output = [
+        "  \u2502 go version",
+        "  Permission denied",
+        "  \u2502 go version",
+        "  Permission denied",
+        "  \u2502 go version",
+        "  Permission denied",
+      ].join("\n");
+      const result = extractDeniedCommands(output);
+      expect(result).toEqual(["go version"]);
+    });
+
+    it("extracts multiple distinct denied commands", () => {
+      const output = [
+        "  \u2502 go version 2>&1",
+        "  Permission denied",
+        "  \u2502 ls /usr/local/go/bin/go",
+        "  Permission denied",
+        "  \u2502 which go",
+        "  Permission denied",
+      ].join("\n");
+      const result = extractDeniedCommands(output);
+      expect(result).toContain("go version 2>&1");
+      expect(result).toContain("ls /usr/local/go/bin/go");
+      expect(result).toContain("which go");
+    });
+
+    it("returns empty array when no pipe markers are present before permission denied", () => {
+      const output = "Some output\nPermission denied\nMore output";
+      expect(extractDeniedCommands(output)).toEqual([]);
+    });
+
+    it("looks back up to 3 lines for command context", () => {
+      const output = [
+        "  \u2502 make test",
+        "Running...",
+        "Still running...",
+        "  Permission denied",
+      ].join("\n");
+      expect(extractDeniedCommands(output)).toEqual(["make test"]);
+    });
+
+    it("does not look back more than 3 lines", () => {
+      const output = [
+        "  \u2502 make test",
+        "line2",
+        "line3",
+        "line4",
+        "  Permission denied",
+      ].join("\n");
+      expect(extractDeniedCommands(output)).toEqual([]);
+    });
+
+    it("does not capture suffix of a command containing an internal pipe", () => {
+      // "find . -name '*.go' | sort" should not match by splitting on the internal |
+      const output = [
+        "  find . -name '*.go' | sort",
+        "  Permission denied",
+      ].join("\n");
+      expect(extractDeniedCommands(output)).toEqual([]);
     });
   });
 

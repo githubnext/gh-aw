@@ -1917,14 +1917,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
     // gen_ai.request.model is already present in agentAttributes via the spread above
     // (added to attributes at the top of this function); do not push again.
-    // gen_ai.system is the OTel GenAI standard attribute for the LLM system/provider.
-    // Map the gh-aw internal engine ID to the standardized value so backends can apply
-    // native GenAI dashboard detection. The original engine ID is preserved in gh-aw.engine.
-    if (engineId) {
-      const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;
-      agentAttributes.push(buildAttr("gen_ai.system", genAiSystem));
-      agentAttributes.push(buildAttr("gh-aw.engine", engineId));
-    }
     // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
     // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
     if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));
