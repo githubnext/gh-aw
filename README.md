@@ -37,6 +37,7 @@ Ready to get your first agentic workflow running? Follow our step-by-step [Quick
 ## Overview
 
 Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://github.github.com/gh-aw/introduction/how-they-work/).
+Supports GitHub Copilot, Claude (Anthropic), Codex (OpenAI), and Gemini (Google) — pick whichever AI account you already have.
 
 ## Guardrails
 
