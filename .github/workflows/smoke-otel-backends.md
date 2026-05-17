@@ -112,6 +112,10 @@ if [ -f /tmp/gh-aw/otlp-export-errors.count ]; then
 else
   echo 0
 fi
+if [ -f /tmp/gh-aw/otlp-export-errors.jsonl ]; then
+  echo "=== OTEL export error details (host/status/reason) ==="
+  cat /tmp/gh-aw/otlp-export-errors.jsonl
+fi
 ```
 
 Decide:
@@ -120,7 +124,7 @@ Decide:
 - `send_status = inconclusive` if spans exist locally but none for `${{ github.run_id }}` can be confirmed.
 - Otherwise set `send_status = fail` and record the exact missing artifact or error.
 
-Do not downgrade `send_status` because `/tmp/gh-aw/otlp-export-errors.count` is non-zero. Record OTLP export errors as evidence for the remote backend rows and in `## Failure Analysis`.
+Do not downgrade `send_status` because `/tmp/gh-aw/otlp-export-errors.count` is non-zero. Record OTLP export errors as evidence for the remote backend rows and in `## Failure Analysis`, using `/tmp/gh-aw/otlp-export-errors.jsonl` details (`host`, `status`, `reason`) for attribution.
 
 ### Step 2: Query Sentry
 
