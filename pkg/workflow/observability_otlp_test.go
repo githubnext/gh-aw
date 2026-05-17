@@ -879,6 +879,14 @@ func TestNormalizeOTLPHeadersForEndpoint(t *testing.T) {
 		assert.Equal(t, "x-sentry-auth=Bearer tok,X-Tenant=acme", gotHeaders, "Sentry-named endpoint expressions should use x-sentry-auth")
 	})
 
+	t.Run("rewrites Authorization header for sentry URL with additional headers", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			"Authorization=Bearer tok,X-Tenant=acme",
+			"https://o123.ingest.sentry.io/api/123/envelope/",
+		)
+		assert.Equal(t, "x-sentry-auth=Bearer tok,X-Tenant=acme", gotHeaders, "Sentry endpoints should rewrite Authorization while preserving additional headers")
+	})
+
 	t.Run("preserves Authorization header for unrelated expression names containing sentry", func(t *testing.T) {
 		gotHeaders := normalizeOTLPHeadersForEndpoint(
 			"Authorization=Bearer tok,X-Tenant=acme",

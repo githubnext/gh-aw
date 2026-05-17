@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -140,7 +141,7 @@ const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
 
 // OTELSentryEndpointSecretNameLower is the lowercase form of
 // OTELSentryEndpointSecretName for case-insensitive matching.
-const OTELSentryEndpointSecretNameLower = "gh_aw_otel_sentry_endpoint"
+var OTELSentryEndpointSecretNameLower = strings.ToLower(OTELSentryEndpointSecretName)
 
 // AWF (Agentic Workflow Firewall) constants
 
