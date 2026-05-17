@@ -261,6 +261,7 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 **Internal**:
 - `github.com/github/gh-aw/pkg/console` — parser-facing warning/error message formatting
 - `github.com/github/gh-aw/pkg/constants` — shared parser constants and default values
+- `github.com/github/gh-aw/pkg/errorutil` — shared error classification helpers for remote fetch and import errors
 - `github.com/github/gh-aw/pkg/fileutil` — file existence and path helper utilities
 - `github.com/github/gh-aw/pkg/gitutil` — Git remote and host detection helpers
 - `github.com/github/gh-aw/pkg/jsonutil` — compact JSON marshaling for frontmatter hash computation
