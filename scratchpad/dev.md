@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 9.8
-**Last Updated**: 2026-05-16
+**Version**: 9.9
+**Last Updated**: 2026-05-17
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2974,6 +2974,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v9.9 (2026-05-17): Maintenance tone scan — fixed 1 tone issue: `mcp_logs_guardrails.md` (1 fix: "Returns a simplified list of runs with just the essential fields."→"Returns a list of runs containing only the `database_id`, `workflow_name`, and `status` fields." line 125; removed subjective "essential fields" in favor of explicit field enumeration). Coverage: 63 spec files (no new files).
 - v9.8 (2026-05-16): Maintenance tone scan — fixed 5 tone issues across 2 spec files: `oh-my-code.md` (4 fixes: "**Magic Word Feature**: `ultrawork` or `ulw`"→"**Activation Keyword**: `ultrawork` or `ulw`" line 811, "| **Session persistence** | Instant | Local state, no cold start |"→"| **Session persistence** | Immediate (local file) | Local state, no cold start |" line 1047, "Leverage LSP for instant code intelligence"→"Use LSP for low-latency code lookups" line 1058, "#### 5. Magic Word / Auto-Configuration"→"#### 5. Keyword-Based Auto-Configuration" line 1221); `mdflow.md` (1 fix: "**Zero Config**: Works immediately with `mdflow task.claude.md`"→"**No required configuration**: Runs with `mdflow task.claude.md`" line 202). Coverage: 63 spec files (no new files).
 - v9.7 (2026-05-15): Maintenance tone scan — fixed 9 tone issues across 5 spec files: `oh-my-code.md` (5 fixes: "Deep integration with GitHub API, Issues, PRs, Discussions"→"Native integration with GitHub API, Issues, PRs, Discussions" line 95, "Deep code exploration"→"Code exploration" line 109, "deep exploration"→"multi-step exploration" line 813, "slower, smarter models"→"slower, higher-capability models" line 1056, "Lower barrier to entry, easier for beginners"→"Reduces required configuration; minimal setup for common workflows" line 1231); `mdflow-comparison.md` (1 fix: "Deep integration with Issues, PRs, Actions"→"Native integration with Issues, PRs, Actions" line 781); `adding-new-engines.md` (1 fix: "Full-Featured Engine (With MCP and richer capabilities)"→"Full-Featured Engine (With MCP and additional capabilities)" line 732); `mods/jsonschema-go.md` (1 fix: "for richer tool documentation"→"for more detailed tool documentation" line 148); `serena-tools-quick-reference.md` (1 fix: "Complete deep dive with all metrics"→"Complete statistical analysis with all metrics" line 116). Coverage: 63 spec files (no new files).
 - v9.6 (2026-05-13): Maintenance tone scan — fixed 2 tone issues across 2 spec files: `mdflow.md` (1 fix: "Enterprise-ready with compliance and audit trails."→"GitHub Actions integration provides audit trails, role-based access controls, and version-controlled execution history." — line 309); `oh-my-code.md` (1 fix: "Best tool for each job"→"Tool selection driven by use case rather than overlap" — line 1650). Updated Package Structure section to reflect `architecture.md` (moved `pkg/stats` to Core packages; added `pkg/jsonutil` to Utility packages). Coverage: 63 spec files (no new files).
