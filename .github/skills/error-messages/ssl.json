@@ -1,0 +1,88 @@
+{
+  "scheduling": {
+    "id": "error-messages",
+    "name": "Error Messages",
+    "goal": "Write consistent, actionable Go validation error messages following the what-is-wrong + what-is-expected + example template",
+    "intent_signature": "compose_error_message($error_context, $invalid_input, $validation_rule) -> $error_message",
+    "inputs": ["$error_context", "$invalid_input", "$validation_rule"],
+    "outputs": ["$error_message"],
+    "dependencies": [],
+    "control_flow_features": ["conditional", "sequential"],
+    "entry_scene": "scene_reason",
+    "subscene_refs": []
+  },
+  "scenes": [
+    {
+      "id": "scene_reason",
+      "type": "REASON",
+      "goal": "Determine error category and required message components",
+      "entry_condition": "$error_context and $validation_rule are available",
+      "exit_condition": "$error_category and $message_components are selected",
+      "next_scene_rules": [
+        {"condition": "category determined", "target": "scene_act"}
+      ],
+      "inputs": ["$error_context", "$invalid_input", "$validation_rule"],
+      "outputs": ["$error_category", "$message_components"],
+      "entry_logic_step": "step_reason_classify"
+    },
+    {
+      "id": "scene_act",
+      "type": "ACT",
+      "goal": "Compose error message string using the three-part template",
+      "entry_condition": "$error_category and $message_components are ready",
+      "exit_condition": "$error_message is composed",
+      "next_scene_rules": [
+        {"condition": "success", "target": "scene_verify"}
+      ],
+      "inputs": ["$error_category", "$message_components", "$invalid_input"],
+      "outputs": ["$error_message"],
+      "entry_logic_step": "step_act_compose"
+    },
+    {
+      "id": "scene_verify",
+      "type": "VERIFY",
+      "goal": "Verify that the composed error message is complete and actionable",
+      "entry_condition": "$error_message is composed",
+      "exit_condition": "$error_message passes completeness check",
+      "next_scene_rules": [
+        {"condition": "message is complete and actionable", "target": "END_SUCCESS"},
+        {"condition": "message is incomplete", "target": "END_FAIL"}
+      ],
+      "inputs": ["$error_message"],
+      "outputs": ["$error_message"],
+      "entry_logic_step": "step_verify_check"
+    }
+  ],
+  "logic_steps": [
+    {
+      "id": "step_reason_classify",
+      "scene_id": "scene_reason",
+      "action_type": "SELECT",
+      "resource_scope": "MEMORY",
+      "description": "Classify the error as format, type, enum, or configuration validation to determine required message components",
+      "inputs": {"context": "$error_context", "rule": "$validation_rule"},
+      "outputs": {"category": "$error_category", "components": "$message_components"},
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_act_compose",
+      "scene_id": "scene_act",
+      "action_type": "WRITE",
+      "resource_scope": "MEMORY",
+      "description": "Compose the error message string: [what is wrong]. [what is expected]. [example of correct usage]",
+      "inputs": {"category": "$error_category", "components": "$message_components", "input": "$invalid_input"},
+      "outputs": {"message": "$error_message"},
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_verify_check",
+      "scene_id": "scene_verify",
+      "action_type": "VALIDATE",
+      "resource_scope": "MEMORY",
+      "description": "Check that $error_message contains all three template components: problem statement, expected format or values, and a concrete usage example",
+      "inputs": {"message": "$error_message"},
+      "outputs": {"validated": "$error_message"},
+      "next": "YIELD_SUCCESS"
+    }
+  ]
+}
