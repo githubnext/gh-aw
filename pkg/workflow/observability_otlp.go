@@ -18,6 +18,10 @@ var otlpLog = logger.New("workflow:observability_otlp")
 //
 // String form: "Authorization=Bearer tok,X-Tenant=acme"
 // Map form:    map[string]any{"Authorization": "Bearer tok", "X-Tenant": "acme"}
+//
+// Header values that themselves contain commas must use the map form because the
+// OTEL_EXPORTER_OTLP_HEADERS string format is a comma-separated list of
+// key=value pairs.
 func normalizeOTLPHeaders(raw any) string {
 	return normalizeOTLPHeadersForEndpoint(raw, "")
 }
@@ -93,6 +97,10 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 		if host := strings.ToLower(parsed.Hostname()); host != "" {
 			return strings.Contains(host, "sentry")
 		}
+	}
+
+	if strings.Contains(trimmed, "${{") {
+		return strings.Contains(strings.ToLower(trimmed), "gh_aw_otel_sentry_endpoint")
 	}
 
 	return strings.Contains(strings.ToLower(trimmed), "sentry")

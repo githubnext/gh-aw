@@ -865,18 +865,26 @@ func TestNormalizeOTLPHeaders(t *testing.T) {
 func TestNormalizeOTLPHeadersForEndpoint(t *testing.T) {
 	t.Run("rewrites Authorization header for sentry URL", func(t *testing.T) {
 		gotHeaders := normalizeOTLPHeadersForEndpoint(
-			map[string]any{"Authorization": "Bearer tok", "X-Tenant": "acme"},
+			map[string]any{"Authorization": "Bearer tok"},
 			"https://o123.ingest.sentry.io/api/123/envelope/",
 		)
-		assert.Equal(t, "x-sentry-auth=Bearer tok,X-Tenant=acme", gotHeaders, "Sentry endpoints should use x-sentry-auth")
+		assert.Equal(t, "x-sentry-auth=Bearer tok", gotHeaders, "Sentry endpoints should use x-sentry-auth")
 	})
 
-	t.Run("rewrites Authorization header for sentry endpoint expression", func(t *testing.T) {
+	t.Run("rewrites Authorization header for known sentry endpoint expression", func(t *testing.T) {
 		gotHeaders := normalizeOTLPHeadersForEndpoint(
 			"Authorization=Bearer tok,X-Tenant=acme",
 			"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}",
 		)
 		assert.Equal(t, "x-sentry-auth=Bearer tok,X-Tenant=acme", gotHeaders, "Sentry-named endpoint expressions should use x-sentry-auth")
+	})
+
+	t.Run("preserves Authorization header for unrelated expression names containing sentry", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			"Authorization=Bearer tok,X-Tenant=acme",
+			"${{ secrets.TEAM_SENTRY_PROXY_ENDPOINT }}",
+		)
+		assert.Equal(t, "Authorization=Bearer tok,X-Tenant=acme", gotHeaders, "Only the known Sentry endpoint expression should use x-sentry-auth")
 	})
 
 	t.Run("preserves Authorization header for grafana endpoint", func(t *testing.T) {
