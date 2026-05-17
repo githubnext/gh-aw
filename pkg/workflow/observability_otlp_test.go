@@ -886,6 +886,14 @@ func TestNormalizeOTLPHeadersForEndpoint(t *testing.T) {
 		)
 		assert.Equal(t, "Authorization=Bearer tok,X-Scope-OrgID=tenant", gotHeaders, "Non-Sentry endpoints should keep Authorization")
 	})
+
+	t.Run("preserves Authorization header when sentry appears outside URL host", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			"Authorization=Bearer tok,X-Tenant=acme",
+			"https://otlp-gateway-prod-us-central-0.grafana.net/sentry/proxy",
+		)
+		assert.Equal(t, "Authorization=Bearer tok,X-Tenant=acme", gotHeaders, "Only Sentry hosts should use x-sentry-auth")
+	})
 }
 
 // TestInjectOTLPConfig_MapHeaders verifies that the map form for headers is supported.

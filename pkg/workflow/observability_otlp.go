@@ -90,8 +90,8 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 	}
 
 	if parsed, err := url.Parse(trimmed); err == nil {
-		if host := strings.ToLower(parsed.Hostname()); host != "" && strings.Contains(host, "sentry") {
-			return true
+		if host := strings.ToLower(parsed.Hostname()); host != "" {
+			return strings.Contains(host, "sentry")
 		}
 	}
 
