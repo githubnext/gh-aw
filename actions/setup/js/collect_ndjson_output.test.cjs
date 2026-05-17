@@ -1548,7 +1548,7 @@ describe("collect_ndjson_output.cjs", () => {
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
           const parsedOutput = JSON.parse(outputCall[1]);
-          (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].issue_number).toBe("aw_abc123"), expect(parsedOutput.errors).toHaveLength(0));
+          (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].issue_number).toBe("#aw_abc123"), expect(parsedOutput.errors).toHaveLength(0));
         }),
         it("should validate assign_to_agent with optional fields", async () => {
           const testFile = "/tmp/gh-aw/test-ndjson-output.txt",

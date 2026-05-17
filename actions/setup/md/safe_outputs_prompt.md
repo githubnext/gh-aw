@@ -9,7 +9,7 @@ When no action is needed, call noop like this:
 {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why no action was required]"}}
 ```
 
-temporary_id: optional cross-reference field. Format: aw_ + 3–12 alphanumeric chars or underscores (/^aw_[A-Za-z0-9_]{3,12}$/i). Use '#aw_abc1' (with leading '#') consistently for both body text and field values (item_number, issue_number, parent, etc.) — it is the canonical form. The bare 'aw_abc1' form is also accepted as a field value and normalised to '#aw_abc1' automatically. In body/markdown text, '#aw_abc1' references are replaced with the real issue/PR number after creation. Omit entirely when not needed.
+temporary_id: optional cross-reference field. Canonical form: '#aw_' followed by 3–12 alphanumeric or underscore characters (/^#aw_[A-Za-z0-9_]{3,12}$/i) — e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted everywhere and normalised to '#aw_abc1' automatically. Use this form for all field values (temporary_id, item_number, issue_number, parent, etc.). In body/markdown text, '#aw_abc1' references are replaced with the real issue/PR number after creation. Omit entirely when not needed.
 
 **Note**: safeoutputs tools do NOT support `@filename` file name expansion. Always provide content inline — do not use `@<filename>` references in tool arguments.
 </instructions>
