@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
