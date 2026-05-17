@@ -94,7 +94,8 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 
 	// Include top-level mentions configuration so the handler manager can pass it to
 	// the add_comment handler (which calls sanitizeContent with the allowed aliases).
-	if safeOutputs.Mentions != nil {
+	// Only emitted when add_comment is active — it is the only handler-manager consumer.
+	if safeOutputs.Mentions != nil && safeOutputs.AddComments != nil {
 		mentionsCfg := buildMentionsHandlerConfig(safeOutputs.Mentions)
 		if len(mentionsCfg) > 0 {
 			config["mentions"] = mentionsCfg
