@@ -888,7 +888,7 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
   };
   const usageLine = effectiveTokens ? `\n- Effective tokens used: \`${formatEffectiveTokensForMessage(effectiveTokens)}\`` : "";
   const budgetLine = maxEffectiveTokens ? `\n- Configured ET budget: \`${formatEffectiveTokensForMessage(maxEffectiveTokens)}\`` : "";
-  const runLine = runUrl ? `\n- Run: ${runUrl}` : "";
+  const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
 
   const etTableSection = buildETComputationTable(effectiveTokens, readTokenUsageMarkdown());
 
@@ -896,9 +896,14 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
   const tokenOptLink = "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md";
 
   return (
-    `\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy. [What are effective tokens?](${etSpecLink})${usageLine}${budgetLine}${runLine}\n\n` +
+    "\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
+    "<details>\n" +
+    "<summary>Why this happened and how to optimize</summary>\n\n" +
+    `- Learn about [effective tokens](${etSpecLink}).${usageLine}${budgetLine}${runLine}\n` +
+    "You can tune this limit with `max-effective-tokens` in workflow frontmatter.\n\n" +
     etTableSection +
-    `You can tune this limit with \`max-effective-tokens\` in workflow frontmatter. To reduce token consumption, review the [token optimization guide](${tokenOptLink}).\n`
+    `- To optimize this workflow, follow the [token optimization instructions](${tokenOptLink}).\n` +
+    "</details>\n"
   );
 }
 

@@ -2056,6 +2056,17 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md");
     });
 
+    it("formats the run URL as a markdown link", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("- Run: [https://example.com/run/1](https://example.com/run/1)");
+    });
+
+    it("keeps the ET guidance bulk inside a details section", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("<summary>Why this happened and how to optimize</summary>");
+      expect(result).toContain("token optimization instructions");
+    });
+
     it("includes a collapsible details section for ET computation", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
       expect(result).toContain("<details>");
