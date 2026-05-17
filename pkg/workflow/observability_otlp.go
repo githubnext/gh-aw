@@ -92,6 +92,7 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 	if trimmed == "" {
 		return false
 	}
+	lowerTrimmed := strings.ToLower(trimmed)
 
 	if parsed, err := url.Parse(trimmed); err == nil {
 		if host := strings.ToLower(parsed.Hostname()); host != "" {
@@ -100,10 +101,10 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 	}
 
 	if strings.Contains(trimmed, "${{") {
-		return strings.Contains(strings.ToLower(trimmed), "gh_aw_otel_sentry_endpoint")
+		return strings.Contains(lowerTrimmed, "gh_aw_otel_sentry_endpoint")
 	}
 
-	return strings.Contains(strings.ToLower(trimmed), "sentry")
+	return strings.Contains(lowerTrimmed, "sentry")
 }
 
 // extractOTLPEndpointDomain parses an OTLP endpoint URL and returns its hostname.
