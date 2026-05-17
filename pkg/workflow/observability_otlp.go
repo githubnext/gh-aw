@@ -67,6 +67,9 @@ func rewriteOTLPHeaderPairsForEndpoint(raw string, endpoint string) string {
 	if !shouldRewriteAuthorizationForSentry(endpoint) || !strings.Contains(raw, "=") {
 		return raw
 	}
+	if strings.Contains(raw, "Authorization=Sentry ") && strings.Contains(raw, ", sentry_") {
+		otlpLog.Printf("OTLP header string form cannot safely represent comma-containing Sentry auth values; use map form instead")
+	}
 
 	pairs := strings.Split(raw, ",")
 	for i, pair := range pairs {
@@ -102,7 +105,7 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 	}
 
 	if isGitHubActionsExpression(trimmed) {
-		return strings.Contains(lowerTrimmed, constants.OTELSentryEndpointSecretNameLower)
+		return strings.Contains(strings.ToUpper(trimmed), constants.OTELSentryEndpointSecretName)
 	}
 
 	return strings.Contains(lowerTrimmed, "sentry")

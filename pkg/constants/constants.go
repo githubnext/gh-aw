@@ -4,7 +4,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -138,10 +137,6 @@ const DefaultGitHubLockdown = false
 // OTELSentryEndpointSecretName is the well-known secret name used by shared OTLP
 // workflow imports for Sentry endpoint configuration.
 const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
-
-// OTELSentryEndpointSecretNameLower is the lowercase form of
-// OTELSentryEndpointSecretName for case-insensitive matching.
-var OTELSentryEndpointSecretNameLower = strings.ToLower(OTELSentryEndpointSecretName)
 
 // AWF (Agentic Workflow Firewall) constants
 
