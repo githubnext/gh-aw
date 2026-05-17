@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -40,6 +41,10 @@ type ghCLIPermissionsData struct {
 
 // compiledGHCLIPermissions holds pre-compiled lookup data built from the JSON.
 type compiledGHCLIPermissions struct {
+	// subcommandRE is dynamically compiled from the subcommand_groups keys so that adding
+	// a new group to the JSON automatically extends the pattern without a code change.
+	// Capture groups: (1) subcommand group, (2) action word.
+	subcommandRE *regexp.Regexp
 	// readCommands maps "group action" (e.g. "pr diff") to read permission scopes.
 	readCommands map[string][]PermissionScope
 	// writeCommands maps "group action" (e.g. "pr create") to write permission scopes.
@@ -80,6 +85,16 @@ func init() {
 		appWriteCommands:        make(map[string][]PermissionScope),
 		groupAppReadPermissions: make(map[string][]PermissionScope),
 	}
+
+	// Build the subcommand regex dynamically from the JSON group keys so that adding a new
+	// group to gh_cli_permissions.json automatically extends the pattern without a code change.
+	groups := make([]string, 0, len(data.SubcommandGroups))
+	for group := range data.SubcommandGroups {
+		groups = append(groups, regexp.QuoteMeta(group))
+	}
+	sort.Strings(groups) // deterministic alternation order
+	subcommandPattern := `(?m)(?:^|[\s|;])gh\s+(` + strings.Join(groups, "|") + `)\s+([\w][\w-]*)\b`
+	cp.subcommandRE = regexp.MustCompile(subcommandPattern)
 
 	for group, sg := range data.SubcommandGroups {
 		readPerms := make([]PermissionScope, len(sg.ReadPermissions))
@@ -138,15 +153,6 @@ func init() {
 	ghCLIPermissions = cp
 }
 
-// ghSubcommandRE matches invocations of the gh CLI followed by a known subcommand group
-// and an action word.  It is designed to handle both:
-//   - simple single-line calls  (gh pr diff "$PR" --name-only)
-//   - multi-line shell scripts where the `gh` binary may be preceded by whitespace.
-//
-// Capture groups: (1) subcommand group, (2) action word.
-// The trailing `\b` ensures the action word is complete (avoids matching partial words).
-var ghSubcommandRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+(pr|issue|release|workflow|run|cache|repo|label|codespace)\s+([\w][\w-]*)\b`)
-
 // ghAPIRE matches `gh api <path>` invocations.
 // Capture group: (1) API path (up to the first whitespace, pipe, or quote).
 var ghAPIRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+api\s+([^\s|;&"'\\]+)`)
@@ -176,7 +182,7 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 
 	for _, script := range scripts {
 		// Match gh <group> <action> patterns.
-		for _, m := range ghSubcommandRE.FindAllStringSubmatch(script, -1) {
+		for _, m := range ghCLIPermissions.subcommandRE.FindAllStringSubmatch(script, -1) {
 			group := strings.ToLower(m[1])
 			action := strings.ToLower(m[2])
 			key := group + " " + action
@@ -235,7 +241,7 @@ func detectWriteCommandsInShellScripts(scripts []string) []string {
 	seen := make(map[string]struct{})
 
 	for _, script := range scripts {
-		for _, m := range ghSubcommandRE.FindAllStringSubmatch(script, -1) {
+		for _, m := range ghCLIPermissions.subcommandRE.FindAllStringSubmatch(script, -1) {
 			group := strings.ToLower(m[1])
 			action := strings.ToLower(m[2])
 			key := group + " " + action
