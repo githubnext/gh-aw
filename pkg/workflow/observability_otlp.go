@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
+
+var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 
 // normalizeOTLPHeaders converts the headers field value (which may be a string or a map)
 // into the comma-separated key=value format required by OTEL_EXPORTER_OTLP_HEADERS.
@@ -67,7 +70,7 @@ func rewriteOTLPHeaderPairsForEndpoint(raw string, endpoint string) string {
 	if !shouldRewriteAuthorizationForSentry(endpoint) || !strings.Contains(raw, "=") {
 		return raw
 	}
-	if strings.Contains(raw, "Authorization=Sentry ") && strings.Contains(raw, ", sentry_") {
+	if strings.Contains(raw, "Authorization=Sentry sentry_version=") && strings.Contains(raw, ", sentry_key=") {
 		otlpLog.Printf("Detected Sentry auth value with commas in string form - this may cause parsing errors. Use map form for headers instead: map[string]any{\"Authorization\": \"...\"}")
 	}
 
@@ -105,12 +108,15 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 	}
 
 	if isGitHubActionsExpression(trimmed) {
-		return strings.Contains(strings.ToUpper(trimmed), constants.OTELSentryEndpointSecretName)
+		return sentryEndpointExpressionPattern.MatchString(trimmed)
 	}
 
 	return strings.Contains(lowerTrimmed, "sentry")
 }
 
+// isGitHubActionsExpression returns true when the value is wrapped in GitHub
+// Actions expression delimiters like `${{ ... }}` after trimming surrounding
+// whitespace.
 func isGitHubActionsExpression(value string) bool {
 	trimmed := strings.TrimSpace(value)
 	return strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}")
