@@ -696,6 +696,61 @@ function buildMissingToolContext(items) {
 }
 
 /**
+ * Build permission denied context string when the agent reported numerous permission denied errors.
+ * Reads denied_commands from any missing_tool message with tool === "tool/permission".
+ * @param {Array<any>} [items] - Optional pre-loaded agent output items.
+ * @param {string} [workflowId] - Workflow ID for the suggested fix prompt placeholder.
+ * @returns {string} Formatted permission denied context, or empty string if not applicable.
+ */
+function buildPermissionDeniedContext(items, workflowId) {
+  const missingToolMessages = loadMissingToolMessages(items);
+
+  const permissionItems = missingToolMessages.filter(m => m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0);
+
+  if (permissionItems.length === 0) {
+    return "";
+  }
+
+  // Aggregate denied commands across all permission items and deduplicate.
+  const allDenied = new Set();
+  for (const item of permissionItems) {
+    for (const cmd of item.denied_commands) {
+      if (cmd) allDenied.add(cmd);
+    }
+  }
+
+  if (allDenied.size === 0) {
+    return "";
+  }
+
+  core.info(`Found ${allDenied.size} denied command(s) in permission_denied context`);
+
+  const deniedArray = [...allDenied];
+  const deniedCommandsList = deniedArray.map(cmd => `- \`${cmd}\``).join("\n");
+  const deniedCommandsInline = deniedArray.map(cmd => `\`${cmd}\``).join(", ");
+  const deniedCount = String(deniedArray.length);
+
+  const templatePath = getPromptPath("permission_denied_context.md");
+  try {
+    const template = fs.readFileSync(templatePath, "utf8");
+    const rendered = renderTemplate(template, {
+      denied_count: deniedCount,
+      denied_commands_list: deniedCommandsList,
+      denied_commands_inline: deniedCommandsInline,
+      workflow_id: workflowId || "the workflow",
+    });
+    return "\n" + rendered;
+  } catch {
+    // Template not available — return inline fallback message
+    return (
+      `\n**🚫 Repeated Permission Denied**: The agent was denied permission for ${deniedCount} command(s).\n\n` +
+      `**Denied Commands:**\n${deniedCommandsList}\n\n` +
+      `Update the workflow prompt to use built-in tools instead of the denied commands.\n`
+    );
+  }
+}
+
+/**
  * Load report_incomplete messages from agent output
  * @param {Array<any>} [items] - Optional pre-loaded agent output items. When provided, avoids re-reading the output file.
  * @returns {Array<{reason: string, details?: string}>} Array of report_incomplete messages
@@ -1753,6 +1808,9 @@ async function main() {
         // Build missing_tool context (only when report-as-failure is enabled for this signal type)
         const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
 
+
+        // Build permission denied context (denied commands list + fix prompt)
+        const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
@@ -1824,6 +1882,7 @@ async function main() {
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
           missing_tool_context: missingToolContext,
+          permission_denied_context: permissionDeniedContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -1927,6 +1986,9 @@ async function main() {
         // Build report_incomplete context
         const reportIncompleteContext = buildReportIncompleteContext(agentOutputResult.items);
 
+        // Build permission denied context (denied commands list + fix prompt)
+        const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);
+
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
@@ -1996,6 +2058,7 @@ async function main() {
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
           missing_tool_context: missingToolContext,
+          permission_denied_context: permissionDeniedContext,
           report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
@@ -2082,6 +2145,7 @@ module.exports = {
   buildModelNotSupportedErrorContext,
   buildMissingDataContext,
   buildMissingToolContext,
+  buildPermissionDeniedContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
   readTokenUsageMarkdown,
