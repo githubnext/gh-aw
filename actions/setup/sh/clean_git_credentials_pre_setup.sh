@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-set +o histexpand
-
 set -euo pipefail
+set +o histexpand
 
 git_configs_processed=0
 while IFS= read -r git_config; do

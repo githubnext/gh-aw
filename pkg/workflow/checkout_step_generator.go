@@ -322,7 +322,10 @@ func generateCheckoutCredentialsCleanupStep() string {
             bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
             exit 0
           fi
-          if [ -x "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh" ]; then
+          if [ -x "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_pre_setup.sh" ]; then
+            echo "Using pre-setup clean_git_credentials helper from runner temp"
+            bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_pre_setup.sh"
+          elif [ -x "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh" ]; then
             echo "Using pre-setup clean_git_credentials helper"
             bash "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh"
           else
