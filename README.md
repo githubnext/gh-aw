@@ -46,7 +46,7 @@ Using agentic workflows in your repository requires careful attention to securit
 
 ## Documentation
 
-For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/). If you are an agent, download the [llms.txt](https://github.github.com/gh-aw/llms.txt).
+For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/). If you are an agent, download [llms.txt](https://github.github.com/gh-aw/llms.txt) or the full corpus [llms-full.txt](https://github.github.com/gh-aw/llms-full.txt).
 
 If you are running a version between 0.68.4 and 0.71.3, upgrading is strongly recommended due to a bug that impacts billing.
 
