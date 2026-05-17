@@ -336,6 +336,33 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
+	// Infer permissions required by gh CLI calls in agent job pre-steps.
+	// Scans both data.PreSteps (top-level pre-steps:) and jobs.agent.pre-steps,
+	// detects write commands (which are not permitted since the agent job is read-only),
+	// and merges inferred read permissions into the existing permissions block.
+	// Skipped only when the user explicitly opted out of all permissions (permissions: {}).
+	agentPreStepScripts := extractRunScriptsFromPreStepsYAML(data.PreSteps)
+	if data.Jobs != nil {
+		agentPreStepScripts = append(agentPreStepScripts, extractRunScriptsFromJobPreSteps(data.Jobs, string(constants.AgentJobName))...)
+	}
+	if len(agentPreStepScripts) > 0 {
+		if writeCmds := detectWriteCommandsInShellScripts(agentPreStepScripts); len(writeCmds) > 0 {
+			return nil, fmt.Errorf(
+				"agent job pre-step uses write gh command(s) [%s]; write operations are not permitted in agent job pre-steps because the agent job runs with read-only permissions. Use safe-outputs for write operations. See: https://github.github.com/gh-aw/reference/safe-outputs/",
+				strings.Join(writeCmds, ", "),
+			)
+		}
+		// Infer read permissions unless the user explicitly zeroed out all permissions.
+		// Check data.Permissions (the original value) since needsContentsRead above may have
+		// already expanded "permissions: {}" to "permissions:\n  contents: read".
+		if strings.TrimSpace(data.Permissions) != "permissions: {}" && permissions != "" {
+			inferred := inferPermissionsFromShellScripts(agentPreStepScripts)
+			if len(inferred) > 0 {
+				permissions = mergeInferredIntoPermissionsYAML(permissions, inferred)
+			}
+		}
+	}
+
 	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())

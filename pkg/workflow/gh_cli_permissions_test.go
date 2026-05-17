@@ -474,3 +474,224 @@ func TestInferPermissionsFromShellScripts_GhAPIRepoEnvironments(t *testing.T) {
 	assert.Equal(t, PermissionRead, perms[PermissionEnvironments],
 		"gh api /repos/.../environments should require environments: read (GitHub App-only)")
 }
+
+// --- extractRunScriptsFromPreStepsYAML ---
+
+// TestExtractRunScriptsFromPreStepsYAML_Basic verifies extraction of run scripts from
+// a YAML string matching the WorkflowData.PreSteps format.
+func TestExtractRunScriptsFromPreStepsYAML_Basic(t *testing.T) {
+	yamlStr := `pre-steps:
+  - name: Lint changed files
+    run: |
+      gh pr diff "$PR_NUMBER" --name-only | awk '/\.md$/'
+  - uses: some-org/action@abc123def456abc123def456abc123def456abc1
+`
+	scripts := extractRunScriptsFromPreStepsYAML(yamlStr)
+	assert.Len(t, scripts, 1)
+	assert.Contains(t, scripts[0], "gh pr diff")
+}
+
+// TestExtractRunScriptsFromPreStepsYAML_Empty verifies nil return for empty input.
+func TestExtractRunScriptsFromPreStepsYAML_Empty(t *testing.T) {
+	assert.Nil(t, extractRunScriptsFromPreStepsYAML(""))
+}
+
+// TestExtractRunScriptsFromPreStepsYAML_NoRunSteps verifies nil return when no run steps present.
+func TestExtractRunScriptsFromPreStepsYAML_NoRunSteps(t *testing.T) {
+	yamlStr := `pre-steps:
+  - uses: some-org/action@abc123def456abc123def456abc123def456abc1
+`
+	assert.Nil(t, extractRunScriptsFromPreStepsYAML(yamlStr))
+}
+
+// TestExtractRunScriptsFromPreStepsYAML_MultipleRunSteps verifies all run scripts are returned.
+func TestExtractRunScriptsFromPreStepsYAML_MultipleRunSteps(t *testing.T) {
+	yamlStr := `pre-steps:
+  - name: Step one
+    run: gh pr diff "$PR_NUMBER"
+  - name: Step two
+    run: gh issue list
+`
+	scripts := extractRunScriptsFromPreStepsYAML(yamlStr)
+	assert.Len(t, scripts, 2)
+}
+
+// --- mergeInferredIntoPermissionsYAML ---
+
+// TestMergeInferredIntoPermissionsYAML_AddsNewScope verifies that a new inferred scope
+// is added when the existing permissions block does not include it.
+func TestMergeInferredIntoPermissionsYAML_AddsNewScope(t *testing.T) {
+	existing := "permissions:\n  contents: read"
+	inferred := map[PermissionScope]PermissionLevel{
+		PermissionPullRequests: PermissionRead,
+	}
+	result := mergeInferredIntoPermissionsYAML(existing, inferred)
+	assert.Contains(t, result, "pull-requests: read")
+	assert.Contains(t, result, "contents: read")
+}
+
+// TestMergeInferredIntoPermissionsYAML_DoesNotOverride verifies that an explicitly
+// declared scope is never overridden by inferred values.
+func TestMergeInferredIntoPermissionsYAML_DoesNotOverride(t *testing.T) {
+	existing := "permissions:\n  pull-requests: read"
+	inferred := map[PermissionScope]PermissionLevel{
+		PermissionPullRequests: PermissionWrite,
+	}
+	result := mergeInferredIntoPermissionsYAML(existing, inferred)
+	assert.Contains(t, result, "pull-requests: read")
+	assert.NotContains(t, result, "pull-requests: write")
+}
+
+// TestMergeInferredIntoPermissionsYAML_EmptyInputUnchanged verifies that an empty
+// permissions string is returned unchanged (no implicit block is created).
+func TestMergeInferredIntoPermissionsYAML_EmptyInputUnchanged(t *testing.T) {
+	inferred := map[PermissionScope]PermissionLevel{
+		PermissionPullRequests: PermissionRead,
+	}
+	result := mergeInferredIntoPermissionsYAML("", inferred)
+	assert.Empty(t, result)
+}
+
+// TestMergeInferredIntoPermissionsYAML_SkipsAppOnlyScopes verifies that GitHub
+// App-only scopes are not added to the job-level permissions block.
+func TestMergeInferredIntoPermissionsYAML_SkipsAppOnlyScopes(t *testing.T) {
+	existing := "permissions:\n  contents: read"
+	inferred := map[PermissionScope]PermissionLevel{
+		PermissionCodespaces: PermissionRead, // GitHub App-only
+	}
+	result := mergeInferredIntoPermissionsYAML(existing, inferred)
+	assert.NotContains(t, result, "codespaces")
+}
+
+// --- Agent job integration tests ---
+
+// TestAgentJobPreStepsWriteCommandErrors verifies that when an agent job pre-step
+// contains a write gh command, the compiler returns an error.
+func TestAgentJobPreStepsWriteCommandErrors(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-prestep-write-error")
+
+	content := `---
+on: push
+permissions:
+  contents: read
+pre-steps:
+  - name: Comment on PR
+    run: gh pr comment "$PR_NUMBER" --body "processing"
+engine: claude
+strict: false
+---
+
+Test agent pre-steps write command triggers error.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "compiler should error when agent pre-step uses a write gh command")
+	assert.Contains(t, err.Error(), "agent job pre-step uses write gh command(s)")
+	assert.Contains(t, err.Error(), "gh pr comment")
+	assert.Contains(t, err.Error(), "safe-outputs")
+}
+
+// TestAgentJobPreStepsInferReadPermission verifies that when an agent job pre-step
+// contains `gh pr diff` (a read command) and the user has explicit permissions,
+// the compiler automatically adds pull-requests: read.
+func TestAgentJobPreStepsInferReadPermission(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-prestep-read-perm")
+
+	content := `---
+on: push
+permissions:
+  contents: read
+pre-steps:
+  - name: Get changed files
+    run: gh pr diff "$PR_NUMBER" --name-only > /tmp/changed.txt
+engine: claude
+strict: false
+---
+
+Test agent pre-steps read permission inference.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "workflow.lock.yml")
+	raw, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+	lockContent := string(raw)
+
+	agentJob := extractJobSection(lockContent, string(constants.AgentJobName))
+	assert.Contains(t, agentJob, "pull-requests: read",
+		"agent job should have pull-requests: read inferred from pre-step gh pr diff")
+}
+
+// TestAgentJobPreStepsInferWithDefaultPermissions verifies that when the user has not
+// declared an explicit permissions block, the default permissions (contents: read) are
+// still augmented with inferred scopes required by pre-step gh commands.
+func TestAgentJobPreStepsInferWithDefaultPermissions(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-prestep-default-perms")
+
+	content := `---
+on: push
+pre-steps:
+  - name: Get changed files
+    run: gh pr diff "$PR_NUMBER" --name-only > /tmp/changed.txt
+engine: claude
+strict: false
+---
+
+Test: inference applies even without explicit permissions declaration.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "workflow.lock.yml")
+	raw, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+	lockContent := string(raw)
+
+	agentJob := extractJobSection(lockContent, string(constants.AgentJobName))
+	assert.Contains(t, agentJob, "pull-requests: read",
+		"agent job should have pull-requests: read inferred from pre-step gh pr diff even without explicit permissions block")
+}
+
+// TestAgentJobPreStepsNoInferForEmptyPermissions verifies that when the user explicitly
+// sets permissions: {} (empty/no permissions), pre-step inference is skipped because
+// the user intentionally opted out of all permissions.
+func TestAgentJobPreStepsNoInferForEmptyPermissions(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-prestep-empty-perms")
+
+	content := `---
+on: push
+permissions: {}
+pre-steps:
+  - name: Get changed files
+    run: gh pr diff "$PR_NUMBER" --name-only > /tmp/changed.txt
+engine: claude
+strict: false
+---
+
+Test: no inference when user explicitly opts out of permissions.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "workflow.lock.yml")
+	raw, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+	lockContent := string(raw)
+
+	agentJob := extractJobSection(lockContent, string(constants.AgentJobName))
+	assert.NotContains(t, agentJob, "pull-requests:",
+		"agent job should NOT have pull-requests when user explicitly set permissions: {}")
+}

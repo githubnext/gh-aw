@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 )
 
 //go:embed data/gh_cli_permissions.json
@@ -257,6 +259,29 @@ func detectWriteCommandsInShellScripts(scripts []string) []string {
 	}
 
 	return found
+}
+
+// extractRunScriptsFromPreStepsYAML parses a pre-steps YAML string (as stored in
+// WorkflowData.PreSteps) and returns the `run` script text from every step.
+func extractRunScriptsFromPreStepsYAML(preStepsYAML string) []string {
+	if preStepsYAML == "" {
+		return nil
+	}
+	var wrapper map[string][]map[string]any
+	if err := yaml.Unmarshal([]byte(preStepsYAML), &wrapper); err != nil {
+		return nil
+	}
+	steps := wrapper["pre-steps"]
+	if len(steps) == 0 {
+		return nil
+	}
+	var scripts []string
+	for _, step := range steps {
+		if runVal, ok := step["run"].(string); ok && runVal != "" {
+			scripts = append(scripts, runVal)
+		}
+	}
+	return scripts
 }
 
 // extractRunScriptsFromJobPreSteps returns the `run` script text from every

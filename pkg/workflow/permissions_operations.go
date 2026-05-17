@@ -417,3 +417,43 @@ func (p *Permissions) RenderToYAML() string {
 
 	return strings.Join(lines, "\n")
 }
+
+// mergeInferredIntoPermissionsYAML merges a map of inferred permissions into an existing
+// permissions YAML string and returns the updated YAML string (2-space indented, suitable
+// for filterJobLevelPermissions / indentYAMLLines callers).
+//
+// Rules:
+//   - GitHub App-only scopes are skipped (they are not valid job-level permissions).
+//   - An inferred scope is added only when not already declared by the user.
+//   - An inferred scope at PermissionNone is always ignored.
+//
+// If permissionsYAML is empty the function returns an empty string unchanged, because
+// adding a new explicit block to a job that currently inherits workflow-level permissions
+// would unintentionally restrict those permissions.
+func mergeInferredIntoPermissionsYAML(permissionsYAML string, inferred map[PermissionScope]PermissionLevel) string {
+if permissionsYAML == "" || len(inferred) == 0 {
+return permissionsYAML
+}
+
+parsedPerms := NewPermissionsParser(permissionsYAML).ToPermissions()
+
+changed := false
+for scope, level := range inferred {
+if IsGitHubAppOnlyScope(scope) {
+continue
+}
+if level == PermissionNone {
+continue
+}
+if _, exists := parsedPerms.Get(scope); !exists {
+parsedPerms.Set(scope, level)
+changed = true
+}
+}
+
+if !changed {
+return permissionsYAML
+}
+
+return filterJobLevelPermissions(parsedPerms.RenderToYAML())
+}
