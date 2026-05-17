@@ -887,7 +887,7 @@ func TestNormalizeOTLPHeadersForEndpoint(t *testing.T) {
 		assert.Equal(t, "x-sentry-auth=Bearer tok,X-Tenant=acme", gotHeaders, "Sentry endpoints should rewrite Authorization while preserving additional headers")
 	})
 
-	t.Run("preserves Authorization header for unrelated expression names containing sentry", func(t *testing.T) {
+	t.Run("preserves Authorization header for non-standard sentry endpoint expressions", func(t *testing.T) {
 		gotHeaders := normalizeOTLPHeadersForEndpoint(
 			"Authorization=Bearer tok,X-Tenant=acme",
 			"${{ secrets.TEAM_SENTRY_PROXY_ENDPOINT }}",

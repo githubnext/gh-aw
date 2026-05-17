@@ -68,7 +68,7 @@ func rewriteOTLPHeaderPairsForEndpoint(raw string, endpoint string) string {
 		return raw
 	}
 	if strings.Contains(raw, "Authorization=Sentry ") && strings.Contains(raw, ", sentry_") {
-		otlpLog.Printf("OTLP header string form cannot safely represent comma-containing Sentry auth values; use map form instead")
+		otlpLog.Printf("Detected Sentry auth value with commas in string form - this may cause parsing errors. Use map form for headers instead: map[string]any{\"Authorization\": \"...\"}")
 	}
 
 	pairs := strings.Split(raw, ",")
