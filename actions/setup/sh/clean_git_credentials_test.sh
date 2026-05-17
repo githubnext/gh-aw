@@ -144,6 +144,36 @@ assert "config still valid" "git config --file '${REPO}/.git/config' --list >/de
 assert "core settings intact" "git config --file '${REPO}/.git/config' core.repositoryformatversion >/dev/null 2>&1"
 echo ""
 
+# ── Test 8: Cleans submodule git configs under .git/modules ─────────────────
+echo "Test 8: Cleans submodule git config files"
+REPO="${TEST_WORKSPACE}/repo8"
+mkdir -p "${REPO}/.git/modules/sub" "${REPO}/.git/modules/sub/modules/nested"
+cat >"${REPO}/.git/modules/sub/config" <<'EOF'
+[core]
+	repositoryformatversion = 0
+[credential "https://github.com"]
+	helper = store
+[http "https://github.com/"]
+	extraheader = Authorization: Basic abc123
+[remote "origin"]
+	url = https://x-access-token:ghs_sub@github.com/org/sub.git
+EOF
+cat >"${REPO}/.git/modules/sub/modules/nested/config" <<'EOF'
+[core]
+	repositoryformatversion = 0
+[credential]
+	helper = store
+[http]
+	extraheader = Authorization: Basic def456
+EOF
+GITHUB_WORKSPACE="${REPO}" bash "${CLEAN_SCRIPT}" >/dev/null 2>&1
+assert "submodule credential section removed" "! grep -q '\[credential' '${REPO}/.git/modules/sub/config'"
+assert "submodule url extraheader removed" "! git config --file '${REPO}/.git/modules/sub/config' 'http.https://github.com/.extraheader' 2>/dev/null"
+assert "submodule remote URL credentials stripped" "[ \"\$(git config --file '${REPO}/.git/modules/sub/config' remote.origin.url)\" = 'https://github.com/org/sub.git' ]"
+assert "nested submodule credential section removed" "! grep -q '\[credential' '${REPO}/.git/modules/sub/modules/nested/config'"
+assert "nested submodule http.extraheader removed" "! git config --file '${REPO}/.git/modules/sub/modules/nested/config' http.extraheader 2>/dev/null"
+echo ""
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "Tests passed: ${TESTS_PASSED}"
 echo "Tests failed: ${TESTS_FAILED}"
