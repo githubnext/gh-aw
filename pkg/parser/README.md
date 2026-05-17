@@ -37,6 +37,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `DeprecatedField` | struct | A deprecated frontmatter field with migration guidance |
 | `FileReader` | func type | `func(filePath string) ([]byte, error)` — abstraction for file reading |
 | `InlineSubAgent` | struct | A single inline sub-agent definition extracted via the `## agent: \`name\`` syntax |
+| `BodyLevelImport` | struct | A `{{#runtime-import}}` directive found in the markdown body, with `Path` (workspace-root-relative) and `Optional` flag |
 
 ### Functions
 
@@ -61,6 +62,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `ExpandIncludesWithManifest` | `func(content, baseDir string, extractTools bool) (string, []string, error)` | Expands `@include` directives in markdown body and returns included file paths |
 | `ExpandIncludesForEngines` | `func(content, baseDir string) ([]string, error)` | Returns engine names referenced via `@include` |
 | `ExpandIncludesForSafeOutputs` | `func(content, baseDir string) ([]string, error)` | Returns safe output types referenced via `@include` |
+| `ExtractBodyLevelImportPaths` | `func(content, baseDir string) []BodyLevelImport` | Scans markdown body for `{{#runtime-import}}` directives and returns them as workspace-root-relative `BodyLevelImport` entries |
 
 #### GitHub URL Parsing
 
@@ -84,6 +86,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `DownloadFileFromGitHubForHost` | `func(owner, repo, path, ref, host string) ([]byte, error)` | Downloads a file from a specific GitHub host |
 | `ResolveRefToSHAForHost` | `func(owner, repo, ref, host string) (string, error)` | Resolves a branch/tag ref to a commit SHA |
 | `ListWorkflowFiles` | `func(owner, repo, ref, workflowPath string) ([]string, error)` | Lists workflow files in a remote repository |
+| `ListWorkflowFilesForHost` | `func(owner, repo, ref, workflowPath, host string) ([]string, error)` | Lists workflow files in a remote repository on a specific GitHub host |
 | `IsWorkflowSpec` | `func(path string) bool` | Returns whether a path is a workflow specification markdown file |
 
 #### MCP Configuration
@@ -111,6 +114,9 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ValidateMainWorkflowFrontmatterWithSchemaAndLocation` | `func(frontmatter map[string]any, filePath string) error` | JSON-schema validates frontmatter and returns located errors |
+| `ValidateIncludedFileFrontmatterWithSchemaAndLocation` | `func(frontmatter map[string]any, filePath string) error` | JSON-schema validates frontmatter of an included file fragment |
+| `ValidateMCPConfigWithSchema` | `func(mcpConfig map[string]any) error` | JSON-schema validates an MCP server configuration map |
+| `ValidateRepositoryPackageManifestWithSchemaAndLocation` | `func(manifest map[string]any, filePath string) error` | JSON-schema validates a repository package manifest |
 | `GetCompiledRepoConfigSchema` | `func() (*jsonschema.Schema, error)` | Returns the compiled JSON schema for repo config |
 | `GetSafeOutputTypeKeys` | `func() ([]string, error)` | Returns valid safe-output type keys from the schema |
 | `GetMainWorkflowDeprecatedFields` | `func() ([]DeprecatedField, error)` | Returns deprecated frontmatter fields with migration notes |
@@ -123,6 +129,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ComputeFrontmatterHashFromFile` | `func(filePath string, cache *ImportCache) (string, error)` | Computes a stable hash of a workflow's frontmatter (including imports) |
+| `ComputeFrontmatterHashFromParsedContent` | `func(frontmatterText, markdownBody string, parsedFrontmatter map[string]any, baseDir string, cache *ImportCache, fileReader FileReader) (string, error)` | Computes hash from already-extracted frontmatter text and markdown body |
 | `ComputeFrontmatterHashFromFileWithParsedFrontmatter` | `func(filePath string, parsedFrontmatter map[string]any, ...) (string, error)` | Computes hash from already-parsed frontmatter |
 | `ComputeFrontmatterHashFromFileWithReader` | `func(filePath string, cache *ImportCache, fileReader FileReader) (string, error)` | Computes hash with a custom file reader |
 
