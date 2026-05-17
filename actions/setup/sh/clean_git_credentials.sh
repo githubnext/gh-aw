@@ -80,6 +80,8 @@ WORKSPACE="${GITHUB_WORKSPACE:-.}"
 
 # Collect all git config files to clean from workspace and /tmp/.
 # Includes both repository configs and submodule configs under .git/modules/**/config.
+# Use maxdepth 15 as a conservative cap to cover deeply nested submodules
+# (.git/modules/<a>/modules/<b>/...) without unbounded traversal.
 CLEANED=0
 while IFS= read -r git_config; do
   clean_git_config "${git_config}"
