@@ -660,6 +660,7 @@ function loadMissingToolMessages(items) {
             tool: item.tool || null,
             reason: item.reason,
             alternatives: item.alternatives || null,
+            denied_commands: Array.isArray(item.denied_commands) ? item.denied_commands : [],
           });
         }
       }
@@ -732,8 +733,8 @@ function buildPermissionDeniedContext(items, workflowId) {
   const deniedCommandsInline = deniedArray.map(cmd => `\`${cmd}\``).join(", ");
   const deniedCount = String(deniedArray.length);
 
-  const templatePath = getPromptPath("permission_denied_context.md");
   try {
+    const templatePath = getPromptPath("permission_denied_context.md");
     const template = fs.readFileSync(templatePath, "utf8");
     const rendered = renderTemplate(template, {
       denied_count: deniedCount,

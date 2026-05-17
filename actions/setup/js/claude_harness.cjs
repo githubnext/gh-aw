@@ -185,7 +185,7 @@ function extractDeniedCommands(output) {
       // Look back up to 3 lines for a command displayed with the
       // Copilot CLI box-drawing pipe marker (│ U+2502) or plain pipe (|).
       for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
-        const cmdMatch = lines[j].match(/[\u2502|]\s+(.+)\s*$/);
+        const cmdMatch = lines[j].match(/^\s*[\u2502|]\s+(.+)\s*$/);
         if (cmdMatch && cmdMatch[1].trim()) {
           deniedCommands.add(cmdMatch[1].trim());
           break;

@@ -212,6 +212,15 @@ describe("codex_harness.cjs", () => {
       ].join("\n");
       expect(extractDeniedCommands(output)).toEqual([]);
     });
+
+    it("does not capture suffix of a command containing an internal pipe", () => {
+      // "find . -name '*.go' | sort" should not match by splitting on the internal |
+      const output = [
+        "  find . -name '*.go' | sort",
+        "  Permission denied",
+      ].join("\n");
+      expect(extractDeniedCommands(output)).toEqual([]);
+    });
   });
 
   describe("retry policy: fresh run on partial execution", () => {
