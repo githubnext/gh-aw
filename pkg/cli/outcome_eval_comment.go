@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -31,7 +32,7 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 	data, err := ghAPIGet("issues/comments/"+commentID, repo)
 	if err != nil {
 		// 404 means deleted
-		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
+		if errorutil.IsNotFoundError(err) {
 			outcomeEvalCommentLog.Printf("Comment %s deleted (404)", commentID)
 			report.Result = OutcomeRejected
 			report.Detail = "deleted"
