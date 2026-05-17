@@ -80,6 +80,7 @@ Always run `gh aw compile` after modifying frontmatter. Markdown body changes ta
 | Memory / persistence | [memory.md](memory.md) |
 | Experiments / A/B testing | [experiments.md](experiments.md) |
 | Campaign / KPI workflows | [campaign.md](campaign.md) |
+| LLM API endpoint discovery | [llms.md](llms.md) |
 
 ## Key Principles
 
