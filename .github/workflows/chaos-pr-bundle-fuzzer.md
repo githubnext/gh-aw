@@ -18,6 +18,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[chaos-test] "
     preserve-branch-name: true
+    recreate-ref: true
     labels: [test-in-progress]
     draft: true
     max: 5
