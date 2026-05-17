@@ -193,7 +193,7 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		assert.Contains(t, combined, "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_pre_setup.sh", "cleanup should include runner temp pre-setup helper path")
 		assert.Contains(t, combined, "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh", "cleanup should include workspace pre-setup helper path")
 		assert.Contains(t, combined, "WARNING: Git credential cleanup skipped", "cleanup should include explicit warning when no helper is available")
-		assert.Contains(t, combined, "Checked runtime cleaner plus both pre-setup helper paths and none were available", "warning should explain why cleanup was skipped")
+		assert.Contains(t, combined, "Runtime and pre-setup helpers unavailable", "warning should explain why cleanup was skipped")
 		runtimeCleanerPos := strings.Index(combined, `if [ -x "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh" ]; then`)
 		preSetupCleanerPos := strings.Index(combined, `if [ -x "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_pre_setup.sh" ]; then`)
 		assert.NotEqual(t, -1, runtimeCleanerPos, "runtime cleaner reference should exist")
