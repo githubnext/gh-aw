@@ -1013,7 +1013,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           _duplicate_title: duplicate.title,
           _duplicate_distance: duplicate.distance,
         };
-        appendSafeOutput(droppedEntry);
+        const largeContentResponse = maybeHandleLargeContent(droppedEntry);
+        if (!largeContentResponse) {
+          appendSafeOutput(droppedEntry);
+        }
         return {
           content: [
             {

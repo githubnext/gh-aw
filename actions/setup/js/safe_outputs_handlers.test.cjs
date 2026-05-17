@@ -1295,6 +1295,21 @@ describe("safe_outputs_handlers", () => {
       expect(secondResponse.result).toBe("duplicate_dropped");
     });
 
+    it("should offload large duplicate create_issue body before appending dropped entry", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: true,
+        },
+      });
+
+      h.createIssueHandler({ title: "Duplicate Issue", body: "First body" });
+      h.createIssueHandler({ title: "Duplicate Issue", body: "A".repeat(70000) });
+
+      const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
+      expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
+      expect(droppedEntry.body).toContain("[Content too large, saved to file:");
+    });
+
     it("should reject invalid deduplicate-by-title configuration", () => {
       expect(() =>
         createHandlers(mockServer, mockAppendSafeOutput, {
