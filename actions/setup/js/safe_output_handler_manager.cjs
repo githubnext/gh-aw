@@ -1338,16 +1338,34 @@ async function main() {
       } else {
         core.info("Submitting PR review (body-only, no inline comments)");
       }
+      let reviewFailureError = null;
       try {
         const reviewResult = await prReviewBuffer.submitReview();
         if (reviewResult.success && !reviewResult.skipped) {
           core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
         } else if (!reviewResult.success) {
-          core.warning(`✗ Failed to submit PR review: ${reviewResult.error}`);
+          reviewFailureError = reviewResult.error || "PR review finalization failed";
+          core.error(`✗ Failed to submit PR review: ${reviewFailureError}`);
         }
       } catch (reviewError) {
-        const errorMessage = reviewError instanceof Error ? reviewError.message : String(reviewError);
-        core.warning(`✗ Exception while submitting PR review: ${errorMessage}`);
+        reviewFailureError = reviewError instanceof Error ? reviewError.message : String(reviewError);
+        core.error(`✗ Exception while submitting PR review: ${reviewFailureError}`);
+      }
+
+      // Roll back per-message success counts when the finalization POST failed.
+      // Both submit_pull_request_review and create_pull_request_review_comment handlers
+      // return success:true during message processing (they only buffer), so the failure
+      // must be reflected here to ensure the Processing Summary shows the correct counts.
+      if (reviewFailureError !== null) {
+        for (const r of processingResult.results) {
+          if (
+            (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") &&
+            r.success === true
+          ) {
+            r.success = false;
+            r.error = `Review finalization failed: ${reviewFailureError}`;
+          }
+        }
       }
     }
 
