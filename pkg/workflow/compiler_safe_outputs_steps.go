@@ -129,15 +129,21 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 
 	// Step 1a: For comment-triggered privileged events, force checkout to trusted default branch.
 	// This avoids checking out potentially untrusted refs inferred from event context.
-	baseCondition := RenderCondition(condition)
-	const commentEventCondition = "(github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment')"
-	const nonCommentEventCondition = "github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment'"
+	commentEventCondition := BuildDisjunction(
+		false,
+		BuildEventTypeEquals("issue_comment"),
+		BuildEventTypeEquals("pull_request_review_comment"),
+	)
+	nonCommentEventCondition := BuildAnd(
+		BuildNotEquals(BuildPropertyAccess("github.event_name"), BuildStringLiteral("issue_comment")),
+		BuildNotEquals(BuildPropertyAccess("github.event_name"), BuildStringLiteral("pull_request_review_comment")),
+	)
 
 	// Only emit the trusted-default-branch path for same-repo checkouts.
 	// Cross-repo checkouts rely on explicit target-repo branch selection.
 	if targetRepoSlug == "" {
 		steps = append(steps, "      - name: Checkout repository (trusted default branch for comment events)\n")
-		steps = append(steps, fmt.Sprintf("        if: %s && %s\n", baseCondition, commentEventCondition))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(BuildAnd(condition, commentEventCondition))))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          ref: ${{ github.event.repository.default_branch }}\n")
@@ -149,9 +155,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// Step 1b: Checkout repository with conditional execution
 	steps = append(steps, "      - name: Checkout repository\n")
 	if targetRepoSlug == "" {
-		steps = append(steps, fmt.Sprintf("        if: %s && %s\n", baseCondition, nonCommentEventCondition))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(BuildAnd(condition, nonCommentEventCondition))))
 	} else {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", baseCondition))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(condition)))
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
