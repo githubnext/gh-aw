@@ -326,7 +326,7 @@ func generateCheckoutCredentialsCleanupStep() string {
             echo "Using pre-setup clean_git_credentials helper"
             bash "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh"
           else
-            echo "No git credential cleaner script available"
+            echo "Warning: Git credential cleanup skipped - neither runtime nor pre-setup cleaner script available"
           fi
 `
 }
