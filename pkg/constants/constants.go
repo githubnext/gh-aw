@@ -134,6 +134,10 @@ const (
 // Defaults to false (lockdown disabled).
 const DefaultGitHubLockdown = false
 
+// OTELSentryEndpointSecretName is the well-known secret name used by shared OTLP
+// workflow imports for Sentry endpoint configuration.
+const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
+
 // AWF (Agentic Workflow Firewall) constants
 
 // AWFDefaultCommand is the default AWF command prefix

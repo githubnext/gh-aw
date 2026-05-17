@@ -5,20 +5,32 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
+
+var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 
 // normalizeOTLPHeaders converts the headers field value (which may be a string or a map)
 // into the comma-separated key=value format required by OTEL_EXPORTER_OTLP_HEADERS.
 //
 // String form: "Authorization=Bearer tok,X-Tenant=acme"
 // Map form:    map[string]any{"Authorization": "Bearer tok", "X-Tenant": "acme"}
+//
+// Header values that themselves contain commas must use the map form because the
+// OTEL_EXPORTER_OTLP_HEADERS string format is a comma-separated list of
+// key=value pairs.
 func normalizeOTLPHeaders(raw any) string {
+	return normalizeOTLPHeadersForEndpoint(raw, "")
+}
+
+func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
 	if raw == nil {
 		return ""
 	}
@@ -27,7 +39,7 @@ func normalizeOTLPHeaders(raw any) string {
 		if v == "" {
 			return ""
 		}
-		return v
+		return rewriteOTLPHeaderPairsForEndpoint(v, endpoint)
 	case map[string]any:
 		if len(v) == 0 {
 			return ""
@@ -45,13 +57,69 @@ func normalizeOTLPHeaders(raw any) string {
 				otlpLog.Printf("OTLP headers map: value for key %q is not a string (got %T), skipping", k, v[k])
 				continue
 			}
-			parts = append(parts, k+"="+val)
+			parts = append(parts, normalizeOTLPHeaderNameForEndpoint(k, endpoint)+"="+val)
 		}
 		return strings.Join(parts, ",")
 	default:
 		otlpLog.Printf("Unexpected type for OTLP headers: %T", raw)
 		return ""
 	}
+}
+
+func rewriteOTLPHeaderPairsForEndpoint(raw string, endpoint string) string {
+	if !shouldRewriteAuthorizationForSentry(endpoint) || !strings.Contains(raw, "=") {
+		return raw
+	}
+	if strings.Contains(raw, "Authorization=Sentry sentry_version=") && strings.Contains(raw, ", sentry_key=") {
+		otlpLog.Printf("Detected Sentry auth value with commas in string form - this may cause parsing errors. Use map form for headers instead: map[string]any{\"Authorization\": \"...\"}")
+	}
+
+	pairs := strings.Split(raw, ",")
+	for i, pair := range pairs {
+		key, value, found := strings.Cut(pair, "=")
+		if !found {
+			continue
+		}
+		pairs[i] = normalizeOTLPHeaderNameForEndpoint(strings.TrimSpace(key), endpoint) + "=" + value
+	}
+
+	return strings.Join(pairs, ",")
+}
+
+func normalizeOTLPHeaderNameForEndpoint(name string, endpoint string) string {
+	if shouldRewriteAuthorizationForSentry(endpoint) && strings.EqualFold(strings.TrimSpace(name), "Authorization") {
+		return "x-sentry-auth"
+	}
+
+	return name
+}
+
+func shouldRewriteAuthorizationForSentry(endpoint string) bool {
+	trimmed := strings.TrimSpace(endpoint)
+	if trimmed == "" {
+		return false
+	}
+	lowerTrimmed := strings.ToLower(trimmed)
+
+	if parsed, err := url.Parse(trimmed); err == nil {
+		if host := strings.ToLower(parsed.Hostname()); host != "" {
+			return strings.Contains(host, "sentry")
+		}
+	}
+
+	if isGitHubActionsExpression(trimmed) {
+		return sentryEndpointExpressionPattern.MatchString(trimmed)
+	}
+
+	return strings.Contains(lowerTrimmed, "sentry")
+}
+
+// isGitHubActionsExpression returns true when the value is wrapped in GitHub
+// Actions expression delimiters like `${{ ... }}` after trimming surrounding
+// whitespace.
+func isGitHubActionsExpression(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	return strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}")
 }
 
 // extractOTLPEndpointDomain parses an OTLP endpoint URL and returns its hostname.
@@ -228,7 +296,7 @@ func collectAllOTLPEndpoints(frontmatter map[string]any) []otlpEndpointEntry {
 	case string:
 		// Backward-compat string form: endpoint: "https://..."
 		if ep != "" {
-			headers := normalizeOTLPHeaders(topHeadersRaw)
+			headers := normalizeOTLPHeadersForEndpoint(topHeadersRaw, ep)
 			entries = append(entries, otlpEndpointEntry{URL: ep, Headers: headers})
 		}
 	case map[string]any:
@@ -236,7 +304,7 @@ func collectAllOTLPEndpoints(frontmatter map[string]any) []otlpEndpointEntry {
 		if url, _ := ep["url"].(string); url != "" {
 			headers := ""
 			if h, hasH := ep["headers"]; hasH {
-				headers = normalizeOTLPHeaders(h)
+				headers = normalizeOTLPHeadersForEndpoint(h, url)
 			}
 			entries = append(entries, otlpEndpointEntry{URL: url, Headers: headers})
 		}
@@ -253,7 +321,7 @@ func collectAllOTLPEndpoints(frontmatter map[string]any) []otlpEndpointEntry {
 			}
 			headers := ""
 			if h, hasH := itemMap["headers"]; hasH {
-				headers = normalizeOTLPHeaders(h)
+				headers = normalizeOTLPHeadersForEndpoint(h, url)
 			}
 			entries = append(entries, otlpEndpointEntry{URL: url, Headers: headers})
 		}
@@ -374,7 +442,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 			var h string
 			if workflowData.ParsedFrontmatter.Observability != nil &&
 				workflowData.ParsedFrontmatter.Observability.OTLP != nil {
-				h = normalizeOTLPHeaders(workflowData.ParsedFrontmatter.Observability.OTLP.Headers)
+				h = normalizeOTLPHeadersForEndpoint(workflowData.ParsedFrontmatter.Observability.OTLP.Headers, ep)
 			}
 			entries = []otlpEndpointEntry{{URL: ep, Headers: h}}
 		}

@@ -31,19 +31,16 @@ const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } 
  * @returns {Object} An object containing all handler functions
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
-  /**
-   * Default handler for safe output tools
-   * Spec cross-reference: Safe Output Outcome Evaluation §2/§4/§5/§6/§7/§8/§9/§10/§11/§12/§13/§14/§15/§16/§18/§19/§20/§21/§22/§23/§24/§25/§26/§27/§28/§29.
-   * @param {string} type - The tool type
-   * @returns {Function} Handler function
-   */
-  const defaultHandler = type => args => {
-    const entry = { ...(args || {}), type };
+  const TOKEN_THRESHOLD = 16000;
 
-    // Check if any field in the entry has content exceeding 16000 tokens
+  /**
+   * Detect and offload large string fields to files.
+   * @param {Record<string, any>} entry
+   * @returns {Object | null} MCP response if large content was handled, else null
+   */
+  const maybeHandleLargeContent = entry => {
     let largeContent = null;
     let largeFieldName = null;
-    const TOKEN_THRESHOLD = 16000;
 
     for (const [key, value] of Object.entries(entry)) {
       if (typeof value === "string") {
@@ -57,26 +54,34 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
     }
 
-    if (largeContent && largeFieldName) {
-      // Write large content to file
-      const fileInfo = writeLargeContentToFile(largeContent);
-
-      // Replace large field with file reference
-      entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
-
-      // Append modified entry to safe outputs
-      appendSafeOutput(entry);
-
-      // Return file info to the agent
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(fileInfo),
-          },
-        ],
-      };
+    if (!largeContent || !largeFieldName) {
+      return null;
     }
+
+    const fileInfo = writeLargeContentToFile(largeContent);
+    entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+    appendSafeOutput(entry);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(fileInfo),
+        },
+      ],
+    };
+  };
+
+  /**
+   * Default handler for safe output tools
+   * Spec cross-reference: Safe Output Outcome Evaluation §2/§4/§5/§6/§7/§8/§9/§10/§11/§12/§13/§14/§15/§16/§18/§19/§20/§21/§22/§23/§24/§25/§26/§27/§28/§29.
+   * @param {string} type - The tool type
+   * @returns {Function} Handler function
+   */
+  const defaultHandler = type => args => {
+    const entry = { ...(args || {}), type };
+    const largeContentResponse = maybeHandleLargeContent(entry);
+    if (largeContentResponse) return largeContentResponse;
 
     // Normal case - no large content
     appendSafeOutput(entry);
@@ -1008,7 +1013,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           _duplicate_title: duplicate.title,
           _duplicate_distance: duplicate.distance,
         };
-        appendSafeOutput(droppedEntry);
+        const largeContentResponse = maybeHandleLargeContent(droppedEntry);
+        if (!largeContentResponse) {
+          appendSafeOutput(droppedEntry);
+        }
         return {
           content: [
             {
@@ -1024,6 +1032,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       seenTitles.push({ title: resolvedTitle, normalizedTitle });
       seenIssueTitlesByRepo.set(resolvedRepo, seenTitles);
     }
+
+    const largeContentResponse = maybeHandleLargeContent(entry);
+    if (largeContentResponse) return largeContentResponse;
 
     appendSafeOutput(entry);
     return {

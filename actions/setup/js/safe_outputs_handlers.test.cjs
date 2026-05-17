@@ -4,6 +4,8 @@ import path from "path";
 import { execSync } from "child_process";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
 
+const LARGE_CONTENT_BODY = "A".repeat(70000);
+
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
   debug: vi.fn(),
@@ -1293,6 +1295,22 @@ describe("safe_outputs_handlers", () => {
       const secondResponse = JSON.parse(second.content[0].text);
 
       expect(secondResponse.result).toBe("duplicate_dropped");
+    });
+
+    it("should offload large body when appending duplicate create_issue entry", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: true,
+        },
+      });
+
+      h.createIssueHandler({ title: "Duplicate Issue", body: "First body" });
+      h.createIssueHandler({ title: "Duplicate Issue", body: LARGE_CONTENT_BODY });
+
+      expect(mockAppendSafeOutput.mock.calls).toHaveLength(2);
+      const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
+      expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
+      expect(droppedEntry.body).toContain("[Content too large, saved to file:");
     });
 
     it("should reject invalid deduplicate-by-title configuration", () => {

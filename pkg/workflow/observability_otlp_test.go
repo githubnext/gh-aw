@@ -862,6 +862,76 @@ func TestNormalizeOTLPHeaders(t *testing.T) {
 	}
 }
 
+func TestNormalizeOTLPHeadersForEndpoint(t *testing.T) {
+	t.Run("rewrites Authorization header for sentry URL", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			map[string]any{"Authorization": "Bearer tok"},
+			"https://o123.ingest.sentry.io/api/123/envelope/",
+		)
+		assert.Equal(t, "x-sentry-auth=Bearer tok", gotHeaders, "Sentry endpoints should use x-sentry-auth")
+	})
+
+	t.Run("rewrites Authorization header for known sentry endpoint expression", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			"Authorization=Bearer tok,X-Tenant=acme",
+			"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}",
+		)
+		assert.Equal(t, "x-sentry-auth=Bearer tok,X-Tenant=acme", gotHeaders, "Sentry-named endpoint expressions should use x-sentry-auth")
+	})
+
+	t.Run("rewrites Authorization header for sentry URL with additional headers", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			"Authorization=Bearer tok,X-Tenant=acme",
+			"https://o123.ingest.sentry.io/api/123/envelope/",
+		)
+		assert.Equal(t, "x-sentry-auth=Bearer tok,X-Tenant=acme", gotHeaders, "Sentry endpoints should rewrite Authorization while preserving additional headers")
+	})
+
+	t.Run("preserves Authorization header for non-standard sentry endpoint expressions", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			"Authorization=Bearer tok,X-Tenant=acme",
+			"${{ secrets.TEAM_SENTRY_PROXY_ENDPOINT }}",
+		)
+		assert.Equal(t, "Authorization=Bearer tok,X-Tenant=acme", gotHeaders, "Only the known Sentry endpoint expression should use x-sentry-auth")
+	})
+
+	t.Run("preserves Authorization header for grafana endpoint", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			map[string]any{"Authorization": "Bearer tok", "X-Scope-OrgID": "tenant"},
+			"https://otlp-gateway-prod-us-central-0.grafana.net/otlp",
+		)
+		assert.Equal(t, "Authorization=Bearer tok,X-Scope-OrgID=tenant", gotHeaders, "Non-Sentry endpoints should keep Authorization")
+	})
+
+	t.Run("preserves Authorization header when sentry appears outside URL host", func(t *testing.T) {
+		gotHeaders := normalizeOTLPHeadersForEndpoint(
+			"Authorization=Bearer tok,X-Tenant=acme",
+			"https://otlp-gateway-prod-us-central-0.grafana.net/sentry/proxy",
+		)
+		assert.Equal(t, "Authorization=Bearer tok,X-Tenant=acme", gotHeaders, "Only Sentry hosts should use x-sentry-auth")
+	})
+}
+
+func TestIsGitHubActionsExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{name: "valid expression", input: "${{ secrets.FOO }}", expected: true},
+		{name: "valid expression with surrounding whitespace", input: "  ${{ secrets.FOO }}  ", expected: true},
+		{name: "missing suffix", input: "${{ secrets.FOO }", expected: false},
+		{name: "missing prefix", input: "secrets.FOO }}", expected: false},
+		{name: "plain string", input: "https://o123.ingest.sentry.io/api/123/envelope/", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isGitHubActionsExpression(tt.input))
+		})
+	}
+}
+
 // TestInjectOTLPConfig_MapHeaders verifies that the map form for headers is supported.
 func TestInjectOTLPConfig_MapHeaders(t *testing.T) {
 	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS from map form", func(t *testing.T) {
@@ -1071,6 +1141,29 @@ func TestCollectAllOTLPEndpoints(t *testing.T) {
 			},
 		},
 		{
+			name: "array form: sentry endpoint rewrites Authorization while grafana keeps it",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": []any{
+							map[string]any{
+								"url":     "${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}",
+								"headers": map[string]any{"Authorization": "Bearer sentry-token"},
+							},
+							map[string]any{
+								"url":     "${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}",
+								"headers": map[string]any{"Authorization": "Bearer grafana-token"},
+							},
+						},
+					},
+				},
+			},
+			wantEntries: []otlpEndpointEntry{
+				{URL: "${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}", Headers: "x-sentry-auth=Bearer sentry-token"},
+				{URL: "${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}", Headers: "Authorization=Bearer grafana-token"},
+			},
+		},
+		{
 			name: "array form: entries with empty URL are skipped",
 			frontmatter: map[string]any{
 				"observability": map[string]any{
@@ -1248,6 +1341,31 @@ func TestInjectOTLPConfig_MultipleEndpoints(t *testing.T) {
 
 		assert.Contains(t, wd.Env, "GH_AW_OTLP_ALL_HEADERS:", "all-headers env var should be injected for multiple endpoints")
 		assert.True(t, isOTLPHeadersPresent(wd), "isOTLPHeadersPresent should detect GH_AW_OTLP_ALL_HEADERS")
+	})
+
+	t.Run("rewrites sentry auth header without changing grafana auth header", func(t *testing.T) {
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": []any{
+							map[string]any{
+								"url":     "${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}",
+								"headers": map[string]any{"Authorization": "${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},
+							},
+							map[string]any{
+								"url":     "${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}",
+								"headers": map[string]any{"Authorization": "${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"},
+							},
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}", "primary Sentry endpoint should use x-sentry-auth with the configured header value")
+		assert.Contains(t, wd.Env, `GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'`, "fan-out endpoints should preserve per-vendor auth headers")
 	})
 
 	t.Run("does not set GH_AW_OTLP_ALL_HEADERS for single endpoint (string form)", func(t *testing.T) {

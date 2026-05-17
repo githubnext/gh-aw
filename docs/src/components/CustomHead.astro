@@ -28,6 +28,7 @@ const homeJsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
+      '@context': 'https://schema.org',
       '@type': 'WebSite',
       '@id': 'https://github.github.com/gh-aw/#website',
       name: siteTitle,
@@ -43,6 +44,7 @@ const homeJsonLd = {
       },
     },
     {
+      '@context': 'https://schema.org',
       '@type': 'Organization',
       '@id': 'https://github.github.com/gh-aw/#organization',
       name: 'GitHub',
@@ -50,12 +52,21 @@ const homeJsonLd = {
       sameAs: [
         'https://github.com/github/gh-aw',
         'https://github.com/github',
+        'https://www.linkedin.com/company/github',
+        'https://www.wikidata.org/wiki/Q364',
         'https://githubnext.com/',
         'https://github.blog/',
       ],
+      contactPoint: {
+        '@context': 'https://schema.org',
+        '@type': 'ContactPoint',
+        contactType: 'customer service',
+        url: 'https://github.com/github/gh-aw/issues',
+      },
       dateModified: '2026-05-09',
     },
     {
+      '@context': 'https://schema.org',
       '@type': 'SoftwareApplication',
       '@id': 'https://github.github.com/gh-aw/#software',
       name: siteTitle,
@@ -64,11 +75,14 @@ const homeJsonLd = {
       applicationCategory: 'DeveloperApplication',
       operatingSystem: 'Any',
       dateModified: '2026-05-09',
+      downloadUrl: 'https://github.com/github/gh-aw/releases',
       creator: {
+        '@context': 'https://schema.org',
         '@id': 'https://github.github.com/gh-aw/#organization',
       },
     },
     {
+      '@context': 'https://schema.org',
       '@type': 'FAQPage',
       '@id': 'https://github.github.com/gh-aw/#faq',
       mainEntity: [

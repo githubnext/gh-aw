@@ -57,9 +57,9 @@ Step 1 is local-only: it checks env injection, the local JSONL mirror, and span 
 This workflow expects these secrets to be present:
 
 - `GH_AW_OTEL_SENTRY_ENDPOINT`
-- `GH_AW_OTEL_SENTRY_HEADERS`
+- `GH_AW_OTEL_SENTRY_AUTHORIZATION`
 - `GH_AW_OTEL_GRAFANA_ENDPOINT`
-- `GH_AW_OTEL_GRAFANA_HEADERS`
+- `GH_AW_OTEL_GRAFANA_AUTHORIZATION`
 - `SENTRY_ACCESS_TOKEN`
 - `GRAFANA_URL`
 - `GRAFANA_SERVICE_ACCOUNT_TOKEN`
