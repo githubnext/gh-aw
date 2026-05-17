@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Disable history expansion so values containing "!" are handled safely.
 set +o histexpand
 
 git_configs_processed=0
