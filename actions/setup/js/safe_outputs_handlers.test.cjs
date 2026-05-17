@@ -1305,6 +1305,7 @@ describe("safe_outputs_handlers", () => {
       h.createIssueHandler({ title: "Duplicate Issue", body: "First body" });
       h.createIssueHandler({ title: "Duplicate Issue", body: "A".repeat(70000) });
 
+      expect(mockAppendSafeOutput.mock.calls).toHaveLength(2);
       const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
       expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
       expect(droppedEntry.body).toContain("[Content too large, saved to file:");
