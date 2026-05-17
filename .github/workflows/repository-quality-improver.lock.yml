@@ -965,7 +965,7 @@ jobs:
         with:
           name: cache-memory-focus-areas
           include-hidden-files: true
-          path: /tmp/gh-aw/cache-memory-focus-areas/.
+          path: /tmp/gh-aw/cache-memory-focus-areas
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
