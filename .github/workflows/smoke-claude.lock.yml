@@ -867,31 +867,7 @@ jobs:
           fetch-depth: 0
       - name: Clean git credentials after checkout
         continue-on-error: true
-        run: |
-          if [ -x "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh" ]; then
-            bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh"
-          else
-            echo "WARNING: Checkout cleanup helper missing. Running inline fallback."
-            cleaned_configs=0
-            while IFS= read -r git_config; do
-              git config --file "${git_config}" --remove-section credential 2>/dev/null || true
-              sed -i '/^\[credential /,/^\[/{ /^\[credential /d; /^\[/!d; }' "${git_config}" 2>/dev/null || true
-              git config --file "${git_config}" --unset-all http.extraheader 2>/dev/null || true
-              git config --file "${git_config}" --get-regexp '^http\..*\.extraheader$' 2>/dev/null | while read -r key _; do
-                git config --file "${git_config}" --unset-all "${key}" || true
-              done || true
-              git config --file "${git_config}" --get-regexp '^remote\..*\.url$' 2>/dev/null | while read -r key url; do
-                clean_url=$(echo "${url}" | sed -E 's|(https?://)([^@]+@)?(.*)|\1\3|')
-                if [ "${url}" != "${clean_url}" ]; then
-                  git config --file "${git_config}" "${key}" "${clean_url}"
-                fi
-              done || true
-              cleaned_configs=$((cleaned_configs + 1))
-            done < <(find "${GITHUB_WORKSPACE}" /tmp -maxdepth 15 -type f -name "config" \( -path "*/.git/config" -o -path "*/.git/modules/*/config" \) 2>/dev/null | sort -u)
-            if [ "${cleaned_configs}" -eq 0 ]; then
-              echo "No git config files found for checkout cleanup fallback"
-            fi
-          fi
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh"
       - name: Fetch additional refs
         env:
           GH_AW_FETCH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
