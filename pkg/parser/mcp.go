@@ -182,8 +182,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		if hasTools {
 			if tools, ok := toolsSection.(map[string]any); ok {
 				for toolName, toolValue := range tools {
-					// Only handle built-in MCP tools (github, playwright, and serena)
-					if toolName == "github" || toolName == "playwright" || toolName == "serena" {
+					if toolName == "serena" {
+						return nil, fmt.Errorf("tools.serena is removed")
+					}
+					// Only handle built-in MCP tools (github, playwright)
+					if toolName == "github" || toolName == "playwright" {
 						config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
 						if err != nil {
 							return nil, err
@@ -210,8 +213,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	if hasTools {
 		if tools, ok := toolsSection.(map[string]any); ok {
 			for toolName, toolValue := range tools {
-				// Only handle built-in MCP tools (github, playwright, and serena)
-				if toolName == "github" || toolName == "playwright" || toolName == "serena" {
+				if toolName == "serena" {
+					return nil, fmt.Errorf("tools.serena is removed")
+				}
+				// Only handle built-in MCP tools (github, playwright)
+				if toolName == "github" || toolName == "playwright" {
 					config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
 					if err != nil {
 						return nil, err
@@ -251,7 +257,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	return configs, nil
 }
 
-// processBuiltinMCPTool handles built-in MCP tools (github, playwright, and serena)
+// processBuiltinMCPTool handles built-in MCP tools (github and playwright)
 func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) (*RegistryMCPServerConfig, error) {
 	// Apply server filter if specified
 	if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
@@ -419,59 +425,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 					config.Args = append(config.Args, argsSlice...)
 				}
 			}
-		}
-
-		return &config, nil
-	} else if toolName == "serena" {
-		// Handle Serena MCP server - uses uvx to install and run from GitHub
-		config := RegistryMCPServerConfig{
-			BaseMCPServerConfig: types.BaseMCPServerConfig{
-				Type:    "stdio",
-				Command: "uvx",
-				Args: []string{
-					"--from", "git+https://github.com/oraios/serena",
-					"serena", "start-mcp-server",
-					"--context", "codex",
-					"--project", "${GITHUB_WORKSPACE}",
-				},
-				Env: make(map[string]string),
-			},
-			Name: "serena",
-		}
-
-		// Check for custom Serena configuration
-		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Handle custom args - these would be appended to the default args
-			if argsValue, exists := toolConfig["args"]; exists {
-				// Handle []any format
-				if argsSlice, ok := argsValue.([]any); ok {
-					for _, arg := range argsSlice {
-						if argStr, ok := arg.(string); ok {
-							config.Args = append(config.Args, argStr)
-						}
-					}
-				}
-				// Handle []string format
-				if argsSlice, ok := argsValue.([]string); ok {
-					config.Args = append(config.Args, argsSlice...)
-				}
-			}
-
-			// Handle allowed tools configuration
-			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
-				if allowedSlice, ok := allowed.([]any); ok {
-					for _, item := range allowedSlice {
-						if str, ok := item.(string); ok {
-							config.Allowed = append(config.Allowed, str)
-						}
-					}
-				}
-			}
-		}
-
-		// If no specific allowed tools are configured, allow all tools (*)
-		if len(config.Allowed) == 0 {
-			config.Allowed = []string{"*"}
 		}
 
 		return &config, nil

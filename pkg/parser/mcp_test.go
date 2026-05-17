@@ -5,6 +5,7 @@ package parser
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/types"
@@ -16,11 +17,12 @@ import (
 
 func TestExtractMCPConfigurations(t *testing.T) {
 	tests := []struct {
-		name         string
-		frontmatter  map[string]any
-		serverFilter string
-		expected     []RegistryMCPServerConfig
-		expectError  bool
+		name                string
+		frontmatter         map[string]any
+		serverFilter        string
+		expected            []RegistryMCPServerConfig
+		expectError         bool
+		expectedErrContains string
 	}{
 		{
 			name: "GitHub tool with read-only true",
@@ -129,6 +131,16 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				"on":   "push",
 			},
 			expected: []RegistryMCPServerConfig{},
+		},
+		{
+			name: "Serena tool is removed",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"serena": true,
+				},
+			},
+			expectError:         true,
+			expectedErrContains: "tools.serena is removed",
 		},
 		{
 			name: "GitHub tool default configuration",
@@ -378,6 +390,10 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
+					return
+				}
+				if tt.expectedErrContains != "" && !strings.Contains(err.Error(), tt.expectedErrContains) {
+					t.Errorf("Expected error containing %q, got %q", tt.expectedErrContains, err.Error())
 				}
 				return
 			}
