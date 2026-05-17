@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.8  
+**Version**: 1.0.9  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -24,7 +24,7 @@ This specification is the source of truth for detection rule coverage, implement
 
 This is a Candidate Recommendation specification. It may be revised based on operational evidence, threat-model updates, and conformance results.
 
-**Publication Date**: May 16, 2026  
+**Publication Date**: May 17, 2026  
 **Governance**: This specification is maintained by the gh-aw maintainers and governed by gh-aw security review processes.
 
 ## Table of Contents
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.9` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). Top-level `sandbox: false` is no longer a valid workflow input; `sandbox.agent: false` is the supported field for CTR-004 detection. |
 | `1.0.8` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). |
 
 When this specification version changes, maintainers MUST update this table in the same pull request as any lock-file compatibility changes.
@@ -215,7 +216,7 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go`, `pkg/workflow/github_app_permissions_validation.go` | `pkg/workflow/*permissions*_test.go`, `pkg/workflow/*dangerous_permissions*_test.go` |
 | CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*action*_test.go`, `pkg/workflow/*strict_mode*_test.go` |
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
-| CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go` | `pkg/workflow/*sandbox*_test.go` |
+| CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go` | `pkg/workflow/*sandbox*_test.go` |
 | CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go` | `pkg/workflow/*safe_outputs*_test.go` |
 | CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go`, `pkg/workflow/heredoc_validation.go` | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go` |
 | CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go` |
@@ -235,11 +236,9 @@ The mappings above are pattern-based references and MUST be validated against co
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-05-15)
+### 7.2 Mapping Audit (2026-05-17)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-018` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table.
-
-Implementation note: entries that use glob patterns (for example, `pkg/workflow/*permissions*validation*.go`) SHOULD continue to be verified against concrete files during each rule update to prevent silent drift.
+Audit result: ✅ all listed `CTR-001` through `CTR-018` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. CTR-004 mapping updated to include `strict_mode_permissions_validation.go`, which is the primary enforcement site for `sandbox.agent: false` rejection in strict mode.
 
 ---
 
@@ -263,7 +262,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 | **T-CTR-001** | CTR-001 Privilege Escalation | Workflow frontmatter declares `permissions: contents: write` (or another write permission) in a non-safe-outputs job without `strict: false` override | Compilation failure with error identifying the unauthorized write permission and suggesting `safe-outputs` | `CTR-001` |
 | **T-CTR-002** | CTR-002 Unpinned Action Integrity | A `jobs.*.steps[].uses` field references an action by tag (e.g., `actions/checkout@v6`) or branch name (`@main`) in strict mode | Compilation failure with error identifying the unpinned reference and providing SHA pinning instructions | `CTR-002` |
 | **T-CTR-003** | CTR-003 Unsafe Tool Scope Expansion | Workflow grants wildcard tool permissions (e.g., `tools: bash: ["*"]`) in a context where policy forbids it, or an MCP server is granted broader than declared tool scope | Compilation failure or warning identifying the overbroad scope and suggesting a restricted permission set | `CTR-003` |
-| **T-CTR-004** | CTR-004 Sandbox Bypass Configuration | Workflow configuration sets `sandbox: false` or equivalent field that disables required sandboxing | Compilation failure with error identifying the disabled sandbox control and referencing the required configuration | `CTR-004` |
+| **T-CTR-004** | CTR-004 Sandbox Bypass Configuration | Workflow configuration sets `sandbox.agent: false` in strict mode, disabling the agent sandbox firewall | Compilation failure with error identifying the disabled sandbox control and referencing the required configuration; note that the formerly supported top-level `sandbox: false` field is removed and now triggers a schema validation error rather than CTR-004 | `CTR-004` |
 | **T-CTR-005** | CTR-005 Unsafe Output Route | Workflow uses a direct write path (e.g., `contents: write` with inline shell commands) that bypasses the safe-outputs subsystem | Compilation failure with error identifying the unsafe write route and requiring use of `safe-outputs` | `CTR-005` |
 | **T-CTR-006** | CTR-006 Template Injection | A `run:` step embeds a GitHub Actions expression (`${{ github.event.issue.title }}`) directly in the shell command string without environment variable indirection | Compilation failure with error identifying the injected expression, the affected step, and providing the env-var indirection pattern | `CTR-006` |
 | **T-CTR-007** | CTR-007 Markdown Content Security | An externally-sourced markdown workflow file contains a known dangerous pattern (e.g., unicode abuse, embedded HTML script tag, obfuscated link) | Compilation failure or error identifying the detected dangerous pattern, its location in the file, and recommending sanitization | `CTR-007` |
@@ -298,6 +297,12 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.9 (2026-05-17)
+
+- Updated T-CTR-004 detection trigger from deprecated `sandbox: false` (removed field) to `sandbox.agent: false` in strict mode; noted that the old top-level `sandbox: false` now triggers a schema validation error rather than CTR-004
+- Extended CTR-004 implementation mapping with `strict_mode_permissions_validation.go`, which is the concrete enforcement site for `sandbox.agent: false` rejection in strict mode
+- Updated Section 7.2 mapping audit timestamp and notes to reflect the CTR-004 mapping correction
 
 ### 1.0.8 (2026-05-16)
 

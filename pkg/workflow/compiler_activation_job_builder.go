@@ -135,15 +135,17 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		appPerms := NewPermissions()
 		addActivationInteractionPermissions(
 			appPerms,
-			data.On,
-			ctx.hasReaction,
-			ctx.reactionIssues,
-			ctx.reactionPullRequests,
-			ctx.reactionDiscussions,
-			ctx.hasStatusComment,
-			ctx.statusCommentIssues,
-			ctx.statusCommentPRs,
-			ctx.statusCommentDiscussions,
+			activationInteractionPermissionsOptions{
+				onSection:                         data.On,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+			},
 		)
 		if ctx.shouldRemoveLabel {
 			if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
@@ -490,18 +492,17 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 	if !ctx.data.StaleCheckDisabled {
 		permsMap[PermissionActions] = PermissionRead
 	}
-	addActivationInteractionPermissionsMap(
-		permsMap,
-		ctx.data.On,
-		ctx.hasReaction,
-		ctx.reactionIssues,
-		ctx.reactionPullRequests,
-		ctx.reactionDiscussions,
-		ctx.hasStatusComment,
-		ctx.statusCommentIssues,
-		ctx.statusCommentPRs,
-		ctx.statusCommentDiscussions,
-	)
+	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
+		onSection:                         ctx.data.On,
+		hasReaction:                       ctx.hasReaction,
+		reactionIncludesIssues:            ctx.reactionIssues,
+		reactionIncludesPullRequests:      ctx.reactionPullRequests,
+		reactionIncludesDiscussions:       ctx.reactionDiscussions,
+		hasStatusComment:                  ctx.hasStatusComment,
+		statusCommentIncludesIssues:       ctx.statusCommentIssues,
+		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+	})
 	// For centralized slash_command workflows, the compiled "on" section only contains
 	// workflow_dispatch, so addActivationInteractionPermissionsMap above cannot detect the
 	// original event types and skips write permissions. Supplement with a synthetic section
@@ -509,18 +510,17 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 	if ctx.data.CommandCentralized && (ctx.hasReaction || ctx.hasStatusComment) {
 		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
 		if syntheticOn != "" {
-			addActivationInteractionPermissionsMap(
-				permsMap,
-				syntheticOn,
-				ctx.hasReaction,
-				ctx.reactionIssues,
-				ctx.reactionPullRequests,
-				ctx.reactionDiscussions,
-				ctx.hasStatusComment,
-				ctx.statusCommentIssues,
-				ctx.statusCommentPRs,
-				ctx.statusCommentDiscussions,
-			)
+			addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
+				onSection:                         syntheticOn,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+			})
 		}
 	}
 	if ctx.data.LockForAgent {
