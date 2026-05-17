@@ -11199,6 +11199,11 @@
           "type": "boolean",
           "description": "When true, clones the repository's wiki git instead of the regular repository. The effective repository becomes \"{repository}.wiki\" (e.g. \"owner/repo.wiki\"). Defaults to false.",
           "examples": [true, false]
+        },
+        "force-clean-git-credentials": {
+          "type": "boolean",
+          "description": "When true, persist credentials during checkout, then immediately run a post-checkout cleanup step that removes credentials from root and submodule git configs. Useful for submodule-safe cleanup behavior.",
+          "examples": [true, false]
         }
       }
     },

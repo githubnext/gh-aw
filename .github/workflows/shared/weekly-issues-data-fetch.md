@@ -13,10 +13,6 @@ tools:
     - "ln *"
 
 steps:
-  - name: Install gh CLI
-    run: |
-      bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
-
   - name: Fetch weekly issues
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

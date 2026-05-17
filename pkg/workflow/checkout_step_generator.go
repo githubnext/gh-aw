@@ -164,9 +164,14 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
 
-	// Security: always disable credential persistence so the agent cannot
-	// exfiltrate credentials from disk.
-	sb.WriteString("          persist-credentials: false\n")
+	cleanCreds := override != nil && override.cleanCreds
+	if cleanCreds {
+		sb.WriteString("          persist-credentials: true\n")
+	} else {
+		// Security: default behavior disables credential persistence so the agent cannot
+		// exfiltrate credentials from disk.
+		sb.WriteString("          persist-credentials: false\n")
+	}
 
 	// Apply trial mode overrides
 	if trialMode {
@@ -221,6 +226,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	}
 
 	steps := []string{sb.String()}
+	if cleanCreds {
+		steps = append(steps, generateCheckoutCredentialsCleanupStep())
+	}
 
 	// Emit a git fetch step if the user requested additional refs.
 	// In trial mode the fetch step is still emitted so the behaviour
@@ -250,8 +258,12 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
 
-	// Security: always disable credential persistence
-	sb.WriteString("          persist-credentials: false\n")
+	if entry.cleanCreds {
+		sb.WriteString("          persist-credentials: true\n")
+	} else {
+		// Security: default behavior disables credential persistence
+		sb.WriteString("          persist-credentials: false\n")
+	}
 
 	if entry.key.wiki {
 		// Wiki checkout: use "{repository}.wiki" as the effective repository.
@@ -292,10 +304,20 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	}
 
 	steps := []string{sb.String()}
+	if entry.cleanCreds {
+		steps = append(steps, generateCheckoutCredentialsCleanupStep())
+	}
 	if fetchStep := generateFetchStepLines(entry, index); fetchStep != "" {
 		steps = append(steps, fetchStep)
 	}
 	return steps
+}
+
+func generateCheckoutCredentialsCleanupStep() string {
+	return `      - name: Clean git credentials after checkout
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh"
+`
 }
 
 // checkoutStepName returns a human-readable description for a checkout step.

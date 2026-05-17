@@ -39,6 +39,14 @@ type activationJobBuildContext struct {
 	customJobsBeforeActivation []string
 	activationNeeds            []string
 	activationCondition        string
+
+	// activationAllScripts holds the `run` scripts extracted from jobs.activation.pre-steps,
+	// cached to avoid repeated extraction. Only pre-steps are honored for built-in jobs;
+	// jobs.activation.steps and jobs.activation.post-steps are not injected by the compiler.
+	activationAllScripts []string
+	// activationInferredPerms holds the permissions inferred from activationAllScripts,
+	// cached here to avoid repeated inference.
+	activationInferredPerms map[PermissionScope]PermissionLevel
 }
 
 // newActivationJobBuildContext initializes activation-job state with setup, aw_info, and base outputs.
@@ -74,6 +82,19 @@ func (c *Compiler) newActivationJobBuildContext(
 		needsAppTokenForAccess:   data.ActivationGitHubApp != nil && !data.StaleCheckDisabled,
 	}
 	ctx.shouldRemoveLabel = ctx.hasLabelCommand && data.LabelCommandRemoveLabel
+
+	// Cache scripts from pre-steps and inferred permissions once to avoid redundant
+	// extraction and inference calls in buildActivationPermissions and
+	// addActivationFeedbackAndValidationSteps.
+	// Only pre-steps are honored for built-in jobs: applyBuiltinJobPreSteps (compiler_jobs.go)
+	// inserts only jobs.<name>.pre-steps; jobs.<name>.steps and jobs.<name>.post-steps are
+	// ignored for built-in jobs, so scanning them would cause false-positive errors or
+	// unneeded permission grants.
+	activationJobName := string(constants.ActivationJobName)
+	ctx.activationAllScripts = extractRunScriptsFromJobSection(data.Jobs, activationJobName, "pre-steps")
+	if len(ctx.activationAllScripts) > 0 {
+		ctx.activationInferredPerms = inferPermissionsFromShellScripts(ctx.activationAllScripts)
+	}
 
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(data)...)
 	activationSetupTraceID := ""
@@ -161,6 +182,17 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		}
 		if ctx.needsAppTokenForAccess {
 			appPerms.Set(PermissionContents, PermissionRead)
+		}
+		// Add GitHub App-only permissions inferred from activation job gh CLI commands so the
+		// minted App token includes the scopes those commands require (e.g. codespaces: read
+		// for `gh codespace list`).  Only App-only scopes are passed here — standard GitHub
+		// Actions scopes (pull-requests, issues, etc.) are already covered by the GITHUB_TOKEN
+		// permissions block and do not need to be re-declared on the App token.
+		// Uses the cached inferred permissions to avoid redundant computation.
+		for scope, level := range ctx.activationInferredPerms {
+			if IsGitHubAppOnlyScope(scope) {
+				appPerms.Set(scope, level)
+			}
 		}
 		ctx.steps = append(ctx.steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
 		ctx.outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
@@ -492,7 +524,8 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 }
 
 // buildActivationPermissions builds activation job permissions from workflow features and selected interactions.
-func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) string {
+// Returns an error if any activation job step section contains write gh CLI commands that would require write permissions.
+func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (string, error) {
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
@@ -541,7 +574,27 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
-	return NewPermissionsFromMap(permsMap).RenderToYAML()
+	// Infer permissions required by gh CLI calls in jobs.activation step sections
+	// (pre-steps, steps, post-steps). This ensures that user-defined steps that call
+	// `gh pr diff`, `gh issue view`, etc. get the permissions they need without requiring
+	// manual permission declarations.
+	// Scripts and inferred permissions are cached in ctx to avoid redundant computation.
+	if len(ctx.activationAllScripts) > 0 {
+		// Detect write commands first — these are not permitted in the activation job
+		// because it intentionally operates with read-only permissions.
+		if writeCmds := detectWriteCommandsInShellScripts(ctx.activationAllScripts); len(writeCmds) > 0 {
+			return "", fmt.Errorf(
+				"activation job uses write gh command(s) [%s]; write operations are not permitted in activation job steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs. See: https://github.github.com/gh-aw/reference/safe-outputs/",
+				strings.Join(writeCmds, ", "),
+			)
+		}
+		for scope, level := range ctx.activationInferredPerms {
+			if _, exists := permsMap[scope]; !exists {
+				permsMap[scope] = level
+			}
+		}
+	}
+	return NewPermissionsFromMap(permsMap).RenderToYAML(), nil
 }
 
 // buildActivationEnvironment returns manual-approval environment YAML, with ANSI removed.

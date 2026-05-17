@@ -1057,9 +1057,7 @@ func fetchWorkflowRunMetadata(ctx context.Context, runID int64, owner, repo, hos
 		// "Could not resolve" catches DNS failures from git clone fallbacks.
 		outputStr := string(output)
 		if errorutil.IsNotFoundError(err) ||
-			strings.Contains(outputStr, "Not Found") ||
-			strings.Contains(outputStr, "404") ||
-			strings.Contains(outputStr, "not found") ||
+			errorutil.IsNotFoundError(errors.New(outputStr)) ||
 			strings.Contains(outputStr, "Could not resolve") {
 			return WorkflowRun{}, fmt.Errorf("workflow run %d not found. Please verify the run ID is correct and that you have access to the repository", runID)
 		}

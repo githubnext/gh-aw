@@ -351,19 +351,25 @@ func TestNumericConstants(t *testing.T) {
 func TestTimeoutConstants(t *testing.T) {
 	// Test new time.Duration-based constants
 	tests := []struct {
-		name     string
-		value    time.Duration
-		minValue time.Duration
+		name       string
+		value      time.Duration
+		minValue   time.Duration
+		checkExact bool
+		exactValue time.Duration
 	}{
-		{"DefaultAgenticWorkflowTimeout", DefaultAgenticWorkflowTimeout, 1 * time.Minute},
-		{"DefaultToolTimeout", DefaultToolTimeout, 1 * time.Second},
-		{"DefaultMCPStartupTimeout", DefaultMCPStartupTimeout, 1 * time.Second},
+		{"DefaultAgenticWorkflowTimeout", DefaultAgenticWorkflowTimeout, 1 * time.Minute, false, 0},
+		{"DefaultToolTimeout", DefaultToolTimeout, 1 * time.Second, false, 0},
+		{"DefaultMCPStartupTimeout", DefaultMCPStartupTimeout, 1 * time.Second, false, 0},
+		{"DefaultHTTPClientTimeout", DefaultHTTPClientTimeout, 1 * time.Second, true, time.Second * 30},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.value < tt.minValue {
 				t.Errorf("%s = %v, should be >= %v", tt.name, tt.value, tt.minValue)
+			}
+			if tt.checkExact && tt.value != tt.exactValue {
+				t.Errorf("%s = %v, want %v", tt.name, tt.value, tt.exactValue)
 			}
 		})
 	}

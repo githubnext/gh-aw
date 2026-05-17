@@ -78,12 +78,15 @@ clean_git_config() {
 # Get the workspace directory (defaults to current GITHUB_WORKSPACE)
 WORKSPACE="${GITHUB_WORKSPACE:-.}"
 
-# Collect all .git/config files to clean from workspace and /tmp/
+# Collect all git config files to clean from workspace and /tmp/.
+# Includes both repository configs and submodule configs under .git/modules/**/config.
+# Use maxdepth 15 as a conservative cap to cover deeply nested submodules
+# (.git/modules/<a>/modules/<b>/...) without unbounded traversal.
 CLEANED=0
 while IFS= read -r git_config; do
   clean_git_config "${git_config}"
   CLEANED=$((CLEANED + 1))
-done < <(find "${WORKSPACE}" /tmp -maxdepth 10 -name "config" -path "*/.git/config" 2>/dev/null | sort -u)
+done < <(find "${WORKSPACE}" /tmp -maxdepth 15 -type f -name "config" \( -path "*/.git/config" -o -path "*/.git/modules/*/config" \) 2>/dev/null | sort -u)
 
 if [ "${CLEANED}" -eq 0 ]; then
   echo "No .git/config files found, nothing to clean"

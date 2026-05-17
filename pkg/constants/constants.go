@@ -256,6 +256,9 @@ const DefaultToolTimeout = 60 * time.Second
 // DefaultMCPStartupTimeout is the default timeout for MCP server startup
 const DefaultMCPStartupTimeout = 120 * time.Second
 
+// DefaultHTTPClientTimeout is the default timeout for internal HTTP clients
+const DefaultHTTPClientTimeout = 30 * time.Second
+
 // DefaultMaxEffectiveTokens is the default ET budget enforced by the AWF API proxy.
 const DefaultMaxEffectiveTokens int64 = 25000000
 

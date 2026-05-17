@@ -1,0 +1,185 @@
+{
+  "version": "1.2",
+  "description": "GitHub CLI (gh) subcommand patterns and their required GitHub Actions and GitHub App permissions. Used by the compiler to infer permissions needed by pre-steps that call the gh CLI.",
+  "subcommand_groups": {
+    "pr": {
+      "description": "Pull request operations",
+      "read_subcommands": ["checkout", "checks", "diff", "list", "status", "view"],
+      "write_subcommands": ["close", "comment", "convert-to-draft", "create", "edit", "lock", "merge", "ready", "reopen", "review", "revert", "unlock", "update-branch"],
+      "read_permissions": ["pull-requests"],
+      "write_permissions": ["pull-requests"],
+      "app_read_permissions": ["pull-requests"],
+      "app_write_permissions": ["pull-requests"]
+    },
+    "issue": {
+      "description": "Issue operations",
+      "read_subcommands": ["list", "status", "view"],
+      "write_subcommands": ["close", "comment", "create", "delete", "develop", "edit", "lock", "pin", "reopen", "transfer", "unlock", "unpin"],
+      "read_permissions": ["issues"],
+      "write_permissions": ["issues"],
+      "app_read_permissions": ["issues"],
+      "app_write_permissions": ["issues"]
+    },
+    "release": {
+      "description": "Release operations",
+      "read_subcommands": ["download", "list", "verify", "verify-asset", "view"],
+      "write_subcommands": ["create", "delete", "delete-asset", "edit", "upload"],
+      "read_permissions": ["contents"],
+      "write_permissions": ["contents"],
+      "app_read_permissions": ["contents"],
+      "app_write_permissions": ["contents"]
+    },
+    "workflow": {
+      "description": "GitHub Actions workflow operations",
+      "read_subcommands": ["list", "view"],
+      "write_subcommands": ["disable", "enable", "run"],
+      "read_permissions": ["actions"],
+      "write_permissions": ["actions"],
+      "app_read_permissions": ["actions"],
+      "app_write_permissions": ["actions", "workflows"]
+    },
+    "run": {
+      "description": "GitHub Actions run operations",
+      "read_subcommands": ["download", "list", "view", "watch"],
+      "write_subcommands": ["cancel", "delete", "rerun"],
+      "read_permissions": ["actions"],
+      "write_permissions": ["actions"],
+      "app_read_permissions": ["actions"],
+      "app_write_permissions": ["actions"]
+    },
+    "cache": {
+      "description": "GitHub Actions cache operations",
+      "read_subcommands": ["list"],
+      "write_subcommands": ["delete"],
+      "read_permissions": ["actions"],
+      "write_permissions": ["actions"],
+      "app_read_permissions": ["actions"],
+      "app_write_permissions": ["actions"]
+    },
+    "repo": {
+      "description": "Repository operations",
+      "read_subcommands": ["clone", "gitignore", "license", "list", "set-default", "view"],
+      "write_subcommands": ["archive", "autolink", "create", "delete", "deploy-key", "edit", "fork", "rename", "sync", "unarchive"],
+      "read_permissions": ["contents"],
+      "write_permissions": ["contents"],
+      "app_read_permissions": ["contents"],
+      "app_write_permissions": ["contents", "administration"]
+    },
+    "label": {
+      "description": "Label operations (labels use the issues permission scope)",
+      "read_subcommands": ["list"],
+      "write_subcommands": ["clone", "create", "delete", "edit"],
+      "read_permissions": ["issues"],
+      "write_permissions": ["issues"],
+      "app_read_permissions": ["issues"],
+      "app_write_permissions": ["issues"]
+    },
+    "codespace": {
+      "description": "Codespace operations (requires GitHub App with codespaces permission; not available via GITHUB_TOKEN)",
+      "read_subcommands": ["list", "logs", "ports", "view"],
+      "write_subcommands": ["create", "delete", "edit", "rebuild", "rename", "restart", "start", "stop"],
+      "read_permissions": [],
+      "write_permissions": [],
+      "app_read_permissions": ["codespaces"],
+      "app_write_permissions": ["codespaces"]
+    }
+  },
+  "api_path_patterns": [
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/pulls(/|$|\\?)",
+      "description": "Pull requests REST API",
+      "permissions": ["pull-requests"],
+      "app_permissions": ["pull-requests"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/issues(/|$|\\?)",
+      "description": "Issues REST API",
+      "permissions": ["issues"],
+      "app_permissions": ["issues"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/labels(/|$|\\?)",
+      "description": "Labels REST API (uses issues permission scope)",
+      "permissions": ["issues"],
+      "app_permissions": ["issues"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/actions(/|$|\\?)",
+      "description": "GitHub Actions REST API",
+      "permissions": ["actions"],
+      "app_permissions": ["actions"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/releases(/|$|\\?)",
+      "description": "Releases REST API",
+      "permissions": ["contents"],
+      "app_permissions": ["contents"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/(git|contents|commits|branches|tags|compare)(/|$|\\?)",
+      "description": "Repository contents REST API",
+      "permissions": ["contents"],
+      "app_permissions": ["contents"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/deployments(/|$|\\?)",
+      "description": "Deployments REST API",
+      "permissions": ["deployments"],
+      "app_permissions": ["deployments"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/(statuses|commits/[^/\\s]+/statuses)(/|$|\\?)",
+      "description": "Commit statuses REST API",
+      "permissions": ["statuses"],
+      "app_permissions": ["statuses"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/(check-runs|check-suites)(/|$|\\?)",
+      "description": "Check runs/suites REST API",
+      "permissions": ["checks"],
+      "app_permissions": ["checks"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/pages(/|$|\\?)",
+      "description": "GitHub Pages REST API",
+      "permissions": ["pages"],
+      "app_permissions": ["pages"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/packages(/|$|\\?)",
+      "description": "Packages REST API",
+      "permissions": ["packages"],
+      "app_permissions": ["packages"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/environments(/|$|\\?)",
+      "description": "Environments REST API (GitHub App only)",
+      "permissions": [],
+      "app_permissions": ["environments"]
+    },
+    {
+      "pattern": "^/?repos/[^/\\s]+/[^/\\s]+/hooks(/|$|\\?)",
+      "description": "Repository webhooks REST API (GitHub App only)",
+      "permissions": [],
+      "app_permissions": ["repository-hooks"]
+    },
+    {
+      "pattern": "^/?orgs/[^/\\s]+/members(/|$|\\?)",
+      "description": "Organization members REST API (GitHub App only)",
+      "permissions": [],
+      "app_permissions": ["members"]
+    },
+    {
+      "pattern": "^/?orgs/[^/\\s]+/teams(/|$|\\?)",
+      "description": "Organization teams REST API (GitHub App only)",
+      "permissions": [],
+      "app_permissions": ["members"]
+    },
+    {
+      "pattern": "^/?orgs/[^/\\s]+/hooks(/|$|\\?)",
+      "description": "Organization webhooks REST API (GitHub App only)",
+      "permissions": [],
+      "app_permissions": ["organization-hooks"]
+    }
+  ]
+}
