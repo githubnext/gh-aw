@@ -102,7 +102,7 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 	}
 
 	if strings.Contains(trimmed, "${{") {
-		return strings.Contains(lowerTrimmed, strings.ToLower(constants.OTELSentryEndpointSecretName))
+		return strings.Contains(lowerTrimmed, constants.OTELSentryEndpointSecretNameLower)
 	}
 
 	return strings.Contains(lowerTrimmed, "sentry")

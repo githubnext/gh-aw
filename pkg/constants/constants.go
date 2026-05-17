@@ -138,6 +138,10 @@ const DefaultGitHubLockdown = false
 // workflow imports for Sentry endpoint configuration.
 const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
 
+// OTELSentryEndpointSecretNameLower is the lowercase form of
+// OTELSentryEndpointSecretName for case-insensitive matching.
+const OTELSentryEndpointSecretNameLower = "gh_aw_otel_sentry_endpoint"
+
 // AWF (Agentic Workflow Firewall) constants
 
 // AWFDefaultCommand is the default AWF command prefix
