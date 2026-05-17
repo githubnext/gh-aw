@@ -246,17 +246,35 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 	})
 }
 
-// isPermissionError checks if an error is related to permissions/authentication
+// isPermissionErrorStr checks if a string contains any known permission/authentication error marker.
+// This is the canonical union of all auth-error substrings used across the codebase; update here
+// rather than adding new inline strings.Contains checks in callers.
+func isPermissionErrorStr(s string) bool {
+	return strings.Contains(s, "authentication required") ||
+		strings.Contains(s, "exit status 4") ||
+		strings.Contains(s, "GitHub CLI authentication") ||
+		strings.Contains(s, "permission") ||
+		strings.Contains(s, "GH_TOKEN") ||
+		strings.Contains(s, "not logged into any GitHub hosts") ||
+		strings.Contains(s, "To use GitHub CLI in a GitHub Actions workflow") ||
+		strings.Contains(s, "gh auth login")
+}
+
+// isPermissionError checks if an error is related to permissions/authentication.
 func isPermissionError(err error) bool {
 	if err == nil {
 		return false
 	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "authentication required") ||
-		strings.Contains(errStr, "exit status 4") ||
-		strings.Contains(errStr, "GitHub CLI authentication") ||
-		strings.Contains(errStr, "permission") ||
-		strings.Contains(errStr, "GH_TOKEN")
+	return isPermissionErrorStr(err.Error())
+}
+
+// is403Error checks if an error message contains a 403 HTTP status code, indicating
+// insufficient permissions to access a resource.
+func is403Error(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "403")
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report

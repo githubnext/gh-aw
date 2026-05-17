@@ -309,7 +309,7 @@ func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string,
 	output, err := workflow.RunGHContext(ctx, "Downloading workflow logs...", args...)
 	if err != nil {
 		// Check for authentication errors
-		if strings.Contains(err.Error(), "exit status 4") {
+		if isPermissionError(err) {
 			return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		// If logs are not found or run has no logs, this is not a critical error
@@ -799,7 +799,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				return ErrNoArtifacts
 			}
 			// Check for authentication errors
-			if strings.Contains(err.Error(), "exit status 4") {
+			if isPermissionError(err) {
 				return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 			}
 			// Check if the error is due to non-zip artifacts (e.g., .dockerbuild files).

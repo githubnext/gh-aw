@@ -46,7 +46,7 @@ func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
 		exists, err := checkSecretExists(secretName)
 		if err != nil {
 			// If we get a 403 error, ignore it as requested
-			if strings.Contains(err.Error(), "403") {
+			if is403Error(err) {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Repository secrets check skipped (insufficient permissions)"))
 				}
