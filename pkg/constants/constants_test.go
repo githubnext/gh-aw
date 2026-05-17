@@ -360,7 +360,7 @@ func TestTimeoutConstants(t *testing.T) {
 		{"DefaultAgenticWorkflowTimeout", DefaultAgenticWorkflowTimeout, 1 * time.Minute, false, 0},
 		{"DefaultToolTimeout", DefaultToolTimeout, 1 * time.Second, false, 0},
 		{"DefaultMCPStartupTimeout", DefaultMCPStartupTimeout, 1 * time.Second, false, 0},
-		{"DefaultHTTPClientTimeout", DefaultHTTPClientTimeout, 30 * time.Second, true, 30 * time.Second},
+		{"DefaultHTTPClientTimeout", DefaultHTTPClientTimeout, 1 * time.Second, true, time.Second * 30},
 	}
 
 	for _, tt := range tests {
