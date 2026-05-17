@@ -187,7 +187,7 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 	}
 
 	// Build the sanitized step as a shallow copy.
-	sanitized := make(map[string]any, len(step)+1)
+	sanitized := make(map[string]any, len(step))
 	maps.Copy(sanitized, step)
 	sanitized["run"] = newRun
 	sanitized["env"] = newEnv
