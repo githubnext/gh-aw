@@ -104,6 +104,7 @@ safe-outputs:
     expires: 7                       # auto-close after 7 days (or false to disable)
     group: true                      # group as sub-issues under parent
     close-older-issues: true         # close previous issues from same workflow
+    deduplicate-by-title: 1          # drop duplicate titles (true=exact, integer=edit distance)
     target-repo: "owner/repo"        # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
@@ -203,6 +204,23 @@ safe-outputs:
 ```
 
 This is useful for scheduled workflows (e.g. every 4 hours) that produce recurring daily reports: all runs on the same day contribute to one issue, eliminating duplicate open/closed issues. The max-count slot is not consumed when posting as a comment; on failure of the pre-check, normal issue creation proceeds as a fallback.
+
+#### Title-Based Deduplication
+
+The `deduplicate-by-title` field drops duplicate issues by comparing titles before creation. Accepts:
+
+- `true` — match titles exactly (after normalization)
+- integer `0`–`100` — match titles within the given Levenshtein edit distance (e.g., `1` allows one-character differences)
+
+Deduplication runs at both the MCP tool-call boundary (within-run drops with immediate `duplicate_dropped` feedback to the agent) and at apply time (within-run plus open and recently-closed repository issues). Dropped items are recorded in the safe-output summary with the matched title, edit distance, and source (`mcp-precheck`, `within-run`, or `repo-level`).
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    title-prefix: "[triage] "
+    labels: [bug]
+    deduplicate-by-title: 1   # tolerate one-character title differences
+```
 
 #### Searching for Workflow-Created Items
 
