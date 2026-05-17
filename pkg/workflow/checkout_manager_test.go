@@ -191,8 +191,8 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		assert.Contains(t, combined, "Clean git credentials after checkout", "should inject post-checkout clean step")
 		assert.Contains(t, combined, "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh", "cleanup should call orchestrator helper")
 		assert.NotContains(t, combined, "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh", "cleanup must not execute helper from workspace")
-		assert.Contains(t, combined, "WARNING: Checkout cleanup helper missing. Running inline fallback.", "cleanup should include explicit warning when helper is unavailable")
-		assert.Contains(t, combined, "cleaned_configs=0", "inline fallback should still perform cleanup")
+		assert.NotContains(t, combined, "WARNING: Checkout cleanup helper missing. Running inline fallback.", "cleanup should not include inline fallback path")
+		assert.NotContains(t, combined, "cleaned_configs=0", "cleanup should not include inline fallback logic")
 	})
 }
 
