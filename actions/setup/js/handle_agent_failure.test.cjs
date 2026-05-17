@@ -2007,8 +2007,19 @@ describe("handle_agent_failure", () => {
 
   describe("buildEffectiveTokensRateLimitErrorContext", () => {
     let buildEffectiveTokensRateLimitErrorContext;
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
 
     beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-et-error-context-"));
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      const moduleDir = path.dirname(require.resolve("./handle_agent_failure.cjs"));
+      fs.copyFileSync(path.join(moduleDir, "../md/effective_tokens_rate_limit_error.md"), path.join(promptsDir, "effective_tokens_rate_limit_error.md"));
+      process.env.RUNNER_TEMP = tmpDir;
+
       global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
       global.github = {};
       global.context = { repo: { owner: "owner", repo: "repo" } };
@@ -2020,6 +2031,10 @@ describe("handle_agent_failure", () => {
       delete global.core;
       delete global.github;
       delete global.context;
+      delete process.env.RUNNER_TEMP;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
 
     it("formats effective token values in friendly compact form", () => {

@@ -891,19 +891,17 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
   const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
 
   const etTableSection = buildETComputationTable(effectiveTokens, readTokenUsageMarkdown());
-
-  const etSpecLink = "https://github.github.com/gh-aw/reference/effective-tokens-specification/";
-  const tokenOptLink = "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md";
-
+  const templatePath = getPromptPath("effective_tokens_rate_limit_error.md");
   return (
-    "\n**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
-    "<details>\n" +
-    "<summary>Why this happened and how to optimize</summary>\n\n" +
-    `- Learn about [effective tokens](${etSpecLink}).${usageLine}${budgetLine}${runLine}\n` +
-    "You can tune this limit with `max-effective-tokens` in workflow frontmatter.\n\n" +
-    etTableSection +
-    `- To optimize this workflow, follow the [token optimization instructions](${tokenOptLink}).\n` +
-    "</details>\n"
+    "\n" +
+    renderTemplateFromFile(templatePath, {
+      et_spec_link: "https://github.github.com/gh-aw/reference/effective-tokens-specification/",
+      token_opt_link: "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md",
+      usage_line: usageLine,
+      budget_line: budgetLine,
+      run_line: runLine,
+      et_table_section: etTableSection,
+    })
   );
 }
 
