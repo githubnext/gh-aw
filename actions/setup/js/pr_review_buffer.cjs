@@ -316,6 +316,9 @@ function createReviewBuffer() {
       try {
         const changedPaths = new Set();
         let listPage = 1;
+        // Cap at 10 pages (1,000 files). PRs with more than 1,000 changed files are
+        // extremely rare and path validation is best-effort; we proceed without filtering
+        // if any individual listFiles call throws (see catch block below).
         const MAX_LIST_FILES_PAGES = 10;
         while (listPage <= MAX_LIST_FILES_PAGES) {
           const { data: files } = await github.rest.pulls.listFiles({
