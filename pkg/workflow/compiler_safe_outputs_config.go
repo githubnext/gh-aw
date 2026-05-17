@@ -88,14 +88,13 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 				}
 			}
 			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
-			config[handlerName] = map[string]any(handlerConfig)
+			config[handlerName] = handlerConfig
 		}
 	}
 
 	// Include top-level mentions configuration so the handler manager can pass it to
-	// the add_comment handler (which calls sanitizeContent with the allowed aliases).
-	// Only emitted when add_comment is active — it is the only handler-manager consumer.
-	if safeOutputs.Mentions != nil && safeOutputs.AddComments != nil {
+	// markdown-producing handlers that call sanitizeContent with allowed aliases.
+	if safeOutputs.Mentions != nil {
 		mentionsCfg := buildMentionsHandlerConfig(safeOutputs.Mentions)
 		if len(mentionsCfg) > 0 {
 			config["mentions"] = mentionsCfg
@@ -120,8 +119,8 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 }
 
 // buildMentionsHandlerConfig converts a MentionsConfig into the map format used by
-// GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG so that safe_output_handler_manager.cjs can pass
-// the top-level mentions policy through to the add_comment handler.
+// GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG so safe_output_handler_manager.cjs can pass
+// the top-level mentions policy through to mention-aware handlers.
 func buildMentionsHandlerConfig(m *MentionsConfig) map[string]any {
 	cfg := make(map[string]any)
 	if m.Enabled != nil {

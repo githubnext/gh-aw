@@ -309,14 +309,16 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 			wantNoMentions: true,
 		},
 		{
-			name: "mentions without add_comment omits mentions from handler config",
+			name: "mentions without add_comment still included in handler config",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 				Mentions: &MentionsConfig{
 					Allowed: []string{"copilot"},
 				},
 			},
-			wantNoMentions: true,
+			wantMentions: map[string]any{
+				"allowed": []any{"copilot"},
+			},
 		},
 	}
 
