@@ -1341,8 +1341,6 @@ describe("handle_agent_failure", () => {
         path.join(tmpDir, "agent_output.json"),
         JSON.stringify({ items: [{ type: "noop", reason: "done" }] })
       );
-      vi.resetModules();
-      ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
       expect(buildPermissionDeniedContext()).toBe("");
     });
 
@@ -1355,8 +1353,6 @@ describe("handle_agent_failure", () => {
           ],
         })
       );
-      vi.resetModules();
-      ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
       expect(buildPermissionDeniedContext()).toBe("");
     });
 
