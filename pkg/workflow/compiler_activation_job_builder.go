@@ -85,7 +85,9 @@ func (c *Compiler) newActivationJobBuildContext(
 	// Cache pre-step scripts and inferred permissions once to avoid redundant extraction
 	// and inference calls in buildActivationPermissions and addActivationFeedbackAndValidationSteps.
 	ctx.activationPreStepScripts = extractRunScriptsFromJobPreSteps(data.Jobs, string(constants.ActivationJobName))
-	ctx.activationPreStepInferredPerms = inferPermissionsFromShellScripts(ctx.activationPreStepScripts)
+	if len(ctx.activationPreStepScripts) > 0 {
+		ctx.activationPreStepInferredPerms = inferPermissionsFromShellScripts(ctx.activationPreStepScripts)
+	}
 
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(data)...)
 	activationSetupTraceID := ""
