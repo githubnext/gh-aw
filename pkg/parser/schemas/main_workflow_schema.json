@@ -11202,7 +11202,7 @@
         },
         "clean-git-credentials": {
           "type": "boolean",
-          "description": "When true, keep checkout credentials persisted and run an immediate post-checkout cleanup step that removes credentials from root and submodule git configs. Useful for submodule-safe cleanup behavior.",
+          "description": "When true, persist credentials during checkout, then immediately run a post-checkout cleanup step that removes credentials from root and submodule git configs. Useful for submodule-safe cleanup behavior.",
           "examples": [true, false]
         }
       }
