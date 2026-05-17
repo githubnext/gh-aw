@@ -2766,7 +2766,7 @@ describe("sendJobConclusionSpan", () => {
     expect(agentSpan.kind).toBe(3); // SPAN_KIND_CLIENT
   });
 
-  it("includes gen_ai.request.model, gen_ai.system, gh-aw.engine, gen_ai.operation.name and gen_ai.workflow.name on the agent span from aw_info.json", async () => {
+  it("includes gen_ai.request.model, gen_ai.system, gh-aw.engine.id, gen_ai.operation.name and gen_ai.workflow.name on the agent span from aw_info.json", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -2795,7 +2795,8 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gen_ai.operation.name"]).toBe("chat");
     expect(attrs["gen_ai.request.model"]).toBe("claude-3-5-sonnet-20241022");
     expect(attrs["gen_ai.system"]).toBe("anthropic");
-    expect(attrs["gh-aw.engine"]).toBe("claude");
+    expect(attrs["gh-aw.engine.id"]).toBe("claude");
+    expect(attrs["gh-aw.engine"]).toBeUndefined();
     expect(attrs["gen_ai.workflow.name"]).toBe("otel-advisor");
   });
 
@@ -2829,7 +2830,36 @@ describe("sendJobConclusionSpan", () => {
     expect(modelKeys[0].value.stringValue).toBe("gpt-4o");
   });
 
-  it("omits gen_ai.request.model, gen_ai.system, gh-aw.engine and gen_ai.workflow.name from the agent span when model, engine_id and workflow_name are absent", async () => {
+  it("does not duplicate gen_ai.system on the agent span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ engine_id: "claude" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    readFileSpy.mockRestore();
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const systemKeys = agentSpan.attributes.filter(a => a.key === "gen_ai.system");
+    expect(systemKeys).toHaveLength(1);
+    expect(systemKeys[0].value.stringValue).toBe("anthropic");
+  });
+
+  it("omits gen_ai.request.model, gen_ai.system, gh-aw.engine.id and gen_ai.workflow.name from the agent span when model, engine_id and workflow_name are absent", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -2856,7 +2886,7 @@ describe("sendJobConclusionSpan", () => {
     const keys = agentSpan.attributes.map(a => a.key);
     expect(keys).not.toContain("gen_ai.request.model");
     expect(keys).not.toContain("gen_ai.system");
-    expect(keys).not.toContain("gh-aw.engine");
+    expect(keys).not.toContain("gh-aw.engine.id");
     expect(keys).not.toContain("gen_ai.workflow.name");
   });
 
@@ -2887,7 +2917,7 @@ describe("sendJobConclusionSpan", () => {
     const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
     // Unknown engine ID falls back to the raw value for gen_ai.system
     expect(attrs["gen_ai.system"]).toBe("custom-engine");
-    expect(attrs["gh-aw.engine"]).toBe("custom-engine");
+    expect(attrs["gh-aw.engine.id"]).toBe("custom-engine");
   });
 
   it("includes gen_ai.response.finish_reasons on the agent span when stop_reason is present in agent-stdio.log", async () => {
