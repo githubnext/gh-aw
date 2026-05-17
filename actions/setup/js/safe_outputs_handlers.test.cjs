@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+
+const LARGE_CONTENT_BODY = "A".repeat(70000);
 import { execSync } from "child_process";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
 
@@ -1295,7 +1297,7 @@ describe("safe_outputs_handlers", () => {
       expect(secondResponse.result).toBe("duplicate_dropped");
     });
 
-    it("should offload large duplicate create_issue body before appending dropped entry", () => {
+    it("should offload large body when appending duplicate create_issue entry", () => {
       const h = createHandlers(mockServer, mockAppendSafeOutput, {
         create_issue: {
           deduplicate_by_title: true,
@@ -1303,7 +1305,7 @@ describe("safe_outputs_handlers", () => {
       });
 
       h.createIssueHandler({ title: "Duplicate Issue", body: "First body" });
-      h.createIssueHandler({ title: "Duplicate Issue", body: "A".repeat(70000) });
+      h.createIssueHandler({ title: "Duplicate Issue", body: LARGE_CONTENT_BODY });
 
       expect(mockAppendSafeOutput.mock.calls).toHaveLength(2);
       const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
