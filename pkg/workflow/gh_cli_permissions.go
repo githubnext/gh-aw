@@ -111,7 +111,8 @@ func init() {
 //   - multi-line shell scripts where the `gh` binary may be preceded by whitespace.
 //
 // Capture groups: (1) subcommand group, (2) action word.
-var ghSubcommandRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+(pr|issue|workflow|run|release)\s+([\w][\w-]*)`)
+// The trailing `\b` ensures the action word is complete (avoids matching partial words).
+var ghSubcommandRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+(pr|issue|workflow|run|release)\s+([\w][\w-]*)\b`)
 
 // ghAPIRE matches `gh api <path>` invocations.
 // Capture group: (1) API path (up to the first whitespace, pipe, or quote).

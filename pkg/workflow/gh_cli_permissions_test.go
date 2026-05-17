@@ -226,7 +226,10 @@ jobs:
 }
 
 // TestActivationJobPermissionsNoPreStepChanges verifies that the activation job permissions
-// are unchanged when there are no pre-steps with gh commands.
+// are unchanged when there are no pre-steps with gh commands.  Even if the workflow-level
+// frontmatter declares pull-requests: read, the activation job should NOT receive that
+// permission unless its own steps actually need it (the activation job computes its permissions
+// independently of the main job's filtered permissions).
 func TestActivationJobPermissionsNoPreStepChanges(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "activation-perms-no-gh")
 	testFile := filepath.Join(tmpDir, "basic-workflow.md")
@@ -236,7 +239,6 @@ on:
     types: [opened]
 permissions:
   contents: read
-  pull-requests: read
 engine: copilot
 ---
 
@@ -253,9 +255,6 @@ engine: copilot
 	require.NoError(t, err, "failed to read generated lock file")
 
 	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
-	// The activation job should have its standard permissions but NOT pull-requests: read
-	// since there are no pre-steps requiring it (the main job handles pull-requests via filtered
-	// permissions, but the activation job only needs what its own steps require).
 	assert.Contains(t, activationJobSection, "contents: read",
 		"activation job should always include contents: read")
 	assert.NotContains(t, activationJobSection, "pull-requests",
