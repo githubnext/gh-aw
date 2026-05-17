@@ -162,6 +162,18 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		if ctx.needsAppTokenForAccess {
 			appPerms.Set(PermissionContents, PermissionRead)
 		}
+		// Add GitHub App-only permissions inferred from pre-step gh CLI commands so the
+		// minted App token includes the scopes those commands require (e.g. codespaces: read
+		// for `gh codespace list`).  Only App-only scopes are passed here — standard GitHub
+		// Actions scopes (pull-requests, issues, etc.) are already covered by the GITHUB_TOKEN
+		// permissions block and do not need to be re-declared on the App token.
+		for scope, level := range inferPermissionsFromShellScripts(
+			extractRunScriptsFromJobPreSteps(data.Jobs, string(constants.ActivationJobName)),
+		) {
+			if IsGitHubAppOnlyScope(scope) {
+				appPerms.Set(scope, level)
+			}
+		}
 		ctx.steps = append(ctx.steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
 		ctx.outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
 	}

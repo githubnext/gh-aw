@@ -424,3 +424,53 @@ jobs:
 	assert.Contains(t, activationJobSection, "actions: read",
 		"activation job should include actions: read when pre-step calls gh cache list")
 }
+
+// TestInferPermissionsFromShellScripts_GhCodespaceList verifies that `gh codespace list`
+// returns the GitHub App-only codespaces: read permission (no GITHUB_TOKEN equivalent).
+func TestInferPermissionsFromShellScripts_GhCodespaceList(t *testing.T) {
+	scripts := []string{`gh codespace list --json name`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionCodespaces],
+		"gh codespace list should require codespaces: read (GitHub App-only)")
+}
+
+// TestInferPermissionsFromShellScripts_GhAPIOrgsMembers verifies that `gh api /orgs/.../members`
+// returns the GitHub App-only members: read permission.
+func TestInferPermissionsFromShellScripts_GhAPIOrgsMembers(t *testing.T) {
+	scripts := []string{`gh api /orgs/myorg/members --jq '.[].login'`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionMembers],
+		"gh api /orgs/.../members should require members: read (GitHub App-only)")
+}
+
+// TestInferPermissionsFromShellScripts_AppAndActionsPermissions verifies that a script
+// combining standard and App-only gh commands returns both sets of permissions.
+func TestInferPermissionsFromShellScripts_AppAndActionsPermissions(t *testing.T) {
+	scripts := []string{
+		`gh pr diff "$PR_NUMBER" --name-only
+gh codespace list --json name`,
+	}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionPullRequests],
+		"gh pr diff should require pull-requests: read")
+	assert.Equal(t, PermissionRead, perms[PermissionCodespaces],
+		"gh codespace list should require codespaces: read (GitHub App-only)")
+}
+
+// TestInferPermissionsFromShellScripts_GhRepoWriteHasAppAdminPerm verifies that `gh repo archive`
+// (a write command) is still inferred to need administration: read (GitHub App-only) at minimum.
+func TestInferPermissionsFromShellScripts_GhRepoWriteHasAppAdminPerm(t *testing.T) {
+	scripts := []string{`gh repo archive owner/repo`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionAdministration],
+		"gh repo archive (write) should infer administration: read for GitHub App")
+}
+
+// TestInferPermissionsFromShellScripts_GhAPIRepoEnvironments verifies environments: read
+// (GitHub App-only) for the environments REST API path.
+func TestInferPermissionsFromShellScripts_GhAPIRepoEnvironments(t *testing.T) {
+	scripts := []string{`gh api /repos/owner/repo/environments --jq '.[].name'`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionEnvironments],
+		"gh api /repos/.../environments should require environments: read (GitHub App-only)")
+}
