@@ -77,6 +77,7 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 
 	// Validate paths are within the search directory (prevent path traversal)
 	if !isPathWithinDir(mdPath, searchDir) || !isPathWithinDir(lockPath, searchDir) || !isPathWithinDir(ymlPath, searchDir) {
+		dispatchWorkflowValidationLog.Printf("Rejecting workflow name '%s': resolved paths escape search dir %s", workflowName, searchDir)
 		return result, fmt.Errorf("invalid workflow name '%s' (path traversal not allowed)", workflowName)
 	}
 
@@ -100,6 +101,7 @@ func mdHasWorkflowDispatch(mdPath string) (bool, error) {
 	dispatchWorkflowValidationLog.Printf("Checking for workflow_dispatch trigger in: %s", mdPath)
 	content, err := os.ReadFile(mdPath) // #nosec G304 -- mdPath is validated via isPathWithinDir in findWorkflowFile
 	if err != nil {
+		dispatchWorkflowValidationLog.Printf("Failed to read %s: %v", mdPath, err)
 		return false, err
 	}
 	result, err := parser.ExtractFrontmatterFromContent(string(content))

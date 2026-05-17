@@ -48,8 +48,10 @@ func (c *Compiler) newActivationJobBuildContext(
 	workflowRunRepoSafety string,
 	lockFilename string,
 ) (*activationJobBuildContext, error) {
+	compilerActivationJobLog.Printf("Initializing activation job build context: pre_activation=%t, lock=%s", preActivationJobCreated, lockFilename)
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
+		compilerActivationJobLog.Print("Failed to resolve setup action reference for activation job")
 		return nil, errors.New("failed to resolve setup action reference; ensure ./actions/setup exists and is accessible")
 	}
 
@@ -131,6 +133,8 @@ func (c *Compiler) newActivationJobBuildContext(
 // addActivationFeedbackAndValidationSteps appends token minting, reactions, secret validation, and guidance.
 func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Adding activation feedback/validation steps: reaction=%t, status_comment=%t, remove_label=%t, app_token_for_access=%t",
+		ctx.hasReaction, ctx.hasStatusComment, ctx.shouldRemoveLabel, ctx.needsAppTokenForAccess)
 	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess) {
 		appPerms := NewPermissions()
 		addActivationInteractionPermissions(
@@ -208,6 +212,8 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 // addActivationRepositoryAndOutputSteps appends checkout, validation, sanitization, comment, and lock steps.
 func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Adding activation repository/output steps: stale_check_disabled=%t, needs_text_output=%t, lock_for_agent=%t",
+		data.StaleCheckDisabled, data.NeedsTextOutput, data.LockForAgent)
 
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	ctx.steps = append(ctx.steps, checkoutSteps...)
@@ -407,6 +413,7 @@ func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildCo
 // This helper mutates the context but only derives values from workflow data and has no error paths.
 func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildContext) {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Configuring activation needs and condition: pre_activation=%t, has_if=%t", ctx.preActivationJob, data.If != "")
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
 	for _, jobName := range data.OnNeeds {
 		if !slices.Contains(customJobsBeforeActivation, jobName) {
@@ -542,5 +549,6 @@ func (c *Compiler) buildActivationEnvironment(ctx *activationJobBuildContext) st
 	if ctx.data.ManualApproval == "" {
 		return ""
 	}
+	compilerActivationJobLog.Print("Activation job uses manual-approval environment gate")
 	return "environment: " + stringutil.StripANSI(ctx.data.ManualApproval)
 }
