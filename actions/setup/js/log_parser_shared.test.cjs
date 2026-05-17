@@ -1777,9 +1777,11 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("Conversation:");
 
       // Check for Agent message
+      expect(result).toContain("[1] ◆ I'll help you explore the repository structure first.");
       expect(result).toContain("◆ I'll help you explore the repository structure first.");
 
       // Check for tool execution with success icon and first 2 lines of output
+      expect(result).toContain("[2] ✓ $ ls -la");
       expect(result).toContain("✓ $ ls -la");
       expect(result).toContain("   ├ file1.txt");
       expect(result).toContain("   └ file2.txt (+ 1 more)");
@@ -1936,6 +1938,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
 
+      expect(result).toContain("[1] ✗ github-search_issues");
       expect(result).toContain("✗ github-search_issues");
       expect(result).toContain("   └ Error: API rate limit exceeded");
       expect(result).toContain("  Tools: 0/1 succeeded");

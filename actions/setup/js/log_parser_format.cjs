@@ -372,7 +372,7 @@ function createLogParserFormatters(deps) {
 
     const textLines = displayText.split("\n");
     for (let i = 0; i < textLines.length; i++) {
-      const prefix = i === 0 ? "◆ " : "  ";
+      const prefix = i === 0 ? `[${++state.traceEventCount}] ◆ ` : "  ";
       if (!appendConversationLine(lines, `${prefix}${textLines[i]}`, state)) {
         return;
       }
@@ -420,7 +420,7 @@ function createLogParserFormatters(deps) {
       }
     }
 
-    if (!appendConversationLine(lines, `${statusIcon} ${displayName}`, state)) {
+    if (!appendConversationLine(lines, `[${++state.traceEventCount}] ${statusIcon} ${displayName}`, state)) {
       return;
     }
 
@@ -498,6 +498,7 @@ function createLogParserFormatters(deps) {
       conversationLineCount: 0,
       maxConversationLines: 5000,
       conversationTruncated: false,
+      traceEventCount: 0,
     };
 
     for (const entry of logEntries) {
