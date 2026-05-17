@@ -12,7 +12,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-name: Smoke OTEL Backends
+name: Smoke OTEL
 engine:
   id: copilot
   max-continuations: 1
@@ -39,7 +39,7 @@ imports:
   - shared/otlp.md
 ---
 
-# Smoke Test: OTEL Backends
+# Smoke OTEL
 
 Validate the full OTEL loop for this repository:
 
@@ -50,7 +50,7 @@ Validate the full OTEL loop for this repository:
 
 The goal is to verify the current run end to end, not just prove that the backends contain some older telemetry.
 
-Step 1 keeps that local OTEL infrastructure coverage by explicitly checking env injection, the local JSONL mirror, span emission for the current run, and zero OTLP export errors before any remote backend queries begin.
+Step 1 is local-only: it checks env injection, the local JSONL mirror, and span emission for the current run before any remote backend queries begin. Treat remote OTLP export errors as backend evidence for Sentry and Grafana, not as a failure of the local mirror.
 
 ## Required Secrets
 
@@ -116,9 +116,11 @@ fi
 
 Decide:
 
-- `send_status = pass` only if OTEL env vars are present, `/tmp/gh-aw/otel.jsonl` exists with at least one span for `${{ github.run_id }}`, and the OTLP export error count is zero.
+- `send_status = pass` only if OTEL env vars are present and `/tmp/gh-aw/otel.jsonl` exists with at least one span for `${{ github.run_id }}`.
 - `send_status = inconclusive` if spans exist locally but none for `${{ github.run_id }}` can be confirmed.
 - Otherwise set `send_status = fail` and record the exact missing artifact or error.
+
+Do not downgrade `send_status` because `/tmp/gh-aw/otlp-export-errors.count` is non-zero. Record OTLP export errors as evidence for the remote backend rows and in `## Failure Analysis`.
 
 ### Step 2: Query Sentry
 
@@ -139,7 +141,7 @@ Record all of the following:
 
 Set:
 
-- `sentry_status = pass` when query access works and current-run spans are visible
+- `sentry_status = pass` when query access works, current-run spans are visible, and the Sentry OTLP export path shows no errors attributable to Sentry
 - `sentry_status = inconclusive` when query access works and recent `gh-aw` spans are visible but this run is not yet visible
 - `sentry_status = fail` otherwise
 
@@ -163,7 +165,7 @@ Record all of the following:
 
 Set:
 
-- `grafana_status = pass` when query access works and current-run spans are visible
+- `grafana_status = pass` when query access works, current-run spans are visible, and the Grafana OTLP export path shows no errors attributable to Grafana
 - `grafana_status = inconclusive` when query access works and recent `gh-aw` spans are visible but this run is not yet visible
 - `grafana_status = fail` otherwise
 
@@ -182,11 +184,11 @@ Create exactly one GitHub issue with:
 - Draft the body locally first if needed, but emit only one final `create_issue` safe output after the full report is complete.
 - Never create a placeholder, empty, `-`, or partial issue body.
 - Do not retry `create_issue`: this workflow allows only one issue, so a premature call leaves the final report empty.
-- Title: `Smoke Test: OTEL Backends - ${{ github.run_id }}`
+- Title: `Smoke OTEL - ${{ github.run_id }}`
 - A short executive summary with overall `PASS`, `INCONCLUSIVE`, or `FAIL`
 - A markdown table with one row for `Local OTLP`, one row for `Sentry`, and one row for `Grafana`, using these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
 - Use `✅` for pass, `❌` for fail, `🔶` for inconclusive, and `—` where a cell does not apply
-- For the `Local OTLP` row, map `Write Config Present` to OTEL env vars being injected and map `Write Export Succeeded` to the local JSONL mirror containing current-run spans with zero export errors.
+- For the `Local OTLP` row, map `Write Config Present` to OTEL env vars being injected and map `Write Export Succeeded` to the local JSONL mirror containing current-run spans.
 - Use this table form:
 
   ```markdown
