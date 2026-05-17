@@ -3,6 +3,7 @@
 package stringutil
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -12,6 +13,11 @@ import (
 func assertSanitizeResult(t *testing.T, functionName, input, got, want string) {
 	t.Helper()
 	assert.Equal(t, want, got, "%s(%q) should return expected output", functionName, input)
+}
+
+func assertSanitizeResultWithContext(t *testing.T, functionName, context, got, want string) {
+	t.Helper()
+	assert.Equal(t, want, got, "%s(%s) should return expected output", functionName, context)
 }
 
 func TestSanitizeErrorMessage(t *testing.T) {
@@ -319,7 +325,13 @@ func TestSanitizeIdentifierName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeIdentifierName(tt.input, tt.extraAllowed)
-			assertSanitizeResult(t, "SanitizeIdentifierName", tt.input, result, tt.expected)
+			assertSanitizeResultWithContext(
+				t,
+				"SanitizeIdentifierName",
+				fmt.Sprintf("%q, extraAllowedProvided=%t", tt.input, tt.extraAllowed != nil),
+				result,
+				tt.expected,
+			)
 		})
 	}
 }
@@ -681,7 +693,13 @@ func TestSanitizeName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeName(tt.input, tt.opts)
-			assertSanitizeResult(t, "SanitizeName", tt.input, result, tt.expected)
+			assertSanitizeResultWithContext(
+				t,
+				"SanitizeName",
+				fmt.Sprintf("%q, opts=%+v", tt.input, tt.opts),
+				result,
+				tt.expected,
+			)
 		})
 	}
 }
