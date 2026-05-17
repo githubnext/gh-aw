@@ -76,8 +76,13 @@ func Deduplicate[T comparable](slice []T) []T {
 // MergeUnique returns a deduplicated slice that starts with base and appends any
 // items from extra that are not already present in base. Order is preserved.
 func MergeUnique[T comparable](base []T, extra ...T) []T {
-	seen := make(map[T]struct{}, len(base)+len(extra))
-	result := make([]T, 0, len(base)+len(extra))
+	capacity := len(base)
+	if len(extra) <= int(^uint(0)>>1)-capacity {
+		capacity += len(extra)
+	}
+
+	seen := make(map[T]struct{}, capacity)
+	result := make([]T, 0, capacity)
 	for _, item := range base {
 		if _, exists := seen[item]; !exists {
 			seen[item] = struct{}{}

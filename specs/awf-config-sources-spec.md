@@ -82,6 +82,8 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** in this section ar
 
 **CR-06**: Drift categorized as "missing in gh-aw" or "spec mismatch" MUST be remediated (merged or explicitly waived with rationale) within **5 business days** of detection. For this requirement, business days are Monday-Friday in UTC, excluding weekends. If this SLA is missed, maintainers MUST open (or update) an escalation tracking issue within 1 business day. The escalation issue MUST include an owner, unblock plan, and revised ETA.
 
+**CR-06a (Escalation Owner Assignment)**: When opening or updating an escalation tracking issue under CR-06, the assignee **SHOULD** be determined as follows: (a) the maintainer who merged the last change to the drifted property's corresponding implementation file in `pkg/workflow/` or `actions/setup/` is the **default escalation owner** (implementation guidance: this can be determined via `git log` on the relevant file, or through PR merge history); (b) if no such maintainer is identifiable (e.g., the property has never been implemented), the escalation owner **SHOULD** default to the on-call maintainer for the `github/gh-aw` repository at the time of escalation; (c) the assigned owner **MUST** be recorded in the `Owner` field of the escalation issue template and **MUST** acknowledge the assignment by commenting on the issue within 1 business day of assignment. The escalation issue **MUST NOT** be left unassigned.
+
 ---
 
 ## 4. Drift Detection Procedure
@@ -189,6 +191,71 @@ To satisfy CR-06 tracking obligations, drift escalation records SHOULD use:
 ```
 
 The scheduled schema consistency workflow SHOULD open or update one such issue when drift remains unresolved beyond 5 business days.
+
+### 4.5 DriftRecord Entity Schema
+
+A `DriftRecord` represents a single detected schema drift item produced by the drift detection procedure (Section 4.2, Step 5). All automation and agents that produce or consume drift reports **MUST** use this schema for structured drift output.
+
+#### 4.5.1 Formal Schema (JSON Schema)
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DriftRecord",
+  "description": "A single detected configuration drift item between gh-aw-firewall canonical sources and gh-aw implementation.",
+  "type": "object",
+  "required": ["property_path", "drift_category", "suggested_action", "detected_at"],
+  "properties": {
+    "property_path": {
+      "type": "string",
+      "description": "Dot-notation path to the drifted configuration property (e.g., 'apiProxy.anthropicAutoCache').",
+      "examples": ["apiProxy.anthropicAutoCache", "container.dockerHostPathPrefix"]
+    },
+    "drift_category": {
+      "type": "string",
+      "enum": ["missing_in_ghaw", "missing_in_schema", "spec_mismatch"],
+      "description": "Classification of the drift condition. 'missing_in_ghaw': property exists in canonical schema but gh-aw has no coverage. 'missing_in_schema': gh-aw generates a field not present in either schema. 'spec_mismatch': CLI mapping in gh-aw disagrees with the normative spec description."
+    },
+    "suggested_action": {
+      "type": "string",
+      "description": "Human-readable remediation recommendation for this drift item (e.g., 'Add coverage for apiProxy.anthropicAutoCache in pkg/workflow/ and reconcile with docs/awf-config-spec.md CLI mapping table').",
+      "minLength": 1
+    },
+    "detected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp (UTC) when this drift item was first detected in the current run."
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+#### 4.5.2 Field Reference
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `property_path` | `string` | **MUST** | Dot-notation config property path (e.g., `apiProxy.anthropicAutoCache`) |
+| `drift_category` | `enum` | **MUST** | One of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch` (see Section 4.2, Step 4) |
+| `suggested_action` | `string` | **MUST** | Actionable remediation text; **MUST NOT** be empty |
+| `detected_at` | `string` (ISO 8601) | **MUST** | UTC timestamp of detection; filesystem-safe format **SHOULD** use `YYYY-MM-DDTHH:MM:SSZ` |
+
+#### 4.5.3 Usage
+
+The drift detection procedure (Section 4.2, Step 5) **MUST** produce a list of zero or more `DriftRecord` objects. When any record has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation **MUST** open a corrective PR (CR-05) and, if the SLA window is exceeded, an escalation issue (CR-06). The corrective PR description **MUST** embed the full `DriftRecord` list as JSON.
+
+**Example output (Step 5 of the drift detection procedure):**
+
+```json
+[
+  {
+    "property_path": "apiProxy.anthropicAutoCache",
+    "drift_category": "missing_in_ghaw",
+    "suggested_action": "Add coverage for apiProxy.anthropicAutoCache in pkg/workflow/ and reconcile CLI mapping in docs/awf-config-spec.md.",
+    "detected_at": "2026-05-17T16:00:00Z"
+  }
+]
+```
 
 ## 5. Safeguards
 

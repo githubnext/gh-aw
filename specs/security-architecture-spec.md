@@ -1103,6 +1103,8 @@ A conforming implementation MUST provide a compliance test suite covering all MU
 - **T-CS-004**: Verify network configuration validation
 - **T-CS-005**: Verify action pinning enforcement
 - **T-CS-006**: Verify deprecated feature rejection
+- **T-SG07-001**: Verify fail-secure behavior on schema validation error — when `gh-aw compile` processes a workflow containing a schema validation error (e.g., an unrecognized top-level key, a field with a value that violates the JSON Schema type or enum constraint), compilation **MUST** fail with a non-zero exit code and a diagnostic message identifying the invalid field and the violated schema constraint. The output lock file **MUST NOT** be written or updated when compilation fails due to a schema validation error. **Assertion**: `gh-aw compile` exits non-zero; no `.lock.yml` file is created or modified; stderr contains the schema violation description. **Expected result**: compilation failure; no output artifact produced.
+- **T-SG07-002**: Verify fail-secure behavior on MUST-level requirement violation — when `gh-aw compile` processes a workflow that violates a MUST-level security requirement (e.g., declaring `permissions: contents: write` without a `safe-outputs` configuration, triggering CTR-001), compilation **MUST** fail with a non-zero exit code and a diagnostic message identifying the violated requirement by its rule identifier (e.g., `CTR-001`) and providing actionable remediation guidance. The output lock file **MUST NOT** be written or updated when compilation fails due to a MUST-level requirement violation. **Assertion**: `gh-aw compile` exits non-zero; no `.lock.yml` file is created or modified; stderr contains the rule identifier and remediation guidance. **Expected result**: compilation failure; no output artifact produced.
 
 #### 12.2.8 Runtime Security Tests
 
@@ -1126,6 +1128,7 @@ A conforming implementation MUST provide a compliance test suite covering all MU
 | Output Isolation | T-OI-001 to T-OI-007 | 1 | Required |
 | Permission Management | T-PM-001 to T-PM-007 | 1 | Required |
 | Compilation-Time Checks | T-CS-001 to T-CS-006 | 1 | Required |
+| Fail-Secure (SG-07) | T-SG07-001, T-SG07-002 | 1 | Required |
 | Network Isolation | T-NI-001 to T-NI-009 | 2 | Required |
 | Sandbox Isolation | T-SI-001 to T-SI-007 | 2 | Required |
 | Runtime Enforcement | T-RS-001 to T-RS-011 | 2 | Required |
@@ -1897,4 +1900,27 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 ---
 
 *Copyright © 2026 GitHub, Inc. All rights reserved.*
+
+---
+
+## Sync Notes
+
+This section cross-references the normative compliance validation document and defines the revalidation cadence for this specification.
+
+### Validation Document
+
+The compliance validation pass for this specification is documented in:
+
+- **`specs/security-architecture-spec-validation.md`** — records the results of the most recent full validation pass against each MUST/SHALL requirement, including test IDs, pass/fail status, and any open findings. All conforming implementations **SHOULD** consult this document to understand the current validation state before making security architecture changes.
+
+### Revalidation Trigger
+
+A full revalidation pass **MUST** be triggered and the results in `specs/security-architecture-spec-validation.md` **MUST** be updated whenever:
+
+1. This specification is incremented to a new minor version (e.g., `1.0.x` → `1.1.0` or higher).
+2. A new MUST-level requirement is added or an existing MUST-level requirement is modified or removed in any section.
+3. A security incident or CVE is attributed to a control defined in this specification.
+4. The reference implementation (GitHub Agentic Workflows) ships a change that affects a control described in Sections 4–11.
+
+The revalidation cadence **SHOULD** also include a review of `specs/security-architecture-spec-validation.md` on every minor version bump, even in the absence of the above triggers, to ensure the validation summary table remains current.
 *This specification is provided under the MIT License.*
