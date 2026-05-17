@@ -634,3 +634,51 @@ Start with the 5 highest-value, lowest-effort types:
 5. `assign_to_agent` — important for delegation workflows
 
 These cover the majority of safe output usage. Add the rest incrementally.
+
+---
+
+## Conformance
+
+### Conformance Test Table
+
+The table below specifies one conformance test row per safe-output type. Each row defines the expected OTel attribute value emitted by a correct evaluator, the pass condition (what must be true for `accepted`), and the fail condition (what signals `rejected`). Implementations **MUST** satisfy the pass condition and **MUST** not emit `accepted` when the fail condition is observed.
+
+| Output type | Expected `ghaw.outcome.type` OTel attribute | Pass condition | Fail condition |
+|---|---|---|---|
+| `create_pull_request` | `create_pull_request` | PR exists in open or merged state; was not closed-as-not-planned or reverted within the evaluation window | PR closed-as-not-planned, reverted, or deleted within the evaluation window |
+| `create_issue` | `create_issue` | Issue exists in open state, or was closed by human action (not bot policy) within the evaluation window | Issue closed-as-not-planned by human within the evaluation window, or deleted |
+| `add_comment` | `add_comment` | Comment exists on the target object at evaluation time | Comment was deleted or hidden by a human (non-bot) actor within the evaluation window |
+| `add_labels` | `add_labels` | At least one of the bot-applied labels is still present on the target object at evaluation time | All bot-applied labels were removed by a human actor within the evaluation window |
+| `add_reviewer` | `add_reviewer` | Requested reviewer is still listed as a requested reviewer, or has already submitted a review | Reviewer request was removed by a human actor before any review was submitted |
+| `update_issue` | `update_issue` | Updated field(s) (title, body, assignee) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a human actor within the evaluation window |
+| `update_pull_request` | `update_pull_request` | Updated field(s) (title, body, base branch) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a human actor within the evaluation window |
+| `close_issue` | `close_issue` | Issue remains closed at evaluation time | Issue was reopened by a human actor within the evaluation window |
+| `close_pull_request` | `close_pull_request` | PR remains closed (not merged) at evaluation time | PR was reopened or merged after the bot closed it within the evaluation window |
+| `close_discussion` | `close_discussion` | Discussion remains closed at evaluation time | Discussion was reopened by a human actor within the evaluation window |
+| `create_discussion` | `create_discussion` | Discussion exists and has not been deleted or locked within the evaluation window | Discussion was deleted or permanently locked (preventing any responses) within the evaluation window |
+| `update_discussion` | `update_discussion` | Updated field(s) (title, body, category) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a human actor within the evaluation window |
+| `create_pull_request_review_comment` | `create_pull_request_review_comment` | Review comment exists on the PR diff at evaluation time | Review comment was deleted by a human actor within the evaluation window |
+| `submit_pull_request_review` | `submit_pull_request_review` | PR review record exists with the submitted state (APPROVED, CHANGES_REQUESTED, COMMENT) at evaluation time | Review was dismissed by a human actor within the evaluation window |
+| `reply_to_pull_request_review_comment` | `reply_to_pull_request_review_comment` | Reply comment exists in the review thread at evaluation time | Reply comment was deleted by a human actor within the evaluation window |
+| `resolve_pull_request_review_thread` | `resolve_pull_request_review_thread` | Review thread remains resolved at evaluation time | Thread was re-opened (un-resolved) by a human actor within the evaluation window |
+| `push_to_pull_request_branch` | `push_to_pull_request_branch` | The pushed commit SHA is still present in the PR branch history at evaluation time | The commit was force-pushed out of the branch history by a human actor within the evaluation window |
+| `mark_pull_request_as_ready_for_review` | `mark_pull_request_as_ready_for_review` | PR is no longer in draft state at evaluation time | PR was converted back to draft by a human actor within the evaluation window |
+| `assign_to_agent` | `assign_to_agent` | Assignment record exists on the target issue/PR at evaluation time | Assignment was removed by a human actor before the assigned agent acted on it |
+| `dispatch_workflow` | `dispatch_workflow` | The dispatched workflow run exists and reached a terminal state (success or failure) within the evaluation window | The dispatched workflow run was cancelled before reaching a terminal state; or no corresponding run record is found |
+| `autofix_code_scanning_alert` | `autofix_code_scanning_alert` | Code scanning alert is in a fixed or dismissed state at evaluation time | Alert was re-opened or the fix commit was reverted within the evaluation window |
+| `create_code_scanning_alert` | `create_code_scanning_alert` | Alert record exists in the repository's code scanning results at evaluation time | Alert was immediately dismissed (within the evaluation window) with no investigation action |
+| `link_sub_issue` | `link_sub_issue` | Sub-issue link exists on the parent issue at evaluation time | Sub-issue link was removed by a human actor within the evaluation window |
+| `hide_comment` | `hide_comment` | Comment is minimized (hidden) at evaluation time | Comment was un-hidden by a human actor within the evaluation window |
+| `assign_milestone` | `assign_milestone` | Milestone assignment is present on the target issue/PR at evaluation time | Milestone assignment was removed by a human actor within the evaluation window |
+| `update_project` | `update_project` | Project item field(s) match the values the bot submitted at evaluation time | Project item field(s) were reverted to pre-bot values by a human actor within the evaluation window |
+| `update_release` | `update_release` | Release field(s) (name, body, tag, draft status) match the values the bot submitted at evaluation time | Release field(s) were reverted by a human actor, or the release was deleted within the evaluation window |
+| `noop` | `noop` | Evaluation is skipped; no outcome is computed | N/A — `noop` always results in `ignored` |
+| `missing_tool` | `missing_tool` | Evaluation is skipped; no outcome is computed | N/A — `missing_tool` always results in `ignored` |
+
+### OTel Backend Unavailability
+
+When the OTLP exporter is unavailable (e.g., endpoint unreachable, network timeout, authentication failure) during outcome evaluation, the following safeguards **MUST** apply:
+
+1. **Graceful degradation**: Outcome evaluation workers **MUST** complete their classification logic (determining `accepted`, `rejected`, `ignored`, etc.) regardless of OTLP exporter availability. The computed outcome **MUST** be persisted to a local audit fallback log (e.g., a NDJSON file at a known path such as `/tmp/gh-aw/outcome-audit.ndjson`) before any attempt to export to OTLP. If the OTLP export fails, the local audit log entry **MUST** still be written and **MUST NOT** be discarded. This ensures the outcome is recoverable even when the telemetry backend is down.
+
+2. **Audit fallback and retry**: When OTLP export fails, the evaluation worker **SHOULD** schedule a retry using an exponential back-off strategy (initial delay: 5 seconds; maximum delay: 5 minutes; maximum attempts: 5). If all retries are exhausted without a successful export, the worker **MUST** record the export failure in the local audit log with a `export_failed: true` flag and the final error reason. A downstream reconciliation process **SHOULD** periodically sweep the local audit log and re-attempt export for any entries marked `export_failed: true`.
