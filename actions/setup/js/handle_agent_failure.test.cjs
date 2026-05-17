@@ -2061,7 +2061,7 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("- Run: [https://example.com/run/1](https://example.com/run/1)");
     });
 
-    it("keeps the ET guidance bulk inside a details section", () => {
+    it("wraps ET guidance in a collapsible details section", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
       expect(result).toContain("<summary>Why this happened and how to optimize</summary>");
       expect(result).toContain("token optimization instructions");
