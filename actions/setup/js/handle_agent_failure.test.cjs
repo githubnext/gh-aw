@@ -1308,6 +1308,7 @@ describe("handle_agent_failure", () => {
   // ──────────────────────────────────────────────────────
 
   describe("buildPermissionDeniedContext", () => {
+    let buildPermissionDeniedContext;
     const fs = require("fs");
     const path = require("path");
     const os = require("os");
@@ -1316,9 +1317,11 @@ describe("handle_agent_failure", () => {
     let tmpDir;
 
     beforeEach(() => {
+      vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-permission-denied-"));
       process.env.RUNNER_TEMP = tmpDir;
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
     });
 
     afterEach(() => {
@@ -1330,8 +1333,6 @@ describe("handle_agent_failure", () => {
     });
 
     it("returns empty string when agent output file does not exist", () => {
-      vi.resetModules();
-      const { buildPermissionDeniedContext } = require("./handle_agent_failure.cjs");
       expect(buildPermissionDeniedContext()).toBe("");
     });
 
@@ -1341,7 +1342,7 @@ describe("handle_agent_failure", () => {
         JSON.stringify({ items: [{ type: "noop", reason: "done" }] })
       );
       vi.resetModules();
-      const { buildPermissionDeniedContext } = require("./handle_agent_failure.cjs");
+      ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
       expect(buildPermissionDeniedContext()).toBe("");
     });
 
@@ -1355,14 +1356,12 @@ describe("handle_agent_failure", () => {
         })
       );
       vi.resetModules();
-      const { buildPermissionDeniedContext } = require("./handle_agent_failure.cjs");
+      ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
       expect(buildPermissionDeniedContext()).toBe("");
     });
 
     it("returns inline fallback when template is not available (RUNNER_TEMP not set)", () => {
       delete process.env.RUNNER_TEMP;
-      vi.resetModules();
-      const { buildPermissionDeniedContext } = require("./handle_agent_failure.cjs");
       const items = [
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] },
       ];
@@ -1373,8 +1372,6 @@ describe("handle_agent_failure", () => {
 
     it("renders fallback with denied commands listed", () => {
       delete process.env.RUNNER_TEMP;
-      vi.resetModules();
-      const { buildPermissionDeniedContext } = require("./handle_agent_failure.cjs");
       const items = [
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] },
       ];
@@ -1385,8 +1382,6 @@ describe("handle_agent_failure", () => {
 
     it("deduplicates denied commands across multiple tool/permission items", () => {
       delete process.env.RUNNER_TEMP;
-      vi.resetModules();
-      const { buildPermissionDeniedContext } = require("./handle_agent_failure.cjs");
       const items = [
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] },
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "which go"] },
@@ -1406,8 +1401,6 @@ describe("handle_agent_failure", () => {
         path.join(__dirname, "../md/permission_denied_context.md"),
         path.join(promptsDir, "permission_denied_context.md")
       );
-      vi.resetModules();
-      const { buildPermissionDeniedContext } = require("./handle_agent_failure.cjs");
       const items = [
         { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] },
       ];
