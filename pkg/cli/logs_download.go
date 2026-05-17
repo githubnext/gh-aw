@@ -24,6 +24,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -313,7 +314,7 @@ func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string,
 			return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		// If logs are not found or run has no logs, this is not a critical error
-		if strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
+		if errorutil.IsNotFoundError(err) || strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No logs found for run %d (may be expired or unavailable)", runID)))
 			}

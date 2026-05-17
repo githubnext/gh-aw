@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -25,7 +26,7 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 	gatewayMetrics, err := parseGatewayLogs(logDir, verbose)
 	if err != nil {
 		// Return nil if no log file exists (not an error for workflows without MCP)
-		if strings.Contains(err.Error(), "not found") {
+		if errorutil.IsNotFoundError(err) {
 			gatewayLogsLog.Print("No gateway log file found, skipping MCP tool usage extraction")
 			return nil, nil
 		}
