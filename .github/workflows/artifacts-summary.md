@@ -32,7 +32,7 @@ strict: true
 imports:
   - shared/reporting.md
   - shared/safe-output-app.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

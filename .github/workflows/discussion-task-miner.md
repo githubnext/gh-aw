@@ -58,7 +58,7 @@ imports:
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

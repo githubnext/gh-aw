@@ -5,7 +5,7 @@ name: Daily Semgrep Scan
 imports:
   - shared/security-analysis-base.md
   - shared/mcp/semgrep.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 on:
   schedule: daily
   workflow_dispatch:

@@ -64,7 +64,7 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) fortified this PR with fresh regression coverage."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while raising regression tests."
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Necromancer

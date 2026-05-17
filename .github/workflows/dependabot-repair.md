@@ -8,7 +8,7 @@ on:
 permissions: read-all
 
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   github:
     toolsets: [default]

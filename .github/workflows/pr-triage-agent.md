@@ -13,7 +13,7 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

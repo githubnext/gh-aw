@@ -93,7 +93,7 @@ imports:
 ---
 ```
 
-`shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/observability-otlp.md` for telemetry-enabled reporting workflows.
+`shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/otlp.md` for telemetry-enabled reporting workflows.
 
 ## Import Schema (`import-schema`)
 

@@ -31,7 +31,7 @@ imports:
       labels: [automation, cookie]
   - shared/go-source-analysis.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   cache-memory: true

@@ -42,7 +42,7 @@ safe-outputs:
 
 imports:
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 steps:
   - name: Build workflow index
     uses: actions/github-script@v9

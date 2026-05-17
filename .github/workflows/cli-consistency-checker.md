@@ -15,7 +15,7 @@ strict: false
 network:
   allowed: [defaults, node, "api.github.com", "proxy.golang.org", "sum.golang.org"]
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   edit:

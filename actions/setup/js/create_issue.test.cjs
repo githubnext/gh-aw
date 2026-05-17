@@ -1036,6 +1036,21 @@ describe("create_issue", () => {
       // Footer marker should still be present
       expect(createCall.body).toContain("gh-aw-workflow-id");
     });
+
+    it("should preserve allowlisted mentions when mentions config is provided", async () => {
+      const handler = await main({
+        mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+      });
+      await handler({
+        title: "Test Issue",
+        body: "Please ask @copilot and @someone-else to review this.",
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("@copilot");
+      expect(createCall.body).not.toContain("`@copilot`");
+      expect(createCall.body).toContain("`@someone-else`");
+    });
   });
 
   describe("retry on rate limit errors", () => {

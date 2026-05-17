@@ -64,7 +64,7 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Smoke Test: Project Operations Validation

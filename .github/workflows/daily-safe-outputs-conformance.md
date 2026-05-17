@@ -31,7 +31,7 @@ imports:
       expires: 1d
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Daily Safe Outputs Conformance Checker

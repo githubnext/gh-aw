@@ -272,10 +272,10 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
-		name            string
-		safeOutputs     *SafeOutputsConfig
-		wantMentions    map[string]any // nil means no "mentions" key expected
-		wantNoMentions  bool
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		wantMentions   map[string]any // nil means no "mentions" key expected
+		wantNoMentions bool
 	}{
 		{
 			name: "mentions.allowed propagates to handler config",
@@ -309,14 +309,16 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 			wantNoMentions: true,
 		},
 		{
-			name: "mentions without add_comment omits mentions from handler config",
+			name: "mentions without add_comment still included in handler config",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 				Mentions: &MentionsConfig{
 					Allowed: []string{"copilot"},
 				},
 			},
-			wantNoMentions: true,
+			wantMentions: map[string]any{
+				"allowed": []any{"copilot"},
+			},
 		},
 	}
 

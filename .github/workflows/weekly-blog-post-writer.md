@@ -40,7 +40,7 @@ tools:
 imports:
   - shared/github-guard-policy.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-pull-request:
     expires: 7d

@@ -11,7 +11,7 @@ permissions:
   issues: read
   actions: read
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

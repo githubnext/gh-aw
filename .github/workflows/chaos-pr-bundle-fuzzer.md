@@ -33,7 +33,7 @@ safe-outputs:
   noop:
 timeout-minutes: 30
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Chaos PR Bundle Fuzzer

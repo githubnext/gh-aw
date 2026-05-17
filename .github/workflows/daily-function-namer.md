@@ -22,7 +22,7 @@ imports:
       expires: 3d
   - shared/mcp/serena-go.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 7d

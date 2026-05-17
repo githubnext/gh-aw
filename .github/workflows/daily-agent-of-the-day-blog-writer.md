@@ -63,7 +63,7 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 imports:
   - shared/github-guard-policy.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
   - shared/noop-reminder.md
 ---
 

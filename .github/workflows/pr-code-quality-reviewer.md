@@ -18,7 +18,7 @@ imports:
     with:
       min-integrity: approved
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
 safe-outputs:

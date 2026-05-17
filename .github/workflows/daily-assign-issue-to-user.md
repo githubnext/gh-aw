@@ -23,7 +23,7 @@ safe-outputs:
 features:
   copilot-requests: true
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

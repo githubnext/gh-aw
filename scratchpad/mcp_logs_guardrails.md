@@ -122,7 +122,7 @@ Returns just the aggregate metrics without individual run data.
 }
 ```
 
-Returns a simplified list of runs with just the essential fields.
+Returns a list of runs containing only the `database_id`, `workflow_name`, and `status` fields.
 
 ### 3. Get Only Failed Runs
 

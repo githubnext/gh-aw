@@ -1118,7 +1118,7 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 //	├── shared/daily-audit-base.md (direct)
 //	│   ├── shared/daily-audit-discussion.md (nested level 2)
 //	│   ├── shared/reporting.md              (nested level 2)
-//	│   └── shared/observability-otlp.md     (nested level 2)
+//	│   └── shared/otlp.md     (nested level 2)
 //	└── shared/go-source-analysis.md (direct)
 //	    ├── shared/mcp/serena-go.md          (nested level 2)
 //	    │   └── shared/mcp/serena.md         (nested level 3, via "./serena.md")
@@ -1167,7 +1167,7 @@ func TestAddWorkflowWithRecursiveSharedImports(t *testing.T) {
 	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "reporting.md"),
 		"transitive import shared/reporting.md (via daily-audit-base) should be fetched")
 	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "observability-otlp.md"),
-		"transitive import shared/observability-otlp.md (via daily-audit-base) should be fetched")
+		"transitive import shared/otlp.md (via daily-audit-base) should be fetched")
 
 	// 4. Transitive imports via shared/go-source-analysis.md must be present.
 	assert.FileExists(t, filepath.Join(workflowsDir, "shared", "mcp", "serena-go.md"),

@@ -318,7 +318,7 @@ imports:
       title-prefix: "[daily-news] "
       expires: 3d
   - shared/trends.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

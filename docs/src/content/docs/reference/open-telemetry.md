@@ -186,7 +186,7 @@ on:
   schedule: daily
 engine: copilot
 imports:
-  - shared/observability-otlp.md   # sets the OTLP endpoint + auth headers
+  - shared/otlp.md   # sets the OTLP endpoint + auth headers
   - shared/my-tool.md              # runs my-tool and records its span
 ---
 

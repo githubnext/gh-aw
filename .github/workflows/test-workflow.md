@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Instructions for Test Workflow

@@ -36,6 +36,7 @@ const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_age
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
+const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -714,6 +715,12 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
+  let allowedMentionAliases = [];
+  if (Array.isArray(config.allowedMentionAliases)) {
+    allowedMentionAliases = config.allowedMentionAliases;
+  } else if (config.mentions != null) {
+    allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions);
+  }
 
   // Check if copilot assignment is enabled for fallback issues
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
@@ -1267,7 +1274,7 @@ async function main(config = {}) {
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
-    processedBody = sanitizeContent(processedBody);
+    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
 
     // Auto-add "Fixes #N" closing keyword if triggered from an issue and not already present.
     // This ensures the triggering issue is auto-closed when the PR is merged.

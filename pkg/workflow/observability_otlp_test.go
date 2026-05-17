@@ -719,7 +719,7 @@ func TestInjectOTLPConfig_OTLPEndpointField(t *testing.T) {
 	})
 
 	t.Run("sets OTLPEndpoint from imported observability merged into RawFrontmatter", func(t *testing.T) {
-		// Simulate what compiler_orchestrator_workflow.go does when importing shared/observability-otlp.md:
+		// Simulate what compiler_orchestrator_workflow.go does when importing shared/otlp.md:
 		// the imported observability JSON is decoded and injected into RawFrontmatter before injectOTLPConfig runs.
 		wd := &WorkflowData{
 			RawFrontmatter: map[string]any{

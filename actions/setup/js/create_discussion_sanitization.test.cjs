@@ -170,6 +170,30 @@ describe("create_discussion body sanitization", () => {
     expect(body).toContain("gh-aw-workflow-id");
   });
 
+  it("should preserve allowlisted mentions when mentions config is provided", async () => {
+    const handler = await createDiscussionMain({
+      max: 5,
+      category: "general",
+      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+    });
+    const result = await handler(
+      {
+        title: "Test Discussion",
+        body: "Please ask @copilot and @someone-else to review this.",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+
+    const createMutationCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("createDiscussion"));
+    expect(createMutationCall).toBeDefined();
+    const body = createMutationCall[1].body;
+    expect(body).toContain("@copilot");
+    expect(body).not.toContain("`@copilot`");
+    expect(body).toContain("`@someone-else`");
+  });
+
   it("should fail when body is below configured minimum length", async () => {
     const handler = await createDiscussionMain({ max: 5, category: "general", min_body_length: 200 });
     const result = await handler(
