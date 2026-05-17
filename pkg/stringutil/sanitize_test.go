@@ -8,16 +8,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func assertSanitizeResult(t *testing.T, functionName, input, got, want string) {
 	t.Helper()
-	assert.Equal(t, want, got, "%s(%q) should return expected output", functionName, input)
+	require.Equal(t, want, got, "%s(%q) should return expected output", functionName, input)
 }
 
 func assertSanitizeResultWithContext(t *testing.T, functionName, context, got, want string) {
 	t.Helper()
-	assert.Equal(t, want, got, "%s(%s) should return expected output", functionName, context)
+	require.Equal(t, want, got, "%s(%s) should return expected output", functionName, context)
 }
 
 func TestSanitizeErrorMessage(t *testing.T) {
