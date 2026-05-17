@@ -59,6 +59,33 @@ func TestInferPermissionsFromShellScripts_GhAPI(t *testing.T) {
 	assert.Equal(t, PermissionRead, perms[PermissionPullRequests], "gh api /repos/.../pulls should require pull-requests: read")
 }
 
+// TestInferPermissionsFromShellScripts_GhAPIWithHeaderFlag verifies that flags before the
+// endpoint are skipped, e.g. gh api -H 'Accept: ...' /repos/owner/repo/pulls.
+func TestInferPermissionsFromShellScripts_GhAPIWithHeaderFlag(t *testing.T) {
+	scripts := []string{`gh api -H 'Accept: application/vnd.github+json' /repos/owner/repo/pulls`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionPullRequests],
+		"gh api with -H flag before endpoint should still infer pull-requests: read")
+}
+
+// TestInferPermissionsFromShellScripts_GhAPIWithMethodFlag verifies that --method GET
+// before the endpoint is skipped properly.
+func TestInferPermissionsFromShellScripts_GhAPIWithMethodFlag(t *testing.T) {
+	scripts := []string{`gh api --method GET /repos/owner/repo/issues`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionIssues],
+		"gh api with --method GET before endpoint should still infer issues: read")
+}
+
+// TestInferPermissionsFromShellScripts_GhAPIQuotedEndpoint verifies that a quoted endpoint
+// is correctly extracted, e.g. gh api "/repos/owner/repo/pulls".
+func TestInferPermissionsFromShellScripts_GhAPIQuotedEndpoint(t *testing.T) {
+	scripts := []string{`gh api "/repos/owner/repo/pulls"`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionPullRequests],
+		`gh api with quoted endpoint should infer pull-requests: read`)
+}
+
 // TestInferPermissionsFromShellScripts_GhAPIIssues verifies issues: read for gh api issues endpoint.
 func TestInferPermissionsFromShellScripts_GhAPIIssues(t *testing.T) {
 	scripts := []string{`gh api /repos/owner/repo/issues --jq '.[].number'`}
@@ -946,47 +973,15 @@ Test agent post-steps write command triggers error.
 	assert.Contains(t, err.Error(), "gh pr close")
 }
 
-// TestActivationJobStepsInferReadPermission verifies that `gh workflow list` in
-// jobs.activation.steps causes the compiler to add actions: read to the activation job.
-func TestActivationJobStepsInferReadPermission(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "activation-steps-read-perm")
+// TestActivationJobStepsNotScanned verifies that jobs.activation.steps is NOT scanned for
+// gh CLI calls because the activation job is a built-in job and applyBuiltinJobPreSteps
+// only injects jobs.<name>.pre-steps — steps/post-steps are silently ignored.
+func TestActivationJobStepsNotScanned(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-steps-not-scanned")
 	testFile := filepath.Join(tmpDir, "workflow.md")
-	testContent := `---
-on:
-  pull_request:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read
-engine: copilot
-jobs:
-  activation:
-    steps:
-      - name: List workflows
-        run: |
-          gh workflow list --json name > /tmp/workflows.json
----
-
-# Workflow that lists workflows in activation steps
-`
-	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
-
-	compiler := NewCompiler()
-	require.NoError(t, compiler.CompileWorkflow(testFile))
-
-	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
-	require.NoError(t, err)
-
-	activationSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
-	assert.Contains(t, activationSection, "actions: read",
-		"activation job should have actions: read inferred from steps gh workflow list")
-}
-
-// TestActivationJobWriteCommandInStepsErrors verifies that a write gh command in
-// jobs.activation.steps triggers a compile error.
-func TestActivationJobWriteCommandInStepsErrors(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "activation-steps-write-error")
-	testFile := filepath.Join(tmpDir, "bad-workflow.md")
+	// Note: jobs.activation.steps contains a write command (gh label create).
+	// If it were scanned this would produce a compile error; the absence of an error
+	// confirms that the section is intentionally skipped.
 	testContent := `---
 on:
   pull_request:
@@ -1002,13 +997,12 @@ jobs:
           gh label create "reviewed" --color "#0075ca"
 ---
 
-# Workflow whose activation steps illegally call a write gh command
+# Workflow whose activation steps are silently ignored (only pre-steps are applied)
 `
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	compiler := NewCompiler()
-	err := compiler.CompileWorkflow(testFile)
-	require.Error(t, err, "compiler should reject write gh commands in activation steps")
-	assert.Contains(t, err.Error(), "gh label create", "error should mention the offending command")
-	assert.Contains(t, err.Error(), "write", "error should explain the write-permission restriction")
+	// Should compile without error — the write command in jobs.activation.steps is not
+	// executed so it must not trigger a validation error.
+	require.NoError(t, compiler.CompileWorkflow(testFile))
 }

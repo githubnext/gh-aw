@@ -155,9 +155,98 @@ func init() {
 	ghCLIPermissions = cp
 }
 
-// ghAPIRE matches `gh api <path>` invocations.
-// Capture group: (1) API path (up to the first whitespace, pipe, or quote).
-var ghAPIRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+api\s+([^\s|;&"'\\]+)`)
+// ghAPICmdRE matches `gh api` at a command boundary, capturing the rest of the line.
+var ghAPICmdRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+api\s+(.+)`)
+
+// ghAPIValueFlags is the set of `gh api` flags that consume the next token as their value.
+// These are skipped so that the API endpoint path can be located even when flags precede it.
+var ghAPIValueFlags = map[string]bool{
+	"-X": true, "--method": true,
+	"-H": true, "--header": true,
+	"-f": true, "--field": true,
+	"-F": true, "--raw-field": true,
+	"-q": true, "--jq": true,
+	"-t": true, "--template": true,
+	"--cache": true, "--paginate-limit": true,
+}
+
+// extractGHAPIEndpoints extracts API endpoint paths from `gh api` invocations in a shell script.
+// It handles common invocation patterns such as:
+//
+//	gh api /repos/owner/repo/pulls
+//	gh api -H 'Accept: application/vnd.github+json' /repos/owner/repo/pulls
+//	gh api --method GET /repos/owner/repo/pulls
+//	gh api "/repos/owner/repo/pulls"
+//
+// Flags and their arguments are skipped until the first non-flag token is found.
+func extractGHAPIEndpoints(script string) []string {
+	var endpoints []string
+	for _, m := range ghAPICmdRE.FindAllStringSubmatch(script, -1) {
+		// m[1] is everything after `gh api ` on the same line.
+		if ep := parseGHAPIEndpoint(m[1]); ep != "" {
+			endpoints = append(endpoints, ep)
+		}
+	}
+	return endpoints
+}
+
+// parseGHAPIEndpoint returns the API endpoint path from the argument string that follows
+// `gh api`, skipping flags and their values. Surrounding quotes are stripped.
+func parseGHAPIEndpoint(args string) string {
+	tokens := splitShellTokens(strings.TrimSpace(args))
+	i := 0
+	for i < len(tokens) {
+		tok := tokens[i]
+		if strings.HasPrefix(tok, "-") {
+			// Flags with embedded value (e.g. --method=GET) consume only one token.
+			if strings.Contains(tok, "=") {
+				i++
+				continue
+			}
+			i++
+			// Flags that take a separate value argument: skip the next token too.
+			if ghAPIValueFlags[tok] && i < len(tokens) {
+				i++
+			}
+			continue
+		}
+		// First non-flag token is the endpoint; strip surrounding quotes.
+		return strings.Trim(tok, `"'`)
+	}
+	return ""
+}
+
+// splitShellTokens splits a shell argument string by whitespace while respecting
+// single and double quoted regions. Quotes are preserved in the returned tokens so
+// that the caller can strip them as needed.
+func splitShellTokens(s string) []string {
+	var tokens []string
+	var cur strings.Builder
+	inSingle := false
+	inDouble := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '\'' && !inDouble:
+			inSingle = !inSingle
+			cur.WriteByte(c)
+		case c == '"' && !inSingle:
+			inDouble = !inDouble
+			cur.WriteByte(c)
+		case (c == ' ' || c == '\t') && !inSingle && !inDouble:
+			if cur.Len() > 0 {
+				tokens = append(tokens, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	if cur.Len() > 0 {
+		tokens = append(tokens, cur.String())
+	}
+	return tokens
+}
 
 // inferPermissionsFromShellScripts scans one or more shell script strings for
 // gh CLI invocations and returns the minimum set of GitHub Actions and GitHub App
@@ -221,8 +310,7 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 		}
 
 		// Match gh api <path> patterns.
-		for _, m := range ghAPIRE.FindAllStringSubmatch(script, -1) {
-			path := m[1]
+		for _, path := range extractGHAPIEndpoints(script) {
 			for _, ap := range ghCLIPermissions.apiPathPatterns {
 				if ap.re.MatchString(path) {
 					addScopes(ap.permissions)

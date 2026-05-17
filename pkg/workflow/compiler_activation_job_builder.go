@@ -40,10 +40,9 @@ type activationJobBuildContext struct {
 	activationNeeds            []string
 	activationCondition        string
 
-	// activationAllScripts holds the `run` scripts extracted from all step sections
-	// in jobs.activation (pre-steps, steps, post-steps), cached to avoid repeated extraction.
-	// pre-agent-steps is intentionally omitted: it is an agent-job-only concept (steps that
-	// run immediately before AI execution) and has no meaning in the activation job.
+	// activationAllScripts holds the `run` scripts extracted from jobs.activation.pre-steps,
+	// cached to avoid repeated extraction. Only pre-steps are honored for built-in jobs;
+	// jobs.activation.steps and jobs.activation.post-steps are not injected by the compiler.
 	activationAllScripts []string
 	// activationInferredPerms holds the permissions inferred from activationAllScripts,
 	// cached here to avoid repeated inference.
@@ -84,13 +83,15 @@ func (c *Compiler) newActivationJobBuildContext(
 	}
 	ctx.shouldRemoveLabel = ctx.hasLabelCommand && data.LabelCommandRemoveLabel
 
-	// Cache scripts from all step sections and inferred permissions once to avoid redundant
+	// Cache scripts from pre-steps and inferred permissions once to avoid redundant
 	// extraction and inference calls in buildActivationPermissions and
 	// addActivationFeedbackAndValidationSteps.
+	// Only pre-steps are honored for built-in jobs: applyBuiltinJobPreSteps (compiler_jobs.go)
+	// inserts only jobs.<name>.pre-steps; jobs.<name>.steps and jobs.<name>.post-steps are
+	// ignored for built-in jobs, so scanning them would cause false-positive errors or
+	// unneeded permission grants.
 	activationJobName := string(constants.ActivationJobName)
-	for _, section := range []string{"pre-steps", "steps", "post-steps"} {
-		ctx.activationAllScripts = append(ctx.activationAllScripts, extractRunScriptsFromJobSection(data.Jobs, activationJobName, section)...)
-	}
+	ctx.activationAllScripts = extractRunScriptsFromJobSection(data.Jobs, activationJobName, "pre-steps")
 	if len(ctx.activationAllScripts) > 0 {
 		ctx.activationInferredPerms = inferPermissionsFromShellScripts(ctx.activationAllScripts)
 	}
