@@ -510,7 +510,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_98f84c9466c44825_EOF'
-          {"add_labels":{"allowed":["agentic-campaign","z_campaign_security-alert-burndown"]},"create_pull_request":{"expires":48,"labels":["security","automated-fix","agentic-campaign","z_campaign_security-alert-burndown"],"max":1,"max_patch_files":100,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","AGENTS.md","CLAUDE.md","GEMINI.md"],"reviewers":["copilot"],"title_prefix":"[code-scanning-fix] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/campaigns","id":"campaigns","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]},"report_incomplete":{}}
+          {"add_labels":{"allowed":["agentic-campaign","z_campaign_security-alert-burndown"]},"create_pull_request":{"expires":48,"labels":["security","automated-fix","agentic-campaign","z_campaign_security-alert-burndown"],"max":1,"max_patch_files":100,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","AGENTS.md","CLAUDE.md","GEMINI.md"],"reviewers":["copilot"],"title_prefix":"[code-scanning-fix] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/campaigns","id":"campaigns","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_98f84c9466c44825_EOF
       - name: Generate Safe Outputs Tools
         env:
@@ -1551,7 +1551,7 @@ jobs:
           MEMORY_ID: campaigns
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/campaigns
-          MAX_FILE_SIZE: 10240
+          MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
           MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
