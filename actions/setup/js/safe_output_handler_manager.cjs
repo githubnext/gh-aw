@@ -306,7 +306,7 @@ async function loadHandlers(config, prReviewBuffer, resolvedAllowedMentionAliase
           if (handlerConfig.mentions == null && config.mentions != null) {
             handlerConfig.mentions = config.mentions;
           }
-          if (handlerConfig.mentions != null && !Array.isArray(handlerConfig.allowedMentionAliases) && Array.isArray(resolvedAllowedMentionAliases)) {
+          if (handlerConfig.mentions != null && handlerConfig.allowedMentionAliases == null && Array.isArray(resolvedAllowedMentionAliases)) {
             handlerConfig.allowedMentionAliases = resolvedAllowedMentionAliases;
           }
 
