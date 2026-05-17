@@ -484,7 +484,7 @@ func TestExtractRunScriptsFromPreStepsYAML_Basic(t *testing.T) {
   - name: Lint changed files
     run: |
       gh pr diff "$PR_NUMBER" --name-only | awk '/\.md$/'
-  - uses: some-org/action@abc123def456abc123def456abc123def456abc1
+  - uses: some-org/action@0000000000000000000000000000000000000000
 `
 	scripts := extractRunScriptsFromPreStepsYAML(yamlStr)
 	assert.Len(t, scripts, 1)
@@ -499,7 +499,7 @@ func TestExtractRunScriptsFromPreStepsYAML_Empty(t *testing.T) {
 // TestExtractRunScriptsFromPreStepsYAML_NoRunSteps verifies nil return when no run steps present.
 func TestExtractRunScriptsFromPreStepsYAML_NoRunSteps(t *testing.T) {
 	yamlStr := `pre-steps:
-  - uses: some-org/action@abc123def456abc123def456abc123def456abc1
+  - uses: some-org/action@0000000000000000000000000000000000000000
 `
 	assert.Nil(t, extractRunScriptsFromPreStepsYAML(yamlStr))
 }

@@ -431,29 +431,34 @@ func (p *Permissions) RenderToYAML() string {
 // adding a new explicit block to a job that currently inherits workflow-level permissions
 // would unintentionally restrict those permissions.
 func mergeInferredIntoPermissionsYAML(permissionsYAML string, inferred map[PermissionScope]PermissionLevel) string {
-if permissionsYAML == "" || len(inferred) == 0 {
-return permissionsYAML
-}
+	if permissionsYAML == "" {
+		// No existing permissions block: adding one would unintentionally narrow the
+		// workflow-level permissions that the job currently inherits.
+		return permissionsYAML
+	}
+	if len(inferred) == 0 {
+		return permissionsYAML
+	}
 
-parsedPerms := NewPermissionsParser(permissionsYAML).ToPermissions()
+	parsedPerms := NewPermissionsParser(permissionsYAML).ToPermissions()
 
-changed := false
-for scope, level := range inferred {
-if IsGitHubAppOnlyScope(scope) {
-continue
-}
-if level == PermissionNone {
-continue
-}
-if _, exists := parsedPerms.Get(scope); !exists {
-parsedPerms.Set(scope, level)
-changed = true
-}
-}
+	changed := false
+	for scope, level := range inferred {
+		if IsGitHubAppOnlyScope(scope) {
+			continue
+		}
+		if level == PermissionNone {
+			continue
+		}
+		if _, exists := parsedPerms.Get(scope); !exists {
+			parsedPerms.Set(scope, level)
+			changed = true
+		}
+	}
 
-if !changed {
-return permissionsYAML
-}
+	if !changed {
+		return permissionsYAML
+	}
 
-return filterJobLevelPermissions(parsedPerms.RenderToYAML())
+	return filterJobLevelPermissions(parsedPerms.RenderToYAML())
 }

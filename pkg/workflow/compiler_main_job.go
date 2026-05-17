@@ -354,8 +354,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 		// Infer read permissions unless the user explicitly zeroed out all permissions.
 		// Check data.Permissions (the original value) since needsContentsRead above may have
-		// already expanded "permissions: {}" to "permissions:\n  contents: read".
-		if strings.TrimSpace(data.Permissions) != "permissions: {}" && permissions != "" {
+		// already expanded "permissions: {}" into an explicit block.
+		// Uses the same exact-string check as tools.go (the YAML parser always normalizes
+		// "permissions: {}" to this canonical form when parsing the frontmatter).
+		if data.Permissions != "permissions: {}" && permissions != "" {
 			inferred := inferPermissionsFromShellScripts(agentPreStepScripts)
 			if len(inferred) > 0 {
 				permissions = mergeInferredIntoPermissionsYAML(permissions, inferred)
