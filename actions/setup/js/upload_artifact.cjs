@@ -83,9 +83,8 @@ function resolveTemporaryArtifactId(message) {
   const declared = message.temporary_id;
   if (declared && typeof declared === "string") {
     const trimmed = declared.trim();
-    const normalized = trimmed.startsWith("#") ? trimmed.substring(1) : trimmed;
-    if (isTemporaryId(normalized)) {
-      return normalizeTemporaryId(normalized);
+    if (isTemporaryId(trimmed)) {
+      return normalizeTemporaryId(trimmed);
     }
     if (typeof core !== "undefined") {
       core.warning(`upload_artifact: invalid temporary_id format '${declared}'. ` + `Temporary IDs must be 'aw_' followed by 3–12 alphanumeric or underscore characters. ` + `A random ID will be generated instead.`);

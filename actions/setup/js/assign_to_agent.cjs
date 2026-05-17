@@ -196,9 +196,8 @@ async function main(config = {}) {
     // Strip leading '#' so both 'aw_abc1' and '#aw_abc1' (canonical validator form) are handled
     if (message.issue_number != null) {
       const issueNumStr = String(message.issue_number).trim();
-      const issueNumWithoutHash = issueNumStr.startsWith("#") ? issueNumStr.substring(1) : issueNumStr;
-      if (isTemporaryId(issueNumWithoutHash)) {
-        const normalized = normalizeTemporaryId(issueNumWithoutHash);
+      if (isTemporaryId(issueNumStr)) {
+        const normalized = normalizeTemporaryId(issueNumStr);
         if (!temporaryIdMap.has(normalized)) {
           core.info(`Deferring assign_to_agent — temporary ID ${message.issue_number} not yet resolved`);
           return { success: false, deferred: true };

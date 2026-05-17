@@ -677,13 +677,11 @@ async function main(config = {}) {
     let effectiveParentIssueNumber;
     let effectiveParentRepo = qualifiedItemRepo; // Default to same repo
     if (message.parent !== undefined) {
-      // Strip # prefix if present to allow flexible temporary ID format
       const parentStr = String(message.parent).trim();
-      const parentWithoutHash = parentStr.startsWith("#") ? parentStr.substring(1) : parentStr;
 
-      if (isTemporaryId(parentWithoutHash)) {
+      if (isTemporaryId(parentStr)) {
         // It's a temporary ID, look it up in the map
-        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(parentWithoutHash));
+        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(parentStr));
         if (resolvedParent) {
           effectiveParentIssueNumber = resolvedParent.number;
           effectiveParentRepo = resolvedParent.repo;
@@ -693,11 +691,12 @@ async function main(config = {}) {
         }
       } else {
         // Check if it looks like a malformed temporary ID
-        if (parentWithoutHash.startsWith("aw_")) {
+        const withoutHash = parentStr.startsWith("#") ? parentStr.substring(1) : parentStr;
+        if (withoutHash.startsWith("aw_")) {
           core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_). Example: 'aw_abc' or 'aw_pr_fix'`);
         } else {
           // It's a real issue number
-          const parsed = parseInt(parentWithoutHash, 10);
+          const parsed = parseInt(withoutHash, 10);
           if (!isNaN(parsed)) {
             effectiveParentIssueNumber = parsed;
           } else {

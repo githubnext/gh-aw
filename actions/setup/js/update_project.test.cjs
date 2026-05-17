@@ -876,7 +876,7 @@ describe("updateProject", () => {
     await updateProject(updateOutput, temporaryIdMap);
 
     expect(getOutput("item-id")).toBe("draft-item-chain");
-    expect(mockCore.info).toHaveBeenCalledWith('✓ Resolved draft_issue_id "AW_DEADBE" to item draft-item-chain');
+    expect(mockCore.info).toHaveBeenCalledWith('✓ Resolved draft_issue_id "aw_deadbe" to item draft-item-chain');
   });
 
   it("rejects malformed auto-generated temporary_id with aw_ prefix", async () => {

@@ -341,12 +341,11 @@ async function main(config = {}, githubClient = null) {
 
         if (urlMatch || plainMatch) {
           const tempIdStr = (urlMatch && urlMatch[1]) || (plainMatch && plainMatch[1]) || "";
-          const tempIdWithoutHash = tempIdStr.startsWith("#") ? tempIdStr.substring(1) : tempIdStr;
 
           // Check if it's a valid temporary ID
-          if (isTemporaryId(tempIdWithoutHash)) {
+          if (isTemporaryId(tempIdStr)) {
             // Look up in the unified temporaryIdMap (Map) or resolvedTemporaryIds (plain object)
-            const normalizedKey = normalizeTemporaryId(tempIdWithoutHash);
+            const normalizedKey = normalizeTemporaryId(tempIdStr);
             const resolved = temporaryIdMap instanceof Map ? temporaryIdMap.get(normalizedKey) : resolvedTemporaryIds[normalizedKey];
 
             if (resolved && resolved.repo && resolved.number) {

@@ -10,7 +10,7 @@
  */
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { isTemporaryId } = require("./temporary_id.cjs");
+const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
 
@@ -223,13 +223,10 @@ function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
       error: `Line ${lineNum}: ${fieldName} must be a number or string`,
     };
   }
-  // Check if it's a temporary ID. Both bare 'aw_abc1' and '#aw_abc1' are accepted;
-  // the canonical normalized form always includes the leading '#' so field values
-  // are consistent with body-reference syntax. All downstream resolvers already
-  // strip the '#' before map lookups.
-  const withoutHash = typeof value === "string" && value.startsWith("#") ? value.substring(1) : value;
-  if (isTemporaryId(withoutHash)) {
-    return { isValid: true, normalizedValue: `#${String(withoutHash).toLowerCase()}`, isTemporary: true };
+  // Check if it's a temporary ID. Both 'aw_abc1' and '#aw_abc1' are accepted;
+  // isTemporaryId handles both forms, and normalizeTemporaryId strips '#' for map keys.
+  if (isTemporaryId(value)) {
+    return { isValid: true, normalizedValue: `#${normalizeTemporaryId(String(value))}`, isTemporary: true };
   }
   // Try to parse as positive integer
   const parsed = typeof value === "string" ? parseInt(value, 10) : value;
