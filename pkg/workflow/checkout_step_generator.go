@@ -329,7 +329,7 @@ func generateCheckoutCredentialsCleanupStep() string {
             echo "Using pre-setup clean_git_credentials helper from workspace"
             bash "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh"
           else
-            echo "Warning: Git credential cleanup skipped - runtime cleaner and pre-setup helper paths were unavailable"
+            echo "WARNING: Git credential cleanup skipped. Runtime cleaner and pre-setup helper paths were unavailable; ensure setup scripts are present for checkout cleanup."
           fi
 `
 }

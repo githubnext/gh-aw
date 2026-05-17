@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# clean_git_credentials_pre_setup.sh - Checkout-time credential cleanup fallback
+#
+# Used only before Setup Scripts has copied runtime helpers to
+# ${RUNNER_TEMP}/gh-aw/actions. Unlike clean_git_credentials.sh, this script runs
+# directly from the repository workspace during early checkout cleanup.
 set -euo pipefail
 # Disable history expansion so values containing "!" are handled safely.
 set +o histexpand
