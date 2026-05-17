@@ -336,19 +336,25 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
-	// Infer permissions required by gh CLI calls in agent job pre-steps.
-	// Scans both data.PreSteps (top-level pre-steps:) and jobs.agent.pre-steps,
-	// detects write commands (which are not permitted since the agent job is read-only),
+	// Infer permissions required by gh CLI calls in all agent job step sections
+	// (pre-steps, steps, post-steps, pre-agent-steps).
+	// Detects write commands (which are not permitted since the agent job is read-only),
 	// and merges inferred read permissions into the existing permissions block.
 	// Skipped only when the user explicitly opted out of all permissions (permissions: {}).
-	agentPreStepScripts := extractRunScriptsFromPreStepsYAML(data.PreSteps)
+	agentJobName := string(constants.AgentJobName)
+	agentAllScripts := extractRunScriptsFromSectionYAML(data.PreSteps, "pre-steps")
+	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.CustomSteps, "steps")...)
+	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PreAgentSteps, "pre-agent-steps")...)
+	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PostSteps, "post-steps")...)
 	if data.Jobs != nil {
-		agentPreStepScripts = append(agentPreStepScripts, extractRunScriptsFromJobPreSteps(data.Jobs, string(constants.AgentJobName))...)
+		for _, section := range []string{"pre-steps", "steps", "pre-agent-steps", "post-steps"} {
+			agentAllScripts = append(agentAllScripts, extractRunScriptsFromJobSection(data.Jobs, agentJobName, section)...)
+		}
 	}
-	if len(agentPreStepScripts) > 0 {
-		if writeCmds := detectWriteCommandsInShellScripts(agentPreStepScripts); len(writeCmds) > 0 {
+	if len(agentAllScripts) > 0 {
+		if writeCmds := detectWriteCommandsInShellScripts(agentAllScripts); len(writeCmds) > 0 {
 			return nil, fmt.Errorf(
-				"agent job pre-step uses write gh command(s) [%s]; write operations are not permitted in agent job pre-steps because the agent job runs with read-only permissions. Use safe-outputs for write operations. See: https://github.github.com/gh-aw/reference/safe-outputs/",
+				"agent job uses write gh command(s) [%s]; write operations are not permitted in agent job steps because the agent job runs with read-only permissions. Use safe-outputs for write operations. See: https://github.github.com/gh-aw/reference/safe-outputs/",
 				strings.Join(writeCmds, ", "),
 			)
 		}
@@ -358,7 +364,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Uses the same exact-string check as tools.go (the YAML parser always normalizes
 		// "permissions: {}" to this canonical form when parsing the frontmatter).
 		if data.Permissions != "permissions: {}" && permissions != "" {
-			inferred := inferPermissionsFromShellScripts(agentPreStepScripts)
+			inferred := inferPermissionsFromShellScripts(agentAllScripts)
 			if len(inferred) > 0 {
 				permissions = mergeInferredIntoPermissionsYAML(permissions, inferred)
 			}

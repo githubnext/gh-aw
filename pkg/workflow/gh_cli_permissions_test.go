@@ -589,7 +589,7 @@ Test agent pre-steps write command triggers error.
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "compiler should error when agent pre-step uses a write gh command")
-	assert.Contains(t, err.Error(), "agent job pre-step uses write gh command(s)")
+	assert.Contains(t, err.Error(), "agent job uses write gh command(s)")
 	assert.Contains(t, err.Error(), "gh pr comment")
 	assert.Contains(t, err.Error(), "safe-outputs")
 }
@@ -694,4 +694,321 @@ Test: no inference when user explicitly opts out of permissions.
 	agentJob := extractJobSection(lockContent, string(constants.AgentJobName))
 	assert.NotContains(t, agentJob, "pull-requests:",
 		"agent job should NOT have pull-requests when user explicitly set permissions: {}")
+}
+
+// --- extractRunScriptsFromSectionYAML ---
+
+// TestExtractRunScriptsFromSectionYAML_Steps verifies extraction from a `steps:` section.
+func TestExtractRunScriptsFromSectionYAML_Steps(t *testing.T) {
+	yamlStr := `steps:
+  - name: List issues
+    run: gh issue list --json number
+  - uses: some-org/action@0000000000000000000000000000000000000000
+`
+	scripts := extractRunScriptsFromSectionYAML(yamlStr, "steps")
+	assert.Len(t, scripts, 1)
+	assert.Contains(t, scripts[0], "gh issue list")
+}
+
+// TestExtractRunScriptsFromSectionYAML_PostSteps verifies extraction from a `post-steps:` section.
+func TestExtractRunScriptsFromSectionYAML_PostSteps(t *testing.T) {
+	yamlStr := `post-steps:
+  - name: Clean up
+    run: gh run list --json databaseId
+`
+	scripts := extractRunScriptsFromSectionYAML(yamlStr, "post-steps")
+	assert.Len(t, scripts, 1)
+	assert.Contains(t, scripts[0], "gh run list")
+}
+
+// TestExtractRunScriptsFromSectionYAML_PreAgentSteps verifies extraction from a `pre-agent-steps:` section.
+func TestExtractRunScriptsFromSectionYAML_PreAgentSteps(t *testing.T) {
+	yamlStr := `pre-agent-steps:
+  - name: Fetch release info
+    run: gh release view --json tagName
+`
+	scripts := extractRunScriptsFromSectionYAML(yamlStr, "pre-agent-steps")
+	assert.Len(t, scripts, 1)
+	assert.Contains(t, scripts[0], "gh release view")
+}
+
+// TestExtractRunScriptsFromSectionYAML_WrongKey verifies nil is returned when the YAML key
+// does not match the requested section name.
+func TestExtractRunScriptsFromSectionYAML_WrongKey(t *testing.T) {
+	yamlStr := `pre-steps:
+  - name: A step
+    run: gh pr diff
+`
+	scripts := extractRunScriptsFromSectionYAML(yamlStr, "post-steps")
+	assert.Nil(t, scripts)
+}
+
+// --- extractRunScriptsFromJobSection ---
+
+// TestExtractRunScriptsFromJobSection_Steps verifies extraction from jobs.<name>.steps.
+func TestExtractRunScriptsFromJobSection_Steps(t *testing.T) {
+	jobs := map[string]any{
+		"activation": map[string]any{
+			"steps": []any{
+				map[string]any{
+					"name": "List workflows",
+					"run":  `gh workflow list --json name`,
+				},
+			},
+		},
+	}
+	scripts := extractRunScriptsFromJobSection(jobs, "activation", "steps")
+	require.Len(t, scripts, 1)
+	assert.Contains(t, scripts[0], "gh workflow list")
+}
+
+// TestExtractRunScriptsFromJobSection_PostSteps verifies extraction from jobs.<name>.post-steps.
+func TestExtractRunScriptsFromJobSection_PostSteps(t *testing.T) {
+	jobs := map[string]any{
+		"agent": map[string]any{
+			"post-steps": []any{
+				map[string]any{
+					"name": "Summary",
+					"run":  `gh pr view "$PR_NUMBER" --json state`,
+				},
+			},
+		},
+	}
+	scripts := extractRunScriptsFromJobSection(jobs, "agent", "post-steps")
+	require.Len(t, scripts, 1)
+	assert.Contains(t, scripts[0], "gh pr view")
+}
+
+// TestExtractRunScriptsFromJobSection_MissingSectionReturnsNil verifies nil when section absent.
+func TestExtractRunScriptsFromJobSection_MissingSectionReturnsNil(t *testing.T) {
+	jobs := map[string]any{
+		"activation": map[string]any{
+			"pre-steps": []any{},
+		},
+	}
+	assert.Nil(t, extractRunScriptsFromJobSection(jobs, "activation", "post-steps"))
+}
+
+// --- Agent job integration tests for steps / post-steps / pre-agent-steps ---
+
+// TestAgentJobStepsInferReadPermission verifies that `gh issue list` in a top-level `steps:`
+// block causes the compiler to add issues: read to the agent job.
+func TestAgentJobStepsInferReadPermission(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-steps-read-perm")
+
+	content := `---
+on: push
+permissions:
+  contents: read
+steps:
+  - name: List issues
+    run: gh issue list --json number > /tmp/issues.json
+engine: claude
+strict: false
+---
+
+Test agent steps read permission inference.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "workflow.lock.yml")
+	raw, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	agentJob := extractJobSection(string(raw), string(constants.AgentJobName))
+	assert.Contains(t, agentJob, "issues: read",
+		"agent job should have issues: read inferred from steps gh issue list")
+}
+
+// TestAgentJobPostStepsInferReadPermission verifies that `gh run list` in a top-level `post-steps:`
+// block causes the compiler to add actions: read to the agent job.
+func TestAgentJobPostStepsInferReadPermission(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-poststeps-read-perm")
+
+	content := `---
+on: push
+permissions:
+  contents: read
+post-steps:
+  - name: Show runs
+    run: gh run list --json databaseId > /tmp/runs.json
+engine: claude
+strict: false
+---
+
+Test agent post-steps read permission inference.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "workflow.lock.yml")
+	raw, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	agentJob := extractJobSection(string(raw), string(constants.AgentJobName))
+	assert.Contains(t, agentJob, "actions: read",
+		"agent job should have actions: read inferred from post-steps gh run list")
+}
+
+// TestAgentJobPreAgentStepsInferReadPermission verifies that `gh pr diff` in a top-level
+// `pre-agent-steps:` block causes the compiler to add pull-requests: read to the agent job.
+func TestAgentJobPreAgentStepsInferReadPermission(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-preagent-read-perm")
+
+	content := `---
+on: push
+permissions:
+  contents: read
+pre-agent-steps:
+  - name: Get diff
+    run: gh pr diff "$PR_NUMBER" --name-only > /tmp/diff.txt
+engine: claude
+strict: false
+---
+
+Test agent pre-agent-steps read permission inference.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "workflow.lock.yml")
+	raw, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	agentJob := extractJobSection(string(raw), string(constants.AgentJobName))
+	assert.Contains(t, agentJob, "pull-requests: read",
+		"agent job should have pull-requests: read inferred from pre-agent-steps gh pr diff")
+}
+
+// TestAgentJobWriteCommandInStepsErrors verifies that a write gh command in a top-level
+// `steps:` block triggers a compile error.
+func TestAgentJobWriteCommandInStepsErrors(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-steps-write-error")
+
+	content := `---
+on: push
+permissions:
+  contents: read
+steps:
+  - name: Create issue
+    run: gh issue create --title "bug" --body "found a bug"
+engine: claude
+strict: false
+---
+
+Test agent steps write command triggers error.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "compiler should error when agent steps use a write gh command")
+	assert.Contains(t, err.Error(), "agent job uses write gh command(s)")
+	assert.Contains(t, err.Error(), "gh issue create")
+}
+
+// TestAgentJobWriteCommandInPostStepsErrors verifies that a write gh command in a top-level
+// `post-steps:` block triggers a compile error.
+func TestAgentJobWriteCommandInPostStepsErrors(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-poststeps-write-error")
+
+	content := `---
+on: push
+permissions:
+  contents: read
+post-steps:
+  - name: Close PR
+    run: gh pr close "$PR_NUMBER"
+engine: claude
+strict: false
+---
+
+Test agent post-steps write command triggers error.
+`
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "compiler should error when agent post-steps use a write gh command")
+	assert.Contains(t, err.Error(), "agent job uses write gh command(s)")
+	assert.Contains(t, err.Error(), "gh pr close")
+}
+
+// TestActivationJobStepsInferReadPermission verifies that `gh workflow list` in
+// jobs.activation.steps causes the compiler to add actions: read to the activation job.
+func TestActivationJobStepsInferReadPermission(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-steps-read-perm")
+	testFile := filepath.Join(tmpDir, "workflow.md")
+	testContent := `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+engine: copilot
+jobs:
+  activation:
+    steps:
+      - name: List workflows
+        run: |
+          gh workflow list --json name > /tmp/workflows.json
+---
+
+# Workflow that lists workflows in activation steps
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err)
+
+	activationSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationSection, "actions: read",
+		"activation job should have actions: read inferred from steps gh workflow list")
+}
+
+// TestActivationJobWriteCommandInStepsErrors verifies that a write gh command in
+// jobs.activation.steps triggers a compile error.
+func TestActivationJobWriteCommandInStepsErrors(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-steps-write-error")
+	testFile := filepath.Join(tmpDir, "bad-workflow.md")
+	testContent := `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+engine: copilot
+jobs:
+  activation:
+    steps:
+      - name: Create label
+        run: |
+          gh label create "reviewed" --color "#0075ca"
+---
+
+# Workflow whose activation steps illegally call a write gh command
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "compiler should reject write gh commands in activation steps")
+	assert.Contains(t, err.Error(), "gh label create", "error should mention the offending command")
+	assert.Contains(t, err.Error(), "write", "error should explain the write-permission restriction")
 }

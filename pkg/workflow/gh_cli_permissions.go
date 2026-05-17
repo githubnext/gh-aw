@@ -261,17 +261,19 @@ func detectWriteCommandsInShellScripts(scripts []string) []string {
 	return found
 }
 
-// extractRunScriptsFromPreStepsYAML parses a pre-steps YAML string (as stored in
-// WorkflowData.PreSteps) and returns the `run` script text from every step.
-func extractRunScriptsFromPreStepsYAML(preStepsYAML string) []string {
-	if preStepsYAML == "" {
+// extractRunScriptsFromSectionYAML parses a step-section YAML string (e.g. as stored in
+// WorkflowData.PreSteps, PostSteps, PreAgentSteps, or CustomSteps) and returns the `run`
+// script text from every step. sectionName must match the top-level key in the YAML
+// (e.g. "pre-steps", "post-steps", "pre-agent-steps", "steps").
+func extractRunScriptsFromSectionYAML(sectionYAML, sectionName string) []string {
+	if sectionYAML == "" {
 		return nil
 	}
 	var wrapper map[string][]map[string]any
-	if err := yaml.Unmarshal([]byte(preStepsYAML), &wrapper); err != nil {
+	if err := yaml.Unmarshal([]byte(sectionYAML), &wrapper); err != nil {
 		return nil
 	}
-	steps := wrapper["pre-steps"]
+	steps := wrapper[sectionName]
 	if len(steps) == 0 {
 		return nil
 	}
@@ -284,11 +286,18 @@ func extractRunScriptsFromPreStepsYAML(preStepsYAML string) []string {
 	return scripts
 }
 
-// extractRunScriptsFromJobPreSteps returns the `run` script text from every
-// pre-step in the named job configuration inside the frontmatter jobs map.
+// extractRunScriptsFromPreStepsYAML parses a pre-steps YAML string (as stored in
+// WorkflowData.PreSteps) and returns the `run` script text from every step.
+func extractRunScriptsFromPreStepsYAML(preStepsYAML string) []string {
+	return extractRunScriptsFromSectionYAML(preStepsYAML, "pre-steps")
+}
+
+// extractRunScriptsFromJobSection returns the `run` script text from every step in the
+// named section (e.g. "pre-steps", "steps", "post-steps") of the named job configuration
+// inside the frontmatter jobs map.
 //
 // It is a read-only extraction: it never mutates the jobs map.
-func extractRunScriptsFromJobPreSteps(jobs map[string]any, jobName string) []string {
+func extractRunScriptsFromJobSection(jobs map[string]any, jobName, sectionName string) []string {
 	if len(jobs) == 0 {
 		return nil
 	}
@@ -303,7 +312,7 @@ func extractRunScriptsFromJobPreSteps(jobs map[string]any, jobName string) []str
 		return nil
 	}
 
-	raw, ok := configMap["pre-steps"]
+	raw, ok := configMap[sectionName]
 	if !ok {
 		return nil
 	}
@@ -324,4 +333,12 @@ func extractRunScriptsFromJobPreSteps(jobs map[string]any, jobName string) []str
 		}
 	}
 	return scripts
+}
+
+// extractRunScriptsFromJobPreSteps returns the `run` script text from every
+// pre-step in the named job configuration inside the frontmatter jobs map.
+//
+// It is a read-only extraction: it never mutates the jobs map.
+func extractRunScriptsFromJobPreSteps(jobs map[string]any, jobName string) []string {
+	return extractRunScriptsFromJobSection(jobs, jobName, "pre-steps")
 }

@@ -40,12 +40,12 @@ type activationJobBuildContext struct {
 	activationNeeds            []string
 	activationCondition        string
 
-	// activationPreStepScripts holds the `run` scripts extracted from
-	// jobs.activation.pre-steps, cached here to avoid repeated extraction.
-	activationPreStepScripts []string
-	// activationPreStepInferredPerms holds the permissions inferred from
-	// activationPreStepScripts, cached here to avoid repeated inference.
-	activationPreStepInferredPerms map[PermissionScope]PermissionLevel
+	// activationAllScripts holds the `run` scripts extracted from all step sections
+	// in jobs.activation (pre-steps, steps, post-steps), cached to avoid repeated extraction.
+	activationAllScripts []string
+	// activationInferredPerms holds the permissions inferred from activationAllScripts,
+	// cached here to avoid repeated inference.
+	activationInferredPerms map[PermissionScope]PermissionLevel
 }
 
 // newActivationJobBuildContext initializes activation-job state with setup, aw_info, and base outputs.
@@ -82,11 +82,15 @@ func (c *Compiler) newActivationJobBuildContext(
 	}
 	ctx.shouldRemoveLabel = ctx.hasLabelCommand && data.LabelCommandRemoveLabel
 
-	// Cache pre-step scripts and inferred permissions once to avoid redundant extraction
-	// and inference calls in buildActivationPermissions and addActivationFeedbackAndValidationSteps.
-	ctx.activationPreStepScripts = extractRunScriptsFromJobPreSteps(data.Jobs, string(constants.ActivationJobName))
-	if len(ctx.activationPreStepScripts) > 0 {
-		ctx.activationPreStepInferredPerms = inferPermissionsFromShellScripts(ctx.activationPreStepScripts)
+	// Cache scripts from all step sections and inferred permissions once to avoid redundant
+	// extraction and inference calls in buildActivationPermissions and
+	// addActivationFeedbackAndValidationSteps.
+	activationJobName := string(constants.ActivationJobName)
+	for _, section := range []string{"pre-steps", "steps", "post-steps"} {
+		ctx.activationAllScripts = append(ctx.activationAllScripts, extractRunScriptsFromJobSection(data.Jobs, activationJobName, section)...)
+	}
+	if len(ctx.activationAllScripts) > 0 {
+		ctx.activationInferredPerms = inferPermissionsFromShellScripts(ctx.activationAllScripts)
 	}
 
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(data)...)
@@ -176,13 +180,13 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		if ctx.needsAppTokenForAccess {
 			appPerms.Set(PermissionContents, PermissionRead)
 		}
-		// Add GitHub App-only permissions inferred from pre-step gh CLI commands so the
+		// Add GitHub App-only permissions inferred from activation job gh CLI commands so the
 		// minted App token includes the scopes those commands require (e.g. codespaces: read
 		// for `gh codespace list`).  Only App-only scopes are passed here — standard GitHub
 		// Actions scopes (pull-requests, issues, etc.) are already covered by the GITHUB_TOKEN
 		// permissions block and do not need to be re-declared on the App token.
 		// Uses the cached inferred permissions to avoid redundant computation.
-		for scope, level := range ctx.activationPreStepInferredPerms {
+		for scope, level := range ctx.activationInferredPerms {
 			if IsGitHubAppOnlyScope(scope) {
 				appPerms.Set(scope, level)
 			}
@@ -517,7 +521,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 }
 
 // buildActivationPermissions builds activation job permissions from workflow features and selected interactions.
-// Returns an error if activation pre-steps contain write gh CLI commands that would require write permissions.
+// Returns an error if any activation job step section contains write gh CLI commands that would require write permissions.
 func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (string, error) {
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
@@ -567,20 +571,21 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (s
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
-	// Infer permissions required by gh CLI calls in jobs.activation.pre-steps run scripts.
-	// This ensures that user-defined pre-steps that call `gh pr diff`, `gh issue view`, etc.
-	// get the permissions they need without requiring manual permission declarations.
+	// Infer permissions required by gh CLI calls in jobs.activation step sections
+	// (pre-steps, steps, post-steps). This ensures that user-defined steps that call
+	// `gh pr diff`, `gh issue view`, etc. get the permissions they need without requiring
+	// manual permission declarations.
 	// Scripts and inferred permissions are cached in ctx to avoid redundant computation.
-	if len(ctx.activationPreStepScripts) > 0 {
-		// Detect write commands first — these are not permitted in activation pre-steps
-		// because the activation job intentionally operates with read-only permissions.
-		if writeCmds := detectWriteCommandsInShellScripts(ctx.activationPreStepScripts); len(writeCmds) > 0 {
+	if len(ctx.activationAllScripts) > 0 {
+		// Detect write commands first — these are not permitted in the activation job
+		// because it intentionally operates with read-only permissions.
+		if writeCmds := detectWriteCommandsInShellScripts(ctx.activationAllScripts); len(writeCmds) > 0 {
 			return "", fmt.Errorf(
-				"activation pre-step uses write gh command(s) [%s]; write operations are not permitted in activation job pre-steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs. See: https://github.github.com/gh-aw/reference/safe-outputs/",
+				"activation job uses write gh command(s) [%s]; write operations are not permitted in activation job steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs. See: https://github.github.com/gh-aw/reference/safe-outputs/",
 				strings.Join(writeCmds, ", "),
 			)
 		}
-		for scope, level := range ctx.activationPreStepInferredPerms {
+		for scope, level := range ctx.activationInferredPerms {
 			if _, exists := permsMap[scope]; !exists {
 				permsMap[scope] = level
 			}
