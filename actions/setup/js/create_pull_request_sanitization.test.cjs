@@ -146,7 +146,7 @@ describe("create_pull_request - body sanitization", () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({
       allow_empty: true,
-      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["@copilot"] },
+      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
     });
 
     await handler(

@@ -174,7 +174,7 @@ describe("create_discussion body sanitization", () => {
     const handler = await createDiscussionMain({
       max: 5,
       category: "general",
-      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["@copilot"] },
+      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
     });
     const result = await handler(
       {

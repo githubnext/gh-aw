@@ -1039,7 +1039,7 @@ describe("create_issue", () => {
 
     it("should preserve allowlisted mentions when mentions config is provided", async () => {
       const handler = await main({
-        mentions: { allowTeamMembers: false, allowContext: false, allowed: ["@copilot"] },
+        mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
       });
       await handler({
         title: "Test Issue",
