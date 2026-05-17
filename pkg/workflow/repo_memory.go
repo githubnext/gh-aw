@@ -160,7 +160,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 		for _, item := range memoryArray {
 			if memoryMap, ok := item.(map[string]any); ok {
 				entry := RepoMemoryEntry{
-					MaxFileSize:  defaultRepoMemoryMaxFileSize,         // 100KB default
+					MaxFileSize:  defaultRepoMemoryMaxFileSize,  // 100KB default
 					MaxFileCount: 100,                           // 100 files default
 					MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
 					CreateOrphan: true,                          // create orphan by default
@@ -339,7 +339,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 		entry := RepoMemoryEntry{
 			ID:           "default",
 			BranchName:   generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
-			MaxFileSize:  defaultRepoMemoryMaxFileSize,         // 100KB default
+			MaxFileSize:  defaultRepoMemoryMaxFileSize,  // 100KB default
 			MaxFileCount: 100,                           // 100 files default
 			MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
 			CreateOrphan: true,                          // create orphan by default
