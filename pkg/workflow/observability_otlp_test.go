@@ -912,6 +912,26 @@ func TestNormalizeOTLPHeadersForEndpoint(t *testing.T) {
 	})
 }
 
+func TestIsGitHubActionsExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{name: "valid expression", input: "${{ secrets.FOO }}", expected: true},
+		{name: "valid expression with surrounding whitespace", input: "  ${{ secrets.FOO }}  ", expected: true},
+		{name: "missing suffix", input: "${{ secrets.FOO }", expected: false},
+		{name: "missing prefix", input: "secrets.FOO }}", expected: false},
+		{name: "plain string", input: "https://o123.ingest.sentry.io/api/123/envelope/", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isGitHubActionsExpression(tt.input))
+		})
+	}
+}
+
 // TestInjectOTLPConfig_MapHeaders verifies that the map form for headers is supported.
 func TestInjectOTLPConfig_MapHeaders(t *testing.T) {
 	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS from map form", func(t *testing.T) {
