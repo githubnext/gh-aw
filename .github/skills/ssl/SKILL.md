@@ -1,4 +1,8 @@
 ---
+# This frontmatter describes a meta-skill for the SSL Skill Normalizer.
+# It defines the skill's interface (inputs/outputs) and required tools.
+# It is not an executable gh-aw workflow; it is a reusable skill artifact
+# invoked by agents that implement the SSL normalization pipeline.
 name: ssl-skill-normalizer
 description: Normalize SKILL.md artifacts into Scheduling-Structural-Logical (SSL) JSON representations using a conservative multi-pass extraction pipeline.
 tools:

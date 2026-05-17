@@ -16,7 +16,7 @@
       "id": "scene_prepare",
       "type": "PREPARE",
       "goal": "Install jqschema.sh script into the /tmp working directory",
-      "entry_condition": "GITHUB_WORKSPACE is set and jqschema.sh exists in the skill directory",
+      "entry_condition": "$GITHUB_WORKSPACE is set and jqschema.sh exists in the skill directory",
       "exit_condition": "/tmp/gh-aw/jqschema.sh is executable",
       "next_scene_rules": [
         {"condition": "setup successful", "target": "scene_acquire"},
