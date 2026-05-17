@@ -891,18 +891,29 @@ function buildEffectiveTokensRateLimitErrorContext(hasEffectiveTokensRateLimitEr
   const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
 
   const etTableSection = buildETComputationTable(effectiveTokens, readTokenUsageMarkdown());
-  const templatePath = getPromptPath("effective_tokens_rate_limit_error.md");
-  return (
-    "\n" +
-    renderTemplateFromFile(templatePath, {
-      et_spec_link: "https://github.github.com/gh-aw/reference/effective-tokens-specification/",
-      token_opt_link: "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md",
-      usage_line: usageLine,
-      budget_line: budgetLine,
-      run_line: runLine,
-      et_table_section: etTableSection,
-    })
-  );
+  const templateName = "effective_tokens_rate_limit_error.md";
+  let templatePath = "";
+  try {
+    templatePath = getPromptPath(templateName);
+  } catch (error) {
+    throw new Error(`failed to resolve template path for ${templateName} (${getErrorMessage(error)}); ` + "ensure RUNNER_TEMP or GH_AW_PROMPTS_DIR is set and the template file exists");
+  }
+
+  try {
+    return (
+      "\n" +
+      renderTemplateFromFile(templatePath, {
+        et_spec_link: "https://github.github.com/gh-aw/reference/effective-tokens-specification/",
+        token_opt_link: "https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md",
+        usage_line: usageLine,
+        budget_line: budgetLine,
+        run_line: runLine,
+        et_table_section: etTableSection,
+      })
+    );
+  } catch (error) {
+    throw new Error(`failed to render template at ${templatePath}: ${getErrorMessage(error)}; ` + "verify template syntax and required placeholders: " + "et_spec_link, token_opt_link, usage_line, budget_line, run_line, et_table_section");
+  }
 }
 
 /**

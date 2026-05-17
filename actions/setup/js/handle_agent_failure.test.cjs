@@ -2013,11 +2013,21 @@ describe("handle_agent_failure", () => {
     let tmpDir;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-et-error-context-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-test-et-error-context-"));
       const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
-      const moduleDir = path.dirname(require.resolve("./handle_agent_failure.cjs"));
-      fs.copyFileSync(path.join(moduleDir, "../md/effective_tokens_rate_limit_error.md"), path.join(promptsDir, "effective_tokens_rate_limit_error.md"));
+      fs.writeFileSync(
+        path.join(promptsDir, "effective_tokens_rate_limit_error.md"),
+        "**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
+          "<details>\n" +
+          "<summary>Why this happened and how to optimize</summary>\n\n" +
+          "- Learn about [effective tokens]({et_spec_link}).\n" +
+          "{usage_line}{budget_line}{run_line}\n" +
+          "You can tune this limit with `max-effective-tokens` in workflow frontmatter.\n\n" +
+          "{et_table_section}\n" +
+          "- To optimize this workflow, follow the [token optimization instructions]({token_opt_link}).\n" +
+          "</details>\n"
+      );
       process.env.RUNNER_TEMP = tmpDir;
 
       global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
