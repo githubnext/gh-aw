@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-
-const LARGE_CONTENT_BODY = "A".repeat(70000);
 import { execSync } from "child_process";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
+
+const LARGE_CONTENT_BODY = "A".repeat(70000);
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
