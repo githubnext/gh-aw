@@ -42,6 +42,8 @@ type activationJobBuildContext struct {
 
 	// activationAllScripts holds the `run` scripts extracted from all step sections
 	// in jobs.activation (pre-steps, steps, post-steps), cached to avoid repeated extraction.
+	// pre-agent-steps is intentionally omitted: it is an agent-job-only concept (steps that
+	// run immediately before AI execution) and has no meaning in the activation job.
 	activationAllScripts []string
 	// activationInferredPerms holds the permissions inferred from activationAllScripts,
 	// cached here to avoid repeated inference.
