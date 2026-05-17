@@ -706,8 +706,7 @@ function buildMissingToolContext(items) {
 function buildPermissionDeniedContext(items, workflowId) {
   const missingToolMessages = loadMissingToolMessages(items);
 
-  const isPermissionDeniedItem = m =>
-    m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0;
+  const isPermissionDeniedItem = m => m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0;
   const permissionItems = missingToolMessages.filter(isPermissionDeniedItem);
 
   if (permissionItems.length === 0) {
@@ -1810,7 +1809,6 @@ async function main() {
 
         // Build missing_tool context (only when report-as-failure is enabled for this signal type)
         const missingToolContext = missingToolReportAsFailure ? buildMissingToolContext(agentOutputResult.items) : "";
-
 
         // Build permission denied context (denied commands list + fix prompt)
         const permissionDeniedContext = buildPermissionDeniedContext(agentOutputResult.items, workflowID);

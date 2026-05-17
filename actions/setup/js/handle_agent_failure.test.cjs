@@ -1337,10 +1337,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("returns empty string when there are no tool/permission items", () => {
-      fs.writeFileSync(
-        path.join(tmpDir, "agent_output.json"),
-        JSON.stringify({ items: [{ type: "noop", reason: "done" }] })
-      );
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "noop", reason: "done" }] }));
       expect(buildPermissionDeniedContext()).toBe("");
     });
 
@@ -1348,9 +1345,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(
         path.join(tmpDir, "agent_output.json"),
         JSON.stringify({
-          items: [
-            { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: [] },
-          ],
+          items: [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: [] }],
         })
       );
       expect(buildPermissionDeniedContext()).toBe("");
@@ -1358,9 +1353,7 @@ describe("handle_agent_failure", () => {
 
     it("returns inline fallback when template is not available (RUNNER_TEMP not set)", () => {
       delete process.env.RUNNER_TEMP;
-      const items = [
-        { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] },
-      ];
+      const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
       const result = buildPermissionDeniedContext(items);
       expect(result).toContain("go version 2>&1");
       expect(result).toContain("Repeated Permission Denied");
@@ -1368,9 +1361,7 @@ describe("handle_agent_failure", () => {
 
     it("renders fallback with denied commands listed", () => {
       delete process.env.RUNNER_TEMP;
-      const items = [
-        { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] },
-      ];
+      const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] }];
       const result = buildPermissionDeniedContext(items);
       expect(result).toContain("`go version 2>&1`");
       expect(result).toContain("`ls /usr/local/go/bin/go`");
@@ -1393,13 +1384,8 @@ describe("handle_agent_failure", () => {
     it("renders template when permission_denied_context.md is available", () => {
       const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
-      fs.copyFileSync(
-        path.join(__dirname, "../md/permission_denied_context.md"),
-        path.join(promptsDir, "permission_denied_context.md")
-      );
-      const items = [
-        { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] },
-      ];
+      fs.copyFileSync(path.join(__dirname, "../md/permission_denied_context.md"), path.join(promptsDir, "permission_denied_context.md"));
+      const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
       const result = buildPermissionDeniedContext(items, "my-workflow");
       expect(result).toContain("go version 2>&1");
       expect(result).toContain("my-workflow");

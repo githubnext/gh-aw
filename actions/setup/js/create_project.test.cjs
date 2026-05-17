@@ -295,11 +295,7 @@ describe("create_project item_url temporary ID resolution", () => {
   });
 
   it("passes through a real item_url without treating it as a temporary ID", async () => {
-    mockGithub.graphql
-      .mockResolvedValueOnce(ORG_OWNER_RESPONSE)
-      .mockResolvedValueOnce(CREATED_PROJECT_RESPONSE)
-      .mockResolvedValueOnce(ISSUE_NODE_RESPONSE)
-      .mockResolvedValueOnce(ADD_ITEM_RESPONSE);
+    mockGithub.graphql.mockResolvedValueOnce(ORG_OWNER_RESPONSE).mockResolvedValueOnce(CREATED_PROJECT_RESPONSE).mockResolvedValueOnce(ISSUE_NODE_RESPONSE).mockResolvedValueOnce(ADD_ITEM_RESPONSE);
 
     const handler = await makeHandler();
     const temporaryIdMap = new Map();
@@ -423,18 +419,16 @@ describe("create_project max count", () => {
 describe("create_project title auto-generation", () => {
   it("auto-generates title from issue context when title is missing", async () => {
     mockContext.payload = { issue: { number: 7, title: "Fix the bug" } };
-    mockGithub.graphql
-      .mockResolvedValueOnce(ORG_OWNER_RESPONSE)
-      .mockResolvedValueOnce({
-        createProjectV2: {
-          projectV2: {
-            id: "PVT_auto",
-            number: 2,
-            title: "Project: Fix the bug",
-            url: "https://github.com/orgs/test-org/projects/2",
-          },
+    mockGithub.graphql.mockResolvedValueOnce(ORG_OWNER_RESPONSE).mockResolvedValueOnce({
+      createProjectV2: {
+        projectV2: {
+          id: "PVT_auto",
+          number: 2,
+          title: "Project: Fix the bug",
+          url: "https://github.com/orgs/test-org/projects/2",
         },
-      });
+      },
+    });
 
     const handler = await makeHandler({ title_prefix: "Project" });
 

@@ -246,12 +246,7 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("extracts command from line with box-drawing pipe marker (│) before permission denied", () => {
-      const output = [
-        "\u2713 Some successful step",
-        "\u2717 Check if go command works (shell)",
-        "  \u2502 go version 2>&1",
-        "  \u2514 Permission denied and could not request permission from user",
-      ].join("\n");
+      const output = ["\u2713 Some successful step", "\u2717 Check if go command works (shell)", "  \u2502 go version 2>&1", "  \u2514 Permission denied and could not request permission from user"].join("\n");
       expect(extractDeniedCommands(output)).toEqual(["go version 2>&1"]);
     });
 
@@ -261,27 +256,13 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("deduplicates repeated denied commands", () => {
-      const output = [
-        "  \u2502 go version",
-        "  Permission denied",
-        "  \u2502 go version",
-        "  Permission denied",
-        "  \u2502 go version",
-        "  Permission denied",
-      ].join("\n");
+      const output = ["  \u2502 go version", "  Permission denied", "  \u2502 go version", "  Permission denied", "  \u2502 go version", "  Permission denied"].join("\n");
       const result = extractDeniedCommands(output);
       expect(result).toEqual(["go version"]);
     });
 
     it("extracts multiple distinct denied commands", () => {
-      const output = [
-        "  \u2502 go version 2>&1",
-        "  Permission denied",
-        "  \u2502 ls /usr/local/go/bin/go",
-        "  Permission denied",
-        "  \u2502 which go",
-        "  Permission denied",
-      ].join("\n");
+      const output = ["  \u2502 go version 2>&1", "  Permission denied", "  \u2502 ls /usr/local/go/bin/go", "  Permission denied", "  \u2502 which go", "  Permission denied"].join("\n");
       const result = extractDeniedCommands(output);
       expect(result).toContain("go version 2>&1");
       expect(result).toContain("ls /usr/local/go/bin/go");
@@ -294,32 +275,18 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("looks back up to 3 lines for command context", () => {
-      const output = [
-        "  \u2502 make test",
-        "Running...",
-        "Still running...",
-        "  Permission denied",
-      ].join("\n");
+      const output = ["  \u2502 make test", "Running...", "Still running...", "  Permission denied"].join("\n");
       expect(extractDeniedCommands(output)).toEqual(["make test"]);
     });
 
     it("does not look back more than 3 lines", () => {
-      const output = [
-        "  \u2502 make test",
-        "line2",
-        "line3",
-        "line4",
-        "  Permission denied",
-      ].join("\n");
+      const output = ["  \u2502 make test", "line2", "line3", "line4", "  Permission denied"].join("\n");
       expect(extractDeniedCommands(output)).toEqual([]);
     });
 
     it("does not capture suffix of a command containing an internal pipe", () => {
       // "find . -name '*.go' | sort" should not match by splitting on the internal |
-      const output = [
-        "  find . -name '*.go' | sort",
-        "  Permission denied",
-      ].join("\n");
+      const output = ["  find . -name '*.go' | sort", "  Permission denied"].join("\n");
       expect(extractDeniedCommands(output)).toEqual([]);
     });
   });

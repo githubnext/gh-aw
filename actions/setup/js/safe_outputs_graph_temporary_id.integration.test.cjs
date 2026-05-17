@@ -165,11 +165,7 @@ describe("integration: create_project → create_project_status_update via tempo
 
     // Now create_project_status_update references the project via temporary ID
     const cpsuHandler = await createProjectStatusUpdateMain({ max: 2 }, mockGithub);
-    const cpsuResult = await cpsuHandler(
-      { project: "#aw_iproj1", body: "Integration test status", status: "ON_TRACK" },
-      Object.fromEntries(temporaryIdMap),
-      temporaryIdMap
-    );
+    const cpsuResult = await cpsuHandler({ project: "#aw_iproj1", body: "Integration test status", status: "ON_TRACK" }, Object.fromEntries(temporaryIdMap), temporaryIdMap);
 
     expect(cpsuResult.success).toBe(true);
     expect(cpsuResult.status_update_id).toBe("PVTSU_1");
@@ -191,11 +187,7 @@ describe("integration: create_project → create_project_status_update via tempo
     await cpHandler({ title: "Another Project", temporary_id: "aw_iproj2" }, {}, temporaryIdMap);
 
     const cpsuHandler = await createProjectStatusUpdateMain({ max: 2 }, mockGithub);
-    const cpsuResult = await cpsuHandler(
-      { project: "aw_iproj2", body: "Status update", status: "AT_RISK" },
-      Object.fromEntries(temporaryIdMap),
-      temporaryIdMap
-    );
+    const cpsuResult = await cpsuHandler({ project: "aw_iproj2", body: "Status update", status: "AT_RISK" }, Object.fromEntries(temporaryIdMap), temporaryIdMap);
 
     expect(cpsuResult.success).toBe(true);
     expect(cpsuResult.status_update_id).toBe("PVTSU_2");
@@ -205,11 +197,7 @@ describe("integration: create_project → create_project_status_update via tempo
     const temporaryIdMap = new Map(); // empty — create_project not yet called
 
     const cpsuHandler = await createProjectStatusUpdateMain({ max: 2 }, mockGithub);
-    const result = await cpsuHandler(
-      { project: "#aw_unresolved", body: "Status", status: "ON_TRACK" },
-      Object.fromEntries(temporaryIdMap),
-      temporaryIdMap
-    );
+    const result = await cpsuHandler({ project: "#aw_unresolved", body: "Status", status: "ON_TRACK" }, Object.fromEntries(temporaryIdMap), temporaryIdMap);
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("aw_unresolved");
@@ -246,11 +234,7 @@ describe("integration: create_project → update_project via temporary ID", () =
 
     // update_project uses "#aw_proj50" as the project reference
     const upHandler = await updateProjectMain({ max: 5 }, mockGithub);
-    const upResult = await upHandler(
-      { project: "#aw_proj50", content_type: "issue", content_number: 99 },
-      Object.fromEntries(temporaryIdMap),
-      temporaryIdMap
-    );
+    const upResult = await upHandler({ project: "#aw_proj50", content_type: "issue", content_number: 99 }, Object.fromEntries(temporaryIdMap), temporaryIdMap);
 
     expect(upResult.success).toBe(true);
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved temporary project ID"));
@@ -340,11 +324,7 @@ describe("integration: temporary ID normalisation across the pipeline", () => {
 
     // create_project_status_update uses a different casing — still resolves
     const cpsuHandler = await createProjectStatusUpdateMain({ max: 2 }, mockGithub);
-    const cpsuResult = await cpsuHandler(
-      { project: "#aw_proj70", body: "Normalisation test", status: "ON_TRACK" },
-      Object.fromEntries(temporaryIdMap),
-      temporaryIdMap
-    );
+    const cpsuResult = await cpsuHandler({ project: "#aw_proj70", body: "Normalisation test", status: "ON_TRACK" }, Object.fromEntries(temporaryIdMap), temporaryIdMap);
 
     expect(cpsuResult.success).toBe(true);
     expect(cpsuResult.status_update_id).toBe("PVTSU_norm");
