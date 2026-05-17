@@ -317,7 +317,7 @@ func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string,
 		// Check both the Go error (via errorutil.IsNotFoundError) and the raw CLI output,
 		// as the gh CLI may write "not found" to stdout without reflecting it in the error.
 		// Also treat HTTP 410 Gone as non-critical (logs may be expired).
-		if errorutil.IsNotFoundError(err) || strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
+		if errorutil.IsNotFoundError(err) || errorutil.IsNotFoundError(errors.New(string(output))) || strings.Contains(err.Error(), "410") {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No logs found for run %d (may be expired or unavailable)", runID)))
 			}
