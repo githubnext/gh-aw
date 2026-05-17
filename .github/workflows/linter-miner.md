@@ -24,13 +24,7 @@ tools:
   cache-memory:
     key: linter-miner-state-${{ github.workflow }}
   bash:
-    - "find pkg/linters -type d"
-    - "cat cmd/linters/main.go"
-    - "cat /tmp/gh-aw/agent/linters-src.txt"
-    - "cat /tmp/gh-aw/agent/go-linters-skill.txt"
-    - "cat /tmp/gh-aw/agent/prior-linters.json"
-    - "go build:*"
-    - "go test:*"
+    - "*"
   edit:
 imports:
   - shared/mcp/serena-go.md
