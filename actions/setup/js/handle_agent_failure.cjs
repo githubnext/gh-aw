@@ -705,7 +705,9 @@ function buildMissingToolContext(items) {
 function buildPermissionDeniedContext(items, workflowId) {
   const missingToolMessages = loadMissingToolMessages(items);
 
-  const permissionItems = missingToolMessages.filter(m => m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0);
+  const isPermissionDeniedItem = m =>
+    m.tool === "tool/permission" && Array.isArray(m.denied_commands) && m.denied_commands.length > 0;
+  const permissionItems = missingToolMessages.filter(isPermissionDeniedItem);
 
   if (permissionItems.length === 0) {
     return "";
