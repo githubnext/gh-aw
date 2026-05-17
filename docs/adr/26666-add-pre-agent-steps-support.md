@@ -36,7 +36,7 @@ Users could approximate "run before engine" behaviour by placing steps in `post-
 - Users can inject pre-execution logic (context preparation, validation, environment mutations) at exactly the right lifecycle point — after setup, before the agent starts.
 - The new field mirrors the naming and import-merge semantics of `pre-steps` and `post-steps`, keeping the mental model consistent and the feature discoverable.
 - Secret expression validation is automatically enforced on the new field using the existing `validateStepsSecrets` infrastructure, preserving the security model without new code.
-- Integration tests cover placement order (after clean-git-credentials, before engine execution) and import merge ordering.
+- Integration tests cover placement order (after force-clean-git-credentials, before engine execution) and import merge ordering.
 
 #### Negative
 - The workflow extension model now has three named step positions (`pre-steps`, `pre-agent-steps`, `post-steps`) plus the main `steps` field; the distinction between `pre-steps` and `pre-agent-steps` requires documentation to avoid confusion.

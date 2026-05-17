@@ -38,6 +38,7 @@ The following components and functions are exported by the `console` package:
 | Export | Kind | Description |
 |--------|------|-------------|
 | `NewSpinner` | func | Creates a new animated spinner |
+| `BannerStyle` | var | Shared lipgloss style used by `FormatBanner` and `PrintBanner` |
 | `NewProgressBar` | func | Creates a determinate progress bar |
 | `NewIndeterminateProgressBar` | func | Creates an indeterminate progress bar |
 | `RenderStruct` | func | Renders a Go struct to a styled terminal string |
@@ -56,6 +57,7 @@ The following components and functions are exported by the `console` package:
 | `LogVerbose` | func | Conditional verbose logging |
 | `FormatFileSize` / `FormatNumber` | funcs | Human-readable byte and integer formatting |
 | `IsAccessibleMode` | func | Detects accessibility mode |
+| `SpinnerWrapper` | type | Spinner controller with `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage` |
 | `CompilerError` / `ErrorPosition` / `TableConfig` / `TreeNode` | types | Supporting data types |
 
 ## Spinner Component

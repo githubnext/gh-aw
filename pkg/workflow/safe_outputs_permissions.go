@@ -84,197 +84,18 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 
 	permissions := NewPermissions()
 
-	// Merge permissions for all handler-managed types.
-	// Staged handlers are skipped because they do not make real API calls.
-	if safeOutputs.CreateIssues != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateIssues.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for create-issue")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.CreateDiscussions != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateDiscussions.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for create-discussion")
-		permissions.Merge(NewPermissionsContentsReadIssuesWriteDiscussionsWrite())
-	}
-	if safeOutputs.AddComments != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AddComments.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
-		permissions.Merge(buildAddCommentPermissions(safeOutputs.AddComments))
-	}
-	if safeOutputs.CommentMemory != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CommentMemory.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for comment-memory")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.CloseIssues != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CloseIssues.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for close-issue")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.CloseDiscussions != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CloseDiscussions.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for close-discussion")
-		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
-	}
-	if safeOutputs.AddLabels != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AddLabels.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for add-labels")
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
-	}
-	if safeOutputs.RemoveLabels != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.RemoveLabels.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for remove-labels")
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
-	}
-	if safeOutputs.UpdateIssues != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdateIssues.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for update-issue")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.UpdateDiscussions != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdateDiscussions.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for update-discussion")
-		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
-	}
-	if safeOutputs.LinkSubIssue != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.LinkSubIssue.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for link-sub-issue")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.UpdateRelease != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdateRelease.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for update-release")
-		permissions.Merge(NewPermissionsContentsWrite())
-	}
-	if (safeOutputs.CreatePullRequestReviewComments != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreatePullRequestReviewComments.Staged)) ||
-		(safeOutputs.SubmitPullRequestReview != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.SubmitPullRequestReview.Staged)) ||
-		(safeOutputs.ReplyToPullRequestReviewComment != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.ReplyToPullRequestReviewComment.Staged)) ||
-		(safeOutputs.ResolvePullRequestReviewThread != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.ResolvePullRequestReviewThread.Staged)) {
-		safeOutputsPermissionsLog.Print("Adding permissions for PR review operations")
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
-	if safeOutputs.CreatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreatePullRequests.Staged) {
-		// Check fallback-as-issue setting to determine permissions
-		if getFallbackAsIssue(safeOutputs.CreatePullRequests) {
-			safeOutputsPermissionsLog.Print("Adding permissions for create-pull-request with fallback-as-issue")
-			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
-		} else {
-			safeOutputsPermissionsLog.Print("Adding permissions for create-pull-request")
-			permissions.Merge(NewPermissionsContentsWritePRWrite())
+	for _, handler := range safeOutputHandlers {
+		if handler.PermissionBuilder == nil {
+			continue
 		}
-		// Add workflows: write when allow-workflows is true (GitHub App-only permission)
-		if safeOutputs.CreatePullRequests.AllowWorkflows {
-			safeOutputsPermissionsLog.Print("Adding workflows: write for create-pull-request (allow-workflows: true)")
-			permissions.Set(PermissionWorkflows, PermissionWrite)
+		handlerPermissions := handler.PermissionBuilder(safeOutputs)
+		if handlerPermissions == nil {
+			continue
 		}
-	}
-	if safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged) {
-		if getPushFallbackAsPullRequest(safeOutputs.PushToPullRequestBranch) {
-			safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch with fallback-as-pull-request")
-			permissions.Merge(NewPermissionsContentsWritePRWrite())
-		} else {
-			safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch without fallback-as-pull-request")
-			permissions.Merge(NewPermissionsContentsWrite())
+		if handler.Key != "" {
+			safeOutputsPermissionsLog.Printf("Adding permissions for %s", handler.Key)
 		}
-		// Add workflows: write when allow-workflows is true (GitHub App-only permission)
-		if safeOutputs.PushToPullRequestBranch.AllowWorkflows {
-			safeOutputsPermissionsLog.Print("Adding workflows: write for push-to-pull-request-branch (allow-workflows: true)")
-			permissions.Set(PermissionWorkflows, PermissionWrite)
-		}
-		// Add administration: read when check-branch-protection is enabled (GitHub App-only permission)
-		// The branch protection API requires administration: read for GitHub App tokens.
-		// Standard GITHUB_TOKEN lacks this scope; set it so the minted app token includes it.
-		if getCheckBranchProtection(safeOutputs.PushToPullRequestBranch) {
-			safeOutputsPermissionsLog.Print("Adding administration: read for push-to-pull-request-branch (check-branch-protection enabled)")
-			permissions.Set(PermissionAdministration, PermissionRead)
-		}
-	}
-	if safeOutputs.UpdatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdatePullRequests.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")
-		if safeOutputs.UpdatePullRequests.UpdateBranch != nil && *safeOutputs.UpdatePullRequests.UpdateBranch {
-			safeOutputsPermissionsLog.Print("update-pull-request has update-branch enabled; requiring contents: write")
-			permissions.Merge(NewPermissionsContentsWritePRWrite())
-		} else {
-			permissions.Merge(NewPermissionsContentsReadPRWrite())
-		}
-	}
-	if safeOutputs.MergePullRequest != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.MergePullRequest.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for merge-pull-request")
-		permissions.Merge(NewPermissionsContentsWritePRWrite())
-	}
-	if safeOutputs.ClosePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.ClosePullRequests.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for close-pull-request")
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
-	if safeOutputs.MarkPullRequestAsReadyForReview != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.MarkPullRequestAsReadyForReview.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for mark-pull-request-as-ready-for-review")
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
-	if safeOutputs.HideComment != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.HideComment.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for hide-comment")
-		// Check if discussions permission should be excluded (discussions: false)
-		// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
-		// Note: Hiding comments (issue/PR/discussion) only needs issues:write, not pull_requests:write
-		if safeOutputs.HideComment.Discussions != nil && !*safeOutputs.HideComment.Discussions {
-			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-		} else {
-			permissions.Merge(NewPermissionsContentsReadIssuesWriteDiscussionsWrite())
-		}
-	}
-	if safeOutputs.DispatchWorkflow != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.DispatchWorkflow.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for dispatch-workflow")
-		permissions.Merge(NewPermissionsActionsWrite())
-	}
-	// Project-related types
-	if safeOutputs.CreateProjects != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateProjects.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for create-project")
-		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-		if current, exists := permissions.Get(PermissionIssues); !exists || current != PermissionWrite {
-			permissions.Set(PermissionIssues, PermissionRead)
-		}
-	}
-	if safeOutputs.UpdateProjects != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdateProjects.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for update-project")
-		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-		if current, exists := permissions.Get(PermissionIssues); !exists || current != PermissionWrite {
-			permissions.Set(PermissionIssues, PermissionRead)
-		}
-	}
-	if safeOutputs.CreateProjectStatusUpdates != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateProjectStatusUpdates.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for create-project-status-update")
-		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
-	}
-	if safeOutputs.AssignToAgent != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AssignToAgent.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for assign-to-agent")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.CreateAgentSessions != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateAgentSessions.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for create-agent-session")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.CreateCodeScanningAlerts != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.CreateCodeScanningAlerts.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for create-code-scanning-alert")
-		permissions.Merge(NewPermissionsContentsReadSecurityEventsWrite())
-	}
-	if safeOutputs.AutofixCodeScanningAlert != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AutofixCodeScanningAlert.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for autofix-code-scanning-alert")
-		permissions.Merge(NewPermissionsContentsReadSecurityEventsWriteActionsRead())
-	}
-	if safeOutputs.AssignToUser != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AssignToUser.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for assign-to-user")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.UnassignFromUser != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UnassignFromUser.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for unassign-from-user")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.AssignMilestone != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AssignMilestone.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for assign-milestone")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.SetIssueType != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.SetIssueType.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for set-issue-type")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.SetIssueField != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.SetIssueField.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for set-issue-field")
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-	if safeOutputs.AddReviewer != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.AddReviewer.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for add-reviewer")
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
-	if safeOutputs.UploadAssets != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UploadAssets.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for upload-asset")
-		permissions.Merge(NewPermissionsContentsRead())
+		permissions.Merge(handlerPermissions)
 	}
 
 	// NoOp and MissingTool don't require write permissions beyond what's already included
@@ -313,77 +134,19 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
 	config := &SafeOutputsConfig{}
 	for _, key := range keys {
-		switch key {
-		case "create-issue":
-			config.CreateIssues = &CreateIssuesConfig{}
-		case "create-agent-session":
-			config.CreateAgentSessions = &CreateAgentSessionConfig{}
-		case "create-discussion":
-			config.CreateDiscussions = &CreateDiscussionsConfig{}
-		case "update-discussion":
-			config.UpdateDiscussions = &UpdateDiscussionsConfig{}
-		case "close-discussion":
-			config.CloseDiscussions = &CloseDiscussionsConfig{}
-		case "add-comment":
-			config.AddComments = &AddCommentsConfig{}
-		case "comment-memory":
-			config.CommentMemory = &CommentMemoryConfig{}
-		case "close-issue":
-			config.CloseIssues = &CloseIssuesConfig{}
-		case "close-pull-request":
-			config.ClosePullRequests = &ClosePullRequestsConfig{}
-		case "create-pull-request":
-			config.CreatePullRequests = &CreatePullRequestsConfig{}
-		case "create-pull-request-review-comment":
-			config.CreatePullRequestReviewComments = &CreatePullRequestReviewCommentsConfig{}
-		case "submit-pull-request-review":
-			config.SubmitPullRequestReview = &SubmitPullRequestReviewConfig{}
-		case "reply-to-pull-request-review-comment":
-			config.ReplyToPullRequestReviewComment = &ReplyToPullRequestReviewCommentConfig{}
-		case "resolve-pull-request-review-thread":
-			config.ResolvePullRequestReviewThread = &ResolvePullRequestReviewThreadConfig{}
-		case "create-code-scanning-alert":
-			config.CreateCodeScanningAlerts = &CreateCodeScanningAlertsConfig{}
-		case "autofix-code-scanning-alert":
-			config.AutofixCodeScanningAlert = &AutofixCodeScanningAlertConfig{}
-		case "add-labels":
-			config.AddLabels = &AddLabelsConfig{}
-		case "remove-labels":
-			config.RemoveLabels = &RemoveLabelsConfig{}
-		case "add-reviewer":
-			config.AddReviewer = &AddReviewerConfig{}
-		case "assign-milestone":
-			config.AssignMilestone = &AssignMilestoneConfig{}
-		case "assign-to-agent":
-			config.AssignToAgent = &AssignToAgentConfig{}
-		case "assign-to-user":
-			config.AssignToUser = &AssignToUserConfig{}
-		case "unassign-from-user":
-			config.UnassignFromUser = &UnassignFromUserConfig{}
-		case "update-issue":
-			config.UpdateIssues = &UpdateIssuesConfig{}
-		case "update-pull-request":
-			config.UpdatePullRequests = &UpdatePullRequestsConfig{}
-		case "merge-pull-request":
-			config.MergePullRequest = &MergePullRequestConfig{}
-		case "push-to-pull-request-branch":
-			config.PushToPullRequestBranch = &PushToPullRequestBranchConfig{}
-		case "upload-asset":
-			config.UploadAssets = &UploadAssetsConfig{}
-		case "update-release":
-			config.UpdateRelease = &UpdateReleaseConfig{}
-		case "hide-comment":
-			config.HideComment = &HideCommentConfig{}
-		case "link-sub-issue":
-			config.LinkSubIssue = &LinkSubIssueConfig{}
-		case "update-project":
-			config.UpdateProjects = &UpdateProjectConfig{}
-		case "create-project":
-			config.CreateProjects = &CreateProjectsConfig{}
-		case "create-project-status-update":
-			config.CreateProjectStatusUpdates = &CreateProjectStatusUpdateConfig{}
-		case "mark-pull-request-as-ready-for-review":
-			config.MarkPullRequestAsReadyForReview = &MarkPullRequestAsReadyForReviewConfig{}
+		handler, ok := getSafeOutputHandlerByKey(key)
+		if !ok || handler.NewConfig == nil {
+			continue
+		}
+		if hasSafeOutputFieldSet(config, handler.StructField) {
+			continue
+		}
+		if !setSafeOutputField(config, handler.StructField, handler.NewConfig()) {
+			safeOutputsPermissionsLog.Printf(
+				"Warning: failed to set safe-output field %q for key %q from descriptor constructor",
+				handler.StructField,
+				key,
+			)
 		}
 	}
 	return config

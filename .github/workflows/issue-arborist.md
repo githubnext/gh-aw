@@ -17,7 +17,7 @@ imports:
   - shared/github-guard-policy.md
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

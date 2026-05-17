@@ -43,7 +43,7 @@ imports:
   - shared/reporting.md
 
 # Pre-download SBOM to get accurate dependency information
-  - shared/observability-otlp.md
+  - shared/otlp.md
 steps:
   - name: Download SBOM from GitHub Dependency Graph API
     env:

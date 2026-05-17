@@ -21,7 +21,7 @@ imports:
       expires: 1d
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # Weekly Workflow Analysis
 

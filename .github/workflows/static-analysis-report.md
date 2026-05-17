@@ -31,7 +31,7 @@ imports:
     with:
       toolsets: [default, actions]
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 steps:
   - name: Build gh-aw from source
     run: |

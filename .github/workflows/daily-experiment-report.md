@@ -31,7 +31,7 @@ imports:
       title-prefix: "[experiments] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   upload-asset:
     max: 10
@@ -402,6 +402,16 @@ title-prefix `[experiments]`, category `audits`, and automatic cleanup of older 
 **Discussion title**: `[experiments] Daily Experiment Report — YYYY-MM-DD`
 
 ### Discussion body structure
+
+Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) inside issue/comment bodies — these are reserved for the issue title.
+
+Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling. Keep critical summaries and key metrics always visible.
+
+Suggested structure:
+- Brief summary (always visible)
+- Key metrics or highlights (always visible)
+- Detailed analysis (in `<details>` tags)
+- Recommendations (always visible)
 
 ```markdown
 ### 🧪 Daily Experiment Report — YYYY-MM-DD

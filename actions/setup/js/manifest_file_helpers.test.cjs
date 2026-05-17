@@ -79,6 +79,18 @@ rename to package.json.bak
       expect(result).toContain("package.json.bak");
     });
 
+    it("should parse quoted headers with spaces and escapes", () => {
+      const patch = `diff --git "a/dir/with space/package.json" "b/dir/with space/package-lock.json"
+index abc..def 100644
+diff --git "a/foo\\\\bar/config.json" "b/foo\\\\bar/config.json"
+index abc..def 100644
+`;
+      const result = extractFilenamesFromPatch(patch);
+      expect(result).toContain("package.json");
+      expect(result).toContain("package-lock.json");
+      expect(result).toContain("config.json");
+    });
+
     it("should ignore dev/null sentinel in new-file diffs", () => {
       const patch = `diff --git a/dev/null b/src/new-file.js
 new file mode 100644
@@ -235,6 +247,27 @@ index 0000000..abc
       const result = extractPathsFromPatch(patch);
       expect(result).toContain(".github/workflows/new.yml");
       expect(result).not.toContain("dev/null");
+    });
+
+    it("should parse CRLF patch headers without trailing carriage returns", () => {
+      const patch = "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\r\nindex abc..def 100644\r\n";
+      const result = extractPathsFromPatch(patch);
+      expect(result).toEqual([".github/workflows/ci.yml"]);
+    });
+
+    it("should parse quoted headers and ignore malformed headers", () => {
+      const patch = [`diff --git "a/.github/workflows/ci file.yml" "b/.github/workflows/ci file.yml"`, "index abc..def 100644", "diff --git ", "index abc..def 100644"].join("\n");
+      const result = extractPathsFromPatch(patch);
+      expect(result).toContain(".github/workflows/ci file.yml");
+      expect(result).toHaveLength(1);
+    });
+
+    it("should preserve full escaped paths from quoted headers", () => {
+      const patch = `diff --git "a/foo\\\\bar/config.json" "b/foo\\\\bar/config.json"
+index abc..def 100644
+`;
+      const result = extractPathsFromPatch(patch);
+      expect(result).toContain("foo\\\\bar/config.json");
     });
   });
 

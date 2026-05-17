@@ -37,7 +37,7 @@ imports:
   - shared/reporting.md
 
 # Deny all network access
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network: {}
 
 # Tools configuration

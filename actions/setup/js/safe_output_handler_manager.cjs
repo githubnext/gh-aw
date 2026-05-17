@@ -20,6 +20,7 @@ const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorC
 const { getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary } = require("./create_agent_session.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
@@ -282,9 +283,10 @@ const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "
  * Calls each handler's factory function (main) to get message processors
  * @param {Object} config - Safe outputs configuration
  * @param {Object} prReviewBuffer - Shared PR review buffer instance
+ * @param {string[]} [resolvedAllowedMentionAliases] - Pre-resolved mention aliases shared across handlers
  * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
-async function loadHandlers(config, prReviewBuffer) {
+async function loadHandlers(config, prReviewBuffer, resolvedAllowedMentionAliases = []) {
   const messageHandlers = new Map();
 
   core.info("Loading and initializing safe output handlers based on configuration...");
@@ -298,6 +300,15 @@ async function loadHandlers(config, prReviewBuffer) {
         if (handlerModule && typeof handlerModule.main === "function") {
           // Call the factory function with config to get the message handler
           const handlerConfig = { ...(config[type] || {}) };
+
+          // Pass top-level mentions policy through so handlers can preserve
+          // the same allowed mention aliases used during collection.
+          if (handlerConfig.mentions == null && config.mentions != null) {
+            handlerConfig.mentions = config.mentions;
+          }
+          if (handlerConfig.mentions != null && handlerConfig.allowedMentionAliases == null && Array.isArray(resolvedAllowedMentionAliases)) {
+            handlerConfig.allowedMentionAliases = resolvedAllowedMentionAliases;
+          }
 
           // Inject shared PR review buffer into handlers that need it
           if (PR_REVIEW_HANDLER_TYPES.has(type)) {
@@ -1033,7 +1044,7 @@ function getContentToCheck(messageType, message, result) {
  * @param {string} updatedBody - Updated body content with resolved temp IDs
  * @returns {Promise<void>}
  */
-async function updateIssueBody(github, context, repo, issueNumber, updatedBody) {
+async function updateIssueBody(github, context, repo, issueNumber, updatedBody, allowedMentionAliases = []) {
   const [owner, repoName] = repo.split("/");
 
   core.info(`Updating issue ${repo}#${issueNumber} body with resolved temporary IDs`);
@@ -1042,7 +1053,7 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody) 
     owner,
     repo: repoName,
     issue_number: issueNumber,
-    body: sanitizeContent(updatedBody),
+    body: sanitizeContent(updatedBody, { allowedAliases: allowedMentionAliases }),
   });
 
   core.info(`✓ Updated issue ${repo}#${issueNumber}`);
@@ -1057,7 +1068,7 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody) 
  * @param {string} updatedBody - Updated body content with resolved temp IDs
  * @returns {Promise<void>}
  */
-async function updateDiscussionBody(github, context, repo, discussionNumber, updatedBody) {
+async function updateDiscussionBody(github, context, repo, discussionNumber, updatedBody, allowedMentionAliases = []) {
   const [owner, repoName] = repo.split("/");
 
   core.info(`Updating discussion ${repo}#${discussionNumber} body with resolved temporary IDs`);
@@ -1095,7 +1106,7 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
 
   await github.graphql(mutation, {
     discussionId,
-    body: sanitizeContent(updatedBody),
+    body: sanitizeContent(updatedBody, { allowedAliases: allowedMentionAliases }),
   });
 
   core.info(`✓ Updated discussion ${repo}#${discussionNumber}`);
@@ -1111,12 +1122,12 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
  * @param {boolean} isDiscussion - Whether this is a discussion comment
  * @returns {Promise<void>}
  */
-async function updateCommentBody(github, context, repo, commentId, updatedBody, isDiscussion = false) {
+async function updateCommentBody(github, context, repo, commentId, updatedBody, isDiscussion = false, allowedMentionAliases = []) {
   const [owner, repoName] = repo.split("/");
 
   core.info(`Updating comment ${commentId} body with resolved temporary IDs`);
 
-  const sanitizedBody = sanitizeContent(updatedBody);
+  const sanitizedBody = sanitizeContent(updatedBody, { allowedAliases: allowedMentionAliases });
 
   if (isDiscussion) {
     // For discussion comments, we need to use GraphQL
@@ -1158,7 +1169,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
  * @param {Map<string, string>} [artifactUrlMap] - Optional artifact URL map for resolving artifact references
  * @returns {Promise<number>} Number of successful updates
  */
-async function processSyntheticUpdates(github, context, trackedOutputs, temporaryIdMap, artifactUrlMap) {
+async function processSyntheticUpdates(github, context, trackedOutputs, temporaryIdMap, artifactUrlMap, allowedMentionAliases = []) {
   let updateCount = 0;
 
   core.info(`\n=== Processing Synthetic Updates ===`);
@@ -1191,17 +1202,17 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
             // Update based on the original type
             switch (tracked.type) {
               case "create_issue":
-                await updateIssueBody(github, context, tracked.result.repo, tracked.result.number, updatedContent);
+                await updateIssueBody(github, context, tracked.result.repo, tracked.result.number, updatedContent, allowedMentionAliases);
                 updateCount++;
                 break;
               case "create_discussion":
-                await updateDiscussionBody(github, context, tracked.result.repo, tracked.result.number, updatedContent);
+                await updateDiscussionBody(github, context, tracked.result.repo, tracked.result.number, updatedContent, allowedMentionAliases);
                 updateCount++;
                 break;
               case "add_comment":
                 // Update comment using the tracked comment ID
                 if (tracked.result.commentId) {
-                  await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, tracked.result.isDiscussion);
+                  await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, tracked.result.isDiscussion, allowedMentionAliases);
                   updateCount++;
                 } else {
                   core.debug(`Skipping synthetic update for comment - comment ID not tracked`);
@@ -1209,7 +1220,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
                 break;
               case "comment_memory":
                 if (tracked.result.commentId) {
-                  await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, false);
+                  await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, false, allowedMentionAliases);
                   updateCount++;
                 } else {
                   core.debug(`Skipping synthetic update for comment_memory - comment ID not tracked`);
@@ -1290,8 +1301,10 @@ async function main() {
       prReviewBuffer.setFooterMode(footerConfig);
     }
 
+    const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, github, core, config.mentions) : [];
+
     // Load and initialize handlers based on configuration (factory pattern)
-    const messageHandlers = await loadHandlers(config, prReviewBuffer);
+    const messageHandlers = await loadHandlers(config, prReviewBuffer, allowedMentionAliases);
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");
@@ -1352,7 +1365,7 @@ async function main() {
       // Convert temp ID map back to Map
       const temporaryIdMap = new Map(Object.entries(processingResult.temporaryIdMap));
 
-      syntheticUpdateCount = await processSyntheticUpdates(github, context, processingResult.outputsWithUnresolvedIds, temporaryIdMap, processingResult.artifactUrlMap);
+      syntheticUpdateCount = await processSyntheticUpdates(github, context, processingResult.outputsWithUnresolvedIds, temporaryIdMap, processingResult.artifactUrlMap, allowedMentionAliases);
     }
 
     // Write step summaries for all processed safe-outputs

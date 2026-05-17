@@ -22,7 +22,7 @@ imports:
       title-prefix: "[compiler-threat-spec] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-pull-request:
     title-prefix: "[compiler-threat-spec] "

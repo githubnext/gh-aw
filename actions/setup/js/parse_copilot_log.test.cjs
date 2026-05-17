@@ -235,6 +235,35 @@ describe("parse_copilot_log.cjs", () => {
       expect(resultEntry?.num_turns).toBe(5);
     });
 
+    it("strips harness driver lines from rendered pretty-print output", () => {
+      const prettyLog = [
+        "[copilot-harness] 2026-05-16T08:21:00.991Z starting: command=/usr/local/bin/copilot",
+        "[copilot-harness] 2026-05-16T08:21:01.135Z attempt 1: spawning copilot",
+        "● Bash",
+        "    └ ok",
+        "Some final agent thought.",
+        "[copilot-harness] 2026-05-16T08:21:33.527Z attempt 1: process exit event exitCode=0",
+        "[copilot-harness] 2026-05-16T08:21:33.532Z done: exitCode=0 totalDuration=32s",
+      ].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      expect(result.markdown).not.toContain("[copilot-harness]");
+      expect(result.markdown).not.toContain("attempt 1: spawning");
+      expect(result.markdown).toContain("Some final agent thought.");
+    });
+
+    it("suppresses the new Copilot CLI footer stats (Changes/Duration/Tokens) from agent text", () => {
+      const prettyLog = ["● Bash", "    └ ok", "The work is done.", "", "Changes   +0 -0", "Duration  31s", "Tokens    ↑ 290.1k • ↓ 1.4k • 247.4k (cached)"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      expect(result.markdown).toContain("The work is done.");
+      expect(result.markdown).not.toMatch(/^Changes\s+\+0 -0$/m);
+      expect(result.markdown).not.toMatch(/^Duration\s+31s$/m);
+      expect(result.markdown).not.toMatch(/^Tokens\s+↑/m);
+    });
+
     it("should parse debug log format with reasoning_text", () => {
       const debugLog = [
         "2026-02-21T00:06:13.708Z [INFO] Starting Copilot CLI: 0.0.412",

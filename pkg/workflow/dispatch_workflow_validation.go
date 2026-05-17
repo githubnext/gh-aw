@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
 )
 
@@ -58,8 +59,8 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 			currentDir := filepath.Dir(workflowPath)
 			githubDir := filepath.Dir(currentDir)
 			repoRoot := filepath.Dir(githubDir)
-			workflowsDir := filepath.Join(repoRoot, ".github", "workflows")
-			notFoundErr := fmt.Errorf("dispatch-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in .github/workflows/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName)
+			workflowsDir := filepath.Join(repoRoot, constants.GetWorkflowDir())
+			notFoundErr := fmt.Errorf("dispatch-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowsDir)
 			if returnErr := collector.Add(notFoundErr); returnErr != nil {
 				return returnErr
 			}

@@ -336,6 +336,45 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
+	// Infer permissions required by gh CLI calls in all agent job step sections.
+	// Detects write commands (which are not permitted since the agent job is read-only),
+	// and merges inferred read permissions into the existing permissions block.
+	// Skipped only when the user explicitly opted out of all permissions (permissions: {}).
+	//
+	// Top-level frontmatter sections (pre-steps, steps, pre-agent-steps, post-steps) are
+	// all applied to the agent job and must be fully scanned.
+	// For jobs.agent.* sections, only jobs.agent.pre-steps is actually injected by
+	// applyBuiltinJobPreSteps; jobs.agent.steps, jobs.agent.pre-agent-steps, and
+	// jobs.agent.post-steps are ignored for built-in jobs, so they are intentionally
+	// excluded to avoid false-positive errors or unneeded permission grants.
+	agentJobName := string(constants.AgentJobName)
+	agentAllScripts := extractRunScriptsFromSectionYAML(data.PreSteps, "pre-steps")
+	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.CustomSteps, "steps")...)
+	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PreAgentSteps, "pre-agent-steps")...)
+	agentAllScripts = append(agentAllScripts, extractRunScriptsFromSectionYAML(data.PostSteps, "post-steps")...)
+	if data.Jobs != nil {
+		agentAllScripts = append(agentAllScripts, extractRunScriptsFromJobSection(data.Jobs, agentJobName, "pre-steps")...)
+	}
+	if len(agentAllScripts) > 0 {
+		if writeCmds := detectWriteCommandsInShellScripts(agentAllScripts); len(writeCmds) > 0 {
+			return nil, fmt.Errorf(
+				"agent job uses write gh command(s) [%s]; write operations are not permitted in agent job steps because the agent job runs with read-only permissions. Use safe-outputs for write operations. See: https://github.github.com/gh-aw/reference/safe-outputs/",
+				strings.Join(writeCmds, ", "),
+			)
+		}
+		// Infer read permissions unless the user explicitly zeroed out all permissions.
+		// Check data.Permissions (the original value) since needsContentsRead above may have
+		// already expanded "permissions: {}" into an explicit block.
+		// Uses the same exact-string check as tools.go (the YAML parser always normalizes
+		// "permissions: {}" to this canonical form when parsing the frontmatter).
+		if data.Permissions != "permissions: {}" && permissions != "" {
+			inferred := inferPermissionsFromShellScripts(agentAllScripts)
+			if len(inferred) > 0 {
+				permissions = mergeInferredIntoPermissionsYAML(permissions, inferred)
+			}
+		}
+	}
+
 	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())

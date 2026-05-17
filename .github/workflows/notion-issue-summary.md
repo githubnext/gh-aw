@@ -18,7 +18,7 @@ tools:
   github:
 imports:
   - shared/mcp/notion.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 strict: true
 
 

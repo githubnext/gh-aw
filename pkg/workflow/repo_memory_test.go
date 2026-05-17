@@ -44,8 +44,8 @@ func TestRepoMemoryConfigDefault(t *testing.T) {
 		t.Errorf("Expected branch name 'memory/my-workflow', got '%s'", memory.BranchName)
 	}
 
-	if memory.MaxFileSize != 10240 {
-		t.Errorf("Expected max file size 10240, got %d", memory.MaxFileSize)
+	if memory.MaxFileSize != 102400 {
+		t.Errorf("Expected max file size 102400, got %d", memory.MaxFileSize)
 	}
 
 	if memory.MaxFileCount != 100 {
@@ -701,7 +701,12 @@ func TestRepoMemoryMaxPatchSizeValidation(t *testing.T) {
 			wantError:    false,
 		},
 		{
-			name:         "valid maximum size (102400 bytes = 100KB)",
+			name:         "valid maximum size (1048576 bytes = 1MB)",
+			maxPatchSize: 1048576,
+			wantError:    false,
+		},
+		{
+			name:         "valid old maximum size (102400 bytes = 100KB)",
 			maxPatchSize: 102400,
 			wantError:    false,
 		},
@@ -716,22 +721,27 @@ func TestRepoMemoryMaxPatchSizeValidation(t *testing.T) {
 			wantError:    false,
 		},
 		{
+			name:         "valid large size (512000 bytes = 500KB)",
+			maxPatchSize: 512000,
+			wantError:    false,
+		},
+		{
 			name:         "invalid zero size",
 			maxPatchSize: 0,
 			wantError:    true,
-			errorText:    "max-patch-size must be between 1 and 102400, got 0",
+			errorText:    "max-patch-size must be between 1 and 1048576, got 0",
 		},
 		{
 			name:         "invalid negative size",
 			maxPatchSize: -1,
 			wantError:    true,
-			errorText:    "max-patch-size must be between 1 and 102400, got -1",
+			errorText:    "max-patch-size must be between 1 and 1048576, got -1",
 		},
 		{
 			name:         "invalid size exceeds maximum",
-			maxPatchSize: 102401,
+			maxPatchSize: 1048577,
 			wantError:    true,
-			errorText:    "max-patch-size must be between 1 and 102400, got 102401",
+			errorText:    "max-patch-size must be between 1 and 1048576, got 1048577",
 		},
 	}
 
@@ -778,16 +788,21 @@ func TestRepoMemoryMaxPatchSizeValidationArray(t *testing.T) {
 			wantError:    false,
 		},
 		{
+			name:         "valid large size in array (500KB)",
+			maxPatchSize: 512000,
+			wantError:    false,
+		},
+		{
 			name:         "invalid size in array (zero)",
 			maxPatchSize: 0,
 			wantError:    true,
-			errorText:    "max-patch-size must be between 1 and 102400, got 0",
+			errorText:    "max-patch-size must be between 1 and 1048576, got 0",
 		},
 		{
 			name:         "invalid size in array (exceeds max)",
-			maxPatchSize: 102401,
+			maxPatchSize: 1048577,
 			wantError:    true,
-			errorText:    "max-patch-size must be between 1 and 102400, got 102401",
+			errorText:    "max-patch-size must be between 1 and 1048576, got 1048577",
 		},
 	}
 

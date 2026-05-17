@@ -53,7 +53,7 @@ the agent can modify when using update-discussion.
 	require.NoError(t, err, "Failed to write workflow file")
 
 	compiler := workflow.NewCompiler()
-	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, false, false, false, false, false, false)
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, CompileValidationOptions{})
 	require.NoError(t, err, "Expected compilation to succeed")
 
 	lockFilePath := filepath.Join(tmpDir, "test-update-discussion-field-enforcement.lock.yml")

@@ -4542,7 +4542,7 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 104857600,
-                  "description": "Maximum size per file in bytes (default: 10240 = 10KB)"
+                  "description": "Maximum size per file in bytes (default: 102400 = 100KB)"
                 },
                 "max-file-count": {
                   "type": "integer",
@@ -4553,8 +4553,8 @@
                 "max-patch-size": {
                   "type": "integer",
                   "minimum": 1,
-                  "maximum": 102400,
-                  "description": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 102400 = 100KB). The total size of the git diff must not exceed this value."
+                  "maximum": 1048576,
+                  "description": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 1048576 = 1MB). The total size of the git diff must not exceed this value."
                 },
                 "description": {
                   "type": "string",
@@ -4633,7 +4633,7 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 104857600,
-                    "description": "Maximum size per file in bytes (default: 10240 = 10KB)"
+                    "description": "Maximum size per file in bytes (default: 102400 = 100KB)"
                   },
                   "max-file-count": {
                     "type": "integer",
@@ -4644,8 +4644,8 @@
                   "max-patch-size": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 102400,
-                    "description": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 102400 = 100KB). The total size of the git diff must not exceed this value."
+                    "maximum": 1048576,
+                    "description": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 1048576 = 1MB). The total size of the git diff must not exceed this value."
                   },
                   "description": {
                     "type": "string",
@@ -4945,6 +4945,19 @@
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
                       "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "deduplicate-by-title": {
+                  "description": "Title-based deduplication for create-issue. Set to true for exact title matching, or provide a non-negative integer to deduplicate by Levenshtein edit distance (e.g., 1 allows one-character differences). Applies within-run and against open/recently-closed repository issues.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
                     }
                   ]
                 },
@@ -10189,7 +10202,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush') or a named catalog entry"
+          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
         },
         {
           "type": "object",
@@ -10197,7 +10210,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
             },
             "version": {
               "type": ["string", "number"],
@@ -10419,8 +10432,8 @@
               "properties": {
                 "id": {
                   "type": "string",
-                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'crush')",
-                  "examples": ["codex", "claude", "copilot", "gemini", "crush"]
+                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode', 'crush', 'pi')",
+                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "crush", "pi"]
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -10541,7 +10554,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'crush')"
+              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'opencode', 'crush', 'pi')"
             },
             "display-name": {
               "type": "string",
@@ -11185,6 +11198,11 @@
         "wiki": {
           "type": "boolean",
           "description": "When true, clones the repository's wiki git instead of the regular repository. The effective repository becomes \"{repository}.wiki\" (e.g. \"owner/repo.wiki\"). Defaults to false.",
+          "examples": [true, false]
+        },
+        "force-clean-git-credentials": {
+          "type": "boolean",
+          "description": "When true, persist credentials during checkout, then immediately run a post-checkout cleanup step that removes credentials from root and submodule git configs. Useful for submodule-safe cleanup behavior.",
           "examples": [true, false]
         }
       }

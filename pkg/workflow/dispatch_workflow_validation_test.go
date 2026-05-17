@@ -205,6 +205,63 @@ safe-outputs:
 	assert.Contains(t, err.Error(), "workflow 'missing-workflow' not found")
 }
 
+func TestDispatchWorkflowValidation_UsesWorkflowDirEnvOverride(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	overrideWorkflowsDir := filepath.Join(tmpDir, "custom", "workflows")
+
+	err := os.MkdirAll(awDir, 0755)
+	require.NoError(t, err, "Failed to create aw directory")
+	err = os.MkdirAll(overrideWorkflowsDir, 0755)
+	require.NoError(t, err, "Failed to create override workflows directory")
+
+	t.Setenv("GH_AW_WORKFLOWS_DIR", filepath.Join("custom", "workflows"))
+
+	dispatcherWorkflow := `---
+on: issues
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - target-worker
+    max: 1
+---
+
+# Dispatcher Workflow
+`
+	dispatcherFile := filepath.Join(awDir, "dispatcher.md")
+	err = os.WriteFile(dispatcherFile, []byte(dispatcherWorkflow), 0644)
+	require.NoError(t, err, "Failed to write dispatcher workflow")
+
+	targetWorkflow := `name: Target Worker
+on:
+  workflow_dispatch:
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Working"
+`
+	err = os.WriteFile(filepath.Join(overrideWorkflowsDir, "target-worker.lock.yml"), []byte(targetWorkflow), 0644)
+	require.NoError(t, err, "Failed to write target workflow")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(awDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("dispatcher.md")
+	require.NoError(t, err, "Failed to parse workflow")
+
+	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
+	assert.NoError(t, err, "Workflow should resolve from GH_AW_WORKFLOWS_DIR override")
+}
+
 func TestShouldSkipLocalDispatchWorkflowValidation(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 	compiler.SetRepositorySlug("my-org/my-repo")

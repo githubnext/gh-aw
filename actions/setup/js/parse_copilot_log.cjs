@@ -221,7 +221,11 @@ function parsePrettyPrintFormat(logContent) {
   const DEEP_INDENT_RE = /^ {4,}/;
   const MODEL_BREAKDOWN_RE = /^Breakdown by AI model:/;
   const MODEL_LINE_RE = /^ +(\S+)\s+([\d.]+k?)\s+in,\s+([\d.]+k?)\s+out(?:,\s+([\d.]+k?)\s+cached)?/;
-  const USAGE_LINES_RE = /^(Total usage est:|API time spent:|Total session time:|Total code changes:)/;
+  // Recognise both legacy ("Total usage est:" / "API time spent:" / …) and the
+  // newer Copilot CLI footer ("Changes  +N -N", "Duration  Ns", "Tokens  ↑N ↓N (cached)").
+  // The newer footer omits a colon and uses arrow glyphs, so we extend the regex rather than
+  // relying on the legacy "Total …:" prefix alone.
+  const USAGE_LINES_RE = /^(?:Total usage est:|API time spent:|Total session time:|Total code changes:|Changes\s+[+-]?\d|Duration\s+\d|Tokens\s+[↑↓])/;
 
   const parseTokenCount = s => {
     const n = parseFloat(s);

@@ -42,7 +42,7 @@ imports:
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   agentic-workflows:

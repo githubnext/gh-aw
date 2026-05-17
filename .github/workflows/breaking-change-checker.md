@@ -31,7 +31,7 @@ imports:
       expires: "2d"
       labels: [breaking-change, automated-analysis, cookie]
       assignees: [copilot]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   messages:
     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"

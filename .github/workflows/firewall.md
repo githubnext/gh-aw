@@ -19,7 +19,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   web-fetch:

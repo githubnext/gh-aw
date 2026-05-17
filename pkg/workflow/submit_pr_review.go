@@ -49,7 +49,7 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 			return nil // Invalid configuration, return nil to cause validation error
 		}
 		config.TargetRepoSlug = targetRepoSlug
-		config.AllowedRepos = parseAllowedReposFromConfig(configMap)
+		config.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", submitPRReviewLog)
 
 		// Parse footer configuration (string: "always"/"none"/"if-body", or bool for backward compat)
 		if footer, exists := configMap["footer"]; exists {

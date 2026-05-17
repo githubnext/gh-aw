@@ -44,7 +44,7 @@ imports:
       toolsets: [default, repos, actions]
   - shared/reporting.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

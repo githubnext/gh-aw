@@ -35,6 +35,8 @@ safe-outputs:
     title-prefix: "[ai] "
     labels: [automation]
   add-comment:
+  upload-artifact:
+    skip-archive: true
 ---
 
 # Workflow Title
@@ -78,10 +80,11 @@ Always run `gh aw compile` after modifying frontmatter. Markdown body changes ta
 | Memory / persistence | [memory.md](memory.md) |
 | Experiments / A/B testing | [experiments.md](experiments.md) |
 | Campaign / KPI workflows | [campaign.md](campaign.md) |
+| LLM API endpoint discovery | [llms.md](llms.md) |
 
 ## Key Principles
 
-- **No write permissions on main job**: Never use `issues: write`, `pull-requests: write`, or `contents: write`. Use `safe-outputs:` instead — it handles write operations in a separate secured job.
+- **No write permissions on main job**: Never use `issues: write`, `pull-requests: write`, or `contents: write`. Use `safe-outputs:` instead — it handles write operations (including attachment-style `upload-artifact`) in a separate secured job.
 - **Use `gh-proxy` mode**: `tools.github.mode: gh-proxy` is faster than `local` (no MCP server startup).
 - **Prefer sanitized context**: Use `${{ steps.sanitized.outputs.text }}` for issue/PR content access — it neutralizes @mentions, bot triggers, and injection attacks.
 - **`strict: true` required**: All production workflows must set `strict: true`.

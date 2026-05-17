@@ -43,7 +43,7 @@ safe-outputs:
     run-success: "📊 [{workflow_name}]({run_url}) outcome evaluation complete!"
     run-failure: "📊 [{workflow_name}]({run_url}) {status}"
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 pre-agent-steps:
   - name: Evaluate outcomes for recent runs
     env:
@@ -80,6 +80,16 @@ The pre-agent step has already evaluated outcomes for recent workflow runs. Resu
 ## Report Format
 
 Create an issue with this structure:
+
+Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) inside issue/comment bodies — these are reserved for the issue title.
+
+Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling. Keep critical summaries and key metrics always visible.
+
+Suggested structure:
+- Brief summary (always visible)
+- Key metrics or highlights (always visible)
+- Detailed analysis (in `<details>` tags)
+- Recommendations (always visible)
 
 ```markdown
 ## Safe Output Outcomes — {date}

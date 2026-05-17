@@ -150,7 +150,26 @@ Examples:
 					}
 				}
 
-				return DownloadWorkflowLogsFromStdin(cmd.Context(), runURLs, outputDir, engine, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format, artifacts)
+				return DownloadWorkflowLogsFromStdin(cmd.Context(), StdinLogsOptions{
+					RunURLs:           runURLs,
+					OutputDir:         outputDir,
+					Engine:            engine,
+					RepoOverride:      repoOverride,
+					Verbose:           verbose,
+					ToolGraph:         toolGraph,
+					NoStaged:          noStaged,
+					FirewallOnly:      firewallOnly,
+					NoFirewall:        noFirewall,
+					Parse:             parse,
+					JSONOutput:        jsonOutput,
+					Timeout:           timeout,
+					SummaryFile:       summaryFile,
+					SafeOutputType:    safeOutputType,
+					FilteredIntegrity: filteredIntegrity,
+					Train:             train,
+					Format:            format,
+					ArtifactSets:      artifacts,
+				})
 			}
 
 			var workflowName string

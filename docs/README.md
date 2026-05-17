@@ -44,6 +44,16 @@ The sitemap (`/gh-aw/sitemap-index.xml`) is **only generated during a production
 
 If a CI pipeline or automated tool checks for the sitemap URL during a local preview, it will receive a 404 response. To verify the sitemap, run `npm run build` followed by `npm run preview`.
 
+### Robots/AI discovery paths on GitHub Pages project sites
+
+This docs site is deployed as a GitHub Pages **project site** under `/gh-aw/` (see `base: '/gh-aw/'` in `astro.config.mjs`).
+
+- `robots.txt` is served at `/gh-aw/robots.txt`
+- AI discovery file is served at `/gh-aw/.well-known/ai.txt`
+- AI metadata files are served under `/gh-aw/ai/`
+
+Root-level endpoints on `https://github.github.com/` (for example `/robots.txt`) are controlled by the main `github.github.com` site, not this repository.
+
 ## Want to learn more?
 
 Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).

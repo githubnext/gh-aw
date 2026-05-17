@@ -21,7 +21,7 @@ imports:
       expires: 1d
   - shared/mcp/serena-go.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

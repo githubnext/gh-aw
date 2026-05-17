@@ -19,7 +19,7 @@ imports:
     with:
       toolsets: [default, actions, repos]
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -202,6 +202,18 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 - Identify trends (improving, declining, stable)
 - Calculate moving averages and detect anomalies
 - Benchmark individual workflows against ecosystem averages
+
+**Use AgentDB to accelerate analysis and recall:**
+- Ingest the latest metrics snapshot and your generated agent profiles into AgentDB.
+- Use a consistent record shape for ingested metrics and profiles:
+  - workflow_id, agent_name, timestamp, quality_score, effectiveness_score, resource_usage, issues_created, prs_created, comments_created
+- Compute score deltas and trend changes from AgentDB query results before falling back to scanning all daily metrics files.
+- Use AgentDB queries for:
+  - Score deltas and trends (`quality_score` / `effectiveness_score` grouped by `agent_name`, ordered by `timestamp`)
+  - Semantic recall (`token budget exhaustion`, `duplicate issue creation`, `high PR rejection rate`)
+- Run semantic search in AgentDB for similar historical incidents (for example, token budget exhaustion) and reuse proven mitigations.
+- Persist resolved performance patterns in AgentDB so future runs can detect regressions automatically.
+- Persist resolved patterns with: pattern_id, pattern_name, resolution, resolved_at, workflows_affected, and regression_signals (for example: "quality_score drop > 10%", "PR rejection rate increased > 15%", "run duration regression > 20%").
 
 **Read from shared memory:**
 1. Check for existing files in the memory directory:

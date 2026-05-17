@@ -21,7 +21,7 @@ imports:
       title-prefix: "[lockfile-stats] "
       expires: 1d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # Lockfile Statistics Analysis Agent
 

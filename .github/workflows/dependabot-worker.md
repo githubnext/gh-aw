@@ -59,7 +59,7 @@ imports:
       expires: "3d"
       labels: [automation, dependencies, dependabot]
       reviewers: [copilot]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   edit:
   cli-proxy: true

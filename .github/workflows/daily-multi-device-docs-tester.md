@@ -36,7 +36,6 @@ tools:
     - "playwright-cli*"  # CLI-mode playwright commands
     - "curl*"
     - "kill*"
-    - "pkill*"          # Kill processes by name (e.g. pkill -f "astro dev")
     - "lsof*"
     - "ls*"             # List files for directory navigation
     - "pwd*"            # Print working directory
@@ -70,7 +69,7 @@ imports:
       title-prefix: "[multi-device-docs] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -228,6 +227,7 @@ Label with: `documentation`, `testing`, `automated`
 ## Step 6: Cleanup
 
 Follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
+Use the shared PID-file cleanup command (`kill $(cat /tmp/gh-aw/server.pid) ...`) and **do not use `pkill -f`**.
 
 ## Summary
 

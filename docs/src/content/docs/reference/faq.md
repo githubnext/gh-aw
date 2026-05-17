@@ -106,7 +106,7 @@ For Jira specifically, use **Project → Automation → Issue created → Send w
 
 The `repository_dispatch` token must have `repo` scope (classic PAT) or `contents: write` permission. Store it in the external system's secret or credential store (e.g., Jira Automation secret text, a CI/CD vault), scoped to the single target repository.
 
-See [Repository Dispatch Trigger](/gh-aw/reference/triggers/#repository-dispatch-trigger-repository_dispatch) for the full trigger reference.
+See [Repository Dispatch Trigger](/gh-aw/reference/triggers/#repository-dispatch-trigger-repository_dispatch) for the full trigger reference. To control which branch the agent commits to based on content in the Jira issue, see [Can the agent use an existing branch specified at runtime?](#can-the-agent-use-an-existing-branch-specified-at-runtime-eg-from-a-jira-issue)
 
 ### Can I use MCP servers with agentic workflows?
 
@@ -595,7 +595,7 @@ imports:
 ---
 ```
 
-See [Cross-Organization `workflow_call`](/gh-aw/reference/imports/#cross-organization-workflow_call) for the full details.
+See [Self-Contained Lock Files](/gh-aw/reference/imports/#self-contained-lock-files-inlined-imports-true) for the full details.
 
 ### My workflow checkout is very slow because my repository is a large monorepo. How can I speed it up?
 

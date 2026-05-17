@@ -43,10 +43,9 @@ imports:
       expires: "2d"
       labels: [documentation, automation, doc-unbloat]
       reviewers: [copilot]
-  - shared/docs-server-lifecycle.md
 
 # Network access for documentation best practices research
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults
@@ -64,8 +63,6 @@ tools:
     mode: gh-proxy
     toolsets: [default]
   edit:
-  playwright:
-    mode: cli
   bash:
     - "find docs/src/content/docs *"
     - "find /tmp/gh-aw/cache-memory *"
@@ -83,12 +80,6 @@ tools:
     - "head *"
     - "tail *"
     - "cd *"
-    - "node *"
-    - "npm *"
-    - "curl *"
-    - "ps *"
-    - "kill *"
-    - "sleep *"
     - "echo *"
     - "mkdir *"
     - "cp *"
@@ -106,9 +97,6 @@ safe-outputs:
     fallback-as-issue: false
   add-comment:
     max: 1
-  upload-asset:
-    max: 10
-    allowed-exts: [.png, .jpg, .jpeg, .svg]
   messages:
     footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}..."
@@ -168,56 +156,6 @@ pre-agent-steps:
 
       echo "Pre-flight passed: $UNCLEANED uncleaned candidates out of $TOTAL eligible files"
       echo "Candidate files written to /tmp/gh-aw/agent/candidate-files.txt"
-
-  - name: Start documentation dev server
-    run: |
-      # Skip if pre-flight check failed — no need to start the server
-      if [ "$(jq -r '.pass' /tmp/gh-aw/agent/preflight.json 2>/dev/null)" != "true" ]; then
-        echo "Pre-flight check failed, skipping server startup"
-        exit 0
-      fi
-      mkdir -p /tmp/gh-aw
-      cd docs
-      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/preview.log 2>&1 &
-      PID=$!
-      echo $PID > /tmp/gh-aw/server.pid
-      echo "Dev server started (PID: $PID)"
-
-  - name: Wait for documentation server readiness
-    run: |
-      # Skip if pre-flight check failed — server was not started
-      if [ "$(jq -r '.pass' /tmp/gh-aw/agent/preflight.json 2>/dev/null)" != "true" ]; then
-        echo "Pre-flight check failed, skipping server readiness check"
-        exit 0
-      fi
-      URL="http://localhost:4321/gh-aw/"
-      STATUS=""
-      echo "Readiness check target: $URL"
-      echo "Preview log: /tmp/gh-aw/preview.log"
-      for i in $(seq 1 45); do
-        STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 5 "$URL" || true)
-        [ "$STATUS" = "200" ] && echo "Server ready at $URL" && break
-        if [ -z "$STATUS" ]; then STATUS="curl_error"; fi
-        echo "Waiting for server... ($i/45) (status: $STATUS)"
-        sleep 3
-      done
-      if [ "$STATUS" != "200" ]; then
-        echo "Dev server failed to start after 135 seconds:"
-        echo "Final readiness status: $STATUS"
-        cat /tmp/gh-aw/preview.log || true
-        exit 1
-      fi
-
-  - name: Write Playwright base URL
-    run: |
-      # Skip if pre-flight check failed — server was not started
-      if [ "$(jq -r '.pass' /tmp/gh-aw/agent/preflight.json 2>/dev/null)" != "true" ]; then
-        echo "Pre-flight check failed, skipping Playwright base URL setup"
-        exit 0
-      fi
-      mkdir -p /tmp/gh-aw/agent
-      echo "http://localhost:4321/gh-aw/" > /tmp/gh-aw/agent/playwright-base-url.txt
-      echo "Playwright base URL: http://localhost:4321/gh-aw/"
 
 # Build steps for documentation
 steps:
@@ -404,77 +342,19 @@ echo "$(date -u +%Y-%m-%d) - Cleaned: <filename>" >> /tmp/gh-aw/cache-memory/cle
 
 This helps future runs avoid re-cleaning the same files.
 
-### 9. Take Screenshots of Modified Documentation
-
-After making changes to a documentation file, take a screenshot of the rendered page using the `doc-page-screenshotter` sub-agent. The documentation server is already running — no setup is needed.
-
-#### Determine the Page URL
-
-Read the Playwright base URL written by the pre-agent setup step:
-```bash
-cat /tmp/gh-aw/agent/playwright-base-url.txt
-```
-
-Convert the modified file path to a page URL path:
-- Strip the `docs/src/content/docs/` prefix and the `.md` suffix, then append `/`
-- Example: `docs/src/content/docs/guides/ephemerals.md` → `guides/ephemerals/`
-
-Append that page path to the base URL (e.g., `http://localhost:4321/gh-aw/guides/ephemerals/`).
-
-#### Capture Screenshots via Sub-Agent
-
-Use the `doc-page-screenshotter` agent, passing the full page URL as input. The sub-agent handles all Playwright interactions and returns a structured JSON result:
-
-```json
-{
-  "success": true,
-  "screenshots": ["/tmp/gh-aw/screenshots/doc-screenshot.png"],
-  "blocked_domains": [],
-  "error": null
-}
-```
-
-#### Verify Screenshots Were Saved
-
-Check the `screenshots` array returned by the `doc-page-screenshotter` sub-agent:
-
-**If `screenshots` is empty or `success` is `false`:**
-- Report this in the PR description under an "Issues" section
-- Include the `error` value from the sub-agent result
-- Do not proceed with upload-asset
-
-#### Upload Screenshots
-
-1. Call the `upload_asset` safe-output tool for each screenshot using absolute paths (for example `/tmp/gh-aw/screenshots/<screenshot>.png`)
-2. Record the returned asset URL for each screenshot to include in the PR description
-
-#### Report Blocked Domains
-
-The `doc-page-screenshotter` sub-agent returns `blocked_domains` in its result. If any domains are listed:
-1. Include this information in the PR description under a "Blocked Domains" section
-2. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
-
-#### Cleanup Server
-
-After taking screenshots, follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
-
-### 10. Create Pull Request
+### 9. Create Pull Request
 
 After improving ONE file:
 1. Verify your changes preserve all essential information
 2. Update cache memory with the cleaned file
-3. Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
-4. Upload the screenshots as assets (see "Upload Screenshots" section above) and collect the returned asset URLs
-5. Create a pull request with your improvements
+3. Create a pull request with your improvements
    - **IMPORTANT**: When calling the create_pull_request tool, do NOT pass a "branch" parameter - let it auto-detect the current branch you created
    - Or if you must specify the branch, use the exact branch name you created earlier (NOT "main")
-6. Include in the PR description:
+4. Include in the PR description:
    - Which file you improved
    - What types of bloat you removed
    - Estimated word count or line reduction
    - Summary of changes made
-   - **Screenshots**: List the uploaded asset URLs for the before/after screenshots
-   - **Blocked Domains (if any)**: List any CSS/font/resource domains that were blocked during screenshot capture
 
 ## Example Improvements
 
@@ -516,8 +396,6 @@ A successful run:
 - ✅ Preserves all essential information
 - ✅ Creates a clear, reviewable pull request
 - ✅ Explains the improvements made
-- ✅ Includes HD screenshots (1920x1080) of the modified documentation page(s) in the Astro Starlight website
-- ✅ Reports any blocked domains for CSS/fonts (if encountered)
 
 Begin by scanning the docs directory and selecting the best candidate for improvement!
 
@@ -554,50 +432,3 @@ Return a JSON object only — no prose, no extra text:
 }
 ```
 
-## agent: `doc-page-screenshotter`
----
-model: small
-description: Navigates to a documentation page URL using Playwright and captures a full-page screenshot, returning a structured JSON result with screenshot paths and any blocked domains
----
-You are a documentation screenshot agent. Your input is a full page URL to screenshot (e.g., `http://localhost:4321/gh-aw/guides/ephemerals/`).
-
-1. Navigate to the URL using `playwright-cli`. Use `browser_navigate` with the URL. If navigation times out (Vite dev server can be slow with the default `load` wait), fall back to `browser_run_code_unsafe` with `waitUntil: 'domcontentloaded'`:
-   ```bash
-   # Primary: direct navigation
-   playwright-cli browser_navigate --url "<URL>"
-   ```
-   If the above times out, use this fallback instead:
-   ```bash
-   playwright-cli browser_run_code_unsafe --code "async (page) => { await page.goto('<URL>', { waitUntil: 'domcontentloaded', timeout: 30000 }); return { url: page.url(), title: await page.title() }; }"
-   ```
-
-2. Set viewport to HD (1920×1080) and take a full-page screenshot:
-   ```bash
-   mkdir -p /tmp/gh-aw/screenshots
-   playwright-cli browser_resize --width 1920 --height 1080
-   playwright-cli browser_take_screenshot --filename /tmp/gh-aw/screenshots/doc-screenshot.png --full-page true
-   ```
-
-3. Check the browser console for blocked network requests:
-   ```bash
-   playwright-cli browser_console_messages
-   ```
-   Look for errors mentioning blocked CSS, font, or image domains.
-
-4. Verify the screenshot was saved:
-   ```bash
-   ls -lh /tmp/gh-aw/screenshots/
-   ```
-
-Return a JSON object only — no prose, no extra text:
-
-```json
-{
-  "success": true,
-  "screenshots": ["/tmp/gh-aw/screenshots/doc-screenshot.png"],
-  "blocked_domains": [],
-  "error": null
-}
-```
-
-If navigation or screenshot fails (timeout, connection error, file not written), set `"success": false`, `"screenshots": []`, and describe the failure in `"error"`.

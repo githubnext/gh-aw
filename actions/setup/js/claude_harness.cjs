@@ -168,15 +168,46 @@ function hasNumerousPermissionDeniedIssues(output) {
 }
 
 /**
+ * Extract the commands that were denied from process output.
+ * Scans for lines using the Copilot CLI pipe marker (│) that appear
+ * within three lines before each "permission denied" occurrence.
+ * Returns a deduplicated array of command strings (may be empty if
+ * the output format does not contain extractable commands).
+ * @param {string} output
+ * @returns {string[]}
+ */
+function extractDeniedCommands(output) {
+  if (!output) return [];
+  const lines = output.split("\n");
+  const deniedCommands = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    if (/\bpermission denied\b/i.test(lines[i])) {
+      // Look back up to 3 lines for a command displayed with the
+      // Copilot CLI box-drawing pipe marker (│ U+2502) or plain pipe (|).
+      for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
+        const cmdMatch = lines[j].match(/^\s*[\u2502|]\s+(.+)\s*$/);
+        if (cmdMatch && cmdMatch[1].trim()) {
+          deniedCommands.add(cmdMatch[1].trim());
+          break;
+        }
+      }
+    }
+  }
+  return [...deniedCommands];
+}
+
+/**
  * Build a structured missing_tool payload for repeated permission-denied failures.
+ * @param {string[]} [deniedCommands] - Commands that were denied (may be empty)
  * @returns {string}
  */
-function buildMissingToolPermissionIssuePayload() {
+function buildMissingToolPermissionIssuePayload(deniedCommands) {
   return JSON.stringify({
     type: "missing_tool",
     tool: "tool/permission",
     reason: "missing tool/permission issue: numerous permission denied errors detected",
     alternatives: "Verify token scopes, repository permissions, and MCP/tool access configuration.",
+    denied_commands: deniedCommands && deniedCommands.length > 0 ? deniedCommands : [],
   });
 }
 
@@ -185,20 +216,22 @@ function buildMissingToolPermissionIssuePayload() {
  * @param {{
  *   safeOutputsPath?: string,
  *   appendFileSync?: (path: import('node:fs').PathOrFileDescriptor, data: string, options?: import('node:fs').WriteFileOptions) => void,
- *   logger?: (message: string) => void
+ *   logger?: (message: string) => void,
+ *   deniedCommands?: string[]
  * }=} options
  */
 function emitMissingToolPermissionIssue(options) {
   const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
   const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
   const logger = options && options.logger ? options.logger : log;
+  const deniedCommands = options && options.deniedCommands ? options.deniedCommands : [];
 
   if (!safeOutputsPath) {
     logger("missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
     return;
   }
   try {
-    appendFileSync(safeOutputsPath, buildMissingToolPermissionIssuePayload() + "\n", { encoding: "utf8" });
+    appendFileSync(safeOutputsPath, buildMissingToolPermissionIssuePayload(deniedCommands) + "\n", { encoding: "utf8" });
     logger(`missing_tool emitted for permission issues: ${safeOutputsPath}`);
   } catch (error) {
     const err = /** @type {Error} */ error;
@@ -426,7 +459,8 @@ async function main() {
     );
 
     if (hasNumerousPermissionDenied) {
-      emitMissingToolPermissionIssue();
+      const deniedCommands = extractDeniedCommands(result.output);
+      emitMissingToolPermissionIssue({ deniedCommands });
       log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
       break;
     }
@@ -510,6 +544,7 @@ if (typeof module !== "undefined" && module.exports) {
     shouldRetryWithContinue,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
+    extractDeniedCommands,
     buildMissingToolPermissionIssuePayload,
     emitMissingToolPermissionIssue,
   };

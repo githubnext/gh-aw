@@ -14,6 +14,7 @@ func TestTriggerShorthandIntegration(t *testing.T) {
 		name           string
 		markdown       string
 		wantTrigger    string
+		simpleTrigger  bool
 		wantNoCompile  bool
 		wantErrContain string
 	}{
@@ -24,7 +25,8 @@ on: push
 ---
 # Test Workflow
 Test workflow for push trigger`,
-			wantTrigger: `"on": push`,
+			wantTrigger:   "on: push",
+			simpleTrigger: true,
 		},
 		{
 			name: "push to branch shorthand",
@@ -93,13 +95,22 @@ Test workflow for manual dispatch`,
 
 			yamlStr := string(yamlOutput)
 
-			if !strings.Contains(yamlStr, tt.wantTrigger) {
-				t.Errorf("Compiled YAML should contain %q\nGot:\n%s", tt.wantTrigger, yamlStr)
+			if tt.simpleTrigger {
+				// Top-level "on" may be rendered in quoted or plain form depending on YAML rendering.
+				quotedTrigger := tt.wantTrigger
+				if strings.HasPrefix(tt.wantTrigger, "on:") {
+					// Works for both "on: <value>" and bare "on:" forms.
+					quotedTrigger = `"on":` + strings.TrimPrefix(tt.wantTrigger, "on:")
+				}
+				if !strings.Contains(yamlStr, tt.wantTrigger) && !strings.Contains(yamlStr, quotedTrigger) {
+					t.Errorf("Compiled YAML should contain %q (plain or quoted key form)\nGot:\n%s", tt.wantTrigger, yamlStr)
+				}
+				// Simple triggers remain as-is, no workflow_dispatch added.
+				return
 			}
 
-			if tt.wantTrigger == `"on": push` || tt.wantTrigger == `"on": pull_request` {
-				// Simple triggers remain as-is, no workflow_dispatch added
-				return
+			if !strings.Contains(yamlStr, tt.wantTrigger) {
+				t.Errorf("Compiled YAML should contain %q\nGot:\n%s", tt.wantTrigger, yamlStr)
 			}
 
 			// Verify workflow_dispatch is added for most triggers

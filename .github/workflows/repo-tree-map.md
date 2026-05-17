@@ -30,7 +30,7 @@ imports:
   - shared/reporting.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Repository Tree Map Generator

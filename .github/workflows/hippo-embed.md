@@ -42,7 +42,7 @@ steps:
 imports:
   - shared/hippo-memory.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

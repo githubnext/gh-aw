@@ -27,7 +27,7 @@ imports:
       assignees: [copilot]
   - shared/go-source-analysis.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults

@@ -16,7 +16,7 @@ engine:
   model: gpt-5-mini
 strict: true
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:
@@ -34,6 +34,7 @@ steps:
       mkdir -p /tmp/gh-aw/agent
       candidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json
       eligible_file=/tmp/gh-aw/agent/pr-sous-chef-eligible.json
+      sous_chef_nudge_marker='<!-- gh-aw-pr-sous-chef-nudge -->'
       filtered_checks_pending=0
       filtered_last_comment_from_sous_chef=0
 
@@ -68,10 +69,9 @@ steps:
             --jq '
               if length == 0 then false
               else (
-                ((.[0].user.login // "" | ascii_downcase | contains("pr-sous-chef")) or
-                 ((.[0].body // "" | ascii_downcase | contains("pr-sous-chef")))
-              ) end
-            ' 2>/dev/null || echo "false"
+                ((.[0].body // "" | contains($marker)))
+               ) end
+            ' --arg marker "$sous_chef_nudge_marker" 2>/dev/null || echo "false"
         )"
         if [ "$last_comment_is_sous_chef" = "true" ]; then
           filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))
@@ -152,9 +152,9 @@ Before any nudge for a PR:
    - If any check is `queued`, `in_progress`, or `pending`, skip this PR.
 
 2. **Skip when the latest PR comment is from pr-sous-chef itself**
-   - Candidate prefilter already removes PRs when latest comment author/body indicates `pr-sous-chef`.
+   - Candidate prefilter already removes PRs when latest comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->`.
    - Inspect PR comments ordered by recency.
-   - Treat a comment as from pr-sous-chef when the latest comment body contains `pr-sous-chef`.
+   - Treat a comment as from pr-sous-chef only when the latest comment body contains exactly `<!-- gh-aw-pr-sous-chef-nudge -->`.
    - If true, skip to avoid repetitive nudges.
 
 ## Required nudges for eligible PRs
@@ -168,7 +168,8 @@ For each PR that is not skipped:
 2. **Nudge unresolved review feedback**
    - Check pull request review threads/comments.
    - If unresolved or active review feedback exists, add a PR comment that includes:
-     - `@copilot review all comments`
+     - `<!-- gh-aw-pr-sous-chef-nudge -->` as a hidden marker line.
+     - @copilot review all comments
      - a short sentence asking Copilot to address unresolved review feedback.
 
 3. **Apply one additional forward-progress nudge**
@@ -176,6 +177,7 @@ For each PR that is not skipped:
      - refresh branch and rerun checks,
      - summarize remaining blockers,
      - or post a completion plan for unresolved items.
+   - Include `<!-- gh-aw-pr-sous-chef-nudge -->` in the comment body.
    - Keep comments brief and actionable.
 
 ## Run summary
@@ -197,7 +199,7 @@ Given one PR number and compact metadata:
 
 1. Check skip conditions in this order:
    - checks/actions running
-   - latest comment from pr-sous-chef marker
+   - latest comment contains `<!-- gh-aw-pr-sous-chef-nudge -->`
 2. If skipped, return `skip_reason` only.
 3. If not skipped, return:
    - whether branch update should be attempted

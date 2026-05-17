@@ -295,6 +295,64 @@ This is a test workflow.
 	}
 }
 
+func TestEnsureMaintenanceWorkflow_UsesWorkflowDirEnvOverride(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-maintenance-override-*")
+
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	t.Setenv("GH_AW_WORKFLOWS_DIR", filepath.Join("custom", "workflows"))
+
+	overrideDir := filepath.Join(tempDir, "custom", "workflows")
+	if err := os.MkdirAll(overrideDir, 0755); err != nil {
+		t.Fatalf("Failed to create override workflows directory: %v", err)
+	}
+
+	workflowContent := `---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  create-discussion:
+    expires: 168
+---
+
+# Test Workflow
+`
+	workflowPath := filepath.Join(overrideDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	err = ensureMaintenanceWorkflow(context.Background(), false)
+	if err != nil {
+		t.Fatalf("ensureMaintenanceWorkflow returned error: %v", err)
+	}
+
+	overrideMaintenance := filepath.Join(overrideDir, "agentics-maintenance.yml")
+	if _, err := os.Stat(overrideMaintenance); err != nil {
+		t.Fatalf("Expected maintenance workflow at override path %s: %v", overrideMaintenance, err)
+	}
+
+	defaultMaintenance := filepath.Join(tempDir, ".github", "workflows", "agentics-maintenance.yml")
+	if _, err := os.Stat(defaultMaintenance); !os.IsNotExist(err) {
+		t.Fatalf("Expected default maintenance path %s to not exist when override is set", defaultMaintenance)
+	}
+}
+
 func TestIsGHESHost(t *testing.T) {
 	tests := []struct {
 		Host     string

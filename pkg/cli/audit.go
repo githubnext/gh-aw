@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -246,17 +247,35 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 	})
 }
 
-// isPermissionError checks if an error is related to permissions/authentication
+// isPermissionErrorStr checks if a string contains any known permission/authentication error marker.
+// This is the canonical union of all auth-error substrings used across the codebase; update here
+// rather than adding new inline strings.Contains checks in callers.
+func isPermissionErrorStr(s string) bool {
+	return strings.Contains(s, "authentication required") ||
+		strings.Contains(s, "exit status 4") ||
+		strings.Contains(s, "GitHub CLI authentication") ||
+		strings.Contains(s, "permission") ||
+		strings.Contains(s, "GH_TOKEN") ||
+		strings.Contains(s, "not logged into any GitHub hosts") ||
+		strings.Contains(s, "To use GitHub CLI in a GitHub Actions workflow") ||
+		strings.Contains(s, "gh auth login")
+}
+
+// isPermissionError checks if an error is related to permissions/authentication.
 func isPermissionError(err error) bool {
 	if err == nil {
 		return false
 	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "authentication required") ||
-		strings.Contains(errStr, "exit status 4") ||
-		strings.Contains(errStr, "GitHub CLI authentication") ||
-		strings.Contains(errStr, "permission") ||
-		strings.Contains(errStr, "GH_TOKEN")
+	return isPermissionErrorStr(err.Error())
+}
+
+// is403Error checks if an error message contains a 403 HTTP status code, indicating
+// insufficient permissions to access a resource.
+func is403Error(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "403")
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report
@@ -331,7 +350,17 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 
 	// If job ID is provided, handle job-specific audit
 	if jobID > 0 {
-		return auditJobRun(runID, jobID, stepNumber, owner, repo, hostname, runOutputDir, verbose, jsonOutput)
+		return auditJobRun(auditJobRunOptions{
+			runID:      runID,
+			jobID:      jobID,
+			stepNumber: stepNumber,
+			owner:      owner,
+			repo:       repo,
+			hostname:   hostname,
+			outputDir:  runOutputDir,
+			verbose:    verbose,
+			jsonOutput: jsonOutput,
+		})
 	}
 
 	// Use cached run summary when available to ensure deterministic metrics across repeated calls.
@@ -786,21 +815,34 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	return nil
 }
 
+// auditJobRunOptions holds parameters for auditJobRun.
+type auditJobRunOptions struct {
+	runID      int64
+	jobID      int64
+	stepNumber int
+	owner      string
+	repo       string
+	hostname   string
+	outputDir  string
+	verbose    bool
+	jsonOutput bool
+}
+
 // auditJobRun performs a targeted audit of a specific job within a workflow run
 // If stepNumber > 0, focuses on extracting output for that specific step
-func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname string, outputDir string, verbose bool, jsonOutput bool) error {
+func auditJobRun(opts auditJobRunOptions) error {
 	// Auto-detect GHES host from git remote if hostname is not provided
-	if hostname == "" {
-		hostname = getHostFromOriginRemote()
-		if hostname != "github.com" {
-			auditLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
+	if opts.hostname == "" {
+		opts.hostname = getHostFromOriginRemote()
+		if opts.hostname != "github.com" {
+			auditLog.Printf("Auto-detected GHES host from git remote: %s", opts.hostname)
 		}
 	}
 
-	auditLog.Printf("Starting job-specific audit: runID=%d, jobID=%d, stepNumber=%d, hostname=%s", runID, jobID, stepNumber, hostname)
+	auditLog.Printf("Starting job-specific audit: runID=%d, jobID=%d, stepNumber=%d, hostname=%s", opts.runID, opts.jobID, opts.stepNumber, opts.hostname)
 
 	// Create output directory for job-specific artifacts
-	if err := os.MkdirAll(outputDir, constants.DirPermSensitive); err != nil {
+	if err := os.MkdirAll(opts.outputDir, constants.DirPermSensitive); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -809,19 +851,19 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 	args := []string{"run", "view"}
 
 	// Add repository flag if specified
-	if owner != "" && repo != "" {
-		args = append(args, "-R", fmt.Sprintf("%s/%s", owner, repo))
+	if opts.owner != "" && opts.repo != "" {
+		args = append(args, "-R", fmt.Sprintf("%s/%s", opts.owner, opts.repo))
 	}
 
-	args = append(args, "--job", strconv.FormatInt(jobID, 10), "--log")
+	args = append(args, "--job", strconv.FormatInt(opts.jobID, 10), "--log")
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching logs for job %d...", jobID)))
+	if opts.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching logs for job %d...", opts.jobID)))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
 	cmd := workflow.ExecGH(args...)
-	workflow.SetGHHostEnv(cmd, hostname)
+	workflow.SetGHHostEnv(cmd, opts.hostname)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to fetch job logs: %w\nOutput: %s", err, string(output))
@@ -830,63 +872,63 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 	jobLogContent := string(output)
 
 	// Save full job log
-	jobLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d.log", jobID))
+	jobLogPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d.log", opts.jobID))
 	if err := os.WriteFile(jobLogPath, []byte(jobLogContent), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write job log: %w", err)
 	}
 
-	if verbose {
+	if opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Job log saved to "+jobLogPath))
 	}
 
 	// If step number is specified, extract that step's output
-	if stepNumber > 0 {
-		stepOutput, err := extractStepOutput(jobLogContent, stepNumber)
+	if opts.stepNumber > 0 {
+		stepOutput, err := extractStepOutput(jobLogContent, opts.stepNumber)
 		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract step %d output: %v", stepNumber, err)))
+			if opts.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract step %d output: %v", opts.stepNumber, err)))
 			}
 		} else {
-			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d.log", jobID, stepNumber))
+			stepLogPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d-step-%d.log", opts.jobID, opts.stepNumber))
 			if err := os.WriteFile(stepLogPath, []byte(stepOutput), constants.FilePermSensitive); err != nil {
 				return fmt.Errorf("failed to write step log: %w", err)
 			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Step %d output saved to %s", stepNumber, stepLogPath)))
+			if opts.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Step %d output saved to %s", opts.stepNumber, stepLogPath)))
 			}
 		}
 	} else {
 		// No step specified, find and extract first failing step
 		failingStepNum, failingStepOutput := findFirstFailingStep(jobLogContent)
 		if failingStepNum > 0 {
-			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d-failed.log", jobID, failingStepNum))
+			stepLogPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d-step-%d-failed.log", opts.jobID, failingStepNum))
 			if err := os.WriteFile(stepLogPath, []byte(failingStepOutput), constants.FilePermSensitive); err != nil {
 				return fmt.Errorf("failed to write failing step log: %w", err)
 			}
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("First failing step %d output saved to %s", failingStepNum, stepLogPath)))
 			}
-		} else if verbose {
+		} else if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No failing steps found in job"))
 		}
 	}
 
 	// Display summary
-	if !jsonOutput {
-		absOutputDir, _ := filepath.Abs(outputDir)
+	if !opts.jsonOutput {
+		absOutputDir, _ := filepath.Abs(opts.outputDir)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Job audit complete. Logs saved to "+absOutputDir))
 
 		// Display file locations
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nDownloaded files:"))
 		fmt.Fprintf(os.Stderr, "  - %s (full job log)\n", jobLogPath)
 
-		if stepNumber > 0 {
-			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d.log", jobID, stepNumber))
+		if opts.stepNumber > 0 {
+			stepLogPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d-step-%d.log", opts.jobID, opts.stepNumber))
 			if _, err := os.Stat(stepLogPath); err == nil {
-				fmt.Fprintf(os.Stderr, "  - %s (step %d output)\n", stepLogPath, stepNumber)
+				fmt.Fprintf(os.Stderr, "  - %s (step %d output)\n", stepLogPath, opts.stepNumber)
 			}
 		} else {
-			failingStepPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-*-failed.log", jobID))
+			failingStepPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d-step-*-failed.log", opts.jobID))
 			matches, _ := filepath.Glob(failingStepPath)
 			for _, match := range matches {
 				fmt.Fprintf(os.Stderr, "  - %s (first failing step)\n", match)
@@ -1010,13 +1052,13 @@ func fetchWorkflowRunMetadata(ctx context.Context, runID int64, owner, repo, hos
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 		}
 		// Provide a human-readable error when the run ID doesn't exist.
-		// GitHub CLI / API may surface the 404 in several forms depending on version.
+		// The gh CLI may surface the 404 in the Go error (checked via errorutil.IsNotFoundError)
+		// or in its combined stdout/stderr output (checked below) depending on the CLI version.
+		// "Could not resolve" catches DNS failures from git clone fallbacks.
 		outputStr := string(output)
-		if strings.Contains(outputStr, "Not Found") ||
-			strings.Contains(outputStr, "404") ||
-			strings.Contains(outputStr, "not found") ||
-			strings.Contains(outputStr, "Could not resolve") ||
-			strings.Contains(err.Error(), "404") {
+		if errorutil.IsNotFoundError(err) ||
+			errorutil.IsNotFoundError(errors.New(outputStr)) ||
+			strings.Contains(outputStr, "Could not resolve") {
 			return WorkflowRun{}, fmt.Errorf("workflow run %d not found. Please verify the run ID is correct and that you have access to the repository", runID)
 		}
 		return WorkflowRun{}, fmt.Errorf("failed to fetch run metadata: %w", err)

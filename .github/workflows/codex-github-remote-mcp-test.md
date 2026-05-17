@@ -8,7 +8,7 @@ permissions:
   issues: read
 engine: codex
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

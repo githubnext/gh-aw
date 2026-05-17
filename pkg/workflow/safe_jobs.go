@@ -248,35 +248,18 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, downloadSteps...)
 
 		// the download artifacts always creates a folder, then unpacks in that folder
-		agentOutputArtifactFilename := "${RUNNER_TEMP}/gh-aw/safe-jobs/" + constants.AgentOutputFilename
 
-		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
-		steps = append(steps, "      - name: Configure Safe Outputs Job Environment Variables\n")
-		steps = append(steps, "        id: setup-safe-job-env\n")
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          find \"${RUNNER_TEMP}/gh-aw/safe-jobs/\" -type f -print\n")
-		// Configure GH_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> \"$GITHUB_OUTPUT\"\n", agentOutputArtifactFilename))
-
-		// Add job-specific environment variables
-		if jobConfig.Env != nil {
-			for key, value := range jobConfig.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_OUTPUT\"\n", key, value))
-			}
-		}
-
-		// Add custom steps from the job configuration, injecting env vars from the
-		// setup-safe-job-env step outputs so user steps can access them.
+		// Add custom steps from the job configuration, injecting env vars directly so
+		// user steps can access GH_AW_AGENT_OUTPUT and all job-specific env vars.
 		if len(jobConfig.Steps) > 0 {
-			// Build the env vars that were set in the setup-safe-job-env step so we can inject them.
+			// GH_AW_AGENT_OUTPUT uses the runner.temp Actions expression so the path is
+			// resolved by the runner without requiring a $GITHUB_OUTPUT write.
 			setupEnvVars := map[string]string{
-				"GH_AW_AGENT_OUTPUT": "${{ steps.setup-safe-job-env.outputs.GH_AW_AGENT_OUTPUT }}",
+				"GH_AW_AGENT_OUTPUT": "${{ runner.temp }}/gh-aw/safe-jobs/" + constants.AgentOutputFilename,
 			}
-			if jobConfig.Env != nil {
-				for key := range jobConfig.Env {
-					setupEnvVars[key] = fmt.Sprintf("${{ steps.setup-safe-job-env.outputs.%s }}", key)
-				}
-			}
+			// All job-specific env vars (literal or expression-based) are injected with
+			// their original values. Nothing goes through $GITHUB_OUTPUT.
+			maps.Copy(setupEnvVars, jobConfig.Env)
 			for _, step := range jobConfig.Steps {
 				if stepMap, ok := step.(map[string]any); ok {
 					// Convert to typed step for action pinning

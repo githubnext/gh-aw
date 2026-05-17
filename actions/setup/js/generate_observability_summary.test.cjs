@@ -21,7 +21,14 @@ describe("generate_observability_summary.cjs", () => {
   });
 
   afterEach(() => {
-    for (const path of ["/tmp/gh-aw/aw_info.json", "/tmp/gh-aw/agent_output.json", "/tmp/gh-aw/mcp-logs/gateway.jsonl", "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl"]) {
+    for (const path of [
+      "/tmp/gh-aw/aw_info.json",
+      "/tmp/gh-aw/agent_output.json",
+      "/tmp/gh-aw/otlp-export-errors.count",
+      "/tmp/gh-aw/otlp-export-errors.jsonl",
+      "/tmp/gh-aw/mcp-logs/gateway.jsonl",
+      "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl",
+    ]) {
       if (fs.existsSync(path)) {
         fs.unlinkSync(path);
       }
@@ -47,6 +54,11 @@ describe("generate_observability_summary.cjs", () => {
       })
     );
     fs.writeFileSync("/tmp/gh-aw/mcp-logs/gateway.jsonl", [JSON.stringify({ type: "DIFC_FILTERED" }), JSON.stringify({ type: "REQUEST" })].join("\n"));
+    fs.writeFileSync("/tmp/gh-aw/otlp-export-errors.count", "2\n");
+    fs.writeFileSync(
+      "/tmp/gh-aw/otlp-export-errors.jsonl",
+      [JSON.stringify({ host: "collector-a.example.com:4318", status: 401, reason: "Unauthorized" }), JSON.stringify({ host: "collector-b.example.com:4318", reason: "upstream timeout" })].join("\n")
+    );
 
     await module.main(mockCore);
 
@@ -61,6 +73,11 @@ describe("generate_observability_summary.cjs", () => {
     expect(summary).toContain("- **created items**: 2");
     expect(summary).toContain("- **blocked requests**: 1");
     expect(summary).toContain("- **agent output errors**: 1");
+    expect(summary).toContain("- **otlp export errors**: 2");
+    expect(summary).toContain("- ⚠️ OTLP export failures detected; telemetry may not be visible in the backend.");
+    expect(summary).toContain("- **otlp export failure details**:");
+    expect(summary).toContain("  - collector-a.example.com:4318 status=401 reason=Unauthorized");
+    expect(summary).toContain("  - collector-b.example.com:4318 reason=upstream timeout");
     expect(summary).toContain("  - add_comment");
     expect(summary).toContain("  - create_issue");
     expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
@@ -86,6 +103,7 @@ describe("generate_observability_summary.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     const summary = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summary).toContain("- **trace id**: deadbeef01234567deadbeef01234567");
+    expect(summary).toContain("- **otlp export errors**: 0");
     expect(summary).not.toContain("12345678901-1");
   });
 

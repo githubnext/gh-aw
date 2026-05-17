@@ -51,9 +51,7 @@ safe-outputs:
 imports:
   - shared/hippo-memory.md
   - shared/reporting.md
-  - shared/otel.md
-
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

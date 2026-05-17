@@ -3,6 +3,7 @@
 
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { execGitSync } = require("./git_helpers.cjs");
 
 /**
  * Get the base branch name, resolving dynamically based on event context.
@@ -12,17 +13,21 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * 2. github.base_ref env var (set for pull_request/pull_request_target events)
  * 3. Pull request payload base ref (pull_request_review, pull_request_review_comment events)
  * 4. API lookup for issue_comment events on PRs (the PR's base ref is not in the payload)
- * 5. context.payload.repository.default_branch (included in most event payloads, no API call)
- * 5b. API lookup via repos.get() when payload doesn't have it (e.g. cross-repo scenarios)
- * 6. Fallback to DEFAULT_BRANCH env var or "main"
+ * 5. Checked-out branch from git (opt-in; used by safeoutputs for side-repo operations)
+ * 6. context.payload.repository.default_branch (included in most event payloads, no API call)
+ * 6b. API lookup via repos.get() when payload doesn't have it (e.g. cross-repo scenarios)
+ * 7. Fallback to DEFAULT_BRANCH env var or "main"
  *
  * @param {{owner: string, repo: string}|null} [targetRepo] - Optional target repository.
- *   If provided, API calls (steps 4 and 5) use this instead of context.repo,
- *   which is needed for cross-repo scenarios where the target repo differs
- *   from the workflow repository.
+ *   If provided, the issue_comment PR lookup (step 4) and repository default-branch
+ *   lookup (step 6b) use this instead of context.repo, which is needed for
+ *   cross-repo scenarios where the target repo differs from the workflow repository.
+ * @param {{preferCheckedOutBranch?: boolean, cwd?: string}|null} [options] - Optional resolution hints.
+ *   When preferCheckedOutBranch is true and cwd is set, git is queried directly for the
+ *   checked-out branch in that repository before falling back to the repository default branch.
  * @returns {Promise<string>} The base branch name
  */
-async function getBaseBranch(targetRepo = null) {
+async function getBaseBranch(targetRepo = null, options = null) {
   // 1. Custom base branch from workflow configuration
   if (process.env.GH_AW_CUSTOM_BASE_BRANCH) {
     return process.env.GH_AW_CUSTOM_BASE_BRANCH;
@@ -75,7 +80,27 @@ async function getBaseBranch(targetRepo = null) {
     }
   }
 
-  // 5. Repository default branch - from payload first, then API lookup
+  // 5. Use the actual checked-out branch when explicitly requested by the caller.
+  // This is primarily used by safeoutputs in side-repo workflows where the agent
+  // re-anchors the checkout to a non-default release branch before generating the patch.
+  if (options?.preferCheckedOutBranch && options.cwd) {
+    try {
+      const checkedOutBranch = execGitSync(["rev-parse", "--abbrev-ref", "HEAD"], {
+        cwd: options.cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+      if (checkedOutBranch && checkedOutBranch !== "HEAD") {
+        return checkedOutBranch;
+      }
+    } catch (/** @type {any} */ error) {
+      if (typeof core !== "undefined" && typeof core.debug === "function") {
+        core.debug(`Failed to detect checked-out branch from git, falling back to repository default branch: ${getErrorMessage(error)}`);
+      }
+      // Ignore and continue with default branch resolution
+    }
+  }
+
+  // 6. Repository default branch - from payload first, then API lookup
   // Many events include context.payload.repository.default_branch, so we check that
   // first to avoid an unnecessary API call and reduce rate-limit risk.
   // Only fall back to repos.get() when the payload doesn't have the value
@@ -120,7 +145,7 @@ async function getBaseBranch(targetRepo = null) {
     }
   }
 
-  // 6. Fallback to DEFAULT_BRANCH env var or "main"
+  // 7. Fallback to DEFAULT_BRANCH env var or "main"
   return process.env.DEFAULT_BRANCH || "main";
 }
 

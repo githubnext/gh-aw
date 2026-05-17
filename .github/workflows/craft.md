@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   edit:

@@ -368,8 +368,67 @@ Test workflow content
 	}
 }
 
-// TestIsThreatDetectionExplicitlyDisabledInConfigs verifies the helper function
-// that checks whether any imported safe-outputs config explicitly disables detection.
+// TestSafeJobsExpressionEnvNeverWrittenToOutput verifies that job-level env vars containing
+// GitHub Actions expressions are never written to $GITHUB_OUTPUT in the compiled lock file.
+// This is a security guardrail: tokens like ${{ github.token }} must never be stored in outputs.
+func TestSafeJobsExpressionEnvNeverWrittenToOutput(t *testing.T) {
+	c := NewCompiler()
+
+	markdown := `---
+on: issues
+safe-outputs:
+  jobs:
+    publish:
+      env:
+        GH_TOKEN: ${{ github.token }}
+        STATIC: literal-value
+      steps:
+        - name: Do work
+          run: echo "working"
+---
+
+# Test Workflow
+Test workflow content
+`
+
+	tmpDir := testutil.TempDir(t, "test-*")
+	testFile := tmpDir + "/test-safe-jobs-secret.md"
+	if err := os.WriteFile(testFile, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	if err := c.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := tmpDir + "/test-safe-jobs-secret.lock.yml"
+	workflowBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	workflowStr := string(workflowBytes)
+
+	// No env var at all may be written to $GITHUB_OUTPUT by safe-jobs.
+	for line := range strings.SplitSeq(workflowStr, "\n") {
+		if strings.Contains(line, "GH_TOKEN") && strings.Contains(line, "GITHUB_OUTPUT") {
+			t.Errorf("GH_TOKEN must never be written to GITHUB_OUTPUT (secret leak): %s", strings.TrimSpace(line))
+		}
+		if strings.Contains(line, "STATIC") && strings.Contains(line, "GITHUB_OUTPUT") {
+			t.Errorf("STATIC env var must not be written to GITHUB_OUTPUT: %s", strings.TrimSpace(line))
+		}
+	}
+
+	// The token must be injected into the step env: block, not through step outputs.
+	if !strings.Contains(workflowStr, "GH_TOKEN: ${{ github.token }}") {
+		t.Error("Expected GH_TOKEN expression to be injected into step env: block in compiled output")
+	}
+
+	// Literal value must also be injected directly into the step env: block.
+	if !strings.Contains(workflowStr, "STATIC: literal-value") {
+		t.Error("Expected literal env var to be injected directly into step env: block in compiled output")
+	}
+}
+
 func TestIsThreatDetectionExplicitlyDisabledInConfigs(t *testing.T) {
 	tests := []struct {
 		name     string

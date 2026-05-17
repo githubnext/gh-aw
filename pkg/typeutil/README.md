@@ -8,6 +8,20 @@ JSON and YAML parsers produce `any` values whose concrete type varies at runtime
 
 ## Public API
 
+### Exported Functions
+
+| Function | Description |
+|----------|-------------|
+| `ParseIntValue` | Strict numeric parsing to `int` with `(value, ok)` result |
+| `ParseBool` | Boolean extraction from `map[string]any` |
+| `SafeUint64ToInt` | Overflow-safe conversion from `uint64` to `int` |
+| `SafeUintToInt` | Overflow-safe conversion from `uint` to `int` |
+| `ConvertToInt` | Lenient conversion of mixed inputs to `int` |
+| `ConvertToFloat` | Lenient conversion of mixed inputs to `float64` |
+| `LookupMap` | Safe map extraction from `map[string]any` by key |
+| `LookupString` | Safe string extraction from `map[string]any` by key |
+| `LookupStringPath` | Safe nested string extraction by key path |
+
 ### Strict Conversions
 
 #### `ParseIntValue(value any) (int, bool)`

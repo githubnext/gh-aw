@@ -613,6 +613,36 @@ func TestEnsureCopilotSetupSteps_CreateWithDevMode(t *testing.T) {
 	}
 }
 
+func TestEnsureCopilotSetupSteps_UsesWorkflowDirEnvOverride(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	t.Setenv("GH_AW_WORKFLOWS_DIR", filepath.Join("custom", "dir"))
+
+	err = ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeDev, "dev")
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps(context.Background()) failed: %v", err)
+	}
+
+	overridePath := filepath.Join("custom", "dir", "copilot-setup-steps.yml")
+	if _, err := os.Stat(overridePath); err != nil {
+		t.Fatalf("Expected %s to exist: %v", overridePath, err)
+	}
+
+	defaultPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	if _, err := os.Stat(defaultPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected default path %s to not exist when override is set", defaultPath)
+	}
+}
+
 // TestEnsureCopilotSetupSteps_UpdateExistingWithReleaseMode tests updating an existing file with release mode
 func TestEnsureCopilotSetupSteps_UpdateExistingWithReleaseMode(t *testing.T) {
 	tmpDir := t.TempDir()

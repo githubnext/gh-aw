@@ -60,7 +60,7 @@ safe-outputs:
               echo "No agent output found"
             fi
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 
 ---
 

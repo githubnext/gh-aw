@@ -24,6 +24,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -309,11 +310,14 @@ func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string,
 	output, err := workflow.RunGHContext(ctx, "Downloading workflow logs...", args...)
 	if err != nil {
 		// Check for authentication errors
-		if strings.Contains(err.Error(), "exit status 4") {
+		if isPermissionError(err) {
 			return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
-		// If logs are not found or run has no logs, this is not a critical error
-		if strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
+		// If logs are not found or run has no logs, this is not a critical error.
+		// Check both the Go error (via errorutil.IsNotFoundError) and the raw CLI output,
+		// as the gh CLI may write "not found" to stdout without reflecting it in the error.
+		// Also treat HTTP 410 Gone as non-critical (logs may be expired).
+		if errorutil.IsNotFoundError(err) || errorutil.IsNotFoundError(errors.New(string(output))) || strings.Contains(err.Error(), "410") {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No logs found for run %d (may be expired or unavailable)", runID)))
 			}
@@ -799,7 +803,7 @@ func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, ve
 				return ErrNoArtifacts
 			}
 			// Check for authentication errors
-			if strings.Contains(err.Error(), "exit status 4") {
+			if isPermissionError(err) {
 				return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 			}
 			// Check if the error is due to non-zip artifacts (e.g., .dockerbuild files).

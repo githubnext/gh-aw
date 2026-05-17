@@ -54,7 +54,7 @@ imports:
   - shared/mcp/ast-grep.md
   - shared/reporting.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 2d

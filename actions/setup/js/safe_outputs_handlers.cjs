@@ -20,6 +20,8 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
+const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -29,18 +31,16 @@ const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs"
  * @returns {Object} An object containing all handler functions
  */
 function createHandlers(server, appendSafeOutput, config = {}) {
-  /**
-   * Default handler for safe output tools
-   * @param {string} type - The tool type
-   * @returns {Function} Handler function
-   */
-  const defaultHandler = type => args => {
-    const entry = { ...(args || {}), type };
+  const TOKEN_THRESHOLD = 16000;
 
-    // Check if any field in the entry has content exceeding 16000 tokens
+  /**
+   * Detect and offload large string fields to files.
+   * @param {Record<string, any>} entry
+   * @returns {Object | null} MCP response if large content was handled, else null
+   */
+  const maybeHandleLargeContent = entry => {
     let largeContent = null;
     let largeFieldName = null;
-    const TOKEN_THRESHOLD = 16000;
 
     for (const [key, value] of Object.entries(entry)) {
       if (typeof value === "string") {
@@ -54,26 +54,34 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
     }
 
-    if (largeContent && largeFieldName) {
-      // Write large content to file
-      const fileInfo = writeLargeContentToFile(largeContent);
-
-      // Replace large field with file reference
-      entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
-
-      // Append modified entry to safe outputs
-      appendSafeOutput(entry);
-
-      // Return file info to the agent
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(fileInfo),
-          },
-        ],
-      };
+    if (!largeContent || !largeFieldName) {
+      return null;
     }
+
+    const fileInfo = writeLargeContentToFile(largeContent);
+    entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+    appendSafeOutput(entry);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(fileInfo),
+        },
+      ],
+    };
+  };
+
+  /**
+   * Default handler for safe output tools
+   * Spec cross-reference: Safe Output Outcome Evaluation §2/§4/§5/§6/§7/§8/§9/§10/§11/§12/§13/§14/§15/§16/§18/§19/§20/§21/§22/§23/§24/§25/§26/§27/§28/§29.
+   * @param {string} type - The tool type
+   * @returns {Function} Handler function
+   */
+  const defaultHandler = type => args => {
+    const entry = { ...(args || {}), type };
+    const largeContentResponse = maybeHandleLargeContent(entry);
+    if (largeContentResponse) return largeContentResponse;
 
     // Normal case - no large content
     appendSafeOutput(entry);
@@ -87,8 +95,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     };
   };
 
+  const createIssueConfig = config.create_issue || {};
+  let deduplicateByTitle = { enabled: false, maxDistance: 0 };
+  try {
+    deduplicateByTitle = parseDeduplicateByTitle(createIssueConfig.deduplicate_by_title);
+  } catch (error) {
+    throw new Error(`${ERR_VALIDATION}: ${getErrorMessage(error)}`);
+  }
+  const createIssueTitlePrefix = createIssueConfig.title_prefix ?? "";
+  /** @type {Map<string, Array<{title: string, normalizedTitle: string}>>} */
+  const seenIssueTitlesByRepo = new Map();
+
   /**
    * Handler for upload_asset tool
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    */
   const uploadAssetHandler = args => {
     const branchName = process.env.GH_AW_ASSETS_BRANCH;
@@ -206,6 +226,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for create_pull_request tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §1 (`create_pull_request`).
    * Resolves the current branch if branch is not provided or is the base branch
    * Generates git patch for the changes (unless allow-empty is true)
    * Supports multi-repo scenarios via the optional 'repo' parameter
@@ -242,23 +263,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     const { repoParts } = repoResult;
 
-    // Get base branch for the resolved target repository.
-    // Prefer explicit safe-output config value when provided, otherwise fall back
-    // to dynamic resolution from trigger context/default branch.
-    const baseBranch = prConfig.base_branch || (await getBaseBranch(repoParts));
-
-    // Store the resolved base branch in the entry so the apply-time checkout step
-    // can use it directly instead of inferring from event context.
-    // This makes the safe output "self-describing" and fixes checkout for events
-    // like issue_comment on PRs targeting non-default branches.
-    entry.base_branch = baseBranch;
-
     // Determine the working directory for git operations
-    // If repo is specified, find where it's checked out
+    // If repo is specified or configured, find where it's checked out
     let repoCwd = null;
     let repoSlug = null;
 
-    if (entry.repo && entry.repo.trim()) {
+    if ((entry.repo && entry.repo.trim()) || prConfig["target-repo"]) {
       // Use the validated/qualified repo slug from repoResult to avoid divergence
       // between the raw user input and the normalized/qualified repo name
       repoSlug = repoResult.repo;
@@ -288,6 +298,24 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       repoCwd = checkoutResult.path;
       server.debug(`Found repo checkout at: ${repoCwd}`);
     }
+
+    // Get base branch for the resolved target repository.
+    // Prefer explicit safe-output config value when provided, otherwise fall back
+    // to dynamic resolution from trigger context/default branch. For side-repo
+    // checkouts, prefer the actual checked-out branch before the repository default
+    // branch so release-branch workflows generate patches against the right base.
+    const baseBranch =
+      prConfig.base_branch ||
+      (await getBaseBranch(repoParts, {
+        preferCheckedOutBranch: Boolean(repoCwd),
+        cwd: repoCwd || undefined,
+      }));
+
+    // Store the resolved base branch in the entry so the apply-time checkout step
+    // can use it directly instead of inferring from event context.
+    // This makes the safe output "self-describing" and fixes checkout for events
+    // like issue_comment on PRs targeting non-default branches.
+    entry.base_branch = baseBranch;
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -485,6 +513,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for push_to_pull_request_branch tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §17 (`push_to_pull_request_branch`).
    * Resolves the current branch if branch is not provided or is the base branch
    * Generates git patch for the changes
    *
@@ -518,15 +547,6 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     const { repoParts } = repoResult;
 
-    // Get base branch for the resolved target repository
-    const baseBranch = await getBaseBranch(repoParts);
-
-    // Store the resolved base branch in the entry so the apply-time checkout step
-    // can use it directly instead of inferring from event context.
-    // This makes the safe output "self-describing" and fixes checkout for events
-    // like issue_comment on PRs targeting non-default branches.
-    entry.base_branch = baseBranch;
-
     // Determine the working directory for git operations.
     // Look up the checkout path when the target repo is explicitly provided by the agent
     // or explicitly configured via target-repo in the workflow config — this ensures patch
@@ -554,6 +574,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       entry.repo_cwd = repoCwd;
       server.debug(`Selected checkout folder for ${itemRepo}: ${repoCwd}`);
     }
+
+    // Get base branch for the resolved target repository.
+    // For side-repo checkouts, prefer the actual checked-out branch before falling
+    // back to the repository default branch.
+    const baseBranch = await getBaseBranch(repoParts, {
+      preferCheckedOutBranch: Boolean(repoCwd),
+      cwd: repoCwd || undefined,
+    });
+
+    // Store the resolved base branch in the entry so the apply-time checkout step
+    // can use it directly instead of inferring from event context.
+    // This makes the safe output "self-describing" and fixes checkout for events
+    // like issue_comment on PRs targeting non-default branches.
+    entry.base_branch = baseBranch;
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -756,6 +790,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for push_repo_memory tool
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    * Validates that memory files in the configured memory directory are within size limits.
    * Returns an error if any file or the total size exceeds the configured limits,
    * with guidance to reduce memory size before the workflow completes.
@@ -936,7 +971,85 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Handler for create_issue tool
+   * Applies title-based within-run deduplication for immediate feedback.
+   */
+  const createIssueHandler = args => {
+    const entry = { ...(args || {}), type: "create_issue" };
+
+    const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(createIssueConfig);
+    const repoResult = resolveAndValidateRepo(entry, defaultTargetRepo, allowedRepos, "issue");
+    if (!repoResult.success) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: repoResult.error,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+    const resolvedRepo = repoResult.repo;
+
+    let resolvedTitle = entry.title?.trim() || "";
+    if (!resolvedTitle) {
+      resolvedTitle = entry.body?.trim() || "Agent Output";
+    }
+    resolvedTitle = applyTitlePrefix(sanitizeTitle(resolvedTitle, createIssueTitlePrefix), createIssueTitlePrefix);
+
+    if (deduplicateByTitle.enabled) {
+      const normalizedTitle = normalizeTitleForDedup(resolvedTitle);
+      const seenTitles = seenIssueTitlesByRepo.get(resolvedRepo) || [];
+      const duplicate = findDuplicateByTitle(normalizedTitle, seenTitles, deduplicateByTitle.maxDistance);
+      if (duplicate) {
+        const droppedEntry = {
+          ...entry,
+          _dropped_duplicate_by_title: true,
+          _dedup_source: "mcp-within-run",
+          _duplicate_title: duplicate.title,
+          _duplicate_distance: duplicate.distance,
+        };
+        const largeContentResponse = maybeHandleLargeContent(droppedEntry);
+        if (!largeContentResponse) {
+          appendSafeOutput(droppedEntry);
+        }
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "duplicate_dropped",
+                reason: `Duplicate create_issue title matched "${duplicate.title}" (distance=${duplicate.distance})`,
+              }),
+            },
+          ],
+        };
+      }
+      seenTitles.push({ title: resolvedTitle, normalizedTitle });
+      seenIssueTitlesByRepo.set(resolvedRepo, seenTitles);
+    }
+
+    const largeContentResponse = maybeHandleLargeContent(entry);
+    if (largeContentResponse) return largeContentResponse;
+
+    appendSafeOutput(entry);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ result: "success" }),
+        },
+      ],
+    };
+  };
+
+  /**
    * Handler for create_project tool
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    * Auto-generates a temporary ID if not provided and returns it to the agent
    */
   const createProjectHandler = args => {
@@ -973,6 +1086,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for add_comment tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §3 (`add_comment`).
    * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
    * to provide immediate feedback to the LLM before recording to NDJSON
    * Also auto-generates a temporary_id if not provided and returns it to the agent
@@ -1050,6 +1164,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
   /**
    * Handler for upload_artifact tool.
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
    *
    * When the agent calls upload_artifact with an absolute path (e.g.,
    * /tmp/gh-aw/python/charts/loc_by_language.png), the file lives only inside the
@@ -1134,6 +1249,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     createPullRequestHandler,
     pushToPullRequestBranchHandler,
     pushRepoMemoryHandler,
+    createIssueHandler,
     createProjectHandler,
     addCommentHandler,
   };

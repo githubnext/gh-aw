@@ -536,7 +536,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```
 
   Publishes files to an orphaned git branch for persistent storage and URL-addressable embedding. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB). **Use this for images, charts, and screenshots that need embeddable URLs in issues/PRs/discussions.**
-- `upload-artifact:` - Upload files as run-scoped GitHub Actions artifacts (recommended for temporary run artifacts)
+- `upload-artifact:` - Upload files as run-scoped GitHub Actions artifacts (recommended for temporary run artifacts and attachment-style outputs)
 
   ```yaml
   safe-outputs:
@@ -553,11 +553,10 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
         exclude: ["*secret*"]
       defaults:                       # Optional: default values injected when agent omits a field
         if-no-files: "ignore"         # "error" or "ignore" when no files match (default: "error")
-      allow:                          # Optional: opt-in behaviors
-        skip-archive: true            # Allow agent to upload files without zipping
+      skip-archive: true              # Optional: allow direct file uploads without zipping
   ```
 
-  Uploads files as run-scoped GitHub Actions artifacts. Artifacts are temporary and tied to the workflow run, automatically cleaned up when they expire. Agents call `upload_artifact` with a `name`, `path`, and optional `retention_days`. **Use this for temporary downloadable artifacts**, while `upload-asset` is preferred for embedding images/charts in GitHub content.
+  Uploads files as run-scoped GitHub Actions artifacts. Artifacts are temporary and tied to the workflow run, automatically cleaned up when they expire. Agents call `upload_artifact` with a `name`, `path`, and optional `retention_days`. **Use this for temporary downloadable artifacts and attachment-style arbitrary data** (for example when a comment/issue should link to a generated file bundle). Set `skip-archive: true` when downloads should be served as direct files without uncompressing. Use `upload-asset` instead when you need stable embeddable URLs (images/charts in GitHub content).
 - `dispatch-workflow:` - Trigger other workflows with inputs
 
   ```yaml
@@ -1017,4 +1016,3 @@ The safe-outputs job emits named step outputs for the first successful result of
 | `create-pull-request` | `created_pr_number`, `created_pr_url` |
 | `add-comment` | `comment_id`, `comment_url` |
 | `push-to-pull-request-branch` | `push_commit_sha`, `push_commit_url` |
-

@@ -292,6 +292,8 @@ These constants guard feature flag emission: the compiler MUST NOT emit certain 
 constants.AWFExcludeEnvMinVersion       // "v0.25.3"  — minimum AWF for --exclude-env
 constants.AWFCliProxyMinVersion         // "v0.25.17" — minimum AWF for CLI proxy flags
 constants.AWFAllowHostPortsMinVersion   // "v0.25.24" — minimum AWF for --allow-host-ports
+constants.AWFDockerHostPathPrefixMinVersion // "v0.25.43" — minimum AWF for --docker-host-path-prefix
+constants.AWFTokenSteeringMinVersion    // "v0.25.44" — minimum AWF for token steering support
 constants.CopilotNoAskUserMinVersion    // "1.0.19"   — minimum Copilot CLI for --no-ask-user
 constants.MCPGIntegrityReactionsMinVersion // "v0.2.18" — minimum MCPG for integrity-reactions policy
 ```

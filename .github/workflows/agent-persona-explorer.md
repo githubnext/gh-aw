@@ -29,7 +29,7 @@ imports:
   - shared/reporting.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Agent Persona Explorer

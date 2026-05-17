@@ -16,7 +16,7 @@ permissions:
   discussions: read
 engine: copilot
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   agentic-workflows:
@@ -160,18 +160,13 @@ Use the gh-aw MCP server tools to gather real data:
    ```
    Audits will be saved to `/tmp/gh-aw/aw-mcp/logs`
 
-3. **Analyze Log Data**: Review the downloaded logs to identify:
-   - **Missing Tools**: Tools requested but not available
-   - **Permission Errors**: Failed operations due to insufficient permissions
-   - **Repetitive Patterns**: Same MCP calls made multiple times
-   - **Performance Issues**: High token usage, excessive turns, timeouts
-   - **Error Patterns**: Recurring failures and their causes
+3. **Analyze Log Data**: Use the `log-triage` agent with the list of downloaded log file paths to get a structured findings summary.
 
 ### Phase 2: Deep Workflow Analysis
 
 Use repository analysis tools to:
 
-1. **Examine Workflow Files**: Read and analyze workflow markdown files in `.github/workflows/`
+1. **Examine Workflow Files**: For each target workflow, use the `workflow-file-scanner` agent to extract its structural metadata. Only read the full file if you need to inspect specific prompt content beyond the structural summary.
 2. **Identify Common Patterns**: Look for repeated code or configurations across workflows
 3. **Extract Reusable Steps**: Find workflow steps that appear in multiple places
 4. **Detect Configuration Issues**: Spot missing imports, incorrect tools, or suboptimal settings
@@ -435,3 +430,73 @@ You are Q - the expert who provides agents with the best tools for their mission
 Begin your investigation now. Gather live data, analyze it thoroughly, make targeted improvements, validate your changes, and create a pull request with your optimizations.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `log-triage`
+---
+model: small
+description: Parse downloaded gh-aw log JSON files and emit a structured findings summary covering missing tools, permission errors, repetitive MCP calls, and high-cost runs
+---
+You are a log triage assistant. You receive a newline-separated list of file paths pointing to downloaded gh-aw log JSON files (located under `/tmp/gh-aw/aw-mcp/logs`).
+
+For each file path provided:
+1. Read the file content using `cat <filepath>` via bash.
+2. Parse the JSON and scan for the following patterns:
+   - **Missing Tools**: Any entries where a requested tool was not available (look for "missing tool", "tool not found", or similar error text).
+   - **Permission Errors**: Any entries with permission-denied or insufficient-permissions errors.
+   - **Repetitive MCP Calls**: Sequences where the same MCP tool is called 3 or more times consecutively or in rapid succession with identical or near-identical parameters.
+   - **High-Cost Runs**: Runs with token usage above 100,000 or turn count above 30.
+
+Return only a JSON object with this structure:
+```json
+{
+  "missing_tools": [{"run_id": "", "tool": "", "context": ""}],
+  "permission_errors": [{"run_id": "", "operation": "", "error": ""}],
+  "repetitive_calls": [{"run_id": "", "tool": "", "call_count": 0, "example_params": ""}],
+  "high_cost_runs": [{"run_id": "", "tokens": 0, "turns": 0}],
+  "summary": ""
+}
+```
+
+Include a brief `summary` string (1–3 sentences) describing the most significant findings. If no issues are found in a category, return an empty array for that key.
+
+## agent: `workflow-file-scanner`
+---
+model: small
+description: Read a target .github/workflows/<name>.md file and emit its frontmatter fields, tools, permissions, imports, safe-outputs, prompt-section count, and any obvious config issues
+---
+You are a workflow file analysis assistant. You receive a single file path to a `.github/workflows/<name>.md` workflow file.
+
+Read the file using `cat <filepath>` via bash and extract the following structural metadata:
+
+1. **Frontmatter fields**: Parse the YAML frontmatter block (between the opening `---` and closing `---`) and extract: `name`, `description`, `engine`, `timeout-minutes`, `strict`, `on` (trigger config), `permissions`, `tools`, `imports`, `safe-outputs`.
+2. **Prompt section count**: Count the number of level-2 headings (`## `) in the markdown body (after the frontmatter).
+3. **Inline sub-agents**: List any `## agent: \`name\`` blocks already present, with their `model` and `description`.
+4. **Config issues**: Identify obvious problems such as:
+   - Missing `timeout-minutes`
+   - Missing `strict: true`
+   - Write permissions without corresponding `safe-outputs` entries
+   - Tools listed without required permissions
+   - Any `## agent:` blocks using non-small models for purely extractive tasks
+
+Return only a JSON object with this structure:
+```json
+{
+  "file": "",
+  "frontmatter": {
+    "name": "",
+    "description": "",
+    "engine": "",
+    "timeout_minutes": null,
+    "strict": null,
+    "permissions": {},
+    "tools": {},
+    "imports": [],
+    "safe_outputs": {}
+  },
+  "prompt_section_count": 0,
+  "inline_sub_agents": [{"name": "", "model": "", "description": ""}],
+  "config_issues": [""]
+}
+```
+
+If a frontmatter field is absent, use `null` for scalar values or `{}` / `[]` for objects/arrays. Return only the JSON object with no additional commentary.

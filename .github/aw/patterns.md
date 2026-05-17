@@ -19,9 +19,9 @@ Use this router when a user asks for a workflow architecture, strategy, operatin
 
 Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/`
 
-### AgenticOps
+### MonitorOps
 - **Load when:** The user needs repository-wide workflow observability, trend reporting, and escalation for recurring failures or token waste.
-- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/agentic-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/monitor-ops.md
 
 ### BatchOps
 - **Load when:** The user needs to process large worksets in shards/chunks with throttling and aggregation.
@@ -37,23 +37,19 @@ Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/cont
 
 ### CorrectionOps
 - **Load when:** The user wants to improve workflow behavior from trusted human corrections without retraining the model.
-- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/correction-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/experimental/correction-ops.md
 
 ### DailyOps
 - **Load when:** The user wants scheduled, small, recurring improvements that compound over time.
 - **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/daily-ops.md
 
-### DataOps
+### DeterministicOps
 - **Load when:** The user needs deterministic data collection steps followed by agentic analysis and reporting.
-- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/data-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/deterministic-ops.md
 
 ### DispatchOps
 - **Load when:** The user needs manual trigger flows (`workflow_dispatch`) with custom inputs for testing or controlled runs.
 - **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/dispatch-ops.md
-
-### ExpertOps
-- **Load when:** The user needs scheduled domain-expert agents that file recommendations and monitor impact over time.
-- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/expert-ops.md
 
 ### IssueOps
 - **Load when:** The user needs fully automated issue triage, categorization, and responses on issue events.
@@ -65,7 +61,7 @@ Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/cont
 
 ### Monitoring with Projects
 - **Load when:** The user needs durable tracking and monitoring of work items with GitHub Projects and safe outputs.
-- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/monitoring.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/experimental/monitoring-with-projects.md
 
 ### MultiRepoOps
 - **Load when:** The user needs coordination and synchronization across multiple repositories.
@@ -91,13 +87,9 @@ Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/cont
 - **Load when:** The user needs to maintain formal specifications and propagate spec updates to consuming implementations.
 - **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/spec-ops.md
 
-### TaskOps Strategy
-- **Load when:** The user needs a staged model of research, planning, and code execution with developer control.
-- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/task-ops.md
-
 ### TrialOps
 - **Load when:** The user needs isolated trial repositories to validate workflows before production rollout.
-- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/trial-ops.md
+- **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/experimental/trial-ops.md
 
 ### WorkQueueOps
 - **Load when:** The user needs durable queue processing for many items via issues, sub-issues, discussions, or cache-memory.

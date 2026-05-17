@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"1861ab0d1a3e3d0c2cb4c9a9ac374396434bcc2015e73617cdb4f76a2fdcffc1","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"9c65e5f32c55af8c00c98222e94f21f7fe6cf99d8777b9f6fa12e1a1faae1f1a","strict":true,"agent_id":"claude"}
 # gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.46"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.46"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.9","digest":"sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -28,8 +28,9 @@
 #   Imports:
 #     - ../skills/jqschema/SKILL.md
 #     - shared/discussions-data-fetch.md
+#     - shared/mcp/agentdb.md
 #     - shared/meta-analysis-base.md
-#     - shared/observability-otlp.md
+#     - shared/otlp.md
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
 #
@@ -87,10 +88,10 @@ run-name: "DeepReport - Intelligence Gathering Agent"
 
 env:
   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
-  OTEL_SERVICE_NAME: gh-aw
-  OTEL_EXPORTER_OTLP_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
-  GH_AW_OTLP_ALL_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
-  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
+  OTEL_SERVICE_NAME: gh-aw.deep-report
+  OTEL_EXPORTER_OTLP_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+  GH_AW_OTLP_ALL_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
 
 jobs:
   activation:
@@ -128,6 +129,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Generate agentic run info
@@ -247,9 +249,9 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_eb4899be37c87f54_EOF'
+          cat << 'GH_AW_PROMPT_51f5a049f44d5ca8_EOF'
           <system>
-          GH_AW_PROMPT_eb4899be37c87f54_EOF
+          GH_AW_PROMPT_51f5a049f44d5ca8_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -257,13 +259,13 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_eb4899be37c87f54_EOF'
+          cat << 'GH_AW_PROMPT_51f5a049f44d5ca8_EOF'
           <safe-output-tools>
           Tools: create_issue(max:7), create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_eb4899be37c87f54_EOF
+          GH_AW_PROMPT_51f5a049f44d5ca8_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_eb4899be37c87f54_EOF'
+          cat << 'GH_AW_PROMPT_51f5a049f44d5ca8_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -292,21 +294,22 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_eb4899be37c87f54_EOF
+          GH_AW_PROMPT_51f5a049f44d5ca8_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_eb4899be37c87f54_EOF'
+          cat << 'GH_AW_PROMPT_51f5a049f44d5ca8_EOF'
           </system>
           **IMPORTANT**: When analyzing agentic workflows, use the `agentic-workflows` tool to read workflow files.
           
           
           {{#runtime-import .github/skills/jqschema/SKILL.md}}
           {{#runtime-import .github/workflows/shared/discussions-data-fetch.md}}
+          {{#runtime-import .github/workflows/shared/mcp/agentdb.md}}
           {{#runtime-import .github/workflows/shared/weekly-issues-data-fetch.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/workflows/shared/observability-otlp.md}}
+          {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/deep-report.md}}
-          GH_AW_PROMPT_eb4899be37c87f54_EOF
+          GH_AW_PROMPT_51f5a049f44d5ca8_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -336,9 +339,9 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: "- `agenticworkflows` — run `agenticworkflows --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools"
+          GH_AW_MCP_CLI_SERVERS_LIST: "- `agentdb` — run `agentdb --help` to see available tools\n- `agenticworkflows` — run `agenticworkflows --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools"
           GH_AW_MEMORY_BRANCH_NAME: 'memory/deep-report'
-          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: *.md\n- **Max File Size**: 1048576 bytes (1.00 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: *.md\n- **Max File Size**: 1048576 bytes (1.00 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 1024 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ' Long-term insights, patterns, and trend data'
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
@@ -452,6 +455,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -496,6 +500,11 @@ jobs:
           tags: localhost/gh-aw:dev
           build-args: |
             BINARY=dist/gh-aw-linux-amd64
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
@@ -516,15 +525,200 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
           REPO_OWNER: ${{ github.repository_owner }}
         name: Fetch discussions
-        run: "# Create output directories\nmkdir -p /tmp/gh-aw/discussions-data\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/discussions-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/discussions-${TODAY}.json\" ]; then\n  echo \"✓ Found cached discussions data from ${TODAY}\"\n  cp \"$CACHE_DIR/discussions-${TODAY}.json\" /tmp/gh-aw/discussions-data/discussions.json\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/discussions-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/discussions-data/discussions.json > \"$CACHE_DIR/discussions-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/discussions-${TODAY}-schema.json\" /tmp/gh-aw/discussions-data/discussions-schema.json\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total discussions in cache: $(jq 'length' /tmp/gh-aw/discussions-data/discussions.json)\"\nelse\n  echo \"⬇ Downloading fresh discussions data...\"\n  \n  # Fetch OPEN discussions using GraphQL with pagination (up to GH_AW_DISCUSSIONS_COUNT, default 100)\n  DISCUSSIONS_FILE=\"/tmp/gh-aw/discussions-data/discussions.json\"\n  echo '[]' > \"$DISCUSSIONS_FILE\"\n  \n  CURSOR=\"\"\n  HAS_NEXT_PAGE=true\n  PAGE_COUNT=0\n  \n  while [ \"$HAS_NEXT_PAGE\" = \"true\" ]; do\n    if [ -z \"$CURSOR\" ]; then\n      CURSOR_ARG=\"\"\n    else\n      CURSOR_ARG=\", after: \\\"$CURSOR\\\"\"\n    fi\n    \n    RESULT=$(gh api graphql -f query=\"\n      query {\n        repository(owner: \\\"$REPO_OWNER\\\", name: \\\"$REPO_NAME\\\") {\n          discussions(first: 100, states: [OPEN]${CURSOR_ARG}) {\n            pageInfo {\n              hasNextPage\n              endCursor\n            }\n            nodes {\n              number\n              title\n              body\n              createdAt\n              updatedAt\n              url\n              category {\n                name\n                slug\n              }\n              author {\n                login\n              }\n              labels(first: 10) {\n                nodes {\n                  name\n                }\n              }\n            }\n          }\n        }\n      }\n    \")\n    \n    # Extract discussions and normalize structure\n    echo \"$RESULT\" | jq -r '\n      .data.repository.discussions.nodes \n      | map({\n          number, \n          title,\n          body,\n          createdAt, \n          updatedAt,\n          url,\n          category: .category.name,\n          categorySlug: .category.slug,\n          author: (if .author then .author.login else \"unknown\" end),\n          labels: [.labels.nodes[].name],\n          isAgenticWorkflow: (if .body then (.body | test(\"^> AI generated by\"; \"m\")) else false end)\n        })\n    ' | jq -s 'add' > /tmp/gh-aw/temp_discussions.json\n    \n    # Merge with existing discussions\n    jq -s 'add | unique_by(.number)' \"$DISCUSSIONS_FILE\" /tmp/gh-aw/temp_discussions.json > /tmp/gh-aw/merged.json\n    mv /tmp/gh-aw/merged.json \"$DISCUSSIONS_FILE\"\n    rm -f /tmp/gh-aw/temp_discussions.json\n    \n    # Check if there are more pages\n    HAS_NEXT_PAGE=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')\n    CURSOR=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.endCursor')\n    \n    # Check if we've reached the requested count\n    CURRENT_COUNT=$(jq 'length' \"$DISCUSSIONS_FILE\")\n    MAX_COUNT=\"${GH_AW_DISCUSSIONS_COUNT:-100}\"\n    if [ \"$CURRENT_COUNT\" -ge \"$MAX_COUNT\" ]; then\n      echo \"Reached requested discussion count ($MAX_COUNT)\"\n      # Trim to exact count if we have more\n      jq --argjson max \"$MAX_COUNT\" '.[:$max]' \"$DISCUSSIONS_FILE\" > /tmp/gh-aw/trimmed.json\n      mv /tmp/gh-aw/trimmed.json \"$DISCUSSIONS_FILE\"\n      break\n    fi\n    \n    # Safety check - break after 10 pages (1000 discussions max regardless of count)\n    PAGE_COUNT=$((PAGE_COUNT + 1))\n    if [ $PAGE_COUNT -ge 10 ]; then\n      echo \"Reached pagination limit (10 pages)\"\n      break\n    fi\n  done\n  \n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/discussions-data/discussions.json > /tmp/gh-aw/discussions-data/discussions-schema.json\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/discussions-data/discussions.json \"$CACHE_DIR/discussions-${TODAY}.json\"\n  cp /tmp/gh-aw/discussions-data/discussions-schema.json \"$CACHE_DIR/discussions-${TODAY}-schema.json\"\n\n  echo \"✓ Discussions data saved to cache: discussions-${TODAY}.json\"\n  echo \"Total discussions found: $(jq 'length' /tmp/gh-aw/discussions-data/discussions.json)\"\nfi\n\n# Always ensure data is available at expected locations for backward compatibility\necho \"Discussions data available at: /tmp/gh-aw/discussions-data/discussions.json\"\necho \"Schema available at: /tmp/gh-aw/discussions-data/discussions-schema.json\"\n"
-      - name: Install gh CLI
         run: |
-          bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
+          # Create output directories
+          mkdir -p /tmp/gh-aw/discussions-data
+          mkdir -p /tmp/gh-aw/cache-memory
+
+          # Get today's date for cache identification
+          TODAY=$(date '+%Y-%m-%d')
+          CACHE_DIR="/tmp/gh-aw/cache-memory"
+
+          # Check if cached data exists from today
+          if [ -f "$CACHE_DIR/discussions-${TODAY}.json" ] && [ -s "$CACHE_DIR/discussions-${TODAY}.json" ]; then
+            echo "✓ Found cached discussions data from ${TODAY}"
+            cp "$CACHE_DIR/discussions-${TODAY}.json" /tmp/gh-aw/discussions-data/discussions.json
+
+            # Regenerate schema if missing
+            if [ ! -f "$CACHE_DIR/discussions-${TODAY}-schema.json" ]; then
+              /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/discussions-data/discussions.json > "$CACHE_DIR/discussions-${TODAY}-schema.json"
+            fi
+            cp "$CACHE_DIR/discussions-${TODAY}-schema.json" /tmp/gh-aw/discussions-data/discussions-schema.json
+
+            echo "Using cached data from ${TODAY}"
+            echo "Total discussions in cache: $(jq 'length' /tmp/gh-aw/discussions-data/discussions.json)"
+          else
+            echo "⬇ Downloading fresh discussions data..."
+
+            # Fetch OPEN discussions using GraphQL with pagination (up to GH_AW_DISCUSSIONS_COUNT, default 100)
+            DISCUSSIONS_FILE="/tmp/gh-aw/discussions-data/discussions.json"
+            echo '[]' > "$DISCUSSIONS_FILE"
+
+            CURSOR=""
+            HAS_NEXT_PAGE=true
+            PAGE_COUNT=0
+
+            while [ "$HAS_NEXT_PAGE" = "true" ]; do
+              if [ -z "$CURSOR" ]; then
+                CURSOR_ARG=""
+              else
+                CURSOR_ARG=", after: \"$CURSOR\""
+              fi
+
+              RESULT=$(gh api graphql -f query="
+                query {
+                  repository(owner: \"$REPO_OWNER\", name: \"$REPO_NAME\") {
+                    discussions(first: 100, states: [OPEN]${CURSOR_ARG}) {
+                      pageInfo {
+                        hasNextPage
+                        endCursor
+                      }
+                      nodes {
+                        number
+                        title
+                        body
+                        createdAt
+                        updatedAt
+                        url
+                        category {
+                          name
+                          slug
+                        }
+                        author {
+                          login
+                        }
+                        labels(first: 10) {
+                          nodes {
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ")
+
+              # Extract discussions and normalize structure
+              echo "$RESULT" | jq -r '
+                .data.repository.discussions.nodes 
+                | map({
+                    number, 
+                    title,
+                    body,
+                    createdAt, 
+                    updatedAt,
+                    url,
+                    category: .category.name,
+                    categorySlug: .category.slug,
+                    author: (if .author then .author.login else "unknown" end),
+                    labels: [.labels.nodes[].name],
+                    isAgenticWorkflow: (if .body then (.body | test("^> AI generated by"; "m")) else false end)
+                  })
+              ' | jq -s 'add' > /tmp/gh-aw/temp_discussions.json
+
+              # Merge with existing discussions
+              jq -s 'add | unique_by(.number)' "$DISCUSSIONS_FILE" /tmp/gh-aw/temp_discussions.json > /tmp/gh-aw/merged.json
+              mv /tmp/gh-aw/merged.json "$DISCUSSIONS_FILE"
+              rm -f /tmp/gh-aw/temp_discussions.json
+
+              # Check if there are more pages
+              HAS_NEXT_PAGE=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')
+              CURSOR=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.endCursor')
+
+              # Check if we've reached the requested count
+              CURRENT_COUNT=$(jq 'length' "$DISCUSSIONS_FILE")
+              MAX_COUNT="${GH_AW_DISCUSSIONS_COUNT:-100}"
+              if [ "$CURRENT_COUNT" -ge "$MAX_COUNT" ]; then
+                echo "Reached requested discussion count ($MAX_COUNT)"
+                # Trim to exact count if we have more
+                jq --argjson max "$MAX_COUNT" '.[:$max]' "$DISCUSSIONS_FILE" > /tmp/gh-aw/trimmed.json
+                mv /tmp/gh-aw/trimmed.json "$DISCUSSIONS_FILE"
+                break
+              fi
+
+              # Safety check - break after 10 pages (1000 discussions max regardless of count)
+              PAGE_COUNT=$((PAGE_COUNT + 1))
+              if [ $PAGE_COUNT -ge 10 ]; then
+                echo "Reached pagination limit (10 pages)"
+                break
+              fi
+            done
+
+            # Generate schema for reference
+            /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/discussions-data/discussions.json > /tmp/gh-aw/discussions-data/discussions-schema.json
+
+            # Store in cache with today's date
+            cp /tmp/gh-aw/discussions-data/discussions.json "$CACHE_DIR/discussions-${TODAY}.json"
+            cp /tmp/gh-aw/discussions-data/discussions-schema.json "$CACHE_DIR/discussions-${TODAY}-schema.json"
+
+            echo "✓ Discussions data saved to cache: discussions-${TODAY}.json"
+            echo "Total discussions found: $(jq 'length' /tmp/gh-aw/discussions-data/discussions.json)"
+          fi
+
+          # Always ensure data is available at expected locations for backward compatibility
+          echo "Discussions data available at: /tmp/gh-aw/discussions-data/discussions.json"
+          echo "Schema available at: /tmp/gh-aw/discussions-data/discussions-schema.json"
+      - env:
+          GH_AW_ENV_GH_AW_WORKFLOW_ID_SANITIZED: ${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
+        name: Ensure AgentDB cache path
+        run: mkdir -p "/tmp/gh-aw/cache-memory/agentdb-$GH_AW_ENV_GH_AW_WORKFLOW_ID_SANITIZED"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch weekly issues
-        run: "# Create output directories\nmkdir -p /tmp/gh-aw/weekly-issues-data\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/weekly-issues-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/weekly-issues-${TODAY}.json\" ]; then\n  echo \"✓ Found cached weekly issues data from ${TODAY}\"\n  cp \"$CACHE_DIR/weekly-issues-${TODAY}.json\" /tmp/gh-aw/weekly-issues-data/issues.json\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\" /tmp/gh-aw/weekly-issues-data/issues-schema.json\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total issues in cache: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)\"\nelse\n  echo \"⬇ Downloading fresh weekly issues data...\"\n  \n  # Calculate date 7 days ago (cross-platform: GNU date first, BSD fallback)\n  DATE_7_DAYS_AGO=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d')\n  \n  echo \"Fetching issues created or updated since ${DATE_7_DAYS_AGO}...\"\n  \n  # Fetch issues from the last 7 days using gh CLI\n  # Using --search with updated filter to get recent activity\n  gh issue list --repo \"$GITHUB_REPOSITORY\" \\\n    --search \"updated:>=${DATE_7_DAYS_AGO}\" \\\n    --state all \\\n    --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \\\n    --limit 500 \\\n    > /tmp/gh-aw/weekly-issues-data/issues.json\n\n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > /tmp/gh-aw/weekly-issues-data/issues-schema.json\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/weekly-issues-data/issues.json \"$CACHE_DIR/weekly-issues-${TODAY}.json\"\n  cp /tmp/gh-aw/weekly-issues-data/issues-schema.json \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\"\n\n  echo \"✓ Weekly issues data saved to cache: weekly-issues-${TODAY}.json\"\n  echo \"Total issues found: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)\"\nfi\n\n# Always ensure data is available at expected locations for backward compatibility\necho \"Weekly issues data available at: /tmp/gh-aw/weekly-issues-data/issues.json\"\necho \"Schema available at: /tmp/gh-aw/weekly-issues-data/issues-schema.json\"\n"
+        run: |
+          # Create output directories
+          mkdir -p /tmp/gh-aw/weekly-issues-data
+          mkdir -p /tmp/gh-aw/cache-memory
+
+          # Get today's date for cache identification
+          TODAY=$(date '+%Y-%m-%d')
+          CACHE_DIR="/tmp/gh-aw/cache-memory"
+
+          # Check if cached data exists from today
+          if [ -f "$CACHE_DIR/weekly-issues-${TODAY}.json" ] && [ -s "$CACHE_DIR/weekly-issues-${TODAY}.json" ]; then
+            echo "✓ Found cached weekly issues data from ${TODAY}"
+            cp "$CACHE_DIR/weekly-issues-${TODAY}.json" /tmp/gh-aw/weekly-issues-data/issues.json
+
+            # Regenerate schema if missing
+            if [ ! -f "$CACHE_DIR/weekly-issues-${TODAY}-schema.json" ]; then
+              /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
+            fi
+            cp "$CACHE_DIR/weekly-issues-${TODAY}-schema.json" /tmp/gh-aw/weekly-issues-data/issues-schema.json
+
+            echo "Using cached data from ${TODAY}"
+            echo "Total issues in cache: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)"
+          else
+            echo "⬇ Downloading fresh weekly issues data..."
+
+            # Calculate date 7 days ago (cross-platform: GNU date first, BSD fallback)
+            DATE_7_DAYS_AGO=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d')
+
+            echo "Fetching issues created or updated since ${DATE_7_DAYS_AGO}..."
+
+            # Fetch issues from the last 7 days using gh CLI
+            # Using --search with updated filter to get recent activity
+            gh issue list --repo "$GITHUB_REPOSITORY" \
+              --search "updated:>=${DATE_7_DAYS_AGO}" \
+              --state all \
+              --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \
+              --limit 500 \
+              > /tmp/gh-aw/weekly-issues-data/issues.json
+
+            # Generate schema for reference
+            /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > /tmp/gh-aw/weekly-issues-data/issues-schema.json
+
+            # Store in cache with today's date
+            cp /tmp/gh-aw/weekly-issues-data/issues.json "$CACHE_DIR/weekly-issues-${TODAY}.json"
+            cp /tmp/gh-aw/weekly-issues-data/issues-schema.json "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
+
+            echo "✓ Weekly issues data saved to cache: weekly-issues-${TODAY}.json"
+            echo "Total issues found: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)"
+          fi
+
+          # Always ensure data is available at expected locations for backward compatibility
+          echo "Weekly issues data available at: /tmp/gh-aw/weekly-issues-data/issues.json"
+          echo "Schema available at: /tmp/gh-aw/weekly-issues-data/issues-schema.json"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -649,9 +843,9 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_2784c64e1cd39422_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_ad2440d9b5ee3a1b_EOF'
           {"create_discussion":{"category":"reports","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1},"create_issue":{"expires":48,"group":true,"labels":["automation","improvement","quick-win","cookie"],"max":7,"title_prefix":"[deep-report] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":1048576,"max_patch_size":10240}]},"report_incomplete":{},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":1,"retention-days":30}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_2784c64e1cd39422_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_ad2440d9b5ee3a1b_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -854,6 +1048,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
+          GH_AW_WORKFLOW_ID_SANITIZED: ${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
@@ -872,8 +1067,8 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="claude"
-          export GH_AW_MCP_CLI_SERVERS='["agenticworkflows","safeoutputs"]'
-          echo GH_AW_MCP_CLI_SERVERS='["agenticworkflows","safeoutputs"]' >> "$GITHUB_ENV"
+          export GH_AW_MCP_CLI_SERVERS='["agentdb","agenticworkflows","safeoutputs"]'
+          echo GH_AW_MCP_CLI_SERVERS='["agentdb","agenticworkflows","safeoutputs"]' >> "$GITHUB_ENV"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           case "${DOCKER_HOST:-}" in
@@ -882,12 +1077,35 @@ jobs:
             * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;
           esac
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.9'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e GH_AW_WORKFLOW_ID_SANITIZED -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.9'
           
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_9364660b9ae4d0fa_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_df2e277b05e0c4b1_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
+              "agentdb": {
+                "type": "stdio",
+                "container": "node:lts-alpine",
+                "entrypoint": "npx",
+                "entrypointArgs": [
+                  "agentdb@alpha",
+                  "mcp",
+                  "start"
+                ],
+                "tools": [
+                  "*"
+                ],
+                "env": {
+                  "AGENTDB_PATH": "/tmp/gh-aw/cache-memory/agentdb-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}/discussions.rvf"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
+                }
+              },
               "agenticworkflows": {
                 "container": "localhost/gh-aw:dev",
                 "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
@@ -933,7 +1151,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_9364660b9ae4d0fa_EOF
+          GH_AW_MCP_CONFIG_df2e277b05e0c4b1_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -989,6 +1207,7 @@ jobs:
         # - Write
         # - Write(/tmp/*)
         # - Write(/tmp/gh-aw/cache-memory/*)
+        # - mcp__agentdb
         # - mcp__agenticworkflows
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
@@ -1049,14 +1268,14 @@ jobs:
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           touch /tmp/gh-aw/agent-step-summary.md
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
-          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.25.46/awf-config.schema.json","network":{"allowDomains":["*.githubusercontent.com","*.grafana.net","*.pythonhosted.org","*.sentry.io","anaconda.org","anthropic.com","api.anthropic.com","api.github.com","api.npms.io","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","binstar.org","bootstrap.pypa.io","bun.sh","cdn.jsdelivr.net","cdn.playwright.dev","codeload.github.com","conda.anaconda.org","conda.binstar.org","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","deb.nodesource.com","deno.land","esm.sh","files.pythonhosted.org","get.pnpm.io","ghcr.io","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","github.com","googleapis.deno.dev","googlechromelabs.github.io","host.docker.internal","json-schema.org","json.schemastore.org","jsr.io","keyserver.ubuntu.com","lfs.github.com","nodejs.org","npm.pkg.github.com","npmjs.com","npmjs.org","objects.githubusercontent.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","pip.pypa.io","playwright.download.prss.microsoft.com","ppa.launchpad.net","pypi.org","pypi.python.org","raw.githubusercontent.com","registry.bower.io","registry.npmjs.com","registry.npmjs.org","registry.yarnpkg.com","repo.anaconda.com","repo.continuum.io","repo.yarnpkg.com","s.symcb.com","s.symcd.com","security.ubuntu.com","sentry.io","skimdb.npmjs.com","statsig.anthropic.com","storage.googleapis.com","telemetry.vercel.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com","www.npmjs.com","www.npmjs.org","yarnpkg.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxEffectiveTokens":25000000,"models":{"auto":["large"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-4.1":["copilot/gpt-4.1*","openai/gpt-4.1*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"opus":["copilot/*opus*","anthropic/*opus*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"small":["mini"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"]}},"container":{"imageTag":"0.25.46"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json" && cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
+          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.25.46/awf-config.schema.json","network":{"allowDomains":["*.githubusercontent.com","*.grafana.net","*.pythonhosted.org","*.sentry.io","anaconda.org","anthropic.com","api.anthropic.com","api.github.com","api.npms.io","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","binstar.org","bootstrap.pypa.io","bun.sh","cdn.jsdelivr.net","cdn.playwright.dev","codeload.github.com","conda.anaconda.org","conda.binstar.org","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","deb.nodesource.com","deno.land","esm.sh","files.pythonhosted.org","get.pnpm.io","ghcr.io","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","github.com","googleapis.deno.dev","googlechromelabs.github.io","host.docker.internal","json-schema.org","json.schemastore.org","jsr.io","keyserver.ubuntu.com","lfs.github.com","nodejs.org","npm.pkg.github.com","npmjs.com","npmjs.org","objects.githubusercontent.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","pip.pypa.io","playwright.download.prss.microsoft.com","ppa.launchpad.net","pypi.org","pypi.python.org","raw.githubusercontent.com","registry.bower.io","registry.npmjs.com","registry.npmjs.org","registry.yarnpkg.com","repo.anaconda.com","repo.continuum.io","repo.yarnpkg.com","s.symcb.com","s.symcd.com","security.ubuntu.com","sentry.io","skimdb.npmjs.com","statsig.anthropic.com","storage.googleapis.com","telemetry.vercel.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com","www.npmjs.com","www.npmjs.org","yarnpkg.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxEffectiveTokens":25000000,"models":{"auto":["large"],"coding":["copilot/gpt-5*codex*","openai/gpt-5*codex*","gpt-5-codex"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-4.1":["copilot/gpt-4.1*","openai/gpt-4.1*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"opus":["copilot/*opus*","anthropic/*opus*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"small":["mini"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"],"vision":["copilot/gemini-*image*","gemini/gemini-*image*","copilot/gemini-*flash*","gemini/gemini-*flash*"]}},"container":{"imageTag":"0.25.46"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json" && cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
           fi
           # shellcheck disable=SC1003
           sudo -E awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts:${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts:rw" ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS} --tty --env-all --exclude-env ANTHROPIC_API_KEY --exclude-env GH_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --skip-pull --difc-proxy-host host.docker.internal:18443 --difc-proxy-ca-cert /tmp/gh-aw/difc-proxy-tls/ca.crt \
-            -- /bin/bash -c 'export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/claude_harness.cjs claude --print --no-chrome --allowed-tools '\''Bash,BashOutput,Edit,Edit(/tmp/*),Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/*),MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/*),Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/*),Write(/tmp/gh-aw/cache-memory/*),mcp__agenticworkflows,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__safeoutputs'\'' --debug-file /tmp/gh-aw/agent-stdio.log --verbose --permission-mode bypassPermissions --output-format stream-json --mcp-config "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c 'export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/claude_harness.cjs claude --print --no-chrome --allowed-tools '\''Bash,BashOutput,Edit,Edit(/tmp/*),Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/*),MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/*),Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/*),Write(/tmp/gh-aw/cache-memory/*),mcp__agentdb,mcp__agenticworkflows,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__safeoutputs'\'' --debug-file /tmp/gh-aw/agent-stdio.log --verbose --permission-mode bypassPermissions --output-format stream-json --mcp-config "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BASH_DEFAULT_TIMEOUT_MS: 60000
@@ -1243,6 +1462,7 @@ jobs:
         if: always()
         with:
           name: cache-memory
+          include-hidden-files: true
           path: /tmp/gh-aw/cache-memory
       # Upload safe-outputs upload-artifact staging for the upload_artifact job
       - name: Upload upload-artifact staging
@@ -1268,6 +1488,7 @@ jobs:
             /tmp/gh-aw/agent/
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/otel.jsonl
+            /tmp/gh-aw/otlp-export-errors.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
@@ -1324,6 +1545,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1477,6 +1699,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1691,6 +1914,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1779,6 +2003,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1891,6 +2116,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
@@ -1981,6 +2207,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/deep-report.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download cache-memory artifact (default)
         id: download_cache_default
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

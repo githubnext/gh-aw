@@ -2,7 +2,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
+import { createRequire } from "module";
 import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles } from "./safe_output_handler_manager.cjs";
+
+const require = createRequire(import.meta.url);
 
 describe("Safe Output Handler Manager", () => {
   beforeEach(() => {
@@ -114,6 +117,48 @@ describe("Safe Output Handler Manager", () => {
       // Note: Actual integration testing requires real handler modules
       // This test documents the expected behavior for validation
       expect(true).toBe(true);
+    });
+
+    it("should pass top-level mentions config into handler config", async () => {
+      const addCommentModule = require("./add_comment.cjs");
+      const addCommentMainSpy = vi.spyOn(addCommentModule, "main").mockImplementation(async () => async () => ({ success: true }));
+      const createIssueModule = require("./create_issue.cjs");
+      const createIssueMainSpy = vi.spyOn(createIssueModule, "main").mockImplementation(async () => async () => ({ success: true }));
+
+      try {
+        const mentionsConfig = { enabled: true, allowed: ["@copilot"] };
+        const handlers = await loadHandlers(
+          {
+            add_comment: { max: 1 },
+            create_issue: { max: 1 },
+            mentions: mentionsConfig,
+          },
+          undefined,
+          ["copilot", "octocat"]
+        );
+
+        expect(handlers.has("add_comment")).toBe(true);
+        expect(handlers.has("create_issue")).toBe(true);
+        expect(addCommentMainSpy).toHaveBeenCalledTimes(1);
+        expect(createIssueMainSpy).toHaveBeenCalledTimes(1);
+        expect(addCommentMainSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            max: 1,
+            mentions: mentionsConfig,
+            allowedMentionAliases: ["copilot", "octocat"],
+          })
+        );
+        expect(createIssueMainSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            max: 1,
+            mentions: mentionsConfig,
+            allowedMentionAliases: ["copilot", "octocat"],
+          })
+        );
+      } finally {
+        addCommentMainSpy.mockRestore();
+        createIssueMainSpy.mockRestore();
+      }
     });
   });
 

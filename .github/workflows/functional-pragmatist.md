@@ -23,7 +23,7 @@ network:
 imports:
   - shared/reporting.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-pull-request:
     title-prefix: "[fp-enhancer] "

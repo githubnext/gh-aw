@@ -64,7 +64,7 @@ function logGraphQLError(error, operation, hints = {}) {
  * @param {string} repo - Repository name
  * @param {string} path - File path within the repository
  * @param {string} ref - Git reference (branch, tag, or commit SHA)
- * @returns {Promise<string|null>} File content as string, or null if not found/error
+ * @returns {Promise<{content: string|null, errorStatus: number|null}>} File content and HTTP error status (if any)
  */
 async function getFileContent(github, owner, repo, path, ref) {
   try {
@@ -78,25 +78,25 @@ async function getFileContent(github, owner, repo, path, ref) {
     // Handle case where response is an array (directory listing)
     if (Array.isArray(response.data)) {
       core.info(`Path ${path} is a directory, not a file`);
-      return null;
+      return { content: null, errorStatus: null };
     }
 
     // Check if this is a file (not a symlink or submodule)
     if (response.data.type !== "file") {
       core.info(`Path ${path} is not a file (type: ${response.data.type})`);
-      return null;
+      return { content: null, errorStatus: null };
     }
 
     // Decode base64 content
     if (response.data.encoding === "base64" && response.data.content) {
-      return Buffer.from(response.data.content, "base64").toString("utf8");
+      return { content: Buffer.from(response.data.content, "base64").toString("utf8"), errorStatus: null };
     }
 
-    return response.data.content || null;
+    return { content: response.data.content || null, errorStatus: null };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.info(`Could not fetch content for ${path}: ${errorMessage}`);
-    return null;
+    return { content: null, errorStatus: error.status ?? null };
   }
 }
 

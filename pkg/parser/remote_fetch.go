@@ -14,11 +14,11 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -519,7 +519,7 @@ func downloadFileViaRawURL(owner, repo, filePath, ref string) ([]byte, error) {
 	remoteLog.Printf("Attempting raw URL download: %s", rawURL)
 
 	// Use a client with a timeout to prevent indefinite hangs on slow/unresponsive hosts.
-	rawClient := &http.Client{Timeout: 30 * time.Second}
+	rawClient := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
 
 	// #nosec G107 -- rawURL is constructed from workflow import configuration authored by
 	// the developer; the owner, repo, filePath, and ref are user-supplied workflow spec fields.
@@ -606,12 +606,6 @@ func downloadFileViaGitClone(owner, repo, path, ref, host string) ([]byte, error
 	return content, nil
 }
 
-// isNotFoundError checks if an error message indicates a 404 Not Found response
-func isNotFoundError(errMsg string) bool {
-	lowerMsg := strings.ToLower(errMsg)
-	return strings.Contains(lowerMsg, "404") || strings.Contains(lowerMsg, "not found")
-}
-
 // checkRemoteSymlink checks if a path in a remote GitHub repository is a symlink.
 // Returns the symlink target and true if it is a symlink, or empty string and false otherwise.
 // A nil error with false means the path is not a symlink (e.g., it's a directory or file).
@@ -679,7 +673,7 @@ func resolveRemoteSymlinks(client *api.RESTClient, owner, repo, filePath, ref st
 		if err != nil {
 			// Only ignore 404s (path component doesn't exist yet at this prefix level).
 			// Propagate real API failures (auth, rate limit, network) immediately.
-			if isNotFoundError(err.Error()) {
+			if errorutil.IsNotFoundError(err) {
 				remoteLog.Printf("Path component %s returned 404, skipping", dirPath)
 				continue
 			}
@@ -815,7 +809,7 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 		}
 
 		// Check if this is a 404 — the path may traverse a symlink that the API doesn't follow
-		if isNotFoundError(errStr) && symlinkDepth < constants.MaxSymlinkDepth {
+		if errorutil.IsNotFoundError(err) && symlinkDepth < constants.MaxSymlinkDepth {
 			remoteLog.Printf("File not found at %s/%s/%s@%s, checking for symlinks in path (depth: %d)", owner, repo, path, ref, symlinkDepth)
 			resolvedPath, resolveErr := resolveRemoteSymlinks(client, owner, repo, path, ref)
 			if resolveErr == nil && resolvedPath != path {

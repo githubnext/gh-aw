@@ -28,6 +28,7 @@ The package root is the folder that contains `aw.yml`.
 | `manifest-version` | string | No | Current supported value: `"1"`. Defaults to `"1"` when omitted. |
 | `min-version` | string | No | Minimum compatible `gh aw` version in `vMAJOR.minor.patch` form, such as `v0.38.0`. |
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
+| `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
 | `files` | array of strings | No | Package-root-relative markdown files under `workflows/` or `.github/workflows/`. |
 
@@ -56,6 +57,7 @@ Missing `README.md` causes package validation to fail.
 manifest-version: "1"
 min-version: v0.38.0
 name: Repo Assist
+emoji: 🤖
 description: Friendly repository automation for review and issue triage
 files:
   - workflows/review.md

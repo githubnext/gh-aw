@@ -35,7 +35,7 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."
 timeout-minutes: 10
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Guard Policy Smoke Test: public/none

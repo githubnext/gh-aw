@@ -26,7 +26,7 @@ imports:
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
   - shared/trufflehog.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults

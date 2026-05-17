@@ -97,6 +97,27 @@ describe("reply_to_pr_review_comment", () => {
     expect(calledWith.body).toContain("Thanks for the feedback, I've updated the code.");
   });
 
+  it("should preserve allowlisted mentions and neutralize non-allowlisted mentions", async () => {
+    const { main } = require("./reply_to_pr_review_comment.cjs");
+    const mentionsHandler = await main({
+      max: 10,
+      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+    });
+    const message = {
+      type: "reply_to_pull_request_review_comment",
+      comment_id: 123,
+      body: "Please ask @copilot and @someone-else to review this.",
+    };
+
+    const result = await mentionsHandler(message, {});
+
+    expect(result.success).toBe(true);
+    const calledBody = mockCreateReplyForReviewComment.mock.calls[0][0].body;
+    expect(calledBody).toContain("@copilot");
+    expect(calledBody).not.toContain("`@copilot`");
+    expect(calledBody).toContain("`@someone-else`");
+  });
+
   it("should accept comment_id as a string", async () => {
     const message = {
       type: "reply_to_pull_request_review_comment",

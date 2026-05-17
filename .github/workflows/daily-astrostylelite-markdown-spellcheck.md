@@ -276,10 +276,7 @@ experiments:
     weight: [50, 50]
 
 imports:
-  - shared/otel.md
-
-
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck

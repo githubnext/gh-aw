@@ -283,11 +283,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		// "exit status 1" is intentionally omitted: gh exits 1 for many non-auth
 		// errors (e.g. unsupported JSON fields), so matching it caused misleading
 		// "authentication required" messages for unrelated failures.
-		if strings.Contains(combinedMsg, "exit status 4") ||
-			strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
-			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
-			strings.Contains(combinedMsg, "authentication required") ||
-			strings.Contains(outputMsg, "gh auth login") {
+		if isPermissionErrorStr(combinedMsg) {
 			return nil, 0, errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 

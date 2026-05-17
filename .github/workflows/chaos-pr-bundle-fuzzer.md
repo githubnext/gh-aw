@@ -18,6 +18,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[chaos-test] "
     preserve-branch-name: true
+    recreate-ref: true
     labels: [test-in-progress]
     draft: true
     max: 5
@@ -32,7 +33,7 @@ safe-outputs:
   noop:
 timeout-minutes: 30
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Chaos PR Bundle Fuzzer

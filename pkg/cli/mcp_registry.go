@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -47,7 +46,7 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 	return &MCPRegistryClient{
 		registryURL: registryURL,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: constants.DefaultHTTPClientTimeout,
 		},
 	}
 }

@@ -31,6 +31,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryLink, generateHistoryUrl } = require("./generate_history_link.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
+const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -311,6 +312,12 @@ async function main(config = {}) {
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
   const githubClient = await createAuthenticatedGitHubClient(config);
+  let allowedMentionAliases = [];
+  if (Array.isArray(config.allowedMentionAliases)) {
+    allowedMentionAliases = config.allowedMentionAliases;
+  } else if (config.mentions != null) {
+    allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions);
+  }
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
@@ -494,7 +501,7 @@ async function main(config = {}) {
     const preSanitizeBodyLength = processedBody.trim().length;
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
-    processedBody = sanitizeContent(processedBody);
+    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
     if (minBodyLength > 0 && preSanitizeBodyLength < minBodyLength) {
       const error = `Discussion body length ${preSanitizeBodyLength} is below configured minimum ${minBodyLength}`;
       core.error(error);

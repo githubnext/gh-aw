@@ -13,7 +13,7 @@ imports:
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   repo-memory:
     branch-name: memory/meta-orchestrators

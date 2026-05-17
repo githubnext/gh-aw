@@ -752,22 +752,23 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         core.warning('content_number/issue/pull_request is ignored when content_type is "draft_issue".');
       }
 
-      // Extract and normalize temporary_id and draft_issue_id using shared helpers
+      // Extract, validate, and normalize temporary_id and draft_issue_id using shared helpers.
+      // normalizeTemporaryId strips any leading '#' so the bare key form is used consistently.
       const rawTemporaryId = typeof output.temporary_id === "string" ? output.temporary_id.trim() : "";
-      const temporaryId = rawTemporaryId.startsWith("#") ? rawTemporaryId.slice(1) : rawTemporaryId;
-
       const rawDraftIssueId = typeof output.draft_issue_id === "string" ? output.draft_issue_id.trim() : "";
-      const draftIssueId = rawDraftIssueId.startsWith("#") ? rawDraftIssueId.slice(1) : rawDraftIssueId;
 
       // Validate IDs used for draft chaining.
       // Draft issue chaining must use strict temporary IDs to match the unified handler manager.
-      if (temporaryId && !isTemporaryId(temporaryId)) {
-        throw new Error(`${ERR_VALIDATION}: Invalid temporary_id format: "${temporaryId}". Expected format: aw_ followed by 3 to 12 alphanumeric or underscore characters (e.g., "aw_abc", "aw_pr_fix").`);
+      if (rawTemporaryId && !isTemporaryId(rawTemporaryId)) {
+        throw new Error(`${ERR_VALIDATION}: Invalid temporary_id format: "${rawTemporaryId}". Expected format: aw_ followed by 3 to 12 alphanumeric or underscore characters (e.g., "aw_abc", "aw_pr_fix").`);
       }
 
-      if (draftIssueId && !isTemporaryId(draftIssueId)) {
-        throw new Error(`${ERR_VALIDATION}: Invalid draft_issue_id format: "${draftIssueId}". Expected format: aw_ followed by 3 to 12 alphanumeric or underscore characters (e.g., "aw_abc", "aw_pr_fix").`);
+      if (rawDraftIssueId && !isTemporaryId(rawDraftIssueId)) {
+        throw new Error(`${ERR_VALIDATION}: Invalid draft_issue_id format: "${rawDraftIssueId}". Expected format: aw_ followed by 3 to 12 alphanumeric or underscore characters (e.g., "aw_abc", "aw_pr_fix").`);
       }
+
+      const temporaryId = rawTemporaryId ? normalizeTemporaryId(rawTemporaryId) : "";
+      const draftIssueId = rawDraftIssueId ? normalizeTemporaryId(rawDraftIssueId) : "";
 
       const draftTitle = typeof output.draft_title === "string" ? output.draft_title.trim() : "";
       const draftBody = typeof output.draft_body === "string" ? output.draft_body : undefined;
@@ -1297,14 +1298,12 @@ async function main(config = {}, githubClient = null) {
 
       // Resolve temporary project ID if present
       if (effectiveProjectUrl && typeof effectiveProjectUrl === "string") {
-        // Strip # prefix if present
         const projectStr = effectiveProjectUrl.trim();
-        const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
 
         // Check if it's a temporary ID using the canonical pattern (aw_XXX to aw_XXXXXXXX)
-        if (isTemporaryId(projectWithoutHash)) {
+        if (isTemporaryId(projectStr)) {
           // Look up in the unified temporaryIdMap using normalized (lowercase) ID
-          const normalizedId = normalizeTemporaryId(projectWithoutHash);
+          const normalizedId = normalizeTemporaryId(projectStr);
           const resolved = tempIdMap.get(normalizedId);
           if (resolved && typeof resolved === "object" && "projectUrl" in resolved && resolved.projectUrl) {
             core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);

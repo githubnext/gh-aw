@@ -4,6 +4,8 @@ import path from "path";
 import { execSync } from "child_process";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
 
+const LARGE_CONTENT_BODY = "A".repeat(70000);
+
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
   debug: vi.fn(),
@@ -44,8 +46,6 @@ describe("safe_outputs_handlers", () => {
 
     mockAppendSafeOutput = vi.fn();
 
-    handlers = createHandlers(mockServer, mockAppendSafeOutput);
-
     // Create temporary workspace directory
     const testId = Math.random().toString(36).substring(7);
     testWorkspaceDir = `/tmp/test-handlers-workspace-${testId}`;
@@ -55,6 +55,9 @@ describe("safe_outputs_handlers", () => {
     process.env.GITHUB_WORKSPACE = testWorkspaceDir;
     process.env.GITHUB_SERVER_URL = "https://github.com";
     process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+
+    handlers = createHandlers(mockServer, mockAppendSafeOutput);
   });
 
   afterEach(() => {
@@ -71,6 +74,7 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GH_AW_WORKFLOW_ID;
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
@@ -441,6 +445,52 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createPullRequestHandler", () => {
+    /**
+     * Creates a side-repo checkout where:
+     * - main is the default branch
+     * - release-1.12.x has an existing remote-tracked commit not on main
+     * - the checked-out local release branch has one extra local-only commit
+     *
+     * This lets the test verify that create_pull_request diffs against
+     * origin/release-1.12.x instead of origin/main, so only the local fix
+     * ends up in the generated patch.
+     */
+    function createSideRepoOnReleaseBranchWithLocalCommit() {
+      const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
+      fs.mkdirSync(targetRepoDir, { recursive: true });
+
+      execSync("git init -b main", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      execSync("git checkout -b release-1.12.x", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release tracked\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'release tracked commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      const releaseCommitSha = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+
+      execSync("git checkout main", { cwd: targetRepoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(targetRepoDir, "MAIN_ONLY.md"), "main only\n");
+      execSync("git add MAIN_ONLY.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'main only commit'", { cwd: targetRepoDir, stdio: "pipe" });
+      const mainCommitSha = execSync("git rev-parse HEAD", { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+
+      execSync("git checkout release-1.12.x", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/main ${mainCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/release-1.12.x ${releaseCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release local only\n");
+      execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git commit -m 'local only fix'", { cwd: targetRepoDir, stdio: "pipe" });
+
+      return { targetRepoDir };
+    }
+
     it("should be defined", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
     });
@@ -689,6 +739,42 @@ describe("safe_outputs_handlers", () => {
       } finally {
         delete process.env.GITHUB_BASE_REF;
       }
+    });
+
+    it("should derive base_branch from the checked out side-repo branch for patch generation", async () => {
+      const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          "target-repo": "test-owner/test-repo",
+          patch_format: "am",
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "release-1.12.x",
+        title: "Release fix",
+        body: "Prepare release branch fix",
+      });
+
+      expect(result.isError).toBeUndefined();
+      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Found repo checkout at: ${targetRepoDir}`));
+      // No base-branch override is configured and the repo default branch is main,
+      // so matching release-1.12.x here confirms the handler derived the base branch
+      // from the checked-out side-repo branch.
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "create_pull_request",
+          base_branch: "release-1.12.x",
+          branch: "release-1.12.x",
+          patch_path: expect.any(String),
+        })
+      );
+
+      const appendedEntry = mockAppendSafeOutput.mock.calls.at(-1)[0];
+      const patchContent = fs.readFileSync(appendedEntry.patch_path, "utf8");
+      expect(patchContent).toContain("Subject: [PATCH] local only fix");
+      expect(patchContent).not.toContain("Subject: [PATCH] release tracked commit");
     });
   });
 
@@ -1104,6 +1190,7 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
       expect(handlers.pushRepoMemoryHandler).toBeDefined();
+      expect(handlers.createIssueHandler).toBeDefined();
       expect(handlers.addCommentHandler).toBeDefined();
     });
 
@@ -1161,6 +1248,79 @@ describe("safe_outputs_handlers", () => {
       const longBody = "a".repeat(70000);
 
       expect(() => handlers.addCommentHandler({ body: longBody })).toThrow();
+    });
+  });
+
+  describe("createIssueHandler", () => {
+    it("should append create_issue entry when dedup is disabled", () => {
+      handlers.createIssueHandler({ title: "Issue A", body: "Body A" });
+      handlers.createIssueHandler({ title: "Issue A", body: "Body A again" });
+
+      expect(mockAppendSafeOutput).toHaveBeenCalledTimes(2);
+      const first = mockAppendSafeOutput.mock.calls[0][0];
+      const second = mockAppendSafeOutput.mock.calls[1][0];
+      expect(first.type).toBe("create_issue");
+      expect(second.type).toBe("create_issue");
+      expect(second._dropped_duplicate_by_title).toBeUndefined();
+    });
+
+    it("should drop duplicate create_issue titles in MCP pre-check when enabled", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: true,
+        },
+      });
+
+      const first = h.createIssueHandler({ title: "Duplicate Issue", body: "First body" });
+      const second = h.createIssueHandler({ title: "Duplicate Issue", body: "Second body" });
+
+      const firstResponse = JSON.parse(first.content[0].text);
+      const secondResponse = JSON.parse(second.content[0].text);
+      expect(firstResponse.result).toBe("success");
+      expect(secondResponse.result).toBe("duplicate_dropped");
+      const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
+      expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
+      expect(droppedEntry._duplicate_distance).toBe(0);
+    });
+
+    it("should support Levenshtein distance threshold in MCP pre-check", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: 1,
+        },
+      });
+
+      h.createIssueHandler({ title: "Fix login bug", body: "A" });
+      const second = h.createIssueHandler({ title: "Fix login bag", body: "B" });
+      const secondResponse = JSON.parse(second.content[0].text);
+
+      expect(secondResponse.result).toBe("duplicate_dropped");
+    });
+
+    it("should offload large body when appending duplicate create_issue entry", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: true,
+        },
+      });
+
+      h.createIssueHandler({ title: "Duplicate Issue", body: "First body" });
+      h.createIssueHandler({ title: "Duplicate Issue", body: LARGE_CONTENT_BODY });
+
+      expect(mockAppendSafeOutput.mock.calls).toHaveLength(2);
+      const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
+      expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
+      expect(droppedEntry.body).toContain("[Content too large, saved to file:");
+    });
+
+    it("should reject invalid deduplicate-by-title configuration", () => {
+      expect(() =>
+        createHandlers(mockServer, mockAppendSafeOutput, {
+          create_issue: {
+            deduplicate_by_title: "invalid",
+          },
+        })
+      ).toThrow("deduplicate-by-title");
     });
   });
 

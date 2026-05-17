@@ -38,7 +38,7 @@ imports:
       expires: 1d
   - shared/docs-server-lifecycle.md
   - shared/keep-it-short.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 pre-agent-steps:
   - name: Install docs dependencies
     run: |

@@ -12,7 +12,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-name: Smoke OTEL Backends
+name: Smoke OTEL
 engine:
   id: copilot
   max-continuations: 1
@@ -36,10 +36,10 @@ imports:
   - shared/mcp/grafana.md
   - shared/mcp/sentry.md
   - shared/otel-queries.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
-# Smoke Test: OTEL Backends
+# Smoke OTEL
 
 Validate the full OTEL loop for this repository:
 
@@ -50,14 +50,16 @@ Validate the full OTEL loop for this repository:
 
 The goal is to verify the current run end to end, not just prove that the backends contain some older telemetry.
 
+Step 1 is local-only: it checks env injection, the local JSONL mirror, and span emission for the current run before any remote backend queries begin. Treat remote OTLP export errors as backend evidence for Sentry and Grafana, not as a failure of the local mirror.
+
 ## Required Secrets
 
 This workflow expects these secrets to be present:
 
 - `GH_AW_OTEL_SENTRY_ENDPOINT`
-- `GH_AW_OTEL_SENTRY_HEADERS`
+- `GH_AW_OTEL_SENTRY_AUTHORIZATION`
 - `GH_AW_OTEL_GRAFANA_ENDPOINT`
-- `GH_AW_OTEL_GRAFANA_HEADERS`
+- `GH_AW_OTEL_GRAFANA_AUTHORIZATION`
 - `SENTRY_ACCESS_TOKEN`
 - `GRAFANA_URL`
 - `GRAFANA_SERVICE_ACCOUNT_TOKEN`
@@ -69,6 +71,8 @@ This workflow expects these secrets to be present:
 - Prefer proving the current run is visible in each backend.
 - Distinguish `pass`, `fail`, and `inconclusive` explicitly.
 - Do not browse unrelated dashboards, issues, or traces.
+- Always complete the workflow in this order: Step 1 local OTEL checks, Step 2 Sentry, then Step 3 Grafana.
+- Do not skip Grafana because Sentry failed or consumed time. Report both backends in the same run.
 
 ## Status model
 
@@ -108,13 +112,19 @@ if [ -f /tmp/gh-aw/otlp-export-errors.count ]; then
 else
   echo 0
 fi
+if [ -f /tmp/gh-aw/otlp-export-errors.jsonl ]; then
+  echo "=== OTEL export error details (host/status/reason) ==="
+  cat /tmp/gh-aw/otlp-export-errors.jsonl
+fi
 ```
 
 Decide:
 
-- `send_status = pass` only if OTEL env vars are present, `/tmp/gh-aw/otel.jsonl` exists with at least one span for `${{ github.run_id }}`, and the OTLP export error count is zero.
+- `send_status = pass` only if OTEL env vars are present and `/tmp/gh-aw/otel.jsonl` exists with at least one span for `${{ github.run_id }}`.
 - `send_status = inconclusive` if spans exist locally but none for `${{ github.run_id }}` can be confirmed.
 - Otherwise set `send_status = fail` and record the exact missing artifact or error.
+
+Do not downgrade `send_status` because `/tmp/gh-aw/otlp-export-errors.count` is non-zero. Record OTLP export errors as evidence for the remote backend rows and in `## Failure Analysis`, using `/tmp/gh-aw/otlp-export-errors.jsonl` details (`host`, `status`, `reason`) for attribution.
 
 ### Step 2: Query Sentry
 
@@ -135,8 +145,9 @@ Record all of the following:
 
 Set:
 
-- `sentry_status = pass` when query access works and current-run spans are visible
-- `sentry_status = inconclusive` when query access works and recent `gh-aw` spans are visible but this run is not yet visible
+- `sentry_status = pass` when query access works, current-run spans are visible, and the Sentry OTLP export path shows no errors attributable to Sentry
+- `sentry_status = fail` when the Sentry OTLP export path shows errors attributable to Sentry
+- `sentry_status = inconclusive` when query access works, no errors attributable to Sentry were seen, and recent `gh-aw` spans are visible but this run is not yet visible
 - `sentry_status = fail` otherwise
 
 ### Step 3: Query Grafana
@@ -159,7 +170,7 @@ Record all of the following:
 
 Set:
 
-- `grafana_status = pass` when query access works and current-run spans are visible
+- `grafana_status = pass` when query access works, current-run spans are visible, and the Grafana OTLP export path shows no errors attributable to Grafana
 - `grafana_status = inconclusive` when query access works and recent `gh-aw` spans are visible but this run is not yet visible
 - `grafana_status = fail` otherwise
 
@@ -175,20 +186,34 @@ Compute the overall result:
 
 Create exactly one GitHub issue with:
 
-- Title: `Smoke Test: OTEL Backends - ${{ github.run_id }}`
+- Draft the body locally first if needed, but emit only one final `create_issue` safe output after the full report is complete.
+- Never create a placeholder, empty, `-`, or partial issue body.
+- Do not retry `create_issue`: this workflow allows only one issue, so a premature call leaves the final report empty.
+- Title: `Smoke OTEL - ${{ github.run_id }}`
 - A short executive summary with overall `PASS`, `INCONCLUSIVE`, or `FAIL`
-- A flat checklist for:
-  - local send verification
-  - Sentry query verification
-  - Grafana query verification
+- A markdown table with one row for `Local OTLP`, one row for `Sentry`, and one row for `Grafana`, using these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
+- Use `✅` for pass, `❌` for fail, `🔶` for inconclusive, and `—` where a cell does not apply
+- For the `Local OTLP` row, map `Write Config Present` to OTEL env vars being injected and map `Write Export Succeeded` to the local JSONL mirror containing current-run spans.
+- Use this table form:
+
+  ```markdown
+  | Backend | Write Config Present | Write Export Succeeded | Read Config Present | Read Query Succeeded | Overall |
+  | --- | --- | --- | --- | --- | --- |
+  | Local OTLP | ✅ | ✅ | — | — | ✅ |
+  | Sentry | ✅ | ✅ | ✅ | 🔶 | 🔶 |
+  | Grafana | ✅ | ❌ | ✅ | ✅ | ❌ |
+  ```
+
 - The exact evidence used for each backend
-- A short blocker section for every failed check
+- A `## Failure Analysis` section after the table
 - The run URL: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
 
-If the overall result is `FAIL` or `INCONCLUSIVE`, make the issue body immediately actionable and specific about whether the problem is:
+For every unchecked cell in the table, add a dedicated subsection under `## Failure Analysis` that explains:
 
-- emit-side configuration
-- local export failure
-- Sentry read-side auth or query failure
-- Grafana read-side auth or query failure
-- backend ingestion delay
+- the exact failing step
+- the evidence you observed
+- the most likely root cause
+- whether the problem is on the write path, read path, auth, configuration, propagation, or the backend itself
+- the next concrete debug step or fix
+
+Do not stop after the first failure. Report the full Sentry and Grafana matrix even if one backend is completely broken.

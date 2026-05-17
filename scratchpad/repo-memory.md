@@ -234,7 +234,7 @@ tools:
     #   file-glob: string[] (default: all files)
     #   max-file-size: int (default: 10240, max: 104857600)
     #   max-file-count: int (default: 100, max: 1000)
-    #   max-patch-size: int (default: 10240, max: 102400)
+    #   max-patch-size: int (default: 10240, max: 1048576)
     #   description: string (optional)
     #   create-orphan: boolean (default: true)
     #   campaign-id: string (optional)
@@ -248,7 +248,7 @@ tools:
     #   file-glob: string[] (default: all files)
     #   max-file-size: int (default: 10240, max: 104857600)
     #   max-file-count: int (default: 100, max: 1000)
-    #   max-patch-size: int (default: 10240, max: 102400)
+    #   max-patch-size: int (default: 10240, max: 1048576)
     #   description: string (optional)
     #   create-orphan: boolean (default: true)
     #   campaign-id: string (optional)
@@ -383,7 +383,7 @@ file-glob:
 The total size of all changes (git diff) in a single repo-memory push MUST not exceed the configured maximum patch size.
 
 - **Minimum**: 1 byte
-- **Maximum**: 102400 bytes (100 KB)
+- **Maximum**: 1048576 bytes (1 MB)
 - **Default**: 10240 bytes (10 KB)
 - **Configuration**: `max-patch-size` (in bytes)
 - Validated during config parsing (Go layer)

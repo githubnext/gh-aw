@@ -14,7 +14,7 @@ engine: copilot
 strict: true
 imports:
   - shared/mcp/brave.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   add-comment:
     max: 1

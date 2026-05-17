@@ -94,7 +94,17 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(cmd.Context(), verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade, approveUpgrade, preReleases); err != nil {
+			if err := runUpgradeCommand(upgradeOptions{
+				ctx:                  cmd.Context(),
+				verbose:              verbose,
+				workflowDir:          dir,
+				noFix:                noFix,
+				noCompile:            noCompile,
+				noActions:            noActions,
+				skipExtensionUpgrade: skipExtensionUpgrade,
+				approve:              approveUpgrade,
+				preReleases:          preReleases,
+			}); err != nil {
 				return err
 			}
 
@@ -148,19 +158,32 @@ func runDependencyAudit(ctx context.Context, verbose bool, jsonOutput bool) erro
 	return nil
 }
 
+// upgradeOptions holds parameters for runUpgradeCommand.
+type upgradeOptions struct {
+	ctx                  context.Context
+	verbose              bool
+	workflowDir          string
+	noFix                bool
+	noCompile            bool
+	noActions            bool
+	skipExtensionUpgrade bool
+	approve              bool
+	preReleases          bool
+}
+
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool, approve bool, preReleases bool) error {
+func runUpgradeCommand(opts upgradeOptions) error {
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
-		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
+		opts.verbose, opts.workflowDir, opts.noFix, opts.noCompile, opts.noActions, opts.skipExtensionUpgrade)
 
 	// Step 0b: Ensure gh-aw extension is on the latest version.
 	// If the extension was just upgraded, re-launch the freshly-installed binary
 	// with the same flags so that all subsequent steps (e.g. lock-file compilation)
 	// use the correct new version string.  The hidden --skip-extension-upgrade flag
 	// prevents the re-launched process from entering this branch again.
-	if !skipExtensionUpgrade {
+	if !opts.skipExtensionUpgrade {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
-		upgraded, installPath, err := upgradeExtensionIfOutdated(verbose, preReleases)
+		upgraded, installPath, err := upgradeExtensionIfOutdated(opts.verbose, opts.preReleases)
 		if err != nil {
 			upgradeLog.Printf("Extension upgrade failed: %v", err)
 			return err
@@ -183,25 +206,25 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent file..."))
 	upgradeLog.Print("Updating agent file")
 
-	if err := updateAgentFiles(ctx, verbose); err != nil {
+	if err := updateAgentFiles(opts.ctx, opts.verbose); err != nil {
 		upgradeLog.Printf("Failed to update agent file: %v", err)
 		return fmt.Errorf("failed to update agent file: %w", err)
 	}
 
-	if verbose {
+	if opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent file"))
 	}
 
 	// Step 2: Apply codemods to all workflows (unless --no-fix is specified)
-	if !noFix {
+	if !opts.noFix {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying codemods to all workflows..."))
 		upgradeLog.Print("Applying codemods to all workflows")
 
 		fixConfig := FixConfig{
 			WorkflowIDs: nil, // nil means all workflows
 			Write:       true,
-			Verbose:     verbose,
-			WorkflowDir: workflowDir,
+			Verbose:     opts.verbose,
+			WorkflowDir: opts.workflowDir,
 		}
 
 		if err := RunFix(fixConfig); err != nil {
@@ -211,32 +234,32 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 		}
 	} else {
 		upgradeLog.Print("Skipping codemods (--no-fix specified)")
-		if verbose {
+		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping codemods (--no-fix specified)"))
 		}
 	}
 
 	// Step 3: Update GitHub Actions versions (unless --no-fix or --no-actions is specified)
-	if !noFix && !noActions {
+	if !opts.noFix && !opts.noActions {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating GitHub Actions versions..."))
 		upgradeLog.Print("Updating GitHub Actions versions")
 
-		if err := UpdateActions(ctx, false, verbose, false, 0); err != nil {
+		if err := UpdateActions(opts.ctx, false, opts.verbose, false, 0); err != nil {
 			upgradeLog.Printf("Failed to update actions: %v", err)
 			// Don't fail the upgrade if action updates fail - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions: %v", err)))
-		} else if verbose {
+		} else if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated GitHub Actions versions"))
 		}
 	} else {
-		if noFix {
+		if opts.noFix {
 			upgradeLog.Print("Skipping action updates (--no-fix specified)")
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping action updates (--no-fix specified)"))
 			}
-		} else if noActions {
+		} else if opts.noActions {
 			upgradeLog.Print("Skipping action updates (--no-actions specified)")
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping action updates (--no-actions specified)"))
 			}
 		}
@@ -246,44 +269,44 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 	// Container pins are stored alongside action pins in .github/aw/actions-lock.json.
 	// Running this before compilation means the next compile step will embed the
 	// pinned @sha256: references in the generated lock files.
-	if !noFix && !noActions {
+	if !opts.noFix && !opts.noActions {
 		upgradeLog.Print("Updating container image digest pins")
-		if err := UpdateContainerPins(ctx, workflowDir, verbose); err != nil {
+		if err := UpdateContainerPins(opts.ctx, opts.workflowDir, opts.verbose); err != nil {
 			upgradeLog.Printf("Failed to update container pins: %v", err)
 			// Non-critical — Docker may not be available in all environments.
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
-		} else if verbose {
+		} else if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated container image pins"))
 		}
 	}
 
 	// Step 4: Compile all workflows (unless --no-fix or --no-compile is specified)
-	if !noFix && !noCompile {
+	if !opts.noFix && !opts.noCompile {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows..."))
 		upgradeLog.Print("Compiling all workflows")
 
 		// Create and configure compiler
 		compiler := createAndConfigureCompiler(CompileConfig{
-			Verbose:     verbose,
-			WorkflowDir: workflowDir,
-			Approve:     approve,
+			Verbose:     opts.verbose,
+			WorkflowDir: opts.workflowDir,
+			Approve:     opts.approve,
 		})
 
 		// Determine workflow directory
-		workflowsDir := workflowDir
+		workflowsDir := opts.workflowDir
 		if workflowsDir == "" {
 			workflowsDir = constants.GetWorkflowDir()
 		}
 
 		// Compile all workflow files
-		stats, compileErr := compileAllWorkflowFiles(ctx, compiler, workflowsDir, verbose)
+		stats, compileErr := compileAllWorkflowFiles(opts.ctx, compiler, workflowsDir, opts.verbose)
 		if compileErr != nil {
 			upgradeLog.Printf("Failed to compile workflows: %v", compileErr)
 			// Don't fail the upgrade if compilation fails - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to compile workflows: %v", compileErr)))
 		} else if stats != nil {
 			// Print compilation summary
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Compiled %d workflow(s)", stats.Total-stats.Errors)))
 			}
 			if stats.Errors > 0 {
@@ -291,14 +314,14 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 			}
 		}
 	} else {
-		if noFix {
+		if opts.noFix {
 			upgradeLog.Print("Skipping compilation (--no-fix specified)")
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping compilation (--no-fix specified)"))
 			}
-		} else if noCompile {
+		} else if opts.noCompile {
 			upgradeLog.Print("Skipping compilation (--no-compile specified)")
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping compilation (--no-compile specified)"))
 			}
 		}

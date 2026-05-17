@@ -97,6 +97,11 @@ type CheckoutConfig struct {
 	// When true, the effective repository becomes "{repository}.wiki" (e.g. "owner/repo.wiki").
 	// Defaults to false.
 	Wiki bool `json:"wiki,omitempty"`
+
+	// CleanGitCredentials keeps actions/checkout credential persistence enabled and
+	// injects a follow-up cleanup step that removes credentials from git config files
+	// (including submodule configs) without using git submodule foreach.
+	CleanGitCredentials bool `json:"force-clean-git-credentials,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.
@@ -122,6 +127,7 @@ type resolvedCheckout struct {
 	lfs            bool
 	current        bool     // true if this checkout is the logical current repository
 	fetchRefs      []string // merged fetch ref patterns (see CheckoutConfig.Fetch)
+	cleanCreds     bool     // true enables persist-credentials + injected cleanup step
 	// wiki is intentionally not stored here; use entry.key.wiki instead.
 }
 
@@ -259,6 +265,9 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if len(cfg.Fetch) > 0 {
 			entry.fetchRefs = mergeFetchRefs(entry.fetchRefs, cfg.Fetch)
 		}
+		if cfg.CleanGitCredentials {
+			entry.cleanCreds = true
+		}
 		checkoutManagerLog.Printf("Merged checkout for path=%q repository=%q", key.path, key.repository)
 	} else {
 		entry := &resolvedCheckout{
@@ -270,6 +279,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 			submodules: cfg.Submodules,
 			lfs:        cfg.LFS,
 			current:    cfg.Current,
+			cleanCreds: cfg.CleanGitCredentials,
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)

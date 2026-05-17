@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.6  
+**Version**: 1.0.9  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -24,20 +24,21 @@ This specification is the source of truth for detection rule coverage, implement
 
 This is a Candidate Recommendation specification. It may be revised based on operational evidence, threat-model updates, and conformance results.
 
-**Publication Date**: May 15, 2026  
+**Publication Date**: May 17, 2026  
 **Governance**: This specification is maintained by the gh-aw maintainers and governed by gh-aw security review processes.
 
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
-2. [Conformance](#2-conformance)
-3. [Threat Detection Rule Model](#3-threat-detection-rule-model)
-4. [Normative Rule Requirements](#4-normative-rule-requirements)
-5. [Daily Optimizer Maintenance Protocol](#5-daily-optimizer-maintenance-protocol)
-6. [Implementation Mapping](#6-implementation-mapping)
-7. [Compliance Testing](#7-compliance-testing)
-8. [References](#8-references)
-9. [Change Log](#9-change-log)
+2. [Spec-to-Implementation Sync](#2-spec-to-implementation-sync)
+3. [Conformance](#3-conformance)
+4. [Threat Detection Rule Model](#4-threat-detection-rule-model)
+5. [Normative Rule Requirements](#5-normative-rule-requirements)
+6. [Daily Optimizer Maintenance Protocol](#6-daily-optimizer-maintenance-protocol)
+7. [Implementation Mapping](#7-implementation-mapping)
+8. [Compliance Testing](#8-compliance-testing)
+9. [References](#9-references)
+10. [Change Log](#10-change-log)
 
 ---
 
@@ -71,23 +72,36 @@ This specification does NOT cover:
 
 ---
 
-## 2. Conformance
+## 2. Spec-to-Implementation Sync
 
-An implementation conforms to this specification if it satisfies all MUST requirements in Sections 3-7.
+This section anchors the specification version to the minimum gh-aw binary version expected to implement it and to the lock-file behavior that must remain compatible.
 
-### 2.1 Conformance Targets
+| Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
+|--------------|------------------------------|-------------------------------|
+| `1.0.9` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). Top-level `sandbox: false` is no longer a valid workflow input; `sandbox.agent: false` is the supported field for CTR-004 detection. |
+| `1.0.8` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). |
+
+When this specification version changes, maintainers MUST update this table in the same pull request as any lock-file compatibility changes.
+
+---
+
+## 3. Conformance
+
+An implementation conforms to this specification if it satisfies all MUST requirements in Sections 4-8.
+
+### 3.1 Conformance Targets
 
 - Compiler source in `pkg/workflow/`
 - Related schema/validation sources in `pkg/parser/` and `actions/setup/` where applicable
 - Daily optimizer workflow that enforces ongoing coverage
 
-### 2.2 Requirement Keywords
+### 3.2 Requirement Keywords
 
 The key words **MUST**, **MUST NOT**, **SHALL**, **SHOULD**, and **MAY** are to be interpreted as described in RFC 2119.
 
 ---
 
-## 3. Threat Detection Rule Model
+## 4. Threat Detection Rule Model
 
 Each rule SHALL be represented with:
 
@@ -102,9 +116,9 @@ Rule definitions SHOULD remain implementation-agnostic while preserving testabil
 
 ---
 
-## 4. Normative Rule Requirements
+## 5. Normative Rule Requirements
 
-### 4.1 Core Rule Catalog
+### 5.1 Core Rule Catalog
 
 A conforming implementation MUST include detection coverage for at least the following rules:
 
@@ -124,8 +138,10 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-014 Supply Chain Attack via Install Scripts**: Detect when `run-install-scripts: true` is configured in workflow frontmatter (globally or per-runtime); warn in non-strict mode and reject in strict mode to protect against malicious npm pre/post install hooks that can exfiltrate secrets or corrupt the runner environment.
 - **CTR-015 Allowed Label Glob Scope**: Detect bare `*` wildcard patterns in `safe-outputs.*.allowed-labels` fields (`create-issue`, `create-discussion`, `update-discussion`, `create-pull-request`, `merge-pull-request`); reject compilation when such a pattern is present because it renders the label restriction ineffective and may allow the agent to apply labels that trigger unintended label-driven automation in the repository.
 - **CTR-016 Compile-Time Manifest Drift**: Detect when recompilation of an existing workflow would introduce new secrets or unapproved action references beyond what was previously approved in the lock file manifest; reject compilation when new restricted secrets or previously-absent action references appear, preventing adversarial workflow sources or prompt-injection from silently expanding the workflow's trust surface during routine updates.
+- **CTR-017 Secret Leakage via Environment Variables**: Detect secrets expressions (`${{ secrets.* }}`) in the top-level `env:` section, in `engine.env` (excluding allowed engine-required vars), and in custom step fields (`pre-steps`, `steps`, `pre-agent-steps`, `post-steps`) outside controlled `env:` bindings and `with:` inputs for `uses:` action steps; these placements expose secrets to the agent container environment. Warn in non-strict mode; reject in strict mode.
+- **CTR-018 Version Integrity Bypass**: Detect `check-for-updates: false` in workflow frontmatter, which disables the compile-agentic version update check that ensures the workflow was compiled with a supported version of gh-aw. Warn in non-strict mode; reject in strict mode.
 
-### 4.2 Compiler Response Requirements
+### 5.2 Compiler Response Requirements
 
 For each triggered rule, the compiler MUST:
 
@@ -134,7 +150,7 @@ For each triggered rule, the compiler MUST:
 3. Emit actionable remediation guidance.
 4. Include stable identifiers so tests can assert rule behavior.
 
-### 4.3 Rule Lifecycle Requirements
+### 5.3 Rule Lifecycle Requirements
 
 When a new threat class is identified:
 
@@ -148,16 +164,16 @@ When a compiler feature that a `CTR-*` rule depends on is removed, the rule MUST
 - The rule's status MUST be updated to `Deprecated` in this specification in the same change set as the implementation removal.
 - The rule catalog entry MUST be retained (not deleted) with a deprecation notice indicating the version in which the rule was retired and the reason.
 - All test IDs mapped to the deprecated rule in Section 7 MUST be marked as `[DEPRECATED]` and MUST NOT be required for conformance after the deprecation version.
-- The implementation mapping in Section 6.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
+- The implementation mapping in Section 7.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
 - A change-log entry MUST document the deprecation with the rule ID, deprecation version, and rationale.
 
 ---
 
-## 5. Daily Optimizer Maintenance Protocol
+## 6. Daily Optimizer Maintenance Protocol
 
 A daily optimizer process MUST execute threat coverage reconciliation.
 
-### 5.1 Daily Inputs
+### 6.1 Daily Inputs
 
 The optimizer MUST inspect at least:
 
@@ -166,7 +182,7 @@ The optimizer MUST inspect at least:
 - Open and recent security findings (issues, PRs, and code scanning context where available)
 - Current rule catalog in this specification
 
-### 5.2 Daily Decision Procedure
+### 6.2 Daily Decision Procedure
 
 For each discovered or candidate threat:
 
@@ -174,16 +190,36 @@ For each discovered or candidate threat:
 2. If covered, update the specification (rule catalog/mapping/tests references).
 3. If uncovered, implement detection/remediation in compiler code and tests, then update the specification.
 
-### 5.3 Daily Output Requirements
+### 6.3 Daily Output Requirements
 
 The optimizer MUST produce one of:
 
 - A pull request containing required spec and/or implementation updates, or
 - A noop report explicitly stating no new threat coverage actions were required
 
+### 6.4 False-Positive Handling
+
+False positives occur when a CTR rule triggers on a workflow input that is not actually unsafe. This section defines normative norms for suppressing, auditing, and resolving false-positive detections.
+
+1. **Author suppression mechanism**: When a workflow author believes a compiler diagnostic is a false positive, they **MUST** add an inline suppression annotation in the workflow frontmatter using the `threat-detection-suppress` key. The value **MUST** be a list of objects, each with a `rule` field (the `CTR-*` identifier), a `reason` field (human-readable explanation of why the flagged pattern is safe in this context), and an optional `expires` field (ISO 8601 date after which the suppression is no longer valid). A suppression without a `reason` **MUST NOT** be accepted by the compiler; the compiler **MUST** emit a validation error if `reason` is absent or empty.
+
+2. **Audit trail requirement**: Every active suppression annotation **MUST** be recorded in the compiled lock file (`.lock.yml`) manifest section so that reviewers can audit which rules are suppressed and why. The lock file **MUST** include the full `rule`, `reason`, and `expires` values for each suppression. Suppressions absent from the lock file manifest **MUST** be treated by subsequent compilations as unapproved and re-evaluated against the current CTR rule.
+
+3. **SLA for resolution**: Suppressions marked as false positives that affect a `MUST`-level security control (as defined in Section 5.1 — specifically those rules whose compiler action is `reject` in non-strict mode) **SHOULD** be resolved within **10 business days** — either by confirming the suppression is correct and updating the rule's detection logic to eliminate the false positive, or by removing the suppression when the workflow is corrected. The daily optimizer **SHOULD** surface unresolved suppressions older than 10 business days in its daily output. A suppression **MUST** be re-evaluated and explicitly renewed if the `expires` date passes; expired suppressions **MUST** be treated by the compiler as if they do not exist.
+
+### 6.5 Threat Category Lifecycle
+
+New threat categories do not immediately become normative rules. This section defines the lifecycle stages a threat category **MUST** pass through before it is added to the CTR rule catalog in Section 5.1.
+
+1. **Experimental stage**: A threat class is identified (via security research, incident analysis, or operational observation) and a tracking issue is opened in `github/gh-aw`. An experimental prototype detection implementation **MAY** be added to the compiler behind a feature flag. The threat class **MUST NOT** appear in the normative CTR catalog while in Experimental stage; it **SHOULD** be documented in a separate scratchpad or issue thread. Experimental detections **MUST NOT** cause compilation failures in production.
+
+2. **Candidate stage**: The threat class has a concrete detection trigger, an agreed compiler action (reject, rewrite, or warn), a stable diagnostic ID reserved in a draft spec update, and at least one test case demonstrating the detection. A Candidate threat **SHOULD** be deployed behind a feature flag for a minimum of one release cycle. During Candidate stage, maintainers **MUST** collect evidence (false-positive reports, affected workflow patterns) and document findings in the tracking issue. A Candidate threat **SHOULD NOT** be promoted to Normative without at least one successful deployment in a non-strict production workflow.
+
+3. **Normative stage**: The threat class is formally added to Section 5.1 and Section 8.1 via a pull request that includes: the CTR rule definition, the implementation mapping in Section 7.1, at least one test ID in Section 8.1, and a change-log entry in Section 10. The pull request **MUST** be reviewed by at least one security-focused maintainer. Once merged, the rule **MUST** be enforced by all conforming implementations. Any feature flag used during Candidate stage **MUST** be removed in the same pull request that adds the Normative definition.
+
 ---
 
-## 6. Implementation Mapping
+## 7. Implementation Mapping
 
 This specification maps primarily to:
 
@@ -193,14 +229,14 @@ This specification maps primarily to:
 
 Implementations MUST maintain a clear mapping from each active `CTR-*` rule to concrete source locations and test coverage.
 
-### 6.1 Baseline Rule Mapping
+### 7.1 Baseline Rule Mapping
 
 | Rule ID | Primary Implementation Areas | Test Coverage Targets |
 |---------|-------------------------------|-----------------------|
 | CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go`, `pkg/workflow/github_app_permissions_validation.go` | `pkg/workflow/*permissions*_test.go`, `pkg/workflow/*dangerous_permissions*_test.go` |
 | CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*action*_test.go`, `pkg/workflow/*strict_mode*_test.go` |
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
-| CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go` | `pkg/workflow/*sandbox*_test.go` |
+| CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go` | `pkg/workflow/*sandbox*_test.go` |
 | CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go` | `pkg/workflow/*safe_outputs*_test.go` |
 | CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go`, `pkg/workflow/heredoc_validation.go` | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go` |
 | CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go` |
@@ -213,20 +249,20 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-014 Supply Chain Attack via Install Scripts | `pkg/workflow/run_install_scripts_validation.go` (`validateRunInstallScripts`, `resolveRunInstallScripts`) | `pkg/workflow/run_install_scripts_validation_test.go` |
 | CTR-015 Allowed Label Glob Scope | `pkg/workflow/safe_outputs_allowed_labels_validation.go` (`validateSafeOutputsAllowedLabelsGlobScope`) | `pkg/workflow/safe_outputs_allowed_labels_validation_test.go` |
 | CTR-016 Compile-Time Manifest Drift | `pkg/workflow/safe_update_enforcement.go` (`EnforceSafeUpdate`, `collectSecretViolations`, `collectActionViolations`, `collectRedirectViolations`), called from `pkg/workflow/compiler.go` | `pkg/workflow/safe_update_enforcement_test.go` |
+| CTR-017 Secret Leakage via Environment Variables | `pkg/workflow/strict_mode_env_validation.go` (`validateEnvSecrets`, `validateEnvSecretsSection`), `pkg/workflow/strict_mode_steps_validation.go` (`validateStepsSecrets`, `validateStepsSectionSecrets`) | `pkg/workflow/env_secrets_validation_test.go`, `pkg/workflow/jobs_secrets_validation_test.go` |
+| CTR-018 Version Integrity Bypass | `pkg/workflow/update_check_validation.go` (`validateUpdateCheck`) | `pkg/workflow/update_check_validation_test.go` |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 6.2 Mapping Audit (2026-05-15)
+### 7.2 Mapping Audit (2026-05-17)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-016` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table.
-
-Implementation note: entries that use glob patterns (for example, `pkg/workflow/*permissions*validation*.go`) SHOULD continue to be verified against concrete files during each rule update to prevent silent drift.
+Audit result: ✅ all listed `CTR-001` through `CTR-018` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. CTR-004 mapping updated to include `strict_mode_permissions_validation.go`, which is the primary enforcement site for `sandbox.agent: false` rejection in strict mode.
 
 ---
 
-## 7. Compliance Testing
+## 8. Compliance Testing
 
 A conforming implementation MUST provide tests that validate:
 
@@ -237,16 +273,16 @@ A conforming implementation MUST provide tests that validate:
 
 Test updates SHOULD be included whenever rules are added or modified.
 
-### 7.1 Test ID Catalog
+### 8.1 Test ID Catalog
 
-The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test case MUST exercise the described detection trigger and verify the expected compiler action.
+The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test case MUST exercise the described detection trigger and verify the expected compiler action.
 
 | Test ID | Rule | Detection Trigger | Expected Compiler Action | Stable Diagnostic ID |
 |---------|------|-------------------|--------------------------|----------------------|
 | **T-CTR-001** | CTR-001 Privilege Escalation | Workflow frontmatter declares `permissions: contents: write` (or another write permission) in a non-safe-outputs job without `strict: false` override | Compilation failure with error identifying the unauthorized write permission and suggesting `safe-outputs` | `CTR-001` |
 | **T-CTR-002** | CTR-002 Unpinned Action Integrity | A `jobs.*.steps[].uses` field references an action by tag (e.g., `actions/checkout@v6`) or branch name (`@main`) in strict mode | Compilation failure with error identifying the unpinned reference and providing SHA pinning instructions | `CTR-002` |
 | **T-CTR-003** | CTR-003 Unsafe Tool Scope Expansion | Workflow grants wildcard tool permissions (e.g., `tools: bash: ["*"]`) in a context where policy forbids it, or an MCP server is granted broader than declared tool scope | Compilation failure or warning identifying the overbroad scope and suggesting a restricted permission set | `CTR-003` |
-| **T-CTR-004** | CTR-004 Sandbox Bypass Configuration | Workflow configuration sets `sandbox: false` or equivalent field that disables required sandboxing | Compilation failure with error identifying the disabled sandbox control and referencing the required configuration | `CTR-004` |
+| **T-CTR-004** | CTR-004 Sandbox Bypass Configuration | Workflow configuration sets `sandbox.agent: false` in strict mode, disabling the agent sandbox firewall | Compilation failure with error identifying the disabled sandbox control and referencing the required configuration; note that the formerly supported top-level `sandbox: false` field is removed and now triggers a schema validation error rather than CTR-004 | `CTR-004` |
 | **T-CTR-005** | CTR-005 Unsafe Output Route | Workflow uses a direct write path (e.g., `contents: write` with inline shell commands) that bypasses the safe-outputs subsystem | Compilation failure with error identifying the unsafe write route and requiring use of `safe-outputs` | `CTR-005` |
 | **T-CTR-006** | CTR-006 Template Injection | A `run:` step embeds a GitHub Actions expression (`${{ github.event.issue.title }}`) directly in the shell command string without environment variable indirection | Compilation failure with error identifying the injected expression, the affected step, and providing the env-var indirection pattern | `CTR-006` |
 | **T-CTR-007** | CTR-007 Markdown Content Security | An externally-sourced markdown workflow file contains a known dangerous pattern (e.g., unicode abuse, embedded HTML script tag, obfuscated link) | Compilation failure or error identifying the detected dangerous pattern, its location in the file, and recommending sanitization | `CTR-007` |
@@ -259,18 +295,20 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 | **T-CTR-014** | CTR-014 Supply Chain Attack via Install Scripts | A workflow frontmatter sets `run-install-scripts: true` (globally or under `runtimes.node`) | Compilation warning in non-strict mode identifying the supply chain risk and advising removal of `run-install-scripts: true`; compilation failure in strict mode | `CTR-014` |
 | **T-CTR-015** | CTR-015 Allowed Label Glob Scope | A workflow frontmatter sets `safe-outputs.*.allowed-labels` to `["*"]` (bare wildcard) for any safe-output type that supports the field (`create-issue`, `create-discussion`, `update-discussion`, `create-pull-request`, `merge-pull-request`) | Compilation failure with error identifying the field name, explaining that `"*"` disables label restrictions and may permit unintended label-driven automation, and recommending specific names or narrower patterns | `CTR-015` |
 | **T-CTR-016** | CTR-016 Compile-Time Manifest Drift | An existing workflow lock file has a `gh-aw-manifest` section recording approved secrets and action references; when recompiled, the new workflow body introduces a secret not in the approved manifest (e.g., `MY_NEW_SECRET`) or a new action reference not previously recorded | Compilation failure with error identifying each new restricted secret and each added or removed action reference beyond the previously approved manifest baseline, preventing silent trust-surface expansion | `CTR-016` |
+| **T-CTR-017** | CTR-017 Secret Leakage via Environment Variables | A workflow frontmatter declares a secrets expression (e.g., `${{ secrets.MY_SECRET }}`) in the top-level `env:` section, in `engine.env` for a non-engine var, or in a custom step's `run:` field | Compilation warning in non-strict mode identifying the secrets expression and the section where it appears; compilation failure in strict mode | `CTR-017` |
+| **T-CTR-018** | CTR-018 Version Integrity Bypass | A workflow frontmatter sets `check-for-updates: false` | Compilation warning in non-strict mode identifying the disabled version check and advising removal; compilation failure in strict mode | `CTR-018` |
 
-### 7.2 Test Coverage Requirements
+### 8.2 Test Coverage Requirements
 
-- Each active CTR rule MUST have at least one test ID in Section 7.1 that covers the primary detection trigger.
+- Each active CTR rule MUST have at least one test ID in Section 8.1 that covers the primary detection trigger.
 - Tests MUST be deterministic: given the same malicious or unsafe input, the compiler MUST always emit the same diagnostic.
 - Tests MUST assert the stable diagnostic ID (e.g., `CTR-006`) appears in the compiler error output so that CI can mechanically verify rule coverage.
-- When a new rule is added to Section 4.1, at least one new test ID MUST be added to Section 7.1 in the same change set.
-- When a rule is deprecated per Section 4.3.1, its test IDs MUST be marked `[DEPRECATED]` and removed from the required compliance gate.
+- When a new rule is added to Section 5.1, at least one new test ID MUST be added to Section 8.1 in the same change set.
+- When a rule is deprecated per Section 5.3.1, its test IDs MUST be marked `[DEPRECATED]` and removed from the required compliance gate.
 
 ---
 
-## 8. References
+## 9. References
 
 - RFC 2119: Key words for use in RFCs to Indicate Requirement Levels
 - GitHub Actions syntax and permissions documentation
@@ -278,31 +316,50 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 
 ---
 
-## 9. Change Log
+## 10. Change Log
+
+### 1.0.9 (2026-05-17)
+
+- Updated T-CTR-004 detection trigger from deprecated `sandbox: false` (removed field) to `sandbox.agent: false` in strict mode; noted that the old top-level `sandbox: false` now triggers a schema validation error rather than CTR-004
+- Extended CTR-004 implementation mapping with `strict_mode_permissions_validation.go`, which is the concrete enforcement site for `sandbox.agent: false` rejection in strict mode
+- Updated Section 7.2 mapping audit timestamp and notes to reflect the CTR-004 mapping correction
+
+### 1.0.8 (2026-05-16)
+
+- Added CTR-018 Version Integrity Bypass (warn/reject when `check-for-updates: false` disables the compile-agentic version update check; implemented in `update_check_validation.go`)
+- Added T-CTR-018 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-018 implementation references (`update_check_validation.go`)
+
+### 1.0.7 (2026-05-16)
+
+- Added CTR-017 Secret Leakage via Environment Variables (warn/reject when secrets expressions appear in top-level `env:`, `engine.env`, or in uncontrolled custom step fields; implemented in `strict_mode_env_validation.go` and `strict_mode_steps_validation.go`)
+- Added T-CTR-017 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-017 implementation references (`strict_mode_env_validation.go`, `strict_mode_steps_validation.go`)
+- Updated mapping audit note to cover CTR-001 through CTR-018
 
 ### 1.0.6 (2026-05-15)
 
 - Added CTR-016 Compile-Time Manifest Drift (compilation rejection when recompilation of an existing workflow would introduce new restricted secrets or unapproved action references beyond the previously approved lock file manifest baseline; detected by `EnforceSafeUpdate` in `safe_update_enforcement.go`, called from `compiler.go`)
-- Added T-CTR-016 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-016 implementation references (`safe_update_enforcement.go`, `compiler.go`)
+- Added T-CTR-016 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-016 implementation references (`safe_update_enforcement.go`, `compiler.go`)
 
 ### 1.0.5 (2026-05-14)
 
 - Added CTR-015 Allowed Label Glob Scope (compilation error when `safe-outputs.*.allowed-labels` contains a bare `"*"` wildcard that effectively disables label restrictions and may permit unintended label-driven automation; triggered by the new glob pattern support for `allowed-labels` introduced in gh-aw #32027)
-- Added T-CTR-015 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-015 implementation references (`safe_outputs_allowed_labels_validation.go`)
+- Added T-CTR-015 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-015 implementation references (`safe_outputs_allowed_labels_validation.go`)
 
 ### 1.0.4 (2026-05-13)
 
 - Added CTR-014 Supply Chain Attack via Install Scripts (warn/reject when `run-install-scripts: true` is configured; protects against malicious npm pre/post install hooks)
-- Added T-CTR-014 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-014 implementation references (`run_install_scripts_validation.go`)
+- Added T-CTR-014 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-014 implementation references (`run_install_scripts_validation.go`)
 
 ### 1.0.3 (2026-05-11)
 
 - Added CTR-013 Argument Injection via Package/Image Names (hyphen-prefix package/image name rejection for npm/npx, pip/uv, and Docker to prevent exec.Command argument injection)
-- Added T-CTR-013 test ID entry in Section 7.1
-- Extended Section 6.1 baseline rule mapping table with CTR-013 implementation references
+- Added T-CTR-013 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-013 implementation references
 
 ### 1.0.2 (2026-05-09)
 
@@ -311,7 +368,7 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 - Extended CTR-006 mapping with `heredoc_validation.go` (heredoc delimiter injection defense)
 - Extended CTR-010 mapping with `expression_syntax_validation.go` (structural expression syntax validation)
 - Extended CTR-011 rule description and mapping with `strict_mode_network_validation.go` (wildcard domain rejection in strict mode)
-- Updated Section 6.1 baseline rule mapping table for CTR-001, CTR-006, CTR-010, CTR-011, and CTR-012
+- Updated Section 7.1 baseline rule mapping table for CTR-001, CTR-006, CTR-010, CTR-011, and CTR-012
 
 ### 1.0.1 (2026-05-08)
 
@@ -322,7 +379,7 @@ The following test IDs map one-to-one to the CTR rules in Section 4.1. Each test
 - Added CTR-009 Shell Expansion in Safe-Outputs (dangerous bash expansion detection at compile time)
 - Added CTR-010 Expression Safety Allowlist (approved expression enforcement, multi-line rejection)
 - Added CTR-011 Network Firewall Configuration (firewall dependency and domain pattern validation)
-- Updated Section 6.1 baseline rule mapping table with concrete file references for CTR-006 through CTR-011
+- Updated Section 7.1 baseline rule mapping table with concrete file references for CTR-006 through CTR-011
 
 ### 1.0.0 (2026-05-06)
 

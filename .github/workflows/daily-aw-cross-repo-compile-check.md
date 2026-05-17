@@ -43,9 +43,7 @@ network:
     - go
 imports:
   - shared/reporting.md
-  - shared/otel.md
-
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Daily AW Cross-Repo Compilation Agent

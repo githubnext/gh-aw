@@ -39,6 +39,14 @@ type activationJobBuildContext struct {
 	customJobsBeforeActivation []string
 	activationNeeds            []string
 	activationCondition        string
+
+	// activationAllScripts holds the `run` scripts extracted from jobs.activation.pre-steps,
+	// cached to avoid repeated extraction. Only pre-steps are honored for built-in jobs;
+	// jobs.activation.steps and jobs.activation.post-steps are not injected by the compiler.
+	activationAllScripts []string
+	// activationInferredPerms holds the permissions inferred from activationAllScripts,
+	// cached here to avoid repeated inference.
+	activationInferredPerms map[PermissionScope]PermissionLevel
 }
 
 // newActivationJobBuildContext initializes activation-job state with setup, aw_info, and base outputs.
@@ -48,8 +56,10 @@ func (c *Compiler) newActivationJobBuildContext(
 	workflowRunRepoSafety string,
 	lockFilename string,
 ) (*activationJobBuildContext, error) {
+	compilerActivationJobLog.Printf("Initializing activation job build context: pre_activation=%t, lock=%s", preActivationJobCreated, lockFilename)
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
+		compilerActivationJobLog.Print("Failed to resolve setup action reference for activation job")
 		return nil, errors.New("failed to resolve setup action reference; ensure ./actions/setup exists and is accessible")
 	}
 
@@ -72,6 +82,19 @@ func (c *Compiler) newActivationJobBuildContext(
 		needsAppTokenForAccess:   data.ActivationGitHubApp != nil && !data.StaleCheckDisabled,
 	}
 	ctx.shouldRemoveLabel = ctx.hasLabelCommand && data.LabelCommandRemoveLabel
+
+	// Cache scripts from pre-steps and inferred permissions once to avoid redundant
+	// extraction and inference calls in buildActivationPermissions and
+	// addActivationFeedbackAndValidationSteps.
+	// Only pre-steps are honored for built-in jobs: applyBuiltinJobPreSteps (compiler_jobs.go)
+	// inserts only jobs.<name>.pre-steps; jobs.<name>.steps and jobs.<name>.post-steps are
+	// ignored for built-in jobs, so scanning them would cause false-positive errors or
+	// unneeded permission grants.
+	activationJobName := string(constants.ActivationJobName)
+	ctx.activationAllScripts = extractRunScriptsFromJobSection(data.Jobs, activationJobName, "pre-steps")
+	if len(ctx.activationAllScripts) > 0 {
+		ctx.activationInferredPerms = inferPermissionsFromShellScripts(ctx.activationAllScripts)
+	}
 
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(data)...)
 	activationSetupTraceID := ""
@@ -131,19 +154,23 @@ func (c *Compiler) newActivationJobBuildContext(
 // addActivationFeedbackAndValidationSteps appends token minting, reactions, secret validation, and guidance.
 func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Adding activation feedback/validation steps: reaction=%t, status_comment=%t, remove_label=%t, app_token_for_access=%t",
+		ctx.hasReaction, ctx.hasStatusComment, ctx.shouldRemoveLabel, ctx.needsAppTokenForAccess)
 	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess) {
 		appPerms := NewPermissions()
 		addActivationInteractionPermissions(
 			appPerms,
-			data.On,
-			ctx.hasReaction,
-			ctx.reactionIssues,
-			ctx.reactionPullRequests,
-			ctx.reactionDiscussions,
-			ctx.hasStatusComment,
-			ctx.statusCommentIssues,
-			ctx.statusCommentPRs,
-			ctx.statusCommentDiscussions,
+			activationInteractionPermissionsOptions{
+				onSection:                         data.On,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+			},
 		)
 		if ctx.shouldRemoveLabel {
 			if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
@@ -155,6 +182,17 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		}
 		if ctx.needsAppTokenForAccess {
 			appPerms.Set(PermissionContents, PermissionRead)
+		}
+		// Add GitHub App-only permissions inferred from activation job gh CLI commands so the
+		// minted App token includes the scopes those commands require (e.g. codespaces: read
+		// for `gh codespace list`).  Only App-only scopes are passed here — standard GitHub
+		// Actions scopes (pull-requests, issues, etc.) are already covered by the GITHUB_TOKEN
+		// permissions block and do not need to be re-declared on the App token.
+		// Uses the cached inferred permissions to avoid redundant computation.
+		for scope, level := range ctx.activationInferredPerms {
+			if IsGitHubAppOnlyScope(scope) {
+				appPerms.Set(scope, level)
+			}
 		}
 		ctx.steps = append(ctx.steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
 		ctx.outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
@@ -206,6 +244,8 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 // addActivationRepositoryAndOutputSteps appends checkout, validation, sanitization, comment, and lock steps.
 func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Adding activation repository/output steps: stale_check_disabled=%t, needs_text_output=%t, lock_for_agent=%t",
+		data.StaleCheckDisabled, data.NeedsTextOutput, data.LockForAgent)
 
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	ctx.steps = append(ctx.steps, checkoutSteps...)
@@ -405,6 +445,7 @@ func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildCo
 // This helper mutates the context but only derives values from workflow data and has no error paths.
 func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildContext) {
 	data := ctx.data
+	compilerActivationJobLog.Printf("Configuring activation needs and condition: pre_activation=%t, has_if=%t", ctx.preActivationJob, data.If != "")
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
 	for _, jobName := range data.OnNeeds {
 		if !slices.Contains(customJobsBeforeActivation, jobName) {
@@ -483,25 +524,25 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 }
 
 // buildActivationPermissions builds activation job permissions from workflow features and selected interactions.
-func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) string {
+// Returns an error if any activation job step section contains write gh CLI commands that would require write permissions.
+func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (string, error) {
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
 	if !ctx.data.StaleCheckDisabled {
 		permsMap[PermissionActions] = PermissionRead
 	}
-	addActivationInteractionPermissionsMap(
-		permsMap,
-		ctx.data.On,
-		ctx.hasReaction,
-		ctx.reactionIssues,
-		ctx.reactionPullRequests,
-		ctx.reactionDiscussions,
-		ctx.hasStatusComment,
-		ctx.statusCommentIssues,
-		ctx.statusCommentPRs,
-		ctx.statusCommentDiscussions,
-	)
+	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
+		onSection:                         ctx.data.On,
+		hasReaction:                       ctx.hasReaction,
+		reactionIncludesIssues:            ctx.reactionIssues,
+		reactionIncludesPullRequests:      ctx.reactionPullRequests,
+		reactionIncludesDiscussions:       ctx.reactionDiscussions,
+		hasStatusComment:                  ctx.hasStatusComment,
+		statusCommentIncludesIssues:       ctx.statusCommentIssues,
+		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+	})
 	// For centralized slash_command workflows, the compiled "on" section only contains
 	// workflow_dispatch, so addActivationInteractionPermissionsMap above cannot detect the
 	// original event types and skips write permissions. Supplement with a synthetic section
@@ -509,18 +550,17 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 	if ctx.data.CommandCentralized && (ctx.hasReaction || ctx.hasStatusComment) {
 		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
 		if syntheticOn != "" {
-			addActivationInteractionPermissionsMap(
-				permsMap,
-				syntheticOn,
-				ctx.hasReaction,
-				ctx.reactionIssues,
-				ctx.reactionPullRequests,
-				ctx.reactionDiscussions,
-				ctx.hasStatusComment,
-				ctx.statusCommentIssues,
-				ctx.statusCommentPRs,
-				ctx.statusCommentDiscussions,
-			)
+			addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
+				onSection:                         syntheticOn,
+				hasReaction:                       ctx.hasReaction,
+				reactionIncludesIssues:            ctx.reactionIssues,
+				reactionIncludesPullRequests:      ctx.reactionPullRequests,
+				reactionIncludesDiscussions:       ctx.reactionDiscussions,
+				hasStatusComment:                  ctx.hasStatusComment,
+				statusCommentIncludesIssues:       ctx.statusCommentIssues,
+				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+			})
 		}
 	}
 	if ctx.data.LockForAgent {
@@ -534,7 +574,27 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
-	return NewPermissionsFromMap(permsMap).RenderToYAML()
+	// Infer permissions required by gh CLI calls in jobs.activation step sections
+	// (pre-steps, steps, post-steps). This ensures that user-defined steps that call
+	// `gh pr diff`, `gh issue view`, etc. get the permissions they need without requiring
+	// manual permission declarations.
+	// Scripts and inferred permissions are cached in ctx to avoid redundant computation.
+	if len(ctx.activationAllScripts) > 0 {
+		// Detect write commands first — these are not permitted in the activation job
+		// because it intentionally operates with read-only permissions.
+		if writeCmds := detectWriteCommandsInShellScripts(ctx.activationAllScripts); len(writeCmds) > 0 {
+			return "", fmt.Errorf(
+				"activation job uses write gh command(s) [%s]; write operations are not permitted in activation job steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs. See: https://github.github.com/gh-aw/reference/safe-outputs/",
+				strings.Join(writeCmds, ", "),
+			)
+		}
+		for scope, level := range ctx.activationInferredPerms {
+			if _, exists := permsMap[scope]; !exists {
+				permsMap[scope] = level
+			}
+		}
+	}
+	return NewPermissionsFromMap(permsMap).RenderToYAML(), nil
 }
 
 // buildActivationEnvironment returns manual-approval environment YAML, with ANSI removed.
@@ -542,5 +602,6 @@ func (c *Compiler) buildActivationEnvironment(ctx *activationJobBuildContext) st
 	if ctx.data.ManualApproval == "" {
 		return ""
 	}
+	compilerActivationJobLog.Print("Activation job uses manual-approval environment gate")
 	return "environment: " + stringutil.StripANSI(ctx.data.ManualApproval)
 }

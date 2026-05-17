@@ -11,6 +11,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { isStagedMode, logStagedPreviewInfo } = require("./safe_output_helpers.cjs");
+const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -31,6 +32,12 @@ async function main(config = {}) {
   const buffer = config._prReviewBuffer;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
+  let allowedMentionAliases = [];
+  if (Array.isArray(config.allowedMentionAliases)) {
+    allowedMentionAliases = config.allowedMentionAliases;
+  } else if (config.mentions != null) {
+    allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions);
+  }
 
   if (!buffer) {
     core.warning("create_pull_request_review_comment: No PR review buffer provided in config");
@@ -295,7 +302,7 @@ async function main(config = {}) {
     const bufferedComment = {
       path: commentItem.path,
       line: line,
-      body: sanitizeContent(commentItem.body.trim()),
+      body: sanitizeContent(commentItem.body.trim(), { allowedAliases: allowedMentionAliases }),
       side: side,
     };
 

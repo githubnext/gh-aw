@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -256,6 +258,115 @@ func TestAddCommentsConfigAllowedReasons(t *testing.T) {
 			} else {
 				if len(config.AllowedReasons) != 0 {
 					t.Errorf("Expected empty AllowedReasons, got %v", config.AllowedReasons)
+				}
+			}
+		})
+	}
+}
+
+// TestAddCommentMentionsInHandlerConfig verifies that when safe-outputs.mentions.allowed
+// is configured, the top-level "mentions" key is present in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+// so that safe_output_handler_manager.cjs can pass it through to the add_comment handler
+// and prevent configured usernames from being escaped as @mentions.
+func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		wantMentions   map[string]any // nil means no "mentions" key expected
+		wantNoMentions bool
+	}{
+		{
+			name: "mentions.allowed propagates to handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+				Mentions: &MentionsConfig{
+					Allowed: []string{"copilot"},
+				},
+			},
+			wantMentions: map[string]any{
+				"allowed": []any{"copilot"},
+			},
+		},
+		{
+			name: "mentions.enabled=false propagates to handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+				Mentions: &MentionsConfig{
+					Enabled: boolPtr(false),
+				},
+			},
+			wantMentions: map[string]any{
+				"enabled": false,
+			},
+		},
+		{
+			name: "no mentions config omits mentions from handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+			},
+			wantNoMentions: true,
+		},
+		{
+			name: "mentions without add_comment still included in handler config",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Mentions: &MentionsConfig{
+					Allowed: []string{"copilot"},
+				},
+			},
+			wantMentions: map[string]any{
+				"allowed": []any{"copilot"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:        "Test",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			if err != nil {
+				t.Fatalf("buildHandlerManagerStep returned error: %v", err)
+			}
+
+			// Extract and parse the HANDLER_CONFIG JSON using the shared helper which
+			// properly unquotes the %q-encoded YAML value.
+			config := extractHandlerConfig(t, strings.Join(steps, ""))
+
+			if tt.wantNoMentions {
+				if _, ok := config["mentions"]; ok {
+					t.Error("expected no 'mentions' key in handler config, but it was present")
+				}
+				return
+			}
+
+			mentionsRaw, ok := config["mentions"]
+			if !ok {
+				t.Fatal("expected 'mentions' key in handler config, but it was absent")
+			}
+			mentionsJSON, err := json.Marshal(mentionsRaw)
+			if err != nil {
+				t.Fatalf("failed to marshal mentions config: %v", err)
+			}
+			var got map[string]any
+			if err := json.Unmarshal(mentionsJSON, &got); err != nil {
+				t.Fatalf("failed to unmarshal mentions config: %v", err)
+			}
+			for k, wantVal := range tt.wantMentions {
+				gotVal, exists := got[k]
+				if !exists {
+					t.Errorf("mentions config missing key %q", k)
+					continue
+				}
+				wantJSON, _ := json.Marshal(wantVal)
+				gotJSON, _ := json.Marshal(gotVal)
+				if string(wantJSON) != string(gotJSON) {
+					t.Errorf("mentions[%q]: want %s, got %s", k, wantJSON, gotJSON)
 				}
 			}
 		})

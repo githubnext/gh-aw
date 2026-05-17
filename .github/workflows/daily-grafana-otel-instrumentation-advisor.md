@@ -43,7 +43,7 @@ imports:
       expires: 3d
 
   - shared/otel-queries.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Daily Grafana OTel Instrumentation Advisor

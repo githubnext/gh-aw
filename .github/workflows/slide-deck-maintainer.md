@@ -28,7 +28,7 @@ imports:
     with:
       title-prefix: "[slides] "
       expires: "1d"
-  - shared/observability-otlp.md
+  - shared/otlp.md
 timeout-minutes: 45
 tools:
   cli-proxy: true

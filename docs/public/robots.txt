@@ -86,4 +86,4 @@ Allow: /
 User-agent: Diffbot
 Allow: /
 
-Sitemap: https://github.github.com/gh-aw/sitemap-index.xml
+Sitemap: https://github.github.com/gh-aw/sitemap.xml

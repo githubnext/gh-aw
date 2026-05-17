@@ -11,6 +11,7 @@ import (
 // If the repository already ends with ".wiki" it is returned unchanged to prevent double-suffixing.
 func wikiRepository(repository string) string {
 	if repository == "" {
+		checkoutManagerLog.Print("Wiki checkout using default current repository")
 		return "${{ github.repository }}.wiki"
 	}
 	if strings.HasSuffix(repository, ".wiki") {
@@ -27,6 +28,7 @@ func wikiRepository(repository string) string {
 // The step ID for each checkout is "checkout-app-token-{index}" where index is
 // the position in the ordered checkout list.
 func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permissions *Permissions) []string {
+	checkoutManagerLog.Printf("Building app token minting steps for %d checkout entries", len(cm.ordered))
 	var steps []string
 	for i, entry := range cm.ordered {
 		if entry.githubApp == nil {
@@ -54,6 +56,7 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 // The tokens were minted in the agent job and are referenced via
 // steps.checkout-app-token-{index}.outputs.token.
 func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler) []string {
+	checkoutManagerLog.Printf("Building app token invalidation steps for %d checkout entries", len(cm.ordered))
 	var steps []string
 	for i, entry := range cm.ordered {
 		if entry.githubApp == nil {
@@ -161,9 +164,14 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
 
-	// Security: always disable credential persistence so the agent cannot
-	// exfiltrate credentials from disk.
-	sb.WriteString("          persist-credentials: false\n")
+	cleanCreds := override != nil && override.cleanCreds
+	if cleanCreds {
+		sb.WriteString("          persist-credentials: true\n")
+	} else {
+		// Security: default behavior disables credential persistence so the agent cannot
+		// exfiltrate credentials from disk.
+		sb.WriteString("          persist-credentials: false\n")
+	}
 
 	// Apply trial mode overrides
 	if trialMode {
@@ -218,6 +226,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	}
 
 	steps := []string{sb.String()}
+	if cleanCreds {
+		steps = append(steps, generateCheckoutCredentialsCleanupStep())
+	}
 
 	// Emit a git fetch step if the user requested additional refs.
 	// In trial mode the fetch step is still emitted so the behaviour
@@ -247,8 +258,12 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
 	sb.WriteString("        with:\n")
 
-	// Security: always disable credential persistence
-	sb.WriteString("          persist-credentials: false\n")
+	if entry.cleanCreds {
+		sb.WriteString("          persist-credentials: true\n")
+	} else {
+		// Security: default behavior disables credential persistence
+		sb.WriteString("          persist-credentials: false\n")
+	}
 
 	if entry.key.wiki {
 		// Wiki checkout: use "{repository}.wiki" as the effective repository.
@@ -289,10 +304,20 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	}
 
 	steps := []string{sb.String()}
+	if entry.cleanCreds {
+		steps = append(steps, generateCheckoutCredentialsCleanupStep())
+	}
 	if fetchStep := generateFetchStepLines(entry, index); fetchStep != "" {
 		steps = append(steps, fetchStep)
 	}
 	return steps
+}
+
+func generateCheckoutCredentialsCleanupStep() string {
+	return `      - name: Clean git credentials after checkout
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh"
+`
 }
 
 // checkoutStepName returns a human-readable description for a checkout step.
@@ -320,8 +345,10 @@ func checkoutStepName(key checkoutKey) string {
 func fetchRefToRefspec(pattern string) string {
 	switch pattern {
 	case "*":
+		checkoutManagerLog.Print("Fetch refspec: wildcard expanded to all branches")
 		return "+refs/heads/*:refs/remotes/origin/*"
 	case "refs/pulls/open/*":
+		checkoutManagerLog.Print("Fetch refspec: open PRs pattern expanded")
 		return "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
 	default:
 		// Treat as branch name or glob: map to remote tracking ref

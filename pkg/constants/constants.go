@@ -134,6 +134,10 @@ const (
 // Defaults to false (lockdown disabled).
 const DefaultGitHubLockdown = false
 
+// OTELSentryEndpointSecretName is the well-known secret name used by shared OTLP
+// workflow imports for Sentry endpoint configuration.
+const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
+
 // AWF (Agentic Workflow Firewall) constants
 
 // AWFDefaultCommand is the default AWF command prefix
@@ -251,6 +255,9 @@ const DefaultToolTimeout = 60 * time.Second
 
 // DefaultMCPStartupTimeout is the default timeout for MCP server startup
 const DefaultMCPStartupTimeout = 120 * time.Second
+
+// DefaultHTTPClientTimeout is the default timeout for internal HTTP clients
+const DefaultHTTPClientTimeout = 30 * time.Second
 
 // DefaultMaxEffectiveTokens is the default ET budget enforced by the AWF API proxy.
 const DefaultMaxEffectiveTokens int64 = 25000000

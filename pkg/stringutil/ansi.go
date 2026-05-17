@@ -27,83 +27,80 @@ func StripANSI(s string) string {
 
 	i := 0
 	for i < len(s) {
-		if s[i] == '\x1b' {
-			if i+1 >= len(s) {
-				// ESC at end of string, skip it
-				i++
-				continue
-			}
-			// Found ESC character, determine sequence type
-			switch s[i+1] {
-			case '[':
-				// CSI sequence: \x1b[...final_char
-				// Parameters are in range 0x30-0x3F (0-?), intermediate chars 0x20-0x2F (space-/)
-				// Final characters are in range 0x40-0x7E (@-~)
-				i += 2 // Skip ESC and [
-				for i < len(s) {
-					if isFinalCSIChar(s[i]) {
-						i++ // Skip the final character
-						break
-					} else if isCSIParameterChar(s[i]) {
-						i++ // Skip parameter/intermediate character
-					} else {
-						// Invalid character in CSI sequence, stop processing this escape
-						break
-					}
-				}
-			case ']':
-				// OSC sequence: \x1b]...terminator
-				// Terminators: \x07 (BEL) or \x1b\\ (ST)
-				i += 2 // Skip ESC and ]
-				for i < len(s) {
-					if s[i] == '\x07' {
-						i++ // Skip BEL
-						break
-					} else if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '\\' {
-						i += 2 // Skip ESC and \
-						break
-					}
-					i++
-				}
-			case '(':
-				// G0 character set selection: \x1b(char
-				i += 2 // Skip ESC and (
-				if i < len(s) {
-					i++ // Skip the character
-				}
-			case ')':
-				// G1 character set selection: \x1b)char
-				i += 2 // Skip ESC and )
-				if i < len(s) {
-					i++ // Skip the character
-				}
-			case '=':
-				// Application keypad mode: \x1b=
-				i += 2
-			case '>':
-				// Normal keypad mode: \x1b>
-				i += 2
-			case 'c':
-				// Reset: \x1bc
-				i += 2
-			default:
-				// Other escape sequences (2-character)
-				// Handle common ones like \x1b7, \x1b8, \x1bD, \x1bE, \x1bH, \x1bM
-				if i+1 < len(s) && (s[i+1] >= '0' && s[i+1] <= '~') {
-					i += 2
-				} else {
-					// Invalid or incomplete escape sequence, just skip ESC
-					i++
-				}
-			}
-		} else {
-			// Regular character, keep it
+		if s[i] != '\x1b' {
 			result.WriteByte(s[i])
 			i++
+			continue
 		}
+		if i+1 >= len(s) {
+			i++ // ESC at end of string, skip it
+			continue
+		}
+		// Found ESC character, advance past the sequence
+		i = skipEscapeSequence(s, i)
 	}
 
 	return result.String()
+}
+
+// skipEscapeSequence advances past a complete ANSI escape sequence starting at i.
+// i must point at '\x1b' and i+1 must be within the string.
+func skipEscapeSequence(s string, i int) int {
+	switch s[i+1] {
+	case '[':
+		return skipCSISequence(s, i)
+	case ']':
+		return skipOSCSequence(s, i)
+	case '(', ')':
+		// G0/G1 character set selection: \x1b(char or \x1b)char
+		i += 2 // Skip ESC and ( or )
+		if i < len(s) {
+			i++ // Skip the charset character
+		}
+		return i
+	case '=', '>', 'c':
+		// Application keypad, normal keypad, or reset: 2-char sequences
+		return i + 2
+	default:
+		// Other 2-character escape sequences (\x1b7, \x1b8, \x1bD, etc.)
+		if s[i+1] >= '0' && s[i+1] <= '~' {
+			return i + 2
+		}
+		// Invalid or incomplete escape sequence, skip only ESC
+		return i + 1
+	}
+}
+
+// skipCSISequence advances past a CSI sequence (\x1b[...final_char).
+// Parameters are in range 0x30-0x3F, intermediate chars 0x20-0x2F, final 0x40-0x7E.
+func skipCSISequence(s string, i int) int {
+	i += 2 // Skip ESC and [
+	for i < len(s) {
+		if isFinalCSIChar(s[i]) {
+			return i + 1 // Skip the final character
+		} else if isCSIParameterChar(s[i]) {
+			i++ // Skip parameter/intermediate character
+		} else {
+			break // Invalid character, stop
+		}
+	}
+	return i
+}
+
+// skipOSCSequence advances past an OSC sequence (\x1b]...terminator).
+// Terminators: \x07 (BEL) or \x1b\\ (ST).
+func skipOSCSequence(s string, i int) int {
+	i += 2 // Skip ESC and ]
+	for i < len(s) {
+		if s[i] == '\x07' {
+			return i + 1 // Skip BEL
+		}
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '\\' {
+			return i + 2 // Skip ESC and \
+		}
+		i++
+	}
+	return i
 }
 
 // isFinalCSIChar checks if a character is a valid CSI final character

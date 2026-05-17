@@ -108,6 +108,20 @@ describe("safe_outputs_tools_loader", () => {
       expect(result[1].handler).toBeUndefined();
     });
 
+    it("should attach create_issue handler", () => {
+      const tools = [{ name: "create_issue", description: "Create issue" }];
+      const handlers = {
+        createIssueHandler: vi.fn(),
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBe(handlers.createIssueHandler);
+    });
+
     it("should attach push_to_pull_request_branch handler", () => {
       const tools = [{ name: "push_to_pull_request_branch", description: "Push to PR" }];
       const handlers = {

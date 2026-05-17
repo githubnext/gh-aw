@@ -193,6 +193,7 @@ Key implementation files referenced in the specification:
 | Rerun validation report after Appendix A update | ✅ Done (2026-05-15) | Revalidated against `specs/security-architecture-spec-validation.md`; grade remains pass with job architecture, sanitization, permissions, and threat-detection mappings verified |
 | Update summary to reflect v1.0.2 CTR-012 work | ✅ Done (2026-05-10) | Appendix count updated; security architecture remains at version 1.0.0 |
 | Audit "Next Steps" for stale v1.0.0 tasks | ✅ Done (2026-05-10) | This table replaces the stale untracked list |
+| Add spec-to-lock sync note for security summary consumers | ⏳ Pending | Add a short section mapping security spec summary version to minimum validated `.lock.yml` compiler behavior |
 
 ## Versioning
 

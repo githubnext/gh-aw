@@ -23,6 +23,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// Check if GitHub tool is present
 	githubTool, hasGitHub := data.Tools["github"]
 	if !hasGitHub || githubTool == false {
+		githubConfigLog.Print("Skipping GitHub MCP lockdown detection step: GitHub tool not enabled")
 		return
 	}
 
@@ -94,6 +95,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []string {
 	// Check if GitHub tool has app configuration
 	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
+		githubConfigLog.Print("Skipping GitHub MCP app token minting: no github-app configuration on GitHub tool")
 		return nil
 	}
 
@@ -151,6 +153,7 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []s
 func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
 	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
+		githubConfigLog.Print("Skipping GitHub MCP app token invalidation: no github-app configuration on GitHub tool")
 		return
 	}
 
@@ -192,11 +195,13 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *WorkflowData) {
 	githubTool, hasGitHub := data.Tools["github"]
 	if !hasGitHub || githubTool == false {
+		githubConfigLog.Print("Skipping parse-guard-vars step: GitHub tool not enabled")
 		return
 	}
 
 	// Only generate the step when guard policies are configured.
 	if len(getGitHubGuardPolicies(githubTool)) == 0 {
+		githubConfigLog.Print("Skipping parse-guard-vars step: no explicit guard policies configured")
 		return
 	}
 

@@ -23,7 +23,7 @@ imports:
       title-prefix: "[malicious-code-scan] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
 

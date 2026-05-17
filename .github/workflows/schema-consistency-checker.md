@@ -29,7 +29,7 @@ imports:
     with:
       title-prefix: "[Schema Consistency] "
       expires: 1d
-  - shared/observability-otlp.md
+  - shared/otlp.md
 pre-agent-steps:
   - name: Precompute schema analysis data
     run: |

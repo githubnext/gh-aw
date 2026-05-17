@@ -47,7 +47,7 @@ imports:
   - shared/reporting.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Organization Health Report
