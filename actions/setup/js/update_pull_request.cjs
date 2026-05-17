@@ -40,7 +40,13 @@ function isNonFatalUpdateBranchError(error) {
   // - cannot auto-update due to conflict ("merge conflict between base and head")
   // These should not fail safe output processing.
   const message = getErrorMessage(error).toLowerCase();
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head");
+  return (
+    message.includes("there are no new commits on the base branch") ||
+    message.includes("merge conflict between base and head") ||
+    message.includes("refusing to allow a github app to create or update workflow") ||
+    message.includes("without `workflows` permission") ||
+    message.includes("without workflows permission")
+  );
 }
 
 /**

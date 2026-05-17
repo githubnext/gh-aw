@@ -879,4 +879,24 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     });
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
+
+  it("should continue title/body updates when updateBranch is blocked by workflows permission", async () => {
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("refusing to allow a GitHub App to create or update workflow `.github/workflows/test.lock.yml` without `workflows` permission"));
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
 });
