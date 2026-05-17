@@ -197,6 +197,26 @@ The optimizer MUST produce one of:
 - A pull request containing required spec and/or implementation updates, or
 - A noop report explicitly stating no new threat coverage actions were required
 
+### 6.4 False-Positive Handling
+
+False positives occur when a CTR rule triggers on a workflow input that is not actually unsafe. This section defines normative norms for suppressing, auditing, and resolving false-positive detections.
+
+1. **Author suppression mechanism**: When a workflow author believes a compiler diagnostic is a false positive, they **MUST** add an inline suppression annotation in the workflow frontmatter using the `threat-detection-suppress` key. The value **MUST** be a list of objects, each with a `rule` field (the `CTR-*` identifier), a `reason` field (human-readable explanation of why the flagged pattern is safe in this context), and an optional `expires` field (ISO 8601 date after which the suppression is no longer valid). A suppression without a `reason` **MUST NOT** be accepted by the compiler; the compiler **MUST** emit a validation error if `reason` is absent or empty.
+
+2. **Audit trail requirement**: Every active suppression annotation **MUST** be recorded in the compiled lock file (`.lock.yml`) manifest section so that reviewers can audit which rules are suppressed and why. The lock file **MUST** include the full `rule`, `reason`, and `expires` values for each suppression. Suppressions absent from the lock file manifest **MUST** be treated by subsequent compilations as unapproved and re-evaluated against the current CTR rule.
+
+3. **SLA for resolution**: Suppressions marked as false positives that affect a `MUST`-level security control (as defined in Section 5.1 — specifically those rules whose compiler action is `reject` in non-strict mode) **SHOULD** be resolved within **10 business days** — either by confirming the suppression is correct and updating the rule's detection logic to eliminate the false positive, or by removing the suppression when the workflow is corrected. The daily optimizer **SHOULD** surface unresolved suppressions older than 10 business days in its daily output. A suppression **MUST** be re-evaluated and explicitly renewed if the `expires` date passes; expired suppressions **MUST** be treated by the compiler as if they do not exist.
+
+### 6.5 Threat Category Lifecycle
+
+New threat categories do not immediately become normative rules. This section defines the lifecycle stages a threat category **MUST** pass through before it is added to the CTR rule catalog in Section 5.1.
+
+1. **Experimental stage**: A threat class is identified (via security research, incident analysis, or operational observation) and a tracking issue is opened in `github/gh-aw`. An experimental prototype detection implementation **MAY** be added to the compiler behind a feature flag. The threat class **MUST NOT** appear in the normative CTR catalog while in Experimental stage; it **SHOULD** be documented in a separate scratchpad or issue thread. Experimental detections **MUST NOT** cause compilation failures in production.
+
+2. **Candidate stage**: The threat class has a concrete detection trigger, an agreed compiler action (reject, rewrite, or warn), a stable diagnostic ID reserved in a draft spec update, and at least one test case demonstrating the detection. A Candidate threat **SHOULD** be deployed behind a feature flag for a minimum of one release cycle. During Candidate stage, maintainers **MUST** collect evidence (false-positive reports, affected workflow patterns) and document findings in the tracking issue. A Candidate threat **SHOULD NOT** be promoted to Normative without at least one successful deployment in a non-strict production workflow.
+
+3. **Normative stage**: The threat class is formally added to Section 5.1 and Section 8.1 via a pull request that includes: the CTR rule definition, the implementation mapping in Section 7.1, at least one test ID in Section 8.1, and a change-log entry in Section 10. The pull request **MUST** be reviewed by at least one security-focused maintainer. Once merged, the rule **MUST** be enforced by all conforming implementations. Any feature flag used during Candidate stage **MUST** be removed in the same pull request that adds the Normative definition.
+
 ---
 
 ## 7. Implementation Mapping
