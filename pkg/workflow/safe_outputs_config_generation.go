@@ -154,22 +154,7 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	// Mentions configuration: controls which @mentions are allowed in AI output.
 	// This is consumed by the ingestion step, not by standard handlers.
 	if data.SafeOutputs.Mentions != nil {
-		mentionsConfig := make(map[string]any)
-		if data.SafeOutputs.Mentions.Enabled != nil {
-			mentionsConfig["enabled"] = *data.SafeOutputs.Mentions.Enabled
-		}
-		if data.SafeOutputs.Mentions.AllowTeamMembers != nil {
-			mentionsConfig["allowTeamMembers"] = *data.SafeOutputs.Mentions.AllowTeamMembers
-		}
-		if data.SafeOutputs.Mentions.AllowContext != nil {
-			mentionsConfig["allowContext"] = *data.SafeOutputs.Mentions.AllowContext
-		}
-		if len(data.SafeOutputs.Mentions.Allowed) > 0 {
-			mentionsConfig["allowed"] = data.SafeOutputs.Mentions.Allowed
-		}
-		if data.SafeOutputs.Mentions.Max != nil {
-			mentionsConfig["max"] = *data.SafeOutputs.Mentions.Max
-		}
+		mentionsConfig := buildMentionsHandlerConfig(data.SafeOutputs.Mentions)
 		if len(mentionsConfig) > 0 {
 			safeOutputsConfig["mentions"] = mentionsConfig
 		}

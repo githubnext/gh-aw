@@ -465,6 +465,7 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/constants` — engine names, job names, feature flags
 - `github.com/github/gh-aw/pkg/agentdrain` — Drain log anomaly detection for audit analysis
 - `github.com/github/gh-aw/pkg/envutil` — environment variable reading with bounds validation
+- `github.com/github/gh-aw/pkg/errorutil` — shared error classification helpers for GitHub and gh CLI responses
 - `github.com/github/gh-aw/pkg/semverutil` — semantic version comparison for dependency checks
 - `github.com/github/gh-aw/pkg/sliceutil` — slice utilities
 - `github.com/github/gh-aw/pkg/stats` — incremental statistics for health metrics

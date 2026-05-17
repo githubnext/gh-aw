@@ -323,6 +323,28 @@ describe("create_pr_review_comment.cjs", () => {
     expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled();
   });
 
+  it("should preserve allowlisted mentions and neutralize others before buffering", async () => {
+    const addCommentSpy = vi.spyOn(buffer, "addComment");
+    const handler = await createHandler({
+      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+    });
+    const message = {
+      type: "create_pull_request_review_comment",
+      path: "src/main.js",
+      line: 10,
+      body: "Please ask @copilot and @someone-else to review this.",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(addCommentSpy).toHaveBeenCalledTimes(1);
+    const bufferedComment = addCommentSpy.mock.calls[0][0];
+    expect(bufferedComment.body).toContain("@copilot");
+    expect(bufferedComment.body).not.toContain("`@copilot`");
+    expect(bufferedComment.body).toContain("`@someone-else`");
+  });
+
   it("should respect target configuration for specific PR number", async () => {
     mockGithub.rest.pulls.get.mockResolvedValue({
       data: { number: 456, head: { sha: "def456abc789" } },

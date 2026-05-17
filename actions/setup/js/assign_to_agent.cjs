@@ -193,11 +193,15 @@ async function main(config = {}) {
     }
 
     // Defer if issue_number is a temporary ID that hasn't been resolved yet
-    if (message.issue_number != null && isTemporaryId(message.issue_number)) {
-      const normalized = normalizeTemporaryId(String(message.issue_number));
-      if (!temporaryIdMap.has(normalized)) {
-        core.info(`Deferring assign_to_agent — temporary ID ${message.issue_number} not yet resolved`);
-        return { success: false, deferred: true };
+    // Strip leading '#' so both 'aw_abc1' and '#aw_abc1' (canonical validator form) are handled
+    if (message.issue_number != null) {
+      const issueNumStr = String(message.issue_number).trim();
+      if (isTemporaryId(issueNumStr)) {
+        const normalized = normalizeTemporaryId(issueNumStr);
+        if (!temporaryIdMap.has(normalized)) {
+          core.info(`Deferring assign_to_agent — temporary ID ${message.issue_number} not yet resolved`);
+          return { success: false, deferred: true };
+        }
       }
     }
 

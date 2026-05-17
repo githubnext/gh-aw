@@ -141,4 +141,26 @@ describe("create_pull_request - body sanitization", () => {
     // System-generated footer marker must still be present
     expect(createCall.body).toContain("gh-aw-workflow-id");
   });
+
+  it("should preserve allowlisted mentions when mentions config is provided", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      allow_empty: true,
+      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+    });
+
+    await handler(
+      {
+        title: "Test PR",
+        body: "Please ask @copilot and @someone-else to review this.",
+      },
+      {}
+    );
+
+    const createCall = global.github.rest.pulls.create.mock.calls[0]?.[0];
+    expect(createCall).toBeDefined();
+    expect(createCall.body).toContain("@copilot");
+    expect(createCall.body).not.toContain("`@copilot`");
+    expect(createCall.body).toContain("`@someone-else`");
+  });
 });

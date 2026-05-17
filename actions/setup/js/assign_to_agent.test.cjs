@@ -321,6 +321,82 @@ describe("assign_to_agent", () => {
     expect(variables.issueNumber).toBe(99);
   });
 
+  it("should resolve temporary issue IDs with '#' prefix (#aw_...) using GH_AW_TEMPORARY_ID_MAP", async () => {
+    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({
+      aw_abc123: { repo: "test-owner/test-repo", number: 99 },
+    });
+
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: "#aw_abc123",
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id-99",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        addAssigneesToAssignable: {
+          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved temporary issue id"));
+
+    const secondCallArgs = mockGithub.graphql.mock.calls[1];
+    expect(secondCallArgs).toBeDefined();
+    const variables = secondCallArgs[1];
+    expect(variables.issueNumber).toBe(99);
+  });
+
+  it("should defer when issue_number is a '#aw_' temporary ID not yet in map", async () => {
+    // No temporary ID map set — the ID is unresolved
+    delete process.env.GH_AW_TEMPORARY_ID_MAP;
+
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: "#aw_abc123",
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Call main() factory then invoke the handler directly so we can inspect the deferred result
+    const deferred = await eval(`(async () => {
+      ${assignToAgentScript};
+      const _handler = await main({});
+      const { loadTemporaryIdMap } = require("./temporary_id.cjs");
+      const _map = loadTemporaryIdMap();
+      return _handler({ type: "assign_to_agent", issue_number: "#aw_abc123", agent: "copilot" }, {}, _map);
+    })()`);
+
+    expect(deferred).toMatchObject({ success: false, deferred: true });
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+  });
+
   it("should reject unsupported agents", async () => {
     setAgentOutput({
       items: [

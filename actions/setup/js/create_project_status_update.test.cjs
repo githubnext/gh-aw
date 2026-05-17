@@ -101,6 +101,52 @@ describe("create_project_status_update", () => {
     expect(mockCore.error).toHaveBeenCalled();
   });
 
+  it("should preserve allowlisted mentions and neutralize non-allowlisted mentions", async () => {
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        organization: {
+          projectV2: {
+            id: "PVT_test123",
+            number: 42,
+            title: "Test Project",
+            url: "https://github.com/orgs/test-org/projects/42",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        createProjectV2StatusUpdate: {
+          statusUpdate: {
+            id: "PVTSU_test123",
+            body: "Please ask @copilot and @someone-else to review this.",
+            bodyHTML: "<p>Please ask @copilot and @someone-else to review this.</p>",
+            startDate: "2025-01-01",
+            targetDate: "2025-12-31",
+            status: "ON_TRACK",
+            createdAt: "2025-01-06T12:00:00Z",
+          },
+        },
+      });
+
+    const handler = await main({
+      max: 10,
+      mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+    });
+
+    const result = await handler(
+      {
+        project: "https://github.com/orgs/test-org/projects/42",
+        body: "Please ask @copilot and @someone-else to review this.",
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    const mutationCall = mockGithub.graphql.mock.calls[1];
+    expect(mutationCall?.[1]?.body).toContain("@copilot");
+    expect(mutationCall?.[1]?.body).not.toContain("`@copilot`");
+    expect(mutationCall?.[1]?.body).toContain("`@someone-else`");
+  });
+
   it("should handle missing body field", async () => {
     const handler = await main({ max: 10 });
 

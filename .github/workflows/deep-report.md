@@ -74,6 +74,7 @@ imports:
       toolsets: [all]
   - ../skills/jqschema/SKILL.md
   - shared/discussions-data-fetch.md
+  - shared/mcp/agentdb.md
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
 
@@ -181,10 +182,14 @@ jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
 1. Load discussions from the pre-fetched data file at `/tmp/gh-aw/discussions-data/discussions.json`
 2. Filter for discussions from the past 7 days using the `createdAt` or `updatedAt` fields
 3. For each discussion:
-   - Extract key metrics and findings
-   - Identify the reporting agent (from tracker-id or title)
-   - Note any warnings, alerts, or notable items
-   - Record timestamps for trend analysis
+    - Extract key metrics and findings
+    - Identify the reporting agent (from tracker-id or title)
+    - Note any warnings, alerts, or notable items
+    - Record timestamps for trend analysis
+4. Use AgentDB MCP tools to perform large-scale semantic search over the discussion corpus:
+   - Ingest the filtered discussion data into AgentDB memory
+   - Run semantic and hybrid searches for recurring themes, regressions, and anomalies
+   - Use AgentDB search results to prioritize the most important discussion clusters for deeper analysis
 
 **Example jq queries:**
 ```bash

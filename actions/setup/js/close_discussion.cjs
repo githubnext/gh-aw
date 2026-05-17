@@ -12,6 +12,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
+const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -163,6 +164,12 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const githubClient = await createAuthenticatedGitHubClient(config);
+  let allowedMentionAliases = [];
+  if (Array.isArray(config.allowedMentionAliases)) {
+    allowedMentionAliases = config.allowedMentionAliases;
+  } else if (config.mentions != null) {
+    allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions);
+  }
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
@@ -274,7 +281,7 @@ async function main(config = {}) {
       // Add comment if body is provided
       let commentUrl;
       if (item.body) {
-        const sanitizedBody = sanitizeContent(item.body);
+        const sanitizedBody = sanitizeContent(item.body, { allowedAliases: allowedMentionAliases });
         const comment = await addDiscussionComment(githubClient, discussion.id, sanitizedBody);
         core.info(`Added comment to discussion #${discussionNumber}: ${comment.url}`);
         commentUrl = comment.url;

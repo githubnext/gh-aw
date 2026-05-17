@@ -29,6 +29,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
+const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
@@ -543,6 +544,12 @@ async function main(config = {}) {
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
   const githubClient = await createAuthenticatedGitHubClient(config);
+  let allowedMentionAliases = [];
+  if (Array.isArray(config.allowedMentionAliases)) {
+    allowedMentionAliases = config.allowedMentionAliases;
+  } else if (config.mentions != null) {
+    allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions);
+  }
 
   // Check if copilot assignment is enabled
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
@@ -677,13 +684,11 @@ async function main(config = {}) {
     let effectiveParentIssueNumber;
     let effectiveParentRepo = qualifiedItemRepo; // Default to same repo
     if (message.parent !== undefined) {
-      // Strip # prefix if present to allow flexible temporary ID format
       const parentStr = String(message.parent).trim();
-      const parentWithoutHash = parentStr.startsWith("#") ? parentStr.substring(1) : parentStr;
 
-      if (isTemporaryId(parentWithoutHash)) {
+      if (isTemporaryId(parentStr)) {
         // It's a temporary ID, look it up in the map
-        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(parentWithoutHash));
+        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(parentStr));
         if (resolvedParent) {
           effectiveParentIssueNumber = resolvedParent.number;
           effectiveParentRepo = resolvedParent.repo;
@@ -693,11 +698,12 @@ async function main(config = {}) {
         }
       } else {
         // Check if it looks like a malformed temporary ID
-        if (parentWithoutHash.startsWith("aw_")) {
-          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`);
+        const withoutHash = parentStr.startsWith("#") ? parentStr.substring(1) : parentStr;
+        if (withoutHash.startsWith("aw_")) {
+          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_). Example: 'aw_abc' or 'aw_pr_fix'`);
         } else {
           // It's a real issue number
-          const parsed = parseInt(parentWithoutHash, 10);
+          const parsed = parseInt(withoutHash, 10);
           if (!isNaN(parsed)) {
             effectiveParentIssueNumber = parsed;
           } else {
@@ -767,7 +773,7 @@ async function main(config = {}) {
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
-    processedBody = sanitizeContent(processedBody);
+    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
 
     const bodyLines = processedBody.split("\n");
 
