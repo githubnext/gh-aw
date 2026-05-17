@@ -142,7 +142,8 @@ Record all of the following:
 Set:
 
 - `sentry_status = pass` when query access works, current-run spans are visible, and the Sentry OTLP export path shows no errors attributable to Sentry
-- `sentry_status = inconclusive` when query access works and recent `gh-aw` spans are visible but this run is not yet visible
+- `sentry_status = fail` when the Sentry OTLP export path shows errors attributable to Sentry
+- `sentry_status = inconclusive` when query access works, no errors attributable to Sentry were seen, and recent `gh-aw` spans are visible but this run is not yet visible
 - `sentry_status = fail` otherwise
 
 ### Step 3: Query Grafana
