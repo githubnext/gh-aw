@@ -101,7 +101,7 @@ type CheckoutConfig struct {
 	// CleanGitCredentials keeps actions/checkout credential persistence enabled and
 	// injects a follow-up cleanup step that removes credentials from git config files
 	// (including submodule configs) without using git submodule foreach.
-	CleanGitCredentials bool `json:"clean-git-credentials,omitempty"`
+	CleanGitCredentials bool `json:"force-clean-git-credentials,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.

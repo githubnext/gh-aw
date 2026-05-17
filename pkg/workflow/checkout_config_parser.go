@@ -237,10 +237,10 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		cfg.Wiki = b
 	}
 
-	if v, ok := m["clean-git-credentials"]; ok {
+	if v, ok := m["force-clean-git-credentials"]; ok {
 		b, ok := v.(bool)
 		if !ok {
-			return nil, errors.New("checkout.clean-git-credentials must be a boolean")
+			return nil, errors.New("checkout.force-clean-git-credentials must be a boolean")
 		}
 		cfg.CleanGitCredentials = b
 	}

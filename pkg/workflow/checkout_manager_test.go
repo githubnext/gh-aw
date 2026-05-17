@@ -181,13 +181,13 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		assert.Contains(t, combined, "src/", "should include second pattern")
 	})
 
-	t.Run("clean-git-credentials enables persist true and cleanup step", func(t *testing.T) {
+	t.Run("force-clean-git-credentials enables persist true and cleanup step", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{CleanGitCredentials: true},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "persist-credentials: true", "clean-git-credentials should switch persist-credentials to true")
+		assert.Contains(t, combined, "persist-credentials: true", "force-clean-git-credentials should switch persist-credentials to true")
 		assert.Contains(t, combined, "Clean git credentials after checkout", "should inject post-checkout clean step")
 		assert.Contains(t, combined, "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh", "cleanup should call orchestrator helper")
 		assert.NotContains(t, combined, "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh", "cleanup must not execute helper from workspace")
@@ -249,13 +249,13 @@ func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 		assert.NotContains(t, combined, "github-token:", "must not emit 'github-token' as actions/checkout input")
 	})
 
-	t.Run("additional checkout supports clean-git-credentials", func(t *testing.T) {
+	t.Run("additional checkout supports force-clean-git-credentials", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Path: "./libs", Repository: "owner/libs", CleanGitCredentials: true},
 		})
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "persist-credentials: true", "clean-git-credentials should switch persist-credentials to true")
+		assert.Contains(t, combined, "persist-credentials: true", "force-clean-git-credentials should switch persist-credentials to true")
 		assert.Contains(t, combined, "Clean git credentials after checkout", "should inject post-checkout clean step")
 	})
 }
@@ -1115,23 +1115,23 @@ func TestWikiCheckout(t *testing.T) {
 		assert.Contains(t, err.Error(), "checkout.wiki must be a boolean", "error message should mention wiki")
 	})
 
-	t.Run("parse clean-git-credentials true", func(t *testing.T) {
+	t.Run("parse force-clean-git-credentials true", func(t *testing.T) {
 		raw := map[string]any{
-			"clean-git-credentials": true,
+			"force-clean-git-credentials": true,
 		}
 		configs, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err, "should parse clean-git-credentials: true without error")
+		require.NoError(t, err, "should parse force-clean-git-credentials: true without error")
 		require.Len(t, configs, 1, "should produce one config")
-		assert.True(t, configs[0].CleanGitCredentials, "clean-git-credentials should be true")
+		assert.True(t, configs[0].CleanGitCredentials, "force-clean-git-credentials should be true")
 	})
 
-	t.Run("clean-git-credentials must be boolean", func(t *testing.T) {
+	t.Run("force-clean-git-credentials must be boolean", func(t *testing.T) {
 		raw := map[string]any{
-			"clean-git-credentials": "true",
+			"force-clean-git-credentials": "true",
 		}
 		_, err := ParseCheckoutConfigs(raw)
-		require.Error(t, err, "non-boolean clean-git-credentials should return error")
-		assert.Contains(t, err.Error(), "checkout.clean-git-credentials must be a boolean", "error message should mention clean-git-credentials")
+		require.Error(t, err, "non-boolean force-clean-git-credentials should return error")
+		assert.Contains(t, err.Error(), "checkout.force-clean-git-credentials must be a boolean", "error message should mention force-clean-git-credentials")
 	})
 
 	t.Run("wiki and non-wiki checkouts of same repo and path are not merged", func(t *testing.T) {
