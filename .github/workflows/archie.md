@@ -20,7 +20,7 @@ engine:
 strict: true
 imports:
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

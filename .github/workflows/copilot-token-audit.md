@@ -26,7 +26,7 @@ safe-outputs:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   agentic-workflows:
   bash:

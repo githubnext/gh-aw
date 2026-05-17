@@ -78,7 +78,7 @@ imports:
   - shared/reporting.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # DeepReport - Intelligence Gathering Agent

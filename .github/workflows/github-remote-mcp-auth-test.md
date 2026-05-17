@@ -26,7 +26,7 @@ imports:
       expires: 1d
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # GitHub Remote MCP Authentication Test
 

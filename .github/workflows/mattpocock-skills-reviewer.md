@@ -14,7 +14,7 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
-  - shared/observability-otlp.md
+  - shared/otlp.md
 pre-agent-steps:
   - name: Upgrade gh CLI
     run: |

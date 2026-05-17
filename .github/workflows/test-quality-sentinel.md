@@ -73,7 +73,7 @@ safe-outputs:
 timeout-minutes: 15
 imports:
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

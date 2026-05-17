@@ -22,7 +22,7 @@ imports:
   - shared/aw-logs-24h-fetch.md
   - ../skills/jqschema/SKILL.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # Safe Output Health Monitor
 

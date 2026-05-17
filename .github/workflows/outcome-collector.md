@@ -43,7 +43,7 @@ safe-outputs:
     run-success: "📊 [{workflow_name}]({run_url}) outcome evaluation complete!"
     run-failure: "📊 [{workflow_name}]({run_url}) {status}"
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 pre-agent-steps:
   - name: Evaluate outcomes for recent runs
     env:

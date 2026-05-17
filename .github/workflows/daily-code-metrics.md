@@ -29,7 +29,7 @@ imports:
   - shared/trends.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 experiments:
   output_format:
     variants: [full_detail, executive_summary]

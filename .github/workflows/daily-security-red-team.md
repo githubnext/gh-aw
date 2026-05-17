@@ -49,7 +49,7 @@ imports:
       title-prefix: "[security-red-team] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Daily Security Red Team Agent

@@ -29,7 +29,7 @@ safe-outputs:
 imports:
   - shared/reporting.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Workflow Normalizer

@@ -41,7 +41,7 @@ safe-outputs:
     max: 1
 
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

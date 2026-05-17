@@ -57,7 +57,7 @@ tools:
 imports:
   - shared/go-make.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 timeout-minutes: 15
 
 

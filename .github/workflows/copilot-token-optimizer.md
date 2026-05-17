@@ -17,7 +17,7 @@ observability:
 tracker-id: copilot-token-optimizer
 engine: copilot
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   github:
     mode: gh-proxy

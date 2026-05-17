@@ -43,7 +43,7 @@ imports:
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 timeout-minutes: 30
 
 ---

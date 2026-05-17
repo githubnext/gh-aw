@@ -33,7 +33,7 @@ imports:
     with:
       title-prefix: "[mcp-tools-report] "
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # GitHub MCP Remote Server Tools Report Generator
 

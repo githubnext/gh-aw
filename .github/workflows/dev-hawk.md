@@ -35,7 +35,7 @@ imports:
     with:
       toolsets: [pull_requests, actions, repos]
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

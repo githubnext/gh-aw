@@ -28,7 +28,7 @@ imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   add-comment:
     max: 1

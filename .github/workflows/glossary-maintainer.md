@@ -28,7 +28,7 @@ imports:
   - ../agents/technical-doc-writer.agent.md
   - shared/mcp/serena-go.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-pull-request:
     expires: 2d

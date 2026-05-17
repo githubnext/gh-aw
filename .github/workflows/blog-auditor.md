@@ -55,7 +55,7 @@ imports:
       title-prefix: "[audit] "
       expires: 1d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # Blog Auditor
 

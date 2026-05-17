@@ -29,7 +29,7 @@ imports:
       title-prefix: "[cli-tools-test] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Daily CLI Tools Exploratory Tester

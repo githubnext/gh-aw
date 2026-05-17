@@ -12,7 +12,7 @@ permissions:
 engine: copilot
 strict: true
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

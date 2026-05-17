@@ -36,7 +36,7 @@ imports:
   - shared/mcp/grafana.md
   - shared/mcp/sentry.md
   - shared/otel-queries.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Smoke Test: OTEL Backends

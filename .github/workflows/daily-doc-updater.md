@@ -54,7 +54,7 @@ timeout-minutes: 45
 
 imports:
   - shared/github-guard-policy.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 
 ---
 

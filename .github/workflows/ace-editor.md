@@ -38,7 +38,7 @@ jobs:
               body: `👋 Hey @${actor}! Here's your ACE editor session link for this pull request:\n\n🔗 **${aceUrl}**\n\nCopy and paste this link into Slack to invite your teammates into the session! 🚀`,
             });
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
 

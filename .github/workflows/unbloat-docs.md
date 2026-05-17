@@ -45,7 +45,7 @@ imports:
       reviewers: [copilot]
 
 # Network access for documentation best practices research
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults

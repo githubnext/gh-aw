@@ -25,7 +25,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
 ---

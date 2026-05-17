@@ -14,5 +14,5 @@
 #     - shared/otel.md
 
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---

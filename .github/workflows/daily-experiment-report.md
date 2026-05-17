@@ -31,7 +31,7 @@ imports:
       title-prefix: "[experiments] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   upload-asset:
     max: 10

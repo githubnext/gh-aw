@@ -18,7 +18,7 @@ imports:
     with:
       title-prefix: "[team-status] "
       expires: 1d
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 1d
