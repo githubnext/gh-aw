@@ -189,7 +189,9 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		combined := strings.Join(lines, "")
 		assert.Contains(t, combined, "persist-credentials: true", "clean-git-credentials should switch persist-credentials to true")
 		assert.Contains(t, combined, "Clean git credentials after checkout", "should inject post-checkout clean step")
+		assert.Contains(t, combined, `if [ -x "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh" ]; then`, "cleanup should prefer runtime cleaner first")
 		assert.Contains(t, combined, "clean_git_credentials_pre_setup.sh", "cleanup should use pre-setup helper script")
+		assert.Contains(t, combined, "Warning: Git credential cleanup skipped - neither runtime nor pre-setup cleaner script available", "cleanup should include explicit warning when no helper is available")
 	})
 }
 
