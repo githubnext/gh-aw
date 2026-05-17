@@ -317,26 +317,16 @@ func generateCheckoutCredentialsCleanupStep() string {
 	return `      - name: Clean git credentials after checkout
         continue-on-error: true
         run: |
-          # The shared cleaner script is available only after Setup Scripts has copied
-          # actions into ${RUNNER_TEMP}/gh-aw/actions. This checkout-time step may run
-          # earlier, so keep an inline fallback for pre-setup execution.
           if [ -x "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh" ]; then
             echo "Using shared clean_git_credentials.sh from setup action"
             bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
             exit 0
           fi
-          echo "Shared clean_git_credentials.sh not available yet; using inline fallback"
-          cleaned=0
-          while IFS= read -r git_config; do
-            git config --file "${git_config}" --remove-section credential 2>/dev/null || true
-            git config --file "${git_config}" --unset-all http.extraheader 2>/dev/null || true
-            git config --file "${git_config}" --get-regexp '^http\..*\.extraheader$' 2>/dev/null | while read -r key _; do
-              git config --file "${git_config}" --unset-all "${key}" || true
-            done || true
-            cleaned=$((cleaned + 1))
-          done < <(find "${GITHUB_WORKSPACE}" /tmp -maxdepth 15 -type f -name "config" \( -path "*/.git/config" -o -path "*/.git/modules/*/config" \) 2>/dev/null | sort -u)
-          if [ "${cleaned}" -eq 0 ]; then
-            echo "No git config files found for cleanup"
+          if [ -x "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh" ]; then
+            echo "Using pre-setup clean_git_credentials helper"
+            bash "${GITHUB_WORKSPACE}/actions/setup/sh/clean_git_credentials_pre_setup.sh"
+          else
+            echo "No git credential cleaner script available"
           fi
 `
 }
