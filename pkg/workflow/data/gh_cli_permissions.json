@@ -1,0 +1,73 @@
+{
+  "version": "1.0",
+  "description": "GitHub CLI (gh) subcommand patterns and their required GitHub Actions permissions. Used by the compiler to infer permissions needed by pre-steps that call the gh CLI.",
+  "subcommand_groups": {
+    "pr": {
+      "description": "Pull request operations",
+      "read_subcommands": ["checks", "comment", "diff", "list", "status", "view"],
+      "write_subcommands": ["close", "convert-to-draft", "create", "edit", "lock", "merge", "ready", "reopen", "review", "unlock"],
+      "read_permissions": ["pull-requests"],
+      "write_permissions": ["pull-requests"]
+    },
+    "issue": {
+      "description": "Issue operations",
+      "read_subcommands": ["comment", "list", "status", "view"],
+      "write_subcommands": ["close", "create", "delete", "edit", "lock", "pin", "reopen", "transfer", "unlock", "unpin"],
+      "read_permissions": ["issues"],
+      "write_permissions": ["issues"]
+    },
+    "workflow": {
+      "description": "GitHub Actions workflow operations",
+      "read_subcommands": ["list", "view"],
+      "write_subcommands": ["disable", "enable", "run"],
+      "read_permissions": ["actions"],
+      "write_permissions": ["actions"]
+    },
+    "run": {
+      "description": "GitHub Actions run operations",
+      "read_subcommands": ["download", "list", "view", "watch"],
+      "write_subcommands": ["cancel", "delete", "rerun"],
+      "read_permissions": ["actions"],
+      "write_permissions": ["actions"]
+    },
+    "release": {
+      "description": "Release operations",
+      "read_subcommands": ["download", "list", "view"],
+      "write_subcommands": ["create", "delete", "delete-asset", "edit", "upload"],
+      "read_permissions": ["contents"],
+      "write_permissions": ["contents"]
+    }
+  },
+  "api_path_patterns": [
+    {
+      "pattern": "^/repos/[^/\\s]+/[^/\\s]+/pulls(/|$|\\?)",
+      "description": "Pull requests REST API",
+      "permissions": ["pull-requests"]
+    },
+    {
+      "pattern": "^/repos/[^/\\s]+/[^/\\s]+/issues(/|$|\\?)",
+      "description": "Issues REST API",
+      "permissions": ["issues"]
+    },
+    {
+      "pattern": "^/repos/[^/\\s]+/[^/\\s]+/actions(/|$|\\?)",
+      "description": "GitHub Actions REST API",
+      "permissions": ["actions"]
+    },
+    {
+      "pattern": "^repos/[^/\\s]+/[^/\\s]+/pulls(/|$|\\?)",
+      "description": "Pull requests REST API (without leading slash)",
+      "permissions": ["pull-requests"]
+    },
+    {
+      "pattern": "^repos/[^/\\s]+/[^/\\s]+/issues(/|$|\\?)",
+      "description": "Issues REST API (without leading slash)",
+      "permissions": ["issues"]
+    },
+    {
+      "pattern": "^repos/[^/\\s]+/[^/\\s]+/actions(/|$|\\?)",
+      "description": "GitHub Actions REST API (without leading slash)",
+      "permissions": ["actions"]
+    }
+  ]
+}

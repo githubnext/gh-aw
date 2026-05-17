@@ -541,6 +541,17 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
+	// Infer permissions required by gh CLI calls in jobs.activation.pre-steps run scripts.
+	// This ensures that user-defined pre-steps that call `gh pr diff`, `gh issue view`, etc.
+	// get the permissions they need without requiring manual permission declarations.
+	activationPreStepScripts := extractRunScriptsFromJobPreSteps(ctx.data.Jobs, string(constants.ActivationJobName))
+	if len(activationPreStepScripts) > 0 {
+		for scope, level := range inferPermissionsFromShellScripts(activationPreStepScripts) {
+			if _, exists := permsMap[scope]; !exists {
+				permsMap[scope] = level
+			}
+		}
+	}
 	return NewPermissionsFromMap(permsMap).RenderToYAML()
 }
 
