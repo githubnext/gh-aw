@@ -112,7 +112,7 @@ func init() {
 //
 // Capture groups: (1) subcommand group, (2) action word.
 // The trailing `\b` ensures the action word is complete (avoids matching partial words).
-var ghSubcommandRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+(pr|issue|workflow|run|release)\s+([\w][\w-]*)\b`)
+var ghSubcommandRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+(pr|issue|release|workflow|run|cache|repo|label)\s+([\w][\w-]*)\b`)
 
 // ghAPIRE matches `gh api <path>` invocations.
 // Capture group: (1) API path (up to the first whitespace, pipe, or quote).
@@ -122,9 +122,9 @@ var ghAPIRE = regexp.MustCompile(`(?m)(?:^|[\s|;])gh\s+api\s+([^\s|;&"'\\]+)`)
 // gh CLI invocations and returns the minimum set of GitHub Actions permissions
 // required to run those commands.
 //
-// Only read-level permissions are inferred here; write-level operations in
-// pre-steps are intentionally not auto-escalated because they would require
-// explicit user intent and additional security review.
+// Only read-level permissions are inferred here; write-level operations are
+// intentionally not auto-escalated. Use detectWriteCommandsInShellScripts to
+// surface write commands as validation errors.
 func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]PermissionLevel {
 	perms := make(map[PermissionScope]PermissionLevel)
 
@@ -144,7 +144,8 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 				}
 				continue
 			}
-			// Check explicit write mapping (we still grant at least read for pre-steps).
+			// Write commands only need read-level permissions in the activation job context.
+			// (Full write escalation is rejected by detectWriteCommandsInShellScripts instead.)
 			if readPerms, ok := ghCLIPermissions.writeCommands[key]; ok {
 				for _, scope := range readPerms {
 					if _, exists := perms[scope]; !exists {
@@ -179,6 +180,32 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 	}
 
 	return perms
+}
+
+// detectWriteCommandsInShellScripts returns all write gh CLI commands found in the
+// given scripts, formatted as "gh <group> <action>" (e.g. "gh pr create").
+// The slice contains no duplicates and is sorted deterministically in discovery order.
+func detectWriteCommandsInShellScripts(scripts []string) []string {
+	var found []string
+	seen := make(map[string]struct{})
+
+	for _, script := range scripts {
+		for _, m := range ghSubcommandRE.FindAllStringSubmatch(script, -1) {
+			group := strings.ToLower(m[1])
+			action := strings.ToLower(m[2])
+			key := group + " " + action
+
+			if _, isWrite := ghCLIPermissions.writeCommands[key]; isWrite {
+				cmd := "gh " + key
+				if _, already := seen[cmd]; !already {
+					seen[cmd] = struct{}{}
+					found = append(found, cmd)
+				}
+			}
+		}
+	}
+
+	return found
 }
 
 // extractRunScriptsFromJobPreSteps returns the `run` script text from every

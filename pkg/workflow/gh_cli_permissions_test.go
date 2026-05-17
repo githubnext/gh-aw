@@ -260,3 +260,167 @@ engine: copilot
 	assert.NotContains(t, activationJobSection, "pull-requests",
 		"activation job should NOT include pull-requests when no pre-step requires it")
 }
+
+// TestDetectWriteCommandsInShellScripts_GhPrCreate verifies that `gh pr create` is detected as a write command.
+func TestDetectWriteCommandsInShellScripts_GhPrCreate(t *testing.T) {
+	scripts := []string{`gh pr create --title "Fix bug" --body "details"`}
+	cmds := detectWriteCommandsInShellScripts(scripts)
+	require.Len(t, cmds, 1)
+	assert.Equal(t, "gh pr create", cmds[0])
+}
+
+// TestDetectWriteCommandsInShellScripts_GhIssueClose verifies that `gh issue close` is detected.
+func TestDetectWriteCommandsInShellScripts_GhIssueClose(t *testing.T) {
+	scripts := []string{`gh issue close $ISSUE_NUMBER`}
+	cmds := detectWriteCommandsInShellScripts(scripts)
+	require.Len(t, cmds, 1)
+	assert.Equal(t, "gh issue close", cmds[0])
+}
+
+// TestDetectWriteCommandsInShellScripts_ReadCommandNotDetected verifies that a read command
+// (e.g. `gh pr diff`) is NOT flagged as a write command.
+func TestDetectWriteCommandsInShellScripts_ReadCommandNotDetected(t *testing.T) {
+	scripts := []string{`gh pr diff "$PR_NUMBER" --name-only`}
+	cmds := detectWriteCommandsInShellScripts(scripts)
+	assert.Empty(t, cmds, "gh pr diff is a read command and should not be detected as write")
+}
+
+// TestDetectWriteCommandsInShellScripts_Deduplicated verifies that duplicate write commands
+// are reported only once.
+func TestDetectWriteCommandsInShellScripts_Deduplicated(t *testing.T) {
+	scripts := []string{
+		`gh pr create --title "Fix 1"
+gh pr create --title "Fix 2"`,
+	}
+	cmds := detectWriteCommandsInShellScripts(scripts)
+	assert.Len(t, cmds, 1, "duplicate write commands should be deduplicated")
+	assert.Equal(t, "gh pr create", cmds[0])
+}
+
+// TestDetectWriteCommandsInShellScripts_MultipleWriteCommands verifies detection of
+// multiple distinct write commands.
+func TestDetectWriteCommandsInShellScripts_MultipleWriteCommands(t *testing.T) {
+	scripts := []string{
+		`gh pr merge $PR_NUMBER --squash
+gh issue comment $ISSUE_NUMBER --body "done"`,
+	}
+	cmds := detectWriteCommandsInShellScripts(scripts)
+	assert.Len(t, cmds, 2)
+	assert.Contains(t, cmds, "gh pr merge")
+	assert.Contains(t, cmds, "gh issue comment")
+}
+
+// TestInferPermissionsFromShellScripts_GhCacheList verifies actions: read for gh cache list.
+func TestInferPermissionsFromShellScripts_GhCacheList(t *testing.T) {
+	scripts := []string{`gh cache list --json key`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionActions], "gh cache list should require actions: read")
+}
+
+// TestInferPermissionsFromShellScripts_GhRepoView verifies contents: read for gh repo view.
+func TestInferPermissionsFromShellScripts_GhRepoView(t *testing.T) {
+	scripts := []string{`gh repo view owner/repo --json description`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionContents], "gh repo view should require contents: read")
+}
+
+// TestInferPermissionsFromShellScripts_GhLabelList verifies issues: read for gh label list.
+func TestInferPermissionsFromShellScripts_GhLabelList(t *testing.T) {
+	scripts := []string{`gh label list --json name`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionIssues], "gh label list should require issues: read")
+}
+
+// TestInferPermissionsFromShellScripts_GhIssueComment verifies that `gh issue comment`
+// (a write command) still causes issues: read to be inferred so the permission is present
+// in the activation job — the write-command check is separate.
+func TestInferPermissionsFromShellScripts_GhIssueComment(t *testing.T) {
+	scripts := []string{`gh issue comment $ISSUE_NUMBER --body "hello"`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionIssues], "write commands still require at minimum read-level permission for the scope")
+}
+
+// TestInferPermissionsFromShellScripts_GhAPIReleases verifies contents: read for gh api releases.
+func TestInferPermissionsFromShellScripts_GhAPIReleases(t *testing.T) {
+	scripts := []string{`gh api /repos/owner/repo/releases --jq '.[0].tag_name'`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionContents], "gh api /repos/.../releases should require contents: read")
+}
+
+// TestInferPermissionsFromShellScripts_GhAPILabels verifies issues: read for gh api labels endpoint.
+func TestInferPermissionsFromShellScripts_GhAPILabels(t *testing.T) {
+	scripts := []string{`gh api /repos/owner/repo/labels`}
+	perms := inferPermissionsFromShellScripts(scripts)
+	assert.Equal(t, PermissionRead, perms[PermissionIssues], "gh api /repos/.../labels should require issues: read")
+}
+
+// TestActivationJobWriteCommandInPreStepReturnsError verifies that the compiler returns
+// an error when an activation pre-step calls a write gh command.
+func TestActivationJobWriteCommandInPreStepReturnsError(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-write-cmd-error")
+	testFile := filepath.Join(tmpDir, "bad-workflow.md")
+	testContent := `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+  pull-requests: read
+engine: copilot
+jobs:
+  activation:
+    pre-steps:
+      - name: Create PR comment
+        run: |
+          gh pr comment "$PR_NUMBER" --body "Starting review..."
+---
+
+# Workflow whose activation pre-step illegally calls a write gh command
+`
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "compiler should reject write gh commands in activation pre-steps")
+	assert.Contains(t, err.Error(), "gh pr comment", "error should mention the offending command")
+	assert.Contains(t, err.Error(), "write", "error should explain the write-permission restriction")
+}
+
+// TestActivationJobPermissionsWithGhCachePreStep verifies actions: read is added when
+// an activation pre-step calls `gh cache list`.
+func TestActivationJobPermissionsWithGhCachePreStep(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-gh-cache")
+	testFile := filepath.Join(tmpDir, "cache-workflow.md")
+	testContent := `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+engine: copilot
+jobs:
+  activation:
+    pre-steps:
+      - name: List caches
+        run: |
+          gh cache list --json key > /tmp/caches.json
+---
+
+# Workflow that lists caches in activation pre-step
+`
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "actions: read",
+		"activation job should include actions: read when pre-step calls gh cache list")
+}

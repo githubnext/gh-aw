@@ -492,7 +492,8 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 }
 
 // buildActivationPermissions builds activation job permissions from workflow features and selected interactions.
-func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) string {
+// Returns an error if activation pre-steps contain write gh CLI commands that would require write permissions.
+func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (string, error) {
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
@@ -547,6 +548,14 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 	if len(ctx.data.Jobs) > 0 {
 		activationPreStepScripts := extractRunScriptsFromJobPreSteps(ctx.data.Jobs, string(constants.ActivationJobName))
 		if len(activationPreStepScripts) > 0 {
+			// Detect write commands first — these are not permitted in activation pre-steps
+			// because the activation job intentionally operates with read-only permissions.
+			if writeCmds := detectWriteCommandsInShellScripts(activationPreStepScripts); len(writeCmds) > 0 {
+				return "", fmt.Errorf(
+					"activation pre-step uses write gh command(s) [%s]; write operations are not permitted in activation job pre-steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs",
+					strings.Join(writeCmds, ", "),
+				)
+			}
 			for scope, level := range inferPermissionsFromShellScripts(activationPreStepScripts) {
 				if _, exists := permsMap[scope]; !exists {
 					permsMap[scope] = level
@@ -554,7 +563,7 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 			}
 		}
 	}
-	return NewPermissionsFromMap(permsMap).RenderToYAML()
+	return NewPermissionsFromMap(permsMap).RenderToYAML(), nil
 }
 
 // buildActivationEnvironment returns manual-approval environment YAML, with ANSI removed.

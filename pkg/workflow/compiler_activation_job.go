@@ -63,12 +63,17 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		ctx.steps = append(ctx.steps, c.generateScriptModeCleanupStep())
 	}
 
+	permissions, err := c.buildActivationPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         ctx.activationCondition,
 		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "",
 		RunsOn:                     c.formatFrameworkJobRunsOn(data),
-		Permissions:                c.buildActivationPermissions(ctx),
+		Permissions:                permissions,
 		Environment:                c.buildActivationEnvironment(ctx),
 		Steps:                      ctx.steps,
 		Outputs:                    ctx.outputs,
