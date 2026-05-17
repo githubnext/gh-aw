@@ -44,8 +44,8 @@ func TestRepoMemoryConfigDefault(t *testing.T) {
 		t.Errorf("Expected branch name 'memory/my-workflow', got '%s'", memory.BranchName)
 	}
 
-	if memory.MaxFileSize != 10240 {
-		t.Errorf("Expected max file size 10240, got %d", memory.MaxFileSize)
+	if memory.MaxFileSize != 102400 {
+		t.Errorf("Expected max file size 102400, got %d", memory.MaxFileSize)
 	}
 
 	if memory.MaxFileCount != 100 {
