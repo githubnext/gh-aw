@@ -100,9 +100,9 @@ run-name: "Smoke Claude"
 env:
   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
   OTEL_SERVICE_NAME: gh-aw.smoke-claude
-  OTEL_EXPORTER_OTLP_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
-  GH_AW_OTLP_ALL_HEADERS: Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
-  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
+  OTEL_EXPORTER_OTLP_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+  GH_AW_OTLP_ALL_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
 
 jobs:
   activation:
@@ -595,9 +595,14 @@ jobs:
           Consumers of this shared import must provision the following secrets:
           
           - `GH_AW_OTEL_SENTRY_ENDPOINT`
-          - `GH_AW_OTEL_SENTRY_AUTHORIZATION`
+          - `GH_AW_OTEL_SENTRY_AUTHORIZATION` - authored as the `Authorization` value; gh-aw rewrites it to `x-sentry-auth` for Sentry endpoints. Set this secret to the header value only, typically `Sentry sentry_version=7, sentry_key=<key>, sentry_client=gh-aw`, where `sentry_version=7`, `sentry_key=<key>`, and `sentry_client=gh-aw` are the Sentry auth components.
           - `GH_AW_OTEL_GRAFANA_ENDPOINT`
-          - `GH_AW_OTEL_GRAFANA_AUTHORIZATION`
+          - `GH_AW_OTEL_GRAFANA_AUTHORIZATION` - value for the `Authorization` header, typically `Bearer <token>`
+          
+          This shared import configures only the authentication header for each backend.
+          If you need additional per-endpoint headers, define `observability.otlp.endpoint`
+          directly in your workflow using the object or array form and add those headers
+          alongside `Authorization`.
           **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
           
           ```json
