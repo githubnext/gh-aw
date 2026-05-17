@@ -58,6 +58,7 @@ runtimes:
 checkout:
   fetch: ["*"]
   fetch-depth: 0
+  clean-git-credentials: true
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
