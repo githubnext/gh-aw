@@ -552,7 +552,7 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (s
 			// because the activation job intentionally operates with read-only permissions.
 			if writeCmds := detectWriteCommandsInShellScripts(activationPreStepScripts); len(writeCmds) > 0 {
 				return "", fmt.Errorf(
-					"activation pre-step uses write gh command(s) [%s]; write operations are not permitted in activation job pre-steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs",
+					"activation pre-step uses write gh command(s) [%s]; write operations are not permitted in activation job pre-steps because the activation job runs with read-only permissions. Move write operations to the agent job steps or use safe-outputs. See: https://github.github.com/gh-aw/reference/safe-outputs/",
 					strings.Join(writeCmds, ", "),
 				)
 			}
