@@ -17,7 +17,7 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
-| [Crush](https://github.com/@charmland/crush/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
+| [Crush](https://github.com/charmbracelet/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [OpenCode](https://opencode.ai) (experimental) | `opencode` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [Pi](https://www.npmjs.com/package/@mariozechner/pi-coding-agent) (experimental) | `pi` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) (default); switches to provider-specific secret when `model:` uses `provider/model` format |
 
