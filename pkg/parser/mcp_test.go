@@ -140,7 +140,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expectError:         true,
-			expectedErrContains: "tools.serena built-in support has been removed",
+			expectedErrContains: "tools.serena is removed",
 		},
 		{
 			name: "GitHub tool default configuration",

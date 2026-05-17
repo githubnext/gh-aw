@@ -15,12 +15,6 @@ import (
 
 var mcpLog = logger.New("parser:mcp")
 
-const serenaRemovedMessage = `tools.serena built-in support has been removed. Import shared/mcp/serena.md instead:
-  imports:
-    - uses: shared/mcp/serena.md
-      with:
-        languages: ["go", "typescript"]`
-
 // ValidMCPTypes defines all supported MCP server types.
 // "local" is an alias for "stdio" and gets normalized during parsing.
 var ValidMCPTypes = []string{"stdio", "http", "local"}
@@ -189,7 +183,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 			if tools, ok := toolsSection.(map[string]any); ok {
 				for toolName, toolValue := range tools {
 					if toolName == "serena" {
-						return nil, fmt.Errorf(serenaRemovedMessage)
+						return nil, fmt.Errorf("tools.serena is removed")
 					}
 					// Only handle built-in MCP tools (github, playwright)
 					if toolName == "github" || toolName == "playwright" {
@@ -220,7 +214,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		if tools, ok := toolsSection.(map[string]any); ok {
 			for toolName, toolValue := range tools {
 				if toolName == "serena" {
-					return nil, fmt.Errorf(serenaRemovedMessage)
+					return nil, fmt.Errorf("tools.serena is removed")
 				}
 				// Only handle built-in MCP tools (github, playwright)
 				if toolName == "github" || toolName == "playwright" {
