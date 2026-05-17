@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -101,7 +102,7 @@ func shouldRewriteAuthorizationForSentry(endpoint string) bool {
 	}
 
 	if strings.Contains(trimmed, "${{") {
-		return strings.Contains(lowerTrimmed, "gh_aw_otel_sentry_endpoint")
+		return strings.Contains(lowerTrimmed, strings.ToLower(constants.OTELSentryEndpointSecretName))
 	}
 
 	return strings.Contains(lowerTrimmed, "sentry")
