@@ -1034,7 +1034,9 @@ func fetchWorkflowRunMetadata(ctx context.Context, runID int64, owner, repo, hos
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 		}
 		// Provide a human-readable error when the run ID doesn't exist.
-		// GitHub CLI / API may surface the 404 in several forms depending on version.
+		// The gh CLI may surface the 404 in the Go error (checked via errorutil.IsNotFoundError)
+		// or in its combined stdout/stderr output (checked below) depending on the CLI version.
+		// "Could not resolve" catches DNS failures from git clone fallbacks.
 		outputStr := string(output)
 		if errorutil.IsNotFoundError(err) ||
 			strings.Contains(outputStr, "Not Found") ||
