@@ -358,6 +358,7 @@ func TestTimeoutConstants(t *testing.T) {
 		{"DefaultAgenticWorkflowTimeout", DefaultAgenticWorkflowTimeout, 1 * time.Minute},
 		{"DefaultToolTimeout", DefaultToolTimeout, 1 * time.Second},
 		{"DefaultMCPStartupTimeout", DefaultMCPStartupTimeout, 1 * time.Second},
+		{"DefaultHTTPClientTimeout", DefaultHTTPClientTimeout, 1 * time.Second},
 	}
 
 	for _, tt := range tests {
@@ -366,6 +367,12 @@ func TestTimeoutConstants(t *testing.T) {
 				t.Errorf("%s = %v, should be >= %v", tt.name, tt.value, tt.minValue)
 			}
 		})
+	}
+}
+
+func TestDefaultHTTPClientTimeoutValue(t *testing.T) {
+	if DefaultHTTPClientTimeout != 30*time.Second {
+		t.Errorf("DefaultHTTPClientTimeout = %v, want %v", DefaultHTTPClientTimeout, 30*time.Second)
 	}
 }
 

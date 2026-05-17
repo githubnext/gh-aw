@@ -8,9 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -42,7 +42,7 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 
 	// Create HTTP client with timeout
 	client := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: constants.DefaultHTTPClientTimeout,
 	}
 
 	// Download the file
