@@ -127,11 +127,15 @@ describe("Safe Output Handler Manager", () => {
 
       try {
         const mentionsConfig = { enabled: true, allowed: ["@copilot"] };
-        const handlers = await loadHandlers({
-          add_comment: { max: 1 },
-          create_issue: { max: 1 },
-          mentions: mentionsConfig,
-        });
+        const handlers = await loadHandlers(
+          {
+            add_comment: { max: 1 },
+            create_issue: { max: 1 },
+            mentions: mentionsConfig,
+          },
+          undefined,
+          ["copilot", "octocat"]
+        );
 
         expect(handlers.has("add_comment")).toBe(true);
         expect(handlers.has("create_issue")).toBe(true);
@@ -141,12 +145,14 @@ describe("Safe Output Handler Manager", () => {
           expect.objectContaining({
             max: 1,
             mentions: mentionsConfig,
+            allowedMentionAliases: ["copilot", "octocat"],
           })
         );
         expect(createIssueMainSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             max: 1,
             mentions: mentionsConfig,
+            allowedMentionAliases: ["copilot", "octocat"],
           })
         );
       } finally {

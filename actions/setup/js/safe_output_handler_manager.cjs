@@ -283,9 +283,10 @@ const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "
  * Calls each handler's factory function (main) to get message processors
  * @param {Object} config - Safe outputs configuration
  * @param {Object} prReviewBuffer - Shared PR review buffer instance
+ * @param {string[]} [resolvedAllowedMentionAliases] - Pre-resolved mention aliases shared across handlers
  * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
-async function loadHandlers(config, prReviewBuffer) {
+async function loadHandlers(config, prReviewBuffer, resolvedAllowedMentionAliases = []) {
   const messageHandlers = new Map();
 
   core.info("Loading and initializing safe output handlers based on configuration...");
@@ -304,6 +305,9 @@ async function loadHandlers(config, prReviewBuffer) {
           // the same allowed mention aliases used during collection.
           if (handlerConfig.mentions == null && config.mentions != null) {
             handlerConfig.mentions = config.mentions;
+          }
+          if (handlerConfig.mentions != null && !Array.isArray(handlerConfig.allowedMentionAliases) && Array.isArray(resolvedAllowedMentionAliases)) {
+            handlerConfig.allowedMentionAliases = resolvedAllowedMentionAliases;
           }
 
           // Inject shared PR review buffer into handlers that need it
@@ -1300,7 +1304,7 @@ async function main() {
     const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, github, core, config.mentions) : [];
 
     // Load and initialize handlers based on configuration (factory pattern)
-    const messageHandlers = await loadHandlers(config, prReviewBuffer);
+    const messageHandlers = await loadHandlers(config, prReviewBuffer, allowedMentionAliases);
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");

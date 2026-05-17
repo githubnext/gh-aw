@@ -39,7 +39,7 @@ async function main(config = {}) {
   const isStaged = isStagedMode(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
+  const allowedMentionAliases = Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases : config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
 
   // Determine the triggering PR number from context
   const triggeringPRNumber = getPRNumber(context.payload);

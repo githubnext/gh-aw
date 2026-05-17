@@ -32,7 +32,7 @@ async function main(config = {}) {
   const buffer = config._prReviewBuffer;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
+  const allowedMentionAliases = Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases : config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
 
   if (!buffer) {
     core.warning("create_pull_request_review_comment: No PR review buffer provided in config");

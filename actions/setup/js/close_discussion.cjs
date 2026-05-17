@@ -164,7 +164,7 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
+  const allowedMentionAliases = Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases : config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);

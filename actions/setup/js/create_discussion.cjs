@@ -312,7 +312,7 @@ async function main(config = {}) {
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
+  const allowedMentionAliases = Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases : config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);

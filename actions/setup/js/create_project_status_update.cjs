@@ -272,7 +272,7 @@ async function main(config = {}, githubClient = null) {
   if (!github) {
     throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.`);
   }
-  const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, github, core, config.mentions) : [];
+  const allowedMentionAliases = Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases : config.mentions != null ? await resolveAllowedMentionsFromPayload(context, github, core, config.mentions) : [];
 
   core.info(`Max count: ${maxCount}`);
 

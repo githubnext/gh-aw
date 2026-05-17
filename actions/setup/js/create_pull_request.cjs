@@ -715,7 +715,7 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
+  const allowedMentionAliases = Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases : config.mentions != null ? await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions) : [];
 
   // Check if copilot assignment is enabled for fallback issues
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
