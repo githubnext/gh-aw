@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -256,6 +257,88 @@ func TestAddCommentsConfigAllowedReasons(t *testing.T) {
 			} else {
 				if len(config.AllowedReasons) != 0 {
 					t.Errorf("Expected empty AllowedReasons, got %v", config.AllowedReasons)
+				}
+			}
+		})
+	}
+}
+
+// TestAddCommentMentionsInHandlerConfig verifies that when safe-outputs.mentions.allowed
+// is configured, the top-level "mentions" key is present in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+// so that safe_output_handler_manager.cjs can pass it through to the add_comment handler
+// and prevent configured usernames from being escaped as @mentions.
+func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name            string
+		safeOutputs     *SafeOutputsConfig
+		wantInConfig    []string
+		wantNotInConfig []string
+	}{
+		{
+			name: "mentions.allowed propagates to handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+				Mentions: &MentionsConfig{
+					Allowed: []string{"copilot"},
+				},
+			},
+			wantInConfig: []string{`"mentions":`, `"allowed"`, `"copilot"`},
+		},
+		{
+			name: "mentions.enabled=false propagates to handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+				Mentions: &MentionsConfig{
+					Enabled: boolPtr(false),
+				},
+			},
+			wantInConfig: []string{`"mentions":`, `"enabled":false`},
+		},
+		{
+			name: "no mentions config omits mentions from handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+			},
+			wantNotInConfig: []string{`"mentions":`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:        "Test",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			if err != nil {
+				t.Fatalf("buildHandlerManagerStep returned error: %v", err)
+			}
+			stepsContent := strings.Join(steps, "")
+
+			// Find and unescape the HANDLER_CONFIG line so we can check the JSON content.
+			var handlerConfigJSON string
+			for _, line := range strings.Split(stepsContent, "\n") {
+				if strings.Contains(line, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					// The JSON is %q-formatted in the YAML, so unescape \".
+					handlerConfigJSON = strings.ReplaceAll(line, `\"`, `"`)
+					break
+				}
+			}
+			if handlerConfigJSON == "" {
+				t.Fatal("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG not found in steps")
+			}
+
+			for _, want := range tt.wantInConfig {
+				if !strings.Contains(handlerConfigJSON, want) {
+					t.Errorf("expected handler config to contain %q, got: %s", want, handlerConfigJSON)
+				}
+			}
+			for _, notWant := range tt.wantNotInConfig {
+				if strings.Contains(handlerConfigJSON, notWant) {
+					t.Errorf("expected handler config NOT to contain %q, got: %s", notWant, handlerConfigJSON)
 				}
 			}
 		})
