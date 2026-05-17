@@ -694,7 +694,7 @@ async function main(config = {}) {
       } else {
         // Check if it looks like a malformed temporary ID
         if (parentWithoutHash.startsWith("aw_")) {
-          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`);
+          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_). Example: 'aw_abc' or 'aw_pr_fix'`);
         } else {
           // It's a real issue number
           const parsed = parseInt(parentWithoutHash, 10);
