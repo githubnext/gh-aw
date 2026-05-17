@@ -42,6 +42,8 @@ function isNonFatalUpdateBranchError(error) {
   const message = getErrorMessage(error).toLowerCase();
   const hasWorkflowsPermissionPhrase = /without\s+`?workflows`?\s+permission/i.test(message);
   const hasWorkflowMutationRefusal = message.includes("refusing to allow a github app to create or update workflow");
+  // Require both permission wording and update-branch context to avoid treating unrelated
+  // "workflows permission" errors as non-fatal for pull request branch updates.
   const hasWorkflowsPermissionError = hasWorkflowsPermissionPhrase && (hasWorkflowMutationRefusal || message.includes("update pull request"));
   return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || hasWorkflowsPermissionError;
 }
