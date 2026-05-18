@@ -23,6 +23,8 @@ func TestNewProjectNewCommand(t *testing.T) {
 	require.NotNil(t, cmd, "Command should be created")
 	assert.Equal(t, "new <title>", cmd.Use, "Command usage should be 'new <title>'")
 	assert.Contains(t, cmd.Short, "Create a new GitHub Project V2 board", "Short description should mention board creation")
+	assert.Contains(t, cmd.Long, "https://github.github.com/gh-aw/reference/auth-projects/", "Long description should reference the configured docs host")
+	assert.NotContains(t, cmd.Long, "https://github.github.io/gh-aw/reference/auth-projects/", "Long description should not reference the old docs host")
 
 	// Check flags
 	ownerFlag := cmd.Flags().Lookup("owner")
