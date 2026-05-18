@@ -323,6 +323,32 @@ describe("resolve_pr_review_thread", () => {
     expect(result.error).toContain("Could not resolve");
   });
 
+  it("should soft-skip when resolve mutation returns integration access error", async () => {
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.reject(new Error("Request failed due to following response errors:\n - Resource not accessible by integration"));
+      }
+      return Promise.resolve({
+        node: { pullRequest: { number: 42, repository: { nameWithOwner: "test-owner/test-repo" } } },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOABCD123456",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.error).toContain("configuration mismatch");
+    expect(result.error).toContain("github-token");
+  });
+
   it("should handle unexpected resolve failure", async () => {
     mockGraphql.mockImplementation(query => {
       if (query.includes("resolveReviewThread")) {

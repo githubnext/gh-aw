@@ -251,6 +251,13 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
+:::note[Integration-token limitation]
+GitHub can return `Resource not accessible by integration` for `resolveReviewThread` even with `pull-requests: write` on `GITHUB_TOKEN` (for example, bot-authored threads in non-interactive runs).  
+When this happens, gh-aw soft-skips the message with a warning and continues processing other safe outputs.
+
+To make resolution reliable, configure `safe-outputs.resolve-pull-request-review-thread.github-token` with a token that can resolve review threads in your repository.
+:::
+
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for documentation on `target-repo`, `allowed-repos`, and cross-repository authentication.
 
 **Agent output format:**
