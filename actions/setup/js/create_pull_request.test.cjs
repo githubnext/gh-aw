@@ -2483,12 +2483,14 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   });
 
   it("should rename with random suffix when deleteRef is blocked by branch protection rules (recreate-ref fallback)", async () => {
-    let renameCalled = false;
+    let capturedRenamedBranch = null;
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
         const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
-        if (cmdStr.includes("git branch -m")) {
-          renameCalled = true;
+        // Capture the new branch name from: git branch -m <old> <new>
+        const renameMatch = cmdStr.match(/git branch -m \S+ (\S+)/);
+        if (renameMatch) {
+          capturedRenamedBranch = renameMatch[1];
         }
         return Promise.resolve(0);
       }),
@@ -2508,6 +2510,9 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     );
     global.github.rest.git.deleteRef = vi.fn().mockRejectedValue(ruleViolationError);
 
+    const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+    const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ preserve_branch_name: true, recreate_ref: true });
 
@@ -2521,10 +2526,17 @@ describe("create_pull_request - patch apply fallback to original base commit", (
       ref: "heads/chaos/preserve-me",
     });
     // Should have fallen back to rename with suffix
-    expect(renameCalled).toBe(true);
+    expect(capturedRenamedBranch).not.toBeNull();
+    expect(capturedRenamedBranch).toMatch(/^chaos\/preserve-me-[0-9a-f]{8}$/);
     const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
     expect(warningCalls.some(msg => msg.includes("cannot be deleted due to branch protection rules"))).toBe(true);
     expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(true);
+    // The renamed branch must be used for the push and PR creation, not the original protected name
+    expect(pushSignedSpy).toHaveBeenCalledWith(expect.objectContaining({ branch: capturedRenamedBranch }));
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ head: capturedRenamedBranch }));
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalledWith(expect.objectContaining({ head: "chaos/preserve-me" }));
+
+    pushSignedSpy.mockRestore();
   });
 
   it("should append random suffix when preserve-branch-name is false and remote branch already exists", async () => {
