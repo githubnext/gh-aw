@@ -646,6 +646,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
       );
     }
     core.warning(`Remote branch ${branchName} already exists - reusing it (recreate-ref enabled, force-deleting remote ref)`);
+    let deleteBlocked = false;
     try {
       await githubClient.rest.git.deleteRef({ owner, repo, ref: `heads/${branchName}` });
       core.info(`Deleted remote branch ${branchName} to reuse it`);
@@ -658,11 +659,22 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
       // treat that as success and continue.
       if (status === 422 && /Reference does not exist/i.test(message)) {
         core.info(`Remote branch ${branchName} was already deleted concurrently; continuing`);
+      } else if (status === 422 && (/Cannot delete this branch/i.test(message) || /Repository rule violations/i.test(message))) {
+        // A branch protection rule (e.g. a ruleset that blocks deletion) prevented
+        // the delete. Fall back gracefully by appending a random suffix to the branch
+        // name rather than failing hard, so a PR can still be created.
+        core.warning(
+          `Remote branch "${branchName}" cannot be deleted due to branch protection rules (recreate-ref blocked). ` +
+            `Falling back to rename with random suffix.`
+        );
+        deleteBlocked = true;
       } else {
         throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with recreate-ref: ${message || String(err)}`);
       }
     }
-    return branchName;
+    if (!deleteBlocked) {
+      return branchName;
+    }
   }
 
   core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
