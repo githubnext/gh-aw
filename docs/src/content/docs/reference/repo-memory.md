@@ -28,7 +28,7 @@ tools:
     branch-prefix: tracking  # Custom prefix instead of "memory"
     description: "Long-term insights"
     file-glob: ["*.md", "*.json"]
-    max-file-size: 1048576  # 1MB (default 10KB)
+    max-file-size: 1048576  # 1MB (default 100KB)
     max-file-count: 50      # default 100
     max-patch-size: 1048576  # 1MB max (default 10KB)
     target-repo: "owner/repository"
@@ -88,7 +88,7 @@ For fast 7-day caching without version control, see [Cache Memory](/gh-aw/refere
 ## Troubleshooting
 
 - **Branch not created**: Ensure `create-orphan: true` or create manually.
-- **Validation failures**: Match `file-glob`, stay under `max-file-size` (10KB default), `max-file-count` (100 default), and `max-patch-size` (10KB default).
+- **Validation failures**: Match `file-glob`, stay under `max-file-size` (100KB default), `max-file-count` (100 default), and `max-patch-size` (10KB default).
 - **Patch too large**: If the total diff exceeds `max-patch-size` (default 10KB), the push is rejected. Reduce the number or size of changes, or increase `max-patch-size` in the configuration.
 - **Changes not persisting**: Check directory path, workflow completion, push errors in logs.
 - **Merge conflicts**: Concurrent pushes are handled: if another run has pushed since the branch was checked out, the GraphQL mutation replays your file diff on top of the latest remote state (your changes win).

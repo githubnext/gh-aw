@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-05-11 · Source: [Issue created by workflow run §25663288420](https://github.com/github/gh-aw/actions/runs/25663288420)
+> Last updated: 2026-05-18 · Source: [Issue created by workflow run §26026605299](https://github.com/github/gh-aw/actions/runs/26026605299)
 
 ## Overview
 
@@ -10,14 +10,14 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                          ENTRY POINTS                                                │
 │                                                                                                      │
-│          ┌─────────────────────────┐                   ┌───────────────────────────┐                │
-│          │       cmd/gh-aw         │                   │      cmd/gh-aw-wasm        │                │
-│          │   Main CLI binary        │                   │   WebAssembly build target │                │
-│          └────────────┬────────────┘                   └─────────────┬─────────────┘                │
-│                       │ imports: cli, workflow, parser, console,      │                              │
-│                       │ constants                                     │                              │
-├───────────────────────┼───────────────────────────────────────────────┼──────────────────────────────┤
-│                       ▼              CORE PACKAGES                    ▼                              │
+│  ┌───────────────────────┐    ┌────────────────────────────┐    ┌──────────────────────────────┐   │
+│  │      cmd/gh-aw        │    │      cmd/gh-aw-wasm         │    │       cmd/linters            │   │
+│  │  Main CLI binary       │    │  WebAssembly build target  │    │  Custom linter binary        │   │
+│  └──────────┬────────────┘    └────────────┬───────────────┘    └────────────┬─────────────────┘   │
+│             │ cli,workflow,                  │                                 │ pkg/linters/*        │
+│             │ parser,console,constants       │                                 │                      │
+├─────────────┼────────────────────────────────┼─────────────────────────────────┼─────────────────────┤
+│             ▼               CORE PACKAGES    ▼                                 ▼                     │
 │                                                                                                      │
 │  ┌──────────────────────────────┐   ┌───────────────────────────┐   ┌──────────────────────────┐   │
 │  │           pkg/cli            │──▶│       pkg/workflow         │──▶│       pkg/parser          │   │
@@ -34,9 +34,13 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 │  │  Agent log drain  │  │  Terminal UI formatting, rendering, and style management                │ │
 │  └───────────────────┘  └────────────────────────────────────────────────────────────────────────┘ │
 │                                                                                                      │
-│  ┌───────────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │  pkg/actionpins — GitHub Actions pin resolution         pkg/stats — Metrics & statistics      │  │
-│  └───────────────────────────────────────────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────┐  ┌─────────────────────────────────────────────────────┐ │
+│  │  pkg/actionpins                      │  │  pkg/linters (namespace)                            │ │
+│  │  GitHub Actions pin resolution       │  │  ctxbackground · excessivefuncparams · largefunc    │ │
+│  └──────────────────────────────────────┘  │  osexitinlibrary · rawloginlib                      │ │
+│  ┌──────────────────────────────────────┐  └─────────────────────────────────────────────────────┘ │
+│  │  pkg/stats — Metrics & statistics    │                                                           │
+│  └──────────────────────────────────────┘                                                           │
 │                                                                                                      │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                         UTILITY PACKAGES                                             │
@@ -59,10 +63,10 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 │  │ slug/URL util │  │ versioning   │  │ utilities    │  │            │  │                      │  │
 │  └───────────────┘  └──────────────┘  └──────────────┘  └────────────┘  └──────────────────────┘  │
 │                                                                                                      │
-│  ┌──────────────────────────────────┐                                                               │
-│  │  pkg/testutil  (test builds only)│                                                               │
-│  │  Test helper utilities           │                                                               │
-│  └──────────────────────────────────┘                                                               │
+│  ┌──────────────────────────────────┐  ┌──────────────────────────────────────────────────────────┐ │
+│  │  pkg/errorutil                   │  │  pkg/testutil  (test builds only)                        │ │
+│  │  GitHub API error classification  │  │  Test helper utilities                                   │ │
+│  └──────────────────────────────────┘  └──────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,12 +76,14 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 |---------|-------|-------------|
 | `cmd/gh-aw` | Entry Point | Main CLI binary |
 | `cmd/gh-aw-wasm` | Entry Point | WebAssembly build target |
+| `cmd/linters` | Entry Point | Custom linter binary |
 | `pkg/cli` | Core | Command implementations (compile, run, audit, logs, mcp, stats) |
 | `pkg/workflow` | Core | Workflow compilation engine (Markdown → GitHub Actions YAML) |
 | `pkg/parser` | Core | Markdown frontmatter parsing and content extraction |
 | `pkg/console` | Core | Terminal UI formatting, rendering, and style management |
 | `pkg/agentdrain` | Core | Agent log draining and streaming |
 | `pkg/actionpins` | Core | GitHub Actions pin resolution |
+| `pkg/linters` | Core | Custom Go analysis linters (namespace with subpackages) |
 | `pkg/stats` | Core | Numerical statistics for metric collection |
 | `pkg/constants` | Utility | Shared constants and semantic type aliases |
 | `pkg/types` | Utility | Shared type definitions |
@@ -89,6 +95,7 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 | `pkg/jsonutil` | Utility | JSON utility functions |
 | `pkg/repoutil` | Utility | GitHub repository slug/URL utilities |
 | `pkg/envutil` | Utility | Environment variable reading/validation |
+| `pkg/errorutil` | Utility | GitHub API error classification helpers |
 | `pkg/sliceutil` | Utility | Generic slice utilities |
 | `pkg/typeutil` | Utility | General-purpose type conversion utilities |
 | `pkg/semverutil` | Utility | Semantic versioning primitives |

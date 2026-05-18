@@ -123,49 +123,32 @@ tools:
 
 See [Using MCPs](/gh-aw/guides/mcps/) for configuration guides.
 
-### The `plugins:` field I was using is gone - how do I install agent plugins now?
+### If my agent can use a skill, can agentic workflows use it too?
 
-The `plugins:` frontmatter field has been removed in favour of the `dependencies:` field backed by [Microsoft APM (Agent Package Manager)](https://microsoft.github.io/apm/). APM provides cross-agent support for all agent primitives – skills, prompts, instructions, hooks, and plugins (including the Copilot `plugin.json` format and the Claude `plugin.json` format).
+Usually, yes. If your agent can do it, agentic workflows can usually do it too, and that applies to skills as well.
 
-Run `gh aw fix --write` to automatically migrate your existing `plugins:` fields to `dependencies:`.
+For reusable packaging, start with [imports](/gh-aw/reference/imports/) and [APM (Agent Package Manager)](https://microsoft.github.io/apm/). Imports are a good fit for sharing workflow-level configuration and prompts, while APM is the recommended way to package and distribute skills and other agent primitives. See [APM Dependencies](/gh-aw/reference/dependencies/) for the gh-aw integration.
 
-Use the `dependencies:` field in your workflow frontmatter to install plugins:
+### The `plugins:` or `dependencies:` field I was using is gone - how do I install agent plugins now?
 
-```yaml wrap
-# Simple list (public or same-org packages)
-dependencies:
-  - github/my-copilot-plugin
-  - github/awesome-copilot/plugins/context-engineering
-```
+The `plugins:` and `dependencies:` frontmatter fields have been removed in favour of the import-based approach backed by [Microsoft APM (Agent Package Manager)](https://microsoft.github.io/apm/). APM provides cross-agent support for all agent primitives – skills, prompts, instructions, hooks, and plugins (including the Copilot `plugin.json` format and the Claude `plugin.json` format).
 
-For cross-org private packages, use `github-app:` authentication:
+Use `imports: - uses: shared/apm.md` with the `packages:` parameter to install plugins:
 
 ```yaml wrap
-dependencies:
-  github-app:
-    client-id: ${{ vars.APP_ID }}
-    private-key: ${{ secrets.APP_PRIVATE_KEY }}
-  packages:
-    - acme-org/acme-plugins
+imports:
+  - uses: shared/apm.md
+    with:
+      packages:
+        - microsoft/apm-sample-package
+        - github/awesome-copilot/skills/review-and-refactor
 ```
-
-The `dependencies:` approach works with all supported engines (Copilot, Claude, Codex, Gemini, Crush), whereas the old `plugins:` field was limited to the Copilot engine only.
 
 See [APM Dependencies](/gh-aw/reference/dependencies/) for full configuration options.
 
-### Can I use Claude plugins with APM dependencies?
+### Can I use Claude plugins with APM?
 
-Yes! APM supports Claude plugins in the `plugin.json` format. When `engine: claude` is set, APM automatically infers the engine target and unpacks only Claude-compatible primitives. Use `#tag` or `#branch` suffixes to pin specific versions:
-
-```yaml wrap
-engine: claude
-
-dependencies:
-  - owner/repo/plugins/my-plugin#v2.0    # pinned to a tag
-  - owner/repo/plugins/my-plugin#main    # pinned to a branch
-```
-
-For private cross-org plugins and other configuration options, see [APM Dependencies](/gh-aw/reference/dependencies/).
+Yes! APM supports Claude plugins in the `plugin.json` format. When `engine: claude` is set, APM automatically infers the engine target and unpacks only Claude-compatible primitives. See [APM Dependencies](/gh-aw/reference/dependencies/) for details.
 
 ### Can workflows be broken up into shareable components?
 

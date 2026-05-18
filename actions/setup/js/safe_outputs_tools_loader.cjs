@@ -80,6 +80,8 @@ function attachHandlers(tools, handlers) {
     upload_artifact: handlers.uploadArtifactHandler,
     create_project: handlers.createProjectHandler,
     add_comment: handlers.addCommentHandler,
+    create_pull_request_review_comment: handlers.createPullRequestReviewCommentHandler,
+    submit_pull_request_review: handlers.submitPullRequestReviewHandler,
   };
 
   tools.forEach(tool => {

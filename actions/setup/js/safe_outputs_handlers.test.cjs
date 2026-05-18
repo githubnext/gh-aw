@@ -1192,6 +1192,8 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.pushRepoMemoryHandler).toBeDefined();
       expect(handlers.createIssueHandler).toBeDefined();
       expect(handlers.addCommentHandler).toBeDefined();
+      expect(handlers.createPullRequestReviewCommentHandler).toBeDefined();
+      expect(handlers.submitPullRequestReviewHandler).toBeDefined();
     });
 
     it("should create handlers that return proper structure", () => {
@@ -1480,6 +1482,152 @@ describe("safe_outputs_handlers", () => {
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
       expect(data.message).toContain("validation passed");
+    });
+  });
+
+  describe("submitPullRequestReviewHandler", () => {
+    // Each test gets fresh handlers via beforeEach, so inlineReviewCommentCount starts at 0.
+
+    it("should write entry and return success when body is provided", () => {
+      const result = handlers.submitPullRequestReviewHandler({ body: "Looks good!", event: "COMMENT" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "submit_pull_request_review", body: "Looks good!" })
+      );
+    });
+
+    it("should write entry and return success when body is empty but inline comments were buffered", () => {
+      // First buffer an inline comment
+      handlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 1, body: "nit" });
+      // Then submit with no body — should succeed because comments were buffered
+      const result = handlers.submitPullRequestReviewHandler({ event: "COMMENT" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+    });
+
+    it("should throw MCP error when body is empty and no inline comments were buffered", () => {
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("review body is empty"),
+        })
+      );
+    });
+
+    it("should throw MCP error when body is whitespace-only and no inline comments were buffered", () => {
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "   ", event: "COMMENT" })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when event is REQUEST_CHANGES and body is empty", () => {
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "REQUEST_CHANGES" })).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("'body' is required when event is REQUEST_CHANGES"),
+        })
+      );
+    });
+
+    it("should throw MCP error when event is REQUEST_CHANGES, body is empty, and comments exist", () => {
+      handlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 1, body: "nit" });
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "REQUEST_CHANGES" })).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("'body' is required when event is REQUEST_CHANGES"),
+        })
+      );
+    });
+
+    it("should succeed when event is REQUEST_CHANGES and body is provided", () => {
+      const result = handlers.submitPullRequestReviewHandler({ event: "REQUEST_CHANGES", body: "Please fix the issues." });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+    });
+
+    it("should succeed for APPROVE with no body when inline comments are buffered", () => {
+      handlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 1, body: "nit" });
+      const result = handlers.submitPullRequestReviewHandler({ event: "APPROVE" });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+    });
+
+    it("should default to COMMENT event when event is omitted", () => {
+      const result = handlers.submitPullRequestReviewHandler({ body: "LGTM" });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "submit_pull_request_review" })
+      );
+    });
+    it("should reset inline comment counter after a successful submit, allowing a second review to guard correctly", () => {
+      // First review: submit with a body (succeeds, resets counter)
+      handlers.createPullRequestReviewCommentHandler({ path: "src/a.js", line: 1, body: "nit" });
+      handlers.submitPullRequestReviewHandler({ event: "COMMENT", body: "First review" });
+
+      // Counter is now reset to 0. A second empty-body submit should be rejected.
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when event is an invalid value", () => {
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "COMMENTT" })).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("invalid event 'COMMENTT'"),
+        })
+      );
+    });
+
+    it("should throw MCP error when event has leading/trailing whitespace that resolves to unknown value", () => {
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "APPROVE " })).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("invalid event"),
+        })
+      );
+    });
+
+    it("should accept all valid event values case-insensitively", () => {
+      // APPROVE (no body needed when comments buffered, but here we use body)
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "approve" })).not.toThrow();
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "comment" })).not.toThrow();
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "needs work", event: "request_changes" })).not.toThrow();
+    });
+  });
+
+  describe("createPullRequestReviewCommentHandler", () => {
+    it("should write entry and return success", () => {
+      const result = handlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 5, body: "Consider renaming." });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "create_pull_request_review_comment", path: "src/foo.js" })
+      );
+    });
+
+    it("should allow empty-body submit after buffering a comment", () => {
+      handlers.createPullRequestReviewCommentHandler({ path: "src/bar.js", line: 10, body: "typo" });
+      handlers.createPullRequestReviewCommentHandler({ path: "src/baz.js", line: 20, body: "unused import" });
+      // Two inline comments buffered — empty-body submit must succeed
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).not.toThrow();
+    });
+
+    it("should not increment counter when the underlying append throws", () => {
+      // Make the append call throw to simulate a failure after MCP validation
+      mockAppendSafeOutput.mockImplementationOnce(() => {
+        throw new Error("write error");
+      });
+      expect(() => handlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 1, body: "nit" })).toThrow();
+      // Counter was NOT incremented, so empty-body submit should still be rejected
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(
+        expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") })
+      );
     });
   });
 });

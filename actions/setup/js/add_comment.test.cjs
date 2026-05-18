@@ -2775,6 +2775,69 @@ describe("add_comment", () => {
       // but the key test is that the handler succeeds
       expect(result.isDiscussion).toBe(true);
     });
+
+    it("should deduplicate allowed aliases case-insensitively across parentAuthors and configured mentions", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Issue author is "Alice"; configured mentions also include "alice" (different casing)
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          number: 42,
+          user: { login: "Alice", type: "User" },
+        },
+      };
+
+      const infoMessages = [];
+      mockCore.info = msg => infoMessages.push(msg);
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async ({ body }) => {
+        capturedBody = body;
+        return { data: { id: 12345, html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345" } };
+      };
+
+      // configured mentions includes "alice" (lowercase dup) and "Bob" (unique)
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ mentions: { allowed: ["alice", "Bob"] } }); })()`);
+
+      const result = await handler({ type: "add_comment", body: "@Alice @Bob check this out" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toContain("@Alice");
+      expect(capturedBody).toContain("@Bob");
+      expect(infoMessages).toContain("[MENTIONS] Allowing aliases in comment: Alice, Bob");
+    });
+
+    it("should preserve order: parentAuthors first, then configuredMentionAliases", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          number: 42,
+          user: { login: "Charlie", type: "User" },
+        },
+      };
+
+      const infoMessages = [];
+      mockCore.info = msg => infoMessages.push(msg);
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async ({ body }) => {
+        capturedBody = body;
+        return { data: { id: 12345, html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345" } };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ mentions: { allowed: ["Dave", "Eve"] } }); })()`);
+
+      const result = await handler({ type: "add_comment", body: "@Charlie @Dave @Eve thanks!" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toContain("@Charlie");
+      expect(capturedBody).toContain("@Dave");
+      expect(capturedBody).toContain("@Eve");
+      expect(infoMessages).toContain("[MENTIONS] Allowing aliases in comment: Charlie, Dave, Eve");
+    });
   });
 
   describe("staged mode", () => {

@@ -45,6 +45,9 @@ func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 	tokenByRepo := make(map[string]string)
 	var order []string
 	for _, wd := range workflowDataList {
+		if wd == nil {
+			continue
+		}
 		for _, checkout := range wd.CheckoutConfigs {
 			if !checkout.Current {
 				continue
