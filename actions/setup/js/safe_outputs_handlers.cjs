@@ -1154,8 +1154,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * to provide immediate feedback to the LLM before recording to NDJSON.
    */
   const createPullRequestReviewCommentHandler = args => {
+    // Increment only after the default handler successfully appends the entry;
+    // an early throw (e.g. large-content rejection) must not advance the counter.
+    const result = defaultHandler("create_pull_request_review_comment")(args);
     inlineReviewCommentCount++;
-    return defaultHandler("create_pull_request_review_comment")(args);
+    return result;
   };
 
   /**
@@ -1175,6 +1178,14 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   const submitPullRequestReviewHandler = args => {
     const body = (args && typeof args.body === "string" ? args.body : "").trim();
     const event = (args && args.event ? String(args.event).toUpperCase() : "COMMENT");
+
+    const VALID_REVIEW_EVENTS = ["APPROVE", "REQUEST_CHANGES", "COMMENT"];
+    if (!VALID_REVIEW_EVENTS.includes(event)) {
+      throw {
+        code: -32602,
+        message: `${ERR_VALIDATION}: submit_pull_request_review: invalid event '${args.event}'. Must be one of: ${VALID_REVIEW_EVENTS.join(", ")}`,
+      };
+    }
 
     if (event === "REQUEST_CHANGES" && !body) {
       throw {

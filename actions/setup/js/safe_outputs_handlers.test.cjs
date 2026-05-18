@@ -1573,6 +1573,31 @@ describe("safe_outputs_handlers", () => {
         expect.objectContaining({ code: -32602 })
       );
     });
+
+    it("should throw MCP error when event is an invalid value", () => {
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "COMMENTT" })).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("invalid event 'COMMENTT'"),
+        })
+      );
+    });
+
+    it("should throw MCP error when event has leading/trailing whitespace that resolves to unknown value", () => {
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "APPROVE " })).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("invalid event"),
+        })
+      );
+    });
+
+    it("should accept all valid event values case-insensitively", () => {
+      // APPROVE (no body needed when comments buffered, but here we use body)
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "approve" })).not.toThrow();
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "LGTM", event: "comment" })).not.toThrow();
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "needs work", event: "request_changes" })).not.toThrow();
+    });
   });
 
   describe("createPullRequestReviewCommentHandler", () => {
@@ -1591,6 +1616,18 @@ describe("safe_outputs_handlers", () => {
       handlers.createPullRequestReviewCommentHandler({ path: "src/baz.js", line: 20, body: "unused import" });
       // Two inline comments buffered — empty-body submit must succeed
       expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).not.toThrow();
+    });
+
+    it("should not increment counter when the underlying append throws", () => {
+      // Make the append call throw to simulate a failure after MCP validation
+      mockAppendSafeOutput.mockImplementationOnce(() => {
+        throw new Error("write error");
+      });
+      expect(() => handlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 1, body: "nit" })).toThrow();
+      // Counter was NOT incremented, so empty-body submit should still be rejected
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(
+        expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") })
+      );
     });
   });
 });

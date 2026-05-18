@@ -491,6 +491,27 @@ function formatManifestLogMessage(item) {
 }
 
 /**
+ * Retroactively mark buffered review results as failed when the finalization POST fails.
+ * Both submit_pull_request_review and create_pull_request_review_comment return
+ * success:true during message processing (they only buffer), so the failure must be
+ * reflected here to ensure the Processing Summary shows the correct counts.
+ *
+ * @param {Array<{type: string, success: boolean, error?: string}>} results - Processing results to mutate
+ * @param {string} errorMessage - Error message to attach to the rolled-back results
+ */
+function rollbackReviewResults(results, errorMessage) {
+  for (const r of results) {
+    if (
+      (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") &&
+      r.success === true
+    ) {
+      r.success = false;
+      r.error = `Review finalization failed: ${errorMessage}`;
+    }
+  }
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -1357,15 +1378,7 @@ async function main() {
       // return success:true during message processing (they only buffer), so the failure
       // must be reflected here to ensure the Processing Summary shows the correct counts.
       if (reviewFailureError !== null) {
-        for (const r of processingResult.results) {
-          if (
-            (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") &&
-            r.success === true
-          ) {
-            r.success = false;
-            r.error = `Review finalization failed: ${reviewFailureError}`;
-          }
-        }
+        rollbackReviewResults(processingResult.results, reviewFailureError);
       }
     }
 
@@ -1548,4 +1561,4 @@ async function main() {
   }
 }
 
-module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles };
+module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults };

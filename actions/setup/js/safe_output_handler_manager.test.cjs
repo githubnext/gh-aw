@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import { createRequire } from "module";
-import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles } from "./safe_output_handler_manager.cjs";
+import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults } from "./safe_output_handler_manager.cjs";
 
 const require = createRequire(import.meta.url);
 
@@ -1639,6 +1639,60 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results).toHaveLength(1);
       expect(result.results[0].success).toBe(false);
       expect(result.results[0].error).toContain("No handler loaded for type 'call_workflow'");
+    });
+  });
+
+  describe("rollbackReviewResults", () => {
+    it("flips success:true to success:false for submit_pull_request_review results", () => {
+      const results = [{ type: "submit_pull_request_review", success: true }];
+      rollbackReviewResults(results, "422 Unprocessable Entity");
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toBe("Review finalization failed: 422 Unprocessable Entity");
+    });
+
+    it("flips success:true to success:false for create_pull_request_review_comment results", () => {
+      const results = [
+        { type: "create_pull_request_review_comment", success: true },
+        { type: "create_pull_request_review_comment", success: true },
+      ];
+      rollbackReviewResults(results, "Path could not be resolved");
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toBe("Review finalization failed: Path could not be resolved");
+      expect(results[1].success).toBe(false);
+    });
+
+    it("does not modify results with success:false", () => {
+      const results = [{ type: "submit_pull_request_review", success: false, error: "already failed" }];
+      rollbackReviewResults(results, "new error");
+      expect(results[0].error).toBe("already failed");
+    });
+
+    it("does not modify unrelated result types", () => {
+      const results = [
+        { type: "add_comment", success: true },
+        { type: "create_issue", success: true },
+      ];
+      rollbackReviewResults(results, "some error");
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(true);
+    });
+
+    it("handles mixed result types correctly", () => {
+      const results = [
+        { type: "add_comment", success: true },
+        { type: "create_pull_request_review_comment", success: true },
+        { type: "submit_pull_request_review", success: true },
+        { type: "create_issue", success: true },
+      ];
+      rollbackReviewResults(results, "finalization failed");
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(false);
+      expect(results[2].success).toBe(false);
+      expect(results[3].success).toBe(true);
+    });
+
+    it("handles empty results array without throwing", () => {
+      expect(() => rollbackReviewResults([], "error")).not.toThrow();
     });
   });
 

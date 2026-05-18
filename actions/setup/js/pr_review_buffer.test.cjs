@@ -1065,6 +1065,63 @@ describe("pr_review_buffer (factory pattern)", () => {
         // No warning about invalid paths
         expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
       });
+
+      it("should accept comments targeting a renamed file's previous path", async () => {
+        buffer.addComment({ path: "old/path.js", line: 1, body: "Comment on old path" });
+        buffer.setReviewMetadata("Review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        // File was renamed; both filename and previous_filename appear in the API response
+        mockGithub.rest.pulls.listFiles.mockResolvedValue({
+          data: [{ filename: "new/path.js", previous_filename: "old/path.js" }],
+        });
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 804, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-804" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        // The old path must NOT be flagged as invalid
+        expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
+      });
+
+      it("should skip path filtering and keep all comments when the pagination cap is reached with a full last page", async () => {
+        buffer.addComment({ path: "file-beyond-cap.js", line: 1, body: "Comment on file past cap" });
+        buffer.setReviewMetadata("Review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        // Simulate 10 full pages of 100 files each — the loop exits because of the cap,
+        // not because the last page was partial.
+        const fullPage = Array.from({ length: 100 }, (_, i) => ({ filename: `page/file${i}.js` }));
+        // All 10 pages return full results
+        for (let i = 0; i < 10; i++) {
+          mockGithub.rest.pulls.listFiles.mockResolvedValueOnce({ data: fullPage });
+        }
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 805, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-805" },
+        });
+
+        const result = await buffer.submitReview();
+
+        // Cap reached with full page → fail-open → no filtering → comment is kept
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        expect(mockGithub.rest.pulls.listFiles).toHaveBeenCalledTimes(10);
+        // No "path not found" warning because filtering was skipped
+        expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
+      });
     });
   }); // closes submitReview describe
 

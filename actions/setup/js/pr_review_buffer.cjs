@@ -329,13 +329,21 @@ function createReviewBuffer() {
             page: listPage,
           });
           if (!Array.isArray(files) || files.length === 0) break;
-          for (const f of files) changedPaths.add(f.filename);
+          for (const f of files) {
+            changedPaths.add(f.filename);
+            // For renamed files, the old path (previous_filename) is also valid for review comments.
+            if (f.previous_filename) changedPaths.add(f.previous_filename);
+          }
           if (files.length < 100) break;
           listPage++;
         }
-        // Only filter when we received a non-empty file list; an empty list likely indicates
-        // an API quirk or a PR with no diff, so we skip filtering to avoid false positives.
-        if (changedPaths.size > 0) {
+        // Fail-open when the pagination cap is reached with a full last page: there may
+        // be more changed files beyond the 1,000-file limit, so the collected set is
+        // non-authoritative and filtering would risk dropping valid comments.
+        const hitPageCap = listPage > MAX_LIST_FILES_PAGES;
+        // Only filter when we received a non-empty file list and did not hit the cap;
+        // an empty list likely indicates an API quirk or a PR with no diff.
+        if (changedPaths.size > 0 && !hitPageCap) {
           const invalidComments = comments.filter(c => !changedPaths.has(c.path));
           if (invalidComments.length > 0) {
             for (const c of invalidComments) {
