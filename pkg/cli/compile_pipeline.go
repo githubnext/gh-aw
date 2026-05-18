@@ -119,7 +119,9 @@ func compileSpecificFiles(
 			trackWorkflowFailure(stats, resolvedFile, 1, errMsgs)
 		} else {
 			compiledCount++
-			workflowDataList = append(workflowDataList, fileResult.workflowData)
+			if fileResult.workflowData != nil {
+				workflowDataList = append(workflowDataList, fileResult.workflowData)
+			}
 
 			// Collect lock files for batch security tools
 			if !config.NoEmit && fileResult.lockFile != "" {
@@ -302,7 +304,9 @@ func compileAllFilesInDirectory(
 			trackWorkflowFailure(stats, file, 1, errMsgs)
 		} else {
 			successCount++
-			workflowDataList = append(workflowDataList, fileResult.workflowData)
+			if fileResult.workflowData != nil {
+				workflowDataList = append(workflowDataList, fileResult.workflowData)
+			}
 
 			// Collect lock files for batch security tools
 			if !config.NoEmit && fileResult.lockFile != "" {
@@ -533,9 +537,10 @@ func runPostProcessingForDirectory(
 		}
 	}
 
-	// Generate maintenance workflow if needed
-	// Skip maintenance workflow generation when using custom --dir option
-	if !config.NoEmit && config.WorkflowDir == "" {
+	// Generate maintenance workflow if needed.
+	// Skip maintenance workflow generation when using custom --dir option.
+	// Also skip when no workflows were actually compiled (e.g. only shared components).
+	if !config.NoEmit && config.WorkflowDir == "" && len(workflowDataList) > 0 {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
 		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
 			if config.Strict {

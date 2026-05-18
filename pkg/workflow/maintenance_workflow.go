@@ -142,8 +142,11 @@ func GenerateMaintenanceWorkflow(ctx context.Context, workflowDataList []*Workfl
 	// Use the first available WorkflowData's ActionResolver to enable SHA pinning.
 	// Computed early so it is available in the !hasExpires path for side-repo workflows.
 	var resolver SHAResolver
-	if len(workflowDataList) > 0 && workflowDataList[0].ActionResolver != nil {
-		resolver = workflowDataList[0].ActionResolver
+	for _, workflowData := range workflowDataList {
+		if workflowData != nil && workflowData.ActionResolver != nil {
+			resolver = workflowData.ActionResolver
+			break
+		}
 	}
 
 	if !hasExpires {
@@ -209,7 +212,7 @@ func handleMaintenanceDisabled(workflowDataList []*WorkflowData, workflowDir str
 	// Warn if any workflow uses expires — those features rely on maintenance
 	// and will silently become no-ops when it is disabled.
 	for _, workflowData := range workflowDataList {
-		if workflowData.SafeOutputs == nil {
+		if workflowData == nil || workflowData.SafeOutputs == nil {
 			continue
 		}
 		usesExpires := (workflowData.SafeOutputs.CreateDiscussions != nil && workflowData.SafeOutputs.CreateDiscussions.Expires > 0) ||
@@ -239,7 +242,7 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int) {
 	minExpires := 0 // Track minimum expires value in hours
 
 	for _, workflowData := range workflowDataList {
-		if workflowData.SafeOutputs == nil {
+		if workflowData == nil || workflowData.SafeOutputs == nil {
 			continue
 		}
 		// Check for expired discussions
