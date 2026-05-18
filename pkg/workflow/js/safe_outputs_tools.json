@@ -1,7 +1,7 @@
 [
   {
     "name": "create_issue",
-    "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.",
+    "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. This is a write-once declaration for a real intended issue, not a sandbox or probe: do not call it with placeholder titles/bodies or auth experiments. If you are not ready to open the real issue, use noop or report_incomplete instead. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -280,7 +280,7 @@
   },
   {
     "name": "add_comment",
-    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.add-comment configuration to exclude this permission.",
+    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. This is a write-once declaration for a real intended comment, not a sandbox or probe: do not call it with placeholder bodies or auth experiments. If you are not ready to post the real comment, use noop or report_incomplete instead. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.add-comment configuration to exclude this permission.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -335,7 +335,7 @@
   },
   {
     "name": "create_pull_request",
-    "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead.",
+    "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. This is a write-once declaration for a real intended PR, not a sandbox or probe: do not call it with placeholder content, test titles/bodies, or auth experiments. If you are not ready to open the real PR, use noop or report_incomplete instead. For code review comments on an existing PR, use create_pull_request_review_comment instead.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -1053,7 +1053,7 @@
   },
   {
     "name": "push_to_pull_request_branch",
-    "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. Changes must be committed locally before calling this tool.",
+    "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. This is a write-once declaration for a real intended PR branch update, not a sandbox or probe: do not call it with probe branches, placeholder commit messages, or auth experiments. If you are not ready to push the real update, use noop or report_incomplete instead. Changes must be committed locally before calling this tool.",
     "inputSchema": {
       "type": "object",
       "required": [

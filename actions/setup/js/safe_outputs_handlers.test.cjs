@@ -3,6 +3,15 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
+import {
+  looksLikeExploratoryBranch,
+  normalizeProbeValue,
+  resolveIssueTitleForValidation,
+  validateAddCommentIntent,
+  validateCreateIssueIntent,
+  validateCreatePullRequestIntent,
+  validatePushToPullRequestBranchIntent,
+} from "./intent_probe.cjs";
 
 const LARGE_CONTENT_BODY = "A".repeat(70000);
 
@@ -78,6 +87,64 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
+  });
+
+  describe("probe intent helpers", () => {
+    it("normalizes probe values consistently", () => {
+      expect(normalizeProbeValue("  Test   No   Base  ")).toBe("test no base");
+      expect(normalizeProbeValue(null)).toBe("");
+    });
+
+    it("detects exploratory branch markers", () => {
+      expect(looksLikeExploratoryBranch("docs/pr-17198-test-from-main-1853f10f924372d4")).toBe(true);
+      expect(looksLikeExploratoryBranch("feature/probe-auth")).toBe(true);
+      expect(looksLikeExploratoryBranch("feature/real-work")).toBe(false);
+    });
+
+    it("resolves issue title using the create_issue fallback order", () => {
+      expect(resolveIssueTitleForValidation({ title: "Real title", body: "Ignored body" })).toBe("Real title");
+      expect(resolveIssueTitleForValidation({ body: "Body title" })).toBe("Body title");
+      expect(resolveIssueTitleForValidation({})).toBe("Agent Output");
+    });
+
+    it("rejects exploratory pull request payloads and allows real ones", () => {
+      expect(
+        validateCreatePullRequestIntent({
+          branch: "docs/pr-17198-test-from-main-1853f10f924372d4",
+          title: "test",
+          body: "test",
+        }),
+      ).toContain("Refusing to record an exploratory pull request");
+      expect(
+        validateCreatePullRequestIntent({
+          branch: "feature/fix-real-bug",
+          title: "Fix retry loop",
+          body: "Describe the actual fix",
+        }),
+      ).toBeNull();
+    });
+
+    it("rejects exploratory issue and comment payloads", () => {
+      expect(validateCreateIssueIntent({ title: "test", body: "test" })).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ title: "Investigate flaky setup", body: "Track the real issue" })).toBeNull();
+      expect(validateAddCommentIntent({ body: "test" })).toContain("Refusing to record an exploratory comment");
+      expect(validateAddCommentIntent({ body: "This is the real follow-up comment." })).toBeNull();
+    });
+
+    it("rejects exploratory pull request branch updates and allows real ones", () => {
+      expect(
+        validatePushToPullRequestBranchIntent({
+          branch: "feature/probe-auth",
+          message: "test",
+        }),
+      ).toContain("Refusing to record an exploratory pull request branch update");
+      expect(
+        validatePushToPullRequestBranchIntent({
+          branch: "feature/real-follow-up",
+          message: "Apply review fixes",
+        }),
+      ).toBeNull();
+    });
   });
 
   describe("defaultHandler", () => {
@@ -495,6 +562,21 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
     });
 
+    it("should reject obvious exploratory test payloads before recording a PR intent", async () => {
+      const result = await handlers.createPullRequestHandler({
+        branch: "docs/pr-17198-test-from-main-1853f10f924372d4",
+        title: "test",
+        body: "test",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Refusing to record an exploratory pull request");
+      expect(responseData.error).toContain("noop or report_incomplete");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
     it("should return error response when patch generation fails (not throw)", async () => {
       // This test verifies the error is returned as content, not thrown
       // Patch generation will fail because we're not in a git repo
@@ -631,6 +713,34 @@ describe("safe_outputs_handlers", () => {
         );
       } finally {
         delete process.env.GITHUB_BASE_REF;
+        delete process.env.GITHUB_HEAD_REF;
+        delete process.env.GITHUB_REF_NAME;
+      }
+    });
+
+    it("should validate the resolved current branch before recording a PR intent", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+          base_branch: "main",
+        },
+      });
+
+      process.env.GITHUB_HEAD_REF = "docs/pr-17198-test-from-main-1853f10f924372d4";
+      process.env.GITHUB_REF_NAME = "docs/pr-17198-test-from-main-1853f10f924372d4";
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "main",
+          title: "Real looking title",
+          body: "Real looking body",
+        });
+
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("Refusing to record an exploratory pull request");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
         delete process.env.GITHUB_HEAD_REF;
         delete process.env.GITHUB_REF_NAME;
       }
@@ -837,6 +947,20 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.details).toContain("git add and git commit");
 
       // Should not have appended to safe output since patch generation failed
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should reject obvious exploratory test payloads before recording a PR branch update intent", async () => {
+      const result = await handlers.pushToPullRequestBranchHandler({
+        branch: "docs/pr-17198-test-from-main-1853f10f924372d4",
+        message: "test",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Refusing to record an exploratory pull request branch update");
+      expect(responseData.error).toContain("noop or report_incomplete");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
@@ -1251,6 +1375,17 @@ describe("safe_outputs_handlers", () => {
 
       expect(() => handlers.addCommentHandler({ body: longBody })).toThrow();
     });
+
+    it("should reject obvious exploratory placeholder comments before recording them", () => {
+      const result = handlers.addCommentHandler({ body: "test" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Refusing to record an exploratory comment");
+      expect(responseData.error).toContain("noop or report_incomplete");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
   });
 
   describe("createIssueHandler", () => {
@@ -1323,6 +1458,17 @@ describe("safe_outputs_handlers", () => {
           },
         })
       ).toThrow("deduplicate-by-title");
+    });
+
+    it("should reject obvious exploratory placeholder issues before recording them", () => {
+      const result = handlers.createIssueHandler({ title: "test", body: "test" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("Refusing to record an exploratory issue");
+      expect(responseData.error).toContain("noop or report_incomplete");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
   });
 
@@ -1493,9 +1639,7 @@ describe("safe_outputs_handlers", () => {
       expect(result).toHaveProperty("content");
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "submit_pull_request_review", body: "Looks good!" })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "submit_pull_request_review", body: "Looks good!" }));
     });
 
     it("should write entry and return success when body is empty but inline comments were buffered", () => {
@@ -1518,9 +1662,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should throw MCP error when body is whitespace-only and no inline comments were buffered", () => {
-      expect(() => handlers.submitPullRequestReviewHandler({ body: "   ", event: "COMMENT" })).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
+      expect(() => handlers.submitPullRequestReviewHandler({ body: "   ", event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602 }));
     });
 
     it("should throw MCP error when event is REQUEST_CHANGES and body is empty", () => {
@@ -1559,9 +1701,7 @@ describe("safe_outputs_handlers", () => {
       const result = handlers.submitPullRequestReviewHandler({ body: "LGTM" });
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "submit_pull_request_review" })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "submit_pull_request_review" }));
     });
     it("should reset inline comment counter after a successful submit, allowing a second review to guard correctly", () => {
       // First review: submit with a body (succeeds, resets counter)
@@ -1569,9 +1709,7 @@ describe("safe_outputs_handlers", () => {
       handlers.submitPullRequestReviewHandler({ event: "COMMENT", body: "First review" });
 
       // Counter is now reset to 0. A second empty-body submit should be rejected.
-      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602 }));
     });
 
     it("should throw MCP error when event is an invalid value", () => {
@@ -1606,9 +1744,7 @@ describe("safe_outputs_handlers", () => {
       expect(result).toHaveProperty("content");
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "create_pull_request_review_comment", path: "src/foo.js" })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "create_pull_request_review_comment", path: "src/foo.js" }));
     });
 
     it("should allow empty-body submit after buffering a comment", () => {
@@ -1625,9 +1761,7 @@ describe("safe_outputs_handlers", () => {
       });
       expect(() => handlers.createPullRequestReviewCommentHandler({ path: "src/foo.js", line: 1, body: "nit" })).toThrow();
       // Counter was NOT incremented, so empty-body submit should still be rejected
-      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(
-        expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") })
-      );
+      expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") }));
     });
   });
 });

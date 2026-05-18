@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
+	"github.com/github/gh-aw/pkg/linters/ssljson"
 )
 
 // TestSpec tests derive from pkg/linters/README.md. They enforce the documented
@@ -93,6 +94,7 @@ func TestSpec_UsageExample_AnalyzersUsable(t *testing.T) {
 		excessivefuncparams.Analyzer,
 		largefunc.Analyzer,
 		osexitinlibrary.Analyzer,
+		ssljson.Analyzer,
 	}
 	for _, a := range analyzers {
 		assert.NotNil(t, a, "each documented Analyzer should be usable in a multichecker/singlechecker slice")
@@ -109,6 +111,7 @@ func TestSpec_DesignDecision_UniqueAnalyzerNames(t *testing.T) {
 		excessivefuncparams.Analyzer.Name: true,
 		largefunc.Analyzer.Name:           true,
 		osexitinlibrary.Analyzer.Name:     true,
+		ssljson.Analyzer.Name:             true,
 	}
-	assert.Len(t, names, 3, "each documented subpackage should expose a distinct Analyzer.Name")
+	assert.Len(t, names, 4, "each documented subpackage should expose a distinct Analyzer.Name")
 }

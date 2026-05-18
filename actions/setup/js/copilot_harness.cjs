@@ -86,6 +86,10 @@ const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 // case the driver falls back to a fresh run (without --continue) to re-do env-var auth.
 // On a fresh run the token is genuinely absent — retrying will not help.
 const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+// Pattern to detect authentication failures returned by Copilot API.
+// After a first-attempt auth failure, retrying is futile because the entrypoint unsets
+// COPILOT_GITHUB_TOKEN between attempts.
+const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
 // Pattern to detect null-type tool_call error that poisons conversation history.
 // Matches the Copilot API 400 error:
@@ -151,6 +155,15 @@ function isModelNotSupportedError(output) {
  */
 function isNoAuthInfoError(output) {
   return NO_AUTH_INFO_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains an authentication failed error.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isAuthenticationFailedError(output) {
+  return AUTHENTICATION_FAILED_PATTERN.test(output);
 }
 
 /**
@@ -462,6 +475,7 @@ async function main() {
     const isMCPPolicy = isMCPPolicyError(result.output);
     const isModelNotSupported = isModelNotSupportedError(result.output);
     const isAuthErr = isNoAuthInfoError(result.output);
+    const isAuthenticationFailed = isAuthenticationFailedError(result.output);
     const isNullTypeToolCall = isNullTypeToolCallError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
@@ -473,11 +487,17 @@ async function main() {
         ` isModelNotSupportedError=${isModelNotSupported}` +
         ` isNullTypeToolCallError=${isNullTypeToolCall}` +
         ` isAuthError=${isAuthErr}` +
+        ` isAuthenticationFailedError=${isAuthenticationFailed}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
     );
+
+    if (attempt === 0 && isAuthenticationFailed) {
+      log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+      break;
+    }
 
     if (hasNumerousPermissionDenied) {
       const deniedCommands = extractDeniedCommands(result.output);
@@ -596,6 +616,7 @@ if (typeof module !== "undefined" && module.exports) {
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
     buildMissingToolPermissionIssuePayload,
+    isAuthenticationFailedError,
     resolvePromptFileArgs,
   };
 }

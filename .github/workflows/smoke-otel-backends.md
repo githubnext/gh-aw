@@ -1,6 +1,6 @@
 ---
 emoji: "🧪"
-description: Smoke test that validates OTEL span export and backend query access for Sentry and Grafana
+description: Smoke test that validates OTEL span export and query access for Sentry, Grafana, and Datadog
 on:
   workflow_dispatch:
   label_command:
@@ -33,10 +33,11 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 imports:
+  - shared/mcp/datadog.md
   - shared/mcp/grafana.md
   - shared/mcp/sentry.md
   - shared/otel-queries.md
-  - shared/otlp.md
+  - shared/otlp-backends.md
 ---
 
 # Smoke OTEL
@@ -47,6 +48,7 @@ Validate the full OTEL loop for this repository:
 2. The local OTEL mirror shows spans for this run.
 3. Sentry can be queried for recent gh-aw telemetry.
 4. Grafana can be queried for recent gh-aw telemetry.
+5. Datadog can be queried for recent gh-aw telemetry.
 
 The goal is to verify the current run end to end, not just prove that the backends contain some older telemetry.
 
@@ -60,6 +62,11 @@ This workflow expects these secrets to be present:
 - `GH_AW_OTEL_SENTRY_AUTHORIZATION`
 - `GH_AW_OTEL_GRAFANA_ENDPOINT`
 - `GH_AW_OTEL_GRAFANA_AUTHORIZATION`
+- `GH_AW_OTEL_DATADOG_ENDPOINT`
+- `GH_AW_OTEL_DATADOG_API_KEY`
+- `DD_API_KEY`
+- `DD_APPLICATION_KEY`
+- `DD_APP_KEY` (optional fallback)
 - `SENTRY_ACCESS_TOKEN`
 - `GRAFANA_URL`
 - `GRAFANA_SERVICE_ACCOUNT_TOKEN`
@@ -71,8 +78,8 @@ This workflow expects these secrets to be present:
 - Prefer proving the current run is visible in each backend.
 - Distinguish `pass`, `fail`, and `inconclusive` explicitly.
 - Do not browse unrelated dashboards, issues, or traces.
-- Always complete the workflow in this order: Step 1 local OTEL checks, Step 2 Sentry, then Step 3 Grafana.
-- Do not skip Grafana because Sentry failed or consumed time. Report both backends in the same run.
+- Always complete the workflow in this order: Step 1 local OTEL checks, Step 2 Sentry, Step 3 Grafana, then Step 4 Datadog.
+- Do not skip Grafana or Datadog because an earlier backend failed or consumed time. Report the full matrix in the same run.
 
 ## Status model
 
@@ -95,6 +102,13 @@ echo "OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS:+set}"
 echo "GH_AW_OTLP_ENDPOINTS=${GH_AW_OTLP_ENDPOINTS:+set}"
 echo "OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-}"
 echo "COPILOT_OTEL_FILE_EXPORTER_PATH=${COPILOT_OTEL_FILE_EXPORTER_PATH:-}"
+
+echo "=== OTEL configured backend hosts ==="
+if [ -n "${GH_AW_OTLP_ENDPOINTS:-}" ]; then
+  printf '%s' "$GH_AW_OTLP_ENDPOINTS" | jq -r '.[].url' | sed -E 's#https?://([^/]+)/?.*#\1#'
+else
+  echo "GH_AW_OTLP_ENDPOINTS missing"
+fi
 
 echo "=== OTEL local mirror ==="
 if [ -f /tmp/gh-aw/otel.jsonl ]; then
@@ -174,11 +188,34 @@ Set:
 - `grafana_status = inconclusive` when query access works and recent `gh-aw` spans are visible but this run is not yet visible
 - `grafana_status = fail` otherwise
 
-### Step 4: Final verdict
+### Step 4: Query Datadog
+
+Use the Datadog MCP server configured in this workflow, plus the bash evidence already gathered in Step 1.
+
+1. Confirm the MCP connection works.
+2. First try to find spans for the current run using Datadog span or trace tools with `service:gh-aw` and `${{ github.run_id }}`.
+3. If current-run spans are not visible, run a fallback query for recent `gh-aw` spans from the last 24 hours to distinguish ingestion delay from a broken Datadog query path.
+4. Inspect `/tmp/gh-aw/otlp-export-errors.jsonl` for entries attributable to Datadog.
+
+Record all of the following:
+
+- whether the MCP connection worked
+- whether current-run spans were found
+- whether recent `gh-aw` spans were found even if current-run spans were not
+- whether any OTLP export errors were attributable to Datadog
+- one representative Datadog trace, span, host, or error record when available
+
+Set:
+
+- `datadog_status = pass` when query access works, current-run spans are visible, and the Datadog OTLP export path shows no errors attributable to Datadog
+- `datadog_status = inconclusive` when query access works, no Datadog-attributed export errors were seen, and recent `gh-aw` spans are visible but this run is not yet visible
+- `datadog_status = fail` otherwise
+
+### Step 5: Final verdict
 
 Compute the overall result:
 
-- `PASS` only when `send_status`, `sentry_status`, and `grafana_status` all pass
+- `PASS` only when `send_status`, `sentry_status`, `grafana_status`, and `datadog_status` all pass
 - `INCONCLUSIVE` when no status is `fail` but at least one status is `inconclusive`
 - otherwise `FAIL`
 
@@ -191,9 +228,10 @@ Create exactly one GitHub issue with:
 - Do not retry `create_issue`: this workflow allows only one issue, so a premature call leaves the final report empty.
 - Title: `Smoke OTEL - ${{ github.run_id }}`
 - A short executive summary with overall `PASS`, `INCONCLUSIVE`, or `FAIL`
-- A markdown table with one row for `Local OTLP`, one row for `Sentry`, and one row for `Grafana`, using these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
+- A markdown table with one row for `Local OTLP`, one row for `Sentry`, one row for `Grafana`, and one row for `Datadog`, using these exact columns: `Backend`, `Write Config Present`, `Write Export Succeeded`, `Read Config Present`, `Read Query Succeeded`, `Overall`
 - Use `✅` for pass, `❌` for fail, `🔶` for inconclusive, and `—` where a cell does not apply
 - For the `Local OTLP` row, map `Write Config Present` to OTEL env vars being injected and map `Write Export Succeeded` to the local JSONL mirror containing current-run spans.
+- For the `Datadog` row, map `Write Config Present` to Datadog appearing in the configured backend hosts, `Write Export Succeeded` to the absence of Datadog-attributed OTLP export errors, `Read Config Present` to Datadog MCP configuration being available, and `Read Query Succeeded` to Datadog MCP returning current-run or fallback recent `gh-aw` trace evidence.
 - Use this table form:
 
   ```markdown
@@ -202,6 +240,7 @@ Create exactly one GitHub issue with:
   | Local OTLP | ✅ | ✅ | — | — | ✅ |
   | Sentry | ✅ | ✅ | ✅ | 🔶 | 🔶 |
   | Grafana | ✅ | ❌ | ✅ | ✅ | ❌ |
+  | Datadog | ✅ | ✅ | ✅ | ✅ | ✅ |
   ```
 
 - The exact evidence used for each backend
@@ -216,4 +255,4 @@ For every unchecked cell in the table, add a dedicated subsection under `## Fail
 - whether the problem is on the write path, read path, auth, configuration, propagation, or the backend itself
 - the next concrete debug step or fix
 
-Do not stop after the first failure. Report the full Sentry and Grafana matrix even if one backend is completely broken.
+Do not stop after the first failure. Report the full Sentry, Grafana, and Datadog matrix even if one backend is completely broken.

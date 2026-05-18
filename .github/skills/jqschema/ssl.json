@@ -1,0 +1,97 @@
+{
+  "scheduling": {
+    "id": "jqschema",
+    "name": "jqschema",
+    "goal": "Infer compact JSON structural schema (keys and types) from JSON input using the jqschema.sh script",
+    "intent_signature": "discover_schema($json_input) -> $schema_output",
+    "inputs": ["$json_input"],
+    "outputs": ["$schema_output"],
+    "dependencies": ["jq", "jqschema.sh"],
+    "control_flow_features": ["conditional", "sequential"],
+    "entry_scene": "scene_prepare",
+    "subscene_refs": []
+  },
+  "scenes": [
+    {
+      "id": "scene_prepare",
+      "type": "PREPARE",
+      "goal": "Install jqschema.sh script into the /tmp working directory",
+      "entry_condition": "$GITHUB_WORKSPACE is set and jqschema.sh exists in the skill directory",
+      "exit_condition": "/tmp/gh-aw/jqschema.sh is executable",
+      "next_scene_rules": [
+        { "condition": "setup successful", "target": "scene_acquire" },
+        { "condition": "setup failed", "target": "END_FAIL" }
+      ],
+      "inputs": ["$GITHUB_WORKSPACE"],
+      "outputs": ["$jqschema_bin"],
+      "entry_logic_step": "step_prepare_mkdir"
+    },
+    {
+      "id": "scene_acquire",
+      "type": "ACQUIRE",
+      "goal": "Receive JSON input to analyze",
+      "entry_condition": "$jqschema_bin is available",
+      "exit_condition": "$json_input is available as a processable stream",
+      "next_scene_rules": [{ "condition": "input available", "target": "scene_act" }],
+      "inputs": ["$json_input"],
+      "outputs": ["$json_input"],
+      "entry_logic_step": "step_acquire_receive"
+    },
+    {
+      "id": "scene_act",
+      "type": "ACT",
+      "goal": "Execute jqschema.sh to derive structural schema from $json_input",
+      "entry_condition": "$json_input and $jqschema_bin are ready",
+      "exit_condition": "$schema_output is produced",
+      "next_scene_rules": [
+        { "condition": "execution successful", "target": "END_SUCCESS" },
+        { "condition": "jq execution error", "target": "END_FAIL" }
+      ],
+      "inputs": ["$json_input", "$jqschema_bin"],
+      "outputs": ["$schema_output"],
+      "entry_logic_step": "step_act_run"
+    }
+  ],
+  "logic_steps": [
+    {
+      "id": "step_prepare_mkdir",
+      "scene_id": "scene_prepare",
+      "action_type": "CALL_TOOL",
+      "resource_scope": "LOCAL_FS",
+      "description": "Create /tmp/gh-aw directory if it does not exist",
+      "inputs": { "path": "/tmp/gh-aw" },
+      "outputs": {},
+      "next": "step_prepare_copy"
+    },
+    {
+      "id": "step_prepare_copy",
+      "scene_id": "scene_prepare",
+      "action_type": "CALL_TOOL",
+      "resource_scope": "LOCAL_FS",
+      "description": "Copy jqschema.sh from $GITHUB_WORKSPACE/.github/skills/jqschema/ to /tmp/gh-aw/ and set executable permissions",
+      "inputs": { "source": "$GITHUB_WORKSPACE/.github/skills/jqschema/jqschema.sh", "dest": "/tmp/gh-aw/jqschema.sh" },
+      "outputs": { "bin": "$jqschema_bin" },
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_acquire_receive",
+      "scene_id": "scene_acquire",
+      "action_type": "READ",
+      "resource_scope": "PROCESS",
+      "description": "Receive JSON data as stdin or from a file path, binding the result to $json_input",
+      "inputs": { "data": "$json_input" },
+      "outputs": { "data": "$json_input" },
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_act_run",
+      "scene_id": "scene_act",
+      "action_type": "CALL_TOOL",
+      "resource_scope": "PROCESS",
+      "description": "Pipe $json_input through $jqschema_bin to produce a compact structural schema that replaces values with type names",
+      "inputs": { "json": "$json_input", "bin": "$jqschema_bin" },
+      "outputs": { "schema": "$schema_output" },
+      "next": "YIELD_SUCCESS"
+    }
+  ]
+}

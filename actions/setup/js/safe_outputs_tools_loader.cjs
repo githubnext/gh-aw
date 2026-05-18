@@ -140,12 +140,28 @@ function attachHandlers(tools, handlers) {
  * @param {Function} normalizeTool - Function to normalize tool names
  */
 function registerPredefinedTools(server, tools, config, registerTool, normalizeTool) {
+  const toolSafetyWarnings = {
+    add_comment: " This tool records a real comment intent. Do not use it for placeholder comments, auth checks, or probing. Call it only when the final comment body is ready; otherwise use noop or report_incomplete.",
+    create_issue: " This tool records a real issue intent. Do not use it for placeholder titles/bodies, auth checks, or probing. Call it only when the final issue title/body are ready; otherwise use noop or report_incomplete.",
+    create_pull_request: " This tool records a real pull request intent. Do not use it for tests, auth checks, or probing. Call it once only when the final PR title/body/branch are ready; otherwise use noop or report_incomplete.",
+    push_to_pull_request_branch:
+      " This tool records a real PR branch update intent. Do not use it for probe branches, placeholder commit messages, auth checks, or probing. Call it only when the final branch update is ready; otherwise use noop or report_incomplete.",
+  };
+
   tools.forEach(tool => {
     // Check if this is a regular tool matching a config key
     if (Object.keys(config).find(configKey => normalizeTool(configKey) === tool.name)) {
       let toolToRegister = tool;
+      const safetyWarning = toolSafetyWarnings[tool.name];
+      const isCreatePullRequestTool = tool.name === "create_pull_request" && config.create_pull_request;
       // Enrich create_pull_request tool description when target-repo is configured
-      if (tool.name === "create_pull_request" && config.create_pull_request) {
+      if (safetyWarning || isCreatePullRequestTool) {
+        toolToRegister = JSON.parse(JSON.stringify(tool));
+        if (safetyWarning) {
+          toolToRegister.description += safetyWarning;
+        }
+      }
+      if (isCreatePullRequestTool) {
         const targetRepo = config.create_pull_request["target-repo"];
         if (targetRepo) {
           // Validate the configured target-repo against the allowed-repos list
@@ -157,7 +173,6 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
               server.debug(`WARNING: SEC-005: ${validation.error}`);
             }
           }
-          toolToRegister = JSON.parse(JSON.stringify(tool));
           toolToRegister.description += ` Note: This workflow is configured to create pull requests in '${targetRepo}'. You do not need to specify the repo parameter.`;
           if (toolToRegister.inputSchema && toolToRegister.inputSchema.properties && toolToRegister.inputSchema.properties.repo) {
             toolToRegister.inputSchema.properties.repo.description += ` Configured default: '${targetRepo}'.`;

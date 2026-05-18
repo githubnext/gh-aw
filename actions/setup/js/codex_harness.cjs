@@ -58,6 +58,7 @@ const MAX_DELAY_MS = 60000;
 // Matches "rate_limit_exceeded" from the OpenAI error type field and the "429" status code
 // that Codex emits when the API rate limit is hit.
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
+const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
@@ -83,6 +84,15 @@ function log(message) {
  */
 function isRateLimitError(output) {
   return RATE_LIMIT_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains an authentication failed error.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isAuthenticationFailedError(output) {
+  return AUTHENTICATION_FAILED_PATTERN.test(output);
 }
 
 /**
@@ -297,6 +307,7 @@ async function main() {
     }
 
     const isRateLimit = isRateLimitError(result.output);
+    const isAuthenticationFailed = isAuthenticationFailedError(result.output);
     const isServer = isServerError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
@@ -304,12 +315,18 @@ async function main() {
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
         ` isRateLimitError=${isRateLimit}` +
+        ` isAuthenticationFailedError=${isAuthenticationFailed}` +
         ` isServerError=${isServer}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
     );
+
+    if (attempt === 0 && isAuthenticationFailed) {
+      log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+      break;
+    }
 
     if (hasNumerousPermissionDenied) {
       const deniedCommands = extractDeniedCommands(result.output);
@@ -347,6 +364,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     resolveCodexPromptFileArgs,
     isRateLimitError,
+    isAuthenticationFailedError,
     isServerError,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,

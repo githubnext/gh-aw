@@ -38,6 +38,7 @@ REQUIRED_DEPS=(
   "error_helpers.cjs"
   "safe_outputs_append.cjs"
   "safe_outputs_handlers.cjs"
+  "intent_probe.cjs"
   "sanitize_title.cjs"
   "issue_title_dedup.cjs"
   "safe_outputs_tools_loader.cjs"

@@ -9,6 +9,7 @@ describe("handle_agent_failure", () => {
   let main;
   let buildCodePushFailureContext;
   let buildPushRepoMemoryFailureContext;
+  let buildReportIncompleteContext;
   let getActionFailureIssueExpiresHours;
 
   beforeEach(() => {
@@ -26,7 +27,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
+    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildReportIncompleteContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -420,6 +421,54 @@ describe("handle_agent_failure", () => {
 
       expect(createCommentMock).not.toHaveBeenCalled();
       expect(createIssueMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("agent failure templates", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const { renderTemplate } = require("./messages_core.cjs");
+    const reportIncompleteMarker = "MARKER: cannot continue";
+
+    it("renders report_incomplete context in both comment and issue templates", () => {
+      const reportIncompleteContext = buildReportIncompleteContext([{ type: "report_incomplete", reason: reportIncompleteMarker }]);
+      const templateContext = {
+        run_id: "123456",
+        run_url: "https://github.com/owner/repo/actions/runs/123456",
+        workflow_name: "Test Workflow",
+        workflow_source_url: "https://github.com/owner/repo/blob/main/.github/workflows/test.md",
+        branch: "main",
+        pull_request_info: "",
+        secret_verification_context: "",
+        credential_auth_error_context: "",
+        inference_access_error_context: "",
+        mcp_policy_error_context: "",
+        model_not_supported_error_context: "",
+        effective_tokens_rate_limit_error_context: "",
+        app_token_minting_failed_context: "",
+        lockdown_check_failed_context: "",
+        stale_lock_file_failed_context: "",
+        assignment_errors_context: "",
+        assign_copilot_failure_context: "",
+        create_discussion_errors_context: "",
+        code_push_failure_context: "",
+        repo_memory_validation_context: "",
+        push_repo_memory_failure_context: "",
+        missing_data_context: "",
+        missing_tool_context: "",
+        permission_denied_context: "",
+        report_incomplete_context: reportIncompleteContext,
+        missing_safe_outputs_context: "",
+        engine_failure_context: "",
+        timeout_context: "",
+        fork_context: "",
+      };
+
+      const commentTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_comment.md"), "utf8");
+      const issueTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), "utf8");
+
+      expect(renderTemplate(commentTemplate, templateContext)).toContain(reportIncompleteMarker);
+      expect(renderTemplate(issueTemplate, templateContext)).toContain(reportIncompleteMarker);
     });
   });
 

@@ -22,6 +22,31 @@ const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
+const {
+  validateCreatePullRequestIntent,
+  validatePushToPullRequestBranchIntent,
+  validateCreateIssueIntent,
+  validateAddCommentIntent,
+} = require("./intent_probe.cjs");
+
+/**
+ * @param {string} error
+ * @returns {{content: Array<{type: "text", text: string}>, isError: true}}
+ */
+function buildIntentErrorResponse(error) {
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          result: "error",
+          error,
+        }),
+      },
+    ],
+    isError: true,
+  };
+}
 
 /**
  * Create handlers for safe output tools
@@ -228,6 +253,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Handler for create_pull_request tool
    * Spec cross-reference: Safe Output Outcome Evaluation §1 (`create_pull_request`).
    * Resolves the current branch if branch is not provided or is the base branch
+   * Validates exploratory probe payloads against the resolved effective branch
    * Generates git patch for the changes (unless allow-empty is true)
    * Supports multi-repo scenarios via the optional 'repo' parameter
    */
@@ -329,6 +355,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    const intentValidationError = validateCreatePullRequestIntent(entry);
+    if (intentValidationError) {
+      return buildIntentErrorResponse(intentValidationError);
     }
 
     // Check if allow-empty is enabled in configuration
@@ -601,6 +632,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    const intentValidationError = validatePushToPullRequestBranchIntent(entry);
+    if (intentValidationError) {
+      return buildIntentErrorResponse(intentValidationError);
     }
 
     // Determine transport format: "bundle" (default) uses git bundle (preserves merge topology),
@@ -976,6 +1012,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const createIssueHandler = args => {
     const entry = { ...(args || {}), type: "create_issue" };
+    const intentValidationError = validateCreateIssueIntent(entry);
+    if (intentValidationError) {
+      return buildIntentErrorResponse(intentValidationError);
+    }
 
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(createIssueConfig);
     const repoResult = resolveAndValidateRepo(entry, defaultTargetRepo, allowedRepos, "issue");
@@ -1109,6 +1149,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
+    const intentValidationError = validateAddCommentIntent(entry);
+    if (intentValidationError) {
+      return buildIntentErrorResponse(intentValidationError);
+    }
 
     // Use helper to validate or generate temporary_id
     const tempIdResult = getOrGenerateTemporaryId(entry, "add_comment");
@@ -1178,7 +1222,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const submitPullRequestReviewHandler = args => {
     const body = (args && typeof args.body === "string" ? args.body : "").trim();
-    const event = (args && args.event ? String(args.event).toUpperCase() : "COMMENT");
+    const event = args && args.event ? String(args.event).toUpperCase() : "COMMENT";
 
     const VALID_REVIEW_EVENTS = ["APPROVE", "REQUEST_CHANGES", "COMMENT"];
     if (!VALID_REVIEW_EVENTS.includes(event)) {
@@ -1330,4 +1374,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 }
 
-module.exports = { createHandlers };
+module.exports = {
+  buildIntentErrorResponse,
+  createHandlers,
+};

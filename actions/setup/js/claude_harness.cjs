@@ -66,6 +66,7 @@ const OVERLOADED_ERROR_PATTERN = /overloaded_error|"overloaded"/i;
 //   - embedded stream-json result fields (e.g. "api_error_status":429)
 //   - human-readable message text ("rate limit")
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
+const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
@@ -110,6 +111,15 @@ function isOverloadedError(output) {
  */
 function isRateLimitError(output) {
   return RATE_LIMIT_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains an authentication failed error.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isAuthenticationFailedError(output) {
+  return AUTHENTICATION_FAILED_PATTERN.test(output);
 }
 
 /**
@@ -441,6 +451,7 @@ async function main() {
 
     const isOverloaded = isOverloadedError(result.output);
     const isRateLimit = isRateLimitError(result.output);
+    const isAuthenticationFailed = isAuthenticationFailedError(result.output);
     const isMaxTurns = isMaxTurnsExit(result.output);
     const isNoDeferredMarker = isNoDeferredMarkerError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
@@ -450,6 +461,7 @@ async function main() {
         ` exitCode=${result.exitCode}` +
         ` isOverloadedError=${isOverloaded}` +
         ` isRateLimitError=${isRateLimit}` +
+        ` isAuthenticationFailedError=${isAuthenticationFailed}` +
         ` isMaxTurnsExit=${isMaxTurns}` +
         ` isNoDeferredMarkerError=${isNoDeferredMarker}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
@@ -457,6 +469,11 @@ async function main() {
         ` hasOutput=${result.hasOutput}` +
         ` retriesRemaining=${MAX_RETRIES - attempt}`
     );
+
+    if (attempt === 0 && isAuthenticationFailed) {
+      log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+      break;
+    }
 
     if (hasNumerousPermissionDenied) {
       const deniedCommands = extractDeniedCommands(result.output);
@@ -538,6 +555,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveClaudePromptFileArgs,
     stripPromptFileArgs,
     isRateLimitError,
+    isAuthenticationFailedError,
     isMaxTurnsExit,
     isNoDeferredMarkerError,
     isSignalTerminationExitCode,

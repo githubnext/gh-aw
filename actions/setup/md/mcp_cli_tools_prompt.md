@@ -7,6 +7,8 @@ __GH_AW_MCP_CLI_SERVERS_LIST__
 
 > **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** listed above instead of the equivalent MCP tools. The CLI wrappers are the preferred interface — do **not** call their MCP tools directly even though they may appear in your tool list.
 >
+> For `safeoutputs`, treat every successful command as a real write-intent declaration. Do **not** use `safeoutputs` for exploratory probing, auth checks, placeholder payloads, repeated "try again" variants, or manual runtime experiments. When you need a safe-output, emit the final intended call once. If you are not ready to perform the real action, use `noop` or `report_incomplete` instead.
+>
 > For all other servers listed here, they are **only** available as CLI commands and are **not** available as MCP tools.
 
 ### How to Use
@@ -14,12 +16,6 @@ __GH_AW_MCP_CLI_SERVERS_LIST__
 Each server is a standalone executable on your `PATH`. Invoke it from bash like any other shell command:
 
 ```bash
-# Discover what tools a server provides
-<server-name> --help
-
-# Get detailed help for a specific tool (type, required status, description)
-<server-name> <tool-name> --help
-
 # Call a tool — pass arguments as --name value pairs
 <server-name> <tool-name> --param1 value1 --param2 value2
 ```
@@ -31,10 +27,8 @@ playwright browser_navigate --url https://example.com
 playwright browser_snapshot                        # capture page accessibility tree
 ```
 
-**Example** — using the `safeoutputs` CLI (safe outputs):
+**Example** — using the `safeoutputs` CLI (safe outputs) when you are ready to emit the final real action:
 ```bash
-safeoutputs --help                                 # list all safe-output tools
-safeoutputs add_comment --help                     # show types and required params
 safeoutputs add_comment --issue_number 42 --body "Analysis complete"
 ```
 
