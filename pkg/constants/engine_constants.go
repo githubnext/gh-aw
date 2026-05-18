@@ -255,10 +255,10 @@ const (
 
 	// CopilotBYOKDummyAPIKeyEnvVar is the environment variable that holds the
 	// CopilotBYOKDummyAPIKey sentinel value in generated lock files. Using a
-	// non-_API_KEY-shaped name for the literal value prevents secret scanners from
-	// flagging the generated artifact. COPILOT_API_KEY is then set to reference
-	// this variable (e.g. $COPILOT_DUMMY_BYOK) so the value is never written
-	// inline next to a *_API_KEY key.
+	// non-*_API_KEY-shaped name for the literal value prevents secret scanners from
+	// flagging the generated artifact. COPILOT_API_KEY is then exported in the run:
+	// shell script via shell variable expansion so the value is never written
+	// inline next to a *_API_KEY key in the YAML env: block.
 	CopilotBYOKDummyAPIKeyEnvVar = "COPILOT_DUMMY_BYOK"
 
 	// CopilotBYOKDefaultModel is the explicit fallback model for Copilot BYOK mode.

@@ -1849,21 +1849,26 @@ func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 		}
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		// COPILOT_DUMMY_BYOK holds the literal sentinel so *_API_KEY lines never
-		// contain a token-shaped value (prevents secret-scanner false positives).
+
+		// COPILOT_DUMMY_BYOK holds the literal sentinel in the env: block (not *_API_KEY shaped).
 		expectedDummyVar := constants.CopilotBYOKDummyAPIKeyEnvVar + ": " + constants.CopilotBYOKDummyAPIKey
 		if !strings.Contains(stepContent, expectedDummyVar) {
-			t.Errorf("Expected %s to be set when AWF sandbox is enabled, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
+			t.Errorf("Expected %s to be set in env: block when AWF sandbox is enabled, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
 		}
-		// COPILOT_API_KEY must reference the variable, not the literal value.
-		expectedAPIKey := "COPILOT_API_KEY: $" + constants.CopilotBYOKDummyAPIKeyEnvVar
-		if !strings.Contains(stepContent, expectedAPIKey) {
-			t.Errorf("Expected COPILOT_API_KEY to reference $%s (not the literal), got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
+
+		// COPILOT_API_KEY must be exported via shell expansion in the run: script,
+		// NOT as a literal in the env: block (GitHub Actions env: values are not shell-expanded).
+		expectedExport := `export COPILOT_API_KEY="$` + constants.CopilotBYOKDummyAPIKeyEnvVar + `"`
+		if !strings.Contains(stepContent, expectedExport) {
+			t.Errorf("Expected run: script to contain %q for correct shell expansion, got:\n%s", expectedExport, stepContent)
 		}
-		// Sanity-check: the literal dummy key must NOT appear next to COPILOT_API_KEY.
-		if strings.Contains(stepContent, "COPILOT_API_KEY: "+constants.CopilotBYOKDummyAPIKey) {
-			t.Errorf("COPILOT_API_KEY must not contain the literal dummy key value; got:\n%s", stepContent)
+
+		// Sanity-check: COPILOT_API_KEY must NOT appear in the env: block as a key.
+		// That would put a token-shaped literal next to an *_API_KEY key.
+		if strings.Contains(stepContent, "          COPILOT_API_KEY:") {
+			t.Errorf("COPILOT_API_KEY must not appear as an env: key; got:\n%s", stepContent)
 		}
+
 		if !strings.Contains(stepContent, "AWF_REFLECT_ENABLED: 1") {
 			t.Errorf("Expected AWF_REFLECT_ENABLED to be set when AWF sandbox is enabled, got:\n%s", stepContent)
 		}
