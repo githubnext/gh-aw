@@ -355,7 +355,7 @@ func extractTerminalSubExpressions(content string) []string {
 	tree, err := ParseExpression(content)
 	if err != nil {
 		// Unparseable expression (e.g. malformed input) — return empty safely.
-		expressionExtractionLog.Printf("Could not parse expression for sub-expression extraction (skipping): %v", err)
+		expressionExtractionLog.Printf("Could not parse expression %q for sub-expression extraction (skipping): %v", content, err)
 		return nil
 	}
 
