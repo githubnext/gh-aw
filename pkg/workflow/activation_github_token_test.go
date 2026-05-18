@@ -166,9 +166,9 @@ func TestActivationGitHubApp(t *testing.T) {
 		require.NotNil(t, job)
 
 		stepsStr := strings.Join(job.Steps, "")
-		assert.Contains(t, stepsStr, "if: ${{ env.GH_AW_APP_CLIENT_ID != '' && env.GH_AW_APP_PRIVATE_KEY != '' }}")
-		assert.Contains(t, stepsStr, "GH_AW_APP_CLIENT_ID: ${{ secrets.GH_AW_APP_ID }}")
-		assert.Contains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}")
+		assert.Contains(t, stepsStr, "if: ${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}")
+		assert.NotContains(t, stepsStr, "GH_AW_APP_CLIENT_ID:")
+		assert.NotContains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY:")
 		assert.Contains(t, stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token || secrets.GITHUB_TOKEN }}")
 	})
 

@@ -117,9 +117,9 @@ safe-outputs:
 	require.NotNil(t, job, "Job should not be nil")
 
 	stepsStr := strings.Join(job.Steps, "")
-	assert.Contains(t, stepsStr, "if: ${{ env.GH_AW_APP_CLIENT_ID != '' && env.GH_AW_APP_PRIVATE_KEY != '' }}")
-	assert.Contains(t, stepsStr, "GH_AW_APP_CLIENT_ID: ${{ secrets.GH_AW_APP_ID }}")
-	assert.Contains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}")
+	assert.Contains(t, stepsStr, "if: ${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}")
+	assert.NotContains(t, stepsStr, "GH_AW_APP_CLIENT_ID:")
+	assert.NotContains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY:")
 	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
 }
 

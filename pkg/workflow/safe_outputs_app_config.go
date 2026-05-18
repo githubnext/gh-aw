@@ -109,6 +109,28 @@ func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
 	return app.IgnoreIfMissing
 }
 
+func quoteGitHubExpressionLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
+func buildGitHubExpressionNonEmptyCheck(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
+		trimmed = unwrapGitHubExpression(trimmed)
+	} else {
+		trimmed = quoteGitHubExpressionLiteral(trimmed)
+	}
+	return fmt.Sprintf("%s != ''", trimmed)
+}
+
+func buildIgnoreIfMissingCondition(app *GitHubAppConfig) string {
+	return fmt.Sprintf(
+		"${{ %s && %s }}",
+		buildGitHubExpressionNonEmptyCheck(app.AppID),
+		buildGitHubExpressionNonEmptyCheck(app.PrivateKey),
+	)
+}
+
 // ========================================
 // App Configuration Merging
 // ========================================
@@ -171,10 +193,7 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	steps = append(steps, "      - name: Generate GitHub App token\n")
 	steps = append(steps, "        id: safe-outputs-app-token\n")
 	if app.shouldIgnoreMissingKey() {
-		steps = append(steps, "        if: ${{ env.GH_AW_APP_CLIENT_ID != '' && env.GH_AW_APP_PRIVATE_KEY != '' }}\n")
-		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_APP_CLIENT_ID: %s\n", app.AppID))
-		steps = append(steps, fmt.Sprintf("          GH_AW_APP_PRIVATE_KEY: %s\n", app.PrivateKey))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
@@ -465,10 +484,7 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 	steps = append(steps, "      - name: Generate GitHub App token for activation\n")
 	steps = append(steps, "        id: activation-app-token\n")
 	if app.shouldIgnoreMissingKey() {
-		steps = append(steps, "        if: ${{ env.GH_AW_APP_CLIENT_ID != '' && env.GH_AW_APP_PRIVATE_KEY != '' }}\n")
-		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_APP_CLIENT_ID: %s\n", app.AppID))
-		steps = append(steps, fmt.Sprintf("          GH_AW_APP_PRIVATE_KEY: %s\n", app.PrivateKey))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
