@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-import { createHandlers } from "./safe_outputs_handlers.cjs";
+import { createHandlers, hasUpdatePullRequestFields } from "./safe_outputs_handlers.cjs";
 import {
   looksLikeExploratoryBranch,
   normalizeProbeValue,
@@ -1763,5 +1763,150 @@ describe("safe_outputs_handlers", () => {
       // Counter was NOT incremented, so empty-body submit should still be rejected
       expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") }));
     });
+  });
+
+  describe("updatePullRequestHandler", () => {
+    it("should throw MCP error when no fields are provided", () => {
+      expect(() => handlers.updatePullRequestHandler({})).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("requires at least one of"),
+        })
+      );
+    });
+
+    it("should throw MCP error when called with null/undefined args", () => {
+      expect(() => handlers.updatePullRequestHandler(null)).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+      expect(() => handlers.updatePullRequestHandler(undefined)).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when update_branch is explicitly false and no other fields", () => {
+      expect(() => handlers.updatePullRequestHandler({ update_branch: false })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when title is null", () => {
+      expect(() => handlers.updatePullRequestHandler({ title: null })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when body is null", () => {
+      expect(() => handlers.updatePullRequestHandler({ body: null })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when update_branch is null", () => {
+      expect(() => handlers.updatePullRequestHandler({ update_branch: null })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should write entry and return success when title is provided", () => {
+      const result = handlers.updatePullRequestHandler({ title: "New Title" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", title: "New Title" })
+      );
+    });
+
+    it("should write entry and return success when body is provided", () => {
+      const result = handlers.updatePullRequestHandler({ body: "Updated body" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", body: "Updated body" })
+      );
+    });
+
+    it("should write entry and return success when update_branch is true", () => {
+      const result = handlers.updatePullRequestHandler({ update_branch: true });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", update_branch: true })
+      );
+    });
+
+    it("should write entry and return success when both title and body are provided", () => {
+      const result = handlers.updatePullRequestHandler({ title: "New Title", body: "New body" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", title: "New Title", body: "New body" })
+      );
+    });
+
+    it("error message should mention all required fields", () => {
+      try {
+        handlers.updatePullRequestHandler({});
+        expect.fail("Should have thrown");
+      } catch (err) {
+        expect(err.message).toContain("'title'");
+        expect(err.message).toContain("'body'");
+        expect(err.message).toContain("'update_branch'");
+      }
+    });
+  });
+});
+
+describe("hasUpdatePullRequestFields", () => {
+  it("returns false for empty object", () => {
+    expect(hasUpdatePullRequestFields({})).toBe(false);
+  });
+
+  it("returns false for null", () => {
+    expect(hasUpdatePullRequestFields(null)).toBe(false);
+  });
+
+  it("returns false for undefined", () => {
+    expect(hasUpdatePullRequestFields(undefined)).toBe(false);
+  });
+
+  it("returns false when update_branch is false", () => {
+    expect(hasUpdatePullRequestFields({ update_branch: false })).toBe(false);
+  });
+
+  it("returns false when title is null", () => {
+    expect(hasUpdatePullRequestFields({ title: null })).toBe(false);
+  });
+
+  it("returns false when body is null", () => {
+    expect(hasUpdatePullRequestFields({ body: null })).toBe(false);
+  });
+
+  it("returns false when update_branch is null", () => {
+    expect(hasUpdatePullRequestFields({ update_branch: null })).toBe(false);
+  });
+
+  it("returns true when title is a string", () => {
+    expect(hasUpdatePullRequestFields({ title: "New Title" })).toBe(true);
+  });
+
+  it("returns true when body is a string", () => {
+    expect(hasUpdatePullRequestFields({ body: "Updated body" })).toBe(true);
+  });
+
+  it("returns true when update_branch is exactly true", () => {
+    expect(hasUpdatePullRequestFields({ update_branch: true })).toBe(true);
+  });
+
+  it("returns true when both title and body are provided", () => {
+    expect(hasUpdatePullRequestFields({ title: "t", body: "b" })).toBe(true);
+  });
+
+  it("returns true for empty string title (typeof === 'string')", () => {
+    expect(hasUpdatePullRequestFields({ title: "" })).toBe(true);
   });
 });
