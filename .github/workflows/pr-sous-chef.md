@@ -232,7 +232,7 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - nudged_review_comments
 - nudged_other
 - branch_update_attempts
-- formatter_pushes
+- formatter_pushes (number of PRs that had formatting fixes committed and pushed)
 
 ## agent: `pr-processor`
 ---
