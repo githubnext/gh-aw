@@ -1,6 +1,6 @@
 //go:build !integration
 
-package sslvalidation_test
+package ssl_validation_test
 
 import (
 	"encoding/json"
@@ -88,6 +88,8 @@ type sslSkill struct {
 }
 
 // repoRoot walks up from the test file's location to find the repository root.
+// NOTE: pkg/parser contains a similar unexported findRepoRoot helper, but it
+// cannot be imported here; this is an intentional local copy of the pattern.
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	_, thisFile, _, ok := runtime.Caller(0)
@@ -129,8 +131,9 @@ func validateSSL(t *testing.T, name string, skill sslSkill) {
 		stepIDs[ls.ID] = true
 	}
 
-	// Rule 1: entry_scene must reference an existing scene.
-	assert.Truef(t, sceneIDs[skill.Scheduling.EntryScene],
+	// Rule 1: entry_scene must reference an existing scene. Fail fast because an
+	// invalid entry scene makes the rest of the graph validation unreliable.
+	require.Truef(t, sceneIDs[skill.Scheduling.EntryScene],
 		"%s: entry_scene %q not found in scenes", name, skill.Scheduling.EntryScene)
 
 	for _, scene := range skill.Scenes {
@@ -138,8 +141,9 @@ func validateSSL(t *testing.T, name string, skill sslSkill) {
 		assert.Truef(t, allowedSceneTypes[scene.Type],
 			"%s: scene %q has invalid type %q", name, scene.ID, scene.Type)
 
-		// Rule 3: entry_logic_step must reference an existing logic step.
-		assert.Truef(t, stepIDs[scene.EntryLogicStep],
+		// Rule 3: entry_logic_step must reference an existing logic step. Fail fast
+		// because a missing entry step indicates a fundamental structural problem.
+		require.Truef(t, stepIDs[scene.EntryLogicStep],
 			"%s: scene %q entry_logic_step %q not found in logic_steps", name, scene.ID, scene.EntryLogicStep)
 
 		// Rule 4: scene transition targets must be a scene ID or a terminal target.
