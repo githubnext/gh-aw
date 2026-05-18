@@ -799,7 +799,6 @@
   },
   {
     "name": "update_pull_request",
-
     "description": "Update an existing GitHub pull request's title or body. Supports replacing, appending to, or prepending content to the body. Title is always replaced. Only the fields you specify will be updated; other fields remain unchanged. REQUIRED: You must provide at least one of: 'title' (a non-empty string), 'body' (a string), or 'update_branch' set to true (not false). Omitting all three, or passing only 'update_branch: false', will return a -32602 error.",
     "inputSchema": {
       "type": "object",
@@ -846,14 +845,6 @@
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
         }
       },
-      "anyOf": [
-        { "required": ["title"] },
-        { "required": ["body"] },
-        {
-          "required": ["update_branch"],
-          "properties": { "update_branch": { "const": true } }
-        }
-      ],
       "additionalProperties": false
     }
   },
