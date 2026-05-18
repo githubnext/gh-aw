@@ -466,10 +466,10 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: memory-none-9f0b69b3-spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}
+          key: memory-none-baeab216-spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-none-9f0b69b3-spam-tracking-${{ github.repository_owner }}-
+            memory-none-baeab216-spam-tracking-${{ github.repository_owner }}-
       - name: Setup cache-memory git repository
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
@@ -734,8 +734,6 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="codex"
-          export GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'
-          echo GH_AW_MCP_CLI_SERVERS='["safeoutputs"]' >> "$GITHUB_ENV"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           case "${DOCKER_HOST:-}" in
