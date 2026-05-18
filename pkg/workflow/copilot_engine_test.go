@@ -1849,9 +1849,20 @@ func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 		}
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		expected := "COPILOT_API_KEY: " + constants.CopilotBYOKDummyAPIKey
-		if !strings.Contains(stepContent, expected) {
-			t.Errorf("Expected COPILOT_API_KEY to be set when AWF sandbox is enabled, got:\n%s", stepContent)
+		// COPILOT_DUMMY_BYOK holds the literal sentinel so *_API_KEY lines never
+		// contain a token-shaped value (prevents secret-scanner false positives).
+		expectedDummyVar := constants.CopilotBYOKDummyAPIKeyEnvVar + ": " + constants.CopilotBYOKDummyAPIKey
+		if !strings.Contains(stepContent, expectedDummyVar) {
+			t.Errorf("Expected %s to be set when AWF sandbox is enabled, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
+		}
+		// COPILOT_API_KEY must reference the variable, not the literal value.
+		expectedAPIKey := "COPILOT_API_KEY: $" + constants.CopilotBYOKDummyAPIKeyEnvVar
+		if !strings.Contains(stepContent, expectedAPIKey) {
+			t.Errorf("Expected COPILOT_API_KEY to reference $%s (not the literal), got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
+		}
+		// Sanity-check: the literal dummy key must NOT appear next to COPILOT_API_KEY.
+		if strings.Contains(stepContent, "COPILOT_API_KEY: "+constants.CopilotBYOKDummyAPIKey) {
+			t.Errorf("COPILOT_API_KEY must not contain the literal dummy key value; got:\n%s", stepContent)
 		}
 		if !strings.Contains(stepContent, "AWF_REFLECT_ENABLED: 1") {
 			t.Errorf("Expected AWF_REFLECT_ENABLED to be set when AWF sandbox is enabled, got:\n%s", stepContent)
@@ -1875,6 +1886,9 @@ func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if strings.Contains(stepContent, "COPILOT_API_KEY") {
 			t.Errorf("Expected COPILOT_API_KEY to be absent when sandbox.agent: false, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, constants.CopilotBYOKDummyAPIKeyEnvVar) {
+			t.Errorf("Expected %s to be absent when sandbox.agent: false, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
 		}
 		if strings.Contains(stepContent, "AWF_REFLECT_ENABLED") {
 			t.Errorf("Expected AWF_REFLECT_ENABLED to be absent when sandbox.agent: false, got:\n%s", stepContent)

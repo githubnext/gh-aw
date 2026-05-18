@@ -450,8 +450,15 @@ touch %s
 	// api-proxy is started, so injecting the key would break Copilot CLI authentication.
 	// Similarly, AWF_REFLECT_ENABLED tells the harness to skip the /reflect preflight
 	// when the api-proxy is not available.
+	//
+	// To avoid secret-scanner false positives on generated lock files, the sentinel
+	// value is placed in COPILOT_DUMMY_BYOK (a non-*_API_KEY-shaped variable) and
+	// COPILOT_API_KEY is set to reference it via a shell variable expansion
+	// ($COPILOT_DUMMY_BYOK). Secret scanners do not flag variable references next to
+	// *_API_KEY keys, only literal token-shaped values.
 	if sandboxEnabled {
-		env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
+		env[constants.CopilotBYOKDummyAPIKeyEnvVar] = constants.CopilotBYOKDummyAPIKey
+		env["COPILOT_API_KEY"] = "$" + constants.CopilotBYOKDummyAPIKeyEnvVar
 		env["AWF_REFLECT_ENABLED"] = "1"
 	}
 

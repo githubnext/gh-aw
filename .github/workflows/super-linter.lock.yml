@@ -807,7 +807,8 @@ jobs:
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_API_KEY: dummy-byok-key-for-offline-mode
+          COPILOT_API_KEY: $COPILOT_DUMMY_BYOK
+          COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -1316,7 +1317,8 @@ jobs:
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_API_KEY: dummy-byok-key-for-offline-mode
+          COPILOT_API_KEY: $COPILOT_DUMMY_BYOK
+          COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_PHASE: detection
