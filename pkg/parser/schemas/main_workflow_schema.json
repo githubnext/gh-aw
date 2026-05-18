@@ -12498,6 +12498,10 @@
             "${{ secrets.APP_PRIVATE_KEY }}"
           ]
         },
+        "ignore-if-missing": {
+          "type": "boolean",
+          "description": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime. Defaults to false."
+        },
         "owner": {
           "type": "string",
           "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)"

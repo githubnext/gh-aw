@@ -145,3 +145,34 @@ func TestGetEffectiveCITriggerGitHubToken(t *testing.T) {
 		})
 	}
 }
+
+func TestCombineTokenExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		primary  string
+		fallback string
+		expected string
+	}{
+		{
+			name:     "combines wrapped expressions",
+			primary:  "${{ steps.safe-outputs-app-token.outputs.token }}",
+			fallback: "${{ secrets.GITHUB_TOKEN }}",
+			expected: "${{ steps.safe-outputs-app-token.outputs.token || secrets.GITHUB_TOKEN }}",
+		},
+		{
+			name:     "trims whitespace and unwrapped expressions",
+			primary:  " steps.safe-outputs-app-token.outputs.token ",
+			fallback: " secrets.GITHUB_TOKEN ",
+			expected: "${{ steps.safe-outputs-app-token.outputs.token || secrets.GITHUB_TOKEN }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := combineTokenExpressions(tt.primary, tt.fallback)
+			if result != tt.expected {
+				t.Errorf("combineTokenExpressions() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
