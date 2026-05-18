@@ -4,7 +4,7 @@ This document covers testing patterns, conventions, and the testing framework fo
 
 ## Testing Guidelines for Contributors
 
-GitHub Agentic Workflows has extensive testing practices (699 test files, 1,061+ table-driven tests). Understanding these patterns helps maintain code quality and consistency.
+GitHub Agentic Workflows uses 699 test files and 1,061+ table-driven tests. Understanding these patterns helps maintain code quality and consistency.
 
 ### Test Organization
 
