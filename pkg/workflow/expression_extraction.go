@@ -312,100 +312,31 @@ var simpleIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-
 // See the `if (trimmed.startsWith("needs.") || ...)` block in evaluateExpression().
 var runtimeEvalEnvVarPrefixRegex = regexp.MustCompile(`^(?:needs|steps|inputs)\.`)
 
-// splitExpressionOnLogicalOps splits an expression string on top-level `||` and `&&`
-// tokens. It tracks parenthesis depth so that operators inside parenthesised groups
-// (e.g. `(steps.a || inputs.b) && inputs.c`) are not treated as split points.
-func splitExpressionOnLogicalOps(expr string) []string {
-	var parts []string
-	var current strings.Builder
-	i := 0
-	depth := 0
-	for i < len(expr) {
-		switch {
-		case expr[i] == '(':
-			depth++
-			current.WriteByte(expr[i])
-			i++
-		case expr[i] == ')':
-			if depth > 0 {
-				depth--
-			} else {
-				expressionExtractionLog.Printf("Unbalanced ')' in expression (ignoring): %s", expr)
-			}
-			current.WriteByte(expr[i])
-			i++
-		case depth == 0 && i+1 < len(expr) && (expr[i:i+2] == "||" || expr[i:i+2] == "&&"):
-			parts = append(parts, current.String())
-			current.Reset()
-			i += 2
-		default:
-			current.WriteByte(expr[i])
-			i++
-		}
-	}
-	if current.Len() > 0 {
-		parts = append(parts, current.String())
-	}
-	return parts
-}
-
-// isQualifyingSubExpression reports whether trimmed is a simple property-access chain
+// isQualifyingSubExpression reports whether expr is a simple property-access chain
 // (matching simpleIdentifierRegex) that starts with needs.*, steps.*, or inputs.*.
 // These are the sub-expressions for which the runtime evaluator looks up a deterministic
 // GH_AW_* environment variable name.
-func isQualifyingSubExpression(trimmed string) bool {
-	return trimmed != "" &&
-		simpleIdentifierRegex.MatchString(trimmed) &&
-		runtimeEvalEnvVarPrefixRegex.MatchString(trimmed)
-}
-
-// stripOuterParens removes a single layer of matching outer parentheses from s.
-// For example "(steps.a || inputs.b)" → "steps.a || inputs.b".
-// The strip only happens when the first '(' closes at the very last character,
-// so "(a) || (b)" is returned unchanged.
-func stripOuterParens(s string) string {
-	for len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
-		// Walk to find where the opening '(' closes.
-		depth := 0
-		closeIdx := -1
-		for i := 0; i < len(s); i++ {
-			if s[i] == '(' {
-				depth++
-			} else if s[i] == ')' {
-				depth--
-			}
-			if depth == 0 {
-				closeIdx = i
-				break
-			}
-		}
-		// Only strip if the opening paren matches the very last character.
-		if closeIdx != len(s)-1 {
-			break
-		}
-		s = strings.TrimSpace(s[1 : len(s)-1])
-	}
-	return s
+func isQualifyingSubExpression(expr string) bool {
+	return expr != "" &&
+		simpleIdentifierRegex.MatchString(expr) &&
+		runtimeEvalEnvVarPrefixRegex.MatchString(expr)
 }
 
 // extractTerminalSubExpressions returns the simple-identifier sub-expressions from a
 // compound expression (one containing `||` or `&&` operators, and optionally parentheses)
 // that the runtime evaluator resolves via deterministic GH_AW_* environment variable names.
 //
-// Only sub-expressions that:
+// It delegates parsing to the existing ParseExpression / VisitExpressionTree helpers in
+// expression_parser.go so that all operator precedence, parenthesis grouping, and quoted
+// string handling are handled consistently with the rest of the workflow expression system.
+//
+// Only leaf ExpressionNode values that:
 //
 //  1. are valid simple property-access chains (matching simpleIdentifierRegex), and
 //  2. start with needs.*, steps.*, or inputs.*
 //
 // are returned. github.* sub-expressions are deliberately excluded because the runtime
 // evaluator resolves them through the GitHub context object, not through env vars.
-//
-// Parenthesised groups are handled recursively, so all three of the following forms
-// yield the same result:
-//
-//	"steps.a.outputs.x || inputs.y"
-//	"(steps.a.outputs.x) || inputs.y"
-//	"(steps.a.outputs.x || inputs.y)"
 //
 // Examples:
 //
@@ -421,36 +352,23 @@ func stripOuterParens(s string) string {
 //	"steps.pick-experiment.outputs.name == 'concise'"
 //	→ []  (hyphenated segment; not a simpleIdentifier)
 func extractTerminalSubExpressions(content string) []string {
+	tree, err := ParseExpression(content)
+	if err != nil {
+		// Unparseable expression (e.g. malformed input) — return empty safely.
+		expressionExtractionLog.Printf("Could not parse expression for sub-expression extraction (skipping): %v", err)
+		return nil
+	}
+
 	seen := make(map[string]bool)
 	var result []string
-	var collect func(expr string)
-	collect = func(expr string) {
-		trimmed := strings.TrimSpace(expr)
-		// Strip matching outer parentheses before splitting, e.g.
-		// "(steps.a || inputs.b)" → "steps.a || inputs.b"
-		trimmed = stripOuterParens(trimmed)
-		if trimmed == "" {
-			return
+	_ = VisitExpressionTree(tree, func(node *ExpressionNode) error {
+		expr := strings.TrimSpace(node.Expression)
+		if isQualifyingSubExpression(expr) && !seen[expr] {
+			seen[expr] = true
+			result = append(result, expr)
 		}
-		parts := splitExpressionOnLogicalOps(trimmed)
-		if len(parts) == 1 {
-			// Leaf: check whether it is a qualifying simple identifier.
-			t := strings.TrimSpace(parts[0])
-			t = stripOuterParens(t)
-			if !isQualifyingSubExpression(t) {
-				return
-			}
-			if !seen[t] {
-				seen[t] = true
-				result = append(result, t)
-			}
-		} else {
-			for _, part := range parts {
-				collect(part)
-			}
-		}
-	}
-	collect(content)
+		return nil
+	})
 	return result
 }
 

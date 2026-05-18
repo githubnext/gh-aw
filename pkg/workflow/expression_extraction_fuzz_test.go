@@ -92,82 +92,6 @@ func FuzzExtractTerminalSubExpressions(f *testing.F) {
 	})
 }
 
-// FuzzSplitExpressionOnLogicalOps fuzz-tests splitExpressionOnLogicalOps against
-// arbitrary inputs. It validates that the function:
-//  1. Never panics.
-//  2. Reassembling the parts (with "||" between them) produces the correct result.
-//  3. Handles arbitrary combinations of parentheses, operators, and identifiers.
-func FuzzSplitExpressionOnLogicalOps(f *testing.F) {
-	// Seed with realistic GitHub Actions expression fragments
-	f.Add("steps.sanitized.outputs.text || inputs.command")
-	f.Add("a && b || c")
-	f.Add("(a || b) && c")
-	f.Add("a || (b && c)")
-	f.Add("(a || b) && (c || d)")
-	f.Add("")
-	f.Add("||")
-	f.Add("&&")
-	f.Add("()")
-	f.Add("(a)")
-	f.Add("((a || b))")
-	f.Add("a || b || c || d")
-	f.Add("a && b && c && d")
-	f.Add("(a || b || c) && (d || e)")
-
-	f.Fuzz(func(t *testing.T, expr string) {
-		// Must never panic.
-		parts := splitExpressionOnLogicalOps(expr)
-
-		// Result must be non-nil when there is at least one character.
-		if expr != "" && len(parts) == 0 {
-			t.Errorf("splitExpressionOnLogicalOps(%q) returned no parts for non-empty input", expr)
-		}
-
-		// The split may produce parts that contain the characters from the original
-		// expression (minus the top-level "||"/"&&" separators).  Check that the total
-		// character count of all parts equals the original minus the removed separators.
-		totalChars := 0
-		for _, p := range parts {
-			totalChars += len(p)
-		}
-		separatorChars := 2 * max(0, len(parts)-1) // each "||"/"&&" separator is 2 bytes
-		if totalChars+separatorChars > len(expr) {
-			// Parts contain more characters than the original — something went wrong.
-			t.Errorf("splitExpressionOnLogicalOps(%q) parts total %d chars > original %d chars (with %d separator chars)",
-				expr, totalChars, len(expr), separatorChars)
-		}
-
-		// Parenthesis depth must balance in each part that was split at depth-0.
-		// (Parts may contain unbalanced parens if the input itself is unbalanced, so
-		// we only assert when the whole expression's depth is balanced.)
-		totalDepth := 0
-		for _, ch := range expr {
-			if ch == '(' {
-				totalDepth++
-			} else if ch == ')' {
-				totalDepth--
-			}
-		}
-		if totalDepth == 0 {
-			// Expression is balanced — every returned part should individually balance.
-			for _, part := range parts {
-				d := 0
-				for _, ch := range part {
-					if ch == '(' {
-						d++
-					} else if ch == ')' {
-						d--
-					}
-				}
-				if d != 0 {
-					t.Errorf("splitExpressionOnLogicalOps(%q) part %q has unbalanced parens (depth %d) in a balanced expression",
-						expr, part, d)
-				}
-			}
-		}
-	})
-}
-
 // FuzzExtractExpressions fuzz-tests the full ExtractExpressions pipeline against
 // arbitrary markdown strings. It validates that the function:
 //  1. Never panics or returns an error for arbitrary input.
@@ -263,12 +187,4 @@ func FuzzExtractExpressions(f *testing.F) {
 			}
 		}
 	})
-}
-
-// max returns the larger of a and b.
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
