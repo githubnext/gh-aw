@@ -744,6 +744,29 @@ Implementations MUST:
 3. Apply size limits to output (see Section 8)
 4. Remove or mask any accidental secret exposure in output
 
+**SM-01**: Implementations MUST sanitize tool stdout before forwarding the result to the MCP
+client. Any string value in the tool's output that matches a **registered secret pattern** MUST be
+redacted and replaced with the string `"[REDACTED]"` prior to serialization. This requirement
+applies to all output fields, including nested JSON objects and arrays.
+
+A *registered secret pattern* is any secret value that the GitHub Actions runner has registered
+for masking (i.e., any value sourced from `${{ secrets.NAME }}` references declared in the
+workflow's `env:` block, as described in §7.1). Implementations MUST obtain the list of active
+secret values from the runner's masking registry (GitHub Actions `::add-mask::` mechanism) to
+determine which patterns to redact. See §7.1 for the secret isolation model that governs which
+secrets are in scope.
+
+**SM-02**: The secret pattern matching used for output sanitization MUST be consistent with the
+masking logic applied to runner logs. Implementations MUST reuse or delegate to the sanitization
+helper functions provided in `actions/setup/js/` (specifically the output-redaction utilities in
+`actions/setup/js/mcp_scripts_mcp_server_http.cjs` and related helpers) rather than implementing
+independent redaction logic.
+
+**SM-03**: Implementations MUST NOT forward raw tool stdout to the MCP client without first
+passing it through the output sanitization pipeline. This applies regardless of whether the tool
+declares secrets in its `env:` field; residual secret values that appear in stdout through indirect
+means (e.g., subprocess output, error messages) MUST also be redacted.
+
 ### 7.5 Timeout Enforcement
 
 Implementations MUST:
@@ -936,6 +959,11 @@ A conforming implementation MUST pass the following test categories:
 - **T-INT-004**: JSON-RPC request handling
 - **T-INT-005**: Error response format
 
+#### 10.1.8 Negative Tests
+
+- **T-MS-NEG-001**: Tool definition with missing `script` (or `run`, `py`, `go`) field — implementation MUST reject the configuration at compile time with an error identifying the missing implementation field. The error MUST reference the tool name and the required field names.
+- **T-MS-NEG-002**: Tool input schema referencing an undefined type (e.g., `type: "uuid"`) — implementation MUST reject the schema at validation time with an error indicating the unsupported type. The error MUST include the tool name, parameter name, and the invalid type value.
+
 ### 10.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
@@ -952,6 +980,8 @@ A conforming implementation MUST pass the following test categories:
 | Dependencies support | T-DEP-* | 2 | Standard |
 | GitHub Actions globals | T-SEC-008 | 1 | Required |
 | MCP Gateway integration | T-INT-* | 1 | Required |
+| Missing implementation field rejection | T-MS-NEG-001 | 1 | Required |
+| Invalid input schema type rejection | T-MS-NEG-002 | 1 | Required |
 
 ### 10.3 Test Execution
 

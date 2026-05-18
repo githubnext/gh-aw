@@ -1178,7 +1178,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const submitPullRequestReviewHandler = args => {
     const body = (args && typeof args.body === "string" ? args.body : "").trim();
-    const event = (args && args.event ? String(args.event).toUpperCase() : "COMMENT");
+    const event = args && args.event ? String(args.event).toUpperCase() : "COMMENT";
 
     const VALID_REVIEW_EVENTS = ["APPROVE", "REQUEST_CHANGES", "COMMENT"];
     if (!VALID_REVIEW_EVENTS.includes(event)) {

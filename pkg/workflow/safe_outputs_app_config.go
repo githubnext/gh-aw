@@ -127,8 +127,8 @@ func extractWrappedGitHubExpression(value string) (string, bool) {
 }
 
 // buildGitHubExpressionNonEmptyCheck renders a non-empty check node from wrapped
-// expressions (`${{ secrets.KEY }}` -> `secrets.KEY != ''`) or literals
-// (`plain-value` -> `'plain-value' != ''`).
+// expressions (`${{ secrets.KEY }}` -> `secrets.KEY != ”`) or literals
+// (`plain-value` -> `'plain-value' != ”`).
 func buildGitHubExpressionNonEmptyCheck(value string) ConditionNode {
 	trimmed := strings.TrimSpace(value)
 	if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
