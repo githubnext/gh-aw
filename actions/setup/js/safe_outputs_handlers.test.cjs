@@ -113,14 +113,14 @@ describe("safe_outputs_handlers", () => {
           branch: "docs/pr-17198-test-from-main-1853f10f924372d4",
           title: "test",
           body: "test",
-        }),
+        })
       ).toContain("Refusing to record an exploratory pull request");
       expect(
         validateCreatePullRequestIntent({
           branch: "feature/fix-real-bug",
           title: "Fix retry loop",
           body: "Describe the actual fix",
-        }),
+        })
       ).toBeNull();
     });
 
@@ -136,13 +136,13 @@ describe("safe_outputs_handlers", () => {
         validatePushToPullRequestBranchIntent({
           branch: "feature/probe-auth",
           message: "test",
-        }),
+        })
       ).toContain("Refusing to record an exploratory pull request branch update");
       expect(
         validatePushToPullRequestBranchIntent({
           branch: "feature/real-follow-up",
           message: "Apply review fixes",
-        }),
+        })
       ).toBeNull();
     });
   });
