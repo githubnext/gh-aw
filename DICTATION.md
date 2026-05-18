@@ -47,6 +47,7 @@ OPENAI_API_KEY
 OTEL_EXPORTER_OTLP_ENDPOINT
 RUNNER_TEMP
 SARIF
+actionlint
 activation
 activation-job
 add-comment
@@ -62,6 +63,7 @@ allowed-repos
 allowlist
 api-target
 api.github.com
+api.githubcopilot.com
 approval-labels
 artifact
 assign-to-agent
@@ -71,11 +73,11 @@ auth
 auto-merge
 auto-triage-issues
 automation
+aw.yml
 bash
 blocked
 blocked-users
 branch
-build
 bun
 bypassPermissions
 cache
@@ -94,7 +96,6 @@ compile-workflow
 compiler
 concurrency
 concurrency-group
-config
 contents
 copilot
 create-agent-session
@@ -112,18 +113,15 @@ default-branch
 defaults
 deno
 dependabot
-description
 detection
 discussions
 dispatch-workflow
 docker
-documentation
 dotnet
 draft
 engine
 engine-config
 env
-environment
 events
 experiment
 experiments
@@ -203,6 +201,7 @@ outputs
 permissions
 pip
 playwright
+poutine
 prompt
 prompt-injection
 protected-files
@@ -210,6 +209,7 @@ pull-requests
 pull_request
 pull_request_target
 python
+qmd
 recompile
 refusal-labels
 repo
@@ -225,7 +225,6 @@ sandbox
 schedule
 secrets
 security
-session
 setup
 shared-workflow
 skip-if-match
@@ -253,6 +252,7 @@ update-issue
 update-pull-request
 validation
 version
+wasm
 web-fetch
 web-search
 webhook

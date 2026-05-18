@@ -32,7 +32,7 @@ engine:
     /tmp/gh-aw/comment-memory/default.md; fi; else safeoutputs noop --message "smoke-ci:
     push event - no PR context, no action needed"; fi'
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cache-memory: true
   comment-memory: true

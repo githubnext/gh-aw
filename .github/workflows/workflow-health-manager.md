@@ -33,7 +33,7 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 steps:
   - name: Build Inventory
     env:

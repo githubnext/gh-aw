@@ -34,7 +34,7 @@ func compileWorkflowWithRefresh(ctx context.Context, filePath string, verbose bo
 
 	compiler.SetRefreshStopTime(refreshStopTime)
 	compiler.SetQuiet(quiet)
-	if err := CompileWorkflowWithValidation(ctx, compiler, filePath, verbose, false, false, false, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(ctx, compiler, filePath, CompileValidationOptions{Verbose: verbose}); err != nil {
 		addWorkflowCompilationLog.Printf("Compilation failed: %v", err)
 		return err
 	}
@@ -103,7 +103,7 @@ func compileWorkflowWithTrackingAndRefresh(ctx context.Context, filePath string,
 	compiler.SetFileTracker(tracker)
 	compiler.SetRefreshStopTime(refreshStopTime)
 	compiler.SetQuiet(quiet)
-	if err := CompileWorkflowWithValidation(ctx, compiler, filePath, verbose, false, false, false, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(ctx, compiler, filePath, CompileValidationOptions{Verbose: verbose}); err != nil {
 		return err
 	}
 

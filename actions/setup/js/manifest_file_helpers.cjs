@@ -1,6 +1,7 @@
 // @ts-check
 
 /** @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig */
+const { extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 
 /**
  * Extracts the unique set of file basenames (filename without directory path) changed in a git patch.
@@ -17,9 +18,12 @@ function extractFilenamesFromPatch(patchContent) {
     return [];
   }
   const fileSet = new Set();
-  const matches = patchContent.matchAll(/^diff --git a\/(.+) b\/(.+)$/gm);
-  for (const match of matches) {
-    for (const filePath of [match[1], match[2]]) {
+  const entries = extractDiffGitHeaderEntries(patchContent);
+  for (const entry of entries) {
+    if (!entry.parseable) {
+      continue;
+    }
+    for (const filePath of [entry.oldPath, entry.newPath]) {
       // "dev/null" is the sentinel used when a file is created or deleted; skip it
       if (filePath && filePath !== "dev/null") {
         const parts = filePath.split("/");
@@ -51,9 +55,12 @@ function extractPathsFromPatch(patchContent) {
     return [];
   }
   const pathSet = new Set();
-  const matches = patchContent.matchAll(/^diff --git a\/(.+) b\/(.+)$/gm);
-  for (const match of matches) {
-    for (const filePath of [match[1], match[2]]) {
+  const entries = extractDiffGitHeaderEntries(patchContent);
+  for (const entry of entries) {
+    if (!entry.parseable) {
+      continue;
+    }
+    for (const filePath of [entry.oldPath, entry.newPath]) {
       if (filePath && filePath !== "dev/null") {
         pathSet.add(filePath);
       }

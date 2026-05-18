@@ -32,6 +32,21 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const HANDLER_TYPE = "add_comment";
 
 /**
+ * Deduplicate an array of strings using case-insensitive comparison, preserving original casing and order.
+ * @param {string[]} aliases
+ * @returns {string[]}
+ */
+function deduplicateCaseInsensitive(aliases) {
+  const seen = new Set();
+  return aliases.filter(alias => {
+    const key = alias.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
  * Resolve effective event name/payload for native and forwarded contexts.
  * Supports:
  * - workflow_dispatch with event_name/event_payload inputs (via resolveInvocationContext)
@@ -362,6 +377,9 @@ async function main(config = {}) {
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = parseBoolTemplatable(config.footer, true);
+  const mentionsDisabled = config.mentions === false || config.mentions?.enabled === false;
+  const configuredMentionAliases =
+    !mentionsDisabled && Array.isArray(config.mentions?.allowed) ? config.mentions.allowed.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
@@ -531,38 +549,42 @@ async function main(config = {}) {
     // allowed aliases would neutralize those preserved mentions. We re-add the parent entity
     // author so the second sanitization pass does not accidentally strip them.
     const parentAuthors = [];
-    if (!isDiscussion) {
-      if (explicitItemNumber !== undefined) {
-        // Explicit item_number/issue_number: fetch the issue/PR to get its author
-        try {
-          const { data: issueData } = await githubClient.rest.issues.get({
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            issue_number: itemNumber,
-          });
-          if (issueData.user?.login && !isPayloadUserBot(issueData.user)) {
-            parentAuthors.push(issueData.user.login);
+    if (!mentionsDisabled) {
+      if (!isDiscussion) {
+        if (explicitItemNumber !== undefined) {
+          // Explicit item_number/issue_number: fetch the issue/PR to get its author
+          try {
+            const { data: issueData } = await githubClient.rest.issues.get({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              issue_number: itemNumber,
+            });
+            if (issueData.user?.login && !isPayloadUserBot(issueData.user)) {
+              parentAuthors.push(issueData.user.login);
+            }
+          } catch (err) {
+            core.info(`Could not fetch parent issue/PR author for mention allowlist: ${getErrorMessage(err)}`);
           }
-        } catch (err) {
-          core.info(`Could not fetch parent issue/PR author for mention allowlist: ${getErrorMessage(err)}`);
+        } else {
+          // Triggering context: use the issue/PR author from the event payload
+          if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+            parentAuthors.push(context.payload.issue.user.login);
+          }
+          if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+            parentAuthors.push(context.payload.pull_request.user.login);
+          }
         }
       } else {
-        // Triggering context: use the issue/PR author from the event payload
-        if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-          parentAuthors.push(context.payload.issue.user.login);
+        // Discussion: use the discussion author from the event payload
+        if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+          parentAuthors.push(context.payload.discussion.user.login);
         }
-        if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          parentAuthors.push(context.payload.pull_request.user.login);
-        }
-      }
-    } else {
-      // Discussion: use the discussion author from the event payload
-      if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-        parentAuthors.push(context.payload.discussion.user.login);
       }
     }
-    if (parentAuthors.length > 0) {
-      core.info(`[MENTIONS] Allowing parent entity authors in comment: ${parentAuthors.join(", ")}`);
+    const allowedMentionAliases = deduplicateCaseInsensitive([...parentAuthors, ...configuredMentionAliases]);
+
+    if (allowedMentionAliases.length > 0) {
+      core.info(`[MENTIONS] Allowing aliases in comment: ${allowedMentionAliases.join(", ")}`);
     }
 
     // Replace temporary ID references in body
@@ -570,7 +592,7 @@ async function main(config = {}) {
 
     // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
     // so they can be @mentioned in the generated comment.
-    processedBody = sanitizeContent(processedBody, { allowedAliases: parentAuthors });
+    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
 
     // Enforce max limits before processing (validates user-provided content)
     try {

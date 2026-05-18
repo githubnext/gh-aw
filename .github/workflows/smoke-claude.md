@@ -31,7 +31,7 @@ imports:
   - shared/go-make.md
   - shared/github-mcp-app.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults
@@ -58,6 +58,7 @@ runtimes:
 checkout:
   fetch: ["*"]
   fetch-depth: 0
+  force-clean-git-credentials: true
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:

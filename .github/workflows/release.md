@@ -34,7 +34,7 @@ safe-outputs:
   threat-detection: false
 imports:
   - shared/community-attribution.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 jobs:
   config:
     needs: ["pre_activation", "activation"]

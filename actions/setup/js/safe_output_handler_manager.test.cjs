@@ -2,7 +2,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
-import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles } from "./safe_output_handler_manager.cjs";
+import { createRequire } from "module";
+import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults } from "./safe_output_handler_manager.cjs";
+
+const require = createRequire(import.meta.url);
 
 describe("Safe Output Handler Manager", () => {
   beforeEach(() => {
@@ -114,6 +117,48 @@ describe("Safe Output Handler Manager", () => {
       // Note: Actual integration testing requires real handler modules
       // This test documents the expected behavior for validation
       expect(true).toBe(true);
+    });
+
+    it("should pass top-level mentions config into handler config", async () => {
+      const addCommentModule = require("./add_comment.cjs");
+      const addCommentMainSpy = vi.spyOn(addCommentModule, "main").mockImplementation(async () => async () => ({ success: true }));
+      const createIssueModule = require("./create_issue.cjs");
+      const createIssueMainSpy = vi.spyOn(createIssueModule, "main").mockImplementation(async () => async () => ({ success: true }));
+
+      try {
+        const mentionsConfig = { enabled: true, allowed: ["@copilot"] };
+        const handlers = await loadHandlers(
+          {
+            add_comment: { max: 1 },
+            create_issue: { max: 1 },
+            mentions: mentionsConfig,
+          },
+          undefined,
+          ["copilot", "octocat"]
+        );
+
+        expect(handlers.has("add_comment")).toBe(true);
+        expect(handlers.has("create_issue")).toBe(true);
+        expect(addCommentMainSpy).toHaveBeenCalledTimes(1);
+        expect(createIssueMainSpy).toHaveBeenCalledTimes(1);
+        expect(addCommentMainSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            max: 1,
+            mentions: mentionsConfig,
+            allowedMentionAliases: ["copilot", "octocat"],
+          })
+        );
+        expect(createIssueMainSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            max: 1,
+            mentions: mentionsConfig,
+            allowedMentionAliases: ["copilot", "octocat"],
+          })
+        );
+      } finally {
+        addCommentMainSpy.mockRestore();
+        createIssueMainSpy.mockRestore();
+      }
     });
   });
 
@@ -1594,6 +1639,60 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results).toHaveLength(1);
       expect(result.results[0].success).toBe(false);
       expect(result.results[0].error).toContain("No handler loaded for type 'call_workflow'");
+    });
+  });
+
+  describe("rollbackReviewResults", () => {
+    it("flips success:true to success:false for submit_pull_request_review results", () => {
+      const results = [{ type: "submit_pull_request_review", success: true }];
+      rollbackReviewResults(results, "422 Unprocessable Entity");
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toBe("Review finalization failed: 422 Unprocessable Entity");
+    });
+
+    it("flips success:true to success:false for create_pull_request_review_comment results", () => {
+      const results = [
+        { type: "create_pull_request_review_comment", success: true },
+        { type: "create_pull_request_review_comment", success: true },
+      ];
+      rollbackReviewResults(results, "Path could not be resolved");
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toBe("Review finalization failed: Path could not be resolved");
+      expect(results[1].success).toBe(false);
+    });
+
+    it("does not modify results with success:false", () => {
+      const results = [{ type: "submit_pull_request_review", success: false, error: "already failed" }];
+      rollbackReviewResults(results, "new error");
+      expect(results[0].error).toBe("already failed");
+    });
+
+    it("does not modify unrelated result types", () => {
+      const results = [
+        { type: "add_comment", success: true },
+        { type: "create_issue", success: true },
+      ];
+      rollbackReviewResults(results, "some error");
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(true);
+    });
+
+    it("handles mixed result types correctly", () => {
+      const results = [
+        { type: "add_comment", success: true },
+        { type: "create_pull_request_review_comment", success: true },
+        { type: "submit_pull_request_review", success: true },
+        { type: "create_issue", success: true },
+      ];
+      rollbackReviewResults(results, "finalization failed");
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(false);
+      expect(results[2].success).toBe(false);
+      expect(results[3].success).toBe(true);
+    });
+
+    it("handles empty results array without throwing", () => {
+      expect(() => rollbackReviewResults([], "error")).not.toThrow();
     });
   });
 

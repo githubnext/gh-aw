@@ -306,14 +306,34 @@ describe("safe_output_type_validator", () => {
       expect(result.isTemporary).toBe(false);
     });
 
-    it("should accept temporary ID", async () => {
+    it("should accept temporary ID and normalize to # prefix form", async () => {
       const { validateIssueNumberOrTemporaryId } = await import("./safe_output_type_validator.cjs");
 
       const result = validateIssueNumberOrTemporaryId("aw_abc123", "issue_number", 1);
 
       expect(result.isValid).toBe(true);
       expect(result.isTemporary).toBe(true);
-      expect(result.normalizedValue).toBe("aw_abc123");
+      expect(result.normalizedValue).toBe("#aw_abc123");
+    });
+
+    it("should accept temporary ID with leading '#' and normalize to # prefix form", async () => {
+      const { validateIssueNumberOrTemporaryId } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateIssueNumberOrTemporaryId("#aw_abc123", "issue_number", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.isTemporary).toBe(true);
+      expect(result.normalizedValue).toBe("#aw_abc123");
+    });
+
+    it("should accept temporary ID with underscore in the suffix", async () => {
+      const { validateIssueNumberOrTemporaryId } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateIssueNumberOrTemporaryId("aw_pr_fix", "item_number", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.isTemporary).toBe(true);
+      expect(result.normalizedValue).toBe("#aw_pr_fix");
     });
 
     it("should reject invalid values", async () => {

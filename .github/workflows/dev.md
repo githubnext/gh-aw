@@ -29,7 +29,7 @@ safe-outputs:
     title-prefix: "[Daily Report] "
 
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   github:
     mode: gh-proxy

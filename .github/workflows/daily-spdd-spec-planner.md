@@ -23,7 +23,7 @@ imports:
       labels: [spdd, specifications, planning, automation]
       assignees: [copilot]
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

@@ -221,9 +221,8 @@ tools:
     toolsets: [repos, issues, pull-requests]
   bash:
     commands: [git, jq, python]
-  serena:
-    mode: remote
-    version: latest
+  playwright:
+    mode: cli
 ```
 
 ## Error Handling and Debugging

@@ -13,7 +13,7 @@ imports:
       title-prefix: "[daily-sentrux] "
       expires: "3d"
   - shared/mcp/sentrux.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults

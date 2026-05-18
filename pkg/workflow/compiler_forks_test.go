@@ -5,12 +5,16 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
+
+// topLevelOnKeyPattern matches the top-level `on:` key at line start (not nested keys).
+var topLevelOnKeyPattern = regexp.MustCompile(`(?m)^on:`)
 
 func TestPullRequestForksArrayFilter(t *testing.T) {
 	// Create temporary directory for test files
@@ -601,9 +605,11 @@ tools:
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			// Check that "on": IS present (quoted form)
-			if !strings.Contains(yamlContent, `"on":`) {
-				t.Errorf("Generated YAML does not contain quoted 'on' keyword:\n%s", yamlContent)
+			// Check that an "on" top-level key is present in either quoted or plain form.
+			hasQuotedOn := strings.Contains(yamlContent, `"on":`)
+			hasPlainOn := topLevelOnKeyPattern.MatchString(yamlContent)
+			if !hasQuotedOn && !hasPlainOn {
+				t.Errorf("Generated YAML does not contain 'on' keyword:\n%s", yamlContent)
 			}
 
 			// Additional verification: parse the generated YAML to ensure it's valid

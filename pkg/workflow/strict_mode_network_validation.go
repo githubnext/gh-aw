@@ -45,16 +45,19 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any, networkP
 	// Check mcp-servers section (new format)
 	mcpServersValue, exists := frontmatter["mcp-servers"]
 	if !exists {
+		strictModeValidationLog.Print("No mcp-servers section, skipping MCP network validation")
 		return nil
 	}
 
 	mcpServersMap, ok := mcpServersValue.(map[string]any)
 	if !ok {
+		strictModeValidationLog.Print("mcp-servers is not a map, skipping MCP network validation")
 		return nil
 	}
 
 	// Check if top-level network configuration exists
 	hasTopLevelNetwork := networkPermissions != nil && len(networkPermissions.Allowed) > 0
+	strictModeValidationLog.Printf("Checking %d MCP servers for container network requirements: hasTopLevelNetwork=%t", len(mcpServersMap), hasTopLevelNetwork)
 
 	// Check each MCP server for containers
 	for serverName, serverValue := range mcpServersMap {
@@ -88,17 +91,20 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 	// Check tools section
 	toolsValue, exists := frontmatter["tools"]
 	if !exists {
+		strictModeValidationLog.Print("No tools section, skipping strict tools validation")
 		return nil
 	}
 
 	toolsMap, ok := toolsValue.(map[string]any)
 	if !ok {
+		strictModeValidationLog.Print("tools is not a map, skipping strict tools validation")
 		return nil
 	}
 
 	// Check if cache-memory is configured with scope: repo
 	cacheMemoryValue, hasCacheMemory := toolsMap["cache-memory"]
 	if hasCacheMemory {
+		strictModeValidationLog.Print("Checking cache-memory scope in strict mode")
 		// Helper function to check scope in a cache entry
 		checkScope := func(cacheMap map[string]any) error {
 			if scope, hasScope := cacheMap["scope"]; hasScope {

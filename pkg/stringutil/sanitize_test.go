@@ -3,9 +3,23 @@
 package stringutil
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func assertSanitizeResult(t *testing.T, functionName, input, got, want string) {
+	t.Helper()
+	require.Equal(t, want, got, "%s(%q) should return expected output", functionName, input)
+}
+
+func assertSanitizeResultWithContext(t *testing.T, functionName, context, got, want string) {
+	t.Helper()
+	require.Equal(t, want, got, "%s(%s) should return expected output", functionName, context)
+}
 
 func TestSanitizeErrorMessage(t *testing.T) {
 	tests := []struct {
@@ -63,9 +77,7 @@ func TestSanitizeErrorMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeErrorMessage(tt.message)
-			if result != tt.expected {
-				t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", tt.message, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
 	}
 }
@@ -91,9 +103,7 @@ func TestSanitizeErrorMessage_AllWorkflowKeywords(t *testing.T) {
 	for _, keyword := range keywords {
 		message := "Error with " + keyword + " configuration"
 		result := SanitizeErrorMessage(message)
-		if !strings.Contains(result, keyword) {
-			t.Errorf("Workflow keyword %q should not be redacted, got: %q", keyword, result)
-		}
+		assert.Contains(t, result, keyword, "Workflow keyword %q should not be redacted", keyword)
 	}
 }
 
@@ -102,9 +112,7 @@ func TestSanitizeErrorMessage_MultipleOccurrences(t *testing.T) {
 	result := SanitizeErrorMessage(message)
 	expected := "[REDACTED] is used twice: [REDACTED] here and [REDACTED] there"
 
-	if result != expected {
-		t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", message, result, expected)
-	}
+	assertSanitizeResult(t, "SanitizeErrorMessage", message, result, expected)
 }
 
 func TestSanitizeErrorMessage_MixedCase(t *testing.T) {
@@ -133,9 +141,7 @@ func TestSanitizeErrorMessage_MixedCase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeErrorMessage(tt.message)
-			if result != tt.expected {
-				t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", tt.message, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
 	}
 }
@@ -160,13 +166,7 @@ func TestSanitizeErrorMessage_PascalCaseVariants(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeErrorMessage(tt.message)
 			containsRedacted := strings.Contains(result, "[REDACTED]")
-
-			if tt.shouldRedact && !containsRedacted {
-				t.Errorf("Expected message to be redacted: %q", tt.message)
-			}
-			if !tt.shouldRedact && containsRedacted {
-				t.Errorf("Expected message NOT to be redacted: %q", tt.message)
-			}
+			assert.Equal(t, tt.shouldRedact, containsRedacted, "SanitizeErrorMessage(%q) redaction state should match expectation", tt.message)
 		})
 	}
 }
@@ -202,9 +202,7 @@ func TestSanitizeErrorMessage_EdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeErrorMessage(tt.message)
-			if result != tt.expected {
-				t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", tt.message, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
 	}
 }
@@ -245,9 +243,7 @@ func TestSanitizeErrorMessage_GhAwVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeErrorMessage(tt.message)
-			if result != tt.expected {
-				t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", tt.message, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
 	}
 }
@@ -283,9 +279,7 @@ func TestSanitizeErrorMessage_RealWorldExamples(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeErrorMessage(tt.message)
-			if result != tt.expected {
-				t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", tt.message, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
 	}
 }
@@ -332,9 +326,13 @@ func TestSanitizeIdentifierName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeIdentifierName(tt.input, tt.extraAllowed)
-			if result != tt.expected {
-				t.Errorf("SanitizeIdentifierName(%q) = %q; want %q", tt.input, result, tt.expected)
-			}
+			assertSanitizeResultWithContext(
+				t,
+				"SanitizeIdentifierName",
+				fmt.Sprintf("%q, extraAllowedProvided=%t", tt.input, tt.extraAllowed != nil),
+				result,
+				tt.expected,
+			)
 		})
 	}
 }
@@ -410,9 +408,7 @@ func TestSanitizeParameterName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeParameterName(tt.input)
-			if result != tt.expected {
-				t.Errorf("SanitizeParameterName(%q) = %q; want %q", tt.input, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeParameterName", tt.input, result, tt.expected)
 		})
 	}
 }
@@ -488,9 +484,7 @@ func TestSanitizePythonVariableName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizePythonVariableName(tt.input)
-			if result != tt.expected {
-				t.Errorf("SanitizePythonVariableName(%q) = %q; want %q", tt.input, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizePythonVariableName", tt.input, result, tt.expected)
 		})
 	}
 }
@@ -556,9 +550,7 @@ func TestSanitizeToolID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeToolID(tt.input)
-			if result != tt.expected {
-				t.Errorf("SanitizeToolID(%q) = %q; want %q", tt.input, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeToolID", tt.input, result, tt.expected)
 		})
 	}
 }
@@ -655,9 +647,7 @@ func TestSanitizeForFilename(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeForFilename(tt.slug)
-			if result != tt.expected {
-				t.Errorf("SanitizeForFilename(%q) = %q; want %q", tt.slug, result, tt.expected)
-			}
+			assertSanitizeResult(t, "SanitizeForFilename", tt.slug, result, tt.expected)
 		})
 	}
 }
@@ -704,9 +694,13 @@ func TestSanitizeName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeName(tt.input, tt.opts)
-			if result != tt.expected {
-				t.Errorf("SanitizeName(%q) = %q; want %q", tt.input, result, tt.expected)
-			}
+			assertSanitizeResultWithContext(
+				t,
+				"SanitizeName",
+				fmt.Sprintf("%q, opts=%+v", tt.input, tt.opts),
+				result,
+				tt.expected,
+			)
 		})
 	}
 }

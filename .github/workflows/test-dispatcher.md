@@ -6,7 +6,7 @@ permissions:
   contents: read
   issues: read
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   dispatch-workflow:
     workflows:

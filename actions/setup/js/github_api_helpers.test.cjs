@@ -45,7 +45,8 @@ describe("github_api_helpers.cjs", () => {
 
       const result = await getFileContent(mockGithub, "owner", "repo", "file.txt", "main");
 
-      expect(result).toBe(fileContent);
+      expect(result.content).toBe(fileContent);
+      expect(result.errorStatus).toBeNull();
       expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith({
         owner: "owner",
         repo: "repo",
@@ -66,10 +67,11 @@ describe("github_api_helpers.cjs", () => {
 
       const result = await getFileContent(mockGithub, "owner", "repo", "file.txt", "main");
 
-      expect(result).toBe(fileContent);
+      expect(result.content).toBe(fileContent);
+      expect(result.errorStatus).toBeNull();
     });
 
-    it("should return null for directory paths", async () => {
+    it("should return null content for directory paths", async () => {
       mockGithub.rest.repos.getContent.mockResolvedValueOnce({
         data: [
           { name: "file1.txt", type: "file" },
@@ -79,11 +81,12 @@ describe("github_api_helpers.cjs", () => {
 
       const result = await getFileContent(mockGithub, "owner", "repo", "directory", "main");
 
-      expect(result).toBeNull();
+      expect(result.content).toBeNull();
+      expect(result.errorStatus).toBeNull();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("is a directory"));
     });
 
-    it("should return null for non-file types", async () => {
+    it("should return null content for non-file types", async () => {
       mockGithub.rest.repos.getContent.mockResolvedValueOnce({
         data: {
           type: "symlink",
@@ -94,17 +97,30 @@ describe("github_api_helpers.cjs", () => {
 
       const result = await getFileContent(mockGithub, "owner", "repo", "symlink.txt", "main");
 
-      expect(result).toBeNull();
+      expect(result.content).toBeNull();
+      expect(result.errorStatus).toBeNull();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("is not a file"));
     });
 
-    it("should handle API errors gracefully", async () => {
+    it("should handle API errors gracefully and return errorStatus", async () => {
+      const error = new Error("API error");
+      error.status = 404;
+      mockGithub.rest.repos.getContent.mockRejectedValueOnce(error);
+
+      const result = await getFileContent(mockGithub, "owner", "repo", "file.txt", "main");
+
+      expect(result.content).toBeNull();
+      expect(result.errorStatus).toBe(404);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch content"));
+    });
+
+    it("should return null errorStatus when error has no status", async () => {
       mockGithub.rest.repos.getContent.mockRejectedValueOnce(new Error("API error"));
 
       const result = await getFileContent(mockGithub, "owner", "repo", "file.txt", "main");
 
-      expect(result).toBeNull();
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch content"));
+      expect(result.content).toBeNull();
+      expect(result.errorStatus).toBeNull();
     });
 
     it("should handle missing content field", async () => {
@@ -118,7 +134,8 @@ describe("github_api_helpers.cjs", () => {
 
       const result = await getFileContent(mockGithub, "owner", "repo", "file.txt", "main");
 
-      expect(result).toBeNull();
+      expect(result.content).toBeNull();
+      expect(result.errorStatus).toBeNull();
     });
   });
 

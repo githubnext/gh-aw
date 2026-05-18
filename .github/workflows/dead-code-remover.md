@@ -20,7 +20,7 @@ imports:
       expires: "3d"
       labels: [chore, dead-code]
       reviewers: [copilot]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults

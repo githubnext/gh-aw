@@ -12,7 +12,7 @@ on:
     inputs:
       topic:
         description: 'Research topic or question'
-        required: true
+        required: false
       history:
         description: "Git history to fetch: shallow (default) or full"
         required: false
@@ -34,7 +34,7 @@ imports:
   - shared/mcp/deepwiki.md
   - shared/mcp/markitdown.md
   - ../skills/jqschema/SKILL.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   edit:

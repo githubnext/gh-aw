@@ -475,7 +475,7 @@ describe("generate_footer.cjs", () => {
 
         expect(result).toContain("> [!CAUTION]");
         expect(result).toContain("agentic threat detected");
-        expect(result).toContain("<!-- agentic threat detected -->");
+        expect(result).toContain("<!-- gh-aw-threat-detected -->");
         expect(result).toContain("Potential security threats were detected");
       });
 

@@ -185,6 +185,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate workflow_dispatch required inputs with slash/label command triggers.
+	log.Printf("Validating workflow_dispatch input requirements for command triggers")
+	if err := validateCommandWorkflowDispatchInputs(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate workflow-level concurrency group expression
 	log.Printf("Validating workflow-level concurrency configuration")
 	if workflowData.Concurrency != "" {

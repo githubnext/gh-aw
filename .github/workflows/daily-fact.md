@@ -59,7 +59,7 @@ safe-outputs:
     run-success: "✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟"
     run-failure: "🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished..."
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
   - shared/mcp/mempalace.md
 ---
 

@@ -1026,6 +1026,10 @@ This section specifies normative failure-mode responses that a conforming implem
 - When effective tokens reach the **hard limit** (`max-effective-tokens`), the cost-tracker extension **MUST** abort the session immediately by invoking the session's abort API. The harness **MUST NOT** allow additional turns to proceed after the hard limit is reached.
 - Upon hard-limit abort, the harness **MUST** emit a `budget_exceeded` JSONL event to stderr containing the final cumulative token count and the configured limit.
 - The harness **MUST** write a step summary entry to `$GITHUB_STEP_SUMMARY` (if set) indicating that the session was terminated due to budget exhaustion, showing the final token count versus the limit.
+- On forced budget termination, the harness **MUST** preserve durable artifacts that were finalized before abort (`safe-outputs.ndjson` entries already appended, JSONL events already emitted, and step-summary rows for completed turns).
+- On forced budget termination, the harness **MUST** discard in-flight turn state that did not reach a completed turn boundary (partial assistant output, partially collected tool results, and uncommitted per-turn aggregates).
+- A "completed turn boundary" means the `turn_end` event has been emitted and all per-turn persistence for that turn (JSONL line, counters, and step-summary row) has succeeded.
+- The `budget_exceeded` event **MUST** explicitly signal forced termination (`reason: "hard_limit"` and `forced_termination: true`) so downstream consumers can distinguish budget aborts from other session failures.
 - The harness **MUST** exit with code `1` (session failure) after a hard-limit abort, so that the GitHub Actions job is marked as failed.
 
 #### 11.2.3 Extension Crash Isolation
@@ -1038,6 +1042,32 @@ This section specifies normative failure-mode responses that a conforming implem
 - **During event handling:** If an extension's event handler (registered via `pi.on()`) throws or rejects, the Pi SDK event dispatch **MUST** catch the error. If the Pi SDK does not isolate handler errors, the harness **MUST** wrap all user extension event handlers in a try/catch that emits a structured JSONL warning and allows the session to continue.
 - **Built-in extensions are never skipped:** The five built-in gh-aw extensions (provider setup, cost-tracker, steering, repair, observability) **MUST NOT** be subject to the skip-on-error policy described above. If a built-in extension fails to load, the harness **MUST** treat it as a fatal startup error and exit with code `2`.
 - The harness **MUST NOT** allow a crashing user extension to terminate the entire harness process without first completing the cleanup described above (step summary, final JSONL event).
+
+### 11.3 MUST/MUST NOT Traceability (Spec ↔ Harness Source)
+
+The following matrix records where each normative harness requirement is enforced in source. Until `actions/setup/js/aw_harness.cjs` is present in-repo, rows remain pending and serve as implementation obligations.
+
+| Requirement anchor | Normative statement (summary) | Expected source assertion/guard | Status |
+|--------------------|-------------------------------|----------------------------------|--------|
+| §5.1 | MUST consume compiler-generated `config.json`/`prompt.txt`; MUST NOT parse markdown directly | `actions/setup/js/aw_harness.cjs` argument parser + loader guard | Pending (`aw_harness.cjs` not present) |
+| §5.3 | MUST return exit code `0` only on clean completion; non-zero on unrecovered failure | `actions/setup/js/aw_harness.cjs` top-level process exit mapping | Pending (`aw_harness.cjs` not present) |
+| §5.4 | MUST write diagnostics to stderr and summary to `$GITHUB_STEP_SUMMARY` | `actions/setup/js/aw_harness.cjs` output routing and summary writer | Pending (`aw_harness.cjs` not present) |
+| §6.2 | MUST force-enable `gh-proxy` and `cli-proxy`; MUST NOT allow disabling | `actions/setup/js/aw_harness.cjs` config normalization guard | Pending (`aw_harness.cjs` not present) |
+| §11.2.1 | MUST fail fast with exit `2` when Pi SDK cannot load; MUST NOT create partial session | `actions/setup/js/aw_harness.cjs` SDK import try/catch guard | Pending (`aw_harness.cjs` not present) |
+| §11.2.2 | MUST hard-abort on budget limit; MUST NOT continue turns after hard limit | `actions/setup/js/aw_harness.cjs` cost-tracker abort gate and post-abort turn guard | Pending (`aw_harness.cjs` not present) |
+| §11.2.3 | MUST isolate crashing user extensions; built-in extension failures are fatal | `actions/setup/js/aw_harness.cjs` extension loader policy checks | Pending (`aw_harness.cjs` not present) |
+
+### 11.4 Degraded Mode & Safeguards
+
+This section defines normative safeguard requirements for scenarios where the harness enters a degraded operating mode due to resource exhaustion, infrastructure unavailability, or partial subsystem failure. A conforming implementation **MUST** apply all safeguards numbered below.
+
+1. **Budget-exhaustion shutdown path**: When the effective token budget is exhausted (hard limit reached), the harness **MUST** execute an orderly shutdown sequence: (a) immediately abort the active `AgentSession` turn via the session abort API; (b) flush all in-progress JSONL events and the step-summary buffer to their respective sinks; (c) emit a `budget_exceeded` event with `forced_termination: true` and the final cumulative token count; and (d) exit with code `1`. The harness **MUST NOT** start a new turn or accept additional tool calls after the hard-limit threshold is crossed, even if the session's internal queue contains pending callbacks.
+
+2. **Partial observability failure behavior**: When the OTLP exporter or the context-provenance file writer fails (e.g., network unreachable, disk full, OTLP endpoint returns a non-retryable error), the harness **MUST** continue session execution and **MUST NOT** abort the session or exit with a non-zero code solely due to the observability failure. The harness **SHOULD** emit a structured JSONL warning event to stderr identifying the failed observability sink and the error reason. Observability subsystem failures **MUST** be treated as non-fatal degraded-mode conditions; data loss in telemetry **MUST NOT** propagate as a session-level failure.
+
+3. **Fail-secure exit codes**: The harness **MUST** use the following exit-code contract to ensure downstream consumers can unambiguously detect failure class: exit code `0` — clean session completion with no budget abort and no fatal errors; exit code `1` — session-level failure, including hard-limit budget abort, unrecovered agent error, or failed session finalization; exit code `2` — invocation or infrastructure failure, including Pi SDK load failure, missing required configuration, or fatal built-in extension failure. The harness **MUST NOT** mask an exit code `1` or `2` condition by exiting `0`, even if the step summary was written successfully.
+
+4. **Degraded-mode marking**: When the harness enters any degraded mode (observability failure, extension skip, or partial artifact flush), it **MUST** annotate the step summary (if `$GITHUB_STEP_SUMMARY` is set) with a visible degraded-mode notice that identifies which subsystem is degraded and what data may be incomplete. This notice **SHOULD** include a remediation hint (e.g., "check OTLP endpoint connectivity" or "extension X was skipped due to error Y").
 
 ---
 
@@ -1156,3 +1186,18 @@ OpenTelemetry specification for distributed tracing. <https://opentelemetry.io/d
 
 **[gh-aw]**
 GitHub Agentic Workflows — the gh-aw CLI extension that compiles Markdown workflow files to GitHub Actions YAML. <https://github.com/github/gh-aw>
+
+---
+
+## Sync Notes
+
+This section maps normative spec sections to their primary implementation files and directories in the `github/gh-aw` repository. Maintainers **SHOULD** keep this table updated whenever implementation files are added, renamed, or removed.
+
+| Spec section | Implementation file / directory | Notes |
+|---|---|---|
+| §5 Harness Invocation Contract; §6 Workflow Definition; §7 Single-Session Execution Model | `actions/setup/js/aw_harness.cjs` | Primary harness entry point. All session lifecycle, config loading, and prompt execution logic lives here. Pending creation (see §11.3). |
+| §8 Extensions (provider-setup, cost-tracker, steering, repair, observability) | `actions/setup/js/aw_harness.cjs` (inline extension registrations) | Built-in Pi extensions are implemented as inline factory functions exported from or co-located with the harness. When extracted, each extension SHOULD move to a sibling file named `aw_ext_{name}.cjs`. |
+| §10 Build and Deployment; §10.1 esbuild configuration | `actions/setup/js/` (directory); `package.json` build scripts in `github/gh-aw` | JavaScript build toolchain. The harness is compiled with esbuild; build configuration and bundle output paths are tracked here. |
+| §9 Model Resolution; §11.1 General Security Requirements (token/credential handling) | `pkg/workflow/` (Go compiler — `aw_engine.go` or equivalent) | The `engine: aw` compilation path in Go generates the `config.json` that specifies the model, provider credentials, and feature flags consumed by the harness at runtime. |
+| §11.2 Safeguards; §11.4 Degraded Mode & Safeguards | `actions/setup/js/aw_harness.cjs` | Budget-gating, observability-failure recovery, and fail-secure exit-code enforcement are all implemented inside the harness. |
+| §12 Compliance Tests (T-AW-001 through T-AW-007) | `pkg/cli/workflows/` (integration test workflows); `actions/setup/js/*.test.cjs` (unit tests) | Harness lifecycle integration tests live in `pkg/cli/workflows/`. Unit-level tests for harness helpers reside alongside the JavaScript source. |

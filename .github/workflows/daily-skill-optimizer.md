@@ -146,9 +146,7 @@ tools:
   edit:
 
 imports:
-  - shared/otel.md
-
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Daily Skill Optimizer Improvements

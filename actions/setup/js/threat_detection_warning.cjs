@@ -27,7 +27,7 @@ function normalizeThreatKinds(reason) {
  * @returns {string}
  */
 function getThreatDetectedMarker(reason) {
-  return "<!-- agentic threat detected -->";
+  return "<!-- gh-aw-threat-detected -->";
 }
 
 /**
@@ -36,7 +36,7 @@ function getThreatDetectedMarker(reason) {
  * @returns {string}
  */
 function getThreatDetectedMarkerTemplate() {
-  return "<!-- agentic threat detected -->";
+  return "<!-- gh-aw-threat-detected -->";
 }
 
 /**

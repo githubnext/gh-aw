@@ -59,8 +59,6 @@ package workflow
 import (
 	"regexp"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
 // hasExpressionMarker reports whether s contains a GitHub Actions expression opening marker.
@@ -85,12 +83,6 @@ func containsExpression(s string) bool {
 // isExpression reports whether the entire string s is a GitHub Actions expression.
 func isExpression(s string) bool {
 	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
-}
-
-var expressionPatternsLog = logger.New("workflow:expression_patterns")
-
-func init() {
-	expressionPatternsLog.Print("Initializing expression pattern regex compilation")
 }
 
 // Core Expression Patterns

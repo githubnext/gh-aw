@@ -24,7 +24,7 @@ imports:
       title-prefix: "[ubuntu-image] "
       expires: "2d"
       labels: [documentation, automation, infrastructure]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 strict: true
 
 network:

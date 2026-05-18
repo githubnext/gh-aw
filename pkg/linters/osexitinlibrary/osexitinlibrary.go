@@ -1,0 +1,56 @@
+// Package osexitinlibrary implements a Go analysis linter that flags
+// os.Exit calls in library (pkg/) packages.
+package osexitinlibrary
+
+import (
+	"go/ast"
+	"path/filepath"
+	"strings"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
+)
+
+// Analyzer is the os-exit-in-library analysis pass.
+var Analyzer = &analysis.Analyzer{
+	Name:     "osexitinlibrary",
+	Doc:      "reports os.Exit calls inside library packages where they bypass deferred cleanup and prevent testing",
+	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/osexitinlibrary",
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      run,
+}
+
+func run(pass *analysis.Pass) (any, error) {
+	pkgPath := pass.Pkg.Path()
+	// Skip packages under cmd/ entry-points — they are allowed to call os.Exit.
+	if strings.HasSuffix(pkgPath, "/main") || strings.Contains(pkgPath, "/cmd/") {
+		return nil, nil
+	}
+
+	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.CallExpr)(nil),
+	}
+
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		call := n.(*ast.CallExpr)
+		if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(filepath.Base(pass.Fset.Position(call.Pos()).Filename), "_test.go") {
+			return
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return
+		}
+		ident, ok := sel.X.(*ast.Ident)
+		if !ok {
+			return
+		}
+		if ident.Name == "os" && sel.Sel.Name == "Exit" {
+			pass.Reportf(call.Pos(), "os.Exit called in library package %s; move process termination to a cmd/ entry-point", pkgPath)
+		}
+	})
+
+	return nil, nil
+}

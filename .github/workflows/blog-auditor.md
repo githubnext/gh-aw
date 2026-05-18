@@ -11,6 +11,25 @@ permissions:
 tracker-id: blog-auditor-weekly
 engine: claude
 strict: false
+experiments:
+  prompt_style:
+    variants: [detailed, concise]
+    description: "Tests whether a high-level goal-oriented prompt produces the same audit quality as the current step-by-step detailed instructions"
+    hypothesis: "H0: no change in audit correctness or discussion quality. H1: concise variant reduces token cost ≥20% with no degradation in validation accuracy"
+    metric: effective_token_count
+    secondary_metrics: [run_duration_ms, discussion_created, validation_pass_rate]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "==0"
+      - name: missed_validation_failures
+        threshold: "==0"
+    min_samples: 20
+    weight: [50, 50]
+    start_date: "2026-05-16"
+    analysis_type: mann_whitney
+    tags: [prompt-engineering, cost-optimization, blog-auditor]
+    notify:
+      issue: 32603
 network:
   allowed:
     - defaults
@@ -36,7 +55,7 @@ imports:
       title-prefix: "[audit] "
       expires: 1d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # Blog Auditor
 
@@ -52,6 +71,19 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 - **Run ID**: ${{ github.run_id }}
 - **Target URL**: https://githubnext.com/projects/agentic-workflows/
 
+{{#if experiments.prompt_style == 'concise' }}
+## Audit Process
+
+Navigate to `https://githubnext.com/projects/agentic-workflows/` using Playwright, capture the accessibility snapshot, and validate:
+
+- HTTP status is 200
+- Final URL is within `githubnext.com` / `www.githubnext.com`
+- Content length exceeds 5,000 characters
+- All required keywords present: `agentic-workflows`, `GitHub`, `workflow`, `compiler`
+- Any YAML/Markdown workflow code snippets pass `gh aw compile --no-emit --validate`
+
+Create a discussion in the **Audits** category titled `[audit] Agentic Workflows blog audit - PASSED` (or `FAILED`). Include a summary table of each check with pass/fail status and the values observed. For failures, add suggested remediation steps.
+{{else}}
 ## Audit Process
 
 ### Phase 1: Navigate and Capture Blog Content
@@ -299,5 +331,6 @@ A successful audit:
 - ✅ Completes within timeout limits
 
 Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, extract and validate code snippets, validate all criteria, and report your findings.
+{{/if}}
 
 {{#runtime-import shared/noop-reminder.md}}

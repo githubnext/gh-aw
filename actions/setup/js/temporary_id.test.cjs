@@ -52,6 +52,14 @@ describe("temporary_id.cjs", () => {
       expect(isTemporaryId("aw_123456789abc")).toBe(true); // 12 chars - at the limit
     });
 
+    it("should return true for valid #aw_ prefixed strings (canonical form)", async () => {
+      const { isTemporaryId } = await import("./temporary_id.cjs");
+      expect(isTemporaryId("#aw_abc")).toBe(true);
+      expect(isTemporaryId("#aw_abc1")).toBe(true);
+      expect(isTemporaryId("#aw_pr_fix")).toBe(true);
+      expect(isTemporaryId("#aw_123456789abc")).toBe(true); // 12 chars - at the limit
+    });
+
     it("should return true for valid aw_ prefixed strings with underscores", async () => {
       const { isTemporaryId } = await import("./temporary_id.cjs");
       expect(isTemporaryId("aw_id_123")).toBe(true); // Contains underscore - now valid
@@ -83,6 +91,12 @@ describe("temporary_id.cjs", () => {
       const { normalizeTemporaryId } = await import("./temporary_id.cjs");
       expect(normalizeTemporaryId("aw_ABC123")).toBe("aw_abc123");
       expect(normalizeTemporaryId("AW_Test123")).toBe("aw_test123");
+    });
+
+    it("should strip leading # before lowercasing", async () => {
+      const { normalizeTemporaryId } = await import("./temporary_id.cjs");
+      expect(normalizeTemporaryId("#aw_ABC123")).toBe("aw_abc123");
+      expect(normalizeTemporaryId("#aw_pr_fix")).toBe("aw_pr_fix");
     });
   });
 

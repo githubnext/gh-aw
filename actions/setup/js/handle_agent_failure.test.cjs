@@ -1304,6 +1304,96 @@ describe("handle_agent_failure", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // buildPermissionDeniedContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildPermissionDeniedContext", () => {
+    let buildPermissionDeniedContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-permission-denied-"));
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      ({ buildPermissionDeniedContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when agent output file does not exist", () => {
+      expect(buildPermissionDeniedContext()).toBe("");
+    });
+
+    it("returns empty string when there are no tool/permission items", () => {
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "noop", reason: "done" }] }));
+      expect(buildPermissionDeniedContext()).toBe("");
+    });
+
+    it("returns empty string when tool/permission item has no denied_commands", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: [] }],
+        })
+      );
+      expect(buildPermissionDeniedContext()).toBe("");
+    });
+
+    it("returns inline fallback when template is not available (RUNNER_TEMP not set)", () => {
+      delete process.env.RUNNER_TEMP;
+      const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
+      const result = buildPermissionDeniedContext(items);
+      expect(result).toContain("go version 2>&1");
+      expect(result).toContain("Repeated Permission Denied");
+    });
+
+    it("renders fallback with denied commands listed", () => {
+      delete process.env.RUNNER_TEMP;
+      const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] }];
+      const result = buildPermissionDeniedContext(items);
+      expect(result).toContain("`go version 2>&1`");
+      expect(result).toContain("`ls /usr/local/go/bin/go`");
+    });
+
+    it("deduplicates denied commands across multiple tool/permission items", () => {
+      delete process.env.RUNNER_TEMP;
+      const items = [
+        { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "ls /usr/local/go/bin/go"] },
+        { type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1", "which go"] },
+      ];
+      const result = buildPermissionDeniedContext(items);
+      // "go version 2>&1" should appear exactly once (deduplicated) in the denied commands list
+      const listOccurrences = (result.match(/`go version 2>&1`/g) || []).length;
+      expect(listOccurrences).toBe(1);
+      expect(result).toContain("`ls /usr/local/go/bin/go`");
+      expect(result).toContain("`which go`");
+    });
+
+    it("renders template when permission_denied_context.md is available", () => {
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/permission_denied_context.md"), path.join(promptsDir, "permission_denied_context.md"));
+      const items = [{ type: "missing_tool", tool: "tool/permission", reason: "permission denied", denied_commands: ["go version 2>&1"] }];
+      const result = buildPermissionDeniedContext(items, "my-workflow");
+      expect(result).toContain("go version 2>&1");
+      expect(result).toContain("my-workflow");
+      expect(result).toContain("Repeated Permission Denied");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // report-as-failure feature flags (GH_AW_MISSING_TOOL_REPORT_AS_FAILURE / GH_AW_MISSING_DATA_REPORT_AS_FAILURE)
   // ──────────────────────────────────────────────────────
 
@@ -2007,8 +2097,29 @@ describe("handle_agent_failure", () => {
 
   describe("buildEffectiveTokensRateLimitErrorContext", () => {
     let buildEffectiveTokensRateLimitErrorContext;
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
 
     beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-test-et-error-context-"));
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(promptsDir, "effective_tokens_rate_limit_error.md"),
+        "**⛔ Effective Token Budget Exhausted**: The run failed due to effective-token budget/rate-limit enforcement in the API proxy.\n\n" +
+          "<details>\n" +
+          "<summary>Why this happened and how to optimize</summary>\n\n" +
+          "- Learn about [effective tokens]({et_spec_link}).\n" +
+          "{usage_line}{budget_line}{run_line}\n" +
+          "You can tune this limit with `max-effective-tokens` in workflow frontmatter.\n\n" +
+          "{et_table_section}\n" +
+          "- To optimize this workflow, follow the [token optimization instructions]({token_opt_link}).\n" +
+          "</details>\n"
+      );
+      process.env.RUNNER_TEMP = tmpDir;
+
       global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
       global.github = {};
       global.context = { repo: { owner: "owner", repo: "repo" } };
@@ -2020,6 +2131,10 @@ describe("handle_agent_failure", () => {
       delete global.core;
       delete global.github;
       delete global.context;
+      delete process.env.RUNNER_TEMP;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
 
     it("formats effective token values in friendly compact form", () => {
@@ -2054,6 +2169,17 @@ describe("handle_agent_failure", () => {
     it("includes a link to the token optimization guide", () => {
       const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
       expect(result).toContain("https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md");
+    });
+
+    it("formats the run URL as a markdown link", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("- Run: [https://example.com/run/1](https://example.com/run/1)");
+    });
+
+    it("wraps ET guidance in a collapsible details section", () => {
+      const result = buildEffectiveTokensRateLimitErrorContext(true, "10000000", "25000000", "https://example.com/run/1");
+      expect(result).toContain("<summary>Why this happened and how to optimize</summary>");
+      expect(result).toContain("token optimization instructions");
     });
 
     it("includes a collapsible details section for ET computation", () => {

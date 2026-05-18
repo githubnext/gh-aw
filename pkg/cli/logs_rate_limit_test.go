@@ -14,7 +14,7 @@ import (
 // TestRateLimitResponseUnmarshal verifies that the rateLimitResponse struct correctly
 // unmarshals the JSON returned by `gh api rate_limit`.
 func TestRateLimitResponseUnmarshal(t *testing.T) {
-	now := time.Now().Add(30 * time.Second).Unix()
+	now := time.Now().Add(time.Second * 30).Unix()
 	raw := []byte(`{
 		"resources": {
 			"core": {

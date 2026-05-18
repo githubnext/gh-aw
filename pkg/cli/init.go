@@ -211,7 +211,7 @@ func ensureMaintenanceWorkflow(ctx context.Context, verbose bool) error {
 	}
 
 	// Determine the workflows directory
-	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	workflowsDir := filepath.Join(gitRoot, constants.GetWorkflowDir())
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
 		// No workflows directory yet, skip maintenance workflow generation
 		initLog.Print("No workflows directory found, skipping maintenance workflow generation")

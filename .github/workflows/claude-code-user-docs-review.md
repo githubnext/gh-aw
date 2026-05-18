@@ -40,7 +40,7 @@ imports:
       title-prefix: "[claude-code-user-docs-review] "
       expires: 1d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

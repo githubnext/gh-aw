@@ -4242,7 +4242,7 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
    > Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.
 
 2. A visible threat label string: `agentic threat detected`.
-3. An XML comment marker in emitted markdown content: `<!-- agentic threat detected -->`.
+3. An XML comment marker in emitted markdown content: `<!-- gh-aw-threat-detected -->`.
 
 **Requirement WTD2 (Convertible Fallback)**: For safe output types classified as **Convertible**, implementations MUST transform the operation into the mapped Reviewable type before execution. For this specification, `push_to_pull_request_branch` (also referred to as `update-pull-request-branch`) MUST fall back to `create_pull_request` with the WTD1 caution, label, and XML marker.
 

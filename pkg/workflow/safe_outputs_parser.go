@@ -54,10 +54,10 @@ func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) 
 	}
 
 	// Parse target-repo; wildcard "*" is allowed and means "any repository"
-	config.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
+	config.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", safeOutputParserLog)
 
 	// Parse allowed-repos
-	config.AllowedRepos = parseAllowedReposFromConfig(configMap)
+	config.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", safeOutputParserLog)
 
 	return config, false
 }
@@ -68,25 +68,13 @@ func ParseFilterConfig(configMap map[string]any) SafeOutputFilterConfig {
 	config := SafeOutputFilterConfig{}
 
 	// Parse required-labels
-	config.RequiredLabels = parseRequiredLabelsFromConfig(configMap)
+	config.RequiredLabels = ParseStringArrayFromConfig(configMap, "required-labels", safeOutputParserLog)
 	if len(config.RequiredLabels) > 0 {
 		safeOutputParserLog.Printf("Parsed %d required labels", len(config.RequiredLabels))
 	}
 
 	// Parse required-title-prefix
-	config.RequiredTitlePrefix = parseRequiredTitlePrefixFromConfig(configMap)
+	config.RequiredTitlePrefix = extractStringFromMap(configMap, "required-title-prefix", safeOutputParserLog)
 
 	return config
-}
-
-// parseRequiredLabelsFromConfig extracts and validates required-labels from a config map.
-// Returns a slice of label strings, or nil if not present or invalid.
-func parseRequiredLabelsFromConfig(configMap map[string]any) []string {
-	return ParseStringArrayFromConfig(configMap, "required-labels", safeOutputParserLog)
-}
-
-// parseRequiredTitlePrefixFromConfig extracts required-title-prefix from a config map.
-// Returns the prefix string, or empty string if not present or invalid.
-func parseRequiredTitlePrefixFromConfig(configMap map[string]any) string {
-	return extractStringFromMap(configMap, "required-title-prefix", safeOutputParserLog)
 }

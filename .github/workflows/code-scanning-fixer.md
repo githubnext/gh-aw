@@ -21,7 +21,7 @@ imports:
       expires: "2d"
       labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
       reviewers: [copilot]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

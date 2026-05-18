@@ -40,7 +40,7 @@ sandbox:
 imports:
   - ../agents/adr-writer.agent.md
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

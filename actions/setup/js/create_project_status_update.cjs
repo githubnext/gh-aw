@@ -9,6 +9,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { logGraphQLError } = require("./github_api_helpers.cjs");
+const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -271,6 +272,12 @@ async function main(config = {}, githubClient = null) {
   if (!github) {
     throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.`);
   }
+  let allowedMentionAliases = [];
+  if (Array.isArray(config.allowedMentionAliases)) {
+    allowedMentionAliases = config.allowedMentionAliases;
+  } else if (config.mentions != null) {
+    allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, github, core, config.mentions);
+  }
 
   core.info(`Max count: ${maxCount}`);
 
@@ -316,9 +323,8 @@ async function main(config = {}, githubClient = null) {
 
     // Resolve temporary project ID if present
     const projectStr = effectiveProjectUrl.trim();
-    const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
-    if (isTemporaryId(projectWithoutHash)) {
-      const normalizedId = normalizeTemporaryId(projectWithoutHash);
+    if (isTemporaryId(projectStr)) {
+      const normalizedId = normalizeTemporaryId(projectStr);
       const resolved = temporaryIdMap instanceof Map ? temporaryIdMap.get(normalizedId) : resolvedTemporaryIds[normalizedId];
       if (resolved && typeof resolved === "object" && "projectUrl" in resolved && resolved.projectUrl) {
         core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);
@@ -360,7 +366,7 @@ async function main(config = {}, githubClient = null) {
       const status = validateStatus(output.status);
       const startDate = formatDate(output.start_date);
       const targetDate = formatDate(output.target_date);
-      const body = sanitizeContent(String(output.body));
+      const body = sanitizeContent(String(output.body), { allowedAliases: allowedMentionAliases });
 
       core.info(`Creating status update: ${status} (${startDate} → ${targetDate})`);
       core.info(`Body preview: ${body.substring(0, 100)}${body.length > 100 ? "..." : ""}`);

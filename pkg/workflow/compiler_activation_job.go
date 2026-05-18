@@ -63,12 +63,17 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		ctx.steps = append(ctx.steps, c.generateScriptModeCleanupStep())
 	}
 
+	permissions, err := c.buildActivationPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         ctx.activationCondition,
 		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "",
 		RunsOn:                     c.formatFrameworkJobRunsOn(data),
-		Permissions:                c.buildActivationPermissions(ctx),
+		Permissions:                permissions,
 		Environment:                c.buildActivationEnvironment(ctx),
 		Steps:                      ctx.steps,
 		Outputs:                    ctx.outputs,
@@ -78,85 +83,50 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 func addActivationInteractionPermissions(
 	perms *Permissions,
-	onSection string,
-	hasReaction bool,
-	reactionIncludesIssues bool,
-	reactionIncludesPullRequests bool,
-	reactionIncludesDiscussions bool,
-	hasStatusComment bool,
-	statusCommentIncludesIssues bool,
-	statusCommentIncludesPullRequests bool,
-	statusCommentIncludesDiscussions bool,
+	options activationInteractionPermissionsOptions,
 ) {
 	if perms == nil {
 		return
 	}
 	permsMap := make(map[PermissionScope]PermissionLevel)
-	addActivationInteractionPermissionsMap(
-		permsMap,
-		onSection,
-		hasReaction,
-		reactionIncludesIssues,
-		reactionIncludesPullRequests,
-		reactionIncludesDiscussions,
-		hasStatusComment,
-		statusCommentIncludesIssues,
-		statusCommentIncludesPullRequests,
-		statusCommentIncludesDiscussions,
-	)
+	addActivationInteractionPermissionsMap(permsMap, options)
 	for scope, level := range permsMap {
 		perms.Set(scope, level)
 	}
 }
 
+type activationInteractionPermissionsOptions struct {
+	onSection                         string
+	hasReaction                       bool
+	reactionIncludesIssues            bool
+	reactionIncludesPullRequests      bool
+	reactionIncludesDiscussions       bool
+	hasStatusComment                  bool
+	statusCommentIncludesIssues       bool
+	statusCommentIncludesPullRequests bool
+	statusCommentIncludesDiscussions  bool
+}
+
 func addActivationInteractionPermissionsMap(
 	permsMap map[PermissionScope]PermissionLevel,
-	onSection string,
-	hasReaction bool,
-	reactionIncludesIssues bool,
-	reactionIncludesPullRequests bool,
-	reactionIncludesDiscussions bool,
-	hasStatusComment bool,
-	statusCommentIncludesIssues bool,
-	statusCommentIncludesPullRequests bool,
-	statusCommentIncludesDiscussions bool,
+	options activationInteractionPermissionsOptions,
 ) {
-	if !hasReaction && !hasStatusComment {
+	if !options.hasReaction && !options.hasStatusComment {
 		return
 	}
 
 	// Fallback for unit tests or synthetic WorkflowData instances that do not populate the "on" section.
 	// Real compiled workflows always have a populated trigger section.
-	if onSection == "" {
+	if options.onSection == "" {
 		compilerActivationJobLog.Print("Empty on section while computing activation permissions; using broad fallback permissions")
-		addBroadActivationInteractionPermissions(
-			permsMap,
-			hasReaction,
-			reactionIncludesIssues,
-			reactionIncludesPullRequests,
-			reactionIncludesDiscussions,
-			hasStatusComment,
-			statusCommentIncludesIssues,
-			statusCommentIncludesPullRequests,
-			statusCommentIncludesDiscussions,
-		)
+		addBroadActivationInteractionPermissions(permsMap, options)
 		return
 	}
 
-	eventSet, eventSetParsed := activationEventSet(onSection)
+	eventSet, eventSetParsed := activationEventSet(options.onSection)
 	if !eventSetParsed {
 		compilerActivationJobLog.Print("Unable to parse activation trigger events while computing permissions; using broad fallback permissions")
-		addBroadActivationInteractionPermissions(
-			permsMap,
-			hasReaction,
-			reactionIncludesIssues,
-			reactionIncludesPullRequests,
-			reactionIncludesDiscussions,
-			hasStatusComment,
-			statusCommentIncludesIssues,
-			statusCommentIncludesPullRequests,
-			statusCommentIncludesDiscussions,
-		)
+		addBroadActivationInteractionPermissions(permsMap, options)
 		return
 	}
 
@@ -167,10 +137,10 @@ func addActivationInteractionPermissionsMap(
 	hasDiscussionEvent := eventSet["discussion"]
 	hasDiscussionCommentEvent := eventSet["discussion_comment"]
 
-	if hasReaction {
+	if options.hasReaction {
 		// Reactions on issues, issue comments, and pull requests use issues endpoints.
-		needsIssuesWriteForIssueEvents := reactionIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)
-		needsIssuesWriteForPullRequestEvents := reactionIncludesPullRequests && hasPullRequestEvent
+		needsIssuesWriteForIssueEvents := options.reactionIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)
+		needsIssuesWriteForPullRequestEvents := options.reactionIncludesPullRequests && hasPullRequestEvent
 		needsIssuesWriteForReaction := needsIssuesWriteForIssueEvents || needsIssuesWriteForPullRequestEvents
 		if needsIssuesWriteForReaction {
 			permsMap[PermissionIssues] = PermissionWrite
@@ -178,23 +148,23 @@ func addActivationInteractionPermissionsMap(
 		// Reactions on pull requests and PR review comments require pull-requests: write.
 		// issue_comment events also fire for PR comments (slash_command with events:[pull_request_comment]
 		// compiles to issue_comment), so pull-requests: write is also needed when issue_comment is present.
-		if reactionIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent || hasIssueCommentEvent) {
+		if options.reactionIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent || hasIssueCommentEvent) {
 			permsMap[PermissionPullRequests] = PermissionWrite
 		}
 		// Reactions on discussions use GraphQL discussion APIs.
-		if reactionIncludesDiscussions && (hasDiscussionEvent || hasDiscussionCommentEvent) {
+		if options.reactionIncludesDiscussions && (hasDiscussionEvent || hasDiscussionCommentEvent) {
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
 
-	if hasStatusComment {
+	if options.hasStatusComment {
 		// Status comments for issue and pull request related events use issue comment endpoints.
-		if (statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)) ||
-			(statusCommentIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent)) {
+		if (options.statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)) ||
+			(options.statusCommentIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent)) {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Status comments for discussions use discussion comment APIs and can be disabled via frontmatter.
-		if statusCommentIncludesDiscussions && (hasDiscussionEvent || hasDiscussionCommentEvent) {
+		if options.statusCommentIncludesDiscussions && (hasDiscussionEvent || hasDiscussionCommentEvent) {
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
@@ -202,28 +172,21 @@ func addActivationInteractionPermissionsMap(
 
 func addBroadActivationInteractionPermissions(
 	permsMap map[PermissionScope]PermissionLevel,
-	hasReaction bool,
-	reactionIncludesIssues bool,
-	reactionIncludesPullRequests bool,
-	reactionIncludesDiscussions bool,
-	hasStatusComment bool,
-	statusCommentIncludesIssues bool,
-	statusCommentIncludesPullRequests bool,
-	statusCommentIncludesDiscussions bool,
+	options activationInteractionPermissionsOptions,
 ) {
-	if !hasReaction && !hasStatusComment {
+	if !options.hasReaction && !options.hasStatusComment {
 		return
 	}
 
-	needsIssuesWriteForReaction := hasReaction && (reactionIncludesIssues || reactionIncludesPullRequests)
-	needsIssuesWriteForStatusComment := statusCommentIncludesIssues || statusCommentIncludesPullRequests
+	needsIssuesWriteForReaction := options.hasReaction && (options.reactionIncludesIssues || options.reactionIncludesPullRequests)
+	needsIssuesWriteForStatusComment := options.statusCommentIncludesIssues || options.statusCommentIncludesPullRequests
 	if needsIssuesWriteForReaction || needsIssuesWriteForStatusComment {
 		permsMap[PermissionIssues] = PermissionWrite
 	}
-	if hasReaction && reactionIncludesPullRequests {
+	if options.hasReaction && options.reactionIncludesPullRequests {
 		permsMap[PermissionPullRequests] = PermissionWrite
 	}
-	if (hasReaction && reactionIncludesDiscussions) || statusCommentIncludesDiscussions {
+	if (options.hasReaction && options.reactionIncludesDiscussions) || options.statusCommentIncludesDiscussions {
 		permsMap[PermissionDiscussions] = PermissionWrite
 	}
 }

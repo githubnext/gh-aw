@@ -54,12 +54,12 @@
             "number",
             "string"
           ],
-          "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from a previously created issue in the same workflow run."
+          "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form (e.g., '#aw_Test123'); the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'."
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9]{3,12}$",
-          "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this issue. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted and normalised to '#aw_abc1'. Use this same '#aw_ID' form in body text to cross-reference the issue; these references are replaced with the real issue number after creation."
         },
         "secrecy": {
           "type": "string",
@@ -296,7 +296,7 @@
             "number",
             "string"
           ],
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
         },
         "pr_number": {
           "type": [
@@ -314,8 +314,8 @@
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9]{3,12}$",
-          "description": "Unique temporary identifier for this comment. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this comment. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted and normalised to '#aw_abc1'. Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later."
         },
         "reply_to_id": {
           "type": "string",
@@ -620,8 +620,9 @@
           "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required \u2014 omitting it will cause a validation error."
         },
         "item_number": {
-          "type": "number",
-          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
+          "type": ["number", "string"],
+          "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
         },
         "secrecy": {
           "type": "string",
@@ -652,8 +653,9 @@
           "description": "Label names to remove (e.g., ['smoke', 'needs-triage']). Non-existent labels are silently skipped."
         },
         "item_number": {
-          "type": "number",
-          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, removes labels from the item that triggered this workflow."
+          "type": ["number", "string"],
+          "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, removes labels from the item that triggered this workflow."
         },
         "secrecy": {
           "type": "string",
@@ -723,7 +725,7 @@
             "number",
             "string"
           ],
-          "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run."
+          "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'."
         },
         "milestone_number": {
           "type": [
@@ -759,7 +761,7 @@
             "number",
             "string"
           ],
-          "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
+          "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id from an issue created earlier in the same workflow run — use the '#aw_abc123' form (e.g., '#aw_Test123'); the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
         },
         "pull_number": {
           "type": [
@@ -1364,8 +1366,8 @@
       "properties": {
         "project": {
           "type": "string",
-          "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9]{3,12})$",
-          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'), or a temporary project ID from a recent create_project call (e.g., '#aw_abc1', 'aw_Test123'). Project names or numbers alone are NOT accepted."
+          "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'), or a temporary project ID from a recent create_project call — use '#aw_abc1' (canonical) or bare 'aw_abc1' (also accepted). Project names or numbers alone are NOT accepted."
         },
         "operation": {
           "type": "string",
@@ -1389,7 +1391,7 @@
             "number",
             "string"
           ],
-          "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call (e.g., 'aw_abc123', '#aw_Test123'). Required when content_type is 'issue' or 'pull_request'."
+          "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call — use '#aw_abc123' (canonical); bare 'aw_abc123' is also accepted. Required when content_type is 'issue' or 'pull_request'."
         },
         "target_repo": {
           "type": "string",
@@ -1406,13 +1408,13 @@
         },
         "draft_issue_id": {
           "type": "string",
-          "pattern": "^#?aw_[A-Za-z0-9]{3,12}$",
-          "description": "Temporary ID of an existing draft issue to update (e.g., 'aw_abc1', '#aw_Test123'). Use this to reference a draft created earlier with a matching temporary_id. When provided, draft_title is not required for updates."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Temporary ID of an existing draft issue to update — use '#aw_abc1' (canonical); bare 'aw_abc1' is also accepted. Use this to reference a draft created earlier with a matching temporary_id. When provided, draft_title is not required for updates."
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^#?aw_[A-Za-z0-9]{3,12}$",
-          "description": "Unique temporary identifier for this draft issue (e.g., 'aw_abc1', '#aw_Test123'). Provide this when creating a new draft to enable future updates via draft_issue_id. Format: optional leading '#', then 'aw_' followed by 3 to 12 alphanumeric characters."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this draft issue. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted. Provide this when creating a new draft to enable future updates via draft_issue_id."
         },
         "fields": {
           "type": "object",
@@ -1583,13 +1585,13 @@
         },
         "item_url": {
           "type": "string",
-          "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9]{3,12})|#?aw_[A-Za-z0-9]{3,12})$",
-          "description": "Optional GitHub issue URL or temporary ID to add as the first item to the project. Accepts either a full URL (e.g., 'https://github.com/owner/repo/issues/123'), a URL with temporary ID (e.g., 'https://github.com/owner/repo/issues/aw_abc1'), or a plain temporary ID (e.g., 'aw_abc1', '#aw_Test123') from a previously created issue in the same workflow run."
+          "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9_]{3,12})|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Optional GitHub issue URL or temporary ID to add as the first item to the project. Accepts either a full URL (e.g., 'https://github.com/owner/repo/issues/123'), a URL with temporary ID (e.g., 'https://github.com/owner/repo/issues/#aw_abc1'), or a plain temporary ID — use '#aw_abc1' (canonical); bare 'aw_abc1' is also accepted."
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9]{3,12}$",
-          "description": "Optional temporary identifier for referencing this project before it's created. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). If not provided, one will be auto-generated and returned in the response. Use '#aw_ID' in update_project to reference this project by its temporary_id."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Optional temporary identifier for this project. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted. If not provided, one will be auto-generated and returned in the response. Use this same '#aw_ID' form in add_project_item to reference this project."
         },
         "secrecy": {
           "type": "string",
@@ -1773,8 +1775,8 @@
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9_]{3,12}$",
-          "description": "Optional temporary identifier for this artifact upload. Format: 'aw_' followed by 3 to 12 alphanumeric or underscore characters (e.g., 'aw_chart1', 'aw_img_out'). Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' \u2014 for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Optional temporary identifier for this artifact upload. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_chart1', '#aw_img_out'. The bare 'aw_chart1' form is also accepted. Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' — for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
         },
         "secrecy": {
           "type": "string",

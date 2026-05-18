@@ -93,7 +93,7 @@ imports:
 ---
 ```
 
-`shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/observability-otlp.md` for telemetry-enabled reporting workflows.
+`shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/otlp.md` for telemetry-enabled reporting workflows.
 
 ## Import Schema (`import-schema`)
 
@@ -196,9 +196,6 @@ imports:
 ---
 ```
 
-> [!NOTE]
-> This is the existing, backward-compatible behavior. Workflows that already use relative paths continue to work without any changes.
-
 ### Repo-root-relative paths
 
 Paths starting with `.github/` or `/` are resolved from the repository root. Absolute paths (`/`) must point inside `.github/` or `.agents/`; any other prefix is rejected at compile time for security.
@@ -217,7 +214,7 @@ This form is required when workflows in different directories need to import the
 
 ### Cross-repo imports
 
-Paths matching the `owner/repo/path@ref` format are fetched from GitHub at compile time and cached locally. The `@ref` suffix pins the import to a tag, branch, or commit SHA.
+Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix pins to a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/packaging-imports/) for installation and update flows.
 
 ```aw wrap
 ---
@@ -228,28 +225,6 @@ imports:
   - acme-org/shared-workflows/shared/tools.md@main         # track a branch
   - acme-org/shared-workflows/shared/helpers.md@abc1234    # locked to a SHA
 ---
-```
-
-Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation. See [Remote Repository Imports](#remote-repository-imports) for details.
-
-### Worked example — all three forms
-
-```aw wrap
----
-on: issues
-engine: copilot
-imports:
-  # 1. Relative path – resolved relative to .github/workflows/
-  - shared/mcp/tavily.md
-  # 2. Repo-root-relative – resolved from the repository root
-  - .github/agents/my-expert-agent.md
-  # 3. Cross-repo – fetched from GitHub at compile time
-  - acme-org/shared-workflows/shared/reporting.md@v1.0.0
----
-
-# My Workflow
-
-Use the imported tools, agent, and reporting configuration.
 ```
 
 ### Section references and optional imports
@@ -274,101 +249,46 @@ imports:
 {{#runtime-import? .github/shared/optional.md}}
 ```
 
-## Remote Repository Imports
-
-Import shared components from external repositories using the `owner/repo/path@ref` format:
-
-```aw wrap
----
-on: issues
-engine: copilot
-imports:
-  - acme-org/shared-workflows/mcp/tavily.md@v1.0.0
-  - acme-org/shared-workflows/tools/github-setup.md@main
----
-
-# Issue Triage Workflow
-
-Analyze incoming issues using imported tools and configurations.
-```
-
-Supported refs: semantic tags (`@v1.0.0`), branches (`@main`), or commit SHAs. See [Reusing Workflows](/gh-aw/guides/packaging-imports/) for installation and update workflows.
-
-## Import Cache
-
-Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation. The cache is git-tracked with `.gitattributes` for conflict-free merges. Local imports are never cached.
-
 ## Agent Files
 
-Agent files are markdown documents in `.github/agents/` that add specialized instructions to the AI engine. Import them from your repository or from external repositories.
-
-### Local Agent Imports
-
-Import agent files from your repository's `.github/agents/` directory:
+Agent files are markdown documents in `.github/agents/` that add specialized instructions to the AI engine. Import them as either local or remote paths — files under `.github/agents/` are automatically recognized as agent files, and only **one agent file** may be imported per workflow.
 
 ```yaml wrap
 ---
 on: pull_request
 engine: copilot
 imports:
-  - .github/agents/code-reviewer.md
+  - .github/agents/code-reviewer.md                                       # local
+  - githubnext/shared-agents/.github/agents/security-reviewer.md@v1.0.0   # remote, pinned
 ---
 ```
 
-### Remote Agent Imports
-
-Import agent files from external repositories using the `owner/repo/path@ref` format:
-
-```yaml wrap
----
-on: pull_request
-engine: copilot
-imports:
-  - githubnext/shared-agents/.github/agents/security-reviewer.md@v1.0.0
----
-
-# PR Security Review
-
-Analyze pull requests for security vulnerabilities using the shared security reviewer agent.
-```
-
-Remote agent imports support the same `@ref` versioning syntax as other remote imports.
-
-### Constraints
-
-- **One agent per workflow**: Only one agent file can be imported per workflow (local or remote)
-- **Agent path detection**: Files in `.github/agents/` directories are automatically recognized as agent files
-- **Caching**: Remote agents are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation
+Remote agent imports support the same `@ref` versioning and SHA-keyed caching as other remote imports.
 
 ## Frontmatter Merging
 
 ### Allowed Import Fields
 
-Shared workflow files (without `on:` field) can define:
+Shared workflow files (without `on:` field) can define the fields below. Other fields generate warnings and are ignored. Agent files (`.github/agents/*.md`) may additionally define `name` and `description`.
 
-- `import-schema:` - Parameter schema for `with` validation and input substitution
-- `tools:` - Tool configurations (bash, web-fetch, github, mcp-*, etc.)
-- `mcp-servers:` - Model Context Protocol server configurations
-- `services:` - Docker services for workflow execution
-- `safe-outputs:` - Safe output handlers and configuration
-- `mcp-scripts:` - MCP Scripts configurations
-- `network:` - Network permission specifications
-- `permissions:` - GitHub Actions permissions (validated, not merged)
-- `runtimes:` - Runtime version overrides (node, python, go, etc.)
-- `secret-masking:` - Secret masking steps
-- `env:` - Workflow-level environment variables
-- `pre-agent-steps:` - Steps that run after artifacts are downloaded and before engine execution
-- `post-steps:` - Steps that run after engine execution
-- `github-app:` - GitHub App credentials for token minting (centralize shared app config)
-- `checkout:` - Checkout configuration for the agent job (centralize side-repo checkout setup)
-- `engine.mcp` (without engine identifier) - MCP gateway settings (`tool-timeout`, `session-timeout`) that consumers inherit; the engine itself is always inherited from the importing workflow
-
-Agent files (`.github/agents/*.md`) can additionally define:
-
-- `name` - Agent name
-- `description` - Agent description
-
-Other fields in imported files generate warnings and are ignored.
+| Field | Purpose |
+|-------|---------|
+| `import-schema` | Parameter schema for `with` validation and input substitution |
+| `tools` | Tool configurations (`bash`, `web-fetch`, `github`, `mcp-*`, etc.) |
+| `mcp-servers` | Model Context Protocol server configurations |
+| `mcp-scripts` | MCP Scripts configurations |
+| `services` | Docker services for workflow execution |
+| `safe-outputs` | Safe output handlers and configuration |
+| `network` | Network permission specifications |
+| `permissions` | GitHub Actions permissions (validated, not merged) |
+| `runtimes` | Runtime version overrides (node, python, go, etc.) |
+| `secret-masking` | Secret masking steps |
+| `env` | Workflow-level environment variables |
+| `pre-agent-steps` | Steps that run after artifacts download, before engine execution |
+| `post-steps` | Steps that run after engine execution |
+| `github-app` | GitHub App credentials for token minting |
+| `checkout` | Checkout configuration for the agent job |
+| `engine.mcp` | MCP gateway settings (`tool-timeout`, `session-timeout`); engine identifier itself is always inherited from the importing workflow |
 
 ### Field-Specific Merge Semantics
 
@@ -458,27 +378,11 @@ network:
 ---
 ```
 
-Import it into any workflow that needs web search:
-
-```aw title="research.md" wrap
----
-on: issues
-engine: copilot
-imports:
-  - shared/mcp/tavily.md
-permissions:
-  contents: read
-  issues: write
----
-
-# Research Workflow
-
-Search the web for relevant information and summarize findings in the issue.
-```
+Consumers import it with `imports: [shared/mcp/tavily.md]`.
 
 ### Importing MCP Gateway Settings
 
-Shared workflow files can export `engine.mcp.tool-timeout` and `engine.mcp.session-timeout` without specifying an engine identifier. The engine itself is always inherited from the importing workflow — the shared file only contributes the MCP gateway settings.
+Shared workflow files can export `engine.mcp.tool-timeout` and `engine.mcp.session-timeout` without specifying an engine identifier — the engine itself is always inherited from the importing workflow.
 
 ```aw title="shared/mcp/slow-backend.md" wrap
 ---
@@ -490,26 +394,7 @@ engine:
 ---
 ```
 
-Import it into any workflow that calls a slow MCP server:
-
-```aw title="my-workflow.md" wrap
----
-on: issues
-engine: copilot
-imports:
-  - shared/mcp/slow-backend.md
-  - shared/mcp/my-server.md
-permissions:
-  contents: read
-  issues: write
----
-
-# My Workflow
-
-Call the slow MCP server without hitting tool-call timeouts.
-```
-
-The importing workflow's own `engine.mcp` settings take precedence. Among imports, the first-wins strategy applies: the first file in the import list that declares a timeout wins for that setting.
+The importing workflow's own `engine.mcp` settings take precedence. Among imports, the first file that declares a timeout wins for that setting.
 
 ### Importing Top-level `jobs:`
 
@@ -593,49 +478,18 @@ safe-outputs:
 ---
 ```
 
-Import and use it in multiple workflows:
-
-```aw title="my-workflow.md" wrap
----
-on: issues
-engine: copilot
-imports:
-  - shared/notify.md
-permissions:
-  contents: read
-  issues: write
----
-
-# My Workflow
-
-Process the issue. When done, use notify-slack to send a summary notification.
-```
-
-### Error Handling
-
-- **Circular imports**: Detected at compile time.
-- **Missing files**: Use `{{#import? file.md}}` for optional imports; required imports fail if missing.
-- **Conflicts**: Duplicate safe-output types across imports fail — define in main workflow to override.
-- **Permissions**: Insufficient permissions fail with detailed error messages.
-
-Remote imports are cached by commit SHA in `.github/aw/imports/`. Keep import chains shallow and consolidate related imports; every compilation records imports in the lock file manifest.
-
+Consumers import it with `imports: [shared/notify.md]` and instruct the agent to call `notify-slack` when appropriate.
 
 ## Self-Contained Lock Files (`inlined-imports: true`)
 
 Setting `inlined-imports: true` embeds all imported content directly into the compiled `.lock.yml` at compile time. The resulting lock file is **self-contained** — it requires no file-system access or cross-repository checkout at runtime.
 
-This flag is the recommended solution for two scenarios:
+Enable it whenever runtime import resolution would fail:
 
-### Cross-Organization `workflow_call`
+- **Cross-organization `workflow_call`** — a trigger in Org A calling a workflow in Org B cannot check out Org B's `.github` folder with the caller's `GITHUB_TOKEN`, producing `fatal: repository '...' not found`.
+- **Repository rulesets** — workflows used as a [required status check](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) run in a restricted context that cannot access other files in the repo, producing `ERR_SYSTEM: Runtime import file not found`.
 
-When a trigger file in **Organization A** calls an agentic workflow hosted in **Organization B**, the activation job must check out the platform repo's `.github` folder to load runtime imports. That checkout uses the `GITHUB_TOKEN` scoped to the caller's context, which has no access to a different organization's private repository:
-
-```
-Error: fatal: repository 'https://github.com/org-b/platform-repo/' not found
-```
-
-Setting `inlined-imports: true` on the platform workflow eliminates this cross-org checkout entirely — all imported content is bundled into the lock file at compile time:
+Both cases are solved by bundling imports into the lock file at compile time:
 
 ```aw wrap
 ---
@@ -653,40 +507,13 @@ imports:
 Workflow instructions here.
 ```
 
-**Trade-off**: The compiled `.lock.yml` is larger because imported content is embedded inline, but there is no cross-organization token requirement at runtime.
-
-### Repository Rulesets
-
-When a workflow is configured as a **required status check** in a [repository ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets), it runs in a restricted context that does not have access to other files in the repository. Runtime imports cannot be resolved, producing an error such as:
-
-```
-ERR_SYSTEM: Runtime import file not found: workflows/shared/file.md
-```
-
-Setting `inlined-imports: true` resolves this by bundling all imported content into the lock file at compile time, so no file-system access is needed at runtime:
-
-```aw wrap
----
-on: pull_request
-engine: copilot
-inlined-imports: true
-imports:
-  - shared/common-tools.md
-  - shared/security-setup.md
----
-
-# My Workflow
-
-Workflow instructions here.
-```
-
-### Usage
-
-After adding `inlined-imports: true`, recompile the workflow:
+After adding the flag, recompile:
 
 ```bash
 gh aw compile my-workflow
 ```
+
+**Trade-off**: the compiled `.lock.yml` is larger because imported content is embedded inline.
 
 > [!NOTE]
 > With `inlined-imports: true`, any change to an imported file requires recompiling the workflow to take effect. The compiled `.lock.yml` must be committed and pushed for the updated content to run.

@@ -19,7 +19,7 @@ engine:
   max-continuations: 20
 
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

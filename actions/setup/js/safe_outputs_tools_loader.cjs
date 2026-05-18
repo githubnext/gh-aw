@@ -72,6 +72,7 @@ function loadTools(server) {
  */
 function attachHandlers(tools, handlers) {
   const handlerMap = {
+    create_issue: handlers.createIssueHandler,
     create_pull_request: handlers.createPullRequestHandler,
     push_to_pull_request_branch: handlers.pushToPullRequestBranchHandler,
     push_repo_memory: handlers.pushRepoMemoryHandler,
@@ -79,6 +80,8 @@ function attachHandlers(tools, handlers) {
     upload_artifact: handlers.uploadArtifactHandler,
     create_project: handlers.createProjectHandler,
     add_comment: handlers.addCommentHandler,
+    create_pull_request_review_comment: handlers.createPullRequestReviewCommentHandler,
+    submit_pull_request_review: handlers.submitPullRequestReviewHandler,
   };
 
   tools.forEach(tool => {

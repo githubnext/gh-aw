@@ -1,6 +1,6 @@
 ---
 title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, and Crush with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, Crush, OpenCode, and Pi with their specific configuration options.
 sidebar:
   order: 600
 ---
@@ -17,31 +17,32 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
-| [Crush](https://github.com/@charmland/crush/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
+| [Crush](https://github.com/charmbracelet/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [OpenCode](https://opencode.ai) (experimental) | `opencode` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
+| [Pi](https://www.npmjs.com/package/@mariozechner/pi-coding-agent) (experimental) | `pi` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) (default); switches to provider-specific secret when `model:` uses `provider/model` format |
 
 Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
 
 ## Which engine should I choose?
 
-Copilot is the default choice for most users because it supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations. Choose Claude when you want stronger control over turn limits (`max-turns`) for long reasoning sessions. Choose Gemini or Codex when those models are already part of existing tooling or budget decisions. If you are unsure, start with Copilot and switch later by changing only `engine:` and the corresponding secret.
+Choose the engine that best matches your needs and existing AI account: Copilot supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations; Claude offers stronger control over turn limits (`max-turns`) for long reasoning sessions; and Gemini or Codex fit well when those models are already part of existing tooling or budget decisions. You can switch later by changing only `engine:` and the corresponding secret.
 
 ## Engine Feature Comparison
 
 Not all features are available across all engines. The table below summarizes per-engine support for commonly used workflow options:
 
-| Feature | Copilot | Claude | Codex | Gemini | Crush | OpenCode |
-|---------|:-------:|:------:|:-----:|:------:|:-----:|:--------:|
-| `max-runs` (AWF invocation cap) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `tools.web-fetch` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP | via MCP | via MCP |
-| `engine.agent` (custom agent file) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `engine.api-target` (custom endpoint) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `engine.bare` (disable context loading) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Feature | Copilot | Claude | Codex | Gemini | Crush | OpenCode | Pi |
+|---------|:-------:|:------:|:-----:|:------:|:-----:|:--------:|:--:|
+| `max-runs` (AWF invocation cap) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `tools.web-fetch` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP | via MCP | via MCP | via MCP |
+| `engine.agent` (custom agent file) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `engine.api-target` (custom endpoint) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `engine.bare` (disable context loading) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
 
 **Notes:**
 - `max-runs` is a top-level frontmatter field that maps to `apiProxy.maxRuns` and is supported by all engines.
@@ -80,6 +81,7 @@ By default, workflows install the latest available version of each engine CLI. T
 | Gemini CLI | `gemini` | `"0.31.0"` |
 | Crush | `crush` | `"1.2.14"` |
 | OpenCode | `opencode` | `"0.1.0"` |
+| Pi | `pi` | `"0.72.1"` |
 
 ```yaml wrap
 engine:

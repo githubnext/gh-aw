@@ -20,7 +20,7 @@ imports:
       title-prefix: "[refactoring-cadence] "
       expires: "14d"
       labels: [refactoring, ai-generated]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   github:

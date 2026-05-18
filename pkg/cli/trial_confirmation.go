@@ -14,11 +14,25 @@ import (
 
 var trialConfirmationLog = logger.New("cli:trial_confirmation")
 
+// trialConfirmationOptions holds parameters for showTrialConfirmation.
+type trialConfirmationOptions struct {
+	parsedSpecs         []*WorkflowSpec
+	logicalRepoSlug     string
+	cloneRepoSlug       string
+	hostRepoSlug        string
+	deleteHostRepo      bool
+	forceDeleteHostRepo bool
+	autoMergePRs        bool
+	repeatCount         int
+	directTrialMode     bool
+	engineOverride      string
+}
+
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, autoMergePRs bool, repeatCount int, directTrialMode bool, engineOverride string) error {
-	trialConfirmationLog.Printf("Showing trial confirmation: workflows=%d, hostRepo=%s, cloneRepo=%s, repeat=%d, directMode=%v", len(parsedSpecs), hostRepoSlug, cloneRepoSlug, repeatCount, directTrialMode)
+func showTrialConfirmation(opts trialConfirmationOptions) error {
+	trialConfirmationLog.Printf("Showing trial confirmation: workflows=%d, hostRepo=%s, cloneRepo=%s, repeat=%d, directMode=%v", len(opts.parsedSpecs), opts.hostRepoSlug, opts.cloneRepoSlug, opts.repeatCount, opts.directTrialMode)
 	githubHost := getGitHubHost()
-	hostRepoSlugURL := fmt.Sprintf("%s/%s", githubHost, hostRepoSlug)
+	hostRepoSlugURL := fmt.Sprintf("%s/%s", githubHost, opts.hostRepoSlug)
 
 	var sections []string
 
@@ -30,11 +44,11 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Workflow information section
 	var workflowInfo strings.Builder
-	if len(parsedSpecs) == 1 {
-		fmt.Fprintf(&workflowInfo, "Workflow:  %s (from %s)", parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)
+	if len(opts.parsedSpecs) == 1 {
+		fmt.Fprintf(&workflowInfo, "Workflow:  %s (from %s)", opts.parsedSpecs[0].WorkflowName, opts.parsedSpecs[0].RepoSlug)
 	} else {
 		workflowInfo.WriteString("Workflows:")
-		for _, spec := range parsedSpecs {
+		for _, spec := range opts.parsedSpecs {
 			fmt.Fprintf(&workflowInfo, "\n  • %s (from %s)", spec.WorkflowName, spec.RepoSlug)
 		}
 	}
@@ -45,17 +59,17 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Display target repository info based on mode
 	var modeInfo strings.Builder
-	if cloneRepoSlug != "" {
+	if opts.cloneRepoSlug != "" {
 		// Clone-repo mode
-		fmt.Fprintf(&modeInfo, "Source:    %s (will be cloned)\n", cloneRepoSlug)
+		fmt.Fprintf(&modeInfo, "Source:    %s (will be cloned)\n", opts.cloneRepoSlug)
 		modeInfo.WriteString("Mode:      Clone repository contents into host repository")
-	} else if directTrialMode {
+	} else if opts.directTrialMode {
 		// Direct trial mode
-		fmt.Fprintf(&modeInfo, "Target:    %s (direct)\n", hostRepoSlug)
+		fmt.Fprintf(&modeInfo, "Target:    %s (direct)\n", opts.hostRepoSlug)
 		modeInfo.WriteString("Mode:      Run workflows directly in repository (no simulation)")
 	} else {
 		// Logical-repo mode
-		fmt.Fprintf(&modeInfo, "Target:    %s (simulated)\n", logicalRepoSlug)
+		fmt.Fprintf(&modeInfo, "Target:    %s (simulated)\n", opts.logicalRepoSlug)
 		modeInfo.WriteString("Mode:      Simulate execution against target repository")
 	}
 
@@ -65,7 +79,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Host repository info
 	var hostInfo strings.Builder
-	fmt.Fprintf(&hostInfo, "Host Repo:  %s\n", hostRepoSlug)
+	fmt.Fprintf(&hostInfo, "Host Repo:  %s\n", opts.hostRepoSlug)
 	fmt.Fprintf(&hostInfo, "            %s", hostRepoSlugURL)
 
 	sections = append(sections, console.RenderInfoSection(hostInfo.String())...)
@@ -74,25 +88,25 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Configuration settings
 	var configInfo strings.Builder
-	if deleteHostRepo {
+	if opts.deleteHostRepo {
 		configInfo.WriteString("Cleanup:   Host repository will be deleted after completion")
 	} else {
 		configInfo.WriteString("Cleanup:   Host repository will be preserved")
 	}
 
 	// Display secret usage information (only when engine override is specified)
-	if engineOverride != "" {
+	if opts.engineOverride != "" {
 		configInfo.WriteString("\n")
-		fmt.Fprintf(&configInfo, "Secrets:   Will prompt for %s API key if needed (stored as repository secret)", engineOverride)
+		fmt.Fprintf(&configInfo, "Secrets:   Will prompt for %s API key if needed (stored as repository secret)", opts.engineOverride)
 	}
 
 	// Display repeat count if set
-	if repeatCount > 0 {
-		fmt.Fprintf(&configInfo, "\nRepeat:    Will run %d times (total executions: %d)", repeatCount, repeatCount+1)
+	if opts.repeatCount > 0 {
+		fmt.Fprintf(&configInfo, "\nRepeat:    Will run %d times (total executions: %d)", opts.repeatCount, opts.repeatCount+1)
 	}
 
 	// Display auto-merge setting if enabled
-	if autoMergePRs {
+	if opts.autoMergePRs {
 		configInfo.WriteString("\nAuto-merge: Pull requests will be automatically merged")
 	}
 
@@ -109,15 +123,15 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Check if host repository already exists to update messaging
 	hostRepoExists := false
-	checkCmd := workflow.ExecGH("repo", "view", hostRepoSlug)
+	checkCmd := workflow.ExecGH("repo", "view", opts.hostRepoSlug)
 	if err := checkCmd.Run(); err == nil {
 		hostRepoExists = true
 	}
-	trialConfirmationLog.Printf("Host repo check: exists=%v, forceDelete=%v", hostRepoExists, forceDeleteHostRepo)
+	trialConfirmationLog.Printf("Host repo check: exists=%v, forceDelete=%v", hostRepoExists, opts.forceDeleteHostRepo)
 
 	// Step 1: Repository creation/reuse
 	stepNum := 1
-	if hostRepoExists && forceDeleteHostRepo {
+	if hostRepoExists && opts.forceDeleteHostRepo {
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Delete and recreate host repository\n"), stepNum)
 	} else if hostRepoExists {
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Reuse existing host repository\n"), stepNum)
@@ -127,49 +141,49 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	stepNum++
 
 	// Step 2: Clone contents (only in clone-repo mode)
-	if cloneRepoSlug != "" {
-		if hostRepoExists && !forceDeleteHostRepo {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Force push contents from %s (overwriting existing content)\n"), stepNum, cloneRepoSlug)
+	if opts.cloneRepoSlug != "" {
+		if hostRepoExists && !opts.forceDeleteHostRepo {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Force push contents from %s (overwriting existing content)\n"), stepNum, opts.cloneRepoSlug)
 		} else {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Clone contents from %s\n"), stepNum, cloneRepoSlug)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Clone contents from %s\n"), stepNum, opts.cloneRepoSlug)
 		}
 		stepNum++
 
 		// Show that workflows will be disabled
-		if len(parsedSpecs) == 1 {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Disable all workflows in cloned repository except %s\n"), stepNum, parsedSpecs[0].WorkflowName)
+		if len(opts.parsedSpecs) == 1 {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Disable all workflows in cloned repository except %s\n"), stepNum, opts.parsedSpecs[0].WorkflowName)
 		} else {
-			workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
+			workflowNames := sliceutil.Map(opts.parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Disable all workflows in cloned repository except: %s\n"), stepNum, strings.Join(workflowNames, ", "))
 		}
 		stepNum++
 	}
 
 	// Step 3/2: Install and compile workflows
-	if len(parsedSpecs) == 1 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile %s\n"), stepNum, parsedSpecs[0].WorkflowName)
+	if len(opts.parsedSpecs) == 1 {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile %s\n"), stepNum, opts.parsedSpecs[0].WorkflowName)
 	} else {
-		workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
+		workflowNames := sliceutil.Map(opts.parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile: %s\n"), stepNum, strings.Join(workflowNames, ", "))
 	}
 	stepNum++
 
 	// Step: Configure secrets (only when engine override is specified)
-	if engineOverride != "" {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Ensure %s API key secret is configured\n"), stepNum, engineOverride)
+	if opts.engineOverride != "" {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Ensure %s API key secret is configured\n"), stepNum, opts.engineOverride)
 		stepNum++
 	}
 
 	// Step 5/4: Execute workflows and auto-merge (repeated if --repeat is used)
-	if len(parsedSpecs) == 1 {
-		workflowName := parsedSpecs[0].WorkflowName
-		if repeatCount > 0 && autoMergePRs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, repeatCount+1)
+	if len(opts.parsedSpecs) == 1 {
+		workflowName := opts.parsedSpecs[0].WorkflowName
+		if opts.repeatCount > 0 && opts.autoMergePRs {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
 			fmt.Fprintf(os.Stderr, "     a. Execute %s\n", workflowName)
 			fmt.Fprintf(os.Stderr, "     b. Auto-merge any pull requests created during execution\n")
-		} else if repeatCount > 0 {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s %d times\n"), stepNum, workflowName, repeatCount+1)
-		} else if autoMergePRs {
+		} else if opts.repeatCount > 0 {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s %d times\n"), stepNum, workflowName, opts.repeatCount+1)
+		} else if opts.autoMergePRs {
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s\n"), stepNum, workflowName)
 			stepNum++
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Auto-merge any pull requests created during execution\n"), stepNum)
@@ -177,16 +191,16 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s\n"), stepNum, workflowName)
 		}
 	} else {
-		workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
+		workflowNames := sliceutil.Map(opts.parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 		workflowList := strings.Join(workflowNames, ", ")
 
-		if repeatCount > 0 && autoMergePRs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, repeatCount+1)
+		if opts.repeatCount > 0 && opts.autoMergePRs {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, opts.repeatCount+1)
 			fmt.Fprintf(os.Stderr, "     a. Execute: %s\n", workflowList)
 			fmt.Fprintf(os.Stderr, "     b. Auto-merge any pull requests created during execution\n")
-		} else if repeatCount > 0 {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %d times: %s\n"), stepNum, repeatCount+1, workflowList)
-		} else if autoMergePRs {
+		} else if opts.repeatCount > 0 {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %d times: %s\n"), stepNum, opts.repeatCount+1, workflowList)
+		} else if opts.autoMergePRs {
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute: %s\n"), stepNum, workflowList)
 			stepNum++
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Auto-merge any pull requests created during execution\n"), stepNum)
@@ -197,7 +211,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	stepNum++
 
 	// Final step: Delete/preserve repository
-	if deleteHostRepo {
+	if opts.deleteHostRepo {
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Delete the host repository\n"), stepNum)
 	} else {
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Preserve the host repository for inspection\n"), stepNum)

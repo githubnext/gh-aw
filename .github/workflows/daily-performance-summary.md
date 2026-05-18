@@ -30,7 +30,7 @@ imports:
   - shared/github-queries-mcp-script.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

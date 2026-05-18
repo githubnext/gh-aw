@@ -133,27 +133,41 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
     const knownAuthors = allowContext ? extractKnownAuthorsFromPayload(context) : [];
 
     // Add allowed list (always included regardless of configuration)
-    knownAuthors.push(...allowedList);
+    if (Array.isArray(allowedList)) {
+      knownAuthors.push(...allowedList.filter(alias => typeof alias === "string" && alias.length > 0));
+    }
 
     // Add extra known authors (e.g. pre-fetched target issue authors for explicit item_number)
     if (extraKnownAuthors && extraKnownAuthors.length > 0) {
       core.info(`[MENTIONS] Adding ${extraKnownAuthors.length} extra known author(s): ${extraKnownAuthors.join(", ")}`);
-      knownAuthors.push(...extraKnownAuthors);
+      knownAuthors.push(...extraKnownAuthors.filter(alias => typeof alias === "string" && alias.length > 0));
+    }
+
+    // Deduplicate while preserving order and original case.
+    const deduplicatedKnownAuthors = [];
+    const seenKnownAuthors = new Set();
+    for (const author of knownAuthors) {
+      const key = author.toLowerCase();
+      if (seenKnownAuthors.has(key)) {
+        continue;
+      }
+      seenKnownAuthors.add(key);
+      deduplicatedKnownAuthors.push(author);
     }
 
     // If allow-team-members is disabled, only use known authors (context + allowed list)
     if (!allowTeamMembers) {
-      core.info(`[MENTIONS] Team members disabled - only allowing context (${knownAuthors.length} users)`);
-      if (knownAuthors.length > maxMentions) {
-        core.warning(`[MENTIONS] Mention limit exceeded: ${knownAuthors.length} mentions, limiting to ${maxMentions}`);
+      core.info(`[MENTIONS] Team members disabled - only allowing context (${deduplicatedKnownAuthors.length} users)`);
+      if (deduplicatedKnownAuthors.length > maxMentions) {
+        core.warning(`[MENTIONS] Mention limit exceeded: ${deduplicatedKnownAuthors.length} mentions, limiting to ${maxMentions}`);
       }
-      return knownAuthors.slice(0, maxMentions);
+      return deduplicatedKnownAuthors.slice(0, maxMentions);
     }
 
     // Build allowed mentions list from known authors and collaborators
     // We pass the known authors as fake mentions in text so they get processed
-    const fakeText = knownAuthors.map(author => `@${author}`).join(" ");
-    const mentionResult = await resolveMentionsLazily(fakeText, knownAuthors, owner, repo, github, core);
+    const fakeText = deduplicatedKnownAuthors.map(author => `@${author}`).join(" ");
+    const mentionResult = await resolveMentionsLazily(fakeText, deduplicatedKnownAuthors, owner, repo, github, core);
     let allowedMentions = mentionResult.allowedMentions;
 
     // Apply max limit

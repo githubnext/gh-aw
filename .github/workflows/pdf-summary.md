@@ -13,7 +13,7 @@ on:
     inputs:
       url:
         description: 'URL(s) to resource(s) to analyze (comma-separated for multiple URLs)'
-        required: true
+        required: false
         type: string
       query:
         description: 'Query or question to answer about the resource(s)'
@@ -33,7 +33,7 @@ imports:
   - shared/mcp/markitdown.md
   - shared/reporting.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   cache-memory: true

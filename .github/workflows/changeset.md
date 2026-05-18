@@ -49,7 +49,7 @@ imports:
   - ../skills/jqschema/SKILL.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Changeset Generator

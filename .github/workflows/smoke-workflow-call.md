@@ -29,7 +29,7 @@ network:
   allowed:
     - defaults
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   bash:
     - "git status"

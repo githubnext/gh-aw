@@ -22,7 +22,7 @@ imports:
       expires: 3d
   - shared/mcp/serena-go.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -251,6 +251,8 @@ If the state file was missing at the start of the run, initialize it from scratc
 
 If any rename suggestions were found across the analyzed package, create a GitHub issue.
 
+Use h3 (`###`) or lower for all headers in the issue body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title.
+
 If **no improvements were found**, emit `noop` and exit:
 
 ```json
@@ -266,7 +268,7 @@ Otherwise, create an issue with this structure:
 **Body**:
 
 ```markdown
-# 🏷️ Go Function Rename Plan
+### 🏷️ Go Function Rename Plan
 
 **Package Analyzed**: `<package>`
 **Analysis Date**: <YYYY-MM-DD>

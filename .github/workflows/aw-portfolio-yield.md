@@ -30,7 +30,7 @@ safe-outputs:
     expires: 30d
 imports:
   - shared/mcp/grafana.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
   - shared/otel-queries.md
 pre-agent-steps:
   - name: Collect workflow telemetry snapshot

@@ -5,6 +5,8 @@ package stringutil
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTruncate(t *testing.T) {
@@ -51,6 +53,30 @@ func TestTruncate(t *testing.T) {
 			expected: "h",
 		},
 		{
+			name:     "max length zero",
+			s:        "hello",
+			maxLen:   0,
+			expected: "",
+		},
+		{
+			name:     "exactly three chars",
+			s:        "abc",
+			maxLen:   3,
+			expected: "abc",
+		},
+		{
+			name:     "four chars exact length",
+			s:        "abcd",
+			maxLen:   4,
+			expected: "abcd",
+		},
+		{
+			name:     "five chars truncated to four",
+			s:        "abcde",
+			maxLen:   4,
+			expected: "a...",
+		},
+		{
 			name:     "empty string",
 			s:        "",
 			maxLen:   5,
@@ -67,9 +93,7 @@ func TestTruncate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Truncate(tt.s, tt.maxLen)
-			if result != tt.expected {
-				t.Errorf("Truncate(%q, %d) = %q; want %q", tt.s, tt.maxLen, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "Truncate(%q, %d) should return expected output", tt.s, tt.maxLen)
 		})
 	}
 }
@@ -130,9 +154,7 @@ func TestNormalizeWhitespace(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := NormalizeWhitespace(tt.content)
-			if result != tt.expected {
-				t.Errorf("NormalizeWhitespace(%q) = %q; want %q", tt.content, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "NormalizeWhitespace(%q) should normalize trailing whitespace and newlines", tt.content)
 		})
 	}
 }
@@ -152,35 +174,6 @@ func BenchmarkNormalizeWhitespace(b *testing.B) {
 }
 
 // Additional edge case tests
-
-func TestTruncate_Zero(t *testing.T) {
-	result := Truncate("hello", 0)
-	if result != "" {
-		t.Errorf("Truncate with maxLen 0 should return empty string, got %q", result)
-	}
-}
-
-func TestTruncate_ExactlyThreeChars(t *testing.T) {
-	// When string is exactly maxLen, it should not be truncated
-	result := Truncate("abc", 3)
-	if result != "abc" {
-		t.Errorf("Truncate('abc', 3) = %q; want 'abc'", result)
-	}
-}
-
-func TestTruncate_FourChars(t *testing.T) {
-	// When string is 4 chars and maxLen is 4, should add "..."
-	result := Truncate("abcd", 4)
-	if result != "abcd" {
-		t.Errorf("Truncate('abcd', 4) = %q; want 'abcd'", result)
-	}
-
-	// When string is 5 chars and maxLen is 4, should truncate with "..."
-	result = Truncate("abcde", 4)
-	if result != "a..." {
-		t.Errorf("Truncate('abcde', 4) = %q; want 'a...'", result)
-	}
-}
 
 func TestTruncate_Unicode(t *testing.T) {
 	tests := []struct {
@@ -212,9 +205,7 @@ func TestTruncate_Unicode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Truncate(tt.s, tt.maxLen)
-			if result != tt.expected {
-				t.Errorf("Truncate(%q, %d) = %q; want %q", tt.s, tt.maxLen, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "Truncate(%q, %d) should handle unicode input as expected", tt.s, tt.maxLen)
 		})
 	}
 }
@@ -250,9 +241,7 @@ func TestNormalizeWhitespace_OnlyWhitespace(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := NormalizeWhitespace(tt.content)
-			if result != tt.expected {
-				t.Errorf("NormalizeWhitespace(%q) = %q; want %q", tt.content, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "NormalizeWhitespace(%q) should handle whitespace-only input", tt.content)
 		})
 	}
 }
@@ -280,9 +269,7 @@ func TestNormalizeWhitespace_ManyLines(t *testing.T) {
 		expected.WriteString(line + "\n")
 	}
 
-	if result != expected.String() {
-		t.Error("NormalizeWhitespace did not properly normalize many lines")
-	}
+	assert.Equal(t, expected.String(), result, "NormalizeWhitespace should remove trailing spaces from all lines in large inputs")
 }
 
 func TestNormalizeWhitespace_PreservesContent(t *testing.T) {
@@ -290,13 +277,8 @@ func TestNormalizeWhitespace_PreservesContent(t *testing.T) {
 	content := "line1  middle  spaces\nline2\t\tmiddle\t\ttabs\n"
 	result := NormalizeWhitespace(content)
 
-	if !strings.Contains(result, "middle  spaces") {
-		t.Error("NormalizeWhitespace should preserve non-trailing spaces")
-	}
-
-	if !strings.Contains(result, "middle\t\ttabs") {
-		t.Error("NormalizeWhitespace should preserve non-trailing tabs")
-	}
+	assert.Contains(t, result, "middle  spaces", "NormalizeWhitespace should preserve non-trailing spaces inside lines")
+	assert.Contains(t, result, "middle\t\ttabs", "NormalizeWhitespace should preserve non-trailing tabs inside lines")
 }
 
 func BenchmarkTruncate_Short(b *testing.B) {
@@ -407,9 +389,7 @@ func TestParseVersionValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ParseVersionValue(tt.version)
-			if result != tt.expected {
-				t.Errorf("ParseVersionValue(%v) = %q, expected %q", tt.version, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "ParseVersionValue(%v) should return normalized string representation", tt.version)
 		})
 	}
 }
@@ -450,9 +430,7 @@ func TestFormatList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatList(tt.items)
-			if result != tt.expected {
-				t.Errorf("FormatList(%v) = %q; want %q", tt.items, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "FormatList(%v) should return natural-language list formatting", tt.items)
 		})
 	}
 }
@@ -503,9 +481,7 @@ func TestNormalizeLeadingWhitespace(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := NormalizeLeadingWhitespace(tt.input)
-			if result != tt.expected {
-				t.Errorf("NormalizeLeadingWhitespace(%q) = %q; want %q", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "NormalizeLeadingWhitespace should normalize indentation for case %q", tt.name)
 		})
 	}
 }
@@ -571,9 +547,7 @@ func TestIsPositiveInteger(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := IsPositiveInteger(tt.s)
-			if got != tt.want {
-				t.Errorf("IsPositiveInteger(%q) = %v, want %v", tt.s, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "IsPositiveInteger(%q) should match expected positivity result", tt.s)
 		})
 	}
 }

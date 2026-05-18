@@ -369,4 +369,239 @@ steps:
 		assert.False(t, applied, "codemod should not apply")
 		assert.Equal(t, content, result, "content should be unchanged")
 	})
+
+	t.Run("hoists non-secrets expression to EXPR_ env binding", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo ${{ github.repository }}
+---
+`
+		frontmatter := map[string]any{
+			"on":    "push",
+			"steps": []any{map[string]any{"run": "echo ${{ github.repository }}"}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "EXPR_GITHUB_REPOSITORY: ${{ github.repository }}")
+		assert.Contains(t, result, "run: echo $EXPR_GITHUB_REPOSITORY")
+	})
+
+	t.Run("hoists inputs expression to EXPR_ env binding", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo ${{ inputs.my-input }}
+---
+`
+		frontmatter := map[string]any{
+			"on":    "push",
+			"steps": []any{map[string]any{"run": "echo ${{ inputs.my-input }}"}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "EXPR_INPUTS_MY_INPUT: ${{ inputs.my-input }}")
+		assert.Contains(t, result, "run: echo $EXPR_INPUTS_MY_INPUT")
+	})
+
+	t.Run("hoists steps output expression to EXPR_ env binding", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo ${{ steps.my-step.outputs.result }}
+---
+`
+		frontmatter := map[string]any{
+			"on":    "push",
+			"steps": []any{map[string]any{"run": "echo ${{ steps.my-step.outputs.result }}"}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "EXPR_STEPS_MY_STEP_OUTPUTS_RESULT: ${{ steps.my-step.outputs.result }}")
+		assert.Contains(t, result, "run: echo $EXPR_STEPS_MY_STEP_OUTPUTS_RESULT")
+	})
+
+	t.Run("hoists complex non-secrets expression with hash-based name", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo "${{ inputs.foo || 'default' }}"
+---
+`
+		frontmatter := map[string]any{
+			"on":    "push",
+			"steps": []any{map[string]any{"run": `echo "${{ inputs.foo || 'default' }}"`}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "${{ inputs.foo || 'default' }}", "complex expression should be preserved in env binding")
+		envBindings := regexp.MustCompile(`EXPR_[0-9a-f]{8}:`).FindAllString(result, -1)
+		assert.Len(t, envBindings, 1, "one hash-based EXPR_ binding should be created")
+	})
+
+	t.Run("uses $env:VARNAME for PowerShell steps (pwsh)", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - name: PS step
+    shell: pwsh
+    run: |
+      Write-Output "${{ github.actor }}"
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{map[string]any{
+				"name":  "PS step",
+				"shell": "pwsh",
+				"run":   `Write-Output "${{ github.actor }}"`,
+			}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "EXPR_GITHUB_ACTOR: ${{ github.actor }}")
+		assert.Contains(t, result, `Write-Output "$env:EXPR_GITHUB_ACTOR"`, "PowerShell step should use $env:VARNAME syntax")
+	})
+
+	t.Run("uses $env:VARNAME for PowerShell steps (powershell)", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - name: PS step
+    shell: powershell
+    run: Write-Output ${{ github.actor }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{map[string]any{
+				"name":  "PS step",
+				"shell": "powershell",
+				"run":   "Write-Output ${{ github.actor }}",
+			}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "EXPR_GITHUB_ACTOR: ${{ github.actor }}")
+		assert.Contains(t, result, "run: Write-Output $env:EXPR_GITHUB_ACTOR")
+	})
+
+	t.Run("uses $env:VARNAME for PowerShell steps with secrets", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - shell: pwsh
+    run: Write-Output ${{ secrets.MY_TOKEN }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{map[string]any{
+				"shell": "pwsh",
+				"run":   "Write-Output ${{ secrets.MY_TOKEN }}",
+			}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "MY_TOKEN: ${{ secrets.MY_TOKEN }}")
+		assert.Contains(t, result, "run: Write-Output $env:MY_TOKEN", "PowerShell secrets also use $env:VARNAME")
+	})
+
+	t.Run("bash step uses $VARNAME not $env:VARNAME for EXPR_ bindings", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - shell: bash
+    run: echo ${{ github.actor }}
+---
+`
+		frontmatter := map[string]any{
+			"on":    "push",
+			"steps": []any{map[string]any{"shell": "bash", "run": "echo ${{ github.actor }}"}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "run: echo $EXPR_GITHUB_ACTOR")
+		assert.NotContains(t, result, "$env:EXPR_GITHUB_ACTOR")
+	})
+
+	t.Run("does not misclassify shell from run body containing shell: pwsh", func(t *testing.T) {
+		// A run block whose body contains a literal "shell: pwsh" line should not
+		// cause the step to be treated as a PowerShell step.
+		content := `---
+on: push
+steps:
+  - name: Bash step with literal shell text
+    run: |
+      echo "shell: pwsh is not a real key here"
+      echo ${{ github.actor }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{map[string]any{
+				"name": "Bash step with literal shell text",
+				"run":  "echo \"shell: pwsh is not a real key here\"\necho ${{ github.actor }}",
+			}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		// Must use bare $VARNAME because no real shell: pwsh key is present.
+		assert.Contains(t, result, "$EXPR_GITHUB_ACTOR", "bash step should use bare $VARNAME")
+		assert.NotContains(t, result, "$env:EXPR_GITHUB_ACTOR", "bash step must not use $env:VARNAME")
+	})
+
+	t.Run("uses distinct bindings when different bodies collide to the same EXPR_ name", func(t *testing.T) {
+		// inputs.my-input and inputs.my_input both sanitize to EXPR_INPUTS_MY_INPUT.
+		// The second one must fall back to a hash-based name to avoid being silently
+		// bound to the wrong expression.
+		content := `---
+on: push
+steps:
+  - run: echo "${{ inputs.my-input }} ${{ inputs.my_input }}"
+---
+`
+		frontmatter := map[string]any{
+			"on":    "push",
+			"steps": []any{map[string]any{"run": `echo "${{ inputs.my-input }} ${{ inputs.my_input }}"`}},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		// Both expressions must be present in env bindings.
+		assert.Contains(t, result, "${{ inputs.my-input }}", "first expression preserved in env binding")
+		assert.Contains(t, result, "${{ inputs.my_input }}", "second expression preserved in env binding")
+		// The first expression gets the canonical sanitized name; the second gets a hash-based name.
+		assert.Contains(t, result, "EXPR_INPUTS_MY_INPUT: ${{ inputs.my-input }}", "first expression should use sanitized EXPR_ name")
+		// The run line must not contain any raw ${{ ... }} interpolation.
+		for line := range strings.SplitSeq(result, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "run:") {
+				assert.NotContains(t, line, "${{", "run line must not contain raw expression interpolation")
+				assert.Contains(t, line, "$EXPR_INPUTS_MY_INPUT", "run line should reference sanitized name for first expression")
+			}
+		}
+		// There should be exactly two distinct env-var bindings (one per expression).
+		exprBindings := regexp.MustCompile(`EXPR_[A-Za-z0-9_]+:`).FindAllString(result, -1)
+		require.Len(t, exprBindings, 2, "each colliding expression should get a unique binding")
+		assert.NotEqual(t, exprBindings[0], exprBindings[1], "the two collision bindings must have distinct names")
+	})
 }

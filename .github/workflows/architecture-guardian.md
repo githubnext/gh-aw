@@ -20,7 +20,7 @@ imports:
       expires: "2d"
       labels: [architecture, automated-analysis, cookie]
       assignees: [copilot]
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   bash:

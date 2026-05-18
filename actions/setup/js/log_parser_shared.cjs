@@ -56,6 +56,9 @@ const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additio
  *   - [ERROR] …
  *   - [entrypoint] Starting firewall…       (lowercase — container script convention)
  *   - [health-check] Proxy ready            (lowercase — container script convention)
+ *   - [copilot-harness] 2026-… attempt 1: … (lowercase — Node harness wrapper convention)
+ *   - [claude-harness] 2026-… …             (lowercase — Node harness wrapper convention)
+ *   - [codex-harness] 2026-… …              (lowercase — Node harness wrapper convention)
  *   -  Container awf-squid  Removed         (Docker Compose lifecycle output)
  *   -  Network …  Removed
  *   - Process exiting with code: 1          (AWF wrapper exit line)
@@ -67,7 +70,7 @@ const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additio
  * Used by parse_copilot_log.cjs (parsePrettyPrintFormat) and handle_agent_failure.cjs
  * (buildEngineFailureContext) to strip infrastructure noise from engine log analysis.
  */
-const AWF_INFRA_LINE_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+const AWF_INFRA_LINE_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|copilot-harness|claude-harness|codex-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
 
 /**
  * Tracks the size of content being added to a step summary.

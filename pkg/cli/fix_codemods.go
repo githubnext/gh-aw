@@ -46,7 +46,7 @@ func GetAllCodemods() []Codemod {
 		getBotsToOnBotsCodemod(),                      // Move top-level bots to on.bots
 		getEngineStepsToTopLevelCodemod(),             // Move engine.steps to top-level steps
 		getEngineMaxRunsToTopLevelCodemod(),           // Move engine.max-runs to top-level max-runs
-		getStepsRunSecretsToEnvCodemod(),              // Move inline secrets in step run fields to step env bindings
+		getStepsRunSecretsToEnvCodemod(),              // Move all ${{ ... }} expressions in step run fields to step env bindings
 		getEngineEnvSecretsCodemod(),                  // Remove unsafe secret-bearing engine.env entries
 		getAssignToAgentDefaultAgentCodemod(),         // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(), // Migrate tools.playwright.allowed_domains to network.allowed
@@ -55,7 +55,6 @@ func GetAllCodemods() []Codemod {
 		getGitHubAppClientIDCodemod(),                 // Rename deprecated github-app.app-id to github-app.client-id
 		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
 		getRateLimitToUserRateLimitCodemod(),          // Rename rate-limit to user-rate-limit with max key migration
-		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)
 		getSerenaToSharedImportCodemod(),              // Migrate removed tools.serena to shared/mcp/serena.md import
 		getWorkflowRunBranchesCodemod(),               // Add default branches to bare on.workflow_run trigger
 		getCheckoutPersistCredentialsFalseCodemod(),   // Add with.persist-credentials: false to actions/checkout steps

@@ -91,14 +91,15 @@ func getCurrentRepoSlugUncached() (string, error) {
 // GetCurrentRepoSlug gets the current repository slug with caching.
 // This is the recommended function to use for repository access across the codebase.
 func GetCurrentRepoSlug() (string, error) {
-	currentRepoSlugCache.mu.Lock()
-	if !currentRepoSlugCache.done {
-		currentRepoSlugCache.result, currentRepoSlugCache.err = getCurrentRepoSlugUncached()
-		currentRepoSlugCache.done = true
-	}
-	result := currentRepoSlugCache.result
-	err := currentRepoSlugCache.err
-	currentRepoSlugCache.mu.Unlock()
+	result, err := func() (string, error) {
+		currentRepoSlugCache.mu.Lock()
+		defer currentRepoSlugCache.mu.Unlock()
+		if !currentRepoSlugCache.done {
+			currentRepoSlugCache.result, currentRepoSlugCache.err = getCurrentRepoSlugUncached()
+			currentRepoSlugCache.done = true
+		}
+		return currentRepoSlugCache.result, currentRepoSlugCache.err
+	}()
 
 	if err != nil {
 		return "", err

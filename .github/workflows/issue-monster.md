@@ -397,7 +397,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/activation-app.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 timeout-minutes: 30
 
 tools:

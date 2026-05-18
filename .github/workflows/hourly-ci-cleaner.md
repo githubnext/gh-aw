@@ -119,7 +119,7 @@ imports:
   - ../agents/ci-cleaner.agent.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # CI Cleaner

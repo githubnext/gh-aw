@@ -187,6 +187,15 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 
 	// If app is configured, use app token
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
+		if data.SafeOutputs.GitHubApp.shouldIgnoreMissingKey() {
+			effectiveCustomToken := configToken
+			if effectiveCustomToken == "" {
+				effectiveCustomToken = safeOutputsToken
+			}
+			fallbackToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+			*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", combineTokenExpressions("${{ steps.safe-outputs-app-token.outputs.token }}", fallbackToken)))
+			return
+		}
 		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
 		return
 	}
@@ -212,6 +221,15 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 
 	// If app is configured, use app token
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
+		if data.SafeOutputs.GitHubApp.shouldIgnoreMissingKey() {
+			effectiveCustomToken := configToken
+			if effectiveCustomToken == "" {
+				effectiveCustomToken = safeOutputsToken
+			}
+			fallbackToken := getEffectiveCopilotRequestsToken(effectiveCustomToken)
+			*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", combineTokenExpressions("${{ steps.safe-outputs-app-token.outputs.token }}", fallbackToken)))
+			return
+		}
 		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
 		return
 	}

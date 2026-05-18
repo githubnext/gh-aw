@@ -225,12 +225,7 @@ func TestCompileWorkflowWithValidation_InvalidFile(t *testing.T) {
 		context.Background(),
 		compiler,
 		"/nonexistent/file.md",
-		false, // verbose
-		false, // zizmor
-		false, // poutine
-		false, // actionlint
-		false, // strict
-		false, // validateActionSHAs
+		CompileValidationOptions{},
 	)
 
 	if err == nil {
@@ -396,15 +391,11 @@ This is a test workflow.
 
 	// Compile without emitting
 	err = CompileWorkflowDataWithValidation(
+		context.Background(),
 		compiler,
 		workflowData,
 		testFile,
-		false, // verbose
-		false, // zizmor
-		false, // poutine
-		false, // actionlint
-		false, // strict
-		false, // validateActionSHAs
+		CompileValidationOptions{},
 	)
 
 	// Should complete without error
@@ -449,12 +440,7 @@ This is a test workflow.
 		context.Background(),
 		compiler,
 		testFile,
-		false, // verbose
-		false, // zizmor
-		false, // poutine
-		false, // actionlint
-		false, // strict
-		false, // validateActionSHAs
+		CompileValidationOptions{},
 	)
 
 	// Should complete without error
@@ -794,15 +780,13 @@ This is a test workflow.
 			// require Docker, but this test verifies the API contract that
 			// security tools are independent of the validate flag.
 			err = CompileWorkflowDataWithValidation(
+				context.Background(),
 				compiler,
 				workflowData,
 				testFile,
-				false,       // verbose
-				false,       // runZizmor - disabled for unit test (no Docker)
-				false,       // runPoutine - disabled for unit test (no Docker)
-				false,       // runActionlint - disabled for unit test (no Docker)
-				false,       // strict
-				tt.validate, // validateActionSHAs - independent of security tools
+				CompileValidationOptions{
+					ValidateActionSHAs: tt.validate, // independent of security tools
+				},
 			)
 
 			// Even without running security tools, the compilation should succeed

@@ -794,6 +794,136 @@ engine: copilot
     });
   });
 
+  describe("cross-repo private callee auth failure guidance", () => {
+    // Regression test for the private-callee lockdown failure described in the issue:
+    // When a caller workflow_call dispatches against a private callee repo, the caller's
+    // GITHUB_TOKEN is repo-scoped and cannot read from the callee's Contents API,
+    // resulting in a 404/401/403.  The system should surface actionable guidance pointing
+    // to GH_AW_GITHUB_TOKEN instead of the generic "run gh aw compile" message.
+
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "worker-fix.lock.yml";
+      process.env.GITHUB_REPOSITORY = "gominimal/min-ctl";
+      process.env.GITHUB_WORKFLOW_REF = "gominimal/min-aw/.github/workflows/worker-fix.lock.yml@v0.6.3";
+    });
+
+    it("should emit GH_AW_GITHUB_TOKEN guidance when cross-repo fetch returns HTTP 404", async () => {
+      const error = new Error("Not Found");
+      error.status = 404;
+      mockGithub.rest.repos.getContent.mockRejectedValue(error);
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cross-repo API access failed (HTTP 404)"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GH_AW_GITHUB_TOKEN"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("gominimal/min-aw"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Configure GH_AW_GITHUB_TOKEN with read access to 'gominimal/min-aw'"));
+      // Must NOT direct the user to run `gh aw compile` — that doesn't fix an auth gap
+      expect(mockCore.setFailed).not.toHaveBeenCalledWith(expect.stringContaining("gh aw compile"));
+    });
+
+    it("should emit GH_AW_GITHUB_TOKEN guidance when cross-repo fetch returns HTTP 401", async () => {
+      const error = new Error("Unauthorized");
+      error.status = 401;
+      mockGithub.rest.repos.getContent.mockRejectedValue(error);
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cross-repo API access failed (HTTP 401)"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_GITHUB_TOKEN"));
+      expect(mockCore.setFailed).not.toHaveBeenCalledWith(expect.stringContaining("gh aw compile"));
+    });
+
+    it("should emit GH_AW_GITHUB_TOKEN guidance when cross-repo fetch returns HTTP 403", async () => {
+      const error = new Error("Forbidden");
+      error.status = 403;
+      mockGithub.rest.repos.getContent.mockRejectedValue(error);
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cross-repo API access failed (HTTP 403)"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_GITHUB_TOKEN"));
+      expect(mockCore.setFailed).not.toHaveBeenCalledWith(expect.stringContaining("gh aw compile"));
+    });
+
+    it("should include the callee repo name in the cross-repo auth guidance summary", async () => {
+      const error = new Error("Not Found");
+      error.status = 404;
+      mockGithub.rest.repos.getContent.mockRejectedValue(error);
+
+      await main();
+
+      // Summary must explain the root cause (auth gap, not stale lock) and direct to GH_AW_GITHUB_TOKEN
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("GITHUB_TOKEN"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("GH_AW_GITHUB_TOKEN"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("gominimal/min-aw"));
+      // Must NOT show the generic "gh aw compile" action
+      const summaryArgs = mockCore.summary.addRaw.mock.calls.flat();
+      expect(summaryArgs.some(a => a.includes("gh aw compile"))).toBe(false);
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
+
+    it("should still set stale_lock_file_failed output on cross-repo auth failure", async () => {
+      const error = new Error("Not Found");
+      error.status = 404;
+      mockGithub.rest.repos.getContent.mockRejectedValue(error);
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("stale_lock_file_failed", "true");
+    });
+
+    it("should NOT emit cross-repo auth guidance for a generic API error without HTTP status", async () => {
+      // Generic network/permission error without a numeric status (existing test behaviour)
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+
+      await main();
+
+      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Cross-repo API access failed"));
+      // Falls back to the generic "outdated or unverifiable" message
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
+    });
+
+    it("should NOT emit cross-repo auth guidance for same-repo HTTP 404", async () => {
+      // Same-repo scenario: source == current repo, so no cross-repo auth guidance expected
+      process.env.GITHUB_REPOSITORY = "gominimal/min-aw";
+      const error = new Error("Not Found");
+      error.status = 404;
+      mockGithub.rest.repos.getContent.mockRejectedValue(error);
+
+      await main();
+
+      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Cross-repo API access failed"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
+    });
+
+    it("should succeed via local filesystem fallback even when cross-repo API returns 404", async () => {
+      const copilotHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const error = new Error("Not Found");
+      error.status = 404;
+      mockGithub.rest.repos.getContent.mockRejectedValue(error);
+
+      // Provide local files so the filesystem fallback can verify the hash
+      const tmpDir = require("fs").mkdtempSync(require("path").join(require("os").tmpdir(), "gh-aw-auth-test-"));
+      const workflowsDir = require("path").join(tmpDir, ".github", "workflows");
+      require("fs").mkdirSync(workflowsDir, { recursive: true });
+      require("fs").writeFileSync(require("path").join(workflowsDir, "worker-fix.lock.yml"), `# frontmatter-hash: ${copilotHash}\nname: Test\n`);
+      require("fs").writeFileSync(require("path").join(workflowsDir, "worker-fix.md"), "---\nengine: copilot\n---\n# Test");
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      try {
+        await main();
+
+        // Local fallback succeeds — no failure despite the API 404
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date"));
+      } finally {
+        require("fs").rmSync(tmpDir, { recursive: true, force: true });
+        delete process.env.GITHUB_WORKSPACE;
+      }
+    });
+  });
+
   describe("manual GH_AW_CONTEXT_WORKFLOW_REF fallback override", () => {
     // Regression test for https://github.com/github/gh-aw/issues/23935
     // In reusable workflow contexts, both GITHUB_WORKFLOW_REF and

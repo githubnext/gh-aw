@@ -89,6 +89,20 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 			description: "repos='public' should return accept=['*'] to allow all safe output operations",
 		},
 		{
+			name: "repos set to github.repository expression",
+			githubTool: map[string]any{
+				"allowed-repos": "${{ github.repository }}",
+				"min-integrity": "approved",
+			},
+			expectedPolicies: map[string]any{
+				"write-sink": map[string]any{
+					"accept": []string{"private:${{ github.repository }}"},
+				},
+			},
+			expectNil:   false,
+			description: "github.repository expression should map to runtime repository scope",
+		},
+		{
 			name: "multiple repo patterns as []any",
 			githubTool: map[string]any{
 				"repos": []any{

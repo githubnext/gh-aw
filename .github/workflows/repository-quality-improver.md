@@ -23,7 +23,7 @@ imports:
       title-prefix: "[repository-quality] "
       expires: 1d
   - shared/repository-quality-report-template.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   edit:

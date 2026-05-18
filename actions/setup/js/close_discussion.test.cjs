@@ -170,6 +170,30 @@ describe("close_discussion", () => {
       expect(commentCalls.length).toBe(1);
     });
 
+    it("should preserve allowlisted mentions and neutralize non-allowlisted mentions in close comment", async () => {
+      const handler = await main({
+        max: 10,
+        mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+      });
+      const commentCalls = /** @type {any[]} */ [];
+
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("addDiscussionComment")) {
+          commentCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
+      };
+
+      const result = await handler({ body: "Please ask @copilot and @someone-else to review this." }, {});
+
+      expect(result.success).toBe(true);
+      expect(commentCalls.length).toBe(1);
+      expect(commentCalls[0].body).toContain("@copilot");
+      expect(commentCalls[0].body).not.toContain("`@copilot`");
+      expect(commentCalls[0].body).toContain("`@someone-else`");
+    });
+
     it("should not add a comment when body is not provided", async () => {
       const handler = await main({ max: 10 });
       const commentCalls = /** @type {any[]} */ [];

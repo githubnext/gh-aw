@@ -51,7 +51,7 @@ imports:
       title-prefix: "[safe-output-integrator] "
       expires: 3d
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 features:
   copilot-requests: true
 

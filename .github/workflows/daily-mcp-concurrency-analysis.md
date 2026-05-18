@@ -25,7 +25,7 @@ imports:
     with:
       languages: ["go", "typescript"]
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 7d

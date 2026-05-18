@@ -24,7 +24,7 @@ imports:
       labels: [refactoring, code-quality, automation]
       reviewers: [copilot]
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - go

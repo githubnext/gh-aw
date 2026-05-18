@@ -19,7 +19,7 @@ engine: copilot
 imports:
   - shared/ffmpeg.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   bash: true

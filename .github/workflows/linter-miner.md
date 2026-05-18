@@ -24,17 +24,11 @@ tools:
   cache-memory:
     key: linter-miner-state-${{ github.workflow }}
   bash:
-    - "find pkg/linters -type d"
-    - "cat cmd/linters/main.go"
-    - "cat /tmp/gh-aw/agent/linters-src.txt"
-    - "cat /tmp/gh-aw/agent/go-linters-skill.txt"
-    - "cat /tmp/gh-aw/agent/prior-linters.json"
-    - "go build:*"
-    - "go test:*"
+    - "*"
   edit:
 imports:
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 pre-agent-steps:
   - name: Preload linter source and cache context
     run: |
@@ -73,7 +67,8 @@ safe-outputs:
       - "cmd/linters/main.go"
     protected-files: fallback-to-issue
   noop:
-timeout-minutes: 45
+timeout-minutes: 120
+max-runs: 1000
 features:
   copilot-requests: true
 ---
@@ -109,7 +104,7 @@ Read `/tmp/gh-aw/agent/prior-linters.json` (preloaded from cache-memory) to load
 
 ## Step 2 — Mine Sources for Linter Ideas
 
-Use the `discussion-miner` sub-agent and the `code-pattern-scanner` sub-agent **in parallel** to gather raw evidence. Collect their outputs.
+Use the `discussion-miner` sub-agent and the `code-pattern-scanner` sub-agent **sequentially** to gather raw evidence. Run one, wait for completion, then run the other.
 
 ### Discussion mining (sub-agent output)
 
@@ -222,7 +217,9 @@ Call the `create-pull-request` safe output with:
 - Always include a `URL` field in the `Analyzer` pointing to `https://github.com/github/gh-aw/tree/main/pkg/linters/<name>`.
 - The `Doc` string must be a single sentence beginning with "reports".
 - If the linter cannot be implemented (e.g., repeated compilation failures after two fix attempts), call `noop` explaining why, rather than ending without a safe output.
-- Always call either `create_pull_request` or `noop` before finishing — never end without a safe output.
+- Do not finish while any spawned sub-agent is still running.
+- If any sub-agent step fails, stalls, or does not complete, call `noop` with a clear explanation instead of ending without output.
+- Final turn requirement: call exactly one safe output (`create_pull_request` or `noop`) as your last action before finishing.
 
 ---
 

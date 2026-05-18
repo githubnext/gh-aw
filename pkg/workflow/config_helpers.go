@@ -20,12 +20,9 @@
 // Configuration Array Parsing:
 //   - ParseStringArrayFromConfig() - Generic string array extraction
 //   - parseLabelsFromConfig() - Extract labels array
-//   - parseAllowedLabelsFromConfig() - Extract allowed labels array
 //
 // Configuration String Parsing:
 //   - extractStringFromMap() - Generic string extraction
-//   - parseTitlePrefixFromConfig() - Extract title prefix
-//   - parseTargetRepoFromConfig() - Extract target repository
 //   - parseTargetRepoWithValidation() - Extract and validate target repo
 //
 // Configuration Integer Parsing:
@@ -67,20 +64,6 @@ func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger
 		}
 	}
 	return nil
-}
-
-// extractStringSliceFromConfig retrieves a []string value from a handler config map.
-// It gracefully handles both []string and []any element types. Returns nil when the
-// key is absent or the value cannot be coerced.
-func extractStringSliceFromConfig(config map[string]any, key string) []string {
-	if config == nil {
-		return nil
-	}
-	raw, exists := config[key]
-	if !exists || raw == nil {
-		return nil
-	}
-	return parseStringSliceAny(raw, nil)
 }
 
 // ParseStringArrayOrExprFromConfig is like ParseStringArrayFromConfig but also accepts a
@@ -138,46 +121,18 @@ func extractStringFromMap(m map[string]any, key string, log *logger.Logger) stri
 	return ""
 }
 
-// parseTitlePrefixFromConfig extracts and validates title-prefix from a config map
-// Returns the title prefix string, or empty string if not present or invalid
-func parseTitlePrefixFromConfig(configMap map[string]any) string {
-	return extractStringFromMap(configMap, "title-prefix", configHelpersLog)
-}
-
-// parseTargetRepoFromConfig extracts the target-repo value from a config map.
-// Returns the target repository slug as a string, or empty string if not present or invalid.
-// This function does not perform any special handling or validation for wildcard values ("*");
-// callers are responsible for validating the returned value as needed.
-func parseTargetRepoFromConfig(configMap map[string]any) string {
-	return extractStringFromMap(configMap, "target-repo", configHelpersLog)
-}
-
 // parseTargetRepoWithValidation extracts the target-repo value from a config map and validates it.
 // Returns the target repository slug as a string, or empty string if not present or invalid.
 // Returns an error (indicated by the second return value being true) if the value is "*" (wildcard),
 // which is not allowed for safe output target repositories.
 func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
-	targetRepoSlug := parseTargetRepoFromConfig(configMap)
+	targetRepoSlug := extractStringFromMap(configMap, "target-repo", configHelpersLog)
 	// Validate that target-repo is not "*" - only definite strings are allowed
 	if targetRepoSlug == "*" {
 		configHelpersLog.Print("Invalid target-repo: wildcard '*' is not allowed")
 		return "", true // Return true to indicate validation error
 	}
 	return targetRepoSlug, false
-}
-
-// parseAllowedLabelsFromConfig extracts and validates allowed-labels from a config map.
-// Returns a slice of label strings, or nil if not present or invalid.
-func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
-	return ParseStringArrayFromConfig(configMap, "allowed-labels", configHelpersLog)
-}
-
-// parseAllowedReposFromConfig extracts and validates allowed-repos from a config map.
-// Returns a slice of repository slugs in "owner/repo" format.
-// Returns nil when the key is not present or the value is not a valid array type.
-// Returns an empty slice when the key exists but contains no valid strings.
-func parseAllowedReposFromConfig(configMap map[string]any) []string {
-	return ParseStringArrayFromConfig(configMap, "allowed-repos", configHelpersLog)
 }
 
 // NOTE: parseExpiresFromConfig and parseRelativeTimeSpec have been moved to time_delta.go

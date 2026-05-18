@@ -335,18 +335,17 @@ async function main(config = {}, githubClient = null) {
       // Resolve temporary ID in item_url if present
       if (item_url && typeof item_url === "string") {
         // Check if item_url contains a temporary ID (either as URL or plain ID)
-        // Format: https://github.com/owner/repo/issues/#aw_XXXXXXXXXXXX or #aw_XXXXXXXXXXXX
-        const urlMatch = item_url.match(/issues\/(#?aw_[0-9a-f]{12})\s*$/i);
-        const plainMatch = item_url.match(/^(#?aw_[0-9a-f]{12})\s*$/i);
+        // Format: https://github.com/owner/repo/issues/#aw_XXX or #aw_XXX
+        const urlMatch = item_url.match(/issues\/(#?aw_[A-Za-z0-9_]{3,12})\s*$/i);
+        const plainMatch = item_url.match(/^(#?aw_[A-Za-z0-9_]{3,12})\s*$/i);
 
         if (urlMatch || plainMatch) {
           const tempIdStr = (urlMatch && urlMatch[1]) || (plainMatch && plainMatch[1]) || "";
-          const tempIdWithoutHash = tempIdStr.startsWith("#") ? tempIdStr.substring(1) : tempIdStr;
 
           // Check if it's a valid temporary ID
-          if (isTemporaryId(tempIdWithoutHash)) {
+          if (isTemporaryId(tempIdStr)) {
             // Look up in the unified temporaryIdMap (Map) or resolvedTemporaryIds (plain object)
-            const normalizedKey = normalizeTemporaryId(tempIdWithoutHash);
+            const normalizedKey = normalizeTemporaryId(tempIdStr);
             const resolved = temporaryIdMap instanceof Map ? temporaryIdMap.get(normalizedKey) : resolvedTemporaryIds[normalizedKey];
 
             if (resolved && resolved.repo && resolved.number) {

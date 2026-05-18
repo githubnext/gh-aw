@@ -41,6 +41,17 @@ describe("create_issue", () => {
             },
           }),
         },
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              resources: {
+                search: {
+                  remaining: 1000,
+                },
+              },
+            },
+          }),
+        },
       },
       graphql: vi.fn(),
     };
@@ -453,6 +464,213 @@ describe("create_issue", () => {
     });
   });
 
+  describe("deduplicate-by-title", () => {
+    it("should drop within-run duplicates when enabled as boolean", async () => {
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+
+      const first = await handler({ title: "Duplicate title" });
+      const second = await handler({ title: "Duplicate title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should drop fuzzy duplicates based on Levenshtein distance", async () => {
+      const handler = await main({
+        deduplicate_by_title: 1,
+      });
+
+      const first = await handler({ title: "Fix login bug" });
+      const second = await handler({ title: "Fix login bag" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.duplicate_distance).toBe(1);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should drop duplicates that already exist in the repository", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: {
+            items: [{ title: "Existing title in repo", number: 99 }],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            items: [],
+          },
+        });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Existing title in repo" });
+
+      expect(result.success).toBe(true);
+      expect(result.dropped_duplicate).toBe(true);
+      expect(result.dedup_source).toBe("repo-level");
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should deduplicate repeated repo-level duplicates within the same run", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: {
+            total_count: 1,
+            items: [{ title: "Existing title in repo", number: 99 }],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const first = await handler({ title: "Existing title in repo" });
+      const second = await handler({ title: "Existing title in repo" });
+
+      expect(first.success).toBe(true);
+      expect(first.dropped_duplicate).toBe(true);
+      expect(first.dedup_source).toBe("repo-level");
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should cache repo-level dedup candidates within a run", async () => {
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+
+      const first = await handler({ title: "First unique title" });
+      const second = await handler({ title: "Second unique title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledTimes(2);
+    });
+
+    it("should paginate repo-level dedup searches", async () => {
+      const openPageOneItems = Array.from({ length: 100 }, (_, index) => ({ title: `Open issue ${index}` }));
+      mockGithub.rest.search.issuesAndPullRequests.mockImplementation(({ q, page = 1 }) => {
+        if (q.includes("is:open")) {
+          if (page === 1) {
+            return Promise.resolve({
+              data: {
+                total_count: 101,
+                items: openPageOneItems,
+              },
+            });
+          }
+          return Promise.resolve({
+            data: {
+              total_count: 101,
+              items: [{ title: "Existing title in repo" }],
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Existing title in repo" });
+
+      expect(result.success).toBe(true);
+      expect(result.dropped_duplicate).toBe(true);
+      expect(result.dedup_source).toBe("repo-level");
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          q: expect.stringContaining("is:open"),
+          page: 2,
+        })
+      );
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should warn when repo-level dedup search is truncated at page cap", async () => {
+      const pageItems = Array.from({ length: 100 }, (_, index) => ({ title: `Open issue ${index}` }));
+      mockGithub.rest.search.issuesAndPullRequests.mockImplementation(({ q, page = 1 }) => {
+        if (q.includes("is:open")) {
+          return Promise.resolve({
+            data: {
+              total_count: 305,
+              items: page <= 2 ? pageItems : [],
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Completely new title" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("truncated"));
+    });
+
+    it("should skip repo-level search when search rate limit is low and still deduplicate within-run", async () => {
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          resources: {
+            search: {
+              remaining: 1,
+            },
+          },
+        },
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const first = await handler({ title: "Rate limited title" });
+      const second = await handler({ title: "Rate limited title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.rateLimit.get).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping repo-level title dedup search"));
+    });
+
+    it("should reject invalid deduplicate-by-title configuration", async () => {
+      await expect(main({ deduplicate_by_title: "invalid" })).rejects.toThrow("deduplicate-by-title");
+      await expect(main({ deduplicate_by_title: 101 })).rejects.toThrow("deduplicate-by-title");
+    });
+  });
+
   describe("repository targeting", () => {
     it("should create issue in specified repo", async () => {
       const handler = await main({
@@ -817,6 +1035,21 @@ describe("create_issue", () => {
       expect(createCall.body).toContain("`@someone`");
       // Footer marker should still be present
       expect(createCall.body).toContain("gh-aw-workflow-id");
+    });
+
+    it("should preserve allowlisted mentions when mentions config is provided", async () => {
+      const handler = await main({
+        mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+      });
+      await handler({
+        title: "Test Issue",
+        body: "Please ask @copilot and @someone-else to review this.",
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("@copilot");
+      expect(createCall.body).not.toContain("`@copilot`");
+      expect(createCall.body).toContain("`@someone-else`");
     });
   });
 

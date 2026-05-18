@@ -51,7 +51,7 @@ imports:
   - shared/session-analysis-charts.md
   - shared/session-analysis-strategies.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 timeout-minutes: 45
 
 

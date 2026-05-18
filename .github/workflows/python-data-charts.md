@@ -15,7 +15,7 @@ tools:
   edit:
 imports:
   - shared/charts-with-trending.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 safe-outputs:
   upload-artifact:
     max-uploads: 3

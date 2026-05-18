@@ -31,7 +31,7 @@ imports:
   - shared/python-dataviz.md
 
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 # GitHub MCP Structural Analysis
 

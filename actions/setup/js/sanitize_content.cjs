@@ -30,6 +30,14 @@ const {
 const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
 
 /**
+ * User-facing mention aliases that should be accepted when runtime bot logins are allowlisted.
+ * @type {Record<string, string[]>}
+ */
+const RUNTIME_TO_MENTION_ALIAS_MAP = {
+  "copilot-swe-agent": ["copilot"],
+};
+
+/**
  * @typedef {Object} SanitizeOptions
  * @property {number} [maxLength] - Maximum length of content (default: 524288)
  * @property {string[]} [allowedAliases] - List of aliases (@mentions) that should not be neutralized
@@ -56,7 +64,8 @@ function sanitizeContent(content, maxLengthOrOptions) {
   } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
     maxLength = maxLengthOrOptions.maxLength;
     // Pre-process allowed aliases to lowercase for efficient comparison
-    allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
+    const normalizedAllowedAliases = normalizeAllowedAliases(maxLengthOrOptions.allowedAliases);
+    allowedAliasesLowercase = expandAllowedAliases(normalizedAllowedAliases);
     maxBotMentions = maxLengthOrOptions.maxBotMentions;
   }
 
@@ -132,6 +141,45 @@ function sanitizeContent(content, maxLengthOrOptions) {
   sanitized = balanceCodeRegions(sanitized);
 
   return sanitized.trim();
+
+  /**
+   * Normalize configured allowed aliases into an array so string inputs are
+   * treated as one alias instead of being iterated character-by-character.
+   * @param {string | string[] | undefined} aliases
+   * @returns {string[]}
+   */
+  function normalizeAllowedAliases(aliases) {
+    if (Array.isArray(aliases)) {
+      return aliases;
+    }
+    if (typeof aliases === "string") {
+      return [aliases];
+    }
+    return [];
+  }
+
+  /**
+   * Expand allowlisted runtime aliases into accepted mention aliases.
+   * @param {string[]} aliases
+   * @returns {string[]}
+   */
+  function expandAllowedAliases(aliases) {
+    const expanded = new Set();
+    for (const alias of aliases) {
+      if (typeof alias !== "string" || alias.length === 0) {
+        continue;
+      }
+      const normalized = alias.toLowerCase();
+      expanded.add(normalized);
+      const mentionAliases = RUNTIME_TO_MENTION_ALIAS_MAP[normalized];
+      if (Array.isArray(mentionAliases)) {
+        for (const mentionAlias of mentionAliases) {
+          expanded.add(mentionAlias.toLowerCase());
+        }
+      }
+    }
+    return [...expanded];
+  }
 
   /**
    * Neutralize @mentions with selective filtering

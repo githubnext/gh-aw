@@ -9,9 +9,9 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -136,7 +136,7 @@ func querySecurityAdvisories(ctx context.Context, depVersions map[string]string,
 	url := "https://api.github.com/advisories?ecosystem=go&per_page=100"
 
 	depsSecurityLog.Printf("Querying GitHub Security Advisory API: url=%s, dep_count=%d", url, len(depVersions))
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

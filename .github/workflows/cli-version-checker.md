@@ -15,7 +15,7 @@ network:
 imports:
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   web-fetch:

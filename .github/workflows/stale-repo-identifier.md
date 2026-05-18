@@ -32,7 +32,7 @@ imports:
       title-prefix: "[stale-repo-identifier] "
   - ../skills/jqschema/SKILL.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 network:
   allowed:
     - defaults

@@ -25,7 +25,7 @@ imports:
       labels: [testing, code-quality, automated-analysis, cookie]
   - shared/go-source-analysis.md
   - shared/safe-output-app.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
 
 tools:
   cli-proxy: true

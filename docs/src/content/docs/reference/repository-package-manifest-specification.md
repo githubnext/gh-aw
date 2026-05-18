@@ -44,6 +44,7 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | `manifest-version` | string | No | Manifest format version. Defaults to `"1"`. |
 | `min-version` | string | No | Minimum supported `gh-aw` version. |
 | `name` | string | Yes | Human-readable package name. |
+| `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Human-readable package description. |
 | `files` | array of strings | No | Explicit installable workflow file list. |
 
@@ -65,13 +66,17 @@ If the running compiler version is lower than `min-version`, validation MUST fai
 
 `name` MUST be present and MUST be a non-empty string after trimming surrounding whitespace.
 
-### 4.5 `description`
+### 4.5 `emoji`
+
+If present, `emoji` MUST be a string.
+
+### 4.6 `description`
 
 If present, `description` MUST be a string.
 
 Implementations SHOULD warn if `description` exceeds 255 characters.
 
-### 4.6 `files`
+### 4.7 `files`
 
 If present, `files` MUST be an array of strings.
 
@@ -152,6 +157,7 @@ If JSON output is requested, manifest validation failure still causes an overall
 ```yaml
 min-version: v0.38.0
 name: Repo Assist
+emoji: 🤖
 description: Friendly repository automation for review and issue triage
 files:
   - workflows/review.md

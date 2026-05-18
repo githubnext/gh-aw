@@ -39,7 +39,15 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 			// is logically contradictory, so surface a clearer message instead.
 			desc = fmt.Sprintf("Workflow '%s' failed before agent activation — no error logs were available to analyze", run.WorkflowName)
 		} else {
-			desc = fmt.Sprintf("Workflow '%s' failed with %d error(s)", run.WorkflowName, metrics.ErrorCount)
+			// Prefer the length of the actual errors slice as the count, since it is the
+			// ground-truth list that is included in the audit output.  Fall back to
+			// metrics.ErrorCount only when no individual error details were collected
+			// (e.g. the log was unavailable but a count was extracted from a summary).
+			errorCount := len(errors)
+			if errorCount == 0 {
+				errorCount = metrics.ErrorCount
+			}
+			desc = fmt.Sprintf("Workflow '%s' failed with %d error(s)", run.WorkflowName, errorCount)
 			if len(errors) > 0 {
 				// Append a truncated first error message to help quickly identify the root cause.
 				// Keep descriptions short enough to be useful in a key findings summary.

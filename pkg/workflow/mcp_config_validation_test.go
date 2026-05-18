@@ -81,6 +81,20 @@ func TestValidateMCPMountsSyntax(t *testing.T) {
 			errMsg:    "mode must be 'ro' or 'rw'",
 		},
 		{
+			name:      "empty source path",
+			toolName:  "my-tool",
+			mountsRaw: []string{":/container/path:ro"},
+			wantErr:   true,
+			errMsg:    "source path cannot be empty",
+		},
+		{
+			name:      "empty destination path",
+			toolName:  "my-tool",
+			mountsRaw: []string{"/host/path::ro"},
+			wantErr:   true,
+			errMsg:    "destination path cannot be empty",
+		},
+		{
 			name:      "error message includes tool name",
 			toolName:  "special-tool",
 			mountsRaw: []string{"/host/path:/container/path"},

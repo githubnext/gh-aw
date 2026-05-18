@@ -24,7 +24,7 @@ network:
     - node
 
 imports:
-  - shared/observability-otlp.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   bash:

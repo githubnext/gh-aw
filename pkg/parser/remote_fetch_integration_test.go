@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -202,7 +203,7 @@ func TestCheckRemoteSymlink(t *testing.T) {
 					t.Fatalf("Unexpected error for path %q: %v", tt.dirPath, err)
 				}
 				if tt.dirPath == "nonexistent-path-xyz" {
-					assert.True(t, isNotFoundError(err.Error()), "Expected a not-found error, got: %v", err)
+					assert.True(t, errorutil.IsNotFoundError(err), "Expected a not-found error, got: %v", err)
 				}
 				return
 			}

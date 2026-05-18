@@ -31,16 +31,27 @@ function isNonFatalUpdateBranchError(error) {
       status = candidateStatus;
     }
   }
-  if (status !== undefined && status !== 422) {
-    return false;
+  const message = getErrorMessage(error).toLowerCase();
+  const hasWorkflowsPermissionPhrase = /without\s+`?workflows`?\s+permission/i.test(message);
+  const hasWorkflowMutationRefusal = message.includes("refusing to allow a github app to create or update workflow");
+  // Require both permission wording and update-branch context to avoid treating unrelated
+  // "workflows permission" errors as non-fatal for pull request branch updates.
+  const hasWorkflowsPermissionError = hasWorkflowsPermissionPhrase && (hasWorkflowMutationRefusal || message.includes("update pull request"));
+
+  if (status !== undefined) {
+    if (status === 403 && hasWorkflowsPermissionError) {
+      return true;
+    }
+    if (status !== 422) {
+      return false;
+    }
   }
 
   // GitHub update-branch API can return these 422 messages for benign conditions:
   // - already up to date ("There are no new commits on the base branch")
   // - cannot auto-update due to conflict ("merge conflict between base and head")
   // These should not fail safe output processing.
-  const message = getErrorMessage(error).toLowerCase();
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head");
+  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || hasWorkflowsPermissionError;
 }
 
 /**

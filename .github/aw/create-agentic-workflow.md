@@ -95,7 +95,7 @@ You love to use emojis to make the conversation more engaging.
 
 ## 🔐 Security Posture: Agent Job Must Stay Read-Only
 
-**CRITICAL**: The agent job permissions must be **read-only** for all scopes. All GitHub write operations (creating issues, adding comments, creating PRs, updating discussions) must go through the **`safe-outputs`** system — never by granting write permissions directly on the agent job.
+**CRITICAL**: The agent job permissions must be **read-only** for all scopes. All GitHub write operations (creating issues, adding comments, creating PRs, updating discussions, uploading artifacts/attachments) must go through the **`safe-outputs`** system — never by granting write permissions directly on the agent job.
 
 ### ✅ Correct: Agent job read-only, writes via safe-outputs
 
@@ -122,7 +122,7 @@ permissions:
 
 **Why this matters**: Granting write permissions directly on the agent job bypasses the safety controls that `safe-outputs` provide. Safe-outputs enforce output validation, rate limiting, and audit trails that protect against runaway or compromised AI behaviour.
 
-**Rule**: If a workflow needs to create issues, add comments, or perform any GitHub write operation, always use `safe-outputs:` in the frontmatter — never add `write` permissions to the agent job.
+**Rule**: If a workflow needs to create issues, add comments, upload artifacts/attachments, or perform any GitHub write operation, always use `safe-outputs:` in the frontmatter — never add `write` permissions to the agent job.
 
 ## ⚠️ Architectural Constraints: Know What's Possible
 
@@ -135,7 +135,7 @@ Agentic workflows execute as **a single GitHub Actions job** with the AI agent r
 ✅ **What agentic workflows CAN do:**
 - Run AI agent once per trigger with full context
 - Read from GitHub API, external APIs, web pages
-- Create GitHub resources (issues, PRs, comments) via safe outputs
+- Create GitHub resources (issues, PRs, comments, attachment artifacts) via safe outputs
 - Execute bash commands, run tests, analyze code
 - Store state in cache-memory for next run
 - Use MCP servers and tools within the single job
@@ -293,7 +293,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - **Advanced static analysis** → See `.github/aw/serena-tool.md` for guidance on when and how to use Serena language server (only for advanced coding tasks when user explicitly requests it)
      - **⚡ CLI Tool Discovery** → Before configuring complex manual setup, check if `gh aw` provides a CLI command for the task (see CLI Automation Discovery section below)
 
-   - ⚠️ For GitHub write operations (creating issues, adding comments, etc.), always use `safe-outputs` instead of GitHub tools
+   - ⚠️ For GitHub write operations (creating issues, adding comments, uploading artifacts/attachments, etc.), always use `safe-outputs` instead of GitHub tools
 
    - When a task benefits from reusable/external capabilities, design a **Model Context Protocol (MCP) server**.
 
@@ -547,7 +547,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - 📋 **DO NOT include other fields with good defaults** - Let the compiler use sensible defaults unless customization is needed.
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
-     - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `add-labels` for labeling, `dispatch-workflow`) over granting write perms.
+     - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `add-labels` for labeling, `upload-artifact` for attachment-style outputs, `dispatch-workflow`) over granting write perms.
      - ❌ **Anti-pattern**: Do NOT use `gh issue edit --add-label` or `gh label` CLI commands directly in bash — these bypass safe-output controls (rate limiting, audit trails, allow-lists). Use `safe-outputs: add-labels:` instead.
      - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
      - Constrain `network:` to the minimum required ecosystems/domains.
@@ -878,6 +878,7 @@ Based on the parsed requirements, determine:
 4. **Safe Outputs**: For any write operations:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`
+   - Posting attachment-style outputs or arbitrary downloadable files → `safe-outputs: upload-artifact:` (set `skip-archive: true` when consumers should download files directly without uncompressing)
    - Creating PRs → `safe-outputs: create-pull-request:` — **always specify `allowed-files`** scoped to the file extensions or paths the workflow is meant to touch. This is the primary guardrail; omitting it allows the agent to modify any file in the repository. Example:
      ```yaml
      safe-outputs:

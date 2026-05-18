@@ -233,12 +233,8 @@ func TestBuildSafeJobs(t *testing.T) {
 		t.Error("Expected main job output to be available as environment variable")
 	}
 
-	if !strings.Contains(stepsContent, "Configure Safe Outputs Job Environment Variables") {
-		t.Error("Expected safe jobs env setup step to use Safe Outputs terminology")
-	}
-
-	if strings.Contains(stepsContent, "Configure Safe Job Environment Variables") {
-		t.Error("Expected legacy Safe Job terminology to be absent from safe jobs env setup step")
+	if strings.Contains(stepsContent, "Configure Safe Outputs Job Environment Variables") {
+		t.Error("Configure Safe Outputs Job Environment Variables step should have been removed")
 	}
 
 	if strings.Contains(stepsContent, "GLOBAL_VAR=global_value") {
@@ -593,6 +589,67 @@ func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "safe-job name conflict") {
 		t.Errorf("Expected conflict error message, got '%s'", err.Error())
+	}
+}
+
+// TestBuildSafeJobsEnvExpressionHoisting verifies that no env vars — whether expression-based
+// or literal — are ever written to $GITHUB_OUTPUT, and that all values are injected directly
+// into each downstream step's env: block.
+func TestBuildSafeJobsEnvExpressionHoisting(t *testing.T) {
+	c := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"publish": {
+					RunsOn: "ubuntu-latest",
+					Env: map[string]string{
+						"GH_TOKEN":   "${{ github.token }}",
+						"STATIC_VAR": "literal-value",
+					},
+					Steps: []any{
+						map[string]any{
+							"name": "Publish",
+							"run":  "echo 'Publishing'",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.buildSafeJobs(workflowData, false)
+	if err != nil {
+		t.Fatalf("Unexpected error building safe jobs: %v", err)
+	}
+
+	jobs := c.jobManager.GetAllJobs()
+	if len(jobs) != 1 {
+		t.Fatalf("Expected 1 job to be created, got %d", len(jobs))
+	}
+
+	var job *Job
+	for _, j := range jobs {
+		job = j
+		break
+	}
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Neither expression-based nor literal env vars must ever be written to $GITHUB_OUTPUT.
+	if strings.Contains(stepsContent, `GITHUB_OUTPUT`) {
+		t.Error("No env var must ever be written to $GITHUB_OUTPUT in safe-jobs (secrets must not be stored in outputs)")
+	}
+
+	// Expression-based values must be injected directly into downstream step env: blocks.
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ github.token }}") {
+		t.Error("Expected GH_TOKEN expression to be injected directly into a downstream step env: block")
+	}
+
+	// Literal values must also be injected directly into downstream step env: blocks.
+	if !strings.Contains(stepsContent, "STATIC_VAR: literal-value") {
+		t.Error("Expected literal env var STATIC_VAR to be injected directly into a downstream step env: block")
 	}
 }
 

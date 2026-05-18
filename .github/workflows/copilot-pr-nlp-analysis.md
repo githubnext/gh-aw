@@ -38,7 +38,7 @@ imports:
   - shared/python-nlp.md
   - shared/reporting.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 steps:
   - name: Fetch PR comments for detailed analysis
     env:

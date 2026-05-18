@@ -98,9 +98,14 @@ func compileSpecificFiles(
 
 		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
-			ctx, compiler, resolvedFile, config.Verbose, config.JSONOutput,
-			config.NoEmit, false, false, false, // Disable per-file security tools
-			config.Strict, shouldValidate,
+			ctx, compiler, resolvedFile, compileWorkflowFileOptions{
+				verbose:    config.Verbose,
+				jsonOutput: config.JSONOutput,
+				noEmit:     config.NoEmit,
+				strict:     config.Strict,
+				validate:   shouldValidate,
+				// zizmor, poutine, actionlint disabled per-file (batched instead)
+			},
 		)
 
 		if !fileResult.success {
@@ -114,7 +119,9 @@ func compileSpecificFiles(
 			trackWorkflowFailure(stats, resolvedFile, 1, errMsgs)
 		} else {
 			compiledCount++
-			workflowDataList = append(workflowDataList, fileResult.workflowData)
+			if fileResult.workflowData != nil {
+				workflowDataList = append(workflowDataList, fileResult.workflowData)
+			}
 
 			// Collect lock files for batch security tools
 			if !config.NoEmit && fileResult.lockFile != "" {
@@ -276,9 +283,14 @@ func compileAllFilesInDirectory(
 
 		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
-			ctx, compiler, file, config.Verbose, config.JSONOutput,
-			config.NoEmit, false, false, false, // Disable per-file security tools
-			config.Strict, shouldValidate,
+			ctx, compiler, file, compileWorkflowFileOptions{
+				verbose:    config.Verbose,
+				jsonOutput: config.JSONOutput,
+				noEmit:     config.NoEmit,
+				strict:     config.Strict,
+				validate:   shouldValidate,
+				// zizmor, poutine, actionlint disabled per-file (batched instead)
+			},
 		)
 
 		if !fileResult.success {
@@ -292,7 +304,9 @@ func compileAllFilesInDirectory(
 			trackWorkflowFailure(stats, file, 1, errMsgs)
 		} else {
 			successCount++
-			workflowDataList = append(workflowDataList, fileResult.workflowData)
+			if fileResult.workflowData != nil {
+				workflowDataList = append(workflowDataList, fileResult.workflowData)
+			}
 
 			// Collect lock files for batch security tools
 			if !config.NoEmit && fileResult.lockFile != "" {
@@ -523,8 +537,9 @@ func runPostProcessingForDirectory(
 		}
 	}
 
-	// Generate maintenance workflow if needed
-	// Skip maintenance workflow generation when using custom --dir option
+	// Generate maintenance workflow if needed.
+	// Skip maintenance workflow generation when using custom --dir option.
+	// Keep invoking generators for empty workflowDataList so stale generated files are cleaned up.
 	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
 		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {

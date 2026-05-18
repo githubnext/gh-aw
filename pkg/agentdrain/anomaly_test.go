@@ -326,40 +326,33 @@ func TestAnalyzeEvent(t *testing.T) {
 		Fields: map[string]string{"status": "ok"},
 	}
 
-	// This table is intentionally order-dependent because each call mutates miner state.
-	tests := []struct {
-		name             string
-		event            AgentEvent
-		wantIsNew        bool
-		errorDescription string
-	}{
-		{
-			name:             "first occurrence is flagged as new template",
-			event:            evtPlan,
-			wantIsNew:        true,
-			errorDescription: "first event",
-		},
-		{
-			name:             "second identical occurrence is not flagged as new",
-			event:            evtPlan,
-			wantIsNew:        false,
-			errorDescription: "second identical event",
-		},
-		{
-			name:             "distinct event creates its own new template",
-			event:            evtFinish,
-			wantIsNew:        true,
-			errorDescription: "distinct event",
-		},
-	}
+	t.Run("first occurrence is flagged as new template", func(t *testing.T) {
+		result, report, analyzeErr := m.AnalyzeEvent(evtPlan)
+		require.NoError(t, analyzeErr, "AnalyzeEvent should not fail for first event")
+		require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+		assert.True(t, report.IsNewTemplate, "IsNewTemplate mismatch for first event")
+		assert.InDelta(t, 0.65, report.AnomalyScore, 1e-9, "AnomalyScore mismatch for first event")
+		assert.Equal(t, "new log template discovered; rare cluster (few observations)", report.Reason, "Reason mismatch for first event")
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, report, analyzeErr := m.AnalyzeEvent(tt.event)
-			require.NoError(t, analyzeErr, "AnalyzeEvent should not fail for %s", tt.errorDescription)
-			require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
-			require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
-			assert.Equal(t, tt.wantIsNew, report.IsNewTemplate, "IsNewTemplate mismatch")
-		})
-	}
+	t.Run("second identical occurrence is not flagged as new", func(t *testing.T) {
+		result, report, analyzeErr := m.AnalyzeEvent(evtPlan)
+		require.NoError(t, analyzeErr, "AnalyzeEvent should not fail for second identical event")
+		require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+		assert.False(t, report.IsNewTemplate, "IsNewTemplate mismatch for second identical event")
+		assert.InDelta(t, 0.15, report.AnomalyScore, 1e-9, "AnomalyScore mismatch for second identical event")
+		assert.Equal(t, "rare cluster (few observations)", report.Reason, "Reason mismatch for second identical event")
+	})
+
+	t.Run("distinct event creates its own new template", func(t *testing.T) {
+		result, report, analyzeErr := m.AnalyzeEvent(evtFinish)
+		require.NoError(t, analyzeErr, "AnalyzeEvent should not fail for distinct event")
+		require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+		assert.True(t, report.IsNewTemplate, "IsNewTemplate mismatch for distinct event")
+		assert.InDelta(t, 0.65, report.AnomalyScore, 1e-9, "AnomalyScore mismatch for distinct event")
+		assert.Equal(t, "new log template discovered; rare cluster (few observations)", report.Reason, "Reason mismatch for distinct event")
+	})
 }

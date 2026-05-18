@@ -31,7 +31,7 @@ imports:
   - uses: shared/pr-review-base.md
   - shared/security-analysis-base.md
 
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 
 # Security Review Agent 🔒

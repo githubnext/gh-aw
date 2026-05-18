@@ -67,7 +67,7 @@ experiments:
 
 imports:
   - shared/community-attribution.md
-  - shared/observability-otlp.md
+  - shared/otlp.md
   - shared/issue-dedup.md
 
 steps:

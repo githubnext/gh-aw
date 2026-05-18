@@ -35,9 +35,23 @@ describe("expired_entity_cleanup_helpers", () => {
 
   describe("delay", () => {
     it("resolves after the specified time", async () => {
-      const start = Date.now();
-      await delay(10);
-      expect(Date.now() - start).toBeGreaterThanOrEqual(10);
+      vi.useFakeTimers();
+      try {
+        const promise = delay(10);
+        await vi.advanceTimersByTimeAsync(9);
+
+        let resolved = false;
+        promise.then(() => {
+          resolved = true;
+        });
+        await Promise.resolve();
+        expect(resolved).toBe(false);
+
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(promise).resolves.toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("resolves immediately for 0 ms", async () => {

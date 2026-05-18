@@ -59,6 +59,7 @@ func ExtractMapField(frontmatter map[string]any, key string) map[string]any {
 // ToMap converts FrontmatterConfig back to map[string]any for backward compatibility
 // This allows gradual migration from map[string]any to strongly-typed config
 func (fc *FrontmatterConfig) ToMap() map[string]any {
+	frontmatterTypesLog.Printf("Converting FrontmatterConfig to map: name=%s", fc.Name)
 	result := make(map[string]any)
 
 	// Core fields
@@ -255,6 +256,7 @@ func runtimesConfigToMap(config *RuntimesConfig) map[string]any {
 	if config == nil {
 		return nil
 	}
+	frontmatterTypesLog.Printf("Converting RuntimesConfig to map: %d runtime(s) configured", countRuntimes(config))
 
 	result := make(map[string]any)
 
@@ -298,9 +300,11 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 
 	// If shorthand is set, return it directly
 	if config.Shorthand != "" {
+		frontmatterTypesLog.Printf("Converting PermissionsConfig to map via shorthand: %s", config.Shorthand)
 		return map[string]any{config.Shorthand: config.Shorthand}
 	}
 
+	frontmatterTypesLog.Print("Converting detailed PermissionsConfig to map")
 	result := make(map[string]any)
 
 	// GitHub Actions permission scopes

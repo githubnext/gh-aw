@@ -362,15 +362,27 @@ func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) 
 	return confirm
 }
 
+// RunWorkflowOptions holds parameters for RunSpecificWorkflowInteractively.
+type RunWorkflowOptions struct {
+	WorkflowName   string
+	Verbose        bool
+	EngineOverride string
+	RepoOverride   string
+	RefOverride    string
+	AutoMergePRs   bool
+	Push           bool
+	DryRun         bool
+}
+
 // RunSpecificWorkflowInteractively runs a specific workflow in interactive mode
 // This is similar to RunWorkflowInteractively but skips the workflow selection step
 // since the workflow name is already known. It will still collect inputs if the workflow has them.
-func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, verbose bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, push bool, dryRun bool) error {
-	runInteractiveLog.Printf("Running specific workflow interactively: %s", workflowName)
+func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) error {
+	runInteractiveLog.Printf("Running specific workflow interactively: %s", opts.WorkflowName)
 
 	// Find the workflow file
 	workflowsDir := constants.GetWorkflowDir()
-	mdFile := filepath.Join(workflowsDir, workflowName+".md")
+	mdFile := filepath.Join(workflowsDir, opts.WorkflowName+".md")
 
 	// Check if file exists
 	if _, err := os.Stat(mdFile); os.IsNotExist(err) {
@@ -380,14 +392,14 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 	// Get workflow inputs
 	inputs, err := getWorkflowInputs(mdFile)
 	if err != nil {
-		runInteractiveLog.Printf("Failed to get inputs for workflow %s: %v", workflowName, err)
+		runInteractiveLog.Printf("Failed to get inputs for workflow %s: %v", opts.WorkflowName, err)
 		// Continue without inputs - they might not be required
 		inputs = nil
 	}
 
 	// Create workflow option for display
 	wf := &WorkflowOption{
-		Name:        workflowName,
+		Name:        opts.WorkflowName,
 		Description: buildWorkflowDescription(inputs),
 		FilePath:    mdFile,
 		Inputs:      inputs,
@@ -411,23 +423,23 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 	}
 
 	// Build command string for display
-	cmdStr := buildCommandString(workflowName, inputValues, repoOverride, refOverride, autoMergePRs, push, engineOverride)
+	cmdStr := buildCommandString(opts.WorkflowName, inputValues, opts.RepoOverride, opts.RefOverride, opts.AutoMergePRs, opts.Push, opts.EngineOverride)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, workflowName, RunOptions{
+	err = RunWorkflowOnGitHub(ctx, opts.WorkflowName, RunOptions{
 		Enable:            false,
-		EngineOverride:    engineOverride,
-		RepoOverride:      repoOverride,
-		RefOverride:       refOverride,
-		AutoMergePRs:      autoMergePRs,
-		Push:              push,
+		EngineOverride:    opts.EngineOverride,
+		RepoOverride:      opts.RepoOverride,
+		RefOverride:       opts.RefOverride,
+		AutoMergePRs:      opts.AutoMergePRs,
+		Push:              opts.Push,
 		WaitForCompletion: true,
 		Inputs:            inputValues,
-		Verbose:           verbose,
-		DryRun:            dryRun,
+		Verbose:           opts.Verbose,
+		DryRun:            opts.DryRun,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)

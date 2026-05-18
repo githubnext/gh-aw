@@ -32,13 +32,14 @@ function generateSafeOutputSummary(options) {
 
   // Detect fallback outcomes for code-push types.
   // Prefer explicit fallback_type when available; infer only for backward compatibility.
+  const isDuplicateDrop = success && result && result.dropped_duplicate === true;
   const isFallback = success && result && result.fallback_used === true;
   const inferredFallbackType = isFallback && (result.pull_request_url || result.pull_request_number != null) ? "pull_request" : "issue";
   const fallbackType = isFallback && result?.fallback_type ? result.fallback_type : inferredFallbackType;
 
   // Choose emoji and status based on success and fallback
-  const emoji = isFallback ? "⚠️" : success ? "✅" : "❌";
-  const status = isFallback ? (fallbackType === "pull_request" ? "Fallback Pull Request Created" : "Fallback Issue Created") : success ? "Success" : "Failed";
+  const emoji = isDuplicateDrop ? "⚠️" : isFallback ? "⚠️" : success ? "✅" : "❌";
+  const status = isDuplicateDrop ? "Duplicate Dropped" : isFallback ? (fallbackType === "pull_request" ? "Fallback Pull Request Created" : "Fallback Issue Created") : success ? "Success" : "Failed";
 
   // Start building the summary
   let summary = `<details>\n<summary>${emoji} ${displayType} - ${status} (Message ${messageIndex})</summary>\n\n`;
@@ -47,7 +48,21 @@ function generateSafeOutputSummary(options) {
   const sectionTitle = isFallback ? `### ${displayType} — ${fallbackType === "pull_request" ? "Fallback Pull Request" : "Fallback Issue"}\n\n` : `### ${displayType}\n\n`;
   summary += sectionTitle;
 
-  if (isFallback) {
+  if (isDuplicateDrop) {
+    summary += `> ℹ️ Duplicate issue title was dropped by title-based deduplication.\n\n`;
+    if (result.title || message?.title) {
+      summary += `**Title:** ${result.title || message?.title}\n\n`;
+    }
+    if (result.duplicate_of_title) {
+      summary += `**Matched Existing Title:** ${result.duplicate_of_title}\n\n`;
+    }
+    if (result.duplicate_distance !== undefined) {
+      summary += `**Levenshtein Distance:** ${result.duplicate_distance}\n\n`;
+    }
+    if (result.dedup_source) {
+      summary += `**Dedup Source:** ${result.dedup_source}\n\n`;
+    }
+  } else if (isFallback) {
     // Explain why the fallback occurred and show the created fallback target
     if (fallbackType === "pull_request") {
       summary += `> ℹ️ Direct push to the original pull request branch was not possible (diverged/non-fast-forward). A fallback pull request was created instead.\n\n`;
