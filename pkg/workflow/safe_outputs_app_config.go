@@ -11,7 +11,7 @@ import (
 )
 
 var safeOutputsAppLog = logger.New("workflow:safe_outputs_app")
-var githubExpressionLiteralReplacer = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t", " ", "\\", "\\\\", "'", "''")
+var githubExpressionWhitespaceReplacer = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t", " ")
 
 // ========================================
 // GitHub App Configuration
@@ -110,14 +110,6 @@ func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
 	return app.IgnoreIfMissing
 }
 
-// quoteGitHubExpressionLiteral returns a single-quoted GitHub Actions string literal.
-// Single quotes are escaped by doubling them to match expression syntax rules.
-// Newlines/tabs are normalized to spaces and backslashes are doubled so generated
-// guards remain valid single-line expressions.
-func quoteGitHubExpressionLiteral(value string) string {
-	return "'" + githubExpressionLiteralReplacer.Replace(value) + "'"
-}
-
 // extractWrappedGitHubExpression returns the inner text for values wrapped as
 // `${{ ... }}` (for example, `${{ secrets.APP_ID }}` -> `secrets.APP_ID`).
 // It returns false for literals and malformed/empty wrappers.
@@ -134,27 +126,25 @@ func extractWrappedGitHubExpression(value string) (string, bool) {
 	return inner, true
 }
 
-// buildGitHubExpressionNonEmptyCheck renders a non-empty check from wrapped
-// expressions (`${{ secrets.KEY }}` -> `secrets.KEY != ”`) or literals
-// (`plain-value` -> `'plain-value' != ”`).
-func buildGitHubExpressionNonEmptyCheck(value string) string {
+// buildGitHubExpressionNonEmptyCheck renders a non-empty check node from wrapped
+// expressions (`${{ secrets.KEY }}` -> `secrets.KEY != ''`) or literals
+// (`plain-value` -> `'plain-value' != ''`).
+func buildGitHubExpressionNonEmptyCheck(value string) ConditionNode {
 	trimmed := strings.TrimSpace(value)
 	if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
-		trimmed = inner
-	} else {
-		trimmed = quoteGitHubExpressionLiteral(trimmed)
+		return BuildNotEquals(&ExpressionNode{Expression: inner}, BuildStringLiteral(""))
 	}
-	return fmt.Sprintf("%s != ''", trimmed)
+	return BuildNotEquals(BuildStringLiteral(strings.TrimSpace(githubExpressionWhitespaceReplacer.Replace(trimmed))), BuildStringLiteral(""))
 }
 
 // buildIgnoreIfMissingCondition returns a GitHub Actions if-expression that requires
 // both GitHub App credential inputs to be non-empty.
 func buildIgnoreIfMissingCondition(app *GitHubAppConfig) string {
-	return fmt.Sprintf(
-		"${{ %s && %s }}",
+	condition := BuildAnd(
 		buildGitHubExpressionNonEmptyCheck(app.AppID),
 		buildGitHubExpressionNonEmptyCheck(app.PrivateKey),
 	)
+	return wrapGitHubExpression(condition.Render())
 }
 
 // ========================================

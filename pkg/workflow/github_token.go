@@ -17,8 +17,15 @@ func unwrapGitHubExpression(expression string) string {
 	return trimmed
 }
 
+func wrapGitHubExpression(expression string) string {
+	return fmt.Sprintf("${{ %s }}", strings.TrimSpace(expression))
+}
+
 func combineTokenExpressions(primaryExpression, fallbackExpression string) string {
-	return fmt.Sprintf("${{ %s || %s }}", unwrapGitHubExpression(primaryExpression), unwrapGitHubExpression(fallbackExpression))
+	return wrapGitHubExpression(BuildOr(
+		&ExpressionNode{Expression: unwrapGitHubExpression(primaryExpression)},
+		&ExpressionNode{Expression: unwrapGitHubExpression(fallbackExpression)},
+	).Render())
 }
 
 // getEffectiveGitHubToken returns the GitHub token to use, with precedence:
