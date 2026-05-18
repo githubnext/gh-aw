@@ -173,15 +173,14 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		}
 	}
 
-	// Process built-in MCP tools from tools section (github, playwright)
-	if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
-		return nil, err
-	}
-
 	// Get mcp-servers section from frontmatter
 	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
 	if !hasMCPServers {
 		mcpLog.Print("No mcp-servers section found, checking for built-in tools")
+		// Process built-in MCP tools from tools section (github, playwright)
+		if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
+			return nil, err
+		}
 		mcpLog.Printf("Extracted %d MCP configurations total", len(configs))
 		return configs, nil // No mcp-servers configured, but we might have safe-outputs and built-in tools
 	}
@@ -189,6 +188,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	mcpServers, ok := mcpServersSection.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("mcp-servers section must be a map, got %T. Example:\nmcp-servers:\n  my-server:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", mcpServersSection)
+	}
+
+	// Process built-in MCP tools from tools section (github, playwright)
+	if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
+		return nil, err
 	}
 
 	// Process custom MCP servers from mcp-servers section
