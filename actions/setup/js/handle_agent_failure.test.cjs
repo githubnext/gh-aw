@@ -422,6 +422,124 @@ describe("handle_agent_failure", () => {
       expect(createCommentMock).not.toHaveBeenCalled();
       expect(createIssueMock).toHaveBeenCalledOnce();
     });
+
+    it("continues searching later pages until it finds an exact metadata match", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+      const searchMock = vi.fn(async ({ q, page }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+
+        if (page === 1) {
+          return {
+            data: {
+              total_count: 101,
+              items: Array.from({ length: 100 }, (_, index) => ({
+                number: index + 1,
+                html_url: `https://github.com/owner/repo/issues/${index + 1}`,
+                body: buildExistingIssueBody({ branch: `feature/other-${index + 1}`, categories: ["missing_safe_outputs"] }),
+              })),
+            },
+          };
+        }
+
+        return {
+          data: {
+            total_count: 101,
+            items: [
+              {
+                number: 101,
+                html_url: "https://github.com/owner/repo/issues/101",
+                body: buildExistingIssueBody({ branch: "feature/current", categories: ["missing_safe_outputs"] }),
+              },
+            ],
+          },
+        };
+      });
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+    });
+
+    it("creates a new issue when the pull request metadata does not match exactly", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async ({ body }) => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123", body },
+      }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return {
+                  data: {
+                    total_count: 1,
+                    items: [{ number: 123, html_url: "https://github.com/owner/repo/pull/123" }],
+                  },
+                };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: buildExistingIssueBody({
+                        branch: "feature/current",
+                        categories: ["missing_safe_outputs"],
+                        pullRequestNumber: 999,
+                      }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: {
+            get: vi.fn(async () => ({
+              data: {
+                head: { sha: "abc123" },
+                mergeable: true,
+                mergeable_state: "clean",
+                updated_at: "2026-05-18T00:00:00Z",
+              },
+            })),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      expect(createIssueMock.mock.calls[0][0].body).toContain("pull_request: 123");
+    });
   });
 
   describe("agent failure templates", () => {
