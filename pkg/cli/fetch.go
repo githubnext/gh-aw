@@ -285,8 +285,10 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 			return nil, fmt.Errorf("failed to convert JSON workflow: %w", err)
 		}
 
-		for _, w := range generated.Warnings {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("JSON workflow import: %s", w)))
+		if verbose {
+			for _, w := range generated.Warnings {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("JSON workflow import: %s", w)))
+			}
 		}
 
 		// Use the generated filename as the WorkflowName on the spec so that

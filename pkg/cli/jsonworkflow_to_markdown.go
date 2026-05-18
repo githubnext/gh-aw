@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -163,7 +164,13 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 				fm.WriteString(line)
 				fm.WriteString("\n")
 			}
+			// Sort keys for deterministic warning output.
+			extraKeys := make([]string, 0, len(a.Extra))
 			for k := range a.Extra {
+				extraKeys = append(extraKeys, k)
+			}
+			sort.Strings(extraKeys)
+			for _, k := range extraKeys {
 				warnings = append(warnings, fmt.Sprintf("field %q has no gh-aw frontmatter equivalent and was preserved as a comment", k))
 			}
 		} else {
@@ -238,9 +245,13 @@ func yamlQuoteString(s string) string {
 	// Simple heuristic: quote if s contains a colon, hash, newline, or leading/trailing
 	// whitespace – all of which require quoting in YAML plain scalars.
 	if strings.ContainsAny(s, ":#\n\r") || s != strings.TrimSpace(s) || s == "" {
-		// Escape backslashes and double-quotes inside the value.
+		// Escape backslashes and double-quotes inside the value, then escape
+		// literal newlines/carriage-returns so the result is a valid single-line
+		// YAML double-quoted scalar.
 		escaped := strings.ReplaceAll(s, `\`, `\\`)
 		escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+		escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+		escaped = strings.ReplaceAll(escaped, "\r", `\r`)
 		return `"` + escaped + `"`
 	}
 	return s

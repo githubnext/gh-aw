@@ -10,12 +10,14 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-const importURLMaxBytes = 10 * 1024 * 1024 // 10 MB
+const importURLMaxBytes = 500 * 1024        // 500 KB
+const importURLTimeout = 30 * time.Second   // default per-request timeout
 
 var importURLFetcherLog = logger.New("cli:import_url_fetcher")
 
@@ -50,7 +52,7 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 
 	client := opts.HTTPClient
 	if client == nil {
-		client = &http.Client{}
+		client = &http.Client{Timeout: importURLTimeout}
 	}
 
 	// Attempt HEAD first to get Content-Type without downloading the body.
@@ -65,7 +67,7 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch URL: %w", err)
+		return nil, fmt.Errorf("failed to fetch URL: %w", sanitizeHTTPError(err))
 	}
 	defer resp.Body.Close()
 
@@ -121,7 +123,7 @@ func tryHead(ctx context.Context, client *http.Client, rawURL string) (string, b
 
 	resp, err := client.Do(req)
 	if err != nil {
-		importURLFetcherLog.Printf("HEAD request failed (will fallback to GET): %v", err)
+		importURLFetcherLog.Printf("HEAD request failed (will fallback to GET): %v", sanitizeHTTPError(err))
 		return "", false
 	}
 	defer resp.Body.Close()
@@ -197,4 +199,15 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
+}
+
+// sanitizeHTTPError strips the request URL from a *url.Error so that signed
+// or token-bearing URLs are never written to logs or error messages.
+func sanitizeHTTPError(err error) error {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		// Return only the underlying network error, discarding the URL.
+		return urlErr.Err
+	}
+	return err
 }

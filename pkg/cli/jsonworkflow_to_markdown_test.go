@@ -112,6 +112,18 @@ func TestConvertJSONWorkflowToMarkdown_FrontmatterValid(t *testing.T) {
 	assert.Contains(t, gen.Markdown, `"description with: colon"`)
 }
 
+func TestConvertJSONWorkflowToMarkdown_NewlineInDescription(t *testing.T) {
+	wf := &JSONWorkflow{
+		ID:          "newline-desc",
+		Description: "line one\nline two",
+	}
+	gen, err := ConvertJSONWorkflowToMarkdown(wf, ConvertOptions{})
+	require.NoError(t, err)
+	// Newlines must be escaped, not embedded literally, so the frontmatter stays valid.
+	assert.Contains(t, gen.Markdown, `"line one\nline two"`)
+	assert.NotContains(t, gen.Markdown, "line one\nline two")
+}
+
 func TestJSONWorkflow_UnmarshalJSON_CapturesExtra(t *testing.T) {
 	raw := `{"id":"w","name":"N","unknown_key":"val","nested":{"a":1}}`
 	var wf JSONWorkflow
@@ -152,6 +164,10 @@ func TestGenericURLWorkflowName(t *testing.T) {
 		{"https://example.com/workflow.yaml", "workflow"},
 		// url.Parse treats bare strings as relative paths; "not-a-url" has no extension.
 		{"not-a-url", "not-a-url"},
+		// Spaces and mixed-case should be kebab-cased.
+		{"https://example.com/My%20Workflow.json", "my-workflow"},
+		{"https://example.com/My_Workflow.md", "my-workflow"},
+		{"https://example.com/Weekly Report.json", "weekly-report"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.url, func(t *testing.T) {

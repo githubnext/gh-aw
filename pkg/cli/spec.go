@@ -489,7 +489,13 @@ func genericURLWorkflowName(rawURL string) string {
 		if seg == "" {
 			continue
 		}
-		return normalizeWorkflowID(seg)
+		// URL-decode percent-encoded characters (e.g. %20 → space) before
+		// applying kebab-casing so that names like "My%20Workflow" become
+		// "my-workflow" rather than "my-20workflow".
+		if decoded, err := url.PathUnescape(seg); err == nil {
+			seg = decoded
+		}
+		return toKebabCase(seg)
 	}
 	return "imported-workflow"
 }
