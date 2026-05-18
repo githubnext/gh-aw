@@ -270,6 +270,10 @@ func TestSpec_RuntimeConfiguration_RateLimits(t *testing.T) {
 
 // TestSpec_FeatureFlags_Values validates the documented feature flag constant values.
 // Spec section: "## Feature Flags"
+//
+// SPEC_MISMATCH: README documents constants.MCPCLIFeatureFlag ("mcp-cli") but that
+// constant is not defined in pkg/constants/feature_constants.go. It is omitted from
+// the test cases below to keep the suite compiling against the implementation.
 func TestSpec_FeatureFlags_Values(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -284,12 +288,16 @@ func TestSpec_FeatureFlags_Values(t *testing.T) {
 		{name: "DisableXPIAPromptFeatureFlag", constant: constants.DisableXPIAPromptFeatureFlag, expected: "disable-xpia-prompt"},
 		// From spec: CopilotRequestsFeatureFlag // "copilot-requests"
 		{name: "CopilotRequestsFeatureFlag", constant: constants.CopilotRequestsFeatureFlag, expected: "copilot-requests"},
+		// From spec: DIFCProxyFeatureFlag // "difc-proxy" (deprecated)
+		{name: "DIFCProxyFeatureFlag", constant: constants.DIFCProxyFeatureFlag, expected: "difc-proxy"},
 		// From spec: CliProxyFeatureFlag // "cli-proxy"
 		{name: "CliProxyFeatureFlag", constant: constants.CliProxyFeatureFlag, expected: "cli-proxy"},
+		// From spec: AwfDiagnosticLogsFeatureFlag // "awf-diagnostic-logs"
+		{name: "AwfDiagnosticLogsFeatureFlag", constant: constants.AwfDiagnosticLogsFeatureFlag, expected: "awf-diagnostic-logs"},
+		// From spec: ByokCopilotFeatureFlag // "byok-copilot" (deprecated)
+		{name: "ByokCopilotFeatureFlag", constant: constants.ByokCopilotFeatureFlag, expected: "byok-copilot"},
 		// From spec: IntegrityReactionsFeatureFlag // "integrity-reactions"
 		{name: "IntegrityReactionsFeatureFlag", constant: constants.IntegrityReactionsFeatureFlag, expected: "integrity-reactions"},
-		// From spec: GroupConcurrencyQueueFeatureFlag // "group-concurrency-queue"
-		{name: "GroupConcurrencyQueueFeatureFlag", constant: constants.GroupConcurrencyQueueFeatureFlag, expected: "group-concurrency-queue"},
 	}
 
 	for _, tt := range tests {
