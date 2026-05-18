@@ -13,6 +13,7 @@ const mockGithub = {
   rest: {
     pulls: {
       createReview: vi.fn(),
+      listFiles: vi.fn(),
       listReviews: vi.fn(),
       dismissReview: vi.fn(),
     },
@@ -34,6 +35,9 @@ describe("pr_review_buffer (factory pattern)", () => {
     // Save and clear messages env var (generateFooterWithMessages reads this)
     originalMessages = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+
+    // Default: return empty file list so path filtering is skipped unless explicitly mocked
+    mockGithub.rest.pulls.listFiles.mockResolvedValue({ data: [] });
 
     // Create a fresh buffer instance for each test (no shared global state)
     buffer = createReviewBuffer();
@@ -837,7 +841,289 @@ describe("pr_review_buffer (factory pattern)", () => {
       const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
       expect(callArgs.comments).toHaveLength(3);
     });
-  });
+
+    describe("Sub-pattern A: empty review guard", () => {
+      it("should return failure when review metadata has empty body and no comments", async () => {
+        buffer.setReviewMetadata("", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Empty review");
+        expect(result.error).toContain("Skipping POST to avoid 422");
+        expect(mockGithub.rest.pulls.createReview).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Empty review"));
+      });
+
+      it("should NOT block review when body is whitespace-only (truthy string passes guard)", async () => {
+        buffer.setReviewMetadata("   \n  ", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+        // Whitespace body is truthy so guard should NOT trigger; POST proceeds.
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 999, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-999" },
+        });
+
+        const result = await buffer.submitReview();
+
+        // Whitespace body is truthy so should still POST (GitHub may accept or reject it)
+        expect(result.success).toBe(true);
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+      });
+
+      it("should return failure when metadata has no body and footerContext is null (body stays empty)", async () => {
+        // Simulate Sub-pattern A from the issue: event=COMMENT, comments=0, bodyLength=0
+        buffer.setReviewMetadata("", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+        // footerContext is NOT set → no footer added → body remains ""
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Empty review");
+        expect(mockGithub.rest.pulls.createReview).not.toHaveBeenCalled();
+      });
+
+      it("should NOT guard when body is empty but comments are present", async () => {
+        buffer.addComment({ path: "src/main.js", line: 5, body: "Missing null check" });
+        buffer.setReviewMetadata("", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 701, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-701" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+      });
+
+      it("should NOT guard when body is non-empty but no comments are present", async () => {
+        buffer.setReviewMetadata("LGTM! Ship it.", "APPROVE");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 702, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-702" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("Sub-pattern B: path validation against PR diff", () => {
+      it("should filter out comments at paths not in the PR diff", async () => {
+        buffer.addComment({ path: "src/valid.js", line: 10, body: "Valid comment" });
+        buffer.addComment({ path: "src/not-in-diff.js", line: 5, body: "Invalid path" });
+        buffer.setReviewMetadata("Code review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.listFiles.mockResolvedValue({
+          data: [{ filename: "src/valid.js" }, { filename: "README.md" }],
+        });
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 800, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-800" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
+        expect(callArgs.comments).toHaveLength(1);
+        expect(callArgs.comments[0].path).toBe("src/valid.js");
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("src/not-in-diff.js"));
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
+      });
+
+      it("should return failure when all comment paths are outside the PR diff and body is empty", async () => {
+        buffer.addComment({ path: "unrelated/file.js", line: 1, body: "This won't post" });
+        buffer.setReviewMetadata("", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.listFiles.mockResolvedValue({
+          data: [{ filename: "src/main.js" }],
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Empty review");
+        expect(result.error).toContain("all comment paths were outside the PR diff");
+        expect(mockGithub.rest.pulls.createReview).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("unrelated/file.js"));
+      });
+
+      it("should proceed without filtering when listFiles returns an empty array", async () => {
+        buffer.addComment({ path: "any/path.js", line: 1, body: "Comment" });
+        buffer.setReviewMetadata("Review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        // Default mock: listFiles returns { data: [] } → changedPaths.size === 0 → no filtering
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 801, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-801" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        // No warnings about path filtering
+        expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
+      });
+
+      it("should proceed without filtering when listFiles API call fails", async () => {
+        buffer.addComment({ path: "any/path.js", line: 1, body: "Comment" });
+        buffer.setReviewMetadata("Review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        mockGithub.rest.pulls.listFiles.mockRejectedValue(new Error("API rate limit exceeded"));
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 802, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-802" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to validate comment paths against PR diff"));
+      });
+
+      it("should handle paginated listFiles correctly", async () => {
+        buffer.addComment({ path: "page2/file.js", line: 1, body: "Comment on page 2 file" });
+        buffer.setReviewMetadata("Review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        // First page returns 100 files (full page → trigger next page fetch)
+        const page1Files = Array.from({ length: 100 }, (_, i) => ({ filename: `page1/file${i}.js` }));
+        // Second page returns the file we want
+        const page2Files = [{ filename: "page2/file.js" }];
+        mockGithub.rest.pulls.listFiles.mockResolvedValueOnce({ data: page1Files }).mockResolvedValueOnce({ data: page2Files });
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 803, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-803" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        expect(mockGithub.rest.pulls.listFiles).toHaveBeenCalledTimes(2);
+        // No warning about invalid paths
+        expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
+      });
+
+      it("should accept comments targeting a renamed file's previous path", async () => {
+        buffer.addComment({ path: "old/path.js", line: 1, body: "Comment on old path" });
+        buffer.setReviewMetadata("Review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        // File was renamed; both filename and previous_filename appear in the API response
+        mockGithub.rest.pulls.listFiles.mockResolvedValue({
+          data: [{ filename: "new/path.js", previous_filename: "old/path.js" }],
+        });
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 804, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-804" },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        // The old path must NOT be flagged as invalid
+        expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
+      });
+
+      it("should skip path filtering and keep all comments when the pagination cap is reached with a full last page", async () => {
+        buffer.addComment({ path: "file-beyond-cap.js", line: 1, body: "Comment on file past cap" });
+        buffer.setReviewMetadata("Review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" } },
+        });
+
+        // Simulate 10 full pages of 100 files each — the loop exits because of the cap,
+        // not because the last page was partial.
+        const fullPage = Array.from({ length: 100 }, (_, i) => ({ filename: `page/file${i}.js` }));
+        // All 10 pages return full results
+        for (let i = 0; i < 10; i++) {
+          mockGithub.rest.pulls.listFiles.mockResolvedValueOnce({ data: fullPage });
+        }
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: { id: 805, html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-805" },
+        });
+
+        const result = await buffer.submitReview();
+
+        // Cap reached with full page → fail-open → no filtering → comment is kept
+        expect(result.success).toBe(true);
+        expect(result.comment_count).toBe(1);
+        expect(mockGithub.rest.pulls.listFiles).toHaveBeenCalledTimes(10);
+        // No "path not found" warning because filtering was skipped
+        expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("path not found in PR"));
+      });
+    });
+  }); // closes submitReview describe
 
   describe("reset", () => {
     it("should clear all state including footer mode", () => {

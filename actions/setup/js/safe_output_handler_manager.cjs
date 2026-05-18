@@ -491,6 +491,27 @@ function formatManifestLogMessage(item) {
 }
 
 /**
+ * Retroactively mark buffered review results as failed when the finalization POST fails.
+ * Both submit_pull_request_review and create_pull_request_review_comment return
+ * success:true during message processing (they only buffer), so the failure must be
+ * reflected here to ensure the Processing Summary shows the correct counts.
+ *
+ * @param {Array<{type: string, success: boolean, error?: string}>} results - Processing results to mutate
+ * @param {string} errorMessage - Error message to attach to the rolled-back results
+ */
+function rollbackReviewResults(results, errorMessage) {
+  for (const r of results) {
+    if (
+      (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") &&
+      r.success === true
+    ) {
+      r.success = false;
+      r.error = `Review finalization failed: ${errorMessage}`;
+    }
+  }
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -1338,16 +1359,26 @@ async function main() {
       } else {
         core.info("Submitting PR review (body-only, no inline comments)");
       }
+      let reviewFailureError = null;
       try {
         const reviewResult = await prReviewBuffer.submitReview();
         if (reviewResult.success && !reviewResult.skipped) {
           core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
         } else if (!reviewResult.success) {
-          core.warning(`✗ Failed to submit PR review: ${reviewResult.error}`);
+          reviewFailureError = reviewResult.error || "PR review finalization failed";
+          core.error(`✗ Failed to submit PR review: ${reviewFailureError}`);
         }
       } catch (reviewError) {
-        const errorMessage = reviewError instanceof Error ? reviewError.message : String(reviewError);
-        core.warning(`✗ Exception while submitting PR review: ${errorMessage}`);
+        reviewFailureError = reviewError instanceof Error ? reviewError.message : String(reviewError);
+        core.error(`✗ Exception while submitting PR review: ${reviewFailureError}`);
+      }
+
+      // Roll back per-message success counts when the finalization POST failed.
+      // Both submit_pull_request_review and create_pull_request_review_comment handlers
+      // return success:true during message processing (they only buffer), so the failure
+      // must be reflected here to ensure the Processing Summary shows the correct counts.
+      if (reviewFailureError !== null) {
+        rollbackReviewResults(processingResult.results, reviewFailureError);
       }
     }
 
@@ -1530,4 +1561,4 @@ async function main() {
   }
 }
 
-module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles };
+module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults };

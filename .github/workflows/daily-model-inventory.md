@@ -296,6 +296,30 @@ steps:
       if ! curl -fsS http://api-proxy:10000/reflect > "$OUT"; then
         printf '%s' '{"endpoints":[],"error":"reflect endpoint unavailable"}' > "$OUT"
       fi
+      # For configured endpoints where /reflect returned null models, fetch directly from
+      # models_url (the api-proxy injects auth headers). Mirrors enrichReflectModels() in
+      # awf_reflect.cjs — see .github/aw/llms.md for endpoint port/URL reference.
+      while IFS= read -r entry; do
+        provider=$(printf '%s' "$entry" | jq -r '.provider')
+        models_url=$(printf '%s' "$entry" | jq -r '.models_url')
+        echo "Fetching models for $provider from $models_url"
+        if raw=$(curl -fsS "$models_url" 2>&1); then
+          ids=$(printf '%s' "$raw" | jq -c '[.data[].id] // empty' 2>&1) || {
+            echo "Warning: failed to parse models response for $provider: $ids"
+            ids=""
+          }
+          if [ -n "$ids" ]; then
+            jq --arg p "$provider" --argjson m "$ids" \
+              '(.endpoints[] | select(.provider == $p) | .models) |= $m' \
+              "$OUT" > "${OUT}.tmp" && mv "${OUT}.tmp" "$OUT"
+            echo "Enriched $provider with $(printf '%s' "$ids" | jq 'length') model(s)"
+          else
+            echo "Warning: no model IDs extracted for $provider"
+          fi
+        else
+          echo "Warning: failed to fetch models_url for $provider ($models_url): $raw"
+        fi
+      done < <(jq -c '.endpoints[]? | select(.configured == true and .models == null and .models_url != null)' "$OUT" 2>/dev/null || true)
       echo "Copilot reflect metadata written to $OUT"
 
 tools:
@@ -355,8 +379,10 @@ Each enriched `models.json` entry has the form (fields vary by provider):
   ]
 }
 ```
-Note: Copilot model data must be read from the AWF `/reflect` endpoint. Copilot serves models from
-multiple vendors (Anthropic, OpenAI, Google), and those models may include `vendor` metadata.
+Note: Copilot model data is pre-fetched into `/tmp/gh-aw/model-inventory/reflect.json` by the
+"Fetch Copilot reflect inventory" pre-step, which enriches null models via `models_url` where
+possible (see `.github/aw/llms.md`). Copilot serves models from multiple vendors (Anthropic,
+OpenAI, Google), and those models may include `vendor` metadata.
 
 If a provider's API key was not configured, the entry will have `"error": "... not set"` and an
 empty `models` array. Skip providers with errors or empty model lists.
@@ -388,21 +414,22 @@ The alias pattern syntax is:
 
 ### Step 1: Load and Validate the Inventory
 
-Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. Then query
-`http://api-proxy:10000/reflect` and extract the configured `copilot` endpoint.
+Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. Then read
+the pre-fetched `/tmp/gh-aw/model-inventory/reflect.json` and extract the configured
+`copilot` endpoint (`.endpoints[] | select(.provider == "copilot" and .configured)`).
 
 List the providers that returned data and the count of models available from each, including
-Copilot from `/reflect`.
+Copilot from the reflect file.
 
-If `/reflect` returns no `copilot` endpoint (or reports an error), note Copilot as unavailable and
-continue.
+If the reflect file has an `error` field, or contains no `copilot` endpoint, note Copilot as
+unavailable and continue.
 
 ### Step 2: Explore Raw API Fields
 
 For each provider that returned data, examine the raw response to identify all available fields:
 
 - OpenAI / Anthropic / Gemini: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
-- Copilot: `http://api-proxy:10000/reflect` filtered to the `copilot` endpoint object
+- Copilot: `/tmp/gh-aw/model-inventory/reflect.json` filtered to the `copilot` endpoint object
 
 Specifically look for:
 
@@ -436,8 +463,9 @@ failed or returned an empty model list, fall back to the heuristics below.
 
 For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
 
-1. **Copilot `/reflect` endpoint** — use the `copilot` endpoint's `models` list as the live model
-   source, then match model names/IDs against the official docs table first. If a match is found,
+1. **Copilot reflect data** — use the `copilot` endpoint's `models` list from
+   `/tmp/gh-aw/model-inventory/reflect.json` as the live model source, then match model
+   names/IDs against the official docs table first. If a match is found,
    use the `New multiplier` as the authoritative value. Compare against the matching entry in
    `model_multipliers.json`, and list discrepancies or missing models.
 

@@ -1140,6 +1140,79 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Session-scoped counter for buffered inline review comments.
+   * Incremented by createPullRequestReviewCommentHandler, read by submitPullRequestReviewHandler
+   * to guard against empty review submissions at the MCP server phase.
+   */
+  let inlineReviewCommentCount = 0;
+
+  /**
+   * Handler for create_pull_request_review_comment tool (MCP server phase).
+   * Increments the session-scoped inline comment counter so that the subsequent
+   * submitPullRequestReviewHandler can detect an otherwise-empty review.
+   * Per Safe Outputs Specification MCE1: enforces constraints during tool invocation
+   * to provide immediate feedback to the LLM before recording to NDJSON.
+   */
+  const createPullRequestReviewCommentHandler = args => {
+    const result = defaultHandler("create_pull_request_review_comment")(args);
+    // Increment only after the default handler returns successfully; if it throws
+    // (e.g. due to large-content rejection or an append write error) the counter
+    // must not advance so the empty-review guard remains accurate.
+    inlineReviewCommentCount++;
+    return result;
+  };
+
+  /**
+   * Handler for submit_pull_request_review tool (MCP server phase).
+   * Validates the review before writing it to the NDJSON output so that the agent
+   * receives an immediate MCP error rather than a silent 422 at finalization time.
+   *
+   * Checks performed:
+   *  1. REQUEST_CHANGES requires a non-empty body (GitHub API requirement).
+   *  2. If the review body is empty AND no inline comments were buffered during this
+   *     session, the review would be contentless and GitHub would return 422 — reject
+   *     early (mirrors Sub-pattern A guard in pr_review_buffer.cjs).
+   *
+   * Per Safe Outputs Specification MCE1: enforces constraints during tool invocation
+   * to provide immediate feedback to the LLM before recording to NDJSON.
+   */
+  const submitPullRequestReviewHandler = args => {
+    const body = (args && typeof args.body === "string" ? args.body : "").trim();
+    const event = (args && args.event ? String(args.event).toUpperCase() : "COMMENT");
+
+    const VALID_REVIEW_EVENTS = ["APPROVE", "REQUEST_CHANGES", "COMMENT"];
+    if (!VALID_REVIEW_EVENTS.includes(event)) {
+      throw {
+        code: -32602,
+        message: `${ERR_VALIDATION}: submit_pull_request_review: invalid event '${args.event}'. Must be one of: ${VALID_REVIEW_EVENTS.join(", ")}`,
+      };
+    }
+
+    if (event === "REQUEST_CHANGES" && !body) {
+      throw {
+        code: -32602,
+        message: `${ERR_VALIDATION}: submit_pull_request_review: 'body' is required when event is REQUEST_CHANGES`,
+      };
+    }
+
+    if (!body && inlineReviewCommentCount === 0) {
+      throw {
+        code: -32602,
+        message:
+          `${ERR_VALIDATION}: submit_pull_request_review: review body is empty and no ` +
+          `create_pull_request_review_comment calls were made — GitHub would return 422 for a contentless review. ` +
+          `Provide a non-empty 'body' or call create_pull_request_review_comment before submitting.`,
+      };
+    }
+
+    // Reset the counter after a successful review submission so that subsequent
+    // reviews in the same MCP session start with a clean slate.
+    inlineReviewCommentCount = 0;
+
+    return defaultHandler("submit_pull_request_review")(args);
+  };
+
+  /**
    * Recursively copy all regular files from srcDir into destDir, preserving the relative
    * path structure under srcDir. Non-regular entries (sockets, devices, pipes, symlinks)
    * are skipped silently.
@@ -1252,6 +1325,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     createIssueHandler,
     createProjectHandler,
     addCommentHandler,
+    createPullRequestReviewCommentHandler,
+    submitPullRequestReviewHandler,
   };
 }
 

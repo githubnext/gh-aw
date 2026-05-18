@@ -284,7 +284,7 @@ function createReviewBuffer() {
     }
 
     // Build comments array for the API
-    const comments = bufferedComments.map(comment => {
+    let comments = bufferedComments.map(comment => {
       /** @type {any} */
       const apiComment = {
         path: comment.path,
@@ -309,6 +309,68 @@ function createReviewBuffer() {
 
       return apiComment;
     });
+
+    // Sub-pattern B: Validate comment paths against the PR diff before POSTing.
+    // Comments targeting paths not in the diff cause GitHub to return 422 "Path could not be resolved".
+    if (comments.length > 0) {
+      try {
+        const changedPaths = new Set();
+        let listPage = 1;
+        // Cap at 10 pages (1,000 files). PRs with more than 1,000 changed files are
+        // extremely rare and path validation is best-effort; we proceed without filtering
+        // if any individual listFiles call throws (see catch block below).
+        const MAX_LIST_FILES_PAGES = 10;
+        while (listPage <= MAX_LIST_FILES_PAGES) {
+          const { data: files } = await github.rest.pulls.listFiles({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            pull_number: pullRequestNumber,
+            per_page: 100,
+            page: listPage,
+          });
+          if (!Array.isArray(files) || files.length === 0) break;
+          for (const f of files) {
+            changedPaths.add(f.filename);
+            // For renamed files, the old path (previous_filename) is also valid for review comments.
+            if (f.previous_filename) changedPaths.add(f.previous_filename);
+          }
+          if (files.length < 100) break;
+          listPage++;
+        }
+        // `listPage > MAX_LIST_FILES_PAGES` is only true when the loop exited via the
+        // while-condition (not via a break), which only happens after a full page of 100
+        // files caused listPage to be incremented past the cap. A partial page always
+        // triggers the `files.length < 100` break first, so hitPageCap implies the last
+        // page was full and there may be more files beyond the 1,000-file limit.
+        // Fail-open in that case: the collected set is non-authoritative and filtering
+        // would risk dropping valid comments on the un-fetched files.
+        const hitPageCap = listPage > MAX_LIST_FILES_PAGES;
+        // Only filter when we received a non-empty file list and did not hit the cap;
+        // an empty list likely indicates an API quirk or a PR with no diff.
+        if (changedPaths.size > 0 && !hitPageCap) {
+          const invalidComments = comments.filter(c => !changedPaths.has(c.path));
+          if (invalidComments.length > 0) {
+            for (const c of invalidComments) {
+              core.warning(`Skipping review comment at '${c.path}:${c.line}' — path not found in PR #${pullRequestNumber} diff`);
+            }
+            comments = comments.filter(c => changedPaths.has(c.path));
+          }
+        }
+      } catch (pathValidationError) {
+        core.warning(`Failed to validate comment paths against PR diff: ${getErrorMessage(pathValidationError)}. Proceeding without path validation.`);
+      }
+    }
+
+    // Sub-pattern A: Guard against empty review submission (no body and no inline comments).
+    // GitHub returns 422 "Unprocessable Entity" when both are absent.
+    if (comments.length === 0 && !body) {
+      const errorMsg =
+        "Empty review: review body is empty and no inline comments are present" +
+        (bufferedComments.length > 0 ? " (all comment paths were outside the PR diff)" : "") +
+        ". Skipping POST to avoid 422.";
+      core.warning(errorMsg);
+      return { success: false, error: errorMsg };
+    }
 
     core.info(`Submitting PR review on ${repo}#${pullRequestNumber}: event=${event}, comments=${comments.length}, bodyLength=${body.length}`);
 
