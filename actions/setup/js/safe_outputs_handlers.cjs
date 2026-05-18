@@ -22,12 +22,7 @@ const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
-const {
-  validateCreatePullRequestIntent,
-  validatePushToPullRequestBranchIntent,
-  validateCreateIssueIntent,
-  validateAddCommentIntent,
-} = require("./intent_probe.cjs");
+const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
 
 /**
  * @param {string} error
