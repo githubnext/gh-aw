@@ -1371,6 +1371,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const safeArgs = args || {};
     const hasTitle = safeArgs.title !== undefined;
     const hasBody = safeArgs.body !== undefined;
+    // update_branch: false is treated as not provided because it carries no update intent
+    // (it's the default behaviour). This mirrors the downstream requiresOneOf validator in
+    // safe_output_type_validator.cjs which also excludes field === false from the count.
     const hasUpdateBranch = safeArgs.update_branch !== undefined && safeArgs.update_branch !== false;
 
     if (!hasTitle && !hasBody && !hasUpdateBranch) {
