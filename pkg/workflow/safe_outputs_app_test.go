@@ -123,11 +123,11 @@ safe-outputs:
 	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
 }
 
-func TestSafeOutputsAppInvalidIgnoreIfMissingValueIgnored(t *testing.T) {
+func TestSafeOutputsAppIgnoreIfMissingInvalidType(t *testing.T) {
 	app := parseAppConfig(map[string]any{
 		"client-id":         "${{ vars.APP_ID }}",
 		"private-key":       "${{ secrets.APP_PRIVATE_KEY }}",
-		"ignore-if-missing": "true",
+		"ignore-if-missing": "not-a-bool",
 	})
 
 	require.NotNil(t, app)
