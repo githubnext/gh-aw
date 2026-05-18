@@ -237,6 +237,10 @@ A field on `submit-pull-request-review:` safe outputs that restricts which PR re
 
 A field on `submit-pull-request-review:` safe outputs that dismisses older `REQUEST_CHANGES` reviews from the same workflow after posting a replacement review. When `supersede-older-reviews: true` is set, the safe-output handler fetches recent reviews, identifies prior `REQUEST_CHANGES` reviews submitted by the same workflow call, and dismisses them before the new review takes effect. This is best-effort behavior — dismissal failures do not block the new review. Useful when a workflow is configured with `allowed-events: [REQUEST_CHANGES]` and repeated runs would otherwise accumulate blocking reviews. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#submit-pr-review-submit-pull-request-review).
 
+### Deduplicate by Title (`deduplicate-by-title:`)
+
+A `create-issue` safe-output field that drops duplicate issues before creation by comparing titles. Accepts `true` for exact matching (after normalization) or an integer `0`–`100` for fuzzy matching within the given Levenshtein edit distance (e.g., `1` allows one-character differences). Deduplication runs at MCP tool-call time (within-run) and at apply time (against open and recently-closed repository issues). Dropped items are recorded in the safe-output summary with the matched title, edit distance, and source. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-creation-create-issue).
+
 ### Allowed Fields (`create-issue:`)
 
 A configuration field on `create-issue:` safe outputs that restricts which GitHub Project custom fields the agent may set when creating issues. Accepts an array of field names (e.g., `[Priority, Iteration]`). When set, the safe-outputs handler rejects any attempt to populate a field not in the list. When omitted, all project fields are permitted. Example: `allowed-fields: [Priority, Iteration]`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-creation-create-issue).
@@ -245,9 +249,17 @@ A configuration field on `create-issue:` safe outputs that restricts which GitHu
 
 An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branch` safe outputs. When `allowed-files:` is set to a list of glob patterns, **only** files matching those patterns may be modified — every other file (including normal source files) is refused. This is a restriction, not an exception: listing `.github/workflows/*` does not additionally allow normal source files; it blocks them. Runs independently from [Protected Files](#protected-files): both checks must pass. To modify a protected file, it must both match `allowed-files` and have `protected-files: allowed`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#restricting-changes-to-specific-files-with-allowed-files).
 
+### Branch Prefix (`branch-prefix:`)
+
+An optional field on `create-pull-request` safe outputs that prepends a fixed string to the agent-specified or auto-generated branch name. Useful when repository policies require branches to follow naming conventions (e.g., `signed/` for signed-commit workflows). The default prefix is `signed/`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
+
 ### Preserve Branch Name (`preserve-branch-name:`)
 
 An option on `create-pull-request` safe outputs that omits the random hex salt suffix normally appended to the agent-specified branch name. Useful when the target repository enforces naming conventions such as Jira keys in uppercase (for example, `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for safety, and casing is always preserved regardless of this setting. Defaults to `false`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
+
+### Max Patch Files (`max-patch-files:`)
+
+A `create-pull-request` safe-output field that sets the maximum number of unique files allowed in a single PR's patch. Defaults to `100`. Workflows that regenerate large sets of files (e.g., per-package API schemas) can raise this limit. If the limit is exceeded, PR creation fails with an actionable error showing the exact file count and the field to configure. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
 
 ### Recreate Ref (`recreate-ref:`)
 
@@ -301,7 +313,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports six engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **Crush** (experimental), and **OpenCode** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports seven engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **Crush** (experimental), **OpenCode** (experimental), and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Enterprise API Endpoint (`api-target`)
 
@@ -384,6 +396,10 @@ A typed parameter contract declared in a shared workflow file that enables calle
 
 A body-level directive that injects the text content of another file at a specific point in the workflow markdown. Unlike the `imports:` frontmatter field (which merges configuration), `{{#runtime-import filepath}}` splices raw markdown text — useful for sharing reusable prompt snippets, tone instructions, or reference material. Use `{{#runtime-import? filepath}}` for an optional include that silently skips a missing file. Paths are resolved within the `.github` folder with or without the `.github/` prefix. See [Runtime Imports](/gh-aw/reference/templating/#runtime-imports).
 
+### Emoji (`emoji:`)
+
+An optional frontmatter field that attaches an emoji to represent the workflow visually in listings and UI surfaces. Accepts a single emoji character (e.g., `"🤖"`). See [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+
 ### Label Trigger Shorthand
 
 A compact syntax for label-based triggers: `on: issue labeled bug` or `on: pull_request labeled needs-review`. The compiler expands the shorthand to standard GitHub Actions trigger syntax and automatically includes a `workflow_dispatch` trigger with an `inputs.item_number` parameter, enabling manual dispatch for a specific issue or pull request. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps patterns](/gh-aw/patterns/label-ops/).
@@ -429,6 +445,10 @@ multi-endpoint OTLP export with optional headers.
 See [OpenTelemetry](/gh-aw/reference/open-telemetry/) for
 full configuration details, runtime variables, and span
 semantics.
+
+### OTLP If-Missing (`observability.otlp.if-missing`)
+
+Controls behavior when OTLP endpoint or header values resolve to empty at runtime. Accepts `error` (default — fails startup), `warn` (logs a warning and skips MCP gateway OTLP configuration), or `ignore` (silently skips MCP gateway OTLP configuration). Useful in shared imports where OTLP secrets may be absent in some repositories — set to `ignore` to make observability opt-in without breaking workflows that lack the secrets. See [OpenTelemetry Reference](/gh-aw/reference/open-telemetry/#fields).
 
 ### Pre-Steps (`jobs.<job-id>.pre-steps`)
 
