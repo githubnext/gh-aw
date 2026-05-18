@@ -30,7 +30,7 @@
     },
     "emoji": {
       "type": "string",
-      "description": "Optional emoji to represent the workflow visually (e.g. in listings and UI surfaces).",
+      "description": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
       "examples": [
         "\ud83e\udd16",
         "\ud83d\udd0d",

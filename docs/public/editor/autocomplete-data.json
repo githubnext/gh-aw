@@ -12,7 +12,7 @@
     },
     "emoji": {
       "type": "string",
-      "desc": "Optional emoji to represent the workflow visually (e.g.",
+      "desc": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
       "leaf": true
     },
     "source": {

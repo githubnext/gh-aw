@@ -28,8 +28,7 @@ name: "My Workflow"
 # (optional)
 description: "Description of the workflow"
 
-# Optional emoji to represent the workflow visually (e.g. in listings and UI
-# surfaces).
+# Optional emoji to represent the workflow visually in listings and UI surfaces.
 # (optional)
 emoji: "example-value"
 
