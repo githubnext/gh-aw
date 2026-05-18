@@ -85,16 +85,19 @@ async function resolveReviewThreadAPI(github, threadId) {
  * @returns {boolean}
  */
 function isIntegrationAccessError(error) {
-  const normalizedMessage = getErrorMessage(error).toLowerCase();
-  if (normalizedMessage.includes("resource not accessible by integration")) {
-    return true;
-  }
+  const integrationErrorFragment = "resource not accessible by integration";
+  /** @type {string[]} */
+  const messages = [getErrorMessage(error)];
 
   if (error && typeof error === "object" && Array.isArray(error.errors)) {
-    return error.errors.some(e => typeof e?.message === "string" && e.message.toLowerCase().includes("resource not accessible by integration"));
+    for (const graphQLError of error.errors) {
+      if (typeof graphQLError?.message === "string") {
+        messages.push(graphQLError.message);
+      }
+    }
   }
 
-  return false;
+  return messages.some(message => message.toLowerCase().includes(integrationErrorFragment));
 }
 
 /**
