@@ -221,7 +221,7 @@ function recordVariant(name, variant, state) {
  */
 async function writeSummary(assignments, configs, state, core) {
   const names = Object.keys(assignments).sort();
-  const lines = ["## 🧪 Experiment Assignments", "", "| Experiment | Variant | Counts (current/total) |", "| --- | --- | --- |"];
+  const lines = ["<details>", "<summary>🧪 Experiment Assignments</summary>", "", "| Experiment | Variant | Counts (current/total) |", "| --- | --- | --- |"];
   for (const name of names) {
     const selected = assignments[name];
     const counts = state.counts[name] || {};
@@ -305,6 +305,8 @@ async function writeSummary(assignments, configs, state, core) {
   }
 
   lines.push("_Variants are selected by balanced round-robin (or weighted) to ensure statistical relevance across runs. Ties are broken randomly so no variant is systematically favoured on the first run._");
+  lines.push("");
+  lines.push("</details>");
   await core.summary.addRaw(lines.join("\n")).write();
 }
 
