@@ -15,34 +15,18 @@ Development guidelines, architectural patterns, and implementation standards for
 
 #### 1. Create Functions Pattern (`create_*.go`)
 
-**Pattern**: One file per GitHub entity creation operation
-
-**Examples**:
-- `create_issue.go` - GitHub issue creation logic
-- `create_pull_request.go` - Pull request creation logic
-- `create_discussion.go` - Discussion creation logic
-- `create_code_scanning_alert.go` - Code scanning alert creation
-- `create_agent_task.go` - Agent task creation logic
+One file per GitHub entity creation. Examples: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`, `create_code_scanning_alert.go`, `create_agent_task.go`.
 
 #### 2. Engine Separation Pattern
 
-**Pattern**: Each AI engine has its own file with shared helpers in `engine_helpers.go`
-
-**Examples**:
-- `copilot_engine.go` — GitHub Copilot engine
-- `claude_engine.go` — Claude engine
-- `codex_engine.go` — Codex engine
-- `custom_engine.go` — Custom engine support
-- `engine_helpers.go` — Shared engine utilities
+Each AI engine in its own file; shared helpers in `engine_helpers.go`. Examples: `copilot_engine.go`, `claude_engine.go`, `codex_engine.go`, `custom_engine.go`.
 
 #### 3. Test Organization Pattern
 
-**Pattern**: Tests live alongside implementation files with descriptive names
-
-**Examples**:
-- Feature tests: `feature.go` + `feature_test.go`
-- Integration tests: `feature_integration_test.go`
-- Specific scenario tests: `feature_scenario_test.go`
+Tests live alongside implementation:
+- Feature: `feature.go` + `feature_test.go`
+- Integration: `feature_integration_test.go`
+- Scenario: `feature_scenario_test.go`
 
 ### File Creation Decision Tree
 
@@ -71,10 +55,10 @@ graph TD
 
 ## Validation Architecture
 
-Validation ensures workflow configurations are correct before compilation. Two patterns:
+Validates workflow configs before compilation. Two patterns:
 
-1. **Centralized validation** — `validation.go`
-2. **Domain-specific validation** — dedicated files
+1. **Centralized** — `validation.go`
+2. **Domain-specific** — dedicated files
 
 ### Validation Flow
 
@@ -98,31 +82,29 @@ graph TD
 
 ### Centralized Validation: `pkg/workflow/validation.go`
 
-General-purpose validation across the workflow system:
-
 - `validateExpressionSizes()` — GitHub Actions expression size limits
-- `validateContainerImages()` — Docker images exist and are accessible
-- `validateRuntimePackages()` — runtime package dependencies
+- `validateContainerImages()` — Docker images accessible
+- `validateRuntimePackages()` — runtime package deps
 - `validateGitHubActionsSchema()` — GitHub Actions YAML schema
-- `validateNoDuplicateCacheIDs()` — unique cache identifiers
+- `validateNoDuplicateCacheIDs()` — unique cache IDs
 - `validateSecretReferences()` — secret reference syntax
-- `validateRepositoryFeatures()` — repository capabilities (issues, discussions)
+- `validateRepositoryFeatures()` — repo capabilities (issues, discussions)
 
 ### Domain-Specific Validation
 
 #### Strict Mode: `strict_mode_validation.go`
 
-Enforces security and safety constraints in strict mode:
+Security/safety constraints in strict mode:
 
-- `validateStrictMode()` — main strict mode orchestrator
+- `validateStrictMode()` — main orchestrator
 - `validateStrictPermissions()` — refuses write permissions
-- `validateStrictNetwork()` — requires explicit network configuration
+- `validateStrictNetwork()` — requires explicit network config
 - `validateStrictMCPNetwork()` — requires network config on custom MCP servers
-- `validateStrictBashTools()` — refuses bash wildcard tools
+- `validateStrictBashTools()` — refuses bash wildcards
 
 #### Package Validation
 
-- **Python/pip**: `pip.go` — package availability on PyPI
+- **Python/pip**: `pip.go` — PyPI availability
 - **Node.js/npm**: `npm.go` — npm packages used with npx
 
 ### Where to Add Validation
@@ -144,24 +126,24 @@ graph TD
 
 ### Capitalization Guidelines
 
-**Rules**:
-- **Product Name**: "GitHub Agentic Workflows" (always capitalize)
-- **Feature Names**: Use sentence case (e.g., "safe output messages")
-- **File Names**: Use lowercase with hyphens (e.g., `code-organization.md`)
-- **Code Elements**: Follow language conventions (e.g., `camelCase` in JavaScript, `snake_case` in Python)
+- **Product**: "GitHub Agentic Workflows" (always capitalized)
+- **Features**: sentence case (e.g., "safe output messages")
+- **Filenames**: lowercase with hyphens (e.g., `code-organization.md`)
+- **Code**: language conventions (`camelCase` JS, `snake_case` Python)
+
 ### Breaking Change Rules
 
-**Breaking Changes**:
-- Removing or renaming CLI commands, flags, or options
-- Changing default behavior that users depend on
-- Removing support for configuration formats
-- Changing exit codes or error messages that tools parse
+**Breaking**:
+- Renaming/removing CLI commands, flags, options
+- Changing default behavior users depend on
+- Removing config format support
+- Changing exit codes or parsable error messages
 
-**Non-Breaking Changes**:
-- Adding new optional flags or commands
-- Adding new output formats
-- Internal refactoring with same external behavior
-- Adding new features that don't affect existing functionality
+**Non-Breaking**:
+- New optional flags/commands
+- New output formats
+- Internal refactoring (same external behavior)
+- New features not affecting existing
 ---
 
 ## String Processing
@@ -182,14 +164,14 @@ graph TD
     H --> K[normalizeLineEndings]
 ```
 
-**Sanitize** — replace characters that cause security issues or break GitHub API constraints:
-- `sanitizeGitHubLabel()` — labels meet GitHub requirements (no emoji, length limits)
-- `sanitizeGitHubBranch()` — branch names against Git ref rules
-- `sanitizeGitHubIssueTitle()` — issue titles avoid problematic characters
+**Sanitize** — fix characters causing security issues or breaking GitHub API:
+- `sanitizeGitHubLabel()` — GitHub label requirements (no emoji, length limits)
+- `sanitizeGitHubBranch()` — Git ref rules
+- `sanitizeGitHubIssueTitle()` — avoid problematic chars
 
-**Normalize** — standardize format for consistency, no security implications:
-- `normalizeWhitespace()` — whitespace (spaces, tabs, newlines)
-- `normalizeLineEndings()` — CRLF to LF
+**Normalize** — standardize format, no security implications:
+- `normalizeWhitespace()` — spaces, tabs, newlines
+- `normalizeLineEndings()` — CRLF → LF
 - `normalizeMarkdown()` — markdown formatting
 ---
 
@@ -197,14 +179,14 @@ graph TD
 
 ### YAML 1.1 vs 1.2 Gotchas
 
-**Critical Issue**: GitHub Actions uses YAML 1.1, but many Go YAML libraries default to YAML 1.2
+**Critical**: GitHub Actions uses YAML 1.1; many Go libraries default to 1.2.
 
-**Key Differences**:
-- `on` keyword: YAML 1.1 treats as boolean `true`, YAML 1.2 treats as string
-- `yes`/`no`: YAML 1.1 treats as booleans, YAML 1.2 treats as strings
-- Octal numbers: Different parsing rules
+**Differences**:
+- `on`: YAML 1.1 = boolean `true`, YAML 1.2 = string
+- `yes`/`no`: YAML 1.1 = booleans, YAML 1.2 = strings
+- Octal numbers: different parsing rules
 
-**Solution**: Use `goccy/go-yaml` library which supports YAML 1.1
+**Solution**: Use `goccy/go-yaml` (supports YAML 1.1)
 
 ```go
 import "github.com/goccy/go-yaml"
@@ -222,7 +204,7 @@ err := yaml.Unmarshal(data, &workflow)
 
 ## Safe Output Messages
 
-Structured communication between AI agents and GitHub API operations.
+Structured communication between agents and GitHub API operations.
 
 ### Message Categories
 
@@ -268,14 +250,14 @@ graph LR
 
 ### Build System
 
-Implemented in Go at `pkg/cli/actions_build_command.go`. No JavaScript build scripts.
+Go implementation at `pkg/cli/actions_build_command.go`. No JS build scripts.
 
-**Key Commands**:
-- `make actions-build` - Build all custom actions
-- `make actions-validate` - Validate action configuration
-- `make actions-clean` - Clean build artifacts
+**Commands**:
+- `make actions-build` — build all
+- `make actions-validate` — validate config
+- `make actions-clean` — clean artifacts
 
-**Directory Structure**:
+**Directory**:
 ```
 actions/
 └── setup/
@@ -290,17 +272,17 @@ actions/
 
 ### Template Injection Prevention
 
-**Key Rule**: Never directly interpolate user input into GitHub Actions expressions or shell commands
+**Rule**: Never interpolate user input into GitHub Actions expressions or shell commands.
 
-**Vulnerable Pattern**:
+**Vulnerable**:
 ```yaml
-# ❌ UNSAFE - User input in expression
+# ❌ UNSAFE
 - run: echo "Title: ${{ github.event.issue.title }}"
 ```
 
-**Safe Pattern**:
+**Safe**:
 ```yaml
-# ✅ SAFE - Use environment variables
+# ✅ SAFE — env var
 - env:
     TITLE: ${{ github.event.issue.title }}
   run: echo "Title: ${TITLE}"
@@ -308,12 +290,11 @@ actions/
 
 ### GitHub Actions Security
 
-**Best Practices**:
-- Always pin actions to specific commit SHAs, not tags
-- Use minimal permissions with `permissions:` block
-- Validate all external inputs
-- Never log secrets or tokens
-- Use GitHub's OIDC for cloud authentication
+- Pin actions to commit SHAs, not tags
+- Minimal `permissions:` block
+- Validate external inputs
+- Never log secrets/tokens
+- Use OIDC for cloud auth
 
 **Example**:
 ```yaml
@@ -341,28 +322,25 @@ steps:
 
 ### Visual Regression Testing
 
-Golden files capture expected console output for tables, boxes, trees, and error formatting.
+Golden files capture expected console output (tables, boxes, trees, error formatting).
 
-**Golden Test Commands**:
+**Commands**:
 ```bash
-# Run golden tests
 go test -v ./pkg/console -run='^TestGolden_'
-
-# Update golden files (only when intentionally changing output)
-make update-golden
+make update-golden  # only when intentionally changing output
 ```
 
-**When to Update Golden Files**:
-- ✅ Intentionally improving console output formatting
-- ✅ Fixing visual bugs in rendering
-- ✅ Adding new columns or fields to tables
-- ❌ Tests fail unexpectedly during development
-- ❌ Making unrelated code changes
+**When to Update**:
+- ✅ Intentionally improving formatting
+- ✅ Fixing visual bugs
+- ✅ Adding new columns/fields
+- ❌ Tests fail unexpectedly
+- ❌ Unrelated code changes
 ---
 
 ## Repo-Memory System
 
-Persistent, git-backed storage for AI agents across workflow runs. Maintains state in dedicated git branches with automatic synchronization.
+Persistent, git-backed storage for AI agents across workflow runs. State lives in dedicated git branches with auto-sync.
 
 ### Architecture Overview
 
@@ -388,11 +366,11 @@ graph TD
 
 ### Data Flow
 
-1. **Clone**: clone `memory/{id}` branch to local directory
-2. **Execution**: agent reads/writes files in memory directory
-3. **Upload**: upload directory as GitHub Actions artifact
-4. **Download**: download artifact and validate constraints
-5. **Push**: commit to `memory/{id}` branch and push
+1. **Clone**: `memory/{id}` branch to local directory
+2. **Execution**: agent reads/writes files
+3. **Upload**: directory as GitHub Actions artifact
+4. **Download**: artifact and validate constraints
+5. **Push**: commit and push to `memory/{id}`
 
 ### Key Configuration
 
@@ -427,18 +405,13 @@ Meta-orchestrator workflows manage multiple agents and workflows at scale.
 
 ### Changesets
 
-Document changes and manage versioning:
-
 ```bash
-# Create a changeset
-npx changeset
-
-# Release new version
-npx changeset version
+npx changeset            # create
+npx changeset version    # release
 npx changeset publish
 ```
 
-**Changeset Format**:
+**Format**:
 ```markdown
 ---
 "gh-aw": patch
@@ -447,26 +420,19 @@ npx changeset publish
 Brief description of the change
 ```
 
-**Version Types**:
-- **major**: Breaking changes
-- **minor**: New features (backward compatible)
-- **patch**: Bug fixes and minor improvements
+**Version Types**: `major` (breaking), `minor` (new features, backward compatible), `patch` (bug fixes).
 
 ### End-to-End Feature Testing
 
 1. Use `.github/workflows/dev.md` as test workflow
-2. Add test scenarios as comments in PR
-3. Dev Hawk will analyze and verify behavior
+2. Add test scenarios as PR comments
+3. Dev Hawk verifies behavior
 4. Do not merge dev.md changes — it remains a reusable test harness
 ---
 
 ## Scope Hints for Complex Workflows
 
-Provide concrete constraints upfront to avoid agent timeouts and vague output.
-
-### General Rule
-
-> The more constraints you provide upfront, the faster and more accurate the generated workflow.
+Provide concrete constraints upfront. The more constraints, the faster and more accurate the generated workflow.
 
 ### Workflow-Type Guidance
 
@@ -514,47 +480,45 @@ Create a workflow that compares branches and reports differences.
 
 ### Timeout Prevention Checklist
 
-Before submitting a complex workflow request, confirm:
+Before submitting a complex workflow request:
 
-- [ ] **Input file path and format** — e.g. `coverage/lcov.info` in lcov format
+- [ ] **Input path/format** — e.g. `coverage/lcov.info` in lcov format
 - [ ] **Triggering event** — e.g. `pull_request`, `push to main`, `schedule`
 - [ ] **Success/failure criterion** — e.g. coverage ≥ 80%, zero high-severity CVEs
-- [ ] **Output destination** — e.g. PR comment, issue, Slack notification, artifact
-- [ ] **Scope boundaries** — e.g. only changed files, only the `src/` directory
+- [ ] **Output destination** — e.g. PR comment, issue, Slack, artifact
+- [ ] **Scope boundaries** — e.g. only changed files, only `src/`
 ---
 
 ## PR Deduplication Protocol
 
-Repeated closed PR attempts on the same topic waste CI and context. Run this protocol before every PR.
+Run before every PR — repeated closed attempts on the same topic waste CI and context.
 
 ### Pre-flight Duplicate PR Check
 
-Search for existing closed PRs with a similar topic using the GitHub MCP `search_pull_requests` tool:
+Search closed PRs via GitHub MCP `search_pull_requests`:
 
 1. Extract 2–4 keywords from the feature/fix title.
-2. Run a search such as:
-   - `is:pr is:closed head:copilot/ <keywords>`
-   - `is:pr is:closed <keywords>`
-3. If none found, proceed normally.
-4. If one or more found, do [Prior Failure Analysis](#prior-failure-analysis) before writing any code.
+2. Search e.g. `is:pr is:closed head:copilot/ <keywords>` or `is:pr is:closed <keywords>`.
+3. None found → proceed normally.
+4. Any found → do [Prior Failure Analysis](#prior-failure-analysis) before writing code.
 
 ### Prior Failure Analysis
 
-When a closed PR exists on the same topic, do this at session start — before any code exploration:
+At session start — before any code exploration:
 
 1. Read the closed PR description, review comments, and timeline.
-2. Identify the **root cause of closure**:
-   - Reviewer requested changes → list them explicitly
-   - CI/test failures → identify failing checks and root cause
+2. Identify **root cause of closure**:
+   - Reviewer requested changes → list them
+   - CI/test failures → identify failing checks
    - Scope mismatch → clarify what was actually requested
    - Duplicate of another fix → link to that fix
-3. Verify that the root cause will be addressed in the new implementation.
-4. Include a "## Prior Attempts" section in the new PR description that summarizes:
+3. Verify the new implementation will address the root cause.
+4. Add a "## Prior Attempts" section to the new PR description:
    - Link(s) to prior closed PR(s)
-   - Why each was closed
+   - Why each closed
    - What is different this time
 
-**Example PR description section:**
+**Example:**
 
 ```markdown
 ## Prior Attempts
@@ -568,14 +532,14 @@ When a closed PR exists on the same topic, do this at session start — before a
 If **two or more** closed PRs already exist on the same topic:
 
 1. **Do not open a third PR** without explicit human review.
-2. Post a comment on the originating issue that:
-   - Lists all prior closed PRs and their close reasons
-   - Explains what changed (if anything) in the new approach
-   - Requests explicit maintainer approval to proceed
-3. Label the issue `copilot-retry-blocked` to signal that human review is required.
-4. Wait for a maintainer to remove the label or leave an approving comment before creating the new PR.
+2. Comment on the originating issue:
+   - List all prior closed PRs and close reasons
+   - Explain what changed in the new approach
+   - Request maintainer approval to proceed
+3. Label the issue `copilot-retry-blocked`.
+4. Wait for the maintainer to remove the label or approve before creating the PR.
 
-**Rationale:** Two consecutive failed PR attempts indicate a systemic problem (unclear requirements, missing context, fundamental design issue) that code changes alone cannot resolve.
+**Rationale:** Two failed attempts indicate a systemic problem (unclear requirements, missing context, design issue) that code alone cannot fix.
 
 ---
 
@@ -591,26 +555,26 @@ If **two or more** closed PRs already exist on the same topic:
 
 ### Common Patterns
 
-**Creating a new GitHub entity handler**:
+**New GitHub entity handler**:
 1. Create `create_<entity>.go` in `pkg/workflow/`
-2. Implement `Create<Entity>()` function
-3. Add validation in `validation.go` or domain-specific file
-4. Create corresponding test file
+2. Implement `Create<Entity>()`
+3. Add validation (centralized or domain-specific)
+4. Add test file
 5. Update safe output messages
 
-**Adding new validation**:
-1. Determine if centralized or domain-specific
-2. Add validation function in appropriate file
-3. Call from main validation orchestrator
-4. Add tests for valid and invalid cases
-5. Document validation rules
+**New validation**:
+1. Centralized or domain-specific?
+2. Add function in appropriate file
+3. Call from main orchestrator
+4. Test valid + invalid cases
+5. Document rules
 
-**Adding new engine**:
+**New engine**:
 1. Create `<engine>_engine.go` in `pkg/workflow/`
 2. Implement engine interface
-3. Use `engine_helpers.go` for shared functionality
+3. Use `engine_helpers.go` for shared logic
 4. Add engine-specific tests
-5. Register engine in engine factory
+5. Register in engine factory
 
 ---
 

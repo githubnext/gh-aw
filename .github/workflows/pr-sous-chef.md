@@ -11,6 +11,11 @@ permissions:
   pull-requests: read
   issues: read
   actions: read
+checkout:
+  fetch: ["refs/pulls/open/*"]
+  fetch-depth: 0
+network:
+  allowed: ["defaults", "go"]
 engine:
   id: copilot
   model: gpt-5-mini
@@ -22,11 +27,34 @@ tools:
   github:
     mode: gh-proxy
     toolsets: [pull_requests, repos, issues]
+  edit:
   bash:
     - "cat *"
     - "jq *"
     - "date *"
+    - "git fetch:*"
+    - "git checkout:*"
+    - "git diff:*"
+    - "git status"
+    - "git restore:*"
+    - "make fmt"
 steps:
+  - name: Setup Go
+    uses: actions/setup-go@v6.4.0
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Setup Node.js
+    uses: actions/setup-node@v6.4.0
+    with:
+      node-version: "24"
+      cache: npm
+      cache-dependency-path: actions/setup/js/package-lock.json
+  - name: Install npm dependencies
+    run: npm ci
+    working-directory: ./actions/setup/js
+  - name: Install development dependencies
+    run: make deps-dev
   - name: Fetch open non-draft PR queue
     env:
       GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -111,6 +139,13 @@ safe-outputs:
     update-branch: true
     max: 10
     target: "*"
+  push-to-pull-request-branch:
+    target: "*"
+    if-no-changes: ignore
+    commit-title-suffix: " [pr-sous-chef]"
+    excluded-files:
+      - ".github/workflows/**"
+    max: 10
   mentions:
     allowed: ["@copilot"]
   noop:
@@ -118,7 +153,7 @@ safe-outputs:
     run-started: "🍳 [{workflow_name}]({run_url}) is preparing PRs for maintainer investigation."
     run-success: "✅ [{workflow_name}]({run_url}) finished PR sous-chef nudges."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while preparing PRs."
-timeout-minutes: 15
+timeout-minutes: 25
 features:
   copilot-requests: true
 
@@ -161,6 +196,14 @@ Before any nudge for a PR:
 
 For each PR that is not skipped:
 
+0. **Run formatters and push if needed**
+   - Checkout the PR branch: `git checkout <headRefName>`
+   - Run `make fmt` to format all code (Go, JavaScript, JSON)
+   - Check for changes: `git diff --quiet || echo "dirty"`
+   - If dirty, call `push_to_pull_request_branch` with the PR number to push the formatting fixes
+   - Return to the original branch: `git checkout -`
+   - Skip this step silently if `make fmt` exits non-zero (tools unavailable)
+
 1. **Update branch if possible**
    - If the PR is behind its base branch (or otherwise indicates branch update needed), attempt `update_pull_request` with `update_branch: true`.
    - Use a minimal append body marker so maintainers can trace the action, including `pr-sous-chef` and the run URL.
@@ -189,6 +232,7 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - nudged_review_comments
 - nudged_other
 - branch_update_attempts
+- formatter_pushes (number of PRs that had formatting fixes committed and pushed)
 
 ## agent: `pr-processor`
 ---

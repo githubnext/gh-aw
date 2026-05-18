@@ -29,6 +29,7 @@ safe-outputs:
     close-older-issues: true
     expires: 30d
 imports:
+  - shared/mcp/grafana.md
   - shared/otlp.md
   - shared/otel-queries.md
 pre-agent-steps:
@@ -177,8 +178,7 @@ You are the semantic interpreter for the repository's agentic workflow portfolio
 - Telemetry = facts. Deterministic precompute/postcompute = math. Agent = interpretation.
 - Do **not** recompute raw scores, ranking, overlap values, fractions, or portfolio math from scratch.
 - Do **not** invent telemetry, economics, confidence, or success evidence.
-- Use the OTel queries skill only when the precompute file explicitly indicates that telemetry exists and needs brief interpretation.
-- Do not request or inspect raw traces.
+- When telemetry exists, use the Grafana MCP server in this workflow to validate the precomputed telemetry with recent `gh-aw` traces before finalizing recommendations.
 - Do not perform write actions with GitHub tools.
 
 ## Required Interpretation Scope

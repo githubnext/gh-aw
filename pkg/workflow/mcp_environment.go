@@ -75,7 +75,16 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		// GitHub Actions runner silently drops masked values in job outputs (runner v2.308+).
 		if appConfigured {
 			mcpEnvironmentLog.Print("Using GitHub App token from agent job step for GitHub MCP server (overrides custom and default tokens)")
-			envVars["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
+			if toolConfig, ok := githubTool.(map[string]any); ok {
+				if appMap, ok := toolConfig["github-app"].(map[string]any); ok {
+					if appConfig := parseAppConfig(appMap); appConfig.shouldIgnoreMissingKey() {
+						customGitHubToken := getGitHubToken(githubTool)
+						tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
+					}
+				}
+			}
+			envVars["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
 			// Otherwise, use custom token or default fallback
 			customGitHubToken := getGitHubToken(githubTool)

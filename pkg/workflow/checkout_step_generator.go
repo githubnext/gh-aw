@@ -204,6 +204,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 			}
 			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 			effectiveOverrideToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", defaultIdx)
+			if override.githubApp.shouldIgnoreMissingKey() {
+				effectiveOverrideToken = combineTokenExpressions(effectiveOverrideToken, getEffectiveGitHubToken(override.token))
+			}
 		}
 		if effectiveOverrideToken != "" {
 			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
@@ -283,6 +286,9 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 		// The token is minted in the agent job itself (same-job step reference).
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		effectiveToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+		if entry.githubApp.shouldIgnoreMissingKey() {
+			effectiveToken = combineTokenExpressions(effectiveToken, getEffectiveGitHubToken(entry.token))
+		}
 	}
 	if effectiveToken != "" {
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
@@ -386,6 +392,9 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 		// The token is minted in the agent job itself (same-job step reference).
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+		if entry.githubApp.shouldIgnoreMissingKey() {
+			token = combineTokenExpressions(token, getEffectiveGitHubToken(entry.token))
+		}
 	}
 	if token == "" {
 		token = getEffectiveGitHubToken("")

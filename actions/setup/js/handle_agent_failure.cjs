@@ -6,7 +6,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getDetectionCautionAlert, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 const { renderTemplate, renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
-const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { createExpirationLine, extractExpirationDate, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
@@ -94,6 +94,201 @@ async function findPullRequestForCurrentBranch() {
     core.warning(`Failed to find pull request for current branch: ${getErrorMessage(error)}`);
     return null;
   }
+}
+
+/**
+ * Parse HTML comment metadata into key/value pairs.
+ * @param {string} body - Body text to inspect
+ * @param {string} markerKey - Marker key that must be present in the comment
+ * @returns {Record<string, string>|null} Parsed metadata or null when not found
+ */
+function parseHTMLCommentMetadata(body, markerKey) {
+  if (!body) {
+    return null;
+  }
+
+  for (const match of body.matchAll(/<!--\s*([\s\S]*?)\s*-->/g)) {
+    const content = match[1].trim();
+    if (!content.includes(`${markerKey}:`)) {
+      continue;
+    }
+
+    /** @type {Record<string, string>} */
+    const metadata = {};
+    const pairMatches = [...content.matchAll(/(?:^|,\s*)([a-zA-Z0-9_-]+):\s*/g)];
+    for (let index = 0; index < pairMatches.length; index += 1) {
+      const pairMatch = pairMatches[index];
+      const nextPairMatch = pairMatches[index + 1];
+      const valueStart = (pairMatch.index || 0) + pairMatch[0].length;
+      const valueEnd = nextPairMatch ? nextPairMatch.index || content.length : content.length;
+      metadata[pairMatch[1]] = content.slice(valueStart, valueEnd).trim();
+    }
+
+    if (metadata[markerKey]) {
+      return metadata;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Build the stable category set used to match failure issues precisely.
+ * @param {Object} options - Active failure signals
+ * @returns {string[]} Sorted failure categories
+ */
+function buildFailureMatchCategories(options) {
+  const categories = [];
+
+  if (options.isTimedOut) categories.push("timed_out");
+  if (options.hasAssignmentErrors) categories.push("assignment_errors");
+  if (options.hasAssignCopilotFailures) categories.push("assign_copilot_failures");
+  if (options.hasCreateDiscussionErrors) categories.push("create_discussion_errors");
+  if (options.hasCodePushFailures) categories.push("code_push_failures");
+  if (options.hasRepoMemoryValidationErrors) categories.push("repo_memory_validation_errors");
+  if (options.hasPushRepoMemoryFailure) categories.push("push_repo_memory_failure");
+  if (options.hasMissingSafeOutputs) categories.push("missing_safe_outputs");
+  if (options.hasReportIncomplete) categories.push("report_incomplete");
+  if (options.hasMissingTool) categories.push("missing_tool");
+  if (options.hasMissingData) categories.push("missing_data");
+  if (options.hasCacheMissMisconfiguration) categories.push("cache_miss_misconfiguration");
+  if (options.secretVerificationFailed) categories.push("secret_verification_failed");
+  if (options.inferenceAccessError) categories.push("inference_access_error");
+  if (options.mcpPolicyError) categories.push("mcp_policy_error");
+  if (options.modelNotSupportedError) categories.push("model_not_supported_error");
+  if (options.effectiveTokensRateLimitError) categories.push("effective_tokens_rate_limit_error");
+  if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
+  if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
+  if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
+
+  if (options.agentConclusion === "failure" && !options.isTimedOut) {
+    categories.push("agent_failure");
+  }
+
+  return categories.sort();
+}
+
+/**
+ * Generate a precise failure-match marker for failure issue bodies.
+ * @param {Object} options - Marker options
+ * @param {string} options.workflowId - Workflow identifier
+ * @param {string} options.branch - Triggering branch
+ * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
+ * @param {string[]} options.failureCategories - Sorted failure categories
+ * @returns {string} HTML comment marker
+ */
+function generateFailureMatchMarker(options) {
+  const { workflowId, branch, pullRequestNumber, failureCategories } = options;
+  const parts = ["gh-aw-failure-issue: true", `workflow_id: ${workflowId}`, `branch: ${branch || ""}`, `failure_categories: ${failureCategories.join("|")}`];
+
+  if (pullRequestNumber) {
+    parts.push(`pull_request: ${pullRequestNumber}`);
+  }
+
+  return `<!-- ${parts.join(", ")} -->`;
+}
+
+/**
+ * Determine whether an existing issue body matches the current failure precisely.
+ * @param {string} body - Existing issue body
+ * @param {Object} options - Match criteria
+ * @param {string} options.workflowId - Workflow identifier
+ * @param {string} options.branch - Triggering branch
+ * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
+ * @param {string[]} options.failureCategories - Sorted failure categories
+ * @returns {boolean} True when the issue body matches and is not expired
+ */
+function isReusableFailureIssue(body, options) {
+  if (!body) {
+    return false;
+  }
+
+  const expirationDate = extractExpirationDate(body);
+  if (expirationDate && expirationDate.getTime() <= Date.now()) {
+    return false;
+  }
+
+  const workflowMarker = parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow");
+  if (!workflowMarker || workflowMarker.workflow_id !== options.workflowId) {
+    return false;
+  }
+
+  const failureMarker = parseHTMLCommentMetadata(body, "gh-aw-failure-issue");
+  if (!failureMarker) {
+    return false;
+  }
+
+  if ((failureMarker.workflow_id || "") !== options.workflowId) {
+    return false;
+  }
+  if ((failureMarker.branch || "") !== (options.branch || "")) {
+    return false;
+  }
+
+  const expectedPullRequest = options.pullRequestNumber ? String(options.pullRequestNumber) : "";
+  if ((failureMarker.pull_request || "") !== expectedPullRequest) {
+    return false;
+  }
+
+  return (failureMarker.failure_categories || "") === options.failureCategories.join("|");
+}
+
+/**
+ * Find an existing open failure issue that exactly matches the current failure metadata.
+ * @param {Object} options - Search options
+ * @param {string} options.owner - Repository owner
+ * @param {string} options.repo - Repository name
+ * @param {string} options.issueTitle - Failure issue title
+ * @param {string} options.workflowId - Workflow identifier
+ * @param {string} options.branch - Triggering branch
+ * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
+ * @param {string[]} options.failureCategories - Sorted failure categories
+ * @returns {Promise<{number: number, html_url: string} | null>} Matching issue or null
+ */
+async function findExistingFailureIssue(options) {
+  const { owner, repo, issueTitle, workflowId, branch, pullRequestNumber, failureCategories } = options;
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${issueTitle}"`;
+  const perPage = 100;
+
+  for (let page = 1; ; page += 1) {
+    const searchResult = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: perPage,
+      page,
+    });
+
+    for (const item of searchResult.data.items) {
+      let body = typeof item.body === "string" ? item.body : "";
+      if (!body) {
+        const issueResult = await github.rest.issues.get({
+          owner,
+          repo,
+          issue_number: item.number,
+        });
+        body = issueResult.data.body || "";
+      }
+
+      if (
+        isReusableFailureIssue(body, {
+          workflowId,
+          branch,
+          pullRequestNumber,
+          failureCategories,
+        })
+      ) {
+        return {
+          number: item.number,
+          html_url: item.html_url,
+        };
+      }
+    }
+
+    if (searchResult.data.items.length < perPage) {
+      break;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -1706,6 +1901,7 @@ async function main() {
 
     // Try to find a pull request for the current branch
     const pullRequest = await findPullRequestForCurrentBranch();
+    const currentBranch = getCurrentBranch();
 
     // Generate history URL for linking to all failure issues created by this workflow
     const historyUrl = generateHistoryUrl({
@@ -1735,21 +1931,45 @@ async function main() {
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
     const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
+    const failureCategories = buildFailureMatchCategories({
+      agentConclusion,
+      isTimedOut,
+      hasAssignmentErrors,
+      hasAssignCopilotFailures,
+      hasCreateDiscussionErrors,
+      hasCodePushFailures,
+      hasRepoMemoryValidationErrors: repoMemoryValidationErrors.length > 0,
+      hasPushRepoMemoryFailure,
+      hasMissingSafeOutputs,
+      hasReportIncomplete,
+      hasMissingTool,
+      hasMissingData,
+      hasCacheMissMisconfiguration,
+      secretVerificationFailed: secretVerificationResult === "failed",
+      inferenceAccessError,
+      mcpPolicyError,
+      modelNotSupportedError,
+      effectiveTokensRateLimitError,
+      hasAppTokenMintingFailed,
+      hasLockdownCheckFailed,
+      hasStaleLockFileFailed,
+    });
 
-    core.info(`Checking for existing issue with title: "${issueTitle}"`);
-
-    // Search for existing open issue with this title and label
-    const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${issueTitle}"`;
+    core.info(`Checking for existing issue with precise metadata match for title: "${issueTitle}"`);
 
     try {
-      const searchResult = await github.rest.search.issuesAndPullRequests({
-        q: searchQuery,
-        per_page: 1,
+      const existingIssue = await findExistingFailureIssue({
+        owner,
+        repo,
+        issueTitle,
+        workflowId: workflowID,
+        branch: currentBranch,
+        pullRequestNumber: pullRequest?.number,
+        failureCategories,
       });
 
-      if (searchResult.data.total_count > 0) {
+      if (existingIssue) {
         // Issue exists, add a comment
-        const existingIssue = searchResult.data.items[0];
         core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
         // Read comment template
@@ -1934,9 +2154,6 @@ async function main() {
         const issueTemplatePath = getPromptPath("agent_failure_issue.md");
         const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
 
-        // Get current branch information
-        const currentBranch = getCurrentBranch();
-
         // Build assignment errors context
         let assignmentErrorsContext = "";
         if (hasAssignmentErrors && assignmentErrors) {
@@ -2086,12 +2303,18 @@ async function main() {
           historyUrl: historyUrl || undefined,
         };
         const footer = getFooterAgentFailureIssueMessage(ctx);
+        const failureMatchMarker = generateFailureMatchMarker({
+          workflowId: workflowID,
+          branch: currentBranch,
+          pullRequestNumber: pullRequest?.number,
+          failureCategories,
+        });
 
         // Add expiration marker inside the quoted footer section using helper
         const footerWithExpires = generateFooterWithExpiration({
           footerText: footer,
           expiresHours: actionFailureIssueExpiresHours,
-          suffix: `\n\n${generateXMLMarker(workflowName, runUrl)}`,
+          suffix: `\n\n${generateXMLMarker(workflowName, runUrl)}\n${failureMatchMarker}`,
         });
 
         // Prepend detection caution alert (when present) so it appears first in the issue body

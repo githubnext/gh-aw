@@ -109,6 +109,9 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 			"client-id":   fallback.AppID,
 			"private-key": fallback.PrivateKey,
 		}
+		if fallback.IgnoreIfMissing {
+			appMap["ignore-if-missing"] = true
+		}
 		if fallback.Owner != "" {
 			appMap["owner"] = fallback.Owner
 		}

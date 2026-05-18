@@ -4,6 +4,8 @@ gh CLI is NOT authenticated. Use safeoutputs MCP server tools for GitHub writes 
 
 **CRITICAL: You MUST call at least one safe-output tool before finishing.** Multiple calls are allowed up to each tool's configured limit. If no GitHub action was taken (no issues, comments, PRs, etc. were created or updated), you MUST call `noop` with a message explaining why no action was needed. Failing to call any safe-output tool is the #1 cause of workflow failures. Do NOT end your response without calling at least one safe-output tool.
 
+Safe-output calls are write-once declarations for real downstream side effects. Do NOT use them for probing, auth tests, retries with placeholder content, or "let me see if this works" experiments. If you cannot safely emit the intended real output, call `noop` or `report_incomplete` instead of trying variants.
+
 When no action is needed, call noop like this:
 ```json
 {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why no action was required]"}}

@@ -465,6 +465,14 @@ The `projected_effective_tokens` top-level field MUST equal `p50_projected_effec
 
 If no historical runs are available for a workflow, the implementation MUST return a nil (empty/zero) projection for that workflow. Nil projections MUST be represented in JSON output as zero values for all numeric Monte Carlo fields. The implementation MUST NOT run trials when the sample is empty.
 
+### 7.6 Minimum Sample Size for Percentile Validity
+
+The P10 and P90 estimates produced by the Monte Carlo engine are only statistically reliable when the bootstrap sample contains a sufficient number of distinct ET observations.
+
+- **R-MC-030**: Implementations SHOULD require a minimum of **10** ET observations (i.e., runs with non-zero `effective_tokens`) before treating P10 and P90 as reliable estimates. When `n < 10`, implementations SHOULD emit a warning to stderr indicating that the confidence interval may be unreliable due to insufficient sample size. _Rationale: Bootstrap resampling with fewer than 10 observations produces percentile estimates that are highly sensitive to individual outliers. With n < 10, the P10 and P90 bounds collapse toward the single minimum and maximum observations, making the 80% confidence interval misleadingly precise. The threshold of 10 is consistent with standard statistical practice for non-parametric bootstrapping._
+- **R-MC-031**: Implementations MUST still run the Monte Carlo simulation and return P10/P50/P90 values even when `n < 10`. The simulation MUST NOT be suppressed solely on the basis of sample size; the warning in **R-MC-030** is advisory only.
+- **R-MC-032**: When `n = 0` (no ET observations in the sample), the **Nil Projection Condition** in §7.5 applies and the simulation MUST NOT run. This is a separate condition from the low-sample warning.
+
 ---
 
 ## 8. Episode Analysis
@@ -762,6 +770,34 @@ When `--verbose` is specified, the implementation SHOULD emit the following addi
 - The computed `λ` (Poisson rate) for each workflow
 - Timing information for API calls and simulation execution
 
+### 10.6 Safeguards for API Rate-Limit During Sampling
+
+When the GitHub API returns HTTP 429 or HTTP 403 (with a `X-RateLimit-Remaining: 0` header)
+during `gh api` sampling calls (i.e., while fetching run lists or artifact data for individual
+workflows):
+
+- **R-ERR-040**: The implementation MUST apply an exponential-backoff retry strategy: the first
+  retry MUST wait at least the number of seconds indicated by the `Retry-After` or
+  `X-RateLimit-Reset` header (whichever is present and non-zero). If neither header is present,
+  the implementation MUST wait at least 60 seconds before the first retry attempt.
+- **R-ERR-041**: The implementation MUST retry the failed request at least once before treating
+  the workflow as a partial failure. Implementations SHOULD retry up to 3 times with increasing
+  backoff intervals.
+- **R-ERR-042**: The implementation MUST emit a warning to stderr before each backoff wait
+  period, including the workflow identifier, the HTTP status code received, and the estimated
+  wait duration.
+- **R-ERR-043**: If all retry attempts are exhausted and the request still fails, the
+  implementation SHOULD fall back to partial-result mode: the affected workflow MUST be included
+  in output with `sampled_runs: 0` and all projection fields set to zero, consistent with
+  **R-ERR-021**. The implementation MUST NOT abort the entire forecast run due to a single
+  workflow's rate-limit failure.
+- **R-ERR-044**: When operating in partial-result mode due to rate-limit exhaustion, the
+  implementation SHOULD include a `rate_limit_skipped` boolean field set to `true` in the
+  workflow's JSON output entry so that callers can distinguish rate-limit-induced zero projections
+  from genuine zero-activity workflows. This field is an **additive optional extension** first
+  defined in Section 10.6; callers MUST treat its absence as equivalent to `false` (per
+  §11.5 / **R-IMPL-041**, unknown fields in JSON output MUST be treated as ignorable).
+
 ---
 
 ## 11. Implementation Requirements
@@ -799,6 +835,10 @@ Because the forecast command is marked **Experimental**:
 ## 12. Compliance Testing
 
 ### 12.1 Test Suite Requirements
+
+Test fixtures for the compliance tests are located in `specs/forecast-compliance-fixtures/`.
+See `specs/forecast-compliance-fixtures/README.md` for instructions on running the test suite
+and adding new fixtures.
 
 #### 12.1.1 Command Interface Tests
 

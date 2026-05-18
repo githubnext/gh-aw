@@ -10,6 +10,7 @@ const {
   resolveClaudePromptFileArgs,
   stripPromptFileArgs,
   isRateLimitError,
+  isAuthenticationFailedError,
   isMaxTurnsExit,
   isNoDeferredMarkerError,
   isSignalTerminationExitCode,
@@ -178,6 +179,17 @@ describe("claude_harness.cjs", () => {
 
     it("returns false for non-rate-limit output", () => {
       expect(isRateLimitError('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
+    });
+  });
+
+  describe("isAuthenticationFailedError", () => {
+    it("returns true for authentication failed with request id", () => {
+      expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
+    });
+
+    it("returns false for unrelated output", () => {
+      expect(isAuthenticationFailedError("No authentication information found")).toBe(false);
+      expect(isAuthenticationFailedError("rate_limit_error")).toBe(false);
     });
   });
 
@@ -435,6 +447,26 @@ process.exit(0);
         continueDisabledPermanently: false,
       });
       expect(result).toBe(false);
+    });
+  });
+
+  describe("auth failure retry policy", () => {
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @returns {boolean}
+     */
+    function shouldRetry(result, attempt) {
+      if (result.exitCode === 0) return false;
+      if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
+      return attempt < MAX_RETRIES && result.hasOutput;
+    }
+
+    it("does not retry when first attempt fails authentication", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Authentication failed (Request ID: 123)" };
+      expect(shouldRetry(result, 0)).toBe(false);
     });
   });
 });

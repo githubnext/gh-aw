@@ -186,7 +186,7 @@ func getDIFCProxyPolicyJSON(githubTool any, data *WorkflowData, gatewayConfig *M
 	}
 
 	if hasRepos {
-		policy["repos"] = repos
+		policy["repos"] = normalizeGitHubRepositoryInReposScope(repos)
 	} else {
 		// Default repos to "all" when min-integrity is specified without repos
 		policy["repos"] = "all"

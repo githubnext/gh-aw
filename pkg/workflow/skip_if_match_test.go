@@ -451,6 +451,54 @@ This workflow uses a GitHub App token for org-wide search.
 		}
 	})
 
+	t.Run("skip_if_match_with_github_app_ignore_if_missing", func(t *testing.T) {
+		workflowContent := `---
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  skip-if-match:
+    query: "org:myorg label:blocked is:issue is:open"
+    scope: none
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+    ignore-if-missing: true
+engine: claude
+---
+
+# Skip If Match With GitHub App (ignore-if-missing)
+`
+		workflowFile := filepath.Join(tmpDir, "skip-match-github-app-ignore-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := stringutil.MarkdownToLockFile(workflowFile)
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+		if !strings.Contains(lockContentStr, "if: ${{ secrets.WORKFLOW_APP_ID != '' && secrets.WORKFLOW_APP_PRIVATE_KEY != '' }}") {
+			t.Error("Expected guard to check app secrets directly when ignore-if-missing is enabled")
+		}
+		if strings.Contains(lockContentStr, "GH_AW_APP_CLIENT_ID:") {
+			t.Error("Did not expect step-local GH_AW_APP_CLIENT_ID env in mint step guard")
+		}
+		if strings.Contains(lockContentStr, "GH_AW_APP_PRIVATE_KEY:") {
+			t.Error("Did not expect step-local GH_AW_APP_PRIVATE_KEY env in mint step guard")
+		}
+		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token || secrets.GITHUB_TOKEN }}") {
+			t.Error("Expected skip-if-match to fall back to GITHUB_TOKEN when app minting is skipped")
+		}
+	})
+
 	t.Run("skip_if_match_imported_from_shared_on_section", func(t *testing.T) {
 		sharedContent := `---
 on:

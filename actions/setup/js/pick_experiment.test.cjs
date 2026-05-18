@@ -382,6 +382,22 @@ describe("pick_experiment", () => {
       expect(rawCall).toContain("> Test the new style feature");
     });
 
+    it("wraps experiment assignments in a details section", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: { variants: ["A", "B"] },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).toContain("<details>");
+      expect(rawCall).toContain("<summary>🧪 Experiment Assignments</summary>");
+      expect(rawCall).toContain("</details>");
+    });
+
     it("includes tracking issue link in step summary when issue field is set", async () => {
       const stateFile = path.join(tmpDir, "state.json");
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({

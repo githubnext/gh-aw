@@ -501,10 +501,7 @@ function formatManifestLogMessage(item) {
  */
 function rollbackReviewResults(results, errorMessage) {
   for (const r of results) {
-    if (
-      (r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") &&
-      r.success === true
-    ) {
+    if ((r.type === "submit_pull_request_review" || r.type === "create_pull_request_review_comment") && r.success === true) {
       r.success = false;
       r.error = `Review finalization failed: ${errorMessage}`;
     }

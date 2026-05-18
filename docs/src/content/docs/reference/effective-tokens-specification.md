@@ -265,6 +265,42 @@ A conforming response MUST include a `summary` object alongside the `invocations
 }
 ```
 
+### 7.1 OpenTelemetry Attribute Requirements
+
+Implementations that emit OpenTelemetry spans or metrics for token accounting MUST use the following
+normative attribute keys. These keys are not optional examples — they are required names for
+cross-implementation interoperability.
+
+| OTel Attribute Key | Type | Description |
+|---|---|---|
+| `llm.token.effective_total` | integer | Total Effective Tokens for the invocation (ET as defined in §4.4) |
+| `llm.token.input` | integer | Raw input token count for the invocation |
+| `llm.token.output` | integer | Raw output token count for the invocation |
+| `llm.token.cached_input` | integer | Number of input tokens served from cache |
+| `llm.token.base_weighted` | integer | Base weighted token value before model multiplier is applied |
+| `llm.model.multiplier` | float | The Copilot model multiplier (`m`) applied for this invocation |
+| `llm.invocation.id` | string | Unique identifier for this invocation node (matches `id` field in execution graph) |
+
+**R-OTL-001**: Implementations that emit OTel attributes for effective token data MUST use
+`llm.token.effective_total` as the attribute key for the ET value. Implementations MUST NOT use
+alternative keys (e.g., `effective_tokens`, `et_total`) for this attribute.
+
+**R-OTL-002**: Implementations MUST emit `llm.token.input`, `llm.token.output`, and
+`llm.token.cached_input` as separate span attributes when per-class token counts are available.
+These three attributes MUST reflect raw (unweighted) token counts.
+
+**R-OTL-003**: Implementations MUST emit `llm.token.base_weighted` as a span attribute when the
+base weighted token value is computed. This attribute allows consumers to audit the weighting step
+independently of the model multiplier.
+
+**R-OTL-004**: When `llm.model.multiplier` is emitted, its value MUST match the multiplier used
+to compute `llm.token.effective_total` for the same span. Implementations MUST NOT omit
+`llm.model.multiplier` if `llm.token.effective_total` is present.
+
+**R-OTL-005**: All OTel attribute keys defined in this section are versioned under this
+specification. Implementations MUST NOT rename or reuse these keys with different semantics
+without a specification revision.
+
 ---
 
 ## 8. Implementation Requirements
@@ -351,13 +387,24 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 - **T-ET-011**: `raw_total_tokens` equals the sum of all raw tokens across all invocations
 - **T-ET-012**: `total_invocations` count includes root, sub-agents, and tool-triggered calls
 
-#### 10.1.3 Execution Graph Tests
+#### 10.1.3 Aggregation with Zero-ET Leaf Nodes
+
+- **T-ET-006**: Multi-invocation aggregation where one or more leaf invocation nodes have all
+  token class values set to zero (simulating tool calls that produce no tokens, such as no-op
+  tool invocations or tool calls whose usage data is unavailable). The implementation MUST:
+  1. Include the zero-ET invocation node in `total_invocations` count.
+  2. Contribute `0` to `ET_total` from that node (rather than omitting it).
+  3. Represent the node in the execution graph with all `usage.*` fields set to `0` and
+     `derived.effective_tokens = 0`.
+  4. Not emit a warning or error solely because a leaf node has zero effective tokens.
+
+#### 10.1.4 Execution Graph Tests
 
 - **T-ET-020**: Root node has `parent_id = null`
 - **T-ET-021**: All sub-agent nodes reference a valid `parent_id`
 - **T-ET-022**: Node schema includes all required fields
 
-#### 10.1.4 Reporting Tests
+#### 10.1.5 Reporting Tests
 
 - **T-ET-030**: Summary object is present in all conforming responses
 - **T-ET-031**: Summary values are consistent with per-invocation data
@@ -368,17 +415,18 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 
 | Category | Count |
 |---|---|
-| Total tests defined | 12 |
-| Required tests | 12 |
+| Total tests defined | 13 |
+| Required tests | 13 |
 | Optional tests | 0 |
 
-Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `010–012`, `020–022`, `030–031`).
+Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `006`, `010–012`, `020–022`, `030–031`).
 
 | Requirement | Test ID | Level | Status |
 |---|---|---|---|
 | Per-invocation base weighted tokens | T-ET-001–004 | 1 | Implemented |
 | Per-invocation ET computation | T-ET-002 | 1 | Implemented |
 | Multi-invocation aggregation | T-ET-010–012 | 2 | Implemented |
+| Zero-ET leaf node aggregation | T-ET-006 | 2 | Required |
 | Execution graph node schema | T-ET-020–022 | 2 | Implemented |
 | Summary reporting | T-ET-030–031 | 3 | Implemented |
 | Custom weight disclosure | T-ET-004 | 1 | Implemented |
