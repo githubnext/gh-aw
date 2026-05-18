@@ -23,7 +23,9 @@ var importURLFetcherLog = logger.New("cli:import_url_fetcher")
 
 // FetchOptions configures FetchImportURL.
 type FetchOptions struct {
-	// HTTPClient overrides the default http.Client.  When nil a default client is used.
+	// HTTPClient overrides the default http.Client.  When nil, a client with
+	// importURLTimeout is used.  Callers that supply their own client are
+	// responsible for configuring an appropriate timeout.
 	HTTPClient *http.Client
 }
 
@@ -201,8 +203,13 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	req.Header.Set("Authorization", "Bearer "+token)
 }
 
-// sanitizeHTTPError strips the request URL from a *url.Error so that signed
-// or token-bearing URLs are never written to logs or error messages.
+// sanitizeHTTPError strips the request URL from a *url.Error (the error type
+// returned by http.Client.Do) so that signed or token-bearing query parameters
+// are never written to logs or returned in error messages.
+//
+// Note: errors from the HTTP stack that are not *url.Error (e.g. context
+// cancellation, TLS handshake failures surfaced as net.OpError) are returned
+// unchanged.  Those typically contain the host but not query parameters.
 func sanitizeHTTPError(err error) error {
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {

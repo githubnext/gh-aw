@@ -124,6 +124,16 @@ func TestConvertJSONWorkflowToMarkdown_NewlineInDescription(t *testing.T) {
 	assert.NotContains(t, gen.Markdown, "line one\nline two")
 }
 
+func TestYamlQuoteString_BackslashN(t *testing.T) {
+	// A literal backslash followed by 'n' (not a newline) must survive round-trip
+	// as '\\n' inside a double-quoted YAML scalar.
+	result := yamlQuoteString(`has\nbackslash`)
+	// No quoting needed for a plain backslash-n, but if quoted it must be \\n.
+	// Either way the result must not collapse the two characters into a single newline.
+	assert.NotContains(t, result, "\n")
+	assert.Contains(t, result, `\n`)
+}
+
 func TestJSONWorkflow_UnmarshalJSON_CapturesExtra(t *testing.T) {
 	raw := `{"id":"w","name":"N","unknown_key":"val","nested":{"a":1}}`
 	var wf JSONWorkflow
