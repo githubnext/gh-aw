@@ -11,6 +11,7 @@ import (
 )
 
 var safeOutputsAppLog = logger.New("workflow:safe_outputs_app")
+var githubExpressionLiteralReplacer = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t", " ", "\\", "\\\\", "'", "''")
 
 // ========================================
 // GitHub App Configuration
@@ -114,8 +115,7 @@ func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
 // Newlines/tabs are normalized to spaces and backslashes are doubled so generated
 // guards remain valid single-line expressions.
 func quoteGitHubExpressionLiteral(value string) string {
-	replacer := strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t", " ", "\\", "\\\\", "'", "''")
-	return "'" + replacer.Replace(value) + "'"
+	return "'" + githubExpressionLiteralReplacer.Replace(value) + "'"
 }
 
 // extractWrappedGitHubExpression returns the inner text for values wrapped as
@@ -127,6 +127,7 @@ func extractWrappedGitHubExpression(value string) (string, bool) {
 		return "", false
 	}
 	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "${{"), "}}"))
+	// Reject wrappers with no usable expression body (e.g. `${{ }}`).
 	if inner == "" {
 		return "", false
 	}
