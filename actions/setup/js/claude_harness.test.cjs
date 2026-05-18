@@ -452,7 +452,6 @@ process.exit(0);
 
   describe("auth failure retry policy", () => {
     const MAX_RETRIES = 3;
-    const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
     /**
      * @param {{hasOutput: boolean, exitCode: number, output: string}} result
@@ -461,7 +460,7 @@ process.exit(0);
      */
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
-      if (attempt === 0 && AUTHENTICATION_FAILED_PATTERN.test(result.output)) return false;
+      if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 

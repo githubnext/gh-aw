@@ -220,10 +220,9 @@ describe("codex_harness.cjs", () => {
      */
     function shouldRetry(result, attempt) {
       if (result.exitCode === 0) return false;
-      const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
       const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
       const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
-      if (attempt === 0 && AUTHENTICATION_FAILED_PATTERN.test(result.output)) return false;
+      if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);

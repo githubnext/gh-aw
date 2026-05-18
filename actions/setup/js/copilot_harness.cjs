@@ -616,6 +616,7 @@ if (typeof module !== "undefined" && module.exports) {
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
     buildMissingToolPermissionIssuePayload,
+    isAuthenticationFailedError,
     resolvePromptFileArgs,
   };
 }
