@@ -327,7 +327,7 @@ func TestGeminiEngineWithAgentFromImports(t *testing.T) {
 			ID: "gemini",
 		},
 		AgentFile: ".github/agents/test-agent.md",
-		Tools:     map[string]any{},
+		ParsedTools: NewTools(map[string]any{}),
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
@@ -376,7 +376,7 @@ func TestGeminiEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 		SandboxConfig: &SandboxConfig{
 			Agent: agentSandbox,
 		},
-		Tools: map[string]any{},
+		ParsedTools: NewTools(map[string]any{}),
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")

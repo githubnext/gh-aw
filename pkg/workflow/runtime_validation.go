@@ -180,41 +180,40 @@ func validateBlockScalarExpressionSizes(lines []string, maxSize int) error {
 
 // validateContainerImages validates that container images specified in MCP configs exist and are accessible
 func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
-	if workflowData.Tools == nil {
-		runtimeValidationLog.Print("No tools configured, skipping container validation")
+	if workflowData.ParsedTools == nil || len(workflowData.ParsedTools.Custom) == 0 {
+		runtimeValidationLog.Print("No custom tools configured, skipping container validation")
 		return nil
 	}
 
-	runtimeValidationLog.Printf("Validating container images for %d tools", len(workflowData.Tools))
+	runtimeValidationLog.Printf("Validating container images for %d custom tools", len(workflowData.ParsedTools.Custom))
 	var errors []string
-	for toolName, toolConfig := range workflowData.Tools {
-		if config, ok := toolConfig.(map[string]any); ok {
-			// Get the MCP configuration to extract container info
-			mcpConfig, err := getMCPConfig(config, toolName)
-			if err != nil {
-				// If we can't parse the MCP config, skip validation (will be caught elsewhere)
+	for toolName, toolConfig := range workflowData.ParsedTools.Custom {
+		config := mcpServerConfigToMap(toolConfig)
+		// Get the MCP configuration to extract container info
+		mcpConfig, err := getMCPConfig(config, toolName)
+		if err != nil {
+			// If we can't parse the MCP config, skip validation (will be caught elsewhere)
+			continue
+		}
+
+		// Check if this tool originally had a container field (before transformation)
+		if containerName, hasContainer := config["container"]; hasContainer && mcpConfig.Type == "stdio" {
+			// Build the full container image name with version
+			containerStr, ok := containerName.(string)
+			if !ok {
 				continue
 			}
 
-			// Check if this tool originally had a container field (before transformation)
-			if containerName, hasContainer := config["container"]; hasContainer && mcpConfig.Type == "stdio" {
-				// Build the full container image name with version
-				containerStr, ok := containerName.(string)
-				if !ok {
-					continue
+			containerImage := containerStr
+			if version, hasVersion := config["version"]; hasVersion {
+				if versionStr, ok := version.(string); ok && versionStr != "" {
+					containerImage = containerImage + ":" + versionStr
 				}
+			}
 
-				containerImage := containerStr
-				if version, hasVersion := config["version"]; hasVersion {
-					if versionStr, ok := version.(string); ok && versionStr != "" {
-						containerImage = containerImage + ":" + versionStr
-					}
-				}
-
-				// Validate the container image exists using docker
-				if err := validateDockerImage(containerImage, c.verbose, c.requireDocker); err != nil {
-					errors = append(errors, fmt.Sprintf("tool '%s': %v", toolName, err))
-				}
+			// Validate the container image exists using docker
+			if err := validateDockerImage(containerImage, c.verbose, c.requireDocker); err != nil {
+				errors = append(errors, fmt.Sprintf("tool '%s': %v", toolName, err))
 			}
 		}
 	}

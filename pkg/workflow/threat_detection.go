@@ -328,8 +328,8 @@ func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 		engineSetting = "claude"
 	}
 	detectionData := &WorkflowData{
-		Tools: map[string]any{},
-		AI:    engineSetting,
+		ParsedTools: NewTools(nil),
+		AI:          engineSetting,
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
 				Type: SandboxTypeAWF,
@@ -339,7 +339,7 @@ func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 		Features:    data.Features,    // Propagate features so cli-proxy image is included when enabled
 	}
 
-	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
+	images := collectDockerImages(detectionData.ParsedTools.ToMap(), detectionData, c.actionMode)
 	if len(images) == 0 {
 		return nil
 	}
@@ -646,9 +646,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// constraint, so restricting individual bash commands inside the sandbox adds friction
 	// without meaningful security benefit.
 	threatDetectionData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"*"},
-		},
+		}),
 		SafeOutputs:    nil,
 		EngineConfig:   detectionEngineConfig,
 		AI:             engineSetting,
@@ -692,7 +692,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// so config.toml includes the OpenAI proxy provider used by AWF API proxy mode.
 	if engine.GetID() == "codex" {
 		var mcpSetup strings.Builder
-		if err := c.generateMCPSetup(&mcpSetup, threatDetectionData.Tools, engine, threatDetectionData); err == nil {
+		if err := c.generateMCPSetup(&mcpSetup, threatDetectionData.ParsedTools.ToMap(), engine, threatDetectionData); err == nil {
 			for line := range strings.SplitSeq(mcpSetup.String(), "\n") {
 				if line != "" {
 					steps = append(steps, line+"\n")

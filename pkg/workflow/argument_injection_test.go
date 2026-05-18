@@ -190,12 +190,12 @@ func TestExtractPipFromCommands_HyphenPrefixFiltered(t *testing.T) {
 // layer of defense for the structured args format.
 func TestCollectPackagesFromWorkflow_HyphenPrefixInArgs(t *testing.T) {
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"test-tool": map[string]any{
 				"command": "npx",
 				"args":    []any{"-exploit", "safe-package"},
 			},
-		},
+		}),
 	}
 
 	packages := collectPackagesFromWorkflow(workflowData, extractNpxFromCommands, "npx")

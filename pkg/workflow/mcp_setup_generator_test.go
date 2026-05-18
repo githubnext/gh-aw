@@ -47,7 +47,7 @@ func TestMCPScriptsStepCodeGenerationStability(t *testing.T) {
 
 	workflowData := &WorkflowData{
 		MCPScripts:      mcpScriptsConfig,
-		Tools:           make(map[string]any),
+		ParsedTools: NewTools(nil),
 		FrontmatterHash: "stabletesthash1234567890abcdef",
 		Features: map[string]any{
 			"mcp-scripts": true, // Feature flag is optional now
@@ -186,7 +186,7 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
 				SandboxConfig: tt.sandboxConfig,
-				Tools:         map[string]any{"github": map[string]any{}},
+				ParsedTools: NewTools(map[string]any{"github": map[string]any{}},
 			}
 
 			// Ensure MCP gateway config is applied (includes normalization of "latest")

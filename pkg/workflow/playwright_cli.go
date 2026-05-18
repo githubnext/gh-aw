@@ -33,15 +33,12 @@ import (
 
 var playwrightCLILog = logger.New("workflow:playwright_cli")
 
-// isPlaywrightCLIMode returns true when the playwright tool in the given tools map
-// is configured with mode: cli.
-func isPlaywrightCLIMode(tools map[string]any) bool {
-	playwrightTool, ok := tools["playwright"]
-	if !ok || playwrightTool == false {
+// isPlaywrightCLIMode returns true when the playwright tool is configured with mode: cli.
+func isPlaywrightCLIMode(tools *ToolsConfig) bool {
+	if tools == nil || tools.Playwright == nil {
 		return false
 	}
-	config := parsePlaywrightTool(playwrightTool)
-	return config != nil && config.IsCLIMode()
+	return tools.Playwright.IsCLIMode()
 }
 
 // generatePlaywrightCLIInstallSteps returns npm install steps for @playwright/cli
@@ -51,7 +48,7 @@ func isPlaywrightCLIMode(tools map[string]any) bool {
 // (copilot, claude, codex, gemini) include a Node.js setup step in their own
 // installation steps, which run before this function is called.
 func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActionStep {
-	if !isPlaywrightCLIMode(workflowData.Tools) {
+	if !isPlaywrightCLIMode(workflowData.ParsedTools) {
 		return nil
 	}
 
@@ -59,12 +56,9 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 
 	version := string(constants.DefaultPlaywrightCLIVersion)
 	// Use version override from playwright config if provided
-	if playwrightTool, ok := workflowData.Tools["playwright"]; ok {
-		config := parsePlaywrightTool(playwrightTool)
-		if config != nil && config.Version != "" {
-			version = config.Version
-			playwrightCLILog.Printf("Using playwright CLI version from config: %s", version)
-		}
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.Playwright != nil && workflowData.ParsedTools.Playwright.Version != "" {
+		version = workflowData.ParsedTools.Playwright.Version
+		playwrightCLILog.Printf("Using playwright CLI version from config: %s", version)
 	}
 
 	// Install @playwright/cli globally.

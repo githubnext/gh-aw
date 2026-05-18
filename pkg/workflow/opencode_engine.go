@@ -135,7 +135,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 				constants.OpenCodeEngine,
 				model,
 				workflowData.NetworkPermissions,
-				workflowData.Tools,
+				workflowData.ParsedTools.ToMap(),
 				workflowData.Runtimes,
 			)
 		}

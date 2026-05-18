@@ -639,12 +639,12 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				},
 			},
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": []any{"echo"},
 					"github": map[string]any{
 						"mode": "gh-proxy",
 					},
-				},
+				}),
 			},
 			expected: []string{"--allow-tool", "github", "--allow-tool", "shell(echo)", "--allow-tool", "shell(gh:*)"},
 		},
@@ -658,12 +658,12 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				},
 			},
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": []any{"echo"},
 					"playwright": map[string]any{
 						"mode": "cli",
 					},
-				},
+				}),
 			},
 			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(playwright-cli:*)"},
 		},
@@ -676,12 +676,12 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				},
 			},
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": nil,
 					"playwright": map[string]any{
 						"mode": "cli",
 					},
-				},
+				}),
 			},
 			expected: []string{"--allow-tool", "shell"},
 		},
@@ -694,12 +694,12 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				},
 			},
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": []any{"*"},
 					"playwright": map[string]any{
 						"mode": "cli",
 					},
-				},
+				}),
 			},
 			expected: []string{"--allow-all-tools"},
 		},
@@ -710,10 +710,10 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"playwright": true,
 			},
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash":       []any{"echo"},
 					"playwright": true,
-				},
+				}),
 			},
 			expected: []string{"--allow-tool", "shell(echo)"},
 		},
@@ -872,10 +872,10 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"echo", "git status"},
 			"edit": nil,
-		},
+		}),
 		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"echo", "git status"},
 			"edit": nil,
@@ -1008,9 +1008,9 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"git add:*", "git commit:*"},
-		},
+		}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
@@ -1054,9 +1054,9 @@ func TestCopilotEnginePromptFilePath(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"git status"},
-		},
+		}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
@@ -1180,11 +1180,11 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{
 				"allowed": []any{"add_issue_comment", "issue_read"},
 			},
-		},
+		}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
@@ -1895,7 +1895,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
-			Tools:        make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs:  nil,
 		}
 
@@ -1932,7 +1932,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 				ID:            "copilot",
 				HarnessScript: "custom_copilot_harness.cjs",
 			},
-			Tools: make(map[string]any),
+			ParsedTools: NewTools(nil),
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
@@ -1961,7 +1961,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 				ID:      "copilot",
 				Command: `bash -lc 'echo custom command'`,
 			},
-			Tools: make(map[string]any),
+			ParsedTools: NewTools(nil),
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")

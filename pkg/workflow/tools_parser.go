@@ -51,7 +51,6 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"strconv"
 	"strings"
@@ -93,17 +92,12 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if toolsMap == nil {
 		return &Tools{
 			Custom: make(map[string]MCPServerConfig),
-			raw:    make(map[string]any),
 		}
 	}
 
 	tools := &Tools{
 		Custom: make(map[string]MCPServerConfig),
-		raw:    make(map[string]any),
 	}
-
-	// Copy raw map
-	maps.Copy(tools.raw, toolsMap)
 
 	// Extract and parse known tools
 	if val, exists := toolsMap["github"]; exists {
@@ -386,6 +380,9 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 		if endorserMinIntegrity, ok := configMap["endorser-min-integrity"].(string); ok {
 			config.EndorserMinIntegrity = endorserMinIntegrity
+		}
+		if integrityProxy, ok := configMap["integrity-proxy"].(bool); ok {
+			config.IntegrityProxy = &integrityProxy
 		}
 
 		return config

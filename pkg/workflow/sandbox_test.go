@@ -34,11 +34,11 @@ func TestValidateSandboxConfig(t *testing.T) {
 						Type: SandboxTypeAWF,
 					},
 				},
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"mode": "remote",
 					},
-				},
+				}),
 			},
 		},
 	}

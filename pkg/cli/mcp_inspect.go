@@ -274,8 +274,8 @@ func buildFrontmatterFromWorkflowData(workflowData *workflow.WorkflowData) map[s
 	// Override tools with the fully merged result (includes built-in tools from imports such as
 	// github, playwright, and serena). ExtractMCPConfigurations only picks up github/playwright/serena
 	// from the tools key, so extra user-defined entries here are harmless.
-	if len(workflowData.Tools) > 0 {
-		frontmatter["tools"] = workflowData.Tools
+	if toolsMap := workflowData.ParsedTools.ToMap(); len(toolsMap) > 0 {
+		frontmatter["tools"] = toolsMap
 	}
 
 	// Override mcp-servers with the fully merged result (includes user-defined servers from all

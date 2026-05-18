@@ -415,9 +415,9 @@ func TestCollectPromptSections_CliProxy(t *testing.T) {
 		compiler := &Compiler{}
 
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"mode": "gh-proxy"},
-			},
+			}),
 			ParsedTools: NewTools(map[string]any{"github": map[string]any{"mode": "gh-proxy"}}),
 			SafeOutputs: nil,
 		}

@@ -96,40 +96,11 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 	}
 
 	// Fallback for tools.github (tools.github.github-app / tools.github.github-token).
-	// Also skipped when tools.github is explicitly disabled (github: false) — do not re-enable it.
 	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil &&
-		topLevelFallbackNeeded(data.ParsedTools.GitHub.GitHubApp, data.ParsedTools.GitHub.GitHubToken) &&
-		data.Tools["github"] != false {
+		topLevelFallbackNeeded(data.ParsedTools.GitHub.GitHubApp, data.ParsedTools.GitHub.GitHubToken) {
 		workflowGitHubAppLog.Print("Applying top-level github-app fallback for tools.github")
 		data.ParsedTools.GitHub.GitHubApp = fallback
-		// Also update the raw tools map so applyDefaultTools (called from applyDefaults in
-		// processOnSectionAndFilters) does not lose the fallback when it rebuilds ParsedTools
-		// from the map.
-		appMap := map[string]any{
-			"client-id":   fallback.AppID,
-			"private-key": fallback.PrivateKey,
-		}
-		if fallback.IgnoreIfMissing {
-			appMap["ignore-if-missing"] = true
-		}
-		if fallback.Owner != "" {
-			appMap["owner"] = fallback.Owner
-		}
-		if len(fallback.Repositories) > 0 {
-			repos := make([]any, len(fallback.Repositories))
-			for i, r := range fallback.Repositories {
-				repos[i] = r
-			}
-			appMap["repositories"] = repos
-		}
-		// Normalize data.Tools["github"] to a map so the github-app survives re-parsing.
-		// Configurations like `github: true` are normalized here rather than losing the fallback.
-		if github, ok := data.Tools["github"].(map[string]any); ok {
-			// Already a map; inject into existing settings.
-			github["github-app"] = appMap
-		} else {
-			// Non-map value (e.g. true) — create a fresh map.
-			data.Tools["github"] = map[string]any{"github-app": appMap}
-		}
+		// ParsedTools.GitHub.GitHubApp is now set; applyDefaultTools round-trips through
+		// githubToolToMap/NewTools so the fallback survives the ParsedTools rebuild.
 	}
 }

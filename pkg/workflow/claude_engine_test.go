@@ -176,7 +176,7 @@ func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash":       []any{"echo"},
 			"cli-proxy":  true,
 			"playwright": true,
@@ -184,7 +184,7 @@ func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
 				"command": "npx",
 				"args":    []any{"-y", "@acme/mcp-server"},
 			},
-		},
+		}),
 		SafeOutputs: &SafeOutputsConfig{
 			NoOp: &NoOpConfig{},
 		},
@@ -438,9 +438,9 @@ func TestClaudeEngineWithMCPServers(t *testing.T) {
 	// Test with GitHub MCP tool configured
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{},
-		},
+		}),
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
@@ -469,7 +469,7 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 	// Test with safe-outputs configured (which adds safe-outputs MCP server)
 	workflowData := &WorkflowData{
 		Name:  "test-workflow",
-		Tools: map[string]any{},
+		ParsedTools: NewTools(map[string]any{}),
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},

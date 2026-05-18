@@ -421,13 +421,13 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 		ParsedTools: &ToolsConfig{
 			CLIProxy: true,
 		},
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"echo"},
 			"my-mcp-cli": map[string]any{
 				"command": "node",
 				"args":    []any{"index.js"},
 			},
-		},
+		}),
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: []string{"defaults"},
 			Firewall: &FirewallConfig{

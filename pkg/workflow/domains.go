@@ -952,7 +952,7 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 			model = data.EngineConfig.Model
 		}
 		var err error
-		base, err = GetAllowedDomainsForEngineWithModel(engine, model, data.NetworkPermissions, data.Tools, data.Runtimes)
+		base, err = GetAllowedDomainsForEngineWithModel(engine, model, data.NetworkPermissions, data.ParsedTools.ToMap(), data.Runtimes)
 		if err != nil {
 			return "", err
 		}

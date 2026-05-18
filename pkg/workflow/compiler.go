@@ -491,7 +491,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
-	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
+	toolCount := 0
+	if workflowData.ParsedTools != nil {
+		toolCount = len(workflowData.ParsedTools.ToMap())
+	}
+	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, toolCount)
 
 	// Note: compute-text functionality is now inlined directly in the task job
 	// instead of using a shared action file

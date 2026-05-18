@@ -177,7 +177,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 				constants.CrushEngine,
 				model,
 				workflowData.NetworkPermissions,
-				workflowData.Tools,
+				workflowData.ParsedTools.ToMap(),
 				workflowData.Runtimes,
 			)
 		}

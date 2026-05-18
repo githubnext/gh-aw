@@ -35,9 +35,9 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "github tool disabled",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": false,
-				},
+				}),
 			},
 			expected: false,
 			desc:     "disabled github tool should not trigger proxy",
@@ -45,9 +45,9 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "github tool without guard policy",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{"toolsets": []string{"default"}},
-				},
+				}),
 				CustomSteps: "steps:\n  - name: Fetch data\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			},
 			expected: false,
@@ -56,11 +56,11 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "guard policy configured but no pre-agent steps with GH_TOKEN",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity": "approved",
 					},
-				},
+				}),
 			},
 			expected: false,
 			desc:     "guard policy without GH_TOKEN pre-agent steps should not trigger proxy",
@@ -68,12 +68,12 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "guard policy + custom steps with GH_TOKEN but integrity-proxy disabled",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity":   "approved",
 						"integrity-proxy": false,
 					},
-				},
+				}),
 				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			},
 			expected: false,
@@ -82,11 +82,11 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "guard policy + custom steps with GH_TOKEN (proxy enabled by default)",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity": "approved",
 					},
-				},
+				}),
 				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			},
 			expected: true,
@@ -95,12 +95,12 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "guard policy + custom steps with GH_TOKEN + integrity-proxy explicitly true",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity":   "approved",
 						"integrity-proxy": true,
 					},
-				},
+				}),
 				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			},
 			expected: true,
@@ -109,12 +109,12 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "guard policy + repo-memory configured",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity": "approved",
 						"repos":         "all",
 					},
-				},
+				}),
 				RepoMemoryConfig: &RepoMemoryConfig{
 					Memories: []RepoMemoryEntry{{ID: "memory"}},
 				},
@@ -125,12 +125,12 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		{
 			name: "guard policy with allowed-repos + custom steps with GH_TOKEN (default enabled)",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity": "merged",
 						"allowed-repos": []string{"owner/repo"},
 					},
-				},
+				}),
 				CustomSteps: "steps:\n  - name: Fetch PRs\n    env:\n      GH_TOKEN: ${{ secrets.MY_TOKEN }}\n    run: gh pr list",
 			},
 			expected: true,
@@ -297,9 +297,9 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 	t.Run("no proxy when guard policy not configured", func(t *testing.T) {
 		var yaml strings.Builder
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"toolsets": []string{"default"}},
-			},
+			}),
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
 		}
@@ -310,9 +310,9 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 	t.Run("no proxy when no GH_TOKEN pre-agent steps", func(t *testing.T) {
 		var yaml strings.Builder
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"min-integrity": "approved"},
-			},
+			}),
 			SandboxConfig: &SandboxConfig{},
 		}
 		c.generateStartDIFCProxyStep(&yaml, data)
@@ -322,11 +322,11 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 	t.Run("generates start step with guard policy and custom steps", func(t *testing.T) {
 		var yaml strings.Builder
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{
 					"min-integrity": "approved",
 				},
-			},
+			}),
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
 		}
@@ -356,9 +356,9 @@ func TestGenerateStopDIFCProxyStep(t *testing.T) {
 	t.Run("no stop step when proxy not needed", func(t *testing.T) {
 		var yaml strings.Builder
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"toolsets": []string{"default"}},
-			},
+			}),
 			SandboxConfig: &SandboxConfig{},
 		}
 		c.generateStopDIFCProxyStep(&yaml, data)
@@ -368,9 +368,9 @@ func TestGenerateStopDIFCProxyStep(t *testing.T) {
 	t.Run("generates stop step when proxy is needed", func(t *testing.T) {
 		var yaml strings.Builder
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"min-integrity": "approved"},
-			},
+			}),
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
 		}
@@ -387,9 +387,9 @@ func TestGenerateStopDIFCProxyStep(t *testing.T) {
 func TestDIFCProxyLogPaths(t *testing.T) {
 	t.Run("no log paths when proxy not needed", func(t *testing.T) {
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"toolsets": []string{"default"}},
-			},
+			}),
 		}
 		paths := difcProxyLogPaths(data)
 		assert.Empty(t, paths, "should return no log paths when proxy not needed")
@@ -397,9 +397,9 @@ func TestDIFCProxyLogPaths(t *testing.T) {
 
 	t.Run("returns proxy-logs path when proxy is needed", func(t *testing.T) {
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"min-integrity": "approved"},
-			},
+			}),
 			CustomSteps: "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 		}
 		paths := difcProxyLogPaths(data)
@@ -593,54 +593,54 @@ func TestHasDIFCGuardsConfigured(t *testing.T) {
 		{
 			name: "github tool without guard policy",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{"toolsets": []string{"default"}},
-				},
+				}),
 			},
 			expected: false,
 		},
 		{
 			name: "github tool with min-integrity (enabled by default)",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{"min-integrity": "approved"},
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "github tool with min-integrity and integrity-proxy: true",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity":   "approved",
 						"integrity-proxy": true,
 					},
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "github tool with min-integrity and integrity-proxy: false",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity":   "approved",
 						"integrity-proxy": false,
 					},
-				},
+				}),
 			},
 			expected: false,
 		},
 		{
 			name: "github tool with allowed-repos and min-integrity (enabled by default)",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"allowed-repos": "all",
 						"min-integrity": "merged",
 					},
-				},
+				}),
 			},
 			expected: true,
 		},
@@ -850,9 +850,9 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 
 	t.Run("emits default policy when no guard policy is configured", func(t *testing.T) {
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"toolsets": []string{"default"}},
-			},
+			}),
 		}
 
 		result := c.buildStartCliProxyStepYAML(data)
@@ -865,7 +865,7 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 
 	t.Run("emits default policy when github tool is nil", func(t *testing.T) {
 		data := &WorkflowData{
-			Tools: map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 
 		result := c.buildStartCliProxyStepYAML(data)
@@ -876,12 +876,12 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 
 	t.Run("uses configured guard policy when present", func(t *testing.T) {
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{
 					"min-integrity": "approved",
 					"allowed-repos": "owner/*",
 				},
-			},
+			}),
 		}
 
 		result := c.buildStartCliProxyStepYAML(data)
@@ -893,9 +893,9 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 
 	t.Run("emits correct step structure", func(t *testing.T) {
 		data := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{"toolsets": []string{"default"}},
-			},
+			}),
 		}
 
 		result := c.buildStartCliProxyStepYAML(data)
@@ -1021,11 +1021,11 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 						Version: awfVersion,
 					},
 				},
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"mode": "local",
 					},
-				},
+				}),
 				Features: map[string]any{"cli-proxy": true},
 			},
 			expected: false,
@@ -1040,11 +1040,11 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 						Version: awfVersion,
 					},
 				},
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"mode": "gh-proxy",
 					},
-				},
+				}),
 			},
 			expected: true,
 			desc:     "explicit tools.github.mode=gh-proxy should enable cli proxy without legacy feature",

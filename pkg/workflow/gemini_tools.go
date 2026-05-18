@@ -125,16 +125,9 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) GitHubActionStep {
 	geminiToolsLog.Printf("Generating Gemini settings step for: %s", workflowData.Name)
 
-	tools := workflowData.Tools
-	if tools == nil {
-		tools = make(map[string]any)
-	}
-	workflowDataWithEffectiveTools := *workflowData
-	workflowDataWithEffectiveTools.Tools = tools
-	tools = withMountedCLIShellCommandsInRestrictedBash(&workflowDataWithEffectiveTools)
-
-	// Compute tools.core from neutral tool configuration
-	toolsCore := computeGeminiToolsCore(tools)
+	// Compute tools.core from neutral tool configuration with CLI-mounted commands injected.
+	effectiveTools := withMountedCLIShellCommandsInRestrictedBash(workflowData)
+	toolsCore := computeGeminiToolsCore(effectiveTools.ToMap())
 	geminiToolsLog.Printf("tools.core entries: %d", len(toolsCore))
 
 	// Build the settings JSON object

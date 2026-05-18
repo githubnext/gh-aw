@@ -38,9 +38,9 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name: "test-workflow",
 				AI:   tt.engine,
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": []any{"echo"},
-				},
+				}),
 				SafeOutputs: &SafeOutputsConfig{
 					// Just enough to make it an agent job
 				},
@@ -113,9 +113,9 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 				Name:        "test-detection",
 				AI:          tt.engine,
 				SafeOutputs: nil, // This makes it a detection job
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": []any{"cat", "grep"},
-				},
+				}),
 			}
 
 			// Get the engine
@@ -168,9 +168,9 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 			ID:    "copilot",
 			Model: "gpt-4",
 		},
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"echo"},
-		},
+		}),
 		SafeOutputs: &SafeOutputsConfig{
 			// Just enough to make it an agent job
 		},
@@ -240,9 +240,9 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name: "test-workflow",
 				AI:   "copilot",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": []any{"echo"},
-				},
+				}),
 				SafeOutputs: tt.safeOutputs,
 				Features:    tt.features,
 			}
@@ -337,9 +337,9 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 					ID:    tt.engine,
 					Model: tt.model,
 				},
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash": []any{"echo"},
-				},
+				}),
 				SafeOutputs: &SafeOutputsConfig{},
 			}
 
@@ -393,9 +393,9 @@ func TestExpressionModelDetectionJobUsesEnvVar(t *testing.T) {
 			ID:    "copilot",
 			Model: "${{ inputs.model }}",
 		},
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"bash": []any{"cat", "grep"},
-		},
+		}),
 		SafeOutputs: nil, // detection job
 	}
 

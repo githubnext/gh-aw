@@ -847,12 +847,11 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	// Include lockdown validation env vars when lockdown is explicitly enabled.
 	// validateLockdownRequirements is called from generate_aw_info.cjs and uses these vars.
-	githubTool, hasGitHub := data.Tools["github"]
-	if hasGitHub && githubTool != false && hasGitHubLockdownExplicitlySet(githubTool) && getGitHubLockdown(githubTool) {
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.Lockdown {
 		yaml.WriteString("          GITHUB_MCP_LOCKDOWN_EXPLICIT: \"true\"\n")
 		yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
 		yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
-		if customToken := getGitHubToken(githubTool); customToken != "" {
+		if customToken := getGitHubToken(githubToolToMap(data.ParsedTools.GitHub)); customToken != "" {
 			fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
 		}
 	}

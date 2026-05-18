@@ -17,9 +17,9 @@ func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{},
 		},
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"safe-outputs": map[string]any{},
-		},
+		}),
 	}
 
 	compiler := &Compiler{}
@@ -83,7 +83,7 @@ func TestMCPScriptsAPIKeyImmediateMasking(t *testing.T) {
 				},
 			},
 		},
-		Tools: map[string]any{},
+		ParsedTools: NewTools(map[string]any{}),
 		Features: map[string]any{
 			"mcp-scripts": true,
 		},
@@ -138,11 +138,11 @@ func TestMCPScriptsAPIKeyImmediateMasking(t *testing.T) {
 // is masked immediately after generation, before any export or other operations.
 func TestMCPGatewayAPIKeyImmediateMasking(t *testing.T) {
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{
 				"mode": "local",
 			},
-		},
+		}),
 	}
 
 	compiler := &Compiler{}
@@ -191,12 +191,12 @@ func TestAPIKeyMaskingNoEmptyDeclaration(t *testing.T) {
 				"test": {Name: "test", Run: "echo test"},
 			},
 		},
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"safe-outputs": map[string]any{},
 			"github": map[string]any{
 				"mode": "local",
 			},
-		},
+		}),
 		Features: map[string]any{
 			"mcp-scripts": true,
 		},

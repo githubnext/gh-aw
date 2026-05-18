@@ -66,7 +66,6 @@ func (c *Compiler) getEngineBaseEnvVarKeys(engineID string) map[string]bool {
 	// Tools/ParsedTools and no MCPScripts we get just the base engine secrets (e.g.
 	// COPILOT_GITHUB_TOKEN, ANTHROPIC_API_KEY) without any optional/conditional ones.
 	minimalData := &WorkflowData{
-		Tools:       map[string]any{},
 		ParsedTools: &ToolsConfig{},
 	}
 	keys := make(map[string]bool)

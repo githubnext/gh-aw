@@ -107,7 +107,6 @@ func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
 			// MCPScripts is populated. By passing empty Tools/ParsedTools we get just the
 			// base engine secrets without any optional/conditional ones.
 			minimalData := &workflow.WorkflowData{
-				Tools:       map[string]any{},
 				ParsedTools: &workflow.ToolsConfig{},
 			}
 			for _, name := range engine.GetRequiredSecretNames(minimalData) {

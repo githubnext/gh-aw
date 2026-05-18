@@ -239,12 +239,12 @@ func TestCollectPackagesFromWorkflow_Combined(t *testing.T) {
 			name: "Packages from all sources with deduplication",
 			workflowData: &WorkflowData{
 				CustomSteps: "npm install axios\nnpm install lodash",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"server1": map[string]any{
 						"command": "npx",
 						"args":    []any{"-y", "axios"}, // Duplicate
 					},
-				},
+				}),
 			},
 			extractor: func(s string) []string {
 				var result []string
@@ -263,7 +263,7 @@ func TestCollectPackagesFromWorkflow_Combined(t *testing.T) {
 			name: "Empty sources",
 			workflowData: &WorkflowData{
 				CustomSteps: "",
-				Tools:       map[string]any{},
+				ParsedTools: NewTools(map[string]any{}),
 			},
 			extractor: func(s string) []string {
 				return []string{}
@@ -276,7 +276,7 @@ func TestCollectPackagesFromWorkflow_Combined(t *testing.T) {
 			workflowData: &WorkflowData{
 				CustomSteps:  "npm install axios",
 				EngineConfig: nil,
-				Tools:        nil,
+				ParsedTools: nil,
 			},
 			extractor: func(s string) []string {
 				return []string{"axios"}

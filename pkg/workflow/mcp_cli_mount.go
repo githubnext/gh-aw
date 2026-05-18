@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -54,42 +53,30 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	if data.ParsedTools != nil && data.ParsedTools.CLIProxy {
 		mcpCLIMountLog.Print("cli-proxy enabled, collecting user-facing CLI server names")
 
-		// Collect user-facing standard MCP tools from the raw Tools map
-		for toolName, toolValue := range data.Tools {
-			if toolValue == false {
-				continue
-			}
-			// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
-			// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
-			switch toolName {
-			case "playwright":
-				// In CLI mode, playwright is installed as @playwright/cli via npm and is NOT
-				// an MCP server, so it must not appear in the CLI-mounted servers list.
-				if !isPlaywrightCLIMode(data.Tools) {
-					servers = append(servers, toolName)
-				}
-			case "qmd":
-				servers = append(servers, toolName)
-			case "agentic-workflows":
-				// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.
-				// Using the gateway ID here ensures GH_AW_MCP_CLI_SERVERS matches the manifest entries.
-				servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
-			default:
-				// Include custom MCP servers (not in the internal list)
-				if !internalMCPServerNames[toolName] {
-					if mcpConfig, ok := toolValue.(map[string]any); ok {
-						if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-							servers = append(servers, toolName)
-						}
-					}
-				}
+		// Collect user-facing standard MCP tools from ParsedTools
+		if data.ParsedTools.Playwright != nil {
+			// In CLI mode, playwright is installed as @playwright/cli via npm and is NOT
+			// an MCP server, so it must not appear in the CLI-mounted servers list.
+			if !isPlaywrightCLIMode(data.ParsedTools) {
+				servers = append(servers, "playwright")
 			}
 		}
-
-		// Also check ParsedTools.Custom for custom MCP servers
-		for name := range data.ParsedTools.Custom {
-			if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
-				servers = append(servers, name)
+		if _, hasQMD := data.ParsedTools.Custom["qmd"]; hasQMD {
+			servers = append(servers, "qmd")
+		}
+		if data.ParsedTools.AgenticWorkflows != nil && data.ParsedTools.AgenticWorkflows.Enabled {
+			// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.
+			servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
+		}
+		// Include custom MCP servers (not in the internal list)
+		for name, toolConfig := range data.ParsedTools.Custom {
+			if !internalMCPServerNames[name] && name != "qmd" {
+				mcpConfigMap := mcpServerConfigToMap(toolConfig)
+				if hasMcp, _ := hasMCPConfig(mcpConfigMap); hasMcp {
+					if !slices.Contains(servers, name) {
+						servers = append(servers, name)
+					}
+				}
 			}
 		}
 	}
@@ -116,23 +103,20 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	return servers
 }
 
-func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) *WorkflowData {
+func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools *ToolsConfig, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) *WorkflowData {
 	if workflowData == nil {
 		workflowData = &WorkflowData{}
 	}
 
 	copied := *workflowData
-	if copied.Tools == nil {
-		copied.Tools = tools
+	if copied.ParsedTools == nil {
+		copied.ParsedTools = tools
 	}
 	if copied.SafeOutputs == nil {
 		copied.SafeOutputs = safeOutputs
 	}
 	if copied.MCPScripts == nil {
 		copied.MCPScripts = mcpScripts
-	}
-	if copied.ParsedTools == nil && copied.Tools != nil {
-		copied.ParsedTools = NewTools(copied.Tools)
 	}
 
 	return &copied
@@ -141,86 +125,65 @@ func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]
 // hasBashRestrictedAllowlist reports true when tools contains an explicit, finite bash
 // command allowlist (not a wildcard). Used to decide whether implicit commands must be
 // injected for auto-allowed tools such as playwright-cli.
-func hasBashRestrictedAllowlist(tools map[string]any) bool {
-	if tools == nil {
+func hasBashRestrictedAllowlist(tools *ToolsConfig) bool {
+	if tools == nil || tools.Bash == nil {
 		return false
 	}
-	bashConfig, hasBash := tools["bash"]
-	if !hasBash {
+	if tools.Bash.AllowedCommands == nil || len(tools.Bash.AllowedCommands) == 0 {
 		return false
 	}
-	bashCommands, ok := bashConfig.([]any)
-	if !ok || len(bashCommands) == 0 {
-		return false
-	}
-	for _, cmd := range bashCommands {
-		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+	for _, cmd := range tools.Bash.AllowedCommands {
+		if cmd == "*" || cmd == ":*" {
 			return false
 		}
 	}
 	return true
 }
 
-func getMountedCLIServerNamesIfBashRestricted(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
+func getMountedCLIServerNamesIfBashRestricted(workflowData *WorkflowData, tools *ToolsConfig, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
 	if !hasBashRestrictedAllowlist(tools) {
 		return nil
 	}
 	return getMCPCLIServerNames(buildCLIWorkflowDataForMounts(workflowData, tools, safeOutputs, mcpScripts))
 }
 
-func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map[string]any {
+func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) *ToolsConfig {
 	if workflowData == nil {
 		return nil
 	}
-	if workflowData.Tools == nil {
-		return workflowData.Tools
+	if workflowData.ParsedTools == nil {
+		return workflowData.ParsedTools
 	}
 
-	hasRestrictedBash := hasBashRestrictedAllowlist(workflowData.Tools)
-	servers := getMountedCLIServerNamesIfBashRestricted(workflowData, workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts)
-	needsPlaywrightCLI := isPlaywrightCLIMode(workflowData.Tools) && hasRestrictedBash
+	hasRestrictedBash := hasBashRestrictedAllowlist(workflowData.ParsedTools)
+	servers := getMountedCLIServerNamesIfBashRestricted(workflowData, workflowData.ParsedTools, workflowData.SafeOutputs, workflowData.MCPScripts)
+	needsPlaywrightCLI := isPlaywrightCLIMode(workflowData.ParsedTools) && hasRestrictedBash
 	needsGitHubCLI := isGitHubCLIModeEnabled(workflowData) && hasRestrictedBash
 
 	if len(servers) == 0 && !needsPlaywrightCLI && !needsGitHubCLI {
-		return workflowData.Tools
+		return workflowData.ParsedTools
 	}
 
-	bashCommands, ok := workflowData.Tools["bash"].([]any)
-	if !ok || len(bashCommands) == 0 {
-		return workflowData.Tools
+	if workflowData.ParsedTools.Bash == nil || len(workflowData.ParsedTools.Bash.AllowedCommands) == 0 {
+		return workflowData.ParsedTools
 	}
 
-	copiedTools := make(map[string]any, len(workflowData.Tools))
-	// A shallow copy is sufficient because we only replace the top-level "bash"
-	// value with a newly allocated slice and do not mutate nested map/slice values.
-	maps.Copy(copiedTools, workflowData.Tools)
+	// Make a shallow copy of ToolsConfig with a new Bash to avoid mutating the original.
+	copied := *workflowData.ParsedTools
+	augmentedBash := append([]string(nil), workflowData.ParsedTools.Bash.AllowedCommands...)
 
-	augmentedBash := append([]any(nil), bashCommands...)
 	for _, server := range servers {
 		command := server + ":*"
-		exists := false
-		for _, allowed := range augmentedBash {
-			if allowedStr, ok := allowed.(string); ok && allowedStr == command {
-				exists = true
-				break
-			}
-		}
-		if !exists {
+		if !slices.Contains(augmentedBash, command) {
 			augmentedBash = append(augmentedBash, command)
 		}
 	}
 
 	// When playwright is configured in CLI mode, playwright-cli must be executable.
 	// Automatically add it to the restricted bash allowlist so the agent can invoke it.
-	// This injection only applies when bash is restricted (explicit allowlist); when bash
-	// is unrestricted (nil or wildcard), playwright-cli is already accessible without
-	// explicit allowlisting.
 	if needsPlaywrightCLI {
 		const playwrightCLICommand = "playwright-cli:*"
-		if !slices.ContainsFunc(augmentedBash, func(v any) bool {
-			s, ok := v.(string)
-			return ok && s == playwrightCLICommand
-		}) {
+		if !slices.Contains(augmentedBash, playwrightCLICommand) {
 			augmentedBash = append(augmentedBash, playwrightCLICommand)
 		}
 	}
@@ -230,16 +193,13 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 	// allowlists can invoke it.
 	if needsGitHubCLI {
 		const ghCLICommand = "gh:*"
-		if !slices.ContainsFunc(augmentedBash, func(v any) bool {
-			s, ok := v.(string)
-			return ok && s == ghCLICommand
-		}) {
+		if !slices.Contains(augmentedBash, ghCLICommand) {
 			augmentedBash = append(augmentedBash, ghCLICommand)
 		}
 	}
 
-	copiedTools["bash"] = augmentedBash
-	return copiedTools
+	copied.Bash = &BashToolConfig{AllowedCommands: augmentedBash}
+	return &copied
 }
 
 // getMCPCLIExcludeFromAgentConfig returns the sorted list of MCP server names that

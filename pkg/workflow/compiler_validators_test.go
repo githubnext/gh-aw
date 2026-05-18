@@ -264,9 +264,9 @@ func TestValidateToolConfiguration(t *testing.T) {
 				Name:            "Test",
 				MarkdownContent: "# Test",
 				AI:              "copilot",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"agentic-workflows": map[string]any{},
-				},
+				}),
 				Permissions: "",
 			},
 			permissions:   "",
@@ -279,9 +279,9 @@ func TestValidateToolConfiguration(t *testing.T) {
 				Name:            "Test",
 				MarkdownContent: "# Test",
 				AI:              "copilot",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"agentic-workflows": map[string]any{},
-				},
+				}),
 				Permissions: "permissions:\n  actions: read\n",
 			},
 			permissions: "permissions:\n  actions: read\n",

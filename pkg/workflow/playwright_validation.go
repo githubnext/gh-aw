@@ -41,16 +41,11 @@ var playwrightValidationLog = logger.New("workflow:playwright_validation")
 // mode. MCP mode is deprecated; use mode: cli instead for token-efficient,
 // container-free browser automation.
 func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
-	if workflowData == nil || workflowData.Tools == nil {
+	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.Playwright == nil {
 		return nil
 	}
 
-	playwrightTool, ok := workflowData.Tools["playwright"]
-	if !ok || playwrightTool == false {
-		return nil
-	}
-
-	if isPlaywrightCLIMode(workflowData.Tools) {
+	if isPlaywrightCLIMode(workflowData.ParsedTools) {
 		playwrightValidationLog.Print("playwright mode: cli — no deprecation warning")
 		return nil
 	}

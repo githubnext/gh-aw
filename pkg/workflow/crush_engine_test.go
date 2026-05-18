@@ -35,7 +35,7 @@ func TestCrushEngine(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
 			ParsedTools: &ToolsConfig{},
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should require COPILOT_GITHUB_TOKEN for Copilot routing")
@@ -48,7 +48,7 @@ func TestCrushEngine(t *testing.T) {
 				Model: "anthropic/claude-sonnet-4-20250514",
 			},
 			ParsedTools: &ToolsConfig{},
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should require ANTHROPIC_API_KEY for anthropic/* models")
@@ -62,7 +62,7 @@ func TestCrushEngine(t *testing.T) {
 				Model: "openai/gpt-4.1",
 			},
 			ParsedTools: &ToolsConfig{},
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "CODEX_API_KEY", "Should require CODEX_API_KEY for openai/* models")
@@ -73,7 +73,7 @@ func TestCrushEngine(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
 			ParsedTools: &ToolsConfig{},
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			Features: map[string]any{
 				"copilot-requests": true,
 			},
@@ -88,9 +88,9 @@ func TestCrushEngine(t *testing.T) {
 			ParsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{},
 			},
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
-			},
+			}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should require COPILOT_GITHUB_TOKEN for Copilot routing")
@@ -102,7 +102,7 @@ func TestCrushEngine(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
 			ParsedTools: &ToolsConfig{},
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
 					"ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}",
@@ -303,9 +303,9 @@ func TestCrushEngineExecution(t *testing.T) {
 			ParsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{},
 			},
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
-			},
+			}),
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
@@ -423,13 +423,13 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 			ParsedTools: &ToolsConfig{
 				CLIProxy: true,
 			},
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"echo"},
 				"my-mcp-cli": map[string]any{
 					"command": "node",
 					"args":    []any{"index.js"},
 				},
-			},
+			}),
 			NetworkPermissions: &NetworkPermissions{
 				Allowed: []string{"defaults"},
 				Firewall: &FirewallConfig{

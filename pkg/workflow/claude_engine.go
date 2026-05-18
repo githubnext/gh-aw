@@ -158,7 +158,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// - MCP tool prefixes: mcp__github__issue_read
 	// - Path-specific tools: Read(/tmp/gh-aw/cache-memory/*)
 	// The --tools flag only supports basic tool names (e.g., "Bash,Edit,Read") without patterns.
-	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
+	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs.ToMap(), workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
@@ -184,7 +184,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// "bypassPermissions" which auto-approves all permission requests and produces a
 	// smoother headless execution experience.
 	permissionMode := "acceptEdits"
-	if hasBashWildcardInTools(workflowData.Tools) {
+	if hasBashWildcardInTools(workflowData.ParsedTools) {
 		claudeLog.Print("Unrestricted bash detected: using bypassPermissions mode")
 		permissionMode = "bypassPermissions"
 	}
@@ -273,7 +273,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		if workflowData.CachedAllowedDomainsComputed {
 			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
-			allowedDomains = GetAllowedDomainsForEngine(constants.ClaudeEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+			allowedDomains = GetAllowedDomainsForEngine(constants.ClaudeEngine, workflowData.NetworkPermissions, workflowData.ParsedTools.ToMap(), workflowData.Runtimes)
 		}
 		// Add GHES/custom API target domains to the firewall allow-list when engine.api-target is set
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {

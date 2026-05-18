@@ -91,9 +91,6 @@ type ToolsConfig struct {
 	// uses the CLI instead of the MCP protocol.
 	// Default is false.
 	CLIProxy bool `yaml:"cli-proxy,omitempty"`
-
-	// Raw map for backwards compatibility
-	raw map[string]any
 }
 
 // Tools is a type alias for ToolsConfig for backward compatibility.
@@ -183,18 +180,12 @@ func (t *ToolsConfig) ToMap() map[string]any {
 		return make(map[string]any)
 	}
 
-	// Return the raw map if it exists
-	if t.raw != nil {
-		toolsTypesLog.Printf("Returning cached raw map with %d entries", len(t.raw))
-		return t.raw
-	}
-
 	// Otherwise construct a new map from the fields
 	toolsTypesLog.Print("Constructing map from ToolsConfig fields")
 	result := make(map[string]any)
 
 	if t.GitHub != nil {
-		result["github"] = t.GitHub
+		result["github"] = githubToolToMap(t.GitHub)
 	}
 	if t.Bash != nil {
 		result["bash"] = t.Bash.AllowedCommands
@@ -209,7 +200,20 @@ func (t *ToolsConfig) ToMap() map[string]any {
 		result["edit"] = t.Edit
 	}
 	if t.Playwright != nil {
-		result["playwright"] = t.Playwright
+		if t.Playwright.IsCLIMode() {
+			// CLI mode: playwright is not an MCP server, skip
+		} else {
+			playwrightMap := map[string]any{
+				"allowed": GetPlaywrightTools(),
+			}
+			if t.Playwright.Version != "" {
+				playwrightMap["version"] = t.Playwright.Version
+			}
+			if len(t.Playwright.Args) > 0 {
+				playwrightMap["args"] = t.Playwright.Args
+			}
+			result["playwright"] = playwrightMap
+		}
 	}
 	if t.AgenticWorkflows != nil {
 		result["agentic-workflows"] = t.AgenticWorkflows.Enabled
@@ -352,6 +356,9 @@ type GitHubToolConfig struct {
 	// and MCPG >= v0.2.18.
 	// Valid values: "approved", "unapproved", "merged"
 	EndorserMinIntegrity string `yaml:"endorser-min-integrity,omitempty"`
+	// IntegrityProxy controls whether the DIFC proxy is enabled. nil = default (enabled),
+	// &false = explicitly disabled, &true = explicitly enabled.
+	IntegrityProxy *bool `yaml:"-"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

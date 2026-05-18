@@ -131,25 +131,31 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 func collectMCPTools(workflowData *WorkflowData) []string {
 	var mcpTools []string
-	for toolName, toolValue := range workflowData.Tools {
-		if toolValue == false {
-			continue
-		}
-		if toolName == "github" && isGitHubCLIModeEnabled(workflowData) {
-			mcpSetupGeneratorLog.Print("Skipping GitHub MCP server registration: tools.github.mode is gh-proxy")
-			continue
-		}
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
-			// Playwright in CLI mode is not an MCP server; skip it here.
-			if toolName == "playwright" && isPlaywrightCLIMode(workflowData.Tools) {
-				mcpSetupGeneratorLog.Print("Skipping playwright MCP registration: tools.playwright.mode is cli")
-				continue
+	parsedTools := workflowData.ParsedTools
+	if parsedTools != nil {
+		if parsedTools.GitHub != nil {
+			if isGitHubCLIModeEnabled(workflowData) {
+				mcpSetupGeneratorLog.Print("Skipping GitHub MCP server registration: tools.github.mode is gh-proxy")
+			} else {
+				mcpTools = append(mcpTools, "github")
 			}
-			mcpTools = append(mcpTools, toolName)
-			continue
 		}
-		if mcpConfig, ok := toolValue.(map[string]any); ok {
-			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+		if parsedTools.Playwright != nil {
+			if isPlaywrightCLIMode(parsedTools) {
+				mcpSetupGeneratorLog.Print("Skipping playwright MCP registration: tools.playwright.mode is cli")
+			} else {
+				mcpTools = append(mcpTools, "playwright")
+			}
+		}
+		if parsedTools.CacheMemory != nil {
+			mcpTools = append(mcpTools, "cache-memory")
+		}
+		if parsedTools.AgenticWorkflows != nil && parsedTools.AgenticWorkflows.Enabled {
+			mcpTools = append(mcpTools, "agentic-workflows")
+		}
+		for toolName, toolConfig := range parsedTools.Custom {
+			mcpConfigMap := mcpServerConfigToMap(toolConfig)
+			if hasMcp, _ := hasMCPConfig(mcpConfigMap); hasMcp {
 				mcpTools = append(mcpTools, toolName)
 			}
 		}

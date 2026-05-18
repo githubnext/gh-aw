@@ -130,7 +130,7 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 
 	t.Run("basic secrets without MCP", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			ParsedTools: &ToolsConfig{},
 		}
 
@@ -148,9 +148,9 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 
 	t.Run("includes MCP gateway API key when MCP servers present", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
-			},
+			}),
 			ParsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{},
 			},
@@ -166,7 +166,7 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 
 	t.Run("includes mcp-scripts secrets", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			ParsedTools: &ToolsConfig{},
 			MCPScripts: &MCPScriptsConfig{
 				Mode: "http",
@@ -194,7 +194,7 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 
 	t.Run("basic secrets without MCP", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			ParsedTools: &ToolsConfig{},
 		}
 
@@ -207,9 +207,9 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 
 	t.Run("includes MCP gateway API key when MCP servers present", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
-			},
+			}),
 			ParsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{},
 			},
@@ -229,7 +229,7 @@ func TestGetRequiredSecretNames_Codex(t *testing.T) {
 
 	t.Run("basic secrets without MCP", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			ParsedTools: &ToolsConfig{},
 		}
 
@@ -243,9 +243,9 @@ func TestGetRequiredSecretNames_Codex(t *testing.T) {
 
 	t.Run("includes MCP gateway API key when MCP servers present", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"playwright": map[string]any{},
-			},
+			}),
 			ParsedTools: &ToolsConfig{
 				Playwright: &PlaywrightToolConfig{},
 			},

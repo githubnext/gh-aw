@@ -51,12 +51,12 @@ func TestValidateContainerImages_NoWarningWithoutDocker(t *testing.T) {
 	}
 
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"serena": map[string]any{
 				"container": "ghcr.io/github/serena-mcp-server",
 				"version":   "latest",
 			},
-		},
+		}),
 	}
 
 	compiler := NewCompiler()
@@ -99,12 +99,12 @@ func TestValidateContainerImages_RequireDockerFailsWhenUnavailable(t *testing.T)
 	}
 
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"serena": map[string]any{
 				"container": "ghcr.io/github/serena-mcp-server",
 				"version":   "latest",
 			},
-		},
+		}),
 	}
 
 	compiler := NewCompiler()

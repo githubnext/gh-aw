@@ -321,9 +321,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
 	// Apply default tools
-	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs, data.SandboxConfig, data.NetworkPermissions)
-	// Update ParsedTools to reflect changes made by applyDefaultTools
-	data.ParsedTools = NewTools(data.Tools)
+	defaultToolsMap := c.applyDefaultTools(data.ParsedTools.ToMap(), data.SafeOutputs, data.SandboxConfig, data.NetworkPermissions)
+	data.ParsedTools = NewTools(defaultToolsMap)
 
 	// Check if permissions is explicitly empty ({}) - this means user wants no permissions
 	// In this case, we should NOT apply default read-all.

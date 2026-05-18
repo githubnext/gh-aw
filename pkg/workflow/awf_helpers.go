@@ -580,7 +580,7 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	}
 
 	// HTTP MCP header secrets: values are always ${{ secrets.* }} references.
-	for varName := range collectHTTPMCPHeaderSecrets(workflowData.Tools) {
+	for varName := range collectHTTPMCPHeaderSecrets(workflowData.ParsedTools.ToMap()) {
 		addUnique(varName)
 	}
 

@@ -1005,11 +1005,11 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
 				},
 				Features: map[string]any{"cli-proxy": true},
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"min-integrity": "approved",
 					},
-				},
+				}),
 			},
 			AllowedDomains: "github.com",
 		}
@@ -1039,11 +1039,11 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 			Features: map[string]any{
 				"cli-proxy": true,
 			},
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{
 					"min-integrity": "approved",
 				},
-			},
+			}),
 		}
 
 		config := AWFCommandConfig{

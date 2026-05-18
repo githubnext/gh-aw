@@ -366,7 +366,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 
 	// Validate permissions for agentic-workflows tool
 	log.Printf("Validating permissions for agentic-workflows tool")
-	if _, hasAgenticWorkflows := workflowData.Tools["agentic-workflows"]; hasAgenticWorkflows {
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.AgenticWorkflows != nil && workflowData.ParsedTools.AgenticWorkflows.Enabled {
 		// Check if actions: read permission exists
 		actionsLevel, hasActions := workflowPermissions.Get(PermissionActions)
 		if !hasActions || actionsLevel == PermissionNone {

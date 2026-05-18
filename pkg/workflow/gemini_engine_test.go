@@ -31,7 +31,7 @@ func TestGeminiEngine(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
 			ParsedTools: &ToolsConfig{},
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "GEMINI_API_KEY", "Should require GEMINI_API_KEY")
@@ -43,9 +43,9 @@ func TestGeminiEngine(t *testing.T) {
 			ParsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{},
 			},
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
-			},
+			}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "GEMINI_API_KEY", "Should require GEMINI_API_KEY")
@@ -188,9 +188,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 			ParsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{},
 			},
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
-			},
+			}),
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
@@ -484,7 +484,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("step sets context.includeDirectories to /tmp/", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:  "test-workflow",
-			Tools: map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
@@ -499,7 +499,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("step includes merge logic for existing settings.json", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:  "test-workflow",
-			Tools: map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
@@ -512,9 +512,9 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("step includes tools.core with bash mapping", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"grep", "git"},
-			},
+			}),
 		}
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
@@ -527,9 +527,9 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("step includes tools.core with edit mapping", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"edit": map[string]any{},
-			},
+			}),
 		}
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
@@ -541,7 +541,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("GH_AW_GEMINI_BASE_CONFIG env var is single-quoted for valid YAML", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:  "test-workflow",
-			Tools: map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
@@ -553,9 +553,9 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("step includes web_fetch in tools.core when web-fetch tool is specified", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"web-fetch": nil,
-			},
+			}),
 		}
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
@@ -566,7 +566,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("step does not include web_fetch in tools.core when web-fetch tool is not specified", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:  "test-workflow",
-			Tools: map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
@@ -577,7 +577,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	t.Run("step includes mounted mcp cli commands in restricted bash allowlist", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash":       []any{"echo"},
 				"cli-proxy":  true,
 				"playwright": true,
@@ -585,7 +585,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 					"command": "npx",
 					"args":    []any{"-y", "@acme/mcp-server"},
 				},
-			},
+			}),
 			SafeOutputs: &SafeOutputsConfig{
 				NoOp: &NoOpConfig{},
 			},

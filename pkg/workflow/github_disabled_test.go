@@ -90,47 +90,47 @@ func TestHasMCPServersWithGitHubDisabled(t *testing.T) {
 		{
 			name: "github: false does not count as MCP server",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": false,
-				},
+				}),
 			},
 			expected: false,
 		},
 		{
 			name: "github: nil counts as MCP server",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": nil,
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "github: map counts as MCP server",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{},
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "github: false with other MCP tool still returns true",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github":     false,
 					"playwright": nil,
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "github: false with non-MCP tool returns false",
 			data: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": false,
 					"edit":   nil,
-				},
+				}),
 			},
 			expected: false,
 		},

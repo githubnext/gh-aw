@@ -11,7 +11,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	// Create workflow data with HTTP MCP tool using header secrets
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"datadog": map[string]any{
 				"type": "http",
 				"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
@@ -27,7 +27,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 					"get_datadog_metric",
 				},
 			},
-		},
+		}),
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
 		},
@@ -115,7 +115,7 @@ func TestCopilotEngine_MultipleHTTPMCPTools_Integration(t *testing.T) {
 	// Create workflow data with multiple HTTP MCP tools
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"datadog": map[string]any{
 				"type": "http",
 				"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
@@ -134,7 +134,7 @@ func TestCopilotEngine_MultipleHTTPMCPTools_Integration(t *testing.T) {
 			"github": map[string]any{
 				"allowed": []string{"get_file_contents"},
 			},
-		},
+		}),
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
 		},
@@ -186,7 +186,7 @@ func TestCopilotEngine_HTTPMCPWithoutSecrets_Integration(t *testing.T) {
 	// Create workflow data with HTTP MCP tool without secrets
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"custom": map[string]any{
 				"type": "http",
 				"url":  "https://api.example.com/mcp",
@@ -194,7 +194,7 @@ func TestCopilotEngine_HTTPMCPWithoutSecrets_Integration(t *testing.T) {
 					"X-Static-Header": "static-value",
 				},
 			},
-		},
+		}),
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
 		},

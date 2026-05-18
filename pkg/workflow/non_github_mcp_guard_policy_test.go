@@ -34,9 +34,9 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "no github tool",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"playwright": map[string]any{},
-				},
+				}),
 			},
 			expectNil:   true,
 			description: "no github tool means no guard policy",
@@ -44,11 +44,11 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "github tool without guard policy (auto-lockdown)",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"toolsets": []string{"default"},
 					},
-				},
+				}),
 			},
 			expectNil:   false,
 			expectedKey: "write-sink",
@@ -57,9 +57,9 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "github tool with nil value (auto-lockdown)",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": nil,
-				},
+				}),
 			},
 			expectNil:   false,
 			expectedKey: "write-sink",
@@ -68,12 +68,12 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "github tool with repos=all",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"repos":         "all",
 						"min-integrity": "none",
 					},
-				},
+				}),
 			},
 			expectNil:   false,
 			expectedKey: "write-sink",
@@ -82,12 +82,12 @@ func TestDeriveWriteSinkGuardPolicyFromWorkflow(t *testing.T) {
 		{
 			name: "github tool with specific repo",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"repos":         "myorg/myrepo",
 						"min-integrity": "approved",
 					},
-				},
+				}),
 			},
 			expectNil:   false,
 			expectedKey: "write-sink",
@@ -310,12 +310,12 @@ func TestAllNonGitHubMCPServersGetGuardPoliciesViaRenderer(t *testing.T) {
 // explicit guard policies (auto-lockdown detection will set repos=all at runtime)
 func TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown(t *testing.T) {
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{
 				"toolsets": []string{"default"},
 			},
 			"playwright": nil,
-		},
+		}),
 	}
 
 	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
@@ -344,7 +344,7 @@ func TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown(t *testing.T) {
 // GitHub App tokens are already repo-scoped, so auto-lockdown detection is skipped.
 func TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp(t *testing.T) {
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{
 				"toolsets": []string{"default"},
 				"github-app": map[string]any{
@@ -352,7 +352,7 @@ func TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp(t *testing.T) {
 				},
 			},
 			"playwright": nil,
-		},
+		}),
 	}
 
 	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
@@ -411,11 +411,11 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github":            tt.githubConfig,
 					"playwright":        nil,
 					"agentic-workflows": nil,
-				},
+				}),
 			}
 
 			// Derive write-sink guard policies from the configured allow-only GitHub guard policy
@@ -485,13 +485,13 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 // when GitHub has repos=all, all non-GitHub MCP servers get write-sink: {accept: ["*"]}
 func TestNonGitHubMCPServersGetGuardPoliciesWhenGitHubConfigured(t *testing.T) {
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{
 				"repos":         "all",
 				"min-integrity": "none",
 			},
 			"playwright": nil,
-		},
+		}),
 	}
 
 	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)

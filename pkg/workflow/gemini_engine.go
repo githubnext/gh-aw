@@ -57,7 +57,7 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 	}
 
 	// Add HTTP MCP header secret names
-	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
+	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.ParsedTools.ToMap())
 	for varName := range headerSecrets {
 		secrets = append(secrets, varName)
 	}
@@ -206,7 +206,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		} else {
 			allowedDomains = GetAllowedDomainsForEngine(constants.GeminiEngine,
 				workflowData.NetworkPermissions,
-				workflowData.Tools,
+				workflowData.ParsedTools.ToMap(),
 				workflowData.Runtimes,
 			)
 		}

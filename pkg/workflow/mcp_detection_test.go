@@ -22,66 +22,66 @@ func TestHasMCPServers(t *testing.T) {
 		{
 			name: "workflow with github tool",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": true,
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with playwright tool",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"playwright": map[string]any{
 						"version": "v1.41.0",
 					},
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with cache-memory tool",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"cache-memory": true,
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with agentic-workflows tool",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"agentic-workflows": true,
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with disabled github tool",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": false,
-				},
+				}),
 			},
 			expected: false,
 		},
 		{
 			name: "workflow with custom MCP tool",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"custom-mcp": map[string]any{
 						"type": "mcp",
 						"url":  "http://example.com",
 					},
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with safe-outputs enabled",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{},
+				ParsedTools: NewTools(map[string]any{}),
 				SafeOutputs: &SafeOutputsConfig{
 					CreateIssues: &CreateIssuesConfig{},
 				},
@@ -91,7 +91,7 @@ func TestHasMCPServers(t *testing.T) {
 		{
 			name: "workflow with mcp-scripts enabled",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{},
+				ParsedTools: NewTools(map[string]any{}),
 				MCPScripts: &MCPScriptsConfig{
 					Tools: map[string]*MCPScriptToolConfig{
 						"test-tool": {
@@ -109,61 +109,61 @@ func TestHasMCPServers(t *testing.T) {
 		{
 			name: "workflow with no MCP servers",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{},
+				ParsedTools: NewTools(map[string]any{}),
 			},
 			expected: false,
 		},
 		{
 			name: "workflow with multiple MCP tools",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github":     true,
 					"playwright": true,
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with mixed enabled and disabled tools",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github":     false,
 					"playwright": true,
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with playwright in CLI mode is not an MCP server",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"playwright": map[string]any{
 						"mode": "cli",
 					},
-				},
+				}),
 			},
 			expected: false,
 		},
 		{
 			name: "workflow with playwright in MCP mode (explicit) is an MCP server",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"playwright": map[string]any{
 						"mode": "mcp",
 					},
-				},
+				}),
 			},
 			expected: true,
 		},
 		{
 			name: "workflow with playwright CLI mode plus other MCP tool still has MCP servers",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": true,
 					"playwright": map[string]any{
 						"mode": "cli",
 					},
-				},
+				}),
 			},
 			expected: true,
 		},
@@ -180,7 +180,7 @@ func TestHasMCPServers(t *testing.T) {
 func TestHasMCPServers_EdgeCases(t *testing.T) {
 	t.Run("empty tools map", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: make(map[string]any),
+			ParsedTools: NewTools(nil),
 		}
 		result := HasMCPServers(workflowData)
 		assert.False(t, result, "Empty tools map should return false")
@@ -188,10 +188,10 @@ func TestHasMCPServers_EdgeCases(t *testing.T) {
 
 	t.Run("tools map with non-MCP tools", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash":   true,
 				"python": true,
-			},
+			}),
 		}
 		result := HasMCPServers(workflowData)
 		assert.False(t, result, "Non-MCP tools should return false")
@@ -199,7 +199,7 @@ func TestHasMCPServers_EdgeCases(t *testing.T) {
 
 	t.Run("safe-outputs with no fields", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools:       map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			SafeOutputs: &SafeOutputsConfig{},
 		}
 		result := HasMCPServers(workflowData)
@@ -208,7 +208,7 @@ func TestHasMCPServers_EdgeCases(t *testing.T) {
 
 	t.Run("mcp-scripts without feature flag", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 			MCPScripts: &MCPScriptsConfig{
 				Tools: map[string]*MCPScriptToolConfig{
 					"test-tool": {

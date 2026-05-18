@@ -21,11 +21,11 @@ import (
 // is not a substitute for author-integrity filtering inside a repository.
 func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool is present
-	githubTool, hasGitHub := data.Tools["github"]
-	if !hasGitHub || githubTool == false {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
 		githubConfigLog.Print("Skipping GitHub MCP lockdown detection step: GitHub tool not enabled")
 		return
 	}
+	githubTool := githubToolToMap(data.ParsedTools.GitHub)
 
 	// Skip when guard policy is already fully configured in the workflow.
 	// The step is only needed to auto-configure guard policies for public repos.
@@ -51,14 +51,14 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// detect whether each field is already configured and avoid overriding it.
 	configuredMinIntegrity := ""
 	configuredRepos := ""
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if v, exists := toolConfig["min-integrity"]; exists {
+	if githubTool != nil {
+		if v, exists := githubTool["min-integrity"]; exists {
 			configuredMinIntegrity = fmt.Sprintf("%v", v)
 		}
 		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
-		if v, exists := toolConfig["allowed-repos"]; exists {
+		if v, exists := githubTool["allowed-repos"]; exists {
 			configuredRepos = fmt.Sprintf("%v", v)
-		} else if v, exists := toolConfig["repos"]; exists {
+		} else if v, exists := githubTool["repos"]; exists {
 			configuredRepos = fmt.Sprintf("%v", v)
 		}
 	}
@@ -193,11 +193,11 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 //   - Outputs `blocked_users`, `trusted_users`, and `approval_labels` as JSON arrays via $GITHUB_OUTPUT.
 //   - Fails the step if any item is invalid.
 func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *WorkflowData) {
-	githubTool, hasGitHub := data.Tools["github"]
-	if !hasGitHub || githubTool == false {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
 		githubConfigLog.Print("Skipping parse-guard-vars step: GitHub tool not enabled")
 		return
 	}
+	githubTool := githubToolToMap(data.ParsedTools.GitHub)
 
 	// Only generate the step when guard policies are configured.
 	if len(getGitHubGuardPolicies(githubTool)) == 0 {

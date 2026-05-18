@@ -148,10 +148,7 @@ func extractToolsConfig(workflowData *WorkflowData) (*ToolsConfig, map[string]an
 	if workflowData == nil {
 		return nil, map[string]any{}
 	}
-	if workflowData.Tools == nil {
-		return workflowData.ParsedTools, map[string]any{}
-	}
-	return workflowData.ParsedTools, workflowData.Tools
+	return workflowData.ParsedTools, workflowData.ParsedTools.ToMap()
 }
 
 func (e *UniversalLLMConsumerEngine) GetUniversalSecretValidationStep(workflowData *WorkflowData, engineName, docsURL string) GitHubActionStep {

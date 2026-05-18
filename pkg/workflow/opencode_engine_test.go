@@ -80,7 +80,7 @@ func TestOpenCodeEngineProviderProfiles(t *testing.T) {
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{Model: "anthropic/claude-sonnet-4"},
 			ParsedTools:  &ToolsConfig{},
-			Tools:        map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should require ANTHROPIC_API_KEY for anthropic/* models")
@@ -91,7 +91,7 @@ func TestOpenCodeEngineProviderProfiles(t *testing.T) {
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{Model: "openai/gpt-4.1"},
 			ParsedTools:  &ToolsConfig{},
-			Tools:        map[string]any{},
+			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "CODEX_API_KEY", "Should require CODEX_API_KEY for openai/* models")

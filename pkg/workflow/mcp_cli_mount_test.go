@@ -68,12 +68,12 @@ func TestHasBashRestrictedAllowlist(t *testing.T) {
 func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testing.T) {
 	t.Run("playwright cli mode adds playwright-cli:* to restricted bash", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"echo"},
 				"playwright": map[string]any{
 					"mode": "cli",
 				},
-			},
+			}),
 		}
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		require.NotNil(t, result, "result should not be nil")
@@ -85,12 +85,12 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 
 	t.Run("playwright cli mode with unrestricted bash (nil) does not add playwright-cli:*", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": nil,
 				"playwright": map[string]any{
 					"mode": "cli",
 				},
-			},
+			}),
 		}
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		require.NotNil(t, result, "result should not be nil")
@@ -102,12 +102,12 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 
 	t.Run("playwright cli mode with wildcard bash does not add playwright-cli:*", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"*"},
 				"playwright": map[string]any{
 					"mode": "cli",
 				},
-			},
+			}),
 		}
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		require.NotNil(t, result, "result should not be nil")
@@ -119,10 +119,10 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 
 	t.Run("playwright mcp mode (not cli) does not add playwright-cli:*", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash":       []any{"echo"},
 				"playwright": true,
-			},
+			}),
 		}
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		require.NotNil(t, result, "result should not be nil")
@@ -139,12 +139,12 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 
 	t.Run("playwright-cli:* not duplicated when already present", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"echo", "playwright-cli:*"},
 				"playwright": map[string]any{
 					"mode": "cli",
 				},
-			},
+			}),
 		}
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		require.NotNil(t, result, "result should not be nil")
@@ -161,12 +161,12 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 
 	t.Run("github gh-proxy mode adds gh:* to restricted bash", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"echo"},
 				"github": map[string]any{
 					"mode": "gh-proxy",
 				},
-			},
+			}),
 		}
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		require.NotNil(t, result, "result should not be nil")
@@ -178,12 +178,12 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 
 	t.Run("github local mode does not add gh:* to restricted bash", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Tools: map[string]any{
+			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"echo"},
 				"github": map[string]any{
 					"mode": "local",
 				},
-			},
+			}),
 		}
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		require.NotNil(t, result, "result should not be nil")

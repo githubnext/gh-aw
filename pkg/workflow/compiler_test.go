@@ -543,9 +543,9 @@ func TestValidateWorkflowData(t *testing.T) {
 				Command:         []string{"echo", "test"},
 				MarkdownContent: "# Test",
 				AI:              "copilot",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"agentic-workflows": map[string]any{},
-				},
+				}),
 				Permissions: "", // No permissions
 			},
 			strictMode:    false,
@@ -677,10 +677,10 @@ func TestGenerateAndValidateYAML(t *testing.T) {
 				Command:         []string{"echo", "test"},
 				MarkdownContent: "# Test",
 				AI:              "copilot",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"bash":   []string{"echo", "ls"},
 					"github": map[string]any{"allowed": []string{"list_issues"}},
-				},
+				}),
 			},
 			shouldError: false,
 		},

@@ -115,7 +115,7 @@ func TestHasGitHubOIDCAuthInTools(t *testing.T) {
 // command when an HTTP MCP server uses auth.type: "github-oidc".
 func TestOIDCEnvVarsInDockerCommand(t *testing.T) {
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{
 				"mode": "local",
 			},
@@ -127,7 +127,7 @@ func TestOIDCEnvVarsInDockerCommand(t *testing.T) {
 					"audience": "https://my-server.example.com",
 				},
 			},
-		},
+		}),
 	}
 
 	compiler := &Compiler{}
@@ -148,7 +148,7 @@ func TestOIDCEnvVarsInDockerCommand(t *testing.T) {
 // NOT included in the docker command when no server uses auth.type: "github-oidc".
 func TestOIDCEnvVarsNotInDockerCommandWithoutOIDCAuth(t *testing.T) {
 	workflowData := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"github": map[string]any{
 				"mode": "local",
 			},
@@ -159,7 +159,7 @@ func TestOIDCEnvVarsNotInDockerCommandWithoutOIDCAuth(t *testing.T) {
 					"Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}",
 				},
 			},
-		},
+		}),
 	}
 
 	compiler := &Compiler{}

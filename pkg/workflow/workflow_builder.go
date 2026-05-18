@@ -47,7 +47,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		MainWorkflowMarkdown:  toolsResult.mainWorkflowMarkdown,
 		IncludedFiles:         toolsResult.allIncludedFiles,
 		ImportInputs:          importsResult.ImportInputs,
-		Tools:                 toolsResult.tools,
 		ParsedTools:           NewTools(toolsResult.tools),
 		Runtimes:              toolsResult.runtimes,
 		RunInstallScripts:     toolsResult.runInstallScripts,

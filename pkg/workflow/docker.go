@@ -35,8 +35,8 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 
 	// Check for Playwright tool (uses Docker image - no version tag, only one image)
 	// Only in MCP mode; CLI mode installs @playwright/cli via npm instead.
-	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		if !isPlaywrightCLIMode(tools) {
+	if parsedTools := NewTools(tools); parsedTools != nil && parsedTools.Playwright != nil {
+		if !isPlaywrightCLIMode(parsedTools) {
 			image := "mcr.microsoft.com/playwright/mcp"
 			if !imageSet[image] {
 				images = append(images, image)

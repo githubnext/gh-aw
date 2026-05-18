@@ -122,14 +122,14 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// ensure mounted MCP CLI commands are executable via shell(<server>:*).
 	// This avoids Copilot CLI permission blocks for mounted commands such as safeoutputs.
 	if hasRestrictedBashAllowlist {
-		effectiveWorkflowData := buildCLIWorkflowDataForMounts(workflowData, tools, safeOutputs, mcpScripts)
+		effectiveWorkflowData := buildCLIWorkflowDataForMounts(workflowData, NewTools(tools), safeOutputs, mcpScripts)
 
-		for _, serverName := range getMountedCLIServerNamesIfBashRestricted(effectiveWorkflowData, tools, safeOutputs, mcpScripts) {
+		for _, serverName := range getMountedCLIServerNamesIfBashRestricted(effectiveWorkflowData, NewTools(tools), safeOutputs, mcpScripts) {
 			args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", serverName))
 		}
 		// When playwright is configured in CLI mode, playwright-cli must be executable.
 		// Automatically add shell(playwright-cli:*) to the restricted bash allowlist.
-		if workflowData != nil && isPlaywrightCLIMode(workflowData.Tools) {
+		if workflowData != nil && isPlaywrightCLIMode(workflowData.ParsedTools) {
 			args = append(args, "--allow-tool", "shell(playwright-cli:*)")
 		}
 		// When GitHub CLI mode is enabled (tools.github.mode: gh-proxy), GitHub access

@@ -23,21 +23,16 @@ const defaultClaudeTmpWritePath = "/tmp"
 // --permission-mode bypassPermissions is safe and produces a smoother headless
 // experience than acceptEdits (which can stall on some non-file-edit permission
 // requests that do not match the acceptEdits auto-approval pattern).
-func hasBashWildcardInTools(tools map[string]any) bool {
-	if tools == nil {
+func hasBashWildcardInTools(tools *ToolsConfig) bool {
+	if tools == nil || tools.Bash == nil {
 		return false
 	}
-	bashVal, hasBash := tools["bash"]
-	if !hasBash {
-		return false
-	}
-	// bash: true (non-list value) means unrestricted bash
-	bashCommands, ok := bashVal.([]any)
-	if !ok {
+	// nil AllowedCommands means bash: true (all commands allowed)
+	if tools.Bash.AllowedCommands == nil {
 		return true
 	}
-	for _, cmd := range bashCommands {
-		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+	for _, cmd := range tools.Bash.AllowedCommands {
+		if cmd == "*" || cmd == ":*" {
 			return true
 		}
 	}

@@ -97,7 +97,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add tool permission arguments based on configuration
-	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData)
+	toolArgs := e.computeCopilotToolArguments(workflowData.ParsedTools.ToMap(), workflowData.SafeOutputs, workflowData.MCPScripts, workflowData)
 	if len(toolArgs) > 0 {
 		copilotExecLog.Printf("Adding %d tool permission arguments", len(toolArgs))
 	}
@@ -221,7 +221,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// to avoid re-running the expensive map+sort operation.
 			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
-			allowedDomains = GetAllowedDomainsForEngine(constants.CopilotEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+			allowedDomains = GetAllowedDomainsForEngine(constants.CopilotEngine, workflowData.NetworkPermissions, workflowData.ParsedTools.ToMap(), workflowData.Runtimes)
 		}
 		// Add Copilot API target domains to the firewall allow-list.
 		// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
@@ -382,12 +382,12 @@ touch %s
 		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
 			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
 			if workflowData.ParsedTools.GitHub.GitHubApp.shouldIgnoreMissingKey() {
-				customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+				customGitHubToken := getGitHubToken(githubToolToMap(workflowData.ParsedTools.GitHub))
 				tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
 			}
 			env["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
-			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+			customGitHubToken := getGitHubToken(githubToolToMap(workflowData.ParsedTools.GitHub))
 			// Use effective token with precedence: custom > default
 			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 			env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
@@ -456,7 +456,7 @@ touch %s
 	}
 
 	// Add HTTP MCP header secrets to env for passthrough
-	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
+	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.ParsedTools.ToMap())
 	for varName, secretExpr := range headerSecrets {
 		// Only add if not already in env
 		if _, exists := env[varName]; !exists {
@@ -483,7 +483,7 @@ touch %s
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add tool arguments comment before the run section
-	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData, "        ")
+	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.ParsedTools.ToMap(), workflowData.SafeOutputs, workflowData.MCPScripts, workflowData, "        ")
 	if toolArgsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(toolArgsComment, "\n"), "\n")

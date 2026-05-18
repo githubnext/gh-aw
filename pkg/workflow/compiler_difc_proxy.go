@@ -78,11 +78,10 @@ func hasDIFCGuardsConfigured(data *WorkflowData) bool {
 		difcProxyLog.Print("integrity-proxy disabled via tools.github.integrity-proxy: false, skipping DIFC proxy injection")
 		return false
 	}
-	githubTool, hasGitHub := data.Tools["github"]
-	if !hasGitHub || githubTool == false {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
 		return false
 	}
-	return len(getGitHubGuardPolicies(githubTool)) > 0
+	return len(getGitHubGuardPolicies(githubToolToMap(data.ParsedTools.GitHub))) > 0
 }
 
 // isIntegrityProxyEnabled returns true unless the user has explicitly disabled the DIFC proxy
@@ -92,22 +91,13 @@ func isIntegrityProxyEnabled(data *WorkflowData) bool {
 	if data == nil {
 		return true
 	}
-	githubTool, hasGitHub := data.Tools["github"]
-	if !hasGitHub {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
 		return true
 	}
-	toolConfig, ok := githubTool.(map[string]any)
-	if !ok {
-		return true
-	}
-	val, hasField := toolConfig["integrity-proxy"]
-	if !hasField {
+	if data.ParsedTools.GitHub.IntegrityProxy == nil {
 		return true // default: enabled
 	}
-	if enabled, ok := val.(bool); ok {
-		return enabled
-	}
-	return true
+	return *data.ParsedTools.GitHub.IntegrityProxy
 }
 
 // hasDIFCProxyNeeded returns true if the DIFC proxy should be injected in the main job.
@@ -228,7 +218,10 @@ func resolveProxyContainerImage(gatewayConfig *MCPGatewayRuntimeConfig) string {
 func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	difcProxyLog.Print("Building Start DIFC proxy step YAML")
 
-	githubTool := data.Tools["github"]
+	var githubTool any
+	if data.ParsedTools != nil {
+		githubTool = githubToolToMap(data.ParsedTools.GitHub)
+	}
 
 	// Get MCP server token (same token the gateway uses for the GitHub MCP server)
 	customGitHubToken := getGitHubToken(githubTool)
@@ -464,7 +457,10 @@ const defaultCliProxyPolicyJSON = `{"allow-only":{"repos":"all","min-integrity":
 func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	difcProxyLog.Print("Building Start CLI proxy step YAML")
 
-	githubTool := data.Tools["github"]
+	var githubTool any
+	if data.ParsedTools != nil {
+		githubTool = githubToolToMap(data.ParsedTools.GitHub)
+	}
 
 	// Get token for the proxy
 	customGitHubToken := getGitHubToken(githubTool)

@@ -80,6 +80,132 @@ func hasGitHubTool(parsedTools *Tools) bool {
 	return parsedTools.GitHub != nil
 }
 
+// githubToolToMap converts a *GitHubToolConfig to map[string]any for use with
+// legacy helper functions that expect a map representation of the github tool.
+// Returns nil when config is nil (equivalent to github tool not configured).
+func githubToolToMap(config *GitHubToolConfig) map[string]any {
+	if config == nil {
+		return nil
+	}
+	result := map[string]any{}
+	if len(config.Allowed) > 0 {
+		allowed := make([]any, len(config.Allowed))
+		for i, a := range config.Allowed {
+			allowed[i] = string(a)
+		}
+		result["allowed"] = allowed
+	}
+	if config.Mode != "" {
+		result["mode"] = config.Mode
+	}
+	if config.Type != "" {
+		result["type"] = config.Type
+	}
+	if config.Version != "" {
+		result["version"] = config.Version
+	}
+	if len(config.Args) > 0 {
+		result["args"] = config.Args
+	}
+	result["read-only"] = config.ReadOnly
+	if config.GitHubToken != "" {
+		result["github-token"] = config.GitHubToken
+	}
+	if len(config.Toolset) > 0 {
+		toolsets := make([]any, len(config.Toolset))
+		for i, ts := range config.Toolset {
+			toolsets[i] = string(ts)
+		}
+		result["toolsets"] = toolsets
+	}
+	if config.Lockdown {
+		result["lockdown"] = true
+	}
+	if config.GitHubApp != nil {
+		appMap := map[string]any{
+			"client-id":   config.GitHubApp.AppID,
+			"private-key": config.GitHubApp.PrivateKey,
+		}
+		if config.GitHubApp.IgnoreIfMissing {
+			appMap["ignore-if-missing"] = true
+		}
+		if config.GitHubApp.Owner != "" {
+			appMap["owner"] = config.GitHubApp.Owner
+		}
+		if len(config.GitHubApp.Repositories) > 0 {
+			repos := make([]any, len(config.GitHubApp.Repositories))
+			for i, r := range config.GitHubApp.Repositories {
+				repos[i] = r
+			}
+			appMap["repositories"] = repos
+		}
+		if len(config.GitHubApp.Permissions) > 0 {
+			appMap["permissions"] = config.GitHubApp.Permissions
+		}
+		result["github-app"] = appMap
+	}
+	if config.AllowedRepos != nil {
+		result["allowed-repos"] = config.AllowedRepos
+	}
+	if config.Repos != nil {
+		result["repos"] = config.Repos
+	}
+	if config.MinIntegrity != "" {
+		result["min-integrity"] = string(config.MinIntegrity)
+	}
+	if len(config.BlockedUsers) > 0 {
+		users := make([]any, len(config.BlockedUsers))
+		for i, u := range config.BlockedUsers {
+			users[i] = u
+		}
+		result["blocked-users"] = users
+	} else if config.BlockedUsersExpr != "" {
+		result["blocked-users"] = config.BlockedUsersExpr
+	}
+	if len(config.TrustedUsers) > 0 {
+		users := make([]any, len(config.TrustedUsers))
+		for i, u := range config.TrustedUsers {
+			users[i] = u
+		}
+		result["trusted-users"] = users
+	} else if config.TrustedUsersExpr != "" {
+		result["trusted-users"] = config.TrustedUsersExpr
+	}
+	if len(config.ApprovalLabels) > 0 {
+		labels := make([]any, len(config.ApprovalLabels))
+		for i, l := range config.ApprovalLabels {
+			labels[i] = l
+		}
+		result["approval-labels"] = labels
+	} else if config.ApprovalLabelsExpr != "" {
+		result["approval-labels"] = config.ApprovalLabelsExpr
+	}
+	if config.IntegrityProxy != nil {
+		result["integrity-proxy"] = *config.IntegrityProxy
+	}
+	if len(config.EndorsementReactions) > 0 {
+		reactions := make([]any, len(config.EndorsementReactions))
+		for i, r := range config.EndorsementReactions {
+			reactions[i] = r
+		}
+		result["endorsement-reactions"] = reactions
+	}
+	if len(config.DisapprovalReactions) > 0 {
+		reactions := make([]any, len(config.DisapprovalReactions))
+		for i, r := range config.DisapprovalReactions {
+			reactions[i] = r
+		}
+		result["disapproval-reactions"] = reactions
+	}
+	if config.DisapprovalIntegrity != "" {
+		result["disapproval-integrity"] = config.DisapprovalIntegrity
+	}
+	if config.EndorserMinIntegrity != "" {
+		result["endorser-min-integrity"] = config.EndorserMinIntegrity
+	}
+	return result
+}
+
 // hasGitHubApp checks if a GitHub App is configured in the (merged) GitHub tool configuration
 func hasGitHubApp(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
@@ -98,27 +224,20 @@ func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 	if data == nil {
 		return false
 	}
-	githubTool, hasGitHub := data.Tools["github"]
-	if hasGitHub && githubTool == false {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
+		return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
+	}
+	switch modeValue := strings.ToLower(strings.TrimSpace(data.ParsedTools.GitHub.Mode)); modeValue {
+	case "gh-proxy", "cli":
+		return true
+	case "local", "remote":
 		return false
+	case "":
+		return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
+	default:
+		githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", modeValue)
+		return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
 	}
-	if hasGitHub {
-		if toolConfig, ok := githubTool.(map[string]any); ok {
-			if modeSetting, exists := toolConfig["mode"]; exists {
-				if stringValue, ok := modeSetting.(string); ok {
-					switch modeValue := strings.ToLower(strings.TrimSpace(stringValue)); modeValue {
-					case "gh-proxy", "cli":
-						return true
-					case "local", "remote":
-						return false
-					default:
-						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", modeValue)
-					}
-				}
-			}
-		}
-	}
-	return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
 }
 
 // normalizeGitHubType normalizes and validates GitHub MCP transport values.
@@ -501,13 +620,10 @@ func transformRepoPattern(pattern string) string {
 // Returns nil when workflowData is nil, when no GitHub tool is present, or when a GitHub App is
 // configured (auto-lockdown is skipped for GitHub App tokens, which are already repo-scoped).
 func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[string]any {
-	if workflowData == nil || workflowData.Tools == nil {
+	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
 		return nil
 	}
-	githubTool, hasGitHub := workflowData.Tools["github"]
-	if !hasGitHub {
-		return nil
-	}
+	githubTool := githubToolToMap(workflowData.ParsedTools.GitHub)
 
 	// Try to derive from explicit guard policy first
 	policy := deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
@@ -518,7 +634,7 @@ func deriveWriteSinkGuardPolicyFromWorkflow(workflowData *WorkflowData) map[stri
 	// When no explicit guard policy is configured but automatic lockdown detection would run
 	// (GitHub tool present and not disabled, no GitHub App configured), return accept=["*"]
 	// because automatic lockdown always sets repos=all at runtime.
-	if githubTool != false && len(getGitHubGuardPolicies(githubTool)) == 0 && !hasGitHubApp(githubTool) {
+	if len(getGitHubGuardPolicies(githubTool)) == 0 && !hasGitHubApp(githubTool) {
 		return map[string]any{
 			"write-sink": map[string]any{
 				"accept": []string{"*"},

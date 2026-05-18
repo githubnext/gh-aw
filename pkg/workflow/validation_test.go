@@ -17,31 +17,31 @@ func TestValidateContainerImages(t *testing.T) {
 		{
 			name: "no tools",
 			workflowData: &WorkflowData{
-				Tools: nil,
+				ParsedTools: nil,
 			},
 			expectError: false,
 		},
 		{
 			name: "tools without container",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{
 						"command": "npx",
 						"args":    []any{"@github/github-mcp-server"},
 					},
-				},
+				}),
 			},
 			expectError: false,
 		},
 		{
 			name: "valid container image",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"test-tool": map[string]any{
 						"container": "alpine",
 						"version":   "latest",
 					},
-				},
+				}),
 			},
 			expectError:    false,
 			skipIfNoDocker: true,
@@ -49,12 +49,12 @@ func TestValidateContainerImages(t *testing.T) {
 		{
 			name: "invalid container image",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"test-tool": map[string]any{
 						"container": "nonexistent-image-that-should-not-exist-12345",
 						"version":   "nonexistent",
 					},
-				},
+				}),
 			},
 			expectError:    true,
 			skipIfNoDocker: true,
@@ -151,12 +151,12 @@ func TestExtractNpxPackages(t *testing.T) {
 		{
 			name: "npx in MCP config",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"playwright": map[string]any{
 						"command": "npx",
 						"args":    []any{"@playwright/mcp@latest"},
 					},
-				},
+				}),
 			},
 			expected: []string{"@playwright/mcp@latest"},
 		},
@@ -164,12 +164,12 @@ func TestExtractNpxPackages(t *testing.T) {
 			name: "multiple npx packages",
 			workflowData: &WorkflowData{
 				CustomSteps: "npx package1 && npx package2",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"tool1": map[string]any{
 						"command": "npx",
 						"args":    []any{"package3"},
 					},
-				},
+				}),
 			},
 			expected: []string{"package1", "package2", "package3"},
 		},
@@ -328,12 +328,12 @@ func TestCollectPackagesFromWorkflow(t *testing.T) {
 		{
 			name: "extract from MCP tools when toolCommand provided",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"test-tool": map[string]any{
 						"command": "test-cmd",
 						"args":    []any{"pkg4"},
 					},
-				},
+				}),
 			},
 			toolCommand: "test-cmd",
 			expected:    []string{"pkg4"},
@@ -341,12 +341,12 @@ func TestCollectPackagesFromWorkflow(t *testing.T) {
 		{
 			name: "skip MCP tools when toolCommand is empty",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"test-tool": map[string]any{
 						"command": "test-cmd",
 						"args":    []any{"pkg4"},
 					},
-				},
+				}),
 			},
 			toolCommand: "",
 			expected:    []string{},
@@ -355,12 +355,12 @@ func TestCollectPackagesFromWorkflow(t *testing.T) {
 			name: "deduplicate across custom steps and MCP tools",
 			workflowData: &WorkflowData{
 				CustomSteps: "command1",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"test-tool": map[string]any{
 						"command": "test-cmd",
 						"args":    []any{"pkg1"}, // Duplicate from custom steps
 					},
-				},
+				}),
 			},
 			toolCommand: "test-cmd",
 			expected:    []string{"pkg1", "pkg2"},

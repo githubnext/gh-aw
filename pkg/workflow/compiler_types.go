@@ -479,8 +479,7 @@ type WorkflowData struct {
 	Environment                    string // environment setting for the main job
 	Container                      string // container setting for the main job
 	Services                       string // services setting for the main job
-	Tools                          map[string]any
-	ParsedTools                    *Tools // Structured tools configuration (NEW: parsed from Tools map)
+	ParsedTools                    *Tools // Structured tools configuration
 	MarkdownContent                string
 	AI                             string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig                   *EngineConfig // Extended engine configuration

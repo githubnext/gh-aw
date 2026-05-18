@@ -199,7 +199,7 @@ func TestCopilotEngineArgsInjection(t *testing.T) {
 				ID:   "copilot",
 				Args: []string{"--add-dir", "/"},
 			},
-			Tools:       make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs: nil,
 		}
 
@@ -246,7 +246,7 @@ func TestCopilotEngineArgsInjection(t *testing.T) {
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
 			},
-			Tools:       make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs: nil,
 		}
 
@@ -282,7 +282,7 @@ func TestCopilotEngineArgsInjection(t *testing.T) {
 				ID:   "copilot",
 				Args: []string{"--add-dir", "/workspace", "--verbose"},
 			},
-			Tools:       make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs: nil,
 		}
 
@@ -326,7 +326,7 @@ func TestClaudeEngineArgsInjection(t *testing.T) {
 				ID:   "claude",
 				Args: []string{"--custom-flag", "value"},
 			},
-			Tools:       make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs: nil,
 		}
 
@@ -362,7 +362,7 @@ func TestClaudeEngineArgsInjection(t *testing.T) {
 			EngineConfig: &EngineConfig{
 				ID: "claude",
 			},
-			Tools:       make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs: nil,
 		}
 
@@ -402,7 +402,7 @@ func TestCodexEngineArgsInjection(t *testing.T) {
 				ID:   "codex",
 				Args: []string{"--custom-flag", "value"},
 			},
-			Tools:       make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs: nil,
 		}
 
@@ -448,7 +448,7 @@ func TestCodexEngineArgsInjection(t *testing.T) {
 			EngineConfig: &EngineConfig{
 				ID: "codex",
 			},
-			Tools:       make(map[string]any),
+			ParsedTools: NewTools(nil),
 			SafeOutputs: nil,
 		}
 

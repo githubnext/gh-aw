@@ -42,7 +42,7 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
 				ToolsTimeout: tt.toolsTimeout,
-				Tools:        map[string]any{},
+				ParsedTools: NewTools(map[string]any{}),
 			}
 
 			// Get execution steps
@@ -140,9 +140,9 @@ func TestCodexEngineWithToolsTimeout(t *testing.T) {
 			workflowData := &WorkflowData{
 				ToolsTimeout: tt.toolsTimeout,
 				Name:         "test-workflow",
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"github": map[string]any{},
-				},
+				}),
 			}
 
 			// Render MCP config
@@ -335,7 +335,7 @@ func TestCopilotEngineWithToolsTimeout(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
 				ToolsTimeout: tt.toolsTimeout,
-				Tools:        map[string]any{},
+				ParsedTools: NewTools(map[string]any{}),
 			}
 
 			// Get execution steps

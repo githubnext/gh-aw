@@ -697,9 +697,9 @@ func TestGenerateMainJobStepsWithDevMode(t *testing.T) {
 		Name:            "Test Workflow",
 		AI:              "copilot",
 		MarkdownContent: "Test prompt",
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"agentic-workflows": map[string]any{},
-		},
+		}),
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
 		},

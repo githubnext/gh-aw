@@ -93,7 +93,7 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 	}
 
 	// Add HTTP MCP header secret names
-	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
+	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.ParsedTools.ToMap())
 	for varName := range headerSecrets {
 		secrets = append(secrets, varName)
 	}

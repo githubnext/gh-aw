@@ -23,9 +23,9 @@ func testCompiler() *Compiler {
 // workflowDataWithAgenticWorkflows creates test workflow data with agentic-workflows tool
 func workflowDataWithAgenticWorkflows(options ...func(*WorkflowData)) *WorkflowData {
 	wd := &WorkflowData{
-		Tools: map[string]any{
+		ParsedTools: NewTools(map[string]any{
 			"agentic-workflows": nil,
-		},
+		}),
 	}
 	for _, opt := range options {
 		opt(wd)
@@ -110,7 +110,7 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 			var yaml strings.Builder
 			mcpTools := []string{"agentic-workflows"}
 
-			err := e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
+			err := e.engine.RenderMCPConfig(&yaml, workflowData.ParsedTools.ToMap(), mcpTools, workflowData)
 			require.NoError(t, err)
 			result := yaml.String()
 
@@ -144,7 +144,7 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 	var yaml strings.Builder
 	engine := NewCopilotEngine()
 
-	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData))
+	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.ParsedTools.ToMap(), engine, workflowData))
 	result := yaml.String()
 
 	// Verify the install step is present
@@ -181,7 +181,7 @@ func TestAgenticWorkflowsInstallStepSkippedWithImport(t *testing.T) {
 	var yaml strings.Builder
 	engine := NewCopilotEngine()
 
-	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData))
+	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.ParsedTools.ToMap(), engine, workflowData))
 	result := yaml.String()
 
 	// Verify the install step is NOT present when import exists
@@ -206,7 +206,7 @@ func TestAgenticWorkflowsInstallStepPresentWithoutImport(t *testing.T) {
 	var yaml strings.Builder
 	engine := NewCopilotEngine()
 
-	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData))
+	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.ParsedTools.ToMap(), engine, workflowData))
 	result := yaml.String()
 
 	// Verify the install step IS present when no import exists
@@ -300,7 +300,7 @@ func TestAgenticWorkflowsNilSafety(t *testing.T) {
 		{
 			name: "nil tools map",
 			workflowData: &WorkflowData{
-				Tools: nil,
+				ParsedTools: nil,
 			},
 			shouldHaveMCP: false,
 			description:   "Should handle nil tools map gracefully",
@@ -308,7 +308,7 @@ func TestAgenticWorkflowsNilSafety(t *testing.T) {
 		{
 			name: "empty tools map",
 			workflowData: &WorkflowData{
-				Tools: make(map[string]any),
+				ParsedTools: NewTools(nil),
 			},
 			shouldHaveMCP: false,
 			description:   "Should handle empty tools map gracefully",
@@ -316,9 +316,9 @@ func TestAgenticWorkflowsNilSafety(t *testing.T) {
 		{
 			name: "agentic-workflows with nil value",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"agentic-workflows": nil,
-				},
+				}),
 			},
 			shouldHaveMCP: true,
 			description:   "Should detect agentic-workflows tool even with nil value",
@@ -326,9 +326,9 @@ func TestAgenticWorkflowsNilSafety(t *testing.T) {
 		{
 			name: "agentic-workflows explicitly disabled",
 			workflowData: &WorkflowData{
-				Tools: map[string]any{
+				ParsedTools: NewTools(map[string]any{
 					"agentic-workflows": false,
-				},
+				}),
 			},
 			shouldHaveMCP: false,
 			description:   "Should not detect MCP servers when agentic-workflows is explicitly false",

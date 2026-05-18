@@ -121,7 +121,7 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 		// This builds the gh-aw CLI and Docker image for use by the agentic-workflows MCP server
 		// Only generate build steps if agentic-workflows tool is enabled
 		if c.actionMode.IsDev() {
-			if _, hasAgenticWorkflows := data.Tools["agentic-workflows"]; hasAgenticWorkflows {
+			if data.ParsedTools != nil && data.ParsedTools.AgenticWorkflows != nil && data.ParsedTools.AgenticWorkflows.Enabled {
 				compilerYamlLog.Printf("Generating CLI build steps for dev mode (agentic-workflows tool enabled)")
 				c.generateDevModeCLIBuildSteps(yaml)
 			} else {
@@ -431,7 +431,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	c.generatePreAgentSteps(yaml, data)
 
 	// Add MCP setup
-	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
+	if err := c.generateMCPSetup(yaml, data.ParsedTools.ToMap(), engine, data); err != nil {
 		return nil, fmt.Errorf("failed to generate MCP setup: %w", err)
 	}
 
@@ -717,8 +717,8 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	}
 
 	// Extract and upload squid access logs (if any proxy tools were used)
-	c.generateExtractAccessLogs(yaml, data.Tools)
-	c.generateUploadAccessLogs(yaml, data.Tools)
+	c.generateExtractAccessLogs(yaml, data.ParsedTools.ToMap())
+	c.generateUploadAccessLogs(yaml, data.ParsedTools.ToMap())
 
 	// Collect all artifact paths for the unified upload.
 	artifactPaths = c.collectArtifactPaths(data, engine, logFileFull, artifactPaths)
