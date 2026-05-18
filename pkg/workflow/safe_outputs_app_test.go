@@ -85,7 +85,7 @@ Test workflow with minimal app configuration.
 	assert.Empty(t, workflowData.SafeOutputs.GitHubApp.Repositories)
 }
 
-func TestSafeOutputsAppMissingKeyIgnore(t *testing.T) {
+func TestSafeOutputsAppIgnoreIfMissing(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
@@ -95,7 +95,7 @@ safe-outputs:
   github-app:
     app-id: ${{ secrets.GH_AW_APP_ID }}
     private-key: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}
-    missing-key: ignore
+    ignore-if-missing: true
 ---
 
 # Test Workflow
@@ -110,7 +110,7 @@ safe-outputs:
 	require.NoError(t, err, "Failed to parse markdown content")
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
 	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "GitHub app configuration should be parsed")
-	assert.Equal(t, "ignore", workflowData.SafeOutputs.GitHubApp.MissingKey)
+	assert.True(t, workflowData.SafeOutputs.GitHubApp.IgnoreIfMissing)
 
 	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "main", testFile)
 	require.NoError(t, err, "Failed to build safe_outputs job")
@@ -123,15 +123,15 @@ safe-outputs:
 	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
 }
 
-func TestSafeOutputsAppInvalidMissingKeyDefaultsToError(t *testing.T) {
+func TestSafeOutputsAppInvalidIgnoreIfMissingValueIgnored(t *testing.T) {
 	app := parseAppConfig(map[string]any{
-		"client-id":   "${{ vars.APP_ID }}",
-		"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
-		"missing-key": "skip",
+		"client-id":         "${{ vars.APP_ID }}",
+		"private-key":       "${{ secrets.APP_PRIVATE_KEY }}",
+		"ignore-if-missing": "true",
 	})
 
 	require.NotNil(t, app)
-	assert.Equal(t, gitHubAppMissingKeyError, app.MissingKey)
+	assert.False(t, app.IgnoreIfMissing)
 	assert.False(t, app.shouldIgnoreMissingKey())
 }
 

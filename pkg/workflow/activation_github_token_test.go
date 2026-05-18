@@ -155,9 +155,9 @@ func TestActivationGitHubApp(t *testing.T) {
 			AIReaction:    "eyes",
 			StatusComment: &statusComment,
 			ActivationGitHubApp: &GitHubAppConfig{
-				AppID:      "${{ secrets.GH_AW_APP_ID }}",
-				PrivateKey: "${{ secrets.GH_AW_APP_PRIVATE_KEY }}",
-				MissingKey: "ignore",
+				AppID:           "${{ secrets.GH_AW_APP_ID }}",
+				PrivateKey:      "${{ secrets.GH_AW_APP_PRIVATE_KEY }}",
+				IgnoreIfMissing: true,
 			},
 		}
 

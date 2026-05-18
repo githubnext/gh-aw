@@ -18,18 +18,13 @@ var safeOutputsAppLog = logger.New("workflow:safe_outputs_app")
 
 // GitHubAppConfig holds configuration for GitHub App-based token minting
 type GitHubAppConfig struct {
-	AppID        string            `yaml:"client-id,omitempty"`    // GitHub App client ID (or legacy app ID) (e.g., "${{ vars.APP_ID }}")
-	PrivateKey   string            `yaml:"private-key,omitempty"`  // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
-	MissingKey   string            `yaml:"missing-key,omitempty"`  // Behavior when client-id/private-key resolve empty: "error" (default) or "ignore"
-	Owner        string            `yaml:"owner,omitempty"`        // Optional: owner of the GitHub App installation (defaults to current repository owner)
-	Repositories []string          `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
-	Permissions  map[string]string `yaml:"permissions,omitempty"`  // Optional: extra permission-* fields to merge into the minted token (nested wins over job-level)
+	AppID           string            `yaml:"client-id,omitempty"`         // GitHub App client ID (or legacy app ID) (e.g., "${{ vars.APP_ID }}")
+	PrivateKey      string            `yaml:"private-key,omitempty"`       // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
+	IgnoreIfMissing bool              `yaml:"ignore-if-missing,omitempty"` // If true, skip token minting when client-id/private-key resolve empty
+	Owner           string            `yaml:"owner,omitempty"`             // Optional: owner of the GitHub App installation (defaults to current repository owner)
+	Repositories    []string          `yaml:"repositories,omitempty"`      // Optional: comma or newline-separated list of repositories to grant access to
+	Permissions     map[string]string `yaml:"permissions,omitempty"`       // Optional: extra permission-* fields to merge into the minted token (nested wins over job-level)
 }
-
-const (
-	gitHubAppMissingKeyError  = "error"
-	gitHubAppMissingKeyIgnore = "ignore"
-)
 
 // ========================================
 // App Configuration Parsing
@@ -59,19 +54,12 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 		}
 	}
 
-	// Parse missing-key behavior (optional): "error" (default) or "ignore"
-	if missingKey, exists := appMap["missing-key"]; exists {
-		if missingKeyStr, ok := missingKey.(string); ok {
-			normalized := strings.TrimSpace(strings.ToLower(missingKeyStr))
-			switch normalized {
-			case "", gitHubAppMissingKeyError:
-				appConfig.MissingKey = gitHubAppMissingKeyError
-			case gitHubAppMissingKeyIgnore:
-				appConfig.MissingKey = gitHubAppMissingKeyIgnore
-			default:
-				safeOutputsAppLog.Printf("Ignoring github-app.missing-key value %q: expected %q or %q", missingKeyStr, gitHubAppMissingKeyError, gitHubAppMissingKeyIgnore)
-				appConfig.MissingKey = gitHubAppMissingKeyError
-			}
+	// Parse ignore-if-missing behavior (optional): true to skip minting when key inputs are empty
+	if ignoreIfMissing, exists := appMap["ignore-if-missing"]; exists {
+		if ignore, ok := ignoreIfMissing.(bool); ok {
+			appConfig.IgnoreIfMissing = ignore
+		} else {
+			safeOutputsAppLog.Printf("Ignoring github-app.ignore-if-missing: expected boolean, got %T", ignoreIfMissing)
 		}
 	}
 
@@ -118,7 +106,7 @@ func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
 	if app == nil {
 		return false
 	}
-	return app.MissingKey == gitHubAppMissingKeyIgnore
+	return app.IgnoreIfMissing
 }
 
 // ========================================
