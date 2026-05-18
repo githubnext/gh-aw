@@ -112,15 +112,28 @@ func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
 // quoteGitHubExpressionLiteral returns a single-quoted GitHub Actions string literal.
 // Single quotes are escaped by doubling them to match expression syntax rules.
 func quoteGitHubExpressionLiteral(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+	replacer := strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t", " ", "\\", "\\\\", "'", "''")
+	return "'" + replacer.Replace(value) + "'"
+}
+
+func extractWrappedGitHubExpression(value string) (string, bool) {
+	trimmed := strings.TrimSpace(value)
+	if !strings.HasPrefix(trimmed, "${{") || !strings.HasSuffix(trimmed, "}}") {
+		return "", false
+	}
+	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "${{"), "}}"))
+	if inner == "" {
+		return "", false
+	}
+	return inner, true
 }
 
 // buildGitHubExpressionNonEmptyCheck builds "<expr> != ”" for wrapped expressions
 // and plain string literals so guard conditions can safely check for missing values.
 func buildGitHubExpressionNonEmptyCheck(value string) string {
 	trimmed := strings.TrimSpace(value)
-	if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
-		trimmed = unwrapGitHubExpression(trimmed)
+	if inner, ok := extractWrappedGitHubExpression(trimmed); ok {
+		trimmed = inner
 	} else {
 		trimmed = quoteGitHubExpressionLiteral(trimmed)
 	}
