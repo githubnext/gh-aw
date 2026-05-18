@@ -123,56 +123,6 @@ gh issue view $ISSUE_NUMBER --json body > /tmp/issue.json`,
 	assert.Equal(t, PermissionRead, perms[PermissionIssues], "should infer issues: read")
 }
 
-// TestExtractRunScriptsFromJobPreSteps verifies extraction of run scripts from jobs map.
-func TestExtractRunScriptsFromJobPreSteps(t *testing.T) {
-	jobs := map[string]any{
-		"activation": map[string]any{
-			"pre-steps": []any{
-				map[string]any{
-					"name": "Get changed markdown files",
-					"run":  `gh pr diff "$PR_NUMBER" --name-only | awk '/\.md$/' > /tmp/changed.txt`,
-				},
-				map[string]any{
-					"name": "Echo step",
-					"run":  `echo "hello"`,
-				},
-			},
-		},
-	}
-
-	scripts := extractRunScriptsFromJobPreSteps(jobs, "activation")
-	require.Len(t, scripts, 2)
-	assert.Contains(t, scripts[0], "gh pr diff")
-	assert.Contains(t, scripts[1], "echo")
-}
-
-// TestExtractRunScriptsFromJobPreSteps_NoPreSteps verifies nil return when pre-steps absent.
-func TestExtractRunScriptsFromJobPreSteps_NoPreSteps(t *testing.T) {
-	jobs := map[string]any{
-		"activation": map[string]any{
-			"permissions": map[string]any{"contents": "read"},
-		},
-	}
-	scripts := extractRunScriptsFromJobPreSteps(jobs, "activation")
-	assert.Nil(t, scripts)
-}
-
-// TestExtractRunScriptsFromJobPreSteps_NonRunSteps verifies that non-run steps (uses: ...) are skipped.
-func TestExtractRunScriptsFromJobPreSteps_NonRunSteps(t *testing.T) {
-	jobs := map[string]any{
-		"activation": map[string]any{
-			"pre-steps": []any{
-				map[string]any{
-					"name": "Checkout",
-					"uses": "actions/checkout@v4",
-				},
-			},
-		},
-	}
-	scripts := extractRunScriptsFromJobPreSteps(jobs, "activation")
-	assert.Empty(t, scripts, "uses-only steps should not produce any scripts")
-}
-
 // TestActivationJobPermissionsWithGhPrDiffPreStep is an integration test that verifies
 // the compiler adds pull-requests: read to the activation job when a pre-step calls
 // `gh pr diff`. This reproduces the issue reported for the gh-aw-docs-review workflow.
@@ -500,47 +450,6 @@ func TestInferPermissionsFromShellScripts_GhAPIRepoEnvironments(t *testing.T) {
 	perms := inferPermissionsFromShellScripts(scripts)
 	assert.Equal(t, PermissionRead, perms[PermissionEnvironments],
 		"gh api /repos/.../environments should require environments: read (GitHub App-only)")
-}
-
-// --- extractRunScriptsFromPreStepsYAML ---
-
-// TestExtractRunScriptsFromPreStepsYAML_Basic verifies extraction of run scripts from
-// a YAML string matching the WorkflowData.PreSteps format.
-func TestExtractRunScriptsFromPreStepsYAML_Basic(t *testing.T) {
-	yamlStr := `pre-steps:
-  - name: Lint changed files
-    run: |
-      gh pr diff "$PR_NUMBER" --name-only | awk '/\.md$/'
-  - uses: some-org/action@0000000000000000000000000000000000000000
-`
-	scripts := extractRunScriptsFromPreStepsYAML(yamlStr)
-	assert.Len(t, scripts, 1)
-	assert.Contains(t, scripts[0], "gh pr diff")
-}
-
-// TestExtractRunScriptsFromPreStepsYAML_Empty verifies nil return for empty input.
-func TestExtractRunScriptsFromPreStepsYAML_Empty(t *testing.T) {
-	assert.Nil(t, extractRunScriptsFromPreStepsYAML(""))
-}
-
-// TestExtractRunScriptsFromPreStepsYAML_NoRunSteps verifies nil return when no run steps present.
-func TestExtractRunScriptsFromPreStepsYAML_NoRunSteps(t *testing.T) {
-	yamlStr := `pre-steps:
-  - uses: some-org/action@0000000000000000000000000000000000000000
-`
-	assert.Nil(t, extractRunScriptsFromPreStepsYAML(yamlStr))
-}
-
-// TestExtractRunScriptsFromPreStepsYAML_MultipleRunSteps verifies all run scripts are returned.
-func TestExtractRunScriptsFromPreStepsYAML_MultipleRunSteps(t *testing.T) {
-	yamlStr := `pre-steps:
-  - name: Step one
-    run: gh pr diff "$PR_NUMBER"
-  - name: Step two
-    run: gh issue list
-`
-	scripts := extractRunScriptsFromPreStepsYAML(yamlStr)
-	assert.Len(t, scripts, 2)
 }
 
 // --- mergeInferredIntoPermissionsYAML ---

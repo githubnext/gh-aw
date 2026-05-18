@@ -521,7 +521,7 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			require.NotNil(t, config.Observability.OTLP, "OTLP should not be nil")
 			assert.Equal(t, tt.expectedEndpoint, config.Observability.OTLP.Endpoint, "Endpoint should match")
 			// Normalize Headers (any) to string for comparison
-			normalizedHeaders := normalizeOTLPHeaders(config.Observability.OTLP.Headers)
+			normalizedHeaders := normalizeOTLPHeadersForEndpoint(config.Observability.OTLP.Headers, "")
 			assert.Equal(t, tt.expectedHeaders, normalizedHeaders, "Headers should match")
 		})
 	}
@@ -784,82 +784,6 @@ func TestInjectOTLPConfig_OTLPHeadersField(t *testing.T) {
 		c.injectOTLPConfig(wd)
 		assert.Empty(t, wd.OTLPHeaders, "OTLPHeaders should be empty when no headers are configured")
 	})
-}
-
-// TestNormalizeOTLPHeaders verifies the normalizeOTLPHeaders helper function.
-func TestNormalizeOTLPHeaders(t *testing.T) {
-	tests := []struct {
-		name            string
-		input           any
-		expectedHeaders string
-	}{
-		{
-			name:            "nil returns empty",
-			input:           nil,
-			expectedHeaders: "",
-		},
-		{
-			name:            "empty string returns empty",
-			input:           "",
-			expectedHeaders: "",
-		},
-		{
-			name:            "non-empty string returns string",
-			input:           "Authorization=Bearer tok",
-			expectedHeaders: "Authorization=Bearer tok",
-		},
-		{
-			name:            "secret expression string",
-			input:           "${{ secrets.OTLP_HEADERS }}",
-			expectedHeaders: "${{ secrets.OTLP_HEADERS }}",
-		},
-		{
-			name:            "empty map returns empty",
-			input:           map[string]any{},
-			expectedHeaders: "",
-		},
-		{
-			name:            "single-entry map",
-			input:           map[string]any{"Authorization": "Bearer tok"},
-			expectedHeaders: "Authorization=Bearer tok",
-		},
-		{
-			name: "multi-entry map sorts keys deterministically",
-			input: map[string]any{
-				"X-Tenant":      "acme",
-				"Authorization": "Bearer tok",
-			},
-			expectedHeaders: "Authorization=Bearer tok,X-Tenant=acme",
-		},
-		{
-			name: "map with secret expression value",
-			input: map[string]any{
-				"Authorization": "${{ secrets.TOKEN }}",
-				"X-Tenant":      "acme",
-			},
-			expectedHeaders: "Authorization=${{ secrets.TOKEN }},X-Tenant=acme",
-		},
-		{
-			name:            "unsupported type returns empty",
-			input:           42,
-			expectedHeaders: "",
-		},
-		{
-			name: "non-string map values are skipped",
-			input: map[string]any{
-				"Authorization": "Bearer tok",
-				"bad-value":     123, // non-string: skipped
-			},
-			expectedHeaders: "Authorization=Bearer tok",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotHeaders := normalizeOTLPHeaders(tt.input)
-			assert.Equal(t, tt.expectedHeaders, gotHeaders, "headers should match")
-		})
-	}
 }
 
 func TestNormalizeOTLPHeadersForEndpoint(t *testing.T) {

@@ -395,12 +395,6 @@ func extractRunScriptsFromSectionYAML(sectionYAML, sectionName string) []string 
 	return scripts
 }
 
-// extractRunScriptsFromPreStepsYAML parses a pre-steps YAML string (as stored in
-// WorkflowData.PreSteps) and returns the `run` script text from every step.
-func extractRunScriptsFromPreStepsYAML(preStepsYAML string) []string {
-	return extractRunScriptsFromSectionYAML(preStepsYAML, "pre-steps")
-}
-
 // extractRunScriptsFromJobSection returns the `run` script text from every step in the
 // named section (e.g. "pre-steps", "steps", "post-steps") of the named job configuration
 // inside the frontmatter jobs map.
@@ -442,12 +436,4 @@ func extractRunScriptsFromJobSection(jobs map[string]any, jobName, sectionName s
 		}
 	}
 	return scripts
-}
-
-// extractRunScriptsFromJobPreSteps returns the `run` script text from every
-// pre-step in the named job configuration inside the frontmatter jobs map.
-//
-// It is a read-only extraction: it never mutates the jobs map.
-func extractRunScriptsFromJobPreSteps(jobs map[string]any, jobName string) []string {
-	return extractRunScriptsFromJobSection(jobs, jobName, "pre-steps")
 }
