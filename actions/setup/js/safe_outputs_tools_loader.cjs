@@ -82,6 +82,7 @@ function attachHandlers(tools, handlers) {
     add_comment: handlers.addCommentHandler,
     create_pull_request_review_comment: handlers.createPullRequestReviewCommentHandler,
     submit_pull_request_review: handlers.submitPullRequestReviewHandler,
+    update_pull_request: handlers.updatePullRequestHandler,
   };
 
   tools.forEach(tool => {
