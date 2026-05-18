@@ -276,6 +276,36 @@ describe("safe_outputs_tools_loader", () => {
         workflow_name: "undefined-test",
       });
     });
+
+    it("should attach create_pull_request_review_comment handler", () => {
+      const tools = [{ name: "create_pull_request_review_comment", description: "Create review comment" }];
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+        createPullRequestReviewCommentHandler: vi.fn(),
+        submitPullRequestReviewHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBe(handlers.createPullRequestReviewCommentHandler);
+    });
+
+    it("should attach submit_pull_request_review handler", () => {
+      const tools = [{ name: "submit_pull_request_review", description: "Submit PR review" }];
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+        createPullRequestReviewCommentHandler: vi.fn(),
+        submitPullRequestReviewHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBe(handlers.submitPullRequestReviewHandler);
+    });
   });
 
   describe("registerPredefinedTools", () => {
