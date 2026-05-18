@@ -135,6 +135,38 @@ func TestSafeOutputsAppIgnoreIfMissingInvalidType(t *testing.T) {
 	assert.False(t, app.shouldIgnoreMissingKey())
 }
 
+func TestBuildIgnoreIfMissingCondition(t *testing.T) {
+	tests := []struct {
+		name       string
+		appID      string
+		privateKey string
+		expected   string
+	}{
+		{
+			name:       "wrapped expressions",
+			appID:      "${{ secrets.GH_AW_APP_ID }}",
+			privateKey: "${{ secrets.GH_AW_APP_PRIVATE_KEY }}",
+			expected:   "${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}",
+		},
+		{
+			name:       "literal values",
+			appID:      "  id value  ",
+			privateKey: "key'value",
+			expected:   "${{ 'id value' != '' && 'key''value' != '' }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &GitHubAppConfig{
+				AppID:      tt.appID,
+				PrivateKey: tt.privateKey,
+			}
+			assert.Equal(t, tt.expected, buildIgnoreIfMissingCondition(app))
+		})
+	}
+}
+
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
 func TestSafeOutputsAppWithoutSafeOutputs(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
