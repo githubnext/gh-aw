@@ -43,10 +43,14 @@ type FetchedResource struct {
 //     If the server returns 405/501 or omits Content-Type, skip to step 2.
 //  2. GET request – response headers are checked before the body is consumed.
 //
-// Authentication is attached only when the request host equals "github.com" or the value
-// of the GH_HOST environment variable.  In that case the value of GH_TOKEN (falling back
-// to GITHUB_TOKEN) is sent as "Authorization: Bearer <token>".  For all other hosts no
-// authentication header is added; TLS verification is always enabled.
+// Authentication is attached only when BOTH of the following hold:
+//   - the request scheme is "https"
+//   - the request host is an exact match for "github.com" or the hostname
+//     extracted from the GH_HOST environment variable
+//
+// In that case the value of GH_TOKEN (falling back to GITHUB_TOKEN) is sent as
+// "Authorization: Bearer <token>".  For all other hosts, or for any HTTP (non-TLS)
+// request, no authentication header is added.  TLS verification is always enabled.
 //
 // The body is capped at importURLMaxBytes to prevent runaway downloads.
 func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*FetchedResource, error) {
@@ -160,14 +164,25 @@ func canonicalContentType(raw string) string {
 }
 
 // attachImportAuthHeader adds "Authorization: Bearer <token>" to req if and only if
-// the request host equals github.com or the value of GH_HOST.  The token is read
-// from GH_TOKEN, falling back to GITHUB_TOKEN.  Nothing is added when no matching
-// host is found or no token is set.  The token value is never logged.
+// ALL of the following are true:
+//   - the request scheme is "https" (tokens are never sent over plaintext HTTP)
+//   - the request host is an exact match for one of the allowed GitHub hosts:
+//     "github.com" or the hostname extracted from the GH_HOST environment variable
+//
+// The token is read from GH_TOKEN, falling back to GITHUB_TOKEN.  Nothing is
+// added when no matching host is found, no token is set, or the request is
+// not over HTTPS.  The token value is never logged.
 func attachImportAuthHeader(req *http.Request, rawURL string) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
 		return
 	}
+
+	// Never send credentials over plaintext HTTP — HTTPS is required.
+	if strings.ToLower(parsed.Scheme) != "https" {
+		return
+	}
+
 	host := strings.ToLower(parsed.Hostname())
 
 	// Authoritative GitHub hosts to which the token may be sent.
@@ -177,7 +192,18 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 		if u, parseErr := url.Parse(ghHost); parseErr == nil && u.Host != "" {
 			allowedHosts = append(allowedHosts, strings.ToLower(u.Hostname()))
 		} else {
-			allowedHosts = append(allowedHosts, strings.ToLower(strings.TrimPrefix(ghHost, "https://")))
+			// No scheme present — treat the whole value as a bare hostname (possibly
+			// with port).  Strip a stray "https://" prefix that some callers include
+			// before the hostname portion.
+			bare := strings.TrimPrefix(ghHost, "https://")
+			bare = strings.TrimPrefix(bare, "http://")
+			// Strip any trailing path that was accidentally included.
+			if idx := strings.IndexByte(bare, '/'); idx != -1 {
+				bare = bare[:idx]
+			}
+			if bare != "" {
+				allowedHosts = append(allowedHosts, strings.ToLower(bare))
+			}
 		}
 	}
 

@@ -163,3 +163,99 @@ func TestAttachImportAuthHeader_NoToken(t *testing.T) {
 	attachImportAuthHeader(req, "https://github.com/owner/repo/raw/main/wf.md")
 	assert.Empty(t, req.Header.Get("Authorization"))
 }
+
+// ── Security boundary tests ───────────────────────────────────────────────────
+
+// Token must NEVER be sent over plain HTTP even to github.com.
+func TestAttachImportAuthHeader_HTTP_GitHub_NoToken(t *testing.T) {
+	t.Setenv("GH_TOKEN", "super-secret")
+
+	req, _ := http.NewRequest(http.MethodGet, "http://github.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "http://github.com/owner/repo/raw/main/wf.md")
+	assert.Empty(t, req.Header.Get("Authorization"), "token must not be sent over plain HTTP")
+}
+
+// Subdomains of github.com must not receive the token.
+func TestAttachImportAuthHeader_GitHubSubdomain_NoToken(t *testing.T) {
+	t.Setenv("GH_TOKEN", "super-secret")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://evil.github.com/workflow.md", nil)
+	attachImportAuthHeader(req, "https://evil.github.com/workflow.md")
+	assert.Empty(t, req.Header.Get("Authorization"), "subdomain of github.com must not match")
+}
+
+// A hostname that ends with "github.com" but is a different domain must not match.
+func TestAttachImportAuthHeader_SuffixConfusion_NoToken(t *testing.T) {
+	t.Setenv("GH_TOKEN", "super-secret")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://notgithub.com/workflow.md", nil)
+	attachImportAuthHeader(req, "https://notgithub.com/workflow.md")
+	assert.Empty(t, req.Header.Get("Authorization"), "hostname suffix confusion must not match")
+}
+
+// A hostname like "github.com.evil.com" must not match.
+func TestAttachImportAuthHeader_DotAppended_NoToken(t *testing.T) {
+	t.Setenv("GH_TOKEN", "super-secret")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://github.com.evil.com/workflow.md", nil)
+	attachImportAuthHeader(req, "https://github.com.evil.com/workflow.md")
+	assert.Empty(t, req.Header.Get("Authorization"), "github.com.evil.com must not match github.com")
+}
+
+// ── GHE host tests ────────────────────────────────────────────────────────────
+
+// GH_HOST set as a bare hostname (no scheme).
+func TestAttachImportAuthHeader_GHE_BareHostname(t *testing.T) {
+	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GH_HOST", "ghe.example.com")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://ghe.example.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "https://ghe.example.com/owner/repo/raw/main/wf.md")
+	assert.Equal(t, "Bearer ghe-token", req.Header.Get("Authorization"), "bare GH_HOST hostname must be allowed")
+}
+
+// GH_HOST set with https:// scheme prefix.
+func TestAttachImportAuthHeader_GHE_HTTPSScheme(t *testing.T) {
+	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GH_HOST", "https://ghe.example.com")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://ghe.example.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "https://ghe.example.com/owner/repo/raw/main/wf.md")
+	assert.Equal(t, "Bearer ghe-token", req.Header.Get("Authorization"), "GH_HOST with https:// prefix must be allowed")
+}
+
+// GH_HOST set with http:// scheme prefix — token must still only be sent over HTTPS requests.
+func TestAttachImportAuthHeader_GHE_HTTPSchemePrefix(t *testing.T) {
+	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GH_HOST", "http://ghe.example.com")
+
+	// HTTPS request → token sent.
+	req, _ := http.NewRequest(http.MethodGet, "https://ghe.example.com/workflow.md", nil)
+	attachImportAuthHeader(req, "https://ghe.example.com/workflow.md")
+	assert.Equal(t, "Bearer ghe-token", req.Header.Get("Authorization"), "HTTPS request to GHE must receive token")
+
+	// HTTP request → token NOT sent, even though GH_HOST matches.
+	req2, _ := http.NewRequest(http.MethodGet, "http://ghe.example.com/workflow.md", nil)
+	attachImportAuthHeader(req2, "http://ghe.example.com/workflow.md")
+	assert.Empty(t, req2.Header.Get("Authorization"), "HTTP request to GHE must not receive token")
+}
+
+// GH_HOST is set but the request targets a different host — no token.
+func TestAttachImportAuthHeader_GHE_DifferentHost(t *testing.T) {
+	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GH_HOST", "ghe.example.com")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://other.example.com/workflow.md", nil)
+	attachImportAuthHeader(req, "https://other.example.com/workflow.md")
+	assert.Empty(t, req.Header.Get("Authorization"), "different host must not receive token even when GH_HOST is set")
+}
+
+// github.com still works alongside a configured GH_HOST.
+func TestAttachImportAuthHeader_GitHubAlongsideGHE(t *testing.T) {
+	t.Setenv("GH_TOKEN", "dual-token")
+	t.Setenv("GH_HOST", "ghe.example.com")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://github.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "https://github.com/owner/repo/raw/main/wf.md")
+	assert.Equal(t, "Bearer dual-token", req.Header.Get("Authorization"), "github.com must still be allowed when GH_HOST is also set")
+}
