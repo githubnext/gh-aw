@@ -53,11 +53,7 @@ function buildIntentErrorResponse(error) {
  */
 function hasUpdatePullRequestFields(args) {
   const safeArgs = args || {};
-  return (
-    typeof safeArgs.title === "string" ||
-    typeof safeArgs.body === "string" ||
-    safeArgs.update_branch === true
-  );
+  return typeof safeArgs.title === "string" || typeof safeArgs.body === "string" || safeArgs.update_branch === true;
 }
 
 /**
