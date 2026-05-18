@@ -1849,10 +1849,26 @@ func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 		}
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		expected := "COPILOT_API_KEY: " + constants.CopilotBYOKDummyAPIKey
-		if !strings.Contains(stepContent, expected) {
-			t.Errorf("Expected COPILOT_API_KEY to be set when AWF sandbox is enabled, got:\n%s", stepContent)
+
+		// COPILOT_DUMMY_BYOK holds the literal sentinel in the env: block (not *_API_KEY shaped).
+		expectedDummyVar := constants.CopilotBYOKDummyAPIKeyEnvVar + ": " + constants.CopilotBYOKDummyAPIKey
+		if !strings.Contains(stepContent, expectedDummyVar) {
+			t.Errorf("Expected %s to be set in env: block when AWF sandbox is enabled, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
 		}
+
+		// COPILOT_API_KEY must be exported via shell expansion in the run: script,
+		// NOT as a literal in the env: block (GitHub Actions env: values are not shell-expanded).
+		expectedExport := `export COPILOT_API_KEY="$` + constants.CopilotBYOKDummyAPIKeyEnvVar + `"`
+		if !strings.Contains(stepContent, expectedExport) {
+			t.Errorf("Expected run: script to contain %q for correct shell expansion, got:\n%s", expectedExport, stepContent)
+		}
+
+		// Sanity-check: COPILOT_API_KEY must NOT appear in the env: block as a key.
+		// That would put a token-shaped literal next to an *_API_KEY key.
+		if strings.Contains(stepContent, "          COPILOT_API_KEY:") {
+			t.Errorf("COPILOT_API_KEY must not appear as an env: key; got:\n%s", stepContent)
+		}
+
 		if !strings.Contains(stepContent, "AWF_REFLECT_ENABLED: 1") {
 			t.Errorf("Expected AWF_REFLECT_ENABLED to be set when AWF sandbox is enabled, got:\n%s", stepContent)
 		}
@@ -1875,6 +1891,9 @@ func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if strings.Contains(stepContent, "COPILOT_API_KEY") {
 			t.Errorf("Expected COPILOT_API_KEY to be absent when sandbox.agent: false, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, constants.CopilotBYOKDummyAPIKeyEnvVar) {
+			t.Errorf("Expected %s to be absent when sandbox.agent: false, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
 		}
 		if strings.Contains(stepContent, "AWF_REFLECT_ENABLED") {
 			t.Errorf("Expected AWF_REFLECT_ENABLED to be absent when sandbox.agent: false, got:\n%s", stepContent)

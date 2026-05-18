@@ -82,6 +82,8 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_AGENT_CONCLUSION = "failure";
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       process.env.GH_AW_DETECTION_REASON = "threat_detected";
+      process.env.GITHUB_HEAD_REF = "feature/detection-caution";
+      process.env.GITHUB_WORKSPACE = tmpDir;
     });
 
     afterEach(() => {
@@ -92,6 +94,8 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_AGENT_CONCLUSION;
       delete process.env.GH_AW_DETECTION_CONCLUSION;
       delete process.env.GH_AW_DETECTION_REASON;
+      delete process.env.GITHUB_HEAD_REF;
+      delete process.env.GITHUB_WORKSPACE;
 
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -112,7 +116,16 @@ describe("handle_agent_failure", () => {
               return {
                 data: {
                   total_count: 1,
-                  items: [{ number: 42, html_url: "https://github.com/owner/repo/issues/42" }],
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body:
+                        "> footer\n> - [x] expires <!-- gh-aw-expires: 2099-01-01T00:00:00.000Z --> on Jan 1, 2099, 12:00 AM UTC\n\n" +
+                        "<!-- gh-aw-agentic-workflow: Test Workflow, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->\n" +
+                        "<!-- gh-aw-failure-issue: true, workflow_id: test-workflow, branch: feature/detection-caution, failure_categories: agent_failure -->",
+                    },
+                  ],
                 },
               };
             }),
@@ -175,6 +188,357 @@ describe("handle_agent_failure", () => {
       expect(capturedIssueBody.indexOf("> [!CAUTION]")).toBeLessThan(capturedIssueBody.indexOf("ISSUE TEMPLATE CONTENT"));
       expect((capturedIssueBody.match(/> \[!CAUTION\]/g) || []).length).toBe(1);
       expect(capturedIssueBody).toContain("> Generated from [Test Workflow]");
+    });
+  });
+
+  describe("main() precise failure issue matching", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let promptsDir;
+
+    function buildExistingIssueBody({ branch, categories, expires = "2099-01-01T00:00:00.000Z", pullRequestNumber, workflowName = "Test Workflow" } = {}) {
+      const prPart = pullRequestNumber ? `, pull_request: ${pullRequestNumber}` : "";
+      return (
+        `> Generated from [${workflowName}](https://github.com/owner/repo/actions/runs/123456)\n` +
+        `> - [x] expires <!-- gh-aw-expires: ${expires} --> on Jan 1, 2099, 12:00 AM UTC\n\n` +
+        `<!-- gh-aw-agentic-workflow: ${workflowName}, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->\n` +
+        `<!-- gh-aw-failure-issue: true, workflow_id: test-workflow, branch: ${branch || ""}, failure_categories: ${categories.join("|")}${prPart} -->`
+      );
+    }
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-handle-agent-failure-match-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "COMMENT TEMPLATE CONTENT");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "ISSUE TEMPLATE CONTENT");
+
+      process.env.RUNNER_TEMP = tmpDir;
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+      process.env.GITHUB_HEAD_REF = "feature/current";
+      process.env.GITHUB_WORKSPACE = tmpDir;
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_ID;
+      delete process.env.GH_AW_RUN_URL;
+      delete process.env.GH_AW_AGENT_CONCLUSION;
+      delete process.env.GITHUB_HEAD_REF;
+      delete process.env.GITHUB_WORKSPACE;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("adds a comment only when the existing issue metadata matches exactly", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: buildExistingIssueBody({ branch: "feature/current", categories: ["missing_safe_outputs"] }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+    });
+
+    it("adds a comment when existing issue metadata contains commas in free-form values", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow, Retry";
+      process.env.GITHUB_HEAD_REF = "feature/current,with-comma";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: buildExistingIssueBody({
+                        workflowName: "Test Workflow, Retry",
+                        branch: "feature/current,with-comma",
+                        categories: ["missing_safe_outputs"],
+                      }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+    });
+
+    it("creates a new issue when an open issue with the same title has a different branch or category", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async ({ body }) => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123", body },
+      }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 2,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: buildExistingIssueBody({ branch: "feature/other", categories: ["missing_safe_outputs"] }),
+                    },
+                    {
+                      number: 43,
+                      html_url: "https://github.com/owner/repo/issues/43",
+                      body: buildExistingIssueBody({ branch: "feature/current", categories: ["agent_failure"] }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      expect(createIssueMock.mock.calls[0][0].body).toContain("gh-aw-failure-issue: true");
+      expect(createIssueMock.mock.calls[0][0].body).toContain("branch: feature/current");
+      expect(createIssueMock.mock.calls[0][0].body).toContain("failure_categories: missing_safe_outputs");
+    });
+
+    it("creates a new issue instead of commenting on an expired issue", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+      }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: buildExistingIssueBody({
+                        branch: "feature/current",
+                        categories: ["missing_safe_outputs"],
+                        expires: "2000-01-01T00:00:00.000Z",
+                      }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).toHaveBeenCalledOnce();
+    });
+
+    it("continues searching later pages until it finds an exact metadata match", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+      const searchMock = vi.fn(async ({ q, page }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+
+        if (page === 1) {
+          return {
+            data: {
+              total_count: 101,
+              items: Array.from({ length: 100 }, (_, index) => ({
+                number: index + 1,
+                html_url: `https://github.com/owner/repo/issues/${index + 1}`,
+                body: buildExistingIssueBody({ branch: `feature/other-${index + 1}`, categories: ["missing_safe_outputs"] }),
+              })),
+            },
+          };
+        }
+
+        return {
+          data: {
+            total_count: 101,
+            items: [
+              {
+                number: 101,
+                html_url: "https://github.com/owner/repo/issues/101",
+                body: buildExistingIssueBody({ branch: "feature/current", categories: ["missing_safe_outputs"] }),
+              },
+            ],
+          },
+        };
+      });
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+    });
+
+    it("creates a new issue when the pull request metadata does not match exactly", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async ({ body }) => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123", body },
+      }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return {
+                  data: {
+                    total_count: 1,
+                    items: [{ number: 123, html_url: "https://github.com/owner/repo/pull/123" }],
+                  },
+                };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: buildExistingIssueBody({
+                        branch: "feature/current",
+                        categories: ["missing_safe_outputs"],
+                        pullRequestNumber: 999,
+                      }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: {
+            get: vi.fn(async () => ({
+              data: {
+                head: { sha: "abc123" },
+                mergeable: true,
+                mergeable_state: "clean",
+                updated_at: "2026-05-18T00:00:00Z",
+              },
+            })),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      expect(createIssueMock.mock.calls[0][0].body).toContain("pull_request: 123");
     });
   });
 
