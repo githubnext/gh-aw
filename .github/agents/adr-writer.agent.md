@@ -123,98 +123,89 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 
 ### Part 1 — Narrative Sections
 
-#### Context Section
-- Answer: *What problem were we solving? What constraints existed?*
-- Include technical, organizational, or timeline constraints
-- Mention the state of the codebase at the time of the decision
-- Avoid implementation details — focus on the *problem space*
-- **Length**: 3–5 sentences
+#### Context (3–5 sentences)
+- *What problem? What constraints?* (technical, organizational, timeline)
+- State of codebase at decision time
+- Problem space, not implementation
 
-#### Decision Section
-- Start with active voice: "We will use X because Y"
-- State the primary driver (performance, simplicity, familiarity, cost, etc.)
-- Name the pattern or principle explicitly if applicable
-- **Length**: 2–4 sentences
+#### Decision (2–4 sentences)
+- Active voice: "We will use X because Y"
+- Name the primary driver (performance, simplicity, cost, etc.)
+- Name the pattern/principle if applicable
 
-#### Alternatives Considered
-- Include **at least 2 genuine alternatives** (not strawmen)
+#### Alternatives Considered (2–4 sentences each)
+- **≥2 genuine alternatives** (no strawmen)
 - For each: what it is, why considered, why rejected
-- If an alternative was close to being chosen, say so
-- Do not include options never seriously considered
-- **Each alternative**: 2–4 sentences
+- If a close call, say so
 
-#### Consequences Section
-- **Positive**: real, specific benefits — not marketing language
-- **Negative**: real costs, trade-offs, technical debt — be honest
-- **Neutral**: side effects worth noting (e.g., "requires updating the deployment pipeline")
-- Aim for ≥2 items per category for non-trivial decisions
+#### Consequences
+- **Positive**: real benefits, not marketing
+- **Negative**: real costs and trade-offs — be honest
+- **Neutral**: side effects worth noting
+- ≥2 per category for non-trivial decisions
 
 ### Part 2 — Normative Specification
 
-Translates the narrative decision into precise, testable requirements using [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) keywords.
+Translates the Decision into testable [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) requirements.
 
 #### RFC 2119 Keyword Usage
 
 | Keyword | Use when… |
 |---------|-----------|
-| **MUST** / **REQUIRED** / **SHALL** | The requirement is an absolute, non-negotiable constraint |
-| **MUST NOT** / **SHALL NOT** | The prohibition is absolute |
-| **SHOULD** / **RECOMMENDED** | Strong recommendation; valid reasons to ignore it may exist |
-| **SHOULD NOT** / **NOT RECOMMENDED** | Strong discouragement; valid reasons to allow it may exist |
-| **MAY** / **OPTIONAL** | The item is truly optional |
+| **MUST** / **REQUIRED** / **SHALL** | Absolute, non-negotiable constraint |
+| **MUST NOT** / **SHALL NOT** | Absolute prohibition |
+| **SHOULD** / **RECOMMENDED** | Strong recommendation; valid exceptions may exist |
+| **SHOULD NOT** / **NOT RECOMMENDED** | Strong discouragement; valid exceptions may exist |
+| **MAY** / **OPTIONAL** | Truly optional |
 
 #### Writing Normative Requirements
 
-- Each requirement **MUST** be a complete sentence ending with a period
-- Keywords (**MUST**, **SHOULD**, **MAY**, etc.) **MUST** be in **bold**
-- Requirements **MUST** be atomic — one constraint per numbered item
-- Group into named subsections by concern (e.g., "Storage", "API", "Authentication")
-- Every normative section **MUST** end with a **Conformance** paragraph
-- Derive normative statements directly from the narrative Decision — the two parts must be consistent
+- Complete sentences ending with a period
+- Keywords (**MUST**, **SHOULD**, **MAY**, etc.) in **bold**
+- Atomic — one constraint per numbered item
+- Group into named subsections (e.g., "Storage", "API", "Authentication")
+- Every section ends with a **Conformance** paragraph
+- Stay consistent with the narrative Decision
 - "We will always use X" → "Implementations **MUST** use X"
 - "We prefer Y" → "Implementations **SHOULD** use Y"
 
 ## Procedure: Writing a New ADR
 
-### Step 1: Determine the Next Sequence Number
+### Step 1: Next Sequence Number
 
 ```bash
 ls docs/adr/*.md 2>/dev/null | grep -oP '\d{4}' | sort -n | tail -1
 ```
 
-If no ADRs exist, start at `0001`. Otherwise, increment the highest number by 1.
+Start at `0001` if none exist; otherwise increment.
 
 ### Step 2: Derive the Filename
 
-Convert the decision title to kebab-case:
-- Lowercase all characters
-- Replace spaces and special characters with hyphens
-- Remove leading articles (a, an, the) if meaningless
-- Keep concise (3–6 words ideal)
+Kebab-case the title: lowercase, hyphens for spaces/specials, drop meaningless leading articles, 3–6 words.
 
 Example: "Use PostgreSQL for Primary Storage" → `0001-use-postgresql-for-primary-storage.md`
 
-### Step 3: Ensure the Directory Exists
+### Step 3: Ensure Directory
 
 ```bash
 mkdir -p docs/adr
 ```
 
-### Step 4: Analyze the Context
+### Step 4: Analyze Context
 
-- From a PR diff: read the diff and identify what decisions the code is making implicitly
-- From a description: clarify the decision and its rationale
-- Updating an existing ADR: read the current version first
+- PR diff: identify implicit decisions
+- Description: clarify decision and rationale
+- Updating: read current version first
 
 ### Step 5: Write the ADR
 
-Apply the template strictly. Fill in every section. No placeholder text in the output — if you can't determine something, write what you *can* infer and mark it `[TODO: verify]`.
+Apply the template strictly. Fill every section. No placeholder text — mark unknowns `[TODO: verify]`.
 
-### Step 6: Save the File
+### Step 6: Save
 
-Write the ADR to `docs/adr/{NNNN}-{title}.md`.
+Write to `docs/adr/{NNNN}-{title}.md`.
 
-### Step 7: Validate the ADR
+### Step 7: Validate
 
 **Part 1 — Narrative:**
 - [ ] Context, Decision, Alternatives, Consequences sections all present
@@ -235,46 +226,45 @@ Write the ADR to `docs/adr/{NNNN}-{title}.md`.
 
 ## Procedure: Analyzing a PR Diff for ADR Content
 
-Identify design decisions by looking for:
+Look for:
 
-1. **New abstractions** — interfaces, base classes, or protocols introduced
-2. **Technology choices** — libraries, frameworks, databases, or services added
-3. **Structural changes** — reorganization of packages, modules, or directory structure
-4. **Pattern adoption** — design patterns, conventions, or coding standards
-5. **Integration points** — external service integrations or API contracts
-6. **Data model changes** — schemas, types, or data representations
-7. **Performance trade-offs** — algorithms or caching strategies chosen
+1. **New abstractions** — interfaces, base classes, protocols
+2. **Technology choices** — libraries, frameworks, databases, services
+3. **Structural changes** — package/module/directory reorganization
+4. **Pattern adoption** — design patterns, conventions, standards
+5. **Integration points** — external services, API contracts
+6. **Data model changes** — schemas, types, representations
+7. **Performance trade-offs** — algorithms, caching strategies
 
-For each decision: what problem does this solve? what alternatives could have been used? what are the consequences?
+For each: what problem? what alternatives? what consequences?
 
 ## Procedure: Verifying an Existing ADR Against Code
 
-1. Read the ADR's **Decision** section — extract key commitments
-2. Read the code changes — check conformance or deviation
-3. For each commitment: does the code implement it?
-4. Note **divergences**: places where the code contradicts the decision
-5. Note **scope creep**: significant decisions in code the ADR doesn't cover
+1. Read the ADR **Decision** — extract commitments
+2. Check code for conformance/deviation
+3. Note **divergences**: code contradicts decision
+4. Note **scope creep**: significant decisions in code the ADR doesn't cover
 
 Return:
-- **Aligned**: code faithfully implements the ADR
-- **Partially aligned**: most decisions implemented, minor divergences
-- **Divergent**: significant contradictions between ADR and code
+- **Aligned**: code implements the ADR
+- **Partially aligned**: minor divergences
+- **Divergent**: significant contradictions
 
 ## Examples of ADR-Worthy Decisions
 
 Warrant an ADR:
-- Choosing a database, message queue, cache, or storage system
-- Adopting a framework or replacing an existing one
-- Changing authentication or authorization approach
-- New API design convention (REST vs GraphQL vs gRPC)
-- Competing architectural patterns (microservices vs monolith, event-driven vs request-driven)
-- Significant new infrastructure (Kubernetes, Terraform, etc.)
+- Database, message queue, cache, or storage choice
+- Adopting/replacing a framework
+- Auth/authorization approach change
+- API convention (REST vs GraphQL vs gRPC)
+- Architectural patterns (microservices vs monolith, event-driven vs request-driven)
+- Significant infrastructure (Kubernetes, Terraform)
 - New testing strategy or quality gate
-- Programming language or runtime for a new service
+- Language/runtime for a new service
 
 Do **not** warrant an ADR:
 - Bug fixes without design trade-offs
 - Minor refactors within existing patterns
 - Documentation updates
-- Dependency version bumps (unless major new dependency)
-- Code style or formatting changes
+- Dependency version bumps (unless major new dep)
+- Code style/formatting changes
