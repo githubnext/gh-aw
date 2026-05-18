@@ -1,18 +1,18 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-05-11
+> Last updated: 2026-05-18
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 219
+- **Lock files analyzed**: 230
 - **Unique GitHub Actions**: 27
-- **Artifact patterns**: 42
-- **Job name patterns**: 37
-- **File path references**: 81
+- **Artifact patterns**: 48
+- **Job name patterns**: 39
+- **File path references**: 83
 
 ## GitHub Actions
 
@@ -40,7 +40,7 @@ Common GitHub Actions used across compiled workflows:
 | `anchore/sbom-action` | `e22c3899...` | Generates SBOM | Used for security and compliance |
 | `super-linter/super-linter` | `9e863354...` | Runs super-linter | Used for code quality checks |
 | `github/codeql-action/upload-sarif` | `68bde559...` | Uploads SARIF to GitHub Code Scanning | Used for security scanning results from threat detection |
-| `github/gh-aw-actions/setup` | `v0.71.5` | Sets up gh-aw actions | Installs the gh-aw actions setup for use in workflows |
+| `github/gh-aw-actions/setup` | `v0.72.1` | Sets up gh-aw actions | Installs the gh-aw actions setup for use in workflows |
 | `github/stale-repos` | `5f2e18fc...` | Manages stale repositories | Used for repository maintenance |
 | `microsoft/apm-action` | `a190b0b1...` | Collects APM bundle data | Used for performance monitoring and APM artifact creation |
 | `./actions/setup` | N/A (local) | Custom setup action | Copies JavaScript and shell scripts to `/tmp/gh-aw/actions` |
@@ -97,6 +97,12 @@ Artifacts uploaded/downloaded between workflow jobs:
 | `dailyissuesreport-experiment` | Daily workflow job | Download step | Daily issues report experiment artifact |
 | `dailynews-experiment` | Daily workflow job | Download step | Daily news experiment artifact |
 | `deepreport-experiment` | Agent job | Download step | Deep report experiment artifact |
+| `blogauditor-experiment` | Agent job | Download step | Blog auditor experiment artifact |
+| `cicoach-experiment` | Agent job | Download step | CI coach experiment artifact |
+| `dailyarchitecturediagram-experiment` | Daily workflow job | Download step | Daily architecture diagram experiment artifact |
+| `dailycodemetrics-experiment` | Daily workflow job | Download step | Daily code metrics experiment artifact |
+| `dailysecurityredteam-experiment` | Daily workflow job | Download step | Daily security red team experiment artifact |
+| `dailysemgrepscan-experiment` | Daily workflow job | Download step | Daily Semgrep scan experiment artifact |
 | `trufflehog-scan-results` | TruffleHog scan job | Download step | TruffleHog secret scanner results |
 
 ## Common Job Names
@@ -145,6 +151,7 @@ Standard job names across compiled workflows:
 | `collect_openai_models` | Model collection | Various | Collects OpenAI model inventory |
 | `geo_audit` | Geographic audit | Various | Runs geographic optimization audit across repositories |
 | `push_experiments_state` | Experiments state push | Agent/analysis jobs | Pushes A/B experiments state to storage |
+| `call-dependabot-worker` | Dependabot worker | Various | Calls the Dependabot worker reusable workflow |
 | `trufflehog_scan` | Secret scanning | Various | Runs TruffleHog secret scanner on repository |
 
 ## File Paths
@@ -247,6 +254,7 @@ Common file paths referenced in workflow files:
 | `/tmp/gh-aw/model-inventory/openai/raw.json` | File | OpenAI raw JSON | Raw OpenAI API model list |
 | `/tmp/gh-aw/model-inventory/artifacts` | Directory | Model inventory artifacts | Aggregated model inventory artifacts |
 | `/tmp/gh-aw/pi-streaming.jsonl` | File | PI streaming log | Prompt injection streaming detection log |
+| `/tmp/gh-aw/pi-agent-dir` | Directory | PI agent workspace | Working directory for the PI (prompt injection) coding agent |
 | `/tmp/gh-aw/pre-agent-audit.txt` | File | Pre-agent audit | Audit snapshot taken before agent execution |
 | `/tmp/gh-aw/skill-optimizer-results` | Directory | Skill optimizer results | Results from skill optimizer analysis runs |
 | `/tmp/gh-aw/spellcheck/` | Directory | Spellcheck output | Spellcheck results and configuration |
@@ -422,11 +430,13 @@ CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
 
 ### Engine Names
 ```go
-CopilotEngine EngineName = "copilot"
-ClaudeEngine  EngineName = "claude"
-CodexEngine   EngineName = "codex"
-GeminiEngine  EngineName = "gemini"
-CrushEngine   EngineName = "crush"
+CopilotEngine  EngineName = "copilot"
+ClaudeEngine   EngineName = "claude"
+CodexEngine    EngineName = "codex"
+GeminiEngine   EngineName = "gemini"
+CrushEngine    EngineName = "crush"
+OpenCodeEngine EngineName = "opencode"
+PIEngine       EngineName = "pi"
 ```
 
 ## JavaScript Action Modules
@@ -435,9 +445,23 @@ CommonJS modules copied to `${{ runner.temp }}/gh-aw/actions/` by `./actions/set
 
 | Module | Description |
 |--------|-------------|
+| `add_reaction.cjs` | Adds a reaction emoji to an issue or PR comment |
+| `add_workflow_run_comment.cjs` | Posts a comment linking to a workflow run |
 | `apply_safe_outputs_replay.cjs` | Replays safe outputs from a previous agent run |
+| `awf_reflect_summary.cjs` | Generates AWF (Agentic Workflow Firewall) reflect summary |
+| `check_command_position.cjs` | Verifies command position in trigger text |
+| `check_membership.cjs` | Verifies that the actor is a member of a required team |
+| `check_rate_limit.cjs` | Enforces per-user/repo rate limiting |
+| `check_skip_bots.cjs` | Skips workflow for bot-triggered events |
+| `check_skip_if_check_failing.cjs` | Skips workflow if a specified check is failing |
+| `check_skip_if_match.cjs` | Skips workflow if a pattern matches |
+| `check_skip_if_no_match.cjs` | Skips workflow if a pattern does not match |
+| `check_skip_roles.cjs` | Skips workflow based on actor roles |
+| `check_stop_time.cjs` | Checks if workflow should stop based on time window |
 | `check_team_member.cjs` | Verifies that the actor is a member of a required team |
+| `check_version_updates.cjs` | Checks for gh-aw-actions version updates |
 | `check_workflow_recompile_needed.cjs` | Checks whether a workflow lock file needs recompilation |
+| `check_workflow_timestamp_api.cjs` | Validates workflow run timestamp via GitHub API |
 | `checkout_pr_branch.cjs` | Checks out the head branch of a pull request |
 | `cleanup_cache_memory.cjs` | Removes stale entries from the cache-memory directory |
 | `close_agentic_workflows_issues.cjs` | Closes open agentic-workflow tracking issues |
@@ -445,26 +469,50 @@ CommonJS modules copied to `${{ runner.temp }}/gh-aw/actions/` by `./actions/set
 | `close_expired_issues.cjs` | Closes GitHub issues that have passed their expiry |
 | `close_expired_pull_requests.cjs` | Closes GitHub pull requests that have passed their expiry |
 | `collect_ndjson_output.cjs` | Collects and merges NDJSON agent output lines |
+| `compute_text.cjs` | Computes sanitized text/title/body outputs for expressions |
 | `create_issue_handler.cjs` | Safe-output handler: creates a GitHub issue |
 | `create_labels.cjs` | Ensures required labels exist in the repository |
 | `determine_automatic_lockdown.cjs` | Evaluates whether automatic lockdown should be triggered |
 | `generate_aw_info.cjs` | Generates `aw_info.json` workflow metadata file |
 | `generate_observability_summary.cjs` | Generates the observability step summary |
+| `generate_safe_outputs_tools.cjs` | Generates the safe outputs tools JSON configuration |
 | `handle_agent_failure.cjs` | Handles post-failure cleanup and reporting |
+| `handle_detection_runs.cjs` | Processes and handles detection run results |
+| `handle_noop_message.cjs` | Handles noop safe-output messages |
 | `interpolate_prompt.cjs` | Interpolates expression variables into the agent prompt |
+| `load_experiment_state_from_repo.cjs` | Loads A/B experiment state from repository storage |
+| `lock-issue.cjs` | Locks a GitHub issue to prevent new comments |
 | `merge_remote_agent_github_folder.cjs` | Merges `.github/` changes from a remote agent run |
 | `missing_tool.cjs` | Safe-output: reports a missing-tool error |
+| `mount_mcp_as_cli.cjs` | Mounts MCP servers as CLI commands on PATH |
+| `notify_comment_error.cjs` | Notifies via comment when an error occurs |
+| `parse_claude_log.cjs` | Parses Claude engine execution logs |
+| `parse_codex_log.cjs` | Parses Codex engine execution logs |
+| `parse_copilot_log.cjs` | Parses Copilot engine execution logs |
+| `parse_gemini_log.cjs` | Parses Gemini engine execution logs |
 | `parse_mcp_gateway_log.cjs` | Parses MCP gateway JSONL logs for the step summary |
 | `parse_mcp_scripts_logs.cjs` | Parses MCP scripts execution logs |
+| `parse_pi_log.cjs` | Parses PI (prompt injection agent) execution logs |
 | `parse_threat_detection_results.cjs` | Parses threat-detection output for reporting |
+| `parse_token_usage.cjs` | Parses and aggregates token usage statistics |
+| `pick_experiment.cjs` | Selects the active A/B experiment for the current run |
+| `push_experiment_state.cjs` | Pushes A/B experiment state to storage |
 | `push_repo_memory.cjs` | Pushes repo-memory files to the memory store |
 | `redact_secrets.cjs` | Redacts secrets and sensitive URLs from logs |
+| `remove_trigger_label.cjs` | Removes the trigger label from an issue or PR |
 | `report_incomplete_handler.cjs` | Safe-output: reports an incomplete workflow run |
+| `resolve_host_repo.cjs` | Resolves the host repository for cross-repo workflows |
 | `run_activity_report.cjs` | Generates a workflow activity report |
 | `run_operation_update_upgrade.cjs` | Runs update/upgrade operation workflows |
 | `run_validate_workflows.cjs` | Validates compiled workflow lock files |
+| `safe_output_handler_manager.cjs` | Manages safe-output handler lifecycle and dispatch |
+| `setup_comment_memory_files.cjs` | Sets up comment memory files for agent use |
 | `setup_globals.cjs` | Initialises global environment variables for the agent |
+| `setup_threat_detection.cjs` | Configures threat detection before agent execution |
+| `substitute_placeholders.cjs` | Substitutes placeholders in workflow template files |
 | `test_handler.cjs` | Safe-output handler used in test workflows |
+| `unlock-issue.cjs` | Unlocks a previously locked GitHub issue |
+| `upload_assets.cjs` | Uploads generated assets to GitHub releases or storage |
 | `validate_memory_files.cjs` | Validates structure of repo-memory files |
 | `validate_secrets.cjs` | Validates that required secrets are present |
 
@@ -508,6 +556,8 @@ Key environment variables set in workflow steps:
 | `ENABLE_GITHUB_ACTIONS_STEP_SUMMARY` | Enables the step summary output | Agent job |
 | `CONTEXT7_API_KEY` | API key for Context7 MCP server | Agent job |
 | `OPENCODE_MODEL` | Model name for the OpenCode engine | Agent job (opencode engine) |
+| `GH_AW_SUB_AGENT_DIR` | Subdirectory for custom agent definitions (relative to workspace) | Agent job (`.claude/agents`, `.codex/agents`, `.gemini/agents`, `.github/agents`) |
+| `PI_CODING_AGENT_DIR` | Working directory for the PI coding agent | Agent job (pi engine) |
 | `TRUFFLEHOG_VERSION` | TruffleHog scanner version | Secret scan job |
 | `OPENROUTER_API_KEY` | API key for OpenRouter | Agent job |
 | `SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN` | Token for GitHub MCP server | Agent job |
@@ -688,9 +738,9 @@ This specification is automatically maintained by the **Layout Specification Mai
 4. Updates this document with findings
 5. Creates a PR with the changes
 
-**Last extraction run**: 2026-05-11
-**Lock files analyzed**: 219
-**Patterns documented**: 380+
+**Last extraction run**: 2026-05-18
+**Lock files analyzed**: 230
+**Patterns documented**: 420+
 
 ---
 
