@@ -1776,36 +1776,24 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should throw MCP error when called with null/undefined args", () => {
-      expect(() => handlers.updatePullRequestHandler(null)).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
-      expect(() => handlers.updatePullRequestHandler(undefined)).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
+      expect(() => handlers.updatePullRequestHandler(null)).toThrow(expect.objectContaining({ code: -32602 }));
+      expect(() => handlers.updatePullRequestHandler(undefined)).toThrow(expect.objectContaining({ code: -32602 }));
     });
 
     it("should throw MCP error when update_branch is explicitly false and no other fields", () => {
-      expect(() => handlers.updatePullRequestHandler({ update_branch: false })).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
+      expect(() => handlers.updatePullRequestHandler({ update_branch: false })).toThrow(expect.objectContaining({ code: -32602 }));
     });
 
     it("should throw MCP error when title is null", () => {
-      expect(() => handlers.updatePullRequestHandler({ title: null })).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
+      expect(() => handlers.updatePullRequestHandler({ title: null })).toThrow(expect.objectContaining({ code: -32602 }));
     });
 
     it("should throw MCP error when body is null", () => {
-      expect(() => handlers.updatePullRequestHandler({ body: null })).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
+      expect(() => handlers.updatePullRequestHandler({ body: null })).toThrow(expect.objectContaining({ code: -32602 }));
     });
 
     it("should throw MCP error when update_branch is null", () => {
-      expect(() => handlers.updatePullRequestHandler({ update_branch: null })).toThrow(
-        expect.objectContaining({ code: -32602 })
-      );
+      expect(() => handlers.updatePullRequestHandler({ update_branch: null })).toThrow(expect.objectContaining({ code: -32602 }));
     });
 
     it("should write entry and return success when title is provided", () => {
@@ -1813,9 +1801,7 @@ describe("safe_outputs_handlers", () => {
       expect(result).toHaveProperty("content");
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "update_pull_request", title: "New Title" })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "New Title" }));
     });
 
     it("should write entry and return success when body is provided", () => {
@@ -1823,9 +1809,7 @@ describe("safe_outputs_handlers", () => {
       expect(result).toHaveProperty("content");
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "update_pull_request", body: "Updated body" })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", body: "Updated body" }));
     });
 
     it("should write entry and return success when update_branch is true", () => {
@@ -1833,9 +1817,7 @@ describe("safe_outputs_handlers", () => {
       expect(result).toHaveProperty("content");
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "update_pull_request", update_branch: true })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", update_branch: true }));
     });
 
     it("should write entry and return success when both title and body are provided", () => {
@@ -1843,9 +1825,7 @@ describe("safe_outputs_handlers", () => {
       expect(result).toHaveProperty("content");
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "update_pull_request", title: "New Title", body: "New body" })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "New Title", body: "New body" }));
     });
 
     it("error message should mention all required fields", () => {
