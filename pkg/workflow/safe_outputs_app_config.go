@@ -20,10 +20,16 @@ var safeOutputsAppLog = logger.New("workflow:safe_outputs_app")
 type GitHubAppConfig struct {
 	AppID        string            `yaml:"client-id,omitempty"`    // GitHub App client ID (or legacy app ID) (e.g., "${{ vars.APP_ID }}")
 	PrivateKey   string            `yaml:"private-key,omitempty"`  // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
+	MissingKey   string            `yaml:"missing-key,omitempty"`  // Behavior when client-id/private-key resolve empty: "error" (default) or "ignore"
 	Owner        string            `yaml:"owner,omitempty"`        // Optional: owner of the GitHub App installation (defaults to current repository owner)
 	Repositories []string          `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
 	Permissions  map[string]string `yaml:"permissions,omitempty"`  // Optional: extra permission-* fields to merge into the minted token (nested wins over job-level)
 }
+
+const (
+	gitHubAppMissingKeyError  = "error"
+	gitHubAppMissingKeyIgnore = "ignore"
+)
 
 // ========================================
 // App Configuration Parsing
@@ -50,6 +56,13 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 	if privateKey, exists := appMap["private-key"]; exists {
 		if privateKeyStr, ok := privateKey.(string); ok {
 			appConfig.PrivateKey = privateKeyStr
+		}
+	}
+
+	// Parse missing-key behavior (optional): "error" (default) or "ignore"
+	if missingKey, exists := appMap["missing-key"]; exists {
+		if missingKeyStr, ok := missingKey.(string); ok {
+			appConfig.MissingKey = strings.TrimSpace(strings.ToLower(missingKeyStr))
 		}
 	}
 
@@ -90,6 +103,13 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 	}
 
 	return appConfig
+}
+
+func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
+	if app == nil {
+		return false
+	}
+	return app.MissingKey == gitHubAppMissingKeyIgnore
 }
 
 // ========================================
@@ -153,6 +173,12 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 
 	steps = append(steps, "      - name: Generate GitHub App token\n")
 	steps = append(steps, "        id: safe-outputs-app-token\n")
+	if app.shouldIgnoreMissingKey() {
+		steps = append(steps, "        if: ${{ env.GH_AW_APP_CLIENT_ID != '' && env.GH_AW_APP_PRIVATE_KEY != '' }}\n")
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_APP_CLIENT_ID: %s\n", app.AppID))
+		steps = append(steps, fmt.Sprintf("          GH_AW_APP_PRIVATE_KEY: %s\n", app.PrivateKey))
+	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
@@ -441,6 +467,12 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 
 	steps = append(steps, "      - name: Generate GitHub App token for activation\n")
 	steps = append(steps, "        id: activation-app-token\n")
+	if app.shouldIgnoreMissingKey() {
+		steps = append(steps, "        if: ${{ env.GH_AW_APP_CLIENT_ID != '' && env.GH_AW_APP_PRIVATE_KEY != '' }}\n")
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_APP_CLIENT_ID: %s\n", app.AppID))
+		steps = append(steps, fmt.Sprintf("          GH_AW_APP_PRIVATE_KEY: %s\n", app.PrivateKey))
+	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
@@ -485,6 +517,9 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 // a reference to that step's output (${{ steps.activation-app-token.outputs.token }}).
 func (c *Compiler) resolveActivationToken(data *WorkflowData) string {
 	if data.ActivationGitHubApp != nil {
+		if data.ActivationGitHubApp.shouldIgnoreMissingKey() {
+			return combineTokenExpressions("${{ steps.activation-app-token.outputs.token }}", "${{ secrets.GITHUB_TOKEN }}")
+		}
 		return "${{ steps.activation-app-token.outputs.token }}"
 	}
 	if data.ActivationGitHubToken != "" {

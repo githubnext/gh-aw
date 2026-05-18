@@ -10970,6 +10970,11 @@
           "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to mint a GitHub App token.",
           "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
         },
+        "missing-key": {
+          "type": "string",
+          "enum": ["error", "ignore"],
+          "description": "Behavior when client-id/private-key resolve to empty strings at runtime. Use 'error' (default) to fail fast, or 'ignore' to skip token minting."
+        },
         "owner": {
           "type": "string",
           "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)"

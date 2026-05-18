@@ -85,6 +85,44 @@ Test workflow with minimal app configuration.
 	assert.Empty(t, workflowData.SafeOutputs.GitHubApp.Repositories)
 }
 
+func TestSafeOutputsAppMissingKeyIgnore(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on: issues
+safe-outputs:
+  add-comment:
+  github-app:
+    app-id: ${{ secrets.GH_AW_APP_ID }}
+    private-key: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}
+    missing-key: ignore
+---
+
+# Test Workflow
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "GitHub app configuration should be parsed")
+	assert.Equal(t, "ignore", workflowData.SafeOutputs.GitHubApp.MissingKey)
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "main", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+	assert.Contains(t, stepsStr, "if: ${{ env.GH_AW_APP_CLIENT_ID != '' && env.GH_AW_APP_PRIVATE_KEY != '' }}")
+	assert.Contains(t, stepsStr, "GH_AW_APP_CLIENT_ID: ${{ secrets.GH_AW_APP_ID }}")
+	assert.Contains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}")
+	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
+}
+
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
 func TestSafeOutputsAppWithoutSafeOutputs(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
