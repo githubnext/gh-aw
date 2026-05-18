@@ -9,11 +9,6 @@ sidebar:
 
 APM is configured by importing the `shared/apm.md` workflow, which creates a dedicated `apm` job that packs packages and uploads the bundle as a GitHub Actions artifact. The agent job then downloads and unpacks the bundle for deterministic startup.
 
-> [!NOTE]
-> The `dependencies:` frontmatter field is deprecated and no longer supported. Migrate to the import-based approach shown below.
->
-> The `dependencies:` input on the underlying `microsoft/apm-action` (used inside `shared/apm.md`) is also deprecated in favour of the `packages:` and `apps:` inputs — do not reach for `dependencies:` when hand-editing a vendored copy of the file.
-
 ## Where `shared/apm.md` comes from
 
 `shared/apm.md` is a **local workflow file** that gh-aw resolves at `.github/workflows/shared/apm.md` in your repository — it is not a remote import (the `uses:` syntax inside `imports:` is gh-aw's local-import shape, not GitHub Actions' `uses: owner/repo@ref`).

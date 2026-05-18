@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -245,5 +246,81 @@ Test workflow that creates issues with expiration.
 	maintenancePath := filepath.Join(customDir, "agentics-maintenance.yml")
 	if _, err := os.Stat(maintenancePath); !os.IsNotExist(err) {
 		t.Error("Maintenance workflow should NOT be generated when using custom --dir option")
+	}
+}
+
+func TestCompileOnlySharedWorkflow_DoesNotPanic(t *testing.T) {
+	// Create temporary directory structure
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, ".github/workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Change to temp directory
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Initialize git repo
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tempDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repo: %v", err)
+	}
+
+	// Create a shared workflow component (missing top-level "on")
+	sharedWorkflowContent := `---
+description: "Shared Component"
+engine: copilot
+---
+
+Shared workflow component.
+`
+	sharedWorkflowPath := filepath.Join(workflowsDir, "shared-component.md")
+	if err := os.WriteFile(sharedWorkflowPath, []byte(sharedWorkflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	for _, strict := range []bool{false, true} {
+		t.Run("strict="+strconv.FormatBool(strict), func(t *testing.T) {
+			maintenancePath := filepath.Join(workflowsDir, "agentics-maintenance.yml")
+			if err := os.WriteFile(maintenancePath, []byte("stale maintenance workflow"), 0644); err != nil {
+				t.Fatalf("Failed to write stale maintenance workflow: %v", err)
+			}
+
+			commandsPath := filepath.Join(workflowsDir, "agentic_commands.yml")
+			if err := os.WriteFile(commandsPath, []byte("stale centralized commands workflow"), 0644); err != nil {
+				t.Fatalf("Failed to write stale centralized commands workflow: %v", err)
+			}
+
+			config := CompileConfig{
+				MarkdownFiles:        []string{},
+				Verbose:              false,
+				EngineOverride:       "",
+				Validate:             false,
+				Watch:                false,
+				WorkflowDir:          "",
+				SkipInstructions:     false,
+				NoEmit:               false,
+				Purge:                false,
+				TrialMode:            false,
+				TrialLogicalRepoSlug: "",
+				Strict:               strict,
+			}
+
+			if _, err := CompileWorkflows(context.Background(), config); err != nil {
+				t.Fatalf("CompileWorkflows should succeed for shared-only workflow directory: %v", err)
+			}
+
+			if _, err := os.Stat(maintenancePath); !os.IsNotExist(err) {
+				t.Error("Stale maintenance workflow should be deleted for shared-only workflow directory")
+			}
+			if _, err := os.Stat(commandsPath); !os.IsNotExist(err) {
+				t.Error("Stale centralized command workflow should be deleted for shared-only workflow directory")
+			}
+		})
 	}
 }

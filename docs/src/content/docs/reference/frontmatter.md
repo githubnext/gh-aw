@@ -167,9 +167,6 @@ imports:
         - microsoft/apm-sample-package#v2.0   # version-pinned
 ```
 
-> [!NOTE]
-> The `dependencies:` frontmatter field is deprecated and no longer supported. Migrate to the `imports: - uses: shared/apm.md` approach shown above.
-
 See **[APM Dependencies Reference](/gh-aw/reference/dependencies/)** for the full format specification, version pinning syntax, package reference formats, reproducibility and governance details, and local debugging instructions.
 
 ### Runtimes (`runtimes:`)
