@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-import { createHandlers } from "./safe_outputs_handlers.cjs";
+import { createHandlers, hasUpdatePullRequestFields } from "./safe_outputs_handlers.cjs";
 import {
   looksLikeExploratoryBranch,
   normalizeProbeValue,
@@ -1858,5 +1858,55 @@ describe("safe_outputs_handlers", () => {
         expect(err.message).toContain("'update_branch'");
       }
     });
+  });
+});
+
+describe("hasUpdatePullRequestFields", () => {
+  it("returns false for empty object", () => {
+    expect(hasUpdatePullRequestFields({})).toBe(false);
+  });
+
+  it("returns false for null", () => {
+    expect(hasUpdatePullRequestFields(null)).toBe(false);
+  });
+
+  it("returns false for undefined", () => {
+    expect(hasUpdatePullRequestFields(undefined)).toBe(false);
+  });
+
+  it("returns false when update_branch is false", () => {
+    expect(hasUpdatePullRequestFields({ update_branch: false })).toBe(false);
+  });
+
+  it("returns false when title is null", () => {
+    expect(hasUpdatePullRequestFields({ title: null })).toBe(false);
+  });
+
+  it("returns false when body is null", () => {
+    expect(hasUpdatePullRequestFields({ body: null })).toBe(false);
+  });
+
+  it("returns false when update_branch is null", () => {
+    expect(hasUpdatePullRequestFields({ update_branch: null })).toBe(false);
+  });
+
+  it("returns true when title is a string", () => {
+    expect(hasUpdatePullRequestFields({ title: "New Title" })).toBe(true);
+  });
+
+  it("returns true when body is a string", () => {
+    expect(hasUpdatePullRequestFields({ body: "Updated body" })).toBe(true);
+  });
+
+  it("returns true when update_branch is exactly true", () => {
+    expect(hasUpdatePullRequestFields({ update_branch: true })).toBe(true);
+  });
+
+  it("returns true when both title and body are provided", () => {
+    expect(hasUpdatePullRequestFields({ title: "t", body: "b" })).toBe(true);
+  });
+
+  it("returns true for empty string title (typeof === 'string')", () => {
+    expect(hasUpdatePullRequestFields({ title: "" })).toBe(true);
   });
 });

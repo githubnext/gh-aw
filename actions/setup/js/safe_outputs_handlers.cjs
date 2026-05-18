@@ -44,6 +44,23 @@ function buildIntentErrorResponse(error) {
 }
 
 /**
+ * Returns true if `args` contains at least one meaningful field for update_pull_request:
+ * a string `title`, a string `body`, or `update_branch === true`.
+ * Mirrors the downstream requiresOneOf:title,body,update_branch validation in
+ * safe_output_type_validator.cjs (which also excludes field === false from the count).
+ * @param {Record<string, any> | null | undefined} args
+ * @returns {boolean}
+ */
+function hasUpdatePullRequestFields(args) {
+  const safeArgs = args || {};
+  return (
+    typeof safeArgs.title === "string" ||
+    typeof safeArgs.body === "string" ||
+    safeArgs.update_branch === true
+  );
+}
+
+/**
  * Create handlers for safe output tools
  * @param {Object} server - The MCP server instance for logging
  * @param {Function} appendSafeOutput - Function to append entries to the output file
@@ -1359,26 +1376,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Spec cross-reference: Safe Output Outcome Evaluation §update_pull_request.
    * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
    * to provide immediate feedback to the LLM before recording to NDJSON.
-   * Validates that at least one of 'title', 'body', or 'update_branch' is provided,
-   * matching the server-side requiresOneOf:title,body,update_branch validation.
+   * Uses hasUpdatePullRequestFields to validate that at least one of 'title', 'body',
+   * or 'update_branch' is provided before recording to NDJSON.
    */
   const updatePullRequestHandler = args => {
-    const safeArgs = args || {};
-    const hasTitle = typeof safeArgs.title === "string";
-    const hasBody = typeof safeArgs.body === "string";
-    // update_branch must be exactly true to carry update intent; false/null/undefined do not.
-    // This mirrors the downstream requiresOneOf validator in safe_output_type_validator.cjs
-    // which also excludes field === false from the count.
-    const hasUpdateBranch = safeArgs.update_branch === true;
-
-    if (!hasTitle && !hasBody && !hasUpdateBranch) {
+    if (!hasUpdatePullRequestFields(args)) {
       throw {
         code: -32602,
         message: `${ERR_VALIDATION}: update_pull_request requires at least one of: 'title', 'body', 'update_branch' fields`,
       };
     }
 
-    return defaultHandler("update_pull_request")(safeArgs);
+    return defaultHandler("update_pull_request")(args || {});
   };
 
   return {
@@ -1400,4 +1409,5 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 module.exports = {
   buildIntentErrorResponse,
   createHandlers,
+  hasUpdatePullRequestFields,
 };
