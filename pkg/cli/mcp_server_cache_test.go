@@ -81,6 +81,27 @@ func TestMCPCacheStore_PermissionExpiry(t *testing.T) {
 	}
 }
 
+func TestMCPCacheStore_DeletePermissionEntryIfUnchanged_PreservesRefreshedEntry(t *testing.T) {
+	cache := newMCPCacheStore()
+	cacheKey := "actor:owner/repo"
+	expiredEntry := &permissionEntry{
+		permission: "read",
+		timestamp:  time.Now().Add(-2 * cache.permissionTTL),
+	}
+	cache.permissions[cacheKey] = expiredEntry
+
+	cache.SetPermission("actor", "owner/repo", "write")
+	cache.deletePermissionEntryIfUnchanged(cacheKey, expiredEntry)
+
+	entry, ok := cache.getPermissionEntry(cacheKey)
+	if !ok {
+		t.Fatal("expected refreshed permission entry to remain cached")
+	}
+	if entry.permission != "write" {
+		t.Fatalf("expected refreshed permission to be preserved, got %q", entry.permission)
+	}
+}
+
 func TestMCPCacheStore_RepoExpiry(t *testing.T) {
 	cache := newMCPCacheStore()
 	cache.repoTTL = 10 * time.Millisecond

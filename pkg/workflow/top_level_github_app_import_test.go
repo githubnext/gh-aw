@@ -696,6 +696,53 @@ engine: copilot
 		"ParsedTools.GitHub.GitHubApp should be populated from top-level fallback")
 	assert.Equal(t, "${{ vars.APP_ID }}", data.ParsedTools.GitHub.GitHubApp.AppID,
 		"tools.github should use the top-level github-app fallback")
+	assert.False(t, data.ParsedTools.GitHub.GitHubApp.IgnoreIfMissing,
+		"ignore-if-missing should default to false")
+}
+
+func TestTopLevelGitHubAppToolsFallbackPreservesIgnoreIfMissing(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+github-app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  ignore-if-missing: true
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+safe-outputs:
+  create-issue:
+engine: copilot
+---
+
+# Top-level github-app fallback for tools.github with ignore-if-missing.
+`
+	mdPath := filepath.Join(workflowsDir, "main.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte(workflowContent), 0644))
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(workflowsDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	data, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err)
+
+	require.NotNil(t, data.ParsedTools, "ParsedTools should be populated")
+	require.NotNil(t, data.ParsedTools.GitHub, "ParsedTools.GitHub should be populated")
+	require.NotNil(t, data.ParsedTools.GitHub.GitHubApp,
+		"ParsedTools.GitHub.GitHubApp should be populated from top-level fallback")
+	assert.True(t, data.ParsedTools.GitHub.GitHubApp.IgnoreIfMissing,
+		"tools.github fallback should preserve top-level github-app.ignore-if-missing")
 }
 
 // TestTopLevelGitHubAppToolsOverride tests that a section-specific tools.github.github-app

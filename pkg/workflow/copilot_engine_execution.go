@@ -380,7 +380,12 @@ touch %s
 		// actions/create-github-app-token calls ::add-mask:: on the token, and the
 		// GitHub Actions runner silently drops masked values in job outputs (runner v2.308+).
 		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
-			env["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
+			if workflowData.ParsedTools.GitHub.GitHubApp.shouldIgnoreMissingKey() {
+				customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+				tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
+			}
+			env["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
 			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
 			// Use effective token with precedence: custom > default
