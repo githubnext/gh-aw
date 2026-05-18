@@ -182,9 +182,10 @@ describe("handle_agent_failure", () => {
     const fs = require("fs");
     const path = require("path");
     const { renderTemplate } = require("./messages_core.cjs");
+    const reportIncompleteMarker = "MARKER: cannot continue";
 
-    it("render report_incomplete context in both comment and issue templates", () => {
-      const reportIncompleteContext = buildReportIncompleteContext([{ type: "report_incomplete", reason: "MARKER: cannot continue" }]);
+    it("renders report_incomplete context in both comment and issue templates", () => {
+      const reportIncompleteContext = buildReportIncompleteContext([{ type: "report_incomplete", reason: reportIncompleteMarker }]);
       const templateContext = {
         run_id: "123456",
         run_url: "https://github.com/owner/repo/actions/runs/123456",
@@ -220,8 +221,8 @@ describe("handle_agent_failure", () => {
       const commentTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_comment.md"), "utf8");
       const issueTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), "utf8");
 
-      expect(renderTemplate(commentTemplate, templateContext)).toContain("MARKER: cannot continue");
-      expect(renderTemplate(issueTemplate, templateContext)).toContain("MARKER: cannot continue");
+      expect(renderTemplate(commentTemplate, templateContext)).toContain(reportIncompleteMarker);
+      expect(renderTemplate(issueTemplate, templateContext)).toContain(reportIncompleteMarker);
     });
   });
 
