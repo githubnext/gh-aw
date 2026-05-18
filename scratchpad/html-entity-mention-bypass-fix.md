@@ -134,4 +134,4 @@ This fix follows defense-in-depth principles:
 2. **Coverage**: Handles all entity types and double-encoding  
 3. **Validation**: Rejects invalid Unicode code points
 4. **Universal application**: Applies to all content sanitization flows
-5. **Test coverage**: Extensive test suite validates all attack vectors
+5. **Test coverage**: Test suite validates all attack vectors
