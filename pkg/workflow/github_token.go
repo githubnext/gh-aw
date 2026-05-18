@@ -1,8 +1,25 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var tokenLog = logger.New("workflow:github_token")
+
+func wrapGitHubExpression(expression string) string {
+	return fmt.Sprintf("${{ %s }}", strings.TrimSpace(expression))
+}
+
+func combineTokenExpressions(primaryExpression, fallbackExpression string) string {
+	combined := BuildOr(
+		&ExpressionNode{Expression: stripExpressionWrapper(primaryExpression)},
+		&ExpressionNode{Expression: stripExpressionWrapper(fallbackExpression)},
+	)
+	return wrapGitHubExpression(RenderCondition(combined))
+}
 
 // getEffectiveGitHubToken returns the GitHub token to use, with precedence:
 // 1. Custom token passed as parameter (e.g., from tool-specific config)
@@ -120,6 +137,12 @@ func resolvePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCus
 
 	// GitHub App token takes precedence over the safe-outputs level PAT
 	if safeOutputs.GitHubApp != nil {
+		if safeOutputs.GitHubApp.shouldIgnoreMissingKey() {
+			return combineTokenExpressions(
+				"${{ steps.safe-outputs-app-token.outputs.token }}",
+				getEffectiveSafeOutputGitHubToken(safeOutputs.GitHubToken),
+			), true
+		}
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		return "${{ steps.safe-outputs-app-token.outputs.token }}", true
 	}

@@ -161,7 +161,6 @@ func expectedCodemodOrder() []string {
 		"github-app-app-id-to-client-id",
 		"safe-inputs-to-mcp-scripts",
 		"rate-limit-to-user-rate-limit",
-		"plugins-to-dependencies",
 		"serena-tools-to-shared-import",
 		"workflow-run-branches-default",
 		"checkout-persist-credentials-false",

@@ -1,0 +1,60 @@
+{
+  "scheduling": {
+    "id": "reporting",
+    "name": "Reporting",
+    "goal": "Format agent-generated reports with collapsible HTML details/summary blocks to reduce scrolling and improve readability",
+    "intent_signature": "format_report($report_content, $report_title) -> $formatted_report",
+    "inputs": ["$report_content", "$report_title"],
+    "outputs": ["$formatted_report"],
+    "dependencies": [],
+    "control_flow_features": ["sequential"],
+    "entry_scene": "scene_act",
+    "subscene_refs": []
+  },
+  "scenes": [
+    {
+      "id": "scene_act",
+      "type": "ACT",
+      "goal": "Wrap report content in HTML details/summary tags",
+      "entry_condition": "$report_content and $report_title are available",
+      "exit_condition": "$formatted_report is composed",
+      "next_scene_rules": [{ "condition": "success", "target": "scene_finalize" }],
+      "inputs": ["$report_content", "$report_title"],
+      "outputs": ["$formatted_report"],
+      "entry_logic_step": "step_act_compose"
+    },
+    {
+      "id": "scene_finalize",
+      "type": "FINALIZE",
+      "goal": "Emit the formatted report as final output",
+      "entry_condition": "$formatted_report is ready",
+      "exit_condition": "report emitted to caller",
+      "next_scene_rules": [{ "condition": "success", "target": "END_SUCCESS" }],
+      "inputs": ["$formatted_report"],
+      "outputs": ["$formatted_report"],
+      "entry_logic_step": "step_finalize_emit"
+    }
+  ],
+  "logic_steps": [
+    {
+      "id": "step_act_compose",
+      "scene_id": "scene_act",
+      "action_type": "WRITE",
+      "resource_scope": "MEMORY",
+      "description": "Compose HTML <details>/<summary> wrapper around $report_content using $report_title as the summary label",
+      "inputs": { "content": "$report_content", "title": "$report_title" },
+      "outputs": { "formatted": "$formatted_report" },
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_finalize_emit",
+      "scene_id": "scene_finalize",
+      "action_type": "TERMINATE",
+      "resource_scope": "MEMORY",
+      "description": "Emit $formatted_report as the final output to the caller",
+      "inputs": { "report": "$formatted_report" },
+      "outputs": {},
+      "next": "YIELD_SUCCESS"
+    }
+  ]
+}

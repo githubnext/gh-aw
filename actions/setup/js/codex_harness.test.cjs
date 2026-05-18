@@ -5,7 +5,16 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolveCodexPromptFileArgs, isRateLimitError, isServerError, countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./codex_harness.cjs");
+const {
+  resolveCodexPromptFileArgs,
+  isRateLimitError,
+  isAuthenticationFailedError,
+  isServerError,
+  countPermissionDeniedIssues,
+  hasNumerousPermissionDeniedIssues,
+  extractDeniedCommands,
+  buildMissingToolPermissionIssuePayload,
+} = require("./codex_harness.cjs");
 
 describe("codex_harness.cjs", () => {
   describe("resolveCodexPromptFileArgs", () => {
@@ -78,6 +87,17 @@ describe("codex_harness.cjs", () => {
 
     it("returns false for a 500 server error", () => {
       expect(isRateLimitError("500 Internal Server Error")).toBe(false);
+    });
+  });
+
+  describe("isAuthenticationFailedError", () => {
+    it("returns true for authentication failed with request id", () => {
+      expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
+    });
+
+    it("returns false for non-authentication-failed output", () => {
+      expect(isAuthenticationFailedError("No authentication information found")).toBe(false);
+      expect(isAuthenticationFailedError("rate_limit_exceeded")).toBe(false);
     });
   });
 
@@ -202,6 +222,7 @@ describe("codex_harness.cjs", () => {
       if (result.exitCode === 0) return false;
       const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
       const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
+      if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
@@ -220,6 +241,11 @@ describe("codex_harness.cjs", () => {
     it("retries on any other non-zero exit when session produced output", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset" };
       expect(shouldRetry(result, 0)).toBe(true);
+    });
+
+    it("does not retry when first attempt fails authentication", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Authentication failed (Request ID: ABC123)" };
+      expect(shouldRetry(result, 0)).toBe(false);
     });
 
     it("does not retry when no output was produced and no transient error", () => {

@@ -9,7 +9,7 @@ permissions:
   pull-requests: read
 engine:
   id: copilot
-  max-continuations: 10
+  max-continuations: 6
 imports:
   - uses: shared/pr-review-base.md
     with:
@@ -54,14 +54,19 @@ pre-agent-steps:
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
-      gh pr diff "$PR_NUMBER" \
-        --repo ${{ github.repository }} \
+      gh pr diff "$PR_NUMBER" --repo ${{ github.repository }} \
+        --exclude '**/*.lock.yml' \
+        --exclude '**/generated/**' \
+        --exclude '**/dist/**' \
+        --exclude '**/build/**' \
+        | head -n 3000 \
         > /tmp/gh-aw/agent/pr-diff.patch
+      LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
       gh pr view "$PR_NUMBER" \
         --repo ${{ github.repository }} \
         --json number,title,body,headRefName,additions,deletions,changedFiles,files \
         > /tmp/gh-aw/agent/pr-meta.json
-      echo "Pre-fetched PR diff ($(wc -l < /tmp/gh-aw/agent/pr-diff.patch) lines) and metadata"
+      echo "Pre-fetched PR diff (${LINES} lines) and metadata"
 tools:
   cli-proxy: true
 safe-outputs:
@@ -110,7 +115,9 @@ Review this pull request using the most appropriate Matt Pocock skill(s) for the
 
 ### Step 1: Load Pre-fetched PR Data
 
-PR data and the full diff have already been fetched before the agent started. Read the pre-fetched files:
+> **⚠️ Do NOT call any GitHub MCP tools for PR data.** All PR information is pre-fetched: use `/tmp/gh-aw/agent/pr-meta.json` and `/tmp/gh-aw/agent/pr-diff.patch` exclusively.
+
+PR data and the diff (excluding lock files and common generated/build artifacts) have already been fetched before the agent started. Read the pre-fetched files:
 
 ```bash
 cat /tmp/gh-aw/agent/pr-meta.json   # fields: number, title, body, headRefName, additions, deletions, changedFiles, files
@@ -119,15 +126,17 @@ cat /tmp/gh-aw/agent/pr-diff.patch  # full unified diff of all changed files
 
 Do **not** call `gh pr diff` or `gh pr view` inside the agent — the data is already available on disk.
 
+If the pre-fetched patch has 3000 lines, treat it as potentially truncated and focus your review on the highest-impact changed files. The 3000-line cap is intentional to keep token usage bounded on very large PRs; if important context appears missing, explicitly call that out in your review.
+
 ### Step 2: Read Available Skills
 
-Read the installed Matt Pocock skills from the install root `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. List what is available:
+Discover the installed Matt Pocock skills from the install root `${RUNNER_TEMP}/gh-aw/mattpocock-skills/`. List what is available:
 
 ```bash
 find "${RUNNER_TEMP}/gh-aw/mattpocock-skills" -name "SKILL.md" 2>/dev/null | head -30
 ```
 
-Read the content of each relevant skill file before applying it so you understand its exact guidance.
+Use the inline skill guidance below by default. Only read a skill file when the inline guidance is insufficient for the specific PR.
 
 ### Step 3: Identify Change Type and Select Skills
 
@@ -143,7 +152,7 @@ Based on the PR diff, classify the changes:
 | **Documentation** | `/grill-with-docs` |
 | **Mixed / unclear** | `/zoom-out` + `/tdd` |
 
-Select **1–2 skills** most relevant to this PR. Read the skill files and apply their guidance to your review.
+Select **1–2 skills** most relevant to this PR and apply their guidance to your review.
 
 ### Step 4: Review Using Selected Skills
 

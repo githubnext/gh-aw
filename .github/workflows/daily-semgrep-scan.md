@@ -18,6 +18,12 @@ safe-outputs:
   create-code-scanning-alert:
     driver: "Semgrep Security Scanner"
 
+network:
+  allowed:
+    - defaults
+    - pypi.org
+    - files.pythonhosted.org
+
 tools:
   cli-proxy: true
 

@@ -1223,6 +1223,13 @@ This section maps the fuzzy schedule specification to implementation files.
 | Parser/scatter conformance tests | `pkg/parser/schedule_parser_test.go`, `pkg/parser/schedule_fuzzy_scatter_test.go` |
 | Calendar/cron visualization support for compile tooling (see §12) | `pkg/cli/compile_schedule_calendar.go` |
 
+**Hash function**: The scattering algorithm (§6.2) uses the **FNV-1a 32-bit** hash function
+(`FNV_offset_basis = 0x811c9dc5`, `FNV_prime = 0x01000193`) applied to the workflow identifier
+string `{owner}/{repo}/{workflow_file_path}`. This hash is implemented in
+`pkg/parser/schedule_fuzzy_scatter.go`. Alternative hash functions are permitted by §6.2.1 if
+they satisfy the determinism, distribution, and stability requirements, but the FNV-1a reference
+implementation is normative for cross-platform consistency tests.
+
 After changing fuzzy schedule semantics:
 1. Update this specification section and any affected normative clauses.
 2. Update parser/scatter implementation in the mapped files.

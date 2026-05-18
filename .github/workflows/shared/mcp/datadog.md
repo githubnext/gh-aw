@@ -1,12 +1,14 @@
 ---
 mcp-servers:
   datadog:
-    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core"
     headers:
       DD_API_KEY: "${{ secrets.DD_API_KEY }}"
-      DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY }}"
+      DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}"
       DD_SITE: "${{ secrets.DD_SITE || 'datadoghq.com' }}"
     allowed:
+      - search_datadog_spans
+      - get_datadog_trace
       - search_datadog_dashboards
       - search_datadog_slos
       - search_datadog_metrics
@@ -18,23 +20,19 @@ mcp-servers:
 Datadog MCP Server
 Observability and monitoring platform integration
 
-Provides comprehensive access to Datadog monitoring, logs, metrics, and incidents
-Documentation: https://github.com/GeLi2001/datadog-mcp-server
+Provides access to the official Datadog MCP Server for observability data.
+Documentation: https://docs.datadoghq.com/bits_ai/mcp_server/
 
 This shared configuration provides Datadog MCP server integration for monitoring, 
 observability, and log analysis via HTTP API.
 
-Available tools:
-  - get-monitors: Fetch monitors with optional filtering by group states and tags
-  - get-monitor: Get details of a specific monitor by ID
-  - get-dashboards: List all dashboards in your Datadog account
-  - get-dashboard: Get a specific dashboard by ID with its full definition
-  - get-metrics: List available metrics in your Datadog account
-  - get-metric-metadata: Get metadata for a specific metric (unit, type, description)
-  - get-events: Fetch events within a specified time range
-  - get-incidents: List incidents with optional filtering and pagination
-  - search-logs: Search logs with advanced query filtering, time ranges, and sorting
-  - aggregate-logs: Perform analytics and aggregations on log data with grouping
+Allowed tools in this shared import:
+  - search_datadog_spans
+  - get_datadog_trace
+  - search_datadog_dashboards
+  - search_datadog_slos
+  - search_datadog_metrics
+  - get_datadog_metric
 #
 Setup:
   1. Create Datadog API Keys:
@@ -44,14 +42,15 @@ Setup:
 #
   2. Add Repository Secrets:
      - DD_API_KEY: Your Datadog API key (required)
-     - DD_APPLICATION_KEY: Your Datadog Application key (required)
+       - DD_APPLICATION_KEY: Your Datadog Application key (required)
+       - DD_APP_KEY: Legacy alias for the Datadog Application key (optional fallback)
      - DD_SITE: Your Datadog site domain (optional, defaults to datadoghq.com)
 #
   3. Include in Your Workflow:
      imports:
        - shared/mcp/datadog.md
 #
-Regional Endpoints:
+Regional Sites:
   The DD_SITE secret should match your Datadog region:
   - US (Default): datadoghq.com
   - EU: datadoghq.eu
@@ -64,8 +63,7 @@ Example Usage:
   summarize the most common errors.
 #
 Connection Type:
-  This configuration uses HTTP MCP server type, connecting directly to the 
-  Datadog MCP API endpoint. Authentication is handled via HTTP headers.
+  This configuration uses the official remote HTTP MCP server. Authentication is handled via HTTP headers, and the URL pins the generally available `core` toolset to keep the tool surface narrow.
 #
 Troubleshooting:
   403 Forbidden Errors - Verify that:

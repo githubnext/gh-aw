@@ -517,5 +517,18 @@ describe("otlp.cjs", () => {
 
       expect(mockReadJSONIfExists).toHaveBeenCalledWith("/tmp/gh-aw/aw_info.json");
     });
+
+    it("passes awfVersion and awmgVersion from aw_info.json to buildGitHubActionsResourceAttributes", async () => {
+      mockReadJSONIfExists.mockReturnValue({ awf_version: "v1.2.3-awf", awmg_version: "v4.5.6-awmg" });
+
+      await otlp.logSpan("my-scanner", {});
+
+      expect(mockBuildGitHubActionsResourceAttributes).toHaveBeenCalledWith(
+        expect.objectContaining({
+          awfVersion: "v1.2.3-awf",
+          awmgVersion: "v4.5.6-awmg",
+        })
+      );
+    });
   });
 });

@@ -1432,6 +1432,14 @@ func TestCollectSideRepoTargets(t *testing.T) {
 			expectedRepos: nil,
 		},
 		{
+			name: "nil workflow entry is ignored",
+			workflows: []*WorkflowData{
+				nil,
+				{Name: "wf", CheckoutConfigs: nil},
+			},
+			expectedRepos: nil,
+		},
+		{
 			name: "checkout without current:true is ignored",
 			workflows: []*WorkflowData{
 				{Name: "wf", CheckoutConfigs: []*CheckoutConfig{

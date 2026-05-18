@@ -262,7 +262,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
 			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
-			"export GH_AW_NODE_BIN"
+			"export GH_AW_NODE_BIN\n" +
+			// Export COPILOT_API_KEY via shell variable expansion so the sentinel
+			// value is never written as a literal next to a *_API_KEY key in the
+			// generated YAML env: block. GitHub Actions env: values are not
+			// shell-expanded, but this run: shell script is — $COPILOT_DUMMY_BYOK
+			// expands to the sentinel before sudo -E awf runs, and sudo -E preserves
+			// the variable for the AWF container.
+			"export COPILOT_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup
 		}
@@ -380,7 +387,12 @@ touch %s
 		// actions/create-github-app-token calls ::add-mask:: on the token, and the
 		// GitHub Actions runner silently drops masked values in job outputs (runner v2.308+).
 		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
-			env["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+			tokenExpression := "${{ steps.github-mcp-app-token.outputs.token }}"
+			if workflowData.ParsedTools.GitHub.GitHubApp.shouldIgnoreMissingKey() {
+				customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+				tokenExpression = combineTokenExpressions(tokenExpression, getEffectiveGitHubToken(customGitHubToken))
+			}
+			env["GITHUB_MCP_SERVER_TOKEN"] = tokenExpression
 		} else {
 			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
 			// Use effective token with precedence: custom > default
@@ -439,14 +451,22 @@ touch %s
 	// so user-supplied env does not override this value.
 	env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
 
-	// Inject the dummy COPILOT_API_KEY and AWF_REFLECT_ENABLED only when the AWF sandbox
-	// is active. The COPILOT_API_KEY triggers AWF's runtime BYOK detection path, which
-	// requires the api-proxy sidecar to be running. When sandbox.agent: false, no
-	// api-proxy is started, so injecting the key would break Copilot CLI authentication.
-	// Similarly, AWF_REFLECT_ENABLED tells the harness to skip the /reflect preflight
-	// when the api-proxy is not available.
+	// Inject the dummy BYOK sentinel and AWF_REFLECT_ENABLED only when the AWF sandbox
+	// is active. The COPILOT_API_KEY (set to this value) triggers AWF's runtime BYOK
+	// detection path, which requires the api-proxy sidecar to be running. When
+	// sandbox.agent: false, no api-proxy is started, so injecting the key would break
+	// Copilot CLI authentication. Similarly, AWF_REFLECT_ENABLED tells the harness to
+	// skip the /reflect preflight when the api-proxy is not available.
+	//
+	// To avoid secret-scanner false positives on generated lock files, the sentinel
+	// value is placed in COPILOT_DUMMY_BYOK (a non-*_API_KEY-shaped variable) in the
+	// env: block. COPILOT_API_KEY itself is exported in PathSetup via:
+	//   export COPILOT_API_KEY="$COPILOT_DUMMY_BYOK"
+	// Shell variable expansion runs before sudo -E awf executes, so COPILOT_API_KEY
+	// receives the correct value at runtime without ever appearing as a YAML key with
+	// a token-shaped literal value (GitHub Actions env: values are not shell-expanded).
 	if sandboxEnabled {
-		env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
+		env[constants.CopilotBYOKDummyAPIKeyEnvVar] = constants.CopilotBYOKDummyAPIKey
 		env["AWF_REFLECT_ENABLED"] = "1"
 	}
 

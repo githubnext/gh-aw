@@ -88,7 +88,7 @@ imports:
     with:
       title-prefix: "[uk ai resilience] "
       expires: 3d
-  - shared/observability-otlp.md
+  - shared/otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
