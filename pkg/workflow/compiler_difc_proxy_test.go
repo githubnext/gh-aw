@@ -252,10 +252,10 @@ func TestGetDIFCProxyPolicyJSON(t *testing.T) {
 			expectedAbsent:   []string{"blocked-users", "approval-labels"},
 		},
 		{
-			name: "allowed-repos current macro",
+			name: "allowed-repos github.repository expression",
 			githubTool: map[string]any{
 				"min-integrity": "approved",
-				"allowed-repos": "current",
+				"allowed-repos": "${{ github.repository }}",
 			},
 			expectedContains: []string{`"min-integrity":"approved"`, `"repos":"${{ github.repository }}"`},
 			expectedAbsent:   []string{"blocked-users", "approval-labels"},

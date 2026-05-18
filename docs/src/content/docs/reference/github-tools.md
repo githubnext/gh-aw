@@ -65,7 +65,7 @@ The setting `tools.github.allowed-repos` specifies which repositories the agent 
 
 - `"all"` — All repositories accessible by the configured token
 - `"public"` — Public repositories only
-- `"current"` — The repository where the workflow is running (`${{ github.repository }}`)
+- `"${{ github.repository }}"` — The repository where the workflow is running
 - Array of patterns — Specific repositories and wildcards:
   - `"owner/repo"` — Exact repository match
   - `"owner/*"` — All repositories under an owner

@@ -2,17 +2,12 @@ package workflow
 
 import (
 	"errors"
-	"regexp"
 	"strings"
 )
 
 const (
-	githubCurrentRepoMacro      = "current"
-	githubRepositoryExpression  = "${{ github.repository }}"
-	githubRepositoryExpression2 = "${{github.repository}}"
+	githubRepositoryExpression = "${{ github.repository }}"
 )
-
-var githubRepositoryExpressionPattern = regexp.MustCompile(`^\$\{\{\s*github\.repository\s*\}\}$`)
 
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
 // The GitHub MCP server always operates in read-only mode; write access is not permitted.
@@ -136,9 +131,9 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 func validateReposScope(repos any, workflowName string) error {
 	// Case 1: String value ("all" or "public")
 	if reposStr, ok := repos.(string); ok {
-		if reposStr != "all" && reposStr != "public" && !isCurrentRepoMacroOrExpression(reposStr) {
+		if reposStr != "all" && reposStr != "public" && !isGitHubRepositoryExpression(reposStr) {
 			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
-			return errors.New("invalid guard policy: 'github.allowed-repos' string must be 'all', 'public', or 'current'. Got: '" + reposStr + "'")
+			return errors.New("invalid guard policy: 'github.allowed-repos' string must be 'all', 'public', or '${{ github.repository }}'. Got: '" + reposStr + "'")
 		}
 		return nil
 	}
@@ -188,7 +183,7 @@ func validateReposScope(repos any, workflowName string) error {
 
 // validateRepoPattern validates a single repository pattern
 func validateRepoPattern(pattern string, workflowName string) error {
-	if isCurrentRepoMacroOrExpression(pattern) {
+	if isGitHubRepositoryExpression(pattern) {
 		return nil
 	}
 
@@ -251,15 +246,12 @@ func isValidOwnerOrRepo(s string) bool {
 	return true
 }
 
-func isCurrentRepoMacroOrExpression(value string) bool {
-	return value == githubCurrentRepoMacro ||
-		value == githubRepositoryExpression ||
-		value == githubRepositoryExpression2 ||
-		githubRepositoryExpressionPattern.MatchString(value)
+func isGitHubRepositoryExpression(value string) bool {
+	return value == githubRepositoryExpression
 }
 
-func normalizeCurrentRepoMacroOrExpression(value string) string {
-	if isCurrentRepoMacroOrExpression(value) {
+func normalizeCurrentRepoExpression(value string) string {
+	if isGitHubRepositoryExpression(value) {
 		return githubRepositoryExpression
 	}
 	return value
@@ -268,18 +260,18 @@ func normalizeCurrentRepoMacroOrExpression(value string) string {
 func normalizeCurrentRepoInReposScope(repos any) any {
 	switch r := repos.(type) {
 	case string:
-		return normalizeCurrentRepoMacroOrExpression(r)
+		return normalizeCurrentRepoExpression(r)
 	case []string:
 		normalized := make([]string, len(r))
 		for i, repo := range r {
-			normalized[i] = normalizeCurrentRepoMacroOrExpression(repo)
+			normalized[i] = normalizeCurrentRepoExpression(repo)
 		}
 		return normalized
 	case []any:
 		normalized := make([]any, len(r))
 		for i, repo := range r {
 			if repoStr, ok := repo.(string); ok {
-				normalized[i] = normalizeCurrentRepoMacroOrExpression(repoStr)
+				normalized[i] = normalizeCurrentRepoExpression(repoStr)
 				continue
 			}
 			normalized[i] = repo
