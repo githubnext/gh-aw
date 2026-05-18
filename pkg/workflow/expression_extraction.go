@@ -47,12 +47,102 @@ func NewExpressionExtractor() *ExpressionExtractor {
 	}
 }
 
+// contentTransformer is a function that rewrites an expression's content string.
+// It receives the current content and returns the (possibly) transformed content.
+// If no transformation applies it returns the input unchanged.
+type contentTransformer func(string) string
+
+// defaultContentTransformers is the ordered pipeline of content transformations
+// applied to every expression before it is mapped to an env var.
+// Transformers are applied in sequence; the output of one becomes the input of
+// the next. To extend the pipeline without modifying ExtractExpressions, append
+// to this slice before calling NewExpressionExtractor.
+var defaultContentTransformers = []contentTransformer{
+	transformActivationOutputs,
+	transformExperimentsExpression,
+	transformAwContextExpression,
+}
+
+// applyContentTransformers runs content through each transformer in order,
+// logging changes, and returns the fully-transformed content.
+func applyContentTransformers(content string, transformers []contentTransformer) string {
+	for _, t := range transformers {
+		if transformed := t(content); transformed != content {
+			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformed)
+			content = transformed
+		}
+	}
+	return content
+}
+
+// addSubExpressionMappings registers a synthetic ExpressionMapping for every
+// qualifying terminal sub-expression inside a compound expression so that the
+// runtime evaluator can resolve each operand via a deterministic GH_AW_* env var.
+//
+// For compound expressions (one that is not a simple identifier), the runtime
+// evaluator (runtime_import.cjs evaluateExpression()) recurses on || / && operands
+// and looks up "GH_AW_" + toUpperCase(expr.replace(/\./g, "_")) for each terminal.
+// Without this method only the hash env var for the full compound expression is
+// present in the step's env block, so individual operands always appear unresolved.
+func (e *ExpressionExtractor) addSubExpressionMappings(content string) {
+	if simpleIdentifierRegex.MatchString(content) {
+		return
+	}
+	for _, subExpr := range extractTerminalSubExpressions(content) {
+		syntheticOriginal := "${{ " + subExpr + " }}"
+		if _, exists := e.mappings[syntheticOriginal]; !exists {
+			// Sub-expressions are guaranteed to be simple identifiers by
+			// extractTerminalSubExpressions, so generateEnvVarName produces a
+			// deterministic pretty name (e.g. GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT).
+			e.mappings[syntheticOriginal] = &ExpressionMapping{
+				Original: syntheticOriginal,
+				EnvVar:   e.generateEnvVarName(subExpr),
+				Content:  subExpr,
+			}
+		}
+	}
+}
+
+// processMatch handles a single regex match from the expression extraction regex.
+// It applies content transformations, emits any deprecation warnings, registers
+// the primary mapping, and expands compound expressions into sub-expression
+// mappings. It is a no-op for empty content or already-seen expressions.
+func (e *ExpressionExtractor) processMatch(originalExpr, rawContent string) {
+	content := strings.TrimSpace(rawContent)
+	if content == "" {
+		expressionExtractionLog.Printf("Skipping empty expression: %s", originalExpr)
+		return
+	}
+
+	originalContent := content
+	content = applyContentTransformers(content, defaultContentTransformers)
+
+	// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
+	if _, exists := e.mappings[originalExpr]; exists {
+		return
+	}
+
+	// Emit deprecation warning once per unique deprecated activation-output expression
+	if content != originalContent && strings.HasPrefix(content, "steps.sanitized.outputs.") {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", originalContent, content),
+		))
+	}
+
+	e.mappings[originalExpr] = &ExpressionMapping{
+		Original: originalExpr,
+		EnvVar:   e.generateEnvVarName(content),
+		Content:  content,
+	}
+
+	e.addSubExpressionMappings(content)
+}
+
 // ExtractExpressions extracts all ${{ ... }} expressions from the markdown content
-// and creates environment variable mappings for each unique expression
+// and creates environment variable mappings for each unique expression.
 func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*ExpressionMapping, error) {
 	expressionExtractionLog.Printf("Extracting expressions from markdown: content_length=%d", len(markdown))
 
-	// Use pre-compiled regex from package level for performance
 	matches := expressionExtractionRegex.FindAllStringSubmatch(markdown, -1)
 	expressionExtractionLog.Printf("Found %d expression matches", len(matches))
 
@@ -60,93 +150,7 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		if len(match) < 2 {
 			continue
 		}
-
-		// Extract the full original expression including ${{ }}
-		originalExpr := match[0]
-
-		// Extract the content (without ${{ }})
-		content := strings.TrimSpace(match[1])
-		originalContent := content
-
-		// Skip empty expressions (e.g. "${{ }}" has no evaluable content)
-		if content == "" {
-			expressionExtractionLog.Printf("Skipping empty expression: %s", originalExpr)
-			continue
-		}
-
-		// Apply activation output transformation for backward compatibility
-		// This transforms needs.activation.outputs.{text|title|body} to steps.sanitized.outputs.{text|title|body}
-		// Users should now use steps.sanitized.outputs.* directly; this transformation exists only for
-		// backward compatibility with existing workflows.
-		if t := transformActivationOutputs(content); t != content {
-			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, t)
-			content = t
-		}
-
-		// Detect experiments.NAME expressions and remap them to steps.pick-experiment.outputs.NAME
-		// so the substitution step reads the variant value from the pick_experiment step output.
-		if t := transformExperimentsExpression(content); t != content {
-			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, t)
-			content = t
-		}
-
-		// Expand github.aw.context.<field> syntax sugar to parsed aw_context access.
-		if t := transformAwContextExpression(content); t != content {
-			expressionExtractionLog.Printf("Transformed aw_context expression: %s -> %s", content, t)
-			content = t
-		}
-
-		// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
-		if _, exists := e.mappings[originalExpr]; exists {
-			continue
-		}
-
-		// Emit deprecation warning once per unique deprecated activation-output expression
-		if content != originalContent && strings.HasPrefix(content, "steps.sanitized.outputs.") {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", originalContent, content),
-			))
-		}
-
-		// Generate environment variable name
-		envVar := e.generateEnvVarName(content)
-
-		// Create mapping
-		mapping := &ExpressionMapping{
-			Original: originalExpr,
-			EnvVar:   envVar,
-			Content:  content,
-		}
-
-		e.mappings[originalExpr] = mapping
-
-		// For compound expressions, also emit deterministic env vars for each terminal
-		// sub-expression that the runtime evaluator (runtime_import.cjs evaluateExpression())
-		// resolves by deterministic name (needs.*, steps.*, inputs.*).
-		//
-		// Context: when the main workflow markdown is loaded at runtime via
-		// {{#runtime-import}}, evaluateExpression() evaluates every ${{ … }} expression
-		// by recursing on || / && operands.  For each terminal operand it looks up
-		// "GH_AW_" + toUpperCase(expr.replace(/\./g, "_")).  If the env var is not set
-		// the operand is considered unresolved and the compound expression degrades to
-		// the wrong fallback.  Without this step only the hash env var for the full
-		// compound expression is present in the step's env block, so individual operands
-		// always appear unresolved.
-		if !simpleIdentifierRegex.MatchString(content) {
-			for _, subExpr := range extractTerminalSubExpressions(content) {
-				syntheticOriginal := "${{ " + subExpr + " }}"
-				if _, exists := e.mappings[syntheticOriginal]; !exists {
-					// Sub-expressions are guaranteed to be simple identifiers by
-					// extractTerminalSubExpressions, so generateEnvVarName produces a
-					// deterministic pretty name (e.g. GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT).
-					e.mappings[syntheticOriginal] = &ExpressionMapping{
-						Original: syntheticOriginal,
-						EnvVar:   e.generateEnvVarName(subExpr),
-						Content:  subExpr,
-					}
-				}
-			}
-		}
+		e.processMatch(match[0], match[1])
 	}
 
 	// Convert map to sorted slice for consistent ordering
