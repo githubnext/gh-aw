@@ -3944,7 +3944,7 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "enum": ["all", "public"],
+                      "enum": ["all", "public", "current"],
                       "description": "Allow access to all repositories ('all') or only public repositories ('public')"
                     },
                     {
@@ -3964,7 +3964,7 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "enum": ["all", "public"],
+                      "enum": ["all", "public", "current"],
                       "description": "Allow access to all repositories ('all') or only public repositories ('public')"
                     },
                     {

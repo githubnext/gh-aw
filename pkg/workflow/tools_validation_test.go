@@ -342,7 +342,27 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'github.allowed-repos' string must be 'all' or 'public'",
+			errorMsg:    "'github.allowed-repos' string must be 'all', 'public', or 'current'",
+		},
+		{
+			name: "allowed-repos current macro is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "current",
+					"min-integrity": "approved",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "allowed-repos github.repository expression is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "${{ github.repository }}",
+					"min-integrity": "approved",
+				},
+			},
+			shouldError: false,
 		},
 		{
 			name: "empty repos array",
@@ -603,6 +623,11 @@ func TestValidateReposScopeWithStringSlice(t *testing.T) {
 		{
 			name:        "valid []string repos array",
 			repos:       []string{"owner/repo", "owner/*"},
+			shouldError: false,
+		},
+		{
+			name:        "valid []string repos array with current macro",
+			repos:       []string{"current", "owner/repo"},
 			shouldError: false,
 		},
 		{
