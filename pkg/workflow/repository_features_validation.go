@@ -157,14 +157,15 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 // getCurrentRepository gets the current repository from git context (with caching)
 func getCurrentRepository() (string, error) {
-	currentRepositoryCache.mu.Lock()
-	defer currentRepositoryCache.mu.Unlock()
-	if !currentRepositoryCache.done {
-		currentRepositoryCache.result, currentRepositoryCache.err = getCurrentRepositoryUncached()
-		currentRepositoryCache.done = true
-	}
-	result := currentRepositoryCache.result
-	err := currentRepositoryCache.err
+	result, err := func() (string, error) {
+		currentRepositoryCache.mu.Lock()
+		defer currentRepositoryCache.mu.Unlock()
+		if !currentRepositoryCache.done {
+			currentRepositoryCache.result, currentRepositoryCache.err = getCurrentRepositoryUncached()
+			currentRepositoryCache.done = true
+		}
+		return currentRepositoryCache.result, currentRepositoryCache.err
+	}()
 
 	if err != nil {
 		return "", err

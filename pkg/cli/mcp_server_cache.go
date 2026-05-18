@@ -44,10 +44,12 @@ func (c *mcpCacheStore) getPermissionEntry(cacheKey string) (*permissionEntry, b
 	return entry, ok
 }
 
-func (c *mcpCacheStore) deletePermissionEntry(cacheKey string) {
+func (c *mcpCacheStore) deletePermissionEntryIfUnchanged(cacheKey string, entry *permissionEntry) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	delete(c.permissions, cacheKey)
+	if currentEntry, ok := c.permissions[cacheKey]; ok && currentEntry == entry {
+		delete(c.permissions, cacheKey)
+	}
 }
 
 // GetPermission returns the cached permission for the given actor and repo, or ("", false) on cache miss.
@@ -61,7 +63,7 @@ func (c *mcpCacheStore) GetPermission(actor, repo string) (string, bool) {
 	if ok {
 		// Expired — remove it
 		mcpServerCacheLog.Printf("Permission cache entry expired for actor=%s, repo=%s", actor, repo)
-		c.deletePermissionEntry(cacheKey)
+		c.deletePermissionEntryIfUnchanged(cacheKey, entry)
 	}
 	mcpServerCacheLog.Printf("Permission cache miss: actor=%s, repo=%s", actor, repo)
 	return "", false
