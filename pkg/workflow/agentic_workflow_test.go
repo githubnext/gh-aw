@@ -158,7 +158,7 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 	// Verify the install commands are present
 	assert.Contains(t, result, "gh extension install github/gh-aw",
 		"install step should include command to install gh-aw extension")
-	assert.Contains(t, result, "if gh extension list | grep -qE '(^|[[:space:]])gh-aw($|[[:space:]])'; then",
+	assert.Contains(t, result, "if gh extension list | grep -qE '(^|[[:space:]]|/)gh-aw($|[[:space:]]|$)'; then",
 		"install step should detect both github/gh-aw and local gh-aw extension registrations")
 	assert.Contains(t, result, "gh aw --version",
 		"install step should include command to verify gh-aw installation")
