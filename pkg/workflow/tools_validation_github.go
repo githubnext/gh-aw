@@ -131,7 +131,7 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 func validateReposScope(repos any, workflowName string) error {
 	// Case 1: String value ("all" or "public")
 	if reposStr, ok := repos.(string); ok {
-		if reposStr != "all" && reposStr != "public" && !isGitHubRepositoryExpression(reposStr) {
+		if reposStr != "all" && reposStr != "public" && !isExactGitHubRepositoryExpression(reposStr) {
 			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
 			return errors.New("invalid guard policy: 'github.allowed-repos' string must be 'all', 'public', or '${{ github.repository }}'. Got: '" + reposStr + "'")
 		}
@@ -183,7 +183,7 @@ func validateReposScope(repos any, workflowName string) error {
 
 // validateRepoPattern validates a single repository pattern
 func validateRepoPattern(pattern string, workflowName string) error {
-	if isGitHubRepositoryExpression(pattern) {
+	if isExactGitHubRepositoryExpression(pattern) {
 		return nil
 	}
 
@@ -246,32 +246,36 @@ func isValidOwnerOrRepo(s string) bool {
 	return true
 }
 
-func isGitHubRepositoryExpression(value string) bool {
+func isExactGitHubRepositoryExpression(value string) bool {
 	return value == githubRepositoryExpression
 }
 
-func normalizeCurrentRepoExpression(value string) string {
-	if isGitHubRepositoryExpression(value) {
-		return githubRepositoryExpression
-	}
-	return value
-}
-
-func normalizeCurrentRepoInReposScope(repos any) any {
+func normalizeGitHubRepositoryInReposScope(repos any) any {
 	switch r := repos.(type) {
 	case string:
-		return normalizeCurrentRepoExpression(r)
+		if isExactGitHubRepositoryExpression(r) {
+			return githubRepositoryExpression
+		}
+		return r
 	case []string:
 		normalized := make([]string, len(r))
 		for i, repo := range r {
-			normalized[i] = normalizeCurrentRepoExpression(repo)
+			if isExactGitHubRepositoryExpression(repo) {
+				normalized[i] = githubRepositoryExpression
+				continue
+			}
+			normalized[i] = repo
 		}
 		return normalized
 	case []any:
 		normalized := make([]any, len(r))
 		for i, repo := range r {
 			if repoStr, ok := repo.(string); ok {
-				normalized[i] = normalizeCurrentRepoExpression(repoStr)
+				if isExactGitHubRepositoryExpression(repoStr) {
+					normalized[i] = githubRepositoryExpression
+					continue
+				}
+				normalized[i] = repoStr
 				continue
 			}
 			normalized[i] = repo

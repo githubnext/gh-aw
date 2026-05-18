@@ -292,7 +292,7 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 		if hasRepos || hasIntegrity {
 			policy := map[string]any{}
 			if hasRepos {
-				policy["repos"] = normalizeCurrentRepoInReposScope(repos)
+				policy["repos"] = normalizeGitHubRepositoryInReposScope(repos)
 			} else {
 				// Default repos to "all" when min-integrity is specified without repos.
 				// The MCP Gateway requires repos in the allow-only policy.
