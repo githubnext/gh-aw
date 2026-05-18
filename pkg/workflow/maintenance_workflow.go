@@ -141,6 +141,8 @@ func GenerateMaintenanceWorkflow(ctx context.Context, workflowDataList []*Workfl
 	// Get the setup action reference (local or remote based on mode).
 	// Use the first available WorkflowData's ActionResolver to enable SHA pinning.
 	// Computed early so it is available in the !hasExpires path for side-repo workflows.
+	// Iterate to find the first non-nil entry because shared-only compilation paths
+	// may provide nil placeholders.
 	var resolver SHAResolver
 	for _, workflowData := range workflowDataList {
 		if workflowData != nil && workflowData.ActionResolver != nil {
