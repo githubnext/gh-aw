@@ -329,6 +329,8 @@ func splitExpressionOnLogicalOps(expr string) []string {
 		case expr[i] == ')':
 			if depth > 0 {
 				depth--
+			} else {
+				expressionExtractionLog.Printf("Unbalanced ')' in expression (ignoring): %s", expr)
 			}
 			current.WriteByte(expr[i])
 			i++
@@ -345,6 +347,16 @@ func splitExpressionOnLogicalOps(expr string) []string {
 		parts = append(parts, current.String())
 	}
 	return parts
+}
+
+// isQualifyingSubExpression reports whether trimmed is a simple property-access chain
+// (matching simpleIdentifierRegex) that starts with needs.*, steps.*, or inputs.*.
+// These are the sub-expressions for which the runtime evaluator looks up a deterministic
+// GH_AW_* environment variable name.
+func isQualifyingSubExpression(trimmed string) bool {
+	return trimmed != "" &&
+		simpleIdentifierRegex.MatchString(trimmed) &&
+		runtimeEvalEnvVarPrefixRegex.MatchString(trimmed)
 }
 
 // stripOuterParens removes a single layer of matching outer parentheses from s.
@@ -425,7 +437,7 @@ func extractTerminalSubExpressions(content string) []string {
 			// Leaf: check whether it is a qualifying simple identifier.
 			t := strings.TrimSpace(parts[0])
 			t = stripOuterParens(t)
-			if t == "" || !simpleIdentifierRegex.MatchString(t) || !runtimeEvalEnvVarPrefixRegex.MatchString(t) {
+			if !isQualifyingSubExpression(t) {
 				return
 			}
 			if !seen[t] {
