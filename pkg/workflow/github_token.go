@@ -9,23 +9,16 @@ import (
 
 var tokenLog = logger.New("workflow:github_token")
 
-func unwrapGitHubExpression(expression string) string {
-	trimmed := strings.TrimSpace(expression)
-	if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
-		return strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "${{"), "}}"))
-	}
-	return trimmed
-}
-
 func wrapGitHubExpression(expression string) string {
 	return fmt.Sprintf("${{ %s }}", strings.TrimSpace(expression))
 }
 
 func combineTokenExpressions(primaryExpression, fallbackExpression string) string {
-	return wrapGitHubExpression(BuildOr(
-		&ExpressionNode{Expression: unwrapGitHubExpression(primaryExpression)},
-		&ExpressionNode{Expression: unwrapGitHubExpression(fallbackExpression)},
-	).Render())
+	combined := BuildOr(
+		&ExpressionNode{Expression: stripExpressionWrapper(primaryExpression)},
+		&ExpressionNode{Expression: stripExpressionWrapper(fallbackExpression)},
+	)
+	return wrapGitHubExpression(RenderCondition(combined))
 }
 
 // getEffectiveGitHubToken returns the GitHub token to use, with precedence:

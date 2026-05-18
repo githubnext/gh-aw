@@ -144,7 +144,7 @@ func buildIgnoreIfMissingCondition(app *GitHubAppConfig) string {
 		buildGitHubExpressionNonEmptyCheck(app.AppID),
 		buildGitHubExpressionNonEmptyCheck(app.PrivateKey),
 	)
-	return wrapGitHubExpression(condition.Render())
+	return wrapGitHubExpression(RenderCondition(condition))
 }
 
 // ========================================
