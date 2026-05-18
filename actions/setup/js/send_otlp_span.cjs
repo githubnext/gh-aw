@@ -1648,7 +1648,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const isAgentCancelled = agentConclusion === "cancelled";
   const isAgentNonOK = isAgentFailure || isAgentCancelled;
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
-  const statusCode = isAgentNonOK ? 2 : 1;
+  let statusCode = isAgentNonOK ? 2 : 1;
   let statusMessage;
   if (isAgentFailure) {
     statusMessage = `agent ${agentConclusion}`;
@@ -1673,6 +1673,15 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     runStatus = "cancelled";
   } else if (rawRunStatus === "failure" || rawRunStatus === "timed_out") {
     runStatus = "failure";
+  }
+
+  // When GH_AW_AGENT_CONCLUSION and workflowRunConclusion are both absent (e.g. in the
+  // agent job's own post-step where needs.<job>.result is not yet visible), fall back to
+  // observable failure evidence so gh-aw.run.status and status.code are accurate.
+  if (!rawRunStatus && outputErrors.length > 0) {
+    runStatus = "failure";
+    statusCode = 2;
+    statusMessage = (errorMessages.length > 0 ? `errors detected: ${errorMessages[0]}` : "errors detected").slice(0, 256);
   }
 
   if (isAgentFailure && errorMessages.length > 0) {
