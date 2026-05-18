@@ -1790,6 +1790,24 @@ describe("safe_outputs_handlers", () => {
       );
     });
 
+    it("should throw MCP error when title is null", () => {
+      expect(() => handlers.updatePullRequestHandler({ title: null })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when body is null", () => {
+      expect(() => handlers.updatePullRequestHandler({ body: null })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when update_branch is null", () => {
+      expect(() => handlers.updatePullRequestHandler({ update_branch: null })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
     it("should write entry and return success when title is provided", () => {
       const result = handlers.updatePullRequestHandler({ title: "New Title" });
       expect(result).toHaveProperty("content");

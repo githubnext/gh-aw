@@ -1369,12 +1369,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const updatePullRequestHandler = args => {
     const safeArgs = args || {};
-    const hasTitle = safeArgs.title !== undefined;
-    const hasBody = safeArgs.body !== undefined;
-    // update_branch: false is treated as not provided because it carries no update intent
-    // (it's the default behaviour). This mirrors the downstream requiresOneOf validator in
-    // safe_output_type_validator.cjs which also excludes field === false from the count.
-    const hasUpdateBranch = safeArgs.update_branch !== undefined && safeArgs.update_branch !== false;
+    const hasTitle = typeof safeArgs.title === "string";
+    const hasBody = typeof safeArgs.body === "string";
+    // update_branch must be exactly true to carry update intent; false/null/undefined do not.
+    // This mirrors the downstream requiresOneOf validator in safe_output_type_validator.cjs
+    // which also excludes field === false from the count.
+    const hasUpdateBranch = safeArgs.update_branch === true;
 
     if (!hasTitle && !hasBody && !hasUpdateBranch) {
       throw {
