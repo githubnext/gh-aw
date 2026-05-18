@@ -1206,6 +1206,71 @@ describe("runtime_import", () => {
           const result = evaluateExpression("github.event.nonexistent.property");
           expect(result).toContain("github.event.nonexistent.property");
         });
+
+        describe("compound || expressions with deterministic env vars (compiler fix)", () => {
+          // These tests verify the runtime side of the compiler/runtime naming fix described in
+          // https://github.com/github/gh-aw/issues/<issue>
+          // The compiler now emits GH_AW_STEPS_* / GH_AW_INPUTS_* env vars for each
+          // needs.*/steps.*/inputs.* terminal sub-expression of a compound || expression,
+          // so that the recursive evaluator can resolve each operand by its deterministic name.
+
+          it("should resolve compound || when left env var (steps.*) is set", () => {
+            process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT = "/repo-assist some instruction";
+            try {
+              const result = evaluateExpression("steps.sanitized.outputs.text || inputs.command");
+              expect(result).toBe("/repo-assist some instruction");
+            } finally {
+              delete process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT;
+            }
+          });
+
+          it("should resolve compound || when only right env var (inputs.*) is set", () => {
+            process.env.GH_AW_INPUTS_COMMAND = "manual dispatch command";
+            try {
+              const result = evaluateExpression("steps.sanitized.outputs.text || inputs.command");
+              expect(result).toBe("manual dispatch command");
+            } finally {
+              delete process.env.GH_AW_INPUTS_COMMAND;
+            }
+          });
+
+          it("should prefer left side when both env vars are set (left-biased || semantics)", () => {
+            process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT = "slash-command text";
+            process.env.GH_AW_INPUTS_COMMAND = "manual dispatch command";
+            try {
+              const result = evaluateExpression("steps.sanitized.outputs.text || inputs.command");
+              expect(result).toBe("slash-command text");
+            } finally {
+              delete process.env.GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT;
+              delete process.env.GH_AW_INPUTS_COMMAND;
+            }
+          });
+
+          it("should return right-side wrapped expression when neither env var is set", () => {
+            // Both operands are unresolvable. The || evaluator tries left first: left
+            // is unresolved → try right, which is also unresolved → returns ${{ right }}.
+            // This is the pre-fix behaviour for the "neither set" case and is unchanged.
+            const result = evaluateExpression("steps.sanitized.outputs.text || inputs.command");
+            expect(result).toBe("${{ inputs.command }}");
+          });
+
+          it("should resolve compound || with needs.* left and inputs.* right", () => {
+            process.env.GH_AW_NEEDS_BUILD_OUTPUTS_VERSION = "v1.2.3";
+            try {
+              const result = evaluateExpression("needs.build.outputs.version || inputs.version_override");
+              expect(result).toBe("v1.2.3");
+            } finally {
+              delete process.env.GH_AW_NEEDS_BUILD_OUTPUTS_VERSION;
+            }
+          });
+
+          it("should fall back to literal right side when left env var is unset", () => {
+            // inputs.command is not set; right side is a string literal
+            const result = evaluateExpression("inputs.command || 'default-value'");
+            expect(result).toBe("default-value");
+          });
+        });
+
       });
 
       describe("processExpressions", () => {

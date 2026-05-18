@@ -113,6 +113,32 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		}
 
 		e.mappings[originalExpr] = mapping
+
+		// For compound expressions, also emit deterministic env vars for each terminal
+		// sub-expression that the runtime evaluator (runtime_import.cjs evaluateExpression)
+		// resolves by deterministic name (needs.*, steps.*, inputs.*).
+		//
+		// Context: when the main workflow markdown is loaded at runtime via
+		// {{#runtime-import}}, processExpressions() evaluates every ${{ … }} expression
+		// in the file by recursing on || / && operands.  For each terminal operand it
+		// looks up "GH_AW_" + toUpperCase(expr.replace(/\./g, "_")).  If the env var is
+		// not set the operand is considered unresolved and the compound expression
+		// degrades to the wrong fallback.  Without this step only the hash env var for
+		// the full compound expression is present in the step's env block, so individual
+		// operands always appear unresolved.
+		if !simpleIdentifierRegex.MatchString(content) {
+			for _, subExpr := range extractTerminalSubExpressions(content) {
+				syntheticOriginal := "${{ " + subExpr + " }}"
+				if _, exists := e.mappings[syntheticOriginal]; !exists {
+					subEnvVar := "GH_AW_" + strings.ToUpper(strings.ReplaceAll(subExpr, ".", "_"))
+					e.mappings[syntheticOriginal] = &ExpressionMapping{
+						Original: syntheticOriginal,
+						EnvVar:   subEnvVar,
+						Content:  subExpr,
+					}
+				}
+			}
+		}
 	}
 
 	// Convert map to sorted slice for consistent ordering
@@ -271,6 +297,84 @@ func transformAwContextExpression(expr string) string {
 // "github.event.issue.number" or "needs.activation.outputs.text"
 // Each identifier must start with a letter or underscore, followed by alphanumeric or underscore
 var simpleIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$`)
+
+// runtimeEvalEnvVarPrefixRegex matches the expression prefixes for which the runtime
+// evaluator (runtime_import.cjs evaluateExpression) resolves values via deterministic
+// GH_AW_* environment variable names (rather than via the GitHub context object).
+// See the `if (trimmed.startsWith("needs.") || ...)` block in evaluateExpression().
+var runtimeEvalEnvVarPrefixRegex = regexp.MustCompile(`^(?:needs|steps|inputs)\.`)
+
+// splitExpressionOnLogicalOps splits an expression string on top-level `||` and `&&`
+// tokens. It does not attempt to track parentheses or quoted strings — this is intentional,
+// because the only sub-expressions we care about are simple property-access chains, which
+// are always leaves and never appear inside function calls or string literals.
+func splitExpressionOnLogicalOps(expr string) []string {
+	var parts []string
+	var current strings.Builder
+	i := 0
+	for i < len(expr) {
+		if i+1 < len(expr) {
+			twoChar := expr[i : i+2]
+			if twoChar == "||" || twoChar == "&&" {
+				parts = append(parts, current.String())
+				current.Reset()
+				i += 2
+				continue
+			}
+		}
+		current.WriteByte(expr[i])
+		i++
+	}
+	if current.Len() > 0 {
+		parts = append(parts, current.String())
+	}
+	return parts
+}
+
+// extractTerminalSubExpressions returns the simple-identifier sub-expressions from a
+// compound expression (one containing `||` or `&&` operators) that the runtime evaluator
+// resolves via deterministic GH_AW_* environment variable names.
+//
+// Only sub-expressions that:
+//
+//  1. are valid simple property-access chains (matching simpleIdentifierRegex), and
+//  2. start with needs.*, steps.*, or inputs.*
+//
+// are returned. github.* sub-expressions are deliberately excluded because the runtime
+// evaluator resolves them through the GitHub context object, not through env vars.
+//
+// Examples:
+//
+//	"steps.sanitized.outputs.text || inputs.command"
+//	→ ["steps.sanitized.outputs.text", "inputs.command"]
+//
+//	"github.event.issue.number || inputs.item_number"
+//	→ ["inputs.item_number"]
+//
+//	"steps.pick-experiment.outputs.name == 'concise'"
+//	→ []  (hyphenated segment; not a simpleIdentifier)
+func extractTerminalSubExpressions(content string) []string {
+	parts := splitExpressionOnLogicalOps(content)
+	seen := make(map[string]bool)
+	var result []string
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		if !simpleIdentifierRegex.MatchString(trimmed) {
+			continue
+		}
+		if !runtimeEvalEnvVarPrefixRegex.MatchString(trimmed) {
+			continue
+		}
+		if !seen[trimmed] {
+			seen[trimmed] = true
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
 
 // generateEnvVarName generates a unique environment variable name for an expression
 // For simple JavaScript property access chains (e.g., "github.event.issue.number"),

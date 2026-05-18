@@ -44,6 +44,46 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantExpressions: []string{"github.event.issue.number || github.event.pull_request.number"},
 		},
 		{
+			name:     "compound || with steps.* and inputs.* emits sub-expression env vars",
+			markdown: `Instructions: ${{ steps.sanitized.outputs.text || inputs.command }}`,
+			// compound mapping + two deterministic sub-expression mappings
+			wantCount: 3,
+			wantExpressions: []string{
+				"steps.sanitized.outputs.text || inputs.command",
+				"steps.sanitized.outputs.text",
+				"inputs.command",
+			},
+		},
+		{
+			name:     "compound || with only github.* sub-expressions emits no extra mappings",
+			markdown: `Issue: ${{ github.event.issue.number || github.event.pull_request.number }}`,
+			// github.* sub-expressions are resolved via context, not env vars, so no extras
+			wantCount:       1,
+			wantExpressions: []string{"github.event.issue.number || github.event.pull_request.number"},
+		},
+		{
+			name:     "compound || with needs.* and string literal emits sub-expression env var",
+			markdown: `Data: ${{ needs.activation.outputs.text || 'fallback' }}`,
+			// needs.activation.outputs.text transforms to steps.sanitized.outputs.text
+			// compound mapping + one deterministic sub-expression mapping
+			wantCount: 2,
+			wantExpressions: []string{
+				"steps.sanitized.outputs.text || 'fallback'",
+				"steps.sanitized.outputs.text",
+			},
+		},
+		{
+			name:     "standalone sub-expression present in markdown takes precedence over synthesized mapping",
+			markdown: `A: ${{ steps.sanitized.outputs.text || inputs.command }}, B: ${{ steps.sanitized.outputs.text }}`,
+			// compound + inputs.command sub (steps.sanitized.outputs.text already registered from standalone)
+			wantCount: 3,
+			wantExpressions: []string{
+				"steps.sanitized.outputs.text || inputs.command",
+				"steps.sanitized.outputs.text",
+				"inputs.command",
+			},
+		},
+		{
 			name:            "expression in URL",
 			markdown:        "Link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
 			wantCount:       3,
@@ -524,6 +564,123 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestExtractTerminalSubExpressions(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    []string
+	}{
+		{
+			name:    "steps and inputs sub-expressions are returned",
+			content: "steps.sanitized.outputs.text || inputs.command",
+			want:    []string{"steps.sanitized.outputs.text", "inputs.command"},
+		},
+		{
+			name:    "needs sub-expression is returned",
+			content: "needs.build.outputs.version || inputs.override",
+			want:    []string{"needs.build.outputs.version", "inputs.override"},
+		},
+		{
+			name:    "github.* sub-expressions are excluded (resolved via context)",
+			content: "github.event.issue.number || github.event.pull_request.number",
+			want:    []string{},
+		},
+		{
+			name:    "github.* left side excluded, inputs.* right side included",
+			content: "github.event.issue.number || inputs.item_number",
+			want:    []string{"inputs.item_number"},
+		},
+		{
+			name:    "string literal on right side is excluded",
+			content: "steps.sanitized.outputs.text || 'fallback'",
+			want:    []string{"steps.sanitized.outputs.text"},
+		},
+		{
+			name:    "hyphenated identifier is excluded (not a simpleIdentifier)",
+			content: "steps.pick-experiment.outputs.name || inputs.command",
+			want:    []string{"inputs.command"},
+		},
+		{
+			name:    "three-way OR returns all matching sub-expressions",
+			content: "steps.a.outputs.x || steps.b.outputs.y || inputs.z",
+			want:    []string{"steps.a.outputs.x", "steps.b.outputs.y", "inputs.z"},
+		},
+		{
+			name:    "deduplicates repeated sub-expressions",
+			content: "steps.foo.outputs.bar || steps.foo.outputs.bar",
+			want:    []string{"steps.foo.outputs.bar"},
+		},
+		{
+			name:    "simple expression (no operators) — single qualifying token is returned",
+			// Note: ExtractExpressions guards the call with !simpleIdentifierRegex,
+			// so this case never arises in production; but the function is correct regardless.
+			content: "steps.sanitized.outputs.text",
+			want:    []string{"steps.sanitized.outputs.text"},
+		},
+		{
+			name:    "function call expression returns empty",
+			content: "fromJSON(github.event.inputs.aw_context || '{}').item_number",
+			want:    []string{},
+		},
+		{
+			name:    "AND operator is also split",
+			content: "needs.check.outputs.passed && inputs.override",
+			want:    []string{"needs.check.outputs.passed", "inputs.override"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractTerminalSubExpressions(tt.content)
+			if len(got) != len(tt.want) {
+				t.Errorf("extractTerminalSubExpressions(%q) = %v, want %v", tt.content, got, tt.want)
+				return
+			}
+			for i, want := range tt.want {
+				if got[i] != want {
+					t.Errorf("extractTerminalSubExpressions(%q)[%d] = %q, want %q", tt.content, i, got[i], want)
+				}
+			}
+		})
+	}
+}
+
+func TestCompoundExpressionEnvVarNames(t *testing.T) {
+	// Verify that the sub-expression mappings have the expected env var names
+	extractor := NewExpressionExtractor()
+	mappings, err := extractor.ExtractExpressions(
+		`Instructions: ${{ steps.sanitized.outputs.text || inputs.command }}`,
+	)
+	if err != nil {
+		t.Fatalf("ExtractExpressions() error = %v", err)
+	}
+
+	envVarsByContent := make(map[string]string)
+	for _, m := range mappings {
+		envVarsByContent[m.Content] = m.EnvVar
+	}
+
+	wantEnvVars := map[string]string{
+		"steps.sanitized.outputs.text": "GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT",
+		"inputs.command":               "GH_AW_INPUTS_COMMAND",
+	}
+	for content, wantEnvVar := range wantEnvVars {
+		if got, ok := envVarsByContent[content]; !ok {
+			t.Errorf("missing mapping for sub-expression %q", content)
+		} else if got != wantEnvVar {
+			t.Errorf("sub-expression %q: EnvVar = %q, want %q", content, got, wantEnvVar)
+		}
+	}
+
+	// The compound expression itself must still have a hash-based env var
+	compoundContent := "steps.sanitized.outputs.text || inputs.command"
+	if envVar, ok := envVarsByContent[compoundContent]; !ok {
+		t.Errorf("missing mapping for compound expression %q", compoundContent)
+	} else if !strings.HasPrefix(envVar, "GH_AW_EXPR_") {
+		t.Errorf("compound expression %q: EnvVar = %q, want GH_AW_EXPR_* prefix", compoundContent, envVar)
 	}
 }
 
