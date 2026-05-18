@@ -200,12 +200,12 @@ describe("handle_agent_failure", () => {
     /** @type {string} */
     let promptsDir;
 
-    function buildExistingIssueBody({ branch, categories, expires = "2099-01-01T00:00:00.000Z", pullRequestNumber } = {}) {
+    function buildExistingIssueBody({ branch, categories, expires = "2099-01-01T00:00:00.000Z", pullRequestNumber, workflowName = "Test Workflow" } = {}) {
       const prPart = pullRequestNumber ? `, pull_request: ${pullRequestNumber}` : "";
       return (
-        "> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456)\n" +
+        `> Generated from [${workflowName}](https://github.com/owner/repo/actions/runs/123456)\n` +
         `> - [x] expires <!-- gh-aw-expires: ${expires} --> on Jan 1, 2099, 12:00 AM UTC\n\n` +
-        "<!-- gh-aw-agentic-workflow: Test Workflow, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->\n" +
+        `<!-- gh-aw-agentic-workflow: ${workflowName}, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->\n` +
         `<!-- gh-aw-failure-issue: true, workflow_id: test-workflow, branch: ${branch || ""}, failure_categories: ${categories.join("|")}${prPart} -->`
       );
     }
@@ -258,6 +258,53 @@ describe("handle_agent_failure", () => {
                       number: 42,
                       html_url: "https://github.com/owner/repo/issues/42",
                       body: buildExistingIssueBody({ branch: "feature/current", categories: ["missing_safe_outputs"] }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+    });
+
+    it("adds a comment when existing issue metadata contains commas in free-form values", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow, Retry";
+      process.env.GITHUB_HEAD_REF = "feature/current,with-comma";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: buildExistingIssueBody({
+                        workflowName: "Test Workflow, Retry",
+                        branch: "feature/current,with-comma",
+                        categories: ["missing_safe_outputs"],
+                      }),
                     },
                   ],
                 },

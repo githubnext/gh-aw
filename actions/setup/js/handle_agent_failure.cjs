@@ -115,10 +115,13 @@ function parseHTMLCommentMetadata(body, markerKey) {
 
     /** @type {Record<string, string>} */
     const metadata = {};
-    const pairPattern = /([a-zA-Z0-9_-]+):\s*([^,]+?)(?=,\s*[a-zA-Z0-9_-]+:\s*|$)/g;
-    let pairMatch;
-    while ((pairMatch = pairPattern.exec(content)) !== null) {
-      metadata[pairMatch[1]] = pairMatch[2].trim();
+    const pairMatches = [...content.matchAll(/(?:^|,\s*)([a-zA-Z0-9_-]+):\s*/g)];
+    for (let index = 0; index < pairMatches.length; index += 1) {
+      const pairMatch = pairMatches[index];
+      const nextPairMatch = pairMatches[index + 1];
+      const valueStart = (pairMatch.index || 0) + pairMatch[0].length;
+      const valueEnd = nextPairMatch ? nextPairMatch.index || content.length : content.length;
+      metadata[pairMatch[1]] = content.slice(valueStart, valueEnd).trim();
     }
 
     if (metadata[markerKey]) {
@@ -176,12 +179,7 @@ function buildFailureMatchCategories(options) {
  */
 function generateFailureMatchMarker(options) {
   const { workflowId, branch, pullRequestNumber, failureCategories } = options;
-  const parts = [
-    "gh-aw-failure-issue: true",
-    `workflow_id: ${workflowId}`,
-    `branch: ${branch || ""}`,
-    `failure_categories: ${failureCategories.join("|")}`,
-  ];
+  const parts = ["gh-aw-failure-issue: true", `workflow_id: ${workflowId}`, `branch: ${branch || ""}`, `failure_categories: ${failureCategories.join("|")}`];
 
   if (pullRequestNumber) {
     parts.push(`pull_request: ${pullRequestNumber}`);
