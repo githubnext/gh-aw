@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -70,14 +71,14 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, fmt.Errorf("%s", console.FormatErrorMessage(
+		return nil, errors.New(console.FormatErrorMessage(
 			fmt.Sprintf("access denied (HTTP %d). Check that the URL is accessible or set an auth token.", resp.StatusCode),
 		))
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("%s", console.FormatErrorMessage("URL not found (HTTP 404)"))
+		return nil, errors.New(console.FormatErrorMessage("URL not found (HTTP 404)"))
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("%s", console.FormatErrorMessage(
+		return nil, errors.New(console.FormatErrorMessage(
 			fmt.Sprintf("unexpected HTTP %d response from server", resp.StatusCode),
 		))
 	}
@@ -94,7 +95,7 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	if len(body) > importURLMaxBytes {
-		return nil, fmt.Errorf("%s", console.FormatErrorMessage(
+		return nil, errors.New(console.FormatErrorMessage(
 			fmt.Sprintf("response body exceeds size limit (%s)", console.FormatFileSize(importURLMaxBytes)),
 		))
 	}

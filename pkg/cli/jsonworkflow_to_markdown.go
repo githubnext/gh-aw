@@ -218,6 +218,9 @@ func filenameFromJSONWorkflow(a *JSONWorkflow) string {
 //   - whitespace and underscores → "-"
 //   - sequences of non-alphanumeric chars → single "-"
 //   - result is lower-cased
+// nonAlphanumSeq matches one or more consecutive non-alphanumeric characters.
+// It is compiled once at package init because regex compilation is expensive and
+// the pattern is immutable.
 var nonAlphanumSeq = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
 func toKebabCase(s string) string {

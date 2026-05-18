@@ -243,15 +243,15 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
 		specLog.Print("Detected URL format")
 		// Try to parse as a recognized GitHub URL first.
-		parsedURL, parseErr := url.Parse(spec)
-		if parseErr == nil && isGitHubHost(parsedURL.Host) {
+		parsedURL, urlErr := url.Parse(spec)
+		if urlErr == nil && isGitHubHost(parsedURL.Host) {
 			specLog.Print("Detected GitHub URL format")
 			return parseGitHubURL(spec)
 		}
 		// Non-GitHub HTTP(S) URL: return a generic URL spec whose content will be
 		// fetched at resolution time and dispatched on Content-Type.
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid URL %q: %w", spec, parseErr)
+		if urlErr != nil {
+			return nil, fmt.Errorf("invalid URL %q: %w", spec, urlErr)
 		}
 		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 			return nil, fmt.Errorf("unsupported URL scheme %q: only http and https are supported", parsedURL.Scheme)

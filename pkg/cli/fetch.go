@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -275,8 +276,7 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 
 		var wf JSONWorkflow
 		if err := json.Unmarshal(resource.Body, &wf); err != nil {
-			return nil, fmt.Errorf("%s",
-				console.FormatErrorMessage(fmt.Sprintf("failed to parse JSON workflow from URL: %v", err)))
+			return nil, fmt.Errorf("failed to parse JSON workflow from URL: %w", err)
 		}
 
 		nameOverride := spec.WorkflowName
@@ -306,13 +306,11 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 
 	default:
 		if ct == "" {
-			return nil, fmt.Errorf("%s",
-				console.FormatErrorMessage(
-					"URL did not return a Content-Type header. Expected text/markdown or application/json."))
+			return nil, errors.New(console.FormatErrorMessage(
+				"URL did not return a Content-Type header. Expected text/markdown or application/json."))
 		}
-		return nil, fmt.Errorf("%s",
-			console.FormatErrorMessage(
-				fmt.Sprintf("unsupported Content-Type %q from URL. Expected text/markdown or application/json.", ct)))
+		return nil, errors.New(console.FormatErrorMessage(
+			fmt.Sprintf("unsupported Content-Type %q from URL. Expected text/markdown or application/json.", ct)))
 	}
 }
 
