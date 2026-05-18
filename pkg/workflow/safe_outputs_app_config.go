@@ -62,7 +62,16 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 	// Parse missing-key behavior (optional): "error" (default) or "ignore"
 	if missingKey, exists := appMap["missing-key"]; exists {
 		if missingKeyStr, ok := missingKey.(string); ok {
-			appConfig.MissingKey = strings.TrimSpace(strings.ToLower(missingKeyStr))
+			normalized := strings.TrimSpace(strings.ToLower(missingKeyStr))
+			switch normalized {
+			case "", gitHubAppMissingKeyError:
+				appConfig.MissingKey = gitHubAppMissingKeyError
+			case gitHubAppMissingKeyIgnore:
+				appConfig.MissingKey = gitHubAppMissingKeyIgnore
+			default:
+				safeOutputsAppLog.Printf("Ignoring github-app.missing-key value %q: expected %q or %q", missingKeyStr, gitHubAppMissingKeyError, gitHubAppMissingKeyIgnore)
+				appConfig.MissingKey = gitHubAppMissingKeyError
+			}
 		}
 	}
 

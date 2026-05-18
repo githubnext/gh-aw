@@ -123,6 +123,18 @@ safe-outputs:
 	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
 }
 
+func TestSafeOutputsAppInvalidMissingKeyDefaultsToError(t *testing.T) {
+	app := parseAppConfig(map[string]any{
+		"client-id":   "${{ vars.APP_ID }}",
+		"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+		"missing-key": "skip",
+	})
+
+	require.NotNil(t, app)
+	assert.Equal(t, gitHubAppMissingKeyError, app.MissingKey)
+	assert.False(t, app.shouldIgnoreMissingKey())
+}
+
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
 func TestSafeOutputsAppWithoutSafeOutputs(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
