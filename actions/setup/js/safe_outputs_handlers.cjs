@@ -1154,9 +1154,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * to provide immediate feedback to the LLM before recording to NDJSON.
    */
   const createPullRequestReviewCommentHandler = args => {
-    // Increment only after the default handler successfully appends the entry;
-    // an early throw (e.g. large-content rejection) must not advance the counter.
     const result = defaultHandler("create_pull_request_review_comment")(args);
+    // Increment only after the default handler returns successfully; if it throws
+    // (e.g. due to large-content rejection or an append write error) the counter
+    // must not advance so the empty-review guard remains accurate.
     inlineReviewCommentCount++;
     return result;
   };

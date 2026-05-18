@@ -337,9 +337,13 @@ function createReviewBuffer() {
           if (files.length < 100) break;
           listPage++;
         }
-        // Fail-open when the pagination cap is reached with a full last page: there may
-        // be more changed files beyond the 1,000-file limit, so the collected set is
-        // non-authoritative and filtering would risk dropping valid comments.
+        // `listPage > MAX_LIST_FILES_PAGES` is only true when the loop exited via the
+        // while-condition (not via a break), which only happens after a full page of 100
+        // files caused listPage to be incremented past the cap. A partial page always
+        // triggers the `files.length < 100` break first, so hitPageCap implies the last
+        // page was full and there may be more files beyond the 1,000-file limit.
+        // Fail-open in that case: the collected set is non-authoritative and filtering
+        // would risk dropping valid comments on the un-fetched files.
         const hitPageCap = listPage > MAX_LIST_FILES_PAGES;
         // Only filter when we received a non-empty file list and did not hit the cap;
         // an empty list likely indicates an API quirk or a PR with no diff.
