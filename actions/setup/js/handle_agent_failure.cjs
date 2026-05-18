@@ -107,9 +107,7 @@ function parseHTMLCommentMetadata(body, markerKey) {
     return null;
   }
 
-  const commentPattern = /<!--\s*([\s\S]*?)\s*-->/g;
-  let match;
-  while ((match = commentPattern.exec(body)) !== null) {
+  for (const match of body.matchAll(/<!--\s*([\s\S]*?)\s*-->/g)) {
     const content = match[1].trim();
     if (!content.includes(`${markerKey}:`)) {
       continue;
@@ -252,34 +250,43 @@ function isReusableFailureIssue(body, options) {
 async function findExistingFailureIssue(options) {
   const { owner, repo, issueTitle, workflowId, branch, pullRequestNumber, failureCategories } = options;
   const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${issueTitle}"`;
-  const searchResult = await github.rest.search.issuesAndPullRequests({
-    q: searchQuery,
-    per_page: 100,
-  });
+  const perPage = 100;
 
-  for (const item of searchResult.data.items) {
-    let body = typeof item.body === "string" ? item.body : "";
-    if (!body) {
-      const issueResult = await github.rest.issues.get({
-        owner,
-        repo,
-        issue_number: item.number,
-      });
-      body = issueResult.data.body || "";
+  for (let page = 1; ; page += 1) {
+    const searchResult = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: perPage,
+      page,
+    });
+
+    for (const item of searchResult.data.items) {
+      let body = typeof item.body === "string" ? item.body : "";
+      if (!body) {
+        const issueResult = await github.rest.issues.get({
+          owner,
+          repo,
+          issue_number: item.number,
+        });
+        body = issueResult.data.body || "";
+      }
+
+      if (
+        isReusableFailureIssue(body, {
+          workflowId,
+          branch,
+          pullRequestNumber,
+          failureCategories,
+        })
+      ) {
+        return {
+          number: item.number,
+          html_url: item.html_url,
+        };
+      }
     }
 
-    if (
-      isReusableFailureIssue(body, {
-        workflowId,
-        branch,
-        pullRequestNumber,
-        failureCategories,
-      })
-    ) {
-      return {
-        number: item.number,
-        html_url: item.html_url,
-      };
+    if (searchResult.data.items.length < perPage) {
+      break;
     }
   }
 
