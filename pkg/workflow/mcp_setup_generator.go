@@ -197,7 +197,7 @@ func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkfl
 	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          # Check if gh-aw extension is already installed\n")
-	yaml.WriteString("          if gh extension list | grep -qE '(^|[[:space:]])gh-aw($|[[:space:]])'; then\n")
+	yaml.WriteString("          if gh extension list | grep -qE '(^|[[:space:]]|/)gh-aw($|[[:space:]]|$)'; then\n")
 	yaml.WriteString("            echo \"gh-aw extension already installed, upgrading...\"\n")
 	yaml.WriteString("            gh extension upgrade gh-aw || true\n")
 	yaml.WriteString("          else\n")
