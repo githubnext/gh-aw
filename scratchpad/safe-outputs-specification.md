@@ -807,7 +807,7 @@ Implementations MUST:
 
 ### 6.3 Operation Specifications
 
-Due to the extensive nature of GitHub operations (20+ operation types), detailed per-operation specifications are provided in separate appendices:
+Given the number of GitHub operations (20+ operation types), detailed per-operation specifications are provided in separate appendices:
 
 - **Appendix A**: Issues & Discussions Operations
 - **Appendix B**: Pull Request Operations

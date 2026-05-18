@@ -167,7 +167,7 @@ This indicates:
 
 **Bandwidth Implications:**
 - Serena tools use **minimal bandwidth** compared to Bash operations
-- Despite lower usage rate, Serena tools are highly **bandwidth-efficient**
+- Despite lower usage rate, Serena tools are **bandwidth-efficient**
 - Pattern: Language-aware tools return structured, compact data vs. verbose text outputs
 
 ## Statistical Insights
