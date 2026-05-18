@@ -55,6 +55,10 @@ pre-agent-steps:
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
       gh pr diff "$PR_NUMBER" --repo ${{ github.repository }} \
+        --exclude '**/*.lock.yml' \
+        --exclude '**/generated/**' \
+        --exclude '**/dist/**' \
+        --exclude '**/build/**' \
         | head -n 3000 \
         > /tmp/gh-aw/agent/pr-diff.patch
       LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
@@ -113,7 +117,7 @@ Review this pull request using the most appropriate Matt Pocock skill(s) for the
 
 > **⚠️ Do NOT call any GitHub MCP tools for PR data.** All PR information is pre-fetched: use `/tmp/gh-aw/agent/pr-meta.json` and `/tmp/gh-aw/agent/pr-diff.patch` exclusively.
 
-PR data and the full diff have already been fetched before the agent started. Read the pre-fetched files:
+PR data and the diff (excluding lock files and common generated/build artifacts) have already been fetched before the agent started. Read the pre-fetched files:
 
 ```bash
 cat /tmp/gh-aw/agent/pr-meta.json   # fields: number, title, body, headRefName, additions, deletions, changedFiles, files
