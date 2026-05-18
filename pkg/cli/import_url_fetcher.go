@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,8 +17,8 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-const importURLMaxBytes = 500 * 1024        // 500 KB
-const importURLTimeout = 30 * time.Second   // default per-request timeout
+const importURLMaxBytes = 500 * 1024      // 500 KB
+const importURLTimeout = 30 * time.Second // default per-request timeout
 
 var importURLFetcherLog = logger.New("cli:import_url_fetcher")
 
@@ -207,14 +208,7 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 		}
 	}
 
-	isAllowed := false
-	for _, h := range allowedHosts {
-		if host == h {
-			isAllowed = true
-			break
-		}
-	}
-	if !isAllowed {
+	if !slices.Contains(allowedHosts, host) {
 		return
 	}
 

@@ -663,10 +663,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
         // A branch protection rule (e.g. a ruleset that blocks deletion) prevented
         // the delete. Fall back gracefully by appending a random suffix to the branch
         // name rather than failing hard, so a PR can still be created.
-        core.warning(
-          `Remote branch "${branchName}" cannot be deleted due to branch protection rules (recreate-ref blocked). ` +
-            `Falling back to rename with random suffix.`
-        );
+        core.warning(`Remote branch "${branchName}" cannot be deleted due to branch protection rules (recreate-ref blocked). ` + `Falling back to rename with random suffix.`);
         deleteBlocked = true;
       } else {
         throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with recreate-ref: ${message || String(err)}`);

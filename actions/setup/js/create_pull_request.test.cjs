@@ -2504,10 +2504,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     };
     // Simulate the 422 "Repository rule violations found / Cannot delete this branch" error
     // that occurs when chaos/* branches are protected by a ruleset that blocks deletion.
-    const ruleViolationError = Object.assign(
-      new Error("Repository rule violations found\n\nCannot delete this branch\n\n - https://docs.github.com/rest/git/refs#delete-a-reference"),
-      { status: 422 }
-    );
+    const ruleViolationError = Object.assign(new Error("Repository rule violations found\n\nCannot delete this branch\n\n - https://docs.github.com/rest/git/refs#delete-a-reference"), { status: 422 });
     global.github.rest.git.deleteRef = vi.fn().mockRejectedValue(ruleViolationError);
 
     const pushSignedCommitsModule = require("./push_signed_commits.cjs");

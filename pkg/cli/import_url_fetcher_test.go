@@ -68,7 +68,7 @@ func TestFetchImportURL_JSON(t *testing.T) {
 	res, err := FetchImportURL(context.Background(), srv.URL+"/workflow.json", FetchOptions{HTTPClient: srv.Client()})
 	require.NoError(t, err)
 	assert.Equal(t, "application/json", res.ContentType)
-	assert.Equal(t, []byte(jsonContent), res.Body)
+	assert.JSONEq(t, jsonContent, string(res.Body))
 }
 
 func TestFetchImportURL_NotFound(t *testing.T) {

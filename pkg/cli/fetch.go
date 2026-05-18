@@ -287,7 +287,7 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 
 		if verbose {
 			for _, w := range generated.Warnings {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("JSON workflow import: %s", w)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("JSON workflow import: "+w))
 			}
 		}
 
@@ -315,4 +315,3 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 			fmt.Sprintf("unsupported Content-Type %q from URL. Expected text/markdown or application/json.", ct)))
 	}
 }
-

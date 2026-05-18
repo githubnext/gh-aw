@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -95,7 +96,7 @@ type GeneratedWorkflow struct {
 // GeneratedWorkflow.Warnings.
 func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*GeneratedWorkflow, error) {
 	if a == nil {
-		return nil, fmt.Errorf("JSONWorkflow must not be nil")
+		return nil, errors.New("JSONWorkflow must not be nil")
 	}
 
 	var warnings []string
@@ -128,7 +129,7 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 		onYAML, err := marshalFrontmatterValue(a.On)
 		if err == nil {
 			fm.WriteString("on:\n")
-			for _, line := range strings.Split(onYAML, "\n") {
+			for line := range strings.SplitSeq(onYAML, "\n") {
 				if line == "" {
 					continue
 				}
@@ -156,7 +157,7 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 		extraYAML, err := marshalFrontmatterValue(a.Extra)
 		if err == nil {
 			fm.WriteString("# Unsupported fields preserved from source JSON:\n")
-			for _, line := range strings.Split(extraYAML, "\n") {
+			for line := range strings.SplitSeq(extraYAML, "\n") {
 				if line == "" {
 					continue
 				}
@@ -225,6 +226,7 @@ func filenameFromJSONWorkflow(a *JSONWorkflow) string {
 //   - whitespace and underscores → "-"
 //   - sequences of non-alphanumeric chars → single "-"
 //   - result is lower-cased
+//
 // nonAlphanumSeq matches one or more consecutive non-alphanumeric characters.
 // It is compiled once at package init because regex compilation is expensive and
 // the pattern is immutable.

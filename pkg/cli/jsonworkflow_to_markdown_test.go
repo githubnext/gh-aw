@@ -4,7 +4,6 @@ package cli
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,8 +88,8 @@ func TestConvertJSONWorkflowToMarkdown_ExtraFieldsPreserved(t *testing.T) {
 	require.NoError(t, err)
 
 	// Unknown fields must appear as comments in the markdown.
-	assert.True(t, strings.Contains(gen.Markdown, "# Unsupported fields"), "expected comment header for unsupported fields")
-	assert.True(t, strings.Contains(gen.Markdown, "# "), "expected comment lines")
+	assert.Contains(t, gen.Markdown, "# Unsupported fields", "expected comment header for unsupported fields")
+	assert.Contains(t, gen.Markdown, "# ", "expected comment lines")
 	// Warnings must be reported for each unknown field.
 	assert.Len(t, gen.Warnings, 2, "expected one warning per unknown field")
 }
