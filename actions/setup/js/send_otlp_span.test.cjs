@@ -1804,6 +1804,28 @@ describe("sendJobSetupSpan", () => {
     expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v1.2.3" } });
   });
 
+  it("includes gh-aw.awf.version and gh-aw.awmg.version resource attributes from aw_info.json", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ awf_version: "v1.2.3-awf", awmg_version: "v4.5.6-awmg" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobSetupSpan();
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "gh-aw.awf.version", value: { stringValue: "v1.2.3-awf" } });
+    expect(resourceAttrs).toContainEqual({ key: "gh-aw.awmg.version", value: { stringValue: "v4.5.6-awmg" } });
+  });
+
   it("omits gh-aw.engine.id attribute when engine is not set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -4773,6 +4795,27 @@ describe("sendJobConclusionSpan", () => {
 
       const resourceAttrs = body.resourceSpans[0].resource.attributes;
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
+    });
+
+    it("includes gh-aw.awf.version and gh-aw.awmg.version on conclusion span resources from aw_info.json", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ awf_version: "v7.8.9-awf", awmg_version: "v10.11.12-awmg" });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "gh-aw.awf.version", value: { stringValue: "v7.8.9-awf" } });
+      expect(resourceAttrs).toContainEqual({ key: "gh-aw.awmg.version", value: { stringValue: "v10.11.12-awmg" } });
     });
   });
 

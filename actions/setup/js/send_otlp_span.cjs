@@ -344,6 +344,8 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
  *   runnerArch?: string,
  *   runnerName?: string,
  *   runnerEnvironment?: string,
+ *   awfVersion?: string,
+ *   awmgVersion?: string,
  *   staged: boolean,
  *   runAttempt?: string,
  * }} ctx
@@ -364,6 +366,8 @@ function buildGitHubActionsResourceAttributes({
   runnerArch = "",
   runnerName = "",
   runnerEnvironment = "",
+  awfVersion = "",
+  awmgVersion = "",
   staged,
   runAttempt = "1",
 }) {
@@ -407,6 +411,12 @@ function buildGitHubActionsResourceAttributes({
   }
   if (runnerEnvironment) {
     resourceAttributes.push(buildAttr("runner.environment", runnerEnvironment));
+  }
+  if (awfVersion) {
+    resourceAttributes.push(buildAttr("gh-aw.awf.version", awfVersion));
+  }
+  if (awmgVersion) {
+    resourceAttributes.push(buildAttr("gh-aw.awmg.version", awmgVersion));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
   return resourceAttributes;
@@ -1052,6 +1062,8 @@ async function sendJobSetupSpan(options = {}) {
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const awfVersion = (typeof awInfo.awf_version === "string" ? awInfo.awf_version : "") || process.env.GH_AW_INFO_AWF_VERSION || "";
+  const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
@@ -1147,6 +1159,8 @@ async function sendJobSetupSpan(options = {}) {
     runnerArch,
     runnerName,
     runnerEnvironment,
+    awfVersion,
+    awmgVersion,
     staged,
     runAttempt,
   });
@@ -1612,6 +1626,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const awfVersion = (typeof awInfo.awf_version === "string" ? awInfo.awf_version : "") || process.env.GH_AW_INFO_AWF_VERSION || "";
+  const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
@@ -1809,6 +1825,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     runnerArch,
     runnerName,
     runnerEnvironment,
+    awfVersion,
+    awmgVersion,
     staged,
     runAttempt,
   });
