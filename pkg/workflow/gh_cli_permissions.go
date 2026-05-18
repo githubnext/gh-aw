@@ -16,11 +16,11 @@ var ghCLIPermissionsJSON []byte
 
 // ghCLISubcommandGroup maps a gh subcommand group (e.g. "pr", "issue") to its permissions.
 type ghCLISubcommandGroup struct {
-	Description         string   `json:"description"`
-	ReadSubcommands     []string `json:"read_subcommands"`
-	WriteSubcommands    []string `json:"write_subcommands"`
-	ReadPermissions     []string `json:"read_permissions"`
-	WritePermissions    []string `json:"write_permissions"`
+	Description       string   `json:"description"`
+	ReadSubcommands   []string `json:"read_subcommands"`
+	WriteSubcommands  []string `json:"write_subcommands"`
+	ReadPermissions   []string `json:"read_permissions"`
+	WritePermissions  []string `json:"write_permissions"`
 	AppReadPermissions  []string `json:"app_read_permissions"`
 	AppWritePermissions []string `json:"app_write_permissions"`
 }
@@ -38,7 +38,7 @@ type ghCLIPermissionsData struct {
 	Version          string                          `json:"version"`
 	Description      string                          `json:"description"`
 	SubcommandGroups map[string]ghCLISubcommandGroup `json:"subcommand_groups"`
-	APIPathPatterns  []ghCLIAPIPathPattern           `json:"api_path_patterns"`
+	APIPathPatterns  []ghCLIAPIPathPattern            `json:"api_path_patterns"`
 }
 
 // compiledGHCLIPermissions holds pre-compiled lookup data built from the JSON.
