@@ -177,27 +177,9 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
 	if !hasMCPServers {
 		mcpLog.Print("No mcp-servers section found, checking for built-in tools")
-		// Also check tools section for built-in MCP tools (github, playwright)
-		toolsSection, hasTools := frontmatter["tools"]
-		if hasTools {
-			if tools, ok := toolsSection.(map[string]any); ok {
-				for toolName, toolValue := range tools {
-					if toolName == "serena" {
-						return nil, fmt.Errorf("tools.serena is removed")
-					}
-					// Only handle built-in MCP tools (github, playwright)
-					if toolName == "github" || toolName == "playwright" {
-						config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
-						if err != nil {
-							return nil, err
-						}
-						if config != nil {
-							mcpLog.Printf("Added built-in MCP tool: %s", toolName)
-							configs = append(configs, *config)
-						}
-					}
-				}
-			}
+		// Process built-in MCP tools from tools section (github, playwright)
+		if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
+			return nil, err
 		}
 		mcpLog.Printf("Extracted %d MCP configurations total", len(configs))
 		return configs, nil // No mcp-servers configured, but we might have safe-outputs and built-in tools
@@ -208,26 +190,9 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		return nil, fmt.Errorf("mcp-servers section must be a map, got %T. Example:\nmcp-servers:\n  my-server:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", mcpServersSection)
 	}
 
-	// Process built-in MCP tools from tools section
-	toolsSection, hasTools := frontmatter["tools"]
-	if hasTools {
-		if tools, ok := toolsSection.(map[string]any); ok {
-			for toolName, toolValue := range tools {
-				if toolName == "serena" {
-					return nil, fmt.Errorf("tools.serena is removed")
-				}
-				// Only handle built-in MCP tools (github, playwright)
-				if toolName == "github" || toolName == "playwright" {
-					config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
-					if err != nil {
-						return nil, err
-					}
-					if config != nil {
-						configs = append(configs, *config)
-					}
-				}
-			}
-		}
+	// Process built-in MCP tools from tools section (github, playwright)
+	if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
+		return nil, err
 	}
 
 	// Process custom MCP servers from mcp-servers section
@@ -255,6 +220,35 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 	mcpLog.Printf("Extracted %d MCP configurations total", len(configs))
 	return configs, nil
+}
+
+// extractBuiltinMCPTools reads the tools section and appends github/playwright configs to configs.
+// It returns an error if a removed tool (serena) is present.
+func extractBuiltinMCPTools(frontmatter map[string]any, serverFilter string, configs *[]RegistryMCPServerConfig) error {
+	toolsSection, hasTools := frontmatter["tools"]
+	if !hasTools {
+		return nil
+	}
+	tools, ok := toolsSection.(map[string]any)
+	if !ok {
+		return nil
+	}
+	for toolName, toolValue := range tools {
+		if toolName == "serena" {
+			return fmt.Errorf("tools.serena is removed")
+		}
+		if toolName == "github" || toolName == "playwright" {
+			config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
+			if err != nil {
+				return err
+			}
+			if config != nil {
+				mcpLog.Printf("Added built-in MCP tool: %s", toolName)
+				*configs = append(*configs, *config)
+			}
+		}
+	}
+	return nil
 }
 
 // processBuiltinMCPTool handles built-in MCP tools (github and playwright)

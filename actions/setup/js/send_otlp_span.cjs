@@ -344,6 +344,8 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
  *   runnerArch?: string,
  *   runnerName?: string,
  *   runnerEnvironment?: string,
+ *   awfVersion?: string,
+ *   awmgVersion?: string,
  *   staged: boolean,
  *   runAttempt?: string,
  * }} ctx
@@ -364,6 +366,8 @@ function buildGitHubActionsResourceAttributes({
   runnerArch = "",
   runnerName = "",
   runnerEnvironment = "",
+  awfVersion = "",
+  awmgVersion = "",
   staged,
   runAttempt = "1",
 }) {
@@ -407,6 +411,12 @@ function buildGitHubActionsResourceAttributes({
   }
   if (runnerEnvironment) {
     resourceAttributes.push(buildAttr("runner.environment", runnerEnvironment));
+  }
+  if (awfVersion) {
+    resourceAttributes.push(buildAttr("gh-aw.awf.version", awfVersion));
+  }
+  if (awmgVersion) {
+    resourceAttributes.push(buildAttr("gh-aw.awmg.version", awmgVersion));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
   return resourceAttributes;
@@ -1052,6 +1062,8 @@ async function sendJobSetupSpan(options = {}) {
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const awfVersion = (typeof awInfo.awf_version === "string" ? awInfo.awf_version : "") || process.env.GH_AW_INFO_AWF_VERSION || "";
+  const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
@@ -1147,6 +1159,8 @@ async function sendJobSetupSpan(options = {}) {
     runnerArch,
     runnerName,
     runnerEnvironment,
+    awfVersion,
+    awmgVersion,
     staged,
     runAttempt,
   });
@@ -1612,6 +1626,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const awfVersion = (typeof awInfo.awf_version === "string" ? awInfo.awf_version : "") || process.env.GH_AW_INFO_AWF_VERSION || "";
+  const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
@@ -1648,7 +1664,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const isAgentCancelled = agentConclusion === "cancelled";
   const isAgentNonOK = isAgentFailure || isAgentCancelled;
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
-  const statusCode = isAgentNonOK ? 2 : 1;
+  let statusCode = isAgentNonOK ? 2 : 1;
   let statusMessage;
   if (isAgentFailure) {
     statusMessage = `agent ${agentConclusion}`;
@@ -1673,6 +1689,15 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     runStatus = "cancelled";
   } else if (rawRunStatus === "failure" || rawRunStatus === "timed_out") {
     runStatus = "failure";
+  }
+
+  // When GH_AW_AGENT_CONCLUSION and workflowRunConclusion are both absent (e.g. in the
+  // agent job's own post-step where needs.<job>.result is not yet visible), fall back to
+  // observable failure evidence so gh-aw.run.status and status.code are accurate.
+  if (!rawRunStatus && outputErrors.length > 0) {
+    runStatus = "failure";
+    statusCode = 2;
+    statusMessage = (errorMessages.length > 0 ? `errors detected: ${errorMessages[0]}` : "errors detected").slice(0, 256);
   }
 
   if (isAgentFailure && errorMessages.length > 0) {
@@ -1809,6 +1834,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     runnerArch,
     runnerName,
     runnerEnvironment,
+    awfVersion,
+    awmgVersion,
     staged,
     runAttempt,
   });

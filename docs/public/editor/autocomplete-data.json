@@ -10,6 +10,11 @@
       "desc": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
       "leaf": true
     },
+    "emoji": {
+      "type": "string",
+      "desc": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
+      "leaf": true
+    },
     "source": {
       "type": "string",
       "desc": "Optional source reference indicating where this workflow was added from.",
@@ -54,7 +59,10 @@
     "inlined-imports": {
       "type": "boolean",
       "desc": "If true, inline all imports (including those without inputs) at compilation time in the generated lock.yml instead of...",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "on": {
@@ -235,7 +243,9 @@
         "skip-if-check-failing": {
           "type": "null|boolean|object",
           "desc": "Skip workflow execution if any CI checks on the target branch are failing or pending.",
-          "enum": [true],
+          "enum": [
+            true
+          ],
           "leaf": true
         },
         "skip-roles": {
@@ -250,10 +260,22 @@
           "leaf": true,
           "array": true
         },
+        "skip-author-associations": {
+          "type": "object",
+          "desc": "Skip workflow execution when an event-specific payload author_association field (for example: github.event.comment.au..."
+        },
         "roles": {
           "type": "string|array",
           "desc": "Repository access roles required to trigger agentic workflows.",
-          "enum": ["admin", "maintainer", "maintain", "write", "triage", "read", "all"],
+          "enum": [
+            "admin",
+            "maintainer",
+            "maintain",
+            "write",
+            "triage",
+            "read",
+            "all"
+          ],
           "leaf": true,
           "array": true
         },
@@ -271,7 +293,10 @@
         "allow-bot-authored-trigger-comment": {
           "type": "boolean",
           "desc": "Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a checkbox-menu comment as a GitHub App bo...",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "manual-approval": {
@@ -282,7 +307,17 @@
         "reaction": {
           "type": "string|integer|object",
           "desc": "AI reaction to add/remove on triggering item.",
-          "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"],
+          "enum": [
+            "+1",
+            "-1",
+            "laugh",
+            "confused",
+            "heart",
+            "hooray",
+            "rocket",
+            "eyes",
+            "none"
+          ],
           "leaf": true
         },
         "status-comment": {
@@ -316,7 +351,10 @@
         "stale-check": {
           "type": "boolean",
           "desc": "When set to false, disables the frontmatter hash check step in the activation job.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         }
       }
@@ -324,120 +362,195 @@
     "permissions": {
       "type": "string|object",
       "desc": "GitHub token permissions for the workflow.",
-      "enum": ["read-all", "write-all"],
+      "enum": [
+        "read-all",
+        "write-all"
+      ],
       "children": {
         "actions": {
           "type": "string",
           "desc": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "attestations": {
           "type": "string",
           "desc": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "checks": {
           "type": "string",
           "desc": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "contents": {
           "type": "string",
           "desc": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "deployments": {
           "type": "string",
           "desc": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "discussions": {
           "type": "string",
           "desc": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "id-token": {
           "type": "string",
           "desc": "Permission level for OIDC token requests (write/none only - read is not supported).",
-          "enum": ["write", "none"],
+          "enum": [
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "issues": {
           "type": "string",
           "desc": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "models": {
           "type": "string",
           "desc": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)",
-          "enum": ["read", "none"],
+          "enum": [
+            "read",
+            "none"
+          ],
           "leaf": true
         },
         "metadata": {
           "type": "string",
           "desc": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no ac...",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "packages": {
           "type": "string",
           "desc": "Permission level for GitHub Packages (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "pages": {
           "type": "string",
           "desc": "Permission level for GitHub Pages (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "pull-requests": {
           "type": "string",
           "desc": "Permission level for pull requests (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "repository-projects": {
           "type": "string",
           "desc": "Permission level for repository projects (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "organization-projects": {
           "type": "string",
           "desc": "Permission level for organization projects (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "security-events": {
           "type": "string",
           "desc": "Permission level for security events (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "statuses": {
           "type": "string",
           "desc": "Permission level for commit statuses (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "vulnerability-alerts": {
           "type": "string",
           "desc": "Permission level for Dependabot vulnerability alerts (read/write/none).",
-          "enum": ["read", "write", "none"],
+          "enum": [
+            "read",
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "all": {
           "type": "string",
           "desc": "Permission shorthand that applies read access to all permission scopes.",
-          "enum": ["read"],
+          "enum": [
+            "read"
+          ],
           "leaf": true
         }
       }
@@ -490,7 +603,19 @@
         "cancel-in-progress": {
           "type": "boolean",
           "desc": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
+          "leaf": true
+        },
+        "queue": {
+          "type": "string",
+          "desc": "Pending run queue behavior for this concurrency group.",
+          "enum": [
+            "single",
+            "max"
+          ],
           "leaf": true
         },
         "job-discriminator": {
@@ -508,7 +633,10 @@
     "inline-sub-agents": {
       "type": "boolean",
       "desc": "Deprecated switch for inline sub-agent support.",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "features": {
@@ -526,7 +654,10 @@
         "storage": {
           "type": "string",
           "desc": "Storage backend for experiment state.",
-          "enum": ["cache", "repo"],
+          "enum": [
+            "cache",
+            "repo"
+          ],
           "leaf": true
         }
       }
@@ -534,13 +665,19 @@
     "infer": {
       "type": "boolean",
       "desc": "DEPRECATED: Use 'disable-model-invocation' instead.",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "disable-model-invocation": {
       "type": "boolean",
       "desc": "Controls whether the custom agent should disable model invocation.",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "secrets": {
@@ -616,7 +753,9 @@
     "network": {
       "type": "string|object",
       "desc": "Network access control for AI engines using ecosystem identifiers and domain allowlists.",
-      "enum": ["defaults"],
+      "enum": [
+        "defaults"
+      ],
       "children": {
         "allowed": {
           "type": "array",
@@ -633,29 +772,41 @@
     "sandbox": {
       "type": "string|object",
       "desc": "Sandbox configuration for AI engines.",
-      "enum": ["default", "awf"],
+      "enum": [
+        "default",
+        "awf"
+      ],
       "children": {
         "type": {
           "type": "string",
           "desc": "Legacy sandbox type field (use agent instead).",
-          "enum": ["default", "awf"],
+          "enum": [
+            "default",
+            "awf"
+          ],
           "leaf": true
         },
         "agent": {
           "type": "boolean|string|object",
           "desc": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), or false to disable agent sandbox.",
-          "enum": ["awf"],
+          "enum": [
+            "awf"
+          ],
           "children": {
             "id": {
               "type": "string",
               "desc": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall",
-              "enum": ["awf"],
+              "enum": [
+                "awf"
+              ],
               "leaf": true
             },
             "type": {
               "type": "string",
               "desc": "Legacy: Sandbox type to use (use 'id' instead)",
-              "enum": ["awf"],
+              "enum": [
+                "awf"
+              ],
               "leaf": true
             },
             "version": {
@@ -702,7 +853,10 @@
                 "enableWeakerNestedSandbox": {
                   "type": "boolean",
                   "desc": "Enable weaker nested sandbox mode (recommended: true for Docker access)",
-                  "enum": [true, false],
+                  "enum": [
+                    true,
+                    false
+                  ],
                   "leaf": true
                 }
               }
@@ -741,7 +895,10 @@
             "enableWeakerNestedSandbox": {
               "type": "boolean",
               "desc": "When true, allows nested sandbox processes to run with relaxed restrictions.",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             }
           }
@@ -797,7 +954,10 @@
             "domain": {
               "type": "string",
               "desc": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)",
-              "enum": ["localhost", "host.docker.internal"],
+              "enum": [
+                "localhost",
+                "host.docker.internal"
+              ],
               "leaf": true
             },
             "keepalive-interval": {
@@ -840,7 +1000,7 @@
       "children": {
         "id": {
           "type": "string",
-          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush') or a named catalog entry",
+          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog...",
           "leaf": true
         },
         "version": {
@@ -875,7 +1035,19 @@
             "cancel-in-progress": {
               "type": "boolean",
               "desc": "Whether to cancel in-progress runs of the same concurrency group.",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
+              "leaf": true
+            },
+            "queue": {
+              "type": "string",
+              "desc": "Pending run queue behavior for this concurrency group.",
+              "enum": [
+                "single",
+                "max"
+              ],
               "leaf": true
             }
           }
@@ -906,7 +1078,9 @@
             "type": {
               "type": "string",
               "desc": "Authentication type.",
-              "enum": ["github-oidc"],
+              "enum": [
+                "github-oidc"
+              ],
               "leaf": true
             },
             "audience": {
@@ -1000,7 +1174,10 @@
         "bare": {
           "type": "boolean",
           "desc": "When true, disables automatic loading of context and custom instructions by the AI engine.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "mcp": {
@@ -1023,12 +1200,12 @@
     },
     "max-effective-tokens": {
       "type": "integer|string",
-      "desc": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted.",
+      "desc": "Explicit ET budget control for firewall cost enforcement.",
       "leaf": true
     },
     "max-runs": {
       "type": "integer|string",
-      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines. Defaults to 500 when omitted.",
+      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.",
       "leaf": true
     },
     "mcp-servers": {
@@ -1051,13 +1228,20 @@
             "mode": {
               "type": "string",
               "desc": "GitHub access mode.",
-              "enum": ["gh-proxy", "local", "remote"],
+              "enum": [
+                "gh-proxy",
+                "local",
+                "remote"
+              ],
               "leaf": true
             },
             "type": {
               "type": "string",
               "desc": "GitHub MCP transport type: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)",
-              "enum": ["local", "remote"],
+              "enum": [
+                "local",
+                "remote"
+              ],
               "leaf": true
             },
             "version": {
@@ -1073,19 +1257,28 @@
             "read-only": {
               "type": "boolean",
               "desc": "Enable read-only mode to restrict GitHub MCP server to read-only operations only",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             },
             "lockdown": {
               "type": "boolean",
               "desc": "Enable lockdown mode to limit content surfaced from public repositories (only items authored by users with push access).",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             },
             "integrity-proxy": {
               "type": "boolean",
               "desc": "Controls DIFC proxy injection for pre-agent gh CLI steps when guard policies (min-integrity) are configured.",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             },
             "github-token": {
@@ -1161,21 +1354,32 @@
             "allowed-repos": {
               "type": "string|array",
               "desc": "Guard policy: repository access configuration.",
-              "enum": ["all", "public"],
+              "enum": [
+                "all",
+                "public"
+              ],
               "leaf": true,
               "array": true
             },
             "repos": {
               "type": "string|array",
               "desc": "Deprecated.",
-              "enum": ["all", "public"],
+              "enum": [
+                "all",
+                "public"
+              ],
               "leaf": true,
               "array": true
             },
             "min-integrity": {
               "type": "string",
               "desc": "Guard policy: minimum required integrity level for repository access.",
-              "enum": ["none", "unapproved", "approved", "merged"],
+              "enum": [
+                "none",
+                "unapproved",
+                "approved",
+                "merged"
+              ],
               "leaf": true
             },
             "blocked-users": {
@@ -1209,13 +1413,22 @@
             "disapproval-integrity": {
               "type": "string",
               "desc": "Guard policy: integrity level assigned when a disapproval reaction is present.",
-              "enum": ["none", "unapproved", "approved", "merged"],
+              "enum": [
+                "none",
+                "unapproved",
+                "approved",
+                "merged"
+              ],
               "leaf": true
             },
             "endorser-min-integrity": {
               "type": "string",
               "desc": "Guard policy: minimum integrity level required for an endorser (reactor) to promote content.",
-              "enum": ["unapproved", "approved", "merged"],
+              "enum": [
+                "unapproved",
+                "approved",
+                "merged"
+              ],
               "leaf": true
             },
             "github-app": {
@@ -1298,7 +1511,10 @@
             "mode": {
               "type": "string",
               "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use play...",
-              "enum": ["cli", "mcp"],
+              "enum": [
+                "cli",
+                "mcp"
+              ],
               "leaf": true
             }
           }
@@ -1330,13 +1546,19 @@
             "restore-only": {
               "type": "boolean",
               "desc": "If true, only restore the cache without saving it back.",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             },
             "scope": {
               "type": "string",
               "desc": "Cache restore key scope: 'workflow' (default, only restores from same workflow) or 'repo' (restores from any workflow...",
-              "enum": ["workflow", "repo"],
+              "enum": [
+                "workflow",
+                "repo"
+              ],
               "leaf": true
             },
             "allowed-extensions": {
@@ -1379,7 +1601,10 @@
             "footer": {
               "type": "boolean",
               "desc": "Controls whether AI-generated footer is added to the managed comment.",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             },
             "github-token": {
@@ -1390,7 +1615,10 @@
             "staged": {
               "type": "boolean",
               "desc": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             }
           }
@@ -1408,7 +1636,10 @@
         "cli-proxy": {
           "type": "boolean",
           "desc": "When true, each user-facing MCP server is mounted as a standalone CLI tool on PATH.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "serena": {
@@ -1441,7 +1672,7 @@
             },
             "max-file-size": {
               "type": "integer",
-              "desc": "Maximum size per file in bytes (default: 10240 = 10KB)",
+              "desc": "Maximum size per file in bytes (default: 102400 = 100KB)",
               "leaf": true
             },
             "max-file-count": {
@@ -1451,7 +1682,7 @@
             },
             "max-patch-size": {
               "type": "integer",
-              "desc": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 102400 = 100KB).",
+              "desc": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 1048576 = 1MB).",
               "leaf": true
             },
             "description": {
@@ -1462,13 +1693,19 @@
             "create-orphan": {
               "type": "boolean",
               "desc": "Create orphaned branch if it doesn't exist (default: true)",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             },
             "wiki": {
               "type": "boolean",
               "desc": "Use the GitHub Wiki git repository instead of the regular repository.",
-              "enum": [true, false],
+              "enum": [
+                true,
+                false
+              ],
               "leaf": true
             },
             "allowed-extensions": {
@@ -1480,11 +1717,6 @@
           "array": true
         }
       }
-    },
-    "command": {
-      "type": "string",
-      "desc": "Command name for the workflow",
-      "leaf": true
     },
     "cache": {
       "type": "object|array",
@@ -1515,13 +1747,19 @@
         "fail-on-cache-miss": {
           "type": "boolean",
           "desc": "Fail the workflow if cache entry is not found",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "lookup-only": {
           "type": "boolean",
           "desc": "If true, only checks if cache entry exists and skips download",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "name": {
@@ -1768,7 +2006,10 @@
         "staged": {
           "type": "boolean",
           "desc": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "env": {
@@ -1819,7 +2060,10 @@
         "footer": {
           "type": "boolean",
           "desc": "Global footer control for all safe outputs.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "activation-comments": {
@@ -1830,13 +2074,19 @@
         "group-reports": {
           "type": "boolean",
           "desc": "When true, creates a parent '[aw] Failed runs' issue that tracks all workflow failures as sub-issues.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "report-failure-as-issue": {
           "type": "boolean",
           "desc": "When false, disables creating failure tracking issues when workflows fail.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "failure-issue-repo": {
@@ -1852,7 +2102,10 @@
         "id-token": {
           "type": "string",
           "desc": "Override the id-token permission for the safe-outputs job.",
-          "enum": ["write", "none"],
+          "enum": [
+            "write",
+            "none"
+          ],
           "leaf": true
         },
         "concurrency-group": {
@@ -1930,6 +2183,16 @@
               "type": "object|string",
               "desc": "HTTP headers for the backward-compat string endpoint form.",
               "leaf": true
+            },
+            "if-missing": {
+              "type": "string",
+              "desc": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets).",
+              "enum": [
+                "error",
+                "warn",
+                "ignore"
+              ],
+              "leaf": true
             }
           }
         }
@@ -1995,25 +2258,37 @@
     "strict": {
       "type": "boolean",
       "desc": "Enable strict mode validation for enhanced security and compliance.",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "private": {
       "type": "boolean",
       "desc": "Mark the workflow as private, preventing it from being added to other repositories via 'gh aw add'.",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "check-for-updates": {
       "type": "boolean",
       "desc": "Control whether the compile-agentic version update check runs in the activation job.",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "run-install-scripts": {
       "type": "boolean",
       "desc": "Allow npm pre/post install scripts to execute during package installation.",
-      "enum": [true, false],
+      "enum": [
+        true,
+        false
+      ],
       "leaf": true
     },
     "mcp-scripts": {
@@ -2027,7 +2302,9 @@
     "checkout": {
       "type": "object|array|boolean",
       "desc": "Checkout configuration for the agent job.",
-      "enum": [false],
+      "enum": [
+        false
+      ],
       "children": {
         "repository": {
           "type": "string",
@@ -2057,13 +2334,20 @@
         "submodules": {
           "type": "string|boolean",
           "desc": "Controls submodule checkout.",
-          "enum": ["recursive", "true", "false"],
+          "enum": [
+            "recursive",
+            "true",
+            "false"
+          ],
           "leaf": true
         },
         "lfs": {
           "type": "boolean",
           "desc": "Whether to download Git LFS objects.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "token": {
@@ -2112,181 +2396,300 @@
                 "administration": {
                   "type": "string",
                   "desc": "Permission level for repository administration (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "codespaces": {
                   "type": "string",
                   "desc": "Permission level for Codespaces (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "codespaces-lifecycle-admin": {
                   "type": "string",
                   "desc": "Permission level for Codespaces lifecycle administration (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "codespaces-metadata": {
                   "type": "string",
                   "desc": "Permission level for Codespaces metadata (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "email-addresses": {
                   "type": "string",
                   "desc": "Permission level for user email addresses (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "environments": {
                   "type": "string",
                   "desc": "Permission level for repository environments (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "git-signing": {
                   "type": "string",
                   "desc": "Permission level for git signing (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "members": {
                   "type": "string",
                   "desc": "Permission level for organization members (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-administration": {
                   "type": "string",
                   "desc": "Permission level for organization administration (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-announcement-banners": {
                   "type": "string",
                   "desc": "Permission level for organization announcement banners (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-codespaces": {
                   "type": "string",
                   "desc": "Permission level for organization Codespaces (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-copilot": {
                   "type": "string",
                   "desc": "Permission level for organization Copilot (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-custom-org-roles": {
                   "type": "string",
                   "desc": "Permission level for organization custom org roles (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-custom-properties": {
                   "type": "string",
                   "desc": "Permission level for organization custom properties (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-custom-repository-roles": {
                   "type": "string",
                   "desc": "Permission level for organization custom repository roles (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-events": {
                   "type": "string",
                   "desc": "Permission level for organization events (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-hooks": {
                   "type": "string",
                   "desc": "Permission level for organization webhooks (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-members": {
                   "type": "string",
                   "desc": "Permission level for organization members management (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-packages": {
                   "type": "string",
                   "desc": "Permission level for organization packages (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-personal-access-token-requests": {
                   "type": "string",
                   "desc": "Permission level for organization personal access token requests (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-personal-access-tokens": {
                   "type": "string",
                   "desc": "Permission level for organization personal access tokens (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-plan": {
                   "type": "string",
                   "desc": "Permission level for organization plan (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-self-hosted-runners": {
                   "type": "string",
                   "desc": "Permission level for organization self-hosted runners (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "organization-user-blocking": {
                   "type": "string",
                   "desc": "Permission level for organization user blocking (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "repository-custom-properties": {
                   "type": "string",
                   "desc": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "repository-hooks": {
                   "type": "string",
                   "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "single-file": {
                   "type": "string",
                   "desc": "Permission level for single file access (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "team-discussions": {
                   "type": "string",
                   "desc": "Permission level for team discussions (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 },
                 "vulnerability-alerts": {
                   "type": "string",
                   "desc": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none"],
+                  "enum": [
+                    "read",
+                    "none"
+                  ],
                   "leaf": true
                 },
                 "workflows": {
                   "type": "string",
                   "desc": "Permission level for GitHub Actions workflow files (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
+                  "enum": [
+                    "read",
+                    "none",
+                    "write"
+                  ],
                   "leaf": true
                 }
               }
@@ -2296,7 +2699,10 @@
         "current": {
           "type": "boolean",
           "desc": "Marks this checkout as the logical current repository for the workflow.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         },
         "fetch": {
@@ -2308,251 +2714,19 @@
         "wiki": {
           "type": "boolean",
           "desc": "When true, clones the repository's wiki git instead of the regular repository.",
-          "enum": [true, false],
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
-        }
-      },
-      "array": true
-    },
-    "dependencies": {
-      "type": "array|object",
-      "desc": "APM package references to install.",
-      "children": {
-        "packages": {
-          "type": "array",
-          "desc": "List of APM package references to install.",
-          "array": true
         },
-        "isolated": {
+        "force-clean-git-credentials": {
           "type": "boolean",
-          "desc": "If true, agent restore step clears primitive dirs before unpacking.",
-          "enum": [true, false],
-          "leaf": true
-        },
-        "github-app": {
-          "type": "object",
-          "desc": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories.",
-          "children": {
-            "app-id": {
-              "type": "string",
-              "desc": "Deprecated alias for client-id.",
-              "leaf": true
-            },
-            "client-id": {
-              "type": "string",
-              "desc": "GitHub App client ID (e.g., '${{ vars.APP_ID }}').",
-              "leaf": true
-            },
-            "private-key": {
-              "type": "string",
-              "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
-              "leaf": true
-            },
-            "owner": {
-              "type": "string",
-              "desc": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)",
-              "leaf": true
-            },
-            "repositories": {
-              "type": "array",
-              "desc": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
-              "array": true
-            },
-            "permissions": {
-              "type": "object",
-              "desc": "Optional extra GitHub App-only permissions to merge into the minted token.",
-              "children": {
-                "administration": {
-                  "type": "string",
-                  "desc": "Permission level for repository administration (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "codespaces": {
-                  "type": "string",
-                  "desc": "Permission level for Codespaces (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "codespaces-lifecycle-admin": {
-                  "type": "string",
-                  "desc": "Permission level for Codespaces lifecycle administration (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "codespaces-metadata": {
-                  "type": "string",
-                  "desc": "Permission level for Codespaces metadata (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "email-addresses": {
-                  "type": "string",
-                  "desc": "Permission level for user email addresses (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "environments": {
-                  "type": "string",
-                  "desc": "Permission level for repository environments (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "git-signing": {
-                  "type": "string",
-                  "desc": "Permission level for git signing (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "members": {
-                  "type": "string",
-                  "desc": "Permission level for organization members (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-administration": {
-                  "type": "string",
-                  "desc": "Permission level for organization administration (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-announcement-banners": {
-                  "type": "string",
-                  "desc": "Permission level for organization announcement banners (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-codespaces": {
-                  "type": "string",
-                  "desc": "Permission level for organization Codespaces (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-copilot": {
-                  "type": "string",
-                  "desc": "Permission level for organization Copilot (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-custom-org-roles": {
-                  "type": "string",
-                  "desc": "Permission level for organization custom org roles (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-custom-properties": {
-                  "type": "string",
-                  "desc": "Permission level for organization custom properties (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-custom-repository-roles": {
-                  "type": "string",
-                  "desc": "Permission level for organization custom repository roles (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-events": {
-                  "type": "string",
-                  "desc": "Permission level for organization events (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-hooks": {
-                  "type": "string",
-                  "desc": "Permission level for organization webhooks (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-members": {
-                  "type": "string",
-                  "desc": "Permission level for organization members management (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-packages": {
-                  "type": "string",
-                  "desc": "Permission level for organization packages (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-personal-access-token-requests": {
-                  "type": "string",
-                  "desc": "Permission level for organization personal access token requests (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-personal-access-tokens": {
-                  "type": "string",
-                  "desc": "Permission level for organization personal access tokens (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-plan": {
-                  "type": "string",
-                  "desc": "Permission level for organization plan (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-self-hosted-runners": {
-                  "type": "string",
-                  "desc": "Permission level for organization self-hosted runners (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "organization-user-blocking": {
-                  "type": "string",
-                  "desc": "Permission level for organization user blocking (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "repository-custom-properties": {
-                  "type": "string",
-                  "desc": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "repository-hooks": {
-                  "type": "string",
-                  "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "single-file": {
-                  "type": "string",
-                  "desc": "Permission level for single file access (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "team-discussions": {
-                  "type": "string",
-                  "desc": "Permission level for team discussions (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                },
-                "vulnerability-alerts": {
-                  "type": "string",
-                  "desc": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none"],
-                  "leaf": true
-                },
-                "workflows": {
-                  "type": "string",
-                  "desc": "Permission level for GitHub Actions workflow files (read/none; \"write\" is rejected by the compiler).",
-                  "enum": ["read", "none", "write"],
-                  "leaf": true
-                }
-              }
-            }
-          }
-        },
-        "env": {
-          "type": "object",
-          "desc": "Environment variables to set on the APM pack step (e.g., tokens or registry URLs)."
-        },
-        "github-token": {
-          "type": "string",
-          "desc": "GitHub token expression to authenticate APM with private package repositories.",
+          "desc": "When true, persist credentials during checkout, then immediately run a post-checkout cleanup step that removes creden...",
+          "enum": [
+            true,
+            false
+          ],
           "leaf": true
         }
       },
@@ -2594,181 +2768,300 @@
             "administration": {
               "type": "string",
               "desc": "Permission level for repository administration (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "codespaces": {
               "type": "string",
               "desc": "Permission level for Codespaces (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "codespaces-lifecycle-admin": {
               "type": "string",
               "desc": "Permission level for Codespaces lifecycle administration (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "codespaces-metadata": {
               "type": "string",
               "desc": "Permission level for Codespaces metadata (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "email-addresses": {
               "type": "string",
               "desc": "Permission level for user email addresses (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "environments": {
               "type": "string",
               "desc": "Permission level for repository environments (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "git-signing": {
               "type": "string",
               "desc": "Permission level for git signing (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "members": {
               "type": "string",
               "desc": "Permission level for organization members (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-administration": {
               "type": "string",
               "desc": "Permission level for organization administration (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-announcement-banners": {
               "type": "string",
               "desc": "Permission level for organization announcement banners (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-codespaces": {
               "type": "string",
               "desc": "Permission level for organization Codespaces (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-copilot": {
               "type": "string",
               "desc": "Permission level for organization Copilot (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-custom-org-roles": {
               "type": "string",
               "desc": "Permission level for organization custom org roles (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-custom-properties": {
               "type": "string",
               "desc": "Permission level for organization custom properties (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-custom-repository-roles": {
               "type": "string",
               "desc": "Permission level for organization custom repository roles (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-events": {
               "type": "string",
               "desc": "Permission level for organization events (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-hooks": {
               "type": "string",
               "desc": "Permission level for organization webhooks (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-members": {
               "type": "string",
               "desc": "Permission level for organization members management (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-packages": {
               "type": "string",
               "desc": "Permission level for organization packages (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-personal-access-token-requests": {
               "type": "string",
               "desc": "Permission level for organization personal access token requests (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-personal-access-tokens": {
               "type": "string",
               "desc": "Permission level for organization personal access tokens (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-plan": {
               "type": "string",
               "desc": "Permission level for organization plan (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-self-hosted-runners": {
               "type": "string",
               "desc": "Permission level for organization self-hosted runners (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "organization-user-blocking": {
               "type": "string",
               "desc": "Permission level for organization user blocking (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "repository-custom-properties": {
               "type": "string",
               "desc": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "repository-hooks": {
               "type": "string",
               "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "single-file": {
               "type": "string",
               "desc": "Permission level for single file access (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "team-discussions": {
               "type": "string",
               "desc": "Permission level for team discussions (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             },
             "vulnerability-alerts": {
               "type": "string",
               "desc": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none"],
+              "enum": [
+                "read",
+                "none"
+              ],
               "leaf": true
             },
             "workflows": {
               "type": "string",
               "desc": "Permission level for GitHub Actions workflow files (read/none; \"write\" is rejected by the compiler).",
-              "enum": ["read", "none", "write"],
+              "enum": [
+                "read",
+                "none",
+                "write"
+              ],
               "leaf": true
             }
           }

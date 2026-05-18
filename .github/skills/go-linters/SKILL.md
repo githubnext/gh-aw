@@ -7,6 +7,8 @@ description: Add and validate custom Go analysis linters in gh-aw.
 
 Use this guide when adding a new custom Go analysis linter in this repository.
 
+For PR-driven linter generation (derive a rule from a specific pull request pattern), use `.github/skills/pr-to-go-linter/SKILL.md`.
+
 ## Where to add a new linter
 
 1. Create a new package under `pkg/linters/<linter-name>/`.
