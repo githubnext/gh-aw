@@ -68,6 +68,12 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		content := strings.TrimSpace(match[1])
 		originalContent := content
 
+		// Skip empty expressions (e.g. "${{ }}" has no evaluable content)
+		if content == "" {
+			expressionExtractionLog.Printf("Skipping empty expression: %s", originalExpr)
+			continue
+		}
+
 		// Apply activation output transformation for backward compatibility
 		// This transforms needs.activation.outputs.{text|title|body} to steps.sanitized.outputs.{text|title|body}
 		// Users should now use steps.sanitized.outputs.* directly; this transformation exists only for
@@ -307,25 +313,33 @@ var simpleIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-
 var runtimeEvalEnvVarPrefixRegex = regexp.MustCompile(`^(?:needs|steps|inputs)\.`)
 
 // splitExpressionOnLogicalOps splits an expression string on top-level `||` and `&&`
-// tokens. It does not attempt to track parentheses or quoted strings — this is intentional,
-// because the only sub-expressions we care about are simple property-access chains, which
-// are always leaves and never appear inside function calls or string literals.
+// tokens. It tracks parenthesis depth so that operators inside parenthesised groups
+// (e.g. `(steps.a || inputs.b) && inputs.c`) are not treated as split points.
 func splitExpressionOnLogicalOps(expr string) []string {
 	var parts []string
 	var current strings.Builder
 	i := 0
+	depth := 0
 	for i < len(expr) {
-		if i+1 < len(expr) {
-			twoChar := expr[i : i+2]
-			if twoChar == "||" || twoChar == "&&" {
-				parts = append(parts, current.String())
-				current.Reset()
-				i += 2
-				continue
+		switch {
+		case expr[i] == '(':
+			depth++
+			current.WriteByte(expr[i])
+			i++
+		case expr[i] == ')':
+			if depth > 0 {
+				depth--
 			}
+			current.WriteByte(expr[i])
+			i++
+		case depth == 0 && i+1 < len(expr) && (expr[i:i+2] == "||" || expr[i:i+2] == "&&"):
+			parts = append(parts, current.String())
+			current.Reset()
+			i += 2
+		default:
+			current.WriteByte(expr[i])
+			i++
 		}
-		current.WriteByte(expr[i])
-		i++
 	}
 	if current.Len() > 0 {
 		parts = append(parts, current.String())
@@ -333,9 +347,38 @@ func splitExpressionOnLogicalOps(expr string) []string {
 	return parts
 }
 
+// stripOuterParens removes a single layer of matching outer parentheses from s.
+// For example "(steps.a || inputs.b)" → "steps.a || inputs.b".
+// The strip only happens when the first '(' closes at the very last character,
+// so "(a) || (b)" is returned unchanged.
+func stripOuterParens(s string) string {
+	for len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+		// Walk to find where the opening '(' closes.
+		depth := 0
+		closeIdx := -1
+		for i := 0; i < len(s); i++ {
+			if s[i] == '(' {
+				depth++
+			} else if s[i] == ')' {
+				depth--
+			}
+			if depth == 0 {
+				closeIdx = i
+				break
+			}
+		}
+		// Only strip if the opening paren matches the very last character.
+		if closeIdx != len(s)-1 {
+			break
+		}
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
+	return s
+}
+
 // extractTerminalSubExpressions returns the simple-identifier sub-expressions from a
-// compound expression (one containing `||` or `&&` operators) that the runtime evaluator
-// resolves via deterministic GH_AW_* environment variable names.
+// compound expression (one containing `||` or `&&` operators, and optionally parentheses)
+// that the runtime evaluator resolves via deterministic GH_AW_* environment variable names.
 //
 // Only sub-expressions that:
 //
@@ -345,10 +388,20 @@ func splitExpressionOnLogicalOps(expr string) []string {
 // are returned. github.* sub-expressions are deliberately excluded because the runtime
 // evaluator resolves them through the GitHub context object, not through env vars.
 //
+// Parenthesised groups are handled recursively, so all three of the following forms
+// yield the same result:
+//
+//	"steps.a.outputs.x || inputs.y"
+//	"(steps.a.outputs.x) || inputs.y"
+//	"(steps.a.outputs.x || inputs.y)"
+//
 // Examples:
 //
 //	"steps.sanitized.outputs.text || inputs.command"
 //	→ ["steps.sanitized.outputs.text", "inputs.command"]
+//
+//	"(steps.sanitized.outputs.text || inputs.command) && inputs.flag"
+//	→ ["steps.sanitized.outputs.text", "inputs.command", "inputs.flag"]
 //
 //	"github.event.issue.number || inputs.item_number"
 //	→ ["inputs.item_number"]
@@ -356,19 +409,36 @@ func splitExpressionOnLogicalOps(expr string) []string {
 //	"steps.pick-experiment.outputs.name == 'concise'"
 //	→ []  (hyphenated segment; not a simpleIdentifier)
 func extractTerminalSubExpressions(content string) []string {
-	parts := splitExpressionOnLogicalOps(content)
 	seen := make(map[string]bool)
 	var result []string
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" || !simpleIdentifierRegex.MatchString(trimmed) || !runtimeEvalEnvVarPrefixRegex.MatchString(trimmed) {
-			continue
+	var collect func(expr string)
+	collect = func(expr string) {
+		trimmed := strings.TrimSpace(expr)
+		// Strip matching outer parentheses before splitting, e.g.
+		// "(steps.a || inputs.b)" → "steps.a || inputs.b"
+		trimmed = stripOuterParens(trimmed)
+		if trimmed == "" {
+			return
 		}
-		if !seen[trimmed] {
-			seen[trimmed] = true
-			result = append(result, trimmed)
+		parts := splitExpressionOnLogicalOps(trimmed)
+		if len(parts) == 1 {
+			// Leaf: check whether it is a qualifying simple identifier.
+			t := strings.TrimSpace(parts[0])
+			t = stripOuterParens(t)
+			if t == "" || !simpleIdentifierRegex.MatchString(t) || !runtimeEvalEnvVarPrefixRegex.MatchString(t) {
+				return
+			}
+			if !seen[t] {
+				seen[t] = true
+				result = append(result, t)
+			}
+		} else {
+			for _, part := range parts {
+				collect(part)
+			}
 		}
 	}
+	collect(content)
 	return result
 }
 

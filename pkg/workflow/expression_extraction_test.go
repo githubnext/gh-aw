@@ -149,6 +149,43 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantCount:       1,
 			wantExpressions: []string{"github.aw.context.item-number"},
 		},
+		// Parenthesised compound expressions
+		{
+			name:     "paren-wrapped compound || emits sub-expression env vars",
+			markdown: `Instructions: ${{ (steps.sanitized.outputs.text || inputs.command) }}`,
+			// outer parens are part of the compound expression content; sub-expressions are still extracted
+			wantCount: 3,
+			wantExpressions: []string{
+				"(steps.sanitized.outputs.text || inputs.command)",
+				"steps.sanitized.outputs.text",
+				"inputs.command",
+			},
+		},
+		{
+			name:     "AND of two paren groups emits all sub-expression env vars",
+			markdown: `Data: ${{ (steps.a.outputs.x || inputs.y) && (steps.b.outputs.z || inputs.w) }}`,
+			// compound + four sub-expressions
+			wantCount: 5,
+			wantExpressions: []string{
+				"(steps.a.outputs.x || inputs.y) && (steps.b.outputs.z || inputs.w)",
+				"steps.a.outputs.x",
+				"inputs.y",
+				"steps.b.outputs.z",
+				"inputs.w",
+			},
+		},
+		{
+			name:     "paren group on right of OR emits nested sub-expression env vars",
+			markdown: `Data: ${{ steps.a.outputs.x || (inputs.y && inputs.z) }}`,
+			// compound + three sub-expressions
+			wantCount: 4,
+			wantExpressions: []string{
+				"steps.a.outputs.x || (inputs.y && inputs.z)",
+				"steps.a.outputs.x",
+				"inputs.y",
+				"inputs.z",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -629,6 +666,32 @@ func TestExtractTerminalSubExpressions(t *testing.T) {
 			name:    "AND operator is also split",
 			content: "needs.check.outputs.passed && inputs.override",
 			want:    []string{"needs.check.outputs.passed", "inputs.override"},
+		},
+		// Parenthesised groups
+		{
+			name:    "outer parens wrapping the whole expression are stripped",
+			content: "(steps.sanitized.outputs.text || inputs.command)",
+			want:    []string{"steps.sanitized.outputs.text", "inputs.command"},
+		},
+		{
+			name:    "AND of two paren groups",
+			content: "(steps.a.outputs.x || inputs.y) && (steps.b.outputs.z || inputs.w)",
+			want:    []string{"steps.a.outputs.x", "inputs.y", "steps.b.outputs.z", "inputs.w"},
+		},
+		{
+			name:    "paren group on the right of OR",
+			content: "steps.a.outputs.x || (inputs.y && inputs.z)",
+			want:    []string{"steps.a.outputs.x", "inputs.y", "inputs.z"},
+		},
+		{
+			name:    "paren group on the left of AND",
+			content: "(steps.a.outputs.x || inputs.y) && inputs.z",
+			want:    []string{"steps.a.outputs.x", "inputs.y", "inputs.z"},
+		},
+		{
+			name:    "nested parens with github.* excluded",
+			content: "(github.event.issue.number || inputs.item_number) && steps.a.outputs.x",
+			want:    []string{"inputs.item_number", "steps.a.outputs.x"},
 		},
 	}
 
