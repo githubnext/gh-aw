@@ -82,6 +82,7 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       process.env.GH_AW_DETECTION_REASON = "threat_detected";
       process.env.GITHUB_HEAD_REF = "feature/detection-caution";
+      process.env.GITHUB_WORKSPACE = tmpDir;
     });
 
     afterEach(() => {
@@ -93,6 +94,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_DETECTION_CONCLUSION;
       delete process.env.GH_AW_DETECTION_REASON;
       delete process.env.GITHUB_HEAD_REF;
+      delete process.env.GITHUB_WORKSPACE;
 
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -221,6 +223,7 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123456";
       process.env.GH_AW_AGENT_CONCLUSION = "success";
       process.env.GITHUB_HEAD_REF = "feature/current";
+      process.env.GITHUB_WORKSPACE = tmpDir;
     });
 
     afterEach(() => {
@@ -230,6 +233,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
       delete process.env.GITHUB_HEAD_REF;
+      delete process.env.GITHUB_WORKSPACE;
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
