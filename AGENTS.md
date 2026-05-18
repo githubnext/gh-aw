@@ -86,6 +86,16 @@ make agent-finish  # Runs build, test, recompile, fmt, lint (full validation)
 - The formatting check (`go fmt`) is strict and cannot be disabled
 - PRs that fail CI immediately after opening are closed without merging — a wasted session
 
+#### Checkpoint 2b — Scope-Guard (Before Every `report_progress`)
+
+**🚨 DO NOT call `report_progress` until you have confirmed scope alignment. Verify all three:**
+
+1. ✅ The **branch name** reflects the change you actually made
+2. ✅ The **changed files** match what the original issue or task description asked for
+3. ✅ The **PR title and description** describe the same change as the issue
+
+**If any of these diverge — stop. Do NOT open the PR.** Call `report_incomplete` instead with a clear explanation of what drifted and why. Scope-mismatched PRs are closed without merging, wasting the entire session.
+
 **If you're in a hurry** and `make agent-finish` takes too long, use the dedicated fast gate:
 ```bash
 make agent-report-progress   # build + fmt + lint + test-unit
@@ -172,6 +182,23 @@ func TestCompile(t *testing.T) {
     assert.NoError(t, err, "Should compile valid workflow")
 }
 ```
+
+### ⚠️ MANDATORY: Acceptance Criteria and Scope Anchoring ⚠️
+
+**Before writing a single line of code, establish your acceptance criteria from the issue.**
+
+When you receive a task (issue, PR comment, or request), extract and write down:
+
+1. **What files must change** — list the files the issue explicitly mentions or implies. Only touch files in scope.
+2. **What tests must pass** — identify which tests cover the changed area; ensure they pass after your changes.
+3. **What the reviewer needs to see** — restate the issue's core request in one sentence; your PR description must directly answer that request.
+
+**Scope anchoring rules:**
+
+- ❌ Do NOT fix unrelated bugs you discover during implementation (open a separate issue instead)
+- ❌ Do NOT regenerate or update files not mentioned in the issue (e.g., compiled artifacts, lock files, generated docs) unless the issue explicitly asks for it
+- ❌ Do NOT rename, refactor, or clean up code outside the direct change path
+- ✅ If you realize mid-session that the correct fix requires touching more files than originally scoped, stop and document the expanded scope in a comment before proceeding
 
 **ALWAYS USE GITHUB MCP FOR GITHUB API ACCESS WITH COPILOT ENGINE:**
 
@@ -1244,7 +1271,13 @@ Use **report_progress** to commit, push, and update the PR. Never leave changes 
 3. ✅ Confirm lint reported zero errors
 4. ✅ Only then call `report_progress`
 
-**This is NOT optional** — PRs that fail CI immediately after opening are closed without merging, wasting the entire agent session.
+**Checkpoint 2b — Scope-Guard** — Before every `report_progress` call:
+1. ✅ Branch name matches what you changed
+2. ✅ Changed files match the original issue scope
+3. ✅ PR title/description directly answers the original issue
+4. ✅ If any of the above diverge, call `report_incomplete` instead
+
+**This is NOT optional** — PRs that fail CI or diverge from scope are closed without merging, wasting the entire agent session.
 
 ### Development Guidelines
 - Go project with Makefile-managed build/test/lint

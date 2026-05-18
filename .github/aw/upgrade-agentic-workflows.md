@@ -316,6 +316,13 @@ Attempted to upgrade workflows to gh-aw version [VERSION] but encountered compil
    - Summarize complex changes clearly
    - Provide actionable next steps
 
+6. **Version-Bump Scope Constraint**
+   - When the upgrade task is a version bump (updating the gh-aw version constant or a dependency version), **only** update the target version identifier and recompile
+   - ❌ Do NOT regenerate agent files, prompt templates, or other artifacts unless the changelog explicitly lists them as changed
+   - ❌ Do NOT update unrelated workflows or dependencies discovered during the upgrade
+   - ✅ Limit changes to: the version constant, any `.lock.yml` files produced by recompilation, and files explicitly listed in the changelog as requiring migration
+   - If recompilation produces unexpected diffs beyond lock files, stop and document what changed before including those diffs in the PR
+
 ## Important Notes
 
 - When running in GitHub Copilot Cloud, use the **agentic-workflows** MCP tool for all commands
