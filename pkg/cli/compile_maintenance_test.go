@@ -286,6 +286,16 @@ Shared workflow component.
 
 	for _, strict := range []bool{false, true} {
 		t.Run("strict="+strconv.FormatBool(strict), func(t *testing.T) {
+			maintenancePath := filepath.Join(workflowsDir, "agentics-maintenance.yml")
+			if err := os.WriteFile(maintenancePath, []byte("stale maintenance workflow"), 0644); err != nil {
+				t.Fatalf("Failed to write stale maintenance workflow: %v", err)
+			}
+
+			commandsPath := filepath.Join(workflowsDir, "agentic_commands.yml")
+			if err := os.WriteFile(commandsPath, []byte("stale centralized commands workflow"), 0644); err != nil {
+				t.Fatalf("Failed to write stale centralized commands workflow: %v", err)
+			}
+
 			config := CompileConfig{
 				MarkdownFiles:        []string{},
 				Verbose:              false,
@@ -304,11 +314,13 @@ Shared workflow component.
 			if _, err := CompileWorkflows(context.Background(), config); err != nil {
 				t.Fatalf("CompileWorkflows should succeed for shared-only workflow directory: %v", err)
 			}
-		})
-	}
 
-	maintenancePath := filepath.Join(workflowsDir, "agentics-maintenance.yml")
-	if _, err := os.Stat(maintenancePath); !os.IsNotExist(err) {
-		t.Error("Maintenance workflow should not be generated for shared-only workflow directory")
+			if _, err := os.Stat(maintenancePath); !os.IsNotExist(err) {
+				t.Error("Stale maintenance workflow should be deleted for shared-only workflow directory")
+			}
+			if _, err := os.Stat(commandsPath); !os.IsNotExist(err) {
+				t.Error("Stale centralized command workflow should be deleted for shared-only workflow directory")
+			}
+		})
 	}
 }

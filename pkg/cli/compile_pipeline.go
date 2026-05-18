@@ -539,8 +539,8 @@ func runPostProcessingForDirectory(
 
 	// Generate maintenance workflow if needed.
 	// Skip maintenance workflow generation when using custom --dir option.
-	// Also skip when no compiled workflow data is available (for example shared-only directories).
-	if !config.NoEmit && config.WorkflowDir == "" && len(workflowDataList) > 0 {
+	// Keep invoking generators for empty workflowDataList so stale generated files are cleaned up.
+	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
 		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
 			if config.Strict {
