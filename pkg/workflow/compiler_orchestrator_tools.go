@@ -181,10 +181,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	runInstallScripts := resolveRunInstallScripts(result.Frontmatter, runtimes, importsResult.MergedRunInstallScripts)
 
 	// Warn on deprecated APM configuration fields that are now ignored
-	if _, hasDependencies := result.Frontmatter["dependencies"]; hasDependencies {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'dependencies' field is deprecated and no longer supported. Migrate to 'imports: - uses: shared/apm.md' to configure APM packages."))
-		c.IncrementWarningCount()
-	}
 	if importsVal, hasImports := result.Frontmatter["imports"]; hasImports {
 		if importsMap, ok := importsVal.(map[string]any); ok {
 			if _, hasAPMPackages := importsMap["apm-packages"]; hasAPMPackages {
