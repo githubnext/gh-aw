@@ -1359,6 +1359,30 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     };
   };
 
+  /**
+   * Handler for update_pull_request tool
+   * Spec cross-reference: Safe Output Outcome Evaluation §update_pull_request.
+   * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
+   * to provide immediate feedback to the LLM before recording to NDJSON.
+   * Validates that at least one of 'title', 'body', or 'update_branch' is provided,
+   * matching the server-side requiresOneOf:title,body,update_branch validation.
+   */
+  const updatePullRequestHandler = args => {
+    const safeArgs = args || {};
+    const hasTitle = safeArgs.title !== undefined;
+    const hasBody = safeArgs.body !== undefined;
+    const hasUpdateBranch = safeArgs.update_branch !== undefined && safeArgs.update_branch !== false;
+
+    if (!hasTitle && !hasBody && !hasUpdateBranch) {
+      throw {
+        code: -32602,
+        message: `${ERR_VALIDATION}: update_pull_request requires at least one of: 'title', 'body', 'update_branch' fields`,
+      };
+    }
+
+    return defaultHandler("update_pull_request")(safeArgs);
+  };
+
   return {
     defaultHandler,
     uploadAssetHandler,
@@ -1371,6 +1395,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     addCommentHandler,
     createPullRequestReviewCommentHandler,
     submitPullRequestReviewHandler,
+    updatePullRequestHandler,
   };
 }
 

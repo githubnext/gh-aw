@@ -1764,4 +1764,81 @@ describe("safe_outputs_handlers", () => {
       expect(() => handlers.submitPullRequestReviewHandler({ event: "COMMENT" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("review body is empty") }));
     });
   });
+
+  describe("updatePullRequestHandler", () => {
+    it("should throw MCP error when no fields are provided", () => {
+      expect(() => handlers.updatePullRequestHandler({})).toThrow(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining("requires at least one of"),
+        })
+      );
+    });
+
+    it("should throw MCP error when called with null/undefined args", () => {
+      expect(() => handlers.updatePullRequestHandler(null)).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+      expect(() => handlers.updatePullRequestHandler(undefined)).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should throw MCP error when update_branch is explicitly false and no other fields", () => {
+      expect(() => handlers.updatePullRequestHandler({ update_branch: false })).toThrow(
+        expect.objectContaining({ code: -32602 })
+      );
+    });
+
+    it("should write entry and return success when title is provided", () => {
+      const result = handlers.updatePullRequestHandler({ title: "New Title" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", title: "New Title" })
+      );
+    });
+
+    it("should write entry and return success when body is provided", () => {
+      const result = handlers.updatePullRequestHandler({ body: "Updated body" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", body: "Updated body" })
+      );
+    });
+
+    it("should write entry and return success when update_branch is true", () => {
+      const result = handlers.updatePullRequestHandler({ update_branch: true });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", update_branch: true })
+      );
+    });
+
+    it("should write entry and return success when both title and body are provided", () => {
+      const result = handlers.updatePullRequestHandler({ title: "New Title", body: "New body" });
+      expect(result).toHaveProperty("content");
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "update_pull_request", title: "New Title", body: "New body" })
+      );
+    });
+
+    it("error message should mention all required fields", () => {
+      try {
+        handlers.updatePullRequestHandler({});
+        expect.fail("Should have thrown");
+      } catch (err) {
+        expect(err.message).toContain("'title'");
+        expect(err.message).toContain("'body'");
+        expect(err.message).toContain("'update_branch'");
+      }
+    });
+  });
 });

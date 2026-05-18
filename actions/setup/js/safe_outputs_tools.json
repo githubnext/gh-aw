@@ -799,7 +799,7 @@
   },
   {
     "name": "update_pull_request",
-    "description": "Update an existing GitHub pull request's title or body. Supports replacing, appending to, or prepending content to the body. Title is always replaced. Only the fields you specify will be updated; other fields remain unchanged.",
+    "description": "Update an existing GitHub pull request's title or body. Supports replacing, appending to, or prepending content to the body. Title is always replaced. Only the fields you specify will be updated; other fields remain unchanged. IMPORTANT: At least one of 'title', 'body', or 'update_branch' must be provided; calling this tool with no fields will return an error.",
     "inputSchema": {
       "type": "object",
       "properties": {
