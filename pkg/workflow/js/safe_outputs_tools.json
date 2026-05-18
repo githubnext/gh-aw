@@ -622,7 +622,7 @@
         "item_number": {
           "type": ["number", "string"],
           "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
-          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
+          "description": "Issue or PR number to add labels to. NOTE: this tool uses `item_number` — NOT `issue_number` or `pr_number`. Sibling tools like `update_issue` and `close_issue` use `issue_number` as their canonical field; `add_labels` does not accept that alias. Passing `issue_number` will fail with `No issue/PR number available`. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
         },
         "secrecy": {
           "type": "string",
@@ -655,7 +655,7 @@
         "item_number": {
           "type": ["number", "string"],
           "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
-          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, removes labels from the item that triggered this workflow."
+          "description": "Issue or PR number to remove labels from. NOTE: this tool uses `item_number` — NOT `issue_number` or `pr_number`. Sibling tools like `update_issue` and `close_issue` use `issue_number` as their canonical field; `remove_labels` does not accept that alias. Passing `issue_number` will fail with `No issue/PR number available`. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, removes labels from the item that triggered this workflow."
         },
         "secrecy": {
           "type": "string",
@@ -973,7 +973,7 @@
             "number",
             "string"
           ],
-          "description": "Pull request number to update. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/pull/234). Required when the workflow target is '*' (any PR)."
+          "description": "Pull request number to update. NOTE: this tool uses `pull_request_number` (with aliases `pr_number`, `pr`) — NOT `pull_number`. The `pull_number` field is accepted by `assign_to_agent` but is not recognised here. Passing `pull_number` will fail with `Target is \"*\" but no pull_request_number specified`. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/pull/234). Required when the workflow target is '*' (any PR)."
         },
         "pr_number": {
           "type": [
