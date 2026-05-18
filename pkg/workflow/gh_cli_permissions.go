@@ -8,19 +8,22 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var ghCLIPermissionsLog = logger.New("workflow:gh_cli_permissions")
 
 //go:embed data/gh_cli_permissions.json
 var ghCLIPermissionsJSON []byte
 
 // ghCLISubcommandGroup maps a gh subcommand group (e.g. "pr", "issue") to its permissions.
 type ghCLISubcommandGroup struct {
-	Description       string   `json:"description"`
-	ReadSubcommands   []string `json:"read_subcommands"`
-	WriteSubcommands  []string `json:"write_subcommands"`
-	ReadPermissions   []string `json:"read_permissions"`
-	WritePermissions  []string `json:"write_permissions"`
+	Description         string   `json:"description"`
+	ReadSubcommands     []string `json:"read_subcommands"`
+	WriteSubcommands    []string `json:"write_subcommands"`
+	ReadPermissions     []string `json:"read_permissions"`
+	WritePermissions    []string `json:"write_permissions"`
 	AppReadPermissions  []string `json:"app_read_permissions"`
 	AppWritePermissions []string `json:"app_write_permissions"`
 }
@@ -38,7 +41,7 @@ type ghCLIPermissionsData struct {
 	Version          string                          `json:"version"`
 	Description      string                          `json:"description"`
 	SubcommandGroups map[string]ghCLISubcommandGroup `json:"subcommand_groups"`
-	APIPathPatterns  []ghCLIAPIPathPattern            `json:"api_path_patterns"`
+	APIPathPatterns  []ghCLIAPIPathPattern           `json:"api_path_patterns"`
 }
 
 // compiledGHCLIPermissions holds pre-compiled lookup data built from the JSON.
@@ -153,6 +156,7 @@ func init() {
 	}
 
 	ghCLIPermissions = cp
+	ghCLIPermissionsLog.Printf("Loaded gh CLI permissions: version=%s, subcommand_groups=%d, api_path_patterns=%d", data.Version, len(data.SubcommandGroups), len(data.APIPathPatterns))
 }
 
 // ghAPICmdRE matches `gh api` at a command boundary, capturing the rest of the line.
@@ -272,6 +276,7 @@ func splitShellTokens(s string) []string {
 // intentionally not auto-escalated. Use detectWriteCommandsInShellScripts to
 // surface write commands as validation errors.
 func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]PermissionLevel {
+	ghCLIPermissionsLog.Printf("Inferring permissions from %d shell script(s)", len(scripts))
 	perms := make(map[PermissionScope]PermissionLevel)
 
 	addScopes := func(scopes []PermissionScope) {
@@ -331,6 +336,7 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 		}
 	}
 
+	ghCLIPermissionsLog.Printf("Inferred %d permission scope(s) from shell scripts", len(perms))
 	return perms
 }
 
@@ -338,6 +344,7 @@ func inferPermissionsFromShellScripts(scripts []string) map[PermissionScope]Perm
 // given scripts, formatted as "gh <group> <action>" (e.g. "gh pr create").
 // The slice contains no duplicates and is sorted deterministically in discovery order.
 func detectWriteCommandsInShellScripts(scripts []string) []string {
+	ghCLIPermissionsLog.Printf("Scanning %d shell script(s) for write gh CLI commands", len(scripts))
 	var found []string
 	seen := make(map[string]struct{})
 
@@ -357,6 +364,9 @@ func detectWriteCommandsInShellScripts(scripts []string) []string {
 		}
 	}
 
+	if len(found) > 0 {
+		ghCLIPermissionsLog.Printf("Detected %d write gh CLI command(s) in shell scripts", len(found))
+	}
 	return found
 }
 

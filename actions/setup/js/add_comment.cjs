@@ -32,6 +32,21 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const HANDLER_TYPE = "add_comment";
 
 /**
+ * Deduplicate an array of strings using case-insensitive comparison, preserving original casing and order.
+ * @param {string[]} aliases
+ * @returns {string[]}
+ */
+function deduplicateCaseInsensitive(aliases) {
+  const seen = new Set();
+  return aliases.filter(alias => {
+    const key = alias.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
  * Resolve effective event name/payload for native and forwarded contexts.
  * Supports:
  * - workflow_dispatch with event_name/event_payload inputs (via resolveInvocationContext)
@@ -566,24 +581,7 @@ async function main(config = {}) {
         }
       }
     }
-    const allowedMentionAliases = [];
-    const seenAllowedMentionAliases = new Set();
-    for (const alias of parentAuthors) {
-      const key = alias.toLowerCase();
-      if (seenAllowedMentionAliases.has(key)) {
-        continue;
-      }
-      seenAllowedMentionAliases.add(key);
-      allowedMentionAliases.push(alias);
-    }
-    for (const alias of configuredMentionAliases) {
-      const key = alias.toLowerCase();
-      if (seenAllowedMentionAliases.has(key)) {
-        continue;
-      }
-      seenAllowedMentionAliases.add(key);
-      allowedMentionAliases.push(alias);
-    }
+    const allowedMentionAliases = deduplicateCaseInsensitive([...parentAuthors, ...configuredMentionAliases]);
 
     if (allowedMentionAliases.length > 0) {
       core.info(`[MENTIONS] Allowing aliases in comment: ${allowedMentionAliases.join(", ")}`);

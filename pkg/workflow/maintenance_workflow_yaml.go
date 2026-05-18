@@ -52,6 +52,7 @@ on:
 
 	// Add push trigger in dev mode so compile-workflows runs when workflow files change
 	if actionMode == ActionModeDev {
+		maintenanceWorkflowYAMLLog.Printf("Adding dev-mode push trigger for branch %q", defaultBranch)
 		yaml.WriteString(`  push:
     branches:
       - ` + defaultBranch + `
@@ -62,6 +63,7 @@ on:
 
 	// Add label-event trigger only when the label-triggered jobs are enabled
 	if !disableLabelTrigger {
+		maintenanceWorkflowYAMLLog.Print("Adding issues:labeled trigger for label-triggered maintenance jobs")
 		yaml.WriteString(`  issues:
     types: [labeled]
 `)
@@ -707,6 +709,7 @@ jobs:
 	// a confirmation comment.
 	// Skipped when label_triggers is set to false in aw.json maintenance config.
 	if !disableLabelTrigger {
+		maintenanceWorkflowYAMLLog.Print("Adding label-triggered jobs: label_disable_agentic_workflow and label_apply_safe_outputs")
 		disableLabelCondition := buildLabeledDisableCondition()
 		yaml.WriteString(`
   label_disable_agentic_workflow:

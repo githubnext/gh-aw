@@ -143,6 +143,17 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			expectedErrContains: "tools.serena is removed",
 		},
 		{
+			name: "mcp-servers type error takes precedence over removed serena",
+			frontmatter: map[string]any{
+				"mcp-servers": "invalid",
+				"tools": map[string]any{
+					"serena": true,
+				},
+			},
+			expectError:         true,
+			expectedErrContains: "mcp-servers section must be a map",
+		},
+		{
 			name: "GitHub tool default configuration",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
