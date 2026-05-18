@@ -115,25 +115,27 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		e.mappings[originalExpr] = mapping
 
 		// For compound expressions, also emit deterministic env vars for each terminal
-		// sub-expression that the runtime evaluator (runtime_import.cjs evaluateExpression)
+		// sub-expression that the runtime evaluator (runtime_import.cjs evaluateExpression())
 		// resolves by deterministic name (needs.*, steps.*, inputs.*).
 		//
 		// Context: when the main workflow markdown is loaded at runtime via
-		// {{#runtime-import}}, processExpressions() evaluates every ${{ … }} expression
-		// in the file by recursing on || / && operands.  For each terminal operand it
-		// looks up "GH_AW_" + toUpperCase(expr.replace(/\./g, "_")).  If the env var is
-		// not set the operand is considered unresolved and the compound expression
-		// degrades to the wrong fallback.  Without this step only the hash env var for
-		// the full compound expression is present in the step's env block, so individual
-		// operands always appear unresolved.
+		// {{#runtime-import}}, evaluateExpression() evaluates every ${{ … }} expression
+		// by recursing on || / && operands.  For each terminal operand it looks up
+		// "GH_AW_" + toUpperCase(expr.replace(/\./g, "_")).  If the env var is not set
+		// the operand is considered unresolved and the compound expression degrades to
+		// the wrong fallback.  Without this step only the hash env var for the full
+		// compound expression is present in the step's env block, so individual operands
+		// always appear unresolved.
 		if !simpleIdentifierRegex.MatchString(content) {
 			for _, subExpr := range extractTerminalSubExpressions(content) {
 				syntheticOriginal := "${{ " + subExpr + " }}"
 				if _, exists := e.mappings[syntheticOriginal]; !exists {
-					subEnvVar := "GH_AW_" + strings.ToUpper(strings.ReplaceAll(subExpr, ".", "_"))
+					// Sub-expressions are guaranteed to be simple identifiers by
+					// extractTerminalSubExpressions, so generateEnvVarName produces a
+					// deterministic pretty name (e.g. GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT).
 					e.mappings[syntheticOriginal] = &ExpressionMapping{
 						Original: syntheticOriginal,
-						EnvVar:   subEnvVar,
+						EnvVar:   e.generateEnvVarName(subExpr),
 						Content:  subExpr,
 					}
 				}
@@ -359,13 +361,7 @@ func extractTerminalSubExpressions(content string) []string {
 	var result []string
 	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		if !simpleIdentifierRegex.MatchString(trimmed) {
-			continue
-		}
-		if !runtimeEvalEnvVarPrefixRegex.MatchString(trimmed) {
+		if trimmed == "" || !simpleIdentifierRegex.MatchString(trimmed) || !runtimeEvalEnvVarPrefixRegex.MatchString(trimmed) {
 			continue
 		}
 		if !seen[trimmed] {

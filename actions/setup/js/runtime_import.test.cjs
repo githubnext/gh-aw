@@ -1208,8 +1208,7 @@ describe("runtime_import", () => {
         });
 
         describe("compound || expressions with deterministic env vars (compiler fix)", () => {
-          // These tests verify the runtime side of the compiler/runtime naming fix described in
-          // https://github.com/github/gh-aw/issues/<issue>
+          // These tests verify the runtime side of the compiler/runtime naming fix.
           // The compiler now emits GH_AW_STEPS_* / GH_AW_INPUTS_* env vars for each
           // needs.*/steps.*/inputs.* terminal sub-expression of a compound || expression,
           // so that the recursive evaluator can resolve each operand by its deterministic name.
