@@ -186,6 +186,7 @@ func TestSSLSkills_ValidateEnumsAndGraph(t *testing.T) {
 		{"reporting", ".github/skills/reporting/ssl.json"},
 		{"error-messages", ".github/skills/error-messages/ssl.json"},
 		{"jqschema", ".github/skills/jqschema/ssl.json"},
+		{"ssl", ".github/skills/ssl/ssl.json"},
 	}
 
 	for _, tc := range skills {
