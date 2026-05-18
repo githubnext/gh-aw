@@ -109,10 +109,14 @@ func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
 	return app.IgnoreIfMissing
 }
 
+// quoteGitHubExpressionLiteral returns a single-quoted GitHub Actions string literal.
+// Single quotes are escaped by doubling them to match expression syntax rules.
 func quoteGitHubExpressionLiteral(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
+// buildGitHubExpressionNonEmptyCheck builds "<expr> != ”" for wrapped expressions
+// and plain string literals so guard conditions can safely check for missing values.
 func buildGitHubExpressionNonEmptyCheck(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
@@ -123,6 +127,8 @@ func buildGitHubExpressionNonEmptyCheck(value string) string {
 	return fmt.Sprintf("%s != ''", trimmed)
 }
 
+// buildIgnoreIfMissingCondition returns a GitHub Actions if-expression that requires
+// both GitHub App credential inputs to be non-empty.
 func buildIgnoreIfMissingCondition(app *GitHubAppConfig) string {
 	return fmt.Sprintf(
 		"${{ %s && %s }}",
