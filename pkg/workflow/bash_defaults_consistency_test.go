@@ -96,7 +96,6 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(claudeTools)
 
 			workflowData := &WorkflowData{
-				Tools:       copilotTools,
 				SafeOutputs: tt.safeOutputs,
 				ParsedTools: NewTools(copilotTools),
 			}

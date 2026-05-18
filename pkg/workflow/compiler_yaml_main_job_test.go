@@ -703,7 +703,6 @@ func TestGenerateMainJobStepsWithDevMode(t *testing.T) {
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
 		},
-		ParsedTools: &ToolsConfig{},
 	}
 
 	var yaml strings.Builder

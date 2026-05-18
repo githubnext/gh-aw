@@ -963,7 +963,6 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name:        "test-workflow",
-				Tools:       tt.tools,
 				ParsedTools: NewTools(tt.tools), // Populate ParsedTools from Tools map
 			}
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")

@@ -610,7 +610,7 @@ func TestHasBashWildcardInTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := hasBashWildcardInTools(tt.tools)
+			result := hasBashWildcardInTools(NewTools(tt.tools))
 			if result != tt.expected {
 				t.Errorf("hasBashWildcardInTools(%v): expected %v, got %v", tt.tools, tt.expected, result)
 			}

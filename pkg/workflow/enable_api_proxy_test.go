@@ -152,7 +152,6 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 				ID:    "pi",
 				Model: "copilot/claude-sonnet-4-20250514",
 			},
-			Tools:       toolsRaw,
 			ParsedTools: NewTools(toolsRaw),
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{

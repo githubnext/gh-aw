@@ -210,7 +210,7 @@ func TestCollectPackagesFromWorkflow_MCPConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Tools: tt.tools,
+				ParsedTools: NewTools(tt.tools),
 			}
 
 			packages := collectPackagesFromWorkflow(workflowData, tt.extractor, tt.toolCommand)

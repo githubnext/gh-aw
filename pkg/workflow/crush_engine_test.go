@@ -34,7 +34,6 @@ func TestCrushEngine(t *testing.T) {
 	t.Run("required secrets basic", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
-			ParsedTools: &ToolsConfig{},
 			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
@@ -47,7 +46,6 @@ func TestCrushEngine(t *testing.T) {
 			EngineConfig: &EngineConfig{
 				Model: "anthropic/claude-sonnet-4-20250514",
 			},
-			ParsedTools: &ToolsConfig{},
 			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
@@ -61,7 +59,6 @@ func TestCrushEngine(t *testing.T) {
 			EngineConfig: &EngineConfig{
 				Model: "openai/gpt-4.1",
 			},
-			ParsedTools: &ToolsConfig{},
 			ParsedTools: NewTools(map[string]any{}),
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
@@ -72,7 +69,6 @@ func TestCrushEngine(t *testing.T) {
 	t.Run("required secrets with copilot-requests feature", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
-			ParsedTools: &ToolsConfig{},
 			ParsedTools: NewTools(map[string]any{}),
 			Features: map[string]any{
 				"copilot-requests": true,
@@ -85,9 +81,6 @@ func TestCrushEngine(t *testing.T) {
 	t.Run("required secrets with MCP servers", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test",
-			ParsedTools: &ToolsConfig{
-				GitHub: &GitHubToolConfig{},
-			},
 			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
 			}),
@@ -101,7 +94,6 @@ func TestCrushEngine(t *testing.T) {
 	t.Run("required secrets with env override", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:        "test",
-			ParsedTools: &ToolsConfig{},
 			ParsedTools: NewTools(map[string]any{}),
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
@@ -300,9 +292,6 @@ func TestCrushEngineExecution(t *testing.T) {
 	t.Run("with MCP servers", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
-			ParsedTools: &ToolsConfig{
-				GitHub: &GitHubToolConfig{},
-			},
 			ParsedTools: NewTools(map[string]any{
 				"github": map[string]any{},
 			}),
@@ -420,9 +409,6 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
-			ParsedTools: &ToolsConfig{
-				CLIProxy: true,
-			},
 			ParsedTools: NewTools(map[string]any{
 				"bash": []any{"echo"},
 				"my-mcp-cli": map[string]any{

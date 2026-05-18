@@ -254,8 +254,8 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Name:  "test-workflow",
-				Tools: tt.tools,
+				Name:        "test-workflow",
+				ParsedTools: NewTools(tt.tools),
 			}
 			steps := engine.GetExecutionSteps(workflowData, "test-log")
 			require.Len(t, steps, 1, "Expected one execution step")

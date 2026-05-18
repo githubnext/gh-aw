@@ -1233,7 +1233,7 @@ Test content with ${{ steps.sanitized.outputs.text }} usage.
 
 	// Verify data from tools processing phase
 	assert.NotNil(t, workflowData.ParsedTools)
-	assert.NotNil(t, workflowData.Tools)
+	assert.NotNil(t, workflowData.ParsedTools)
 	assert.True(t, workflowData.NeedsTextOutput)
 	assert.NotEmpty(t, workflowData.MarkdownContent)
 
@@ -1624,7 +1624,7 @@ func TestBuildInitialWorkflowData_FieldMapping(t *testing.T) {
 	assert.Equal(t, []string{"/path1", "/path2"}, workflowData.ImportPaths)
 	assert.Equal(t, []string{"/file1"}, workflowData.IncludedFiles)
 	assert.Equal(t, "copilot", workflowData.AI)
-	assert.NotNil(t, workflowData.Tools)
+	assert.NotNil(t, workflowData.ParsedTools)
 	assert.NotNil(t, workflowData.Runtimes)
 	assert.NotNil(t, workflowData.EngineConfig)
 	assert.NotNil(t, workflowData.NetworkPermissions)

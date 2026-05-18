@@ -418,16 +418,17 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		ParsedTools: &ToolsConfig{
-			CLIProxy: true,
-		},
-		ParsedTools: NewTools(map[string]any{
-			"bash": []any{"echo"},
-			"my-mcp-cli": map[string]any{
-				"command": "node",
-				"args":    []any{"index.js"},
-			},
-		}),
+		ParsedTools: func() *ToolsConfig {
+			t := NewTools(map[string]any{
+				"bash": []any{"echo"},
+				"my-mcp-cli": map[string]any{
+					"command": "node",
+					"args":    []any{"index.js"},
+				},
+			})
+			t.CLIProxy = true
+			return t
+		}(),
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: []string{"defaults"},
 			Firewall: &FirewallConfig{

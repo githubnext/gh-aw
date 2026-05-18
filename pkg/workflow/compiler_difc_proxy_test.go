@@ -28,7 +28,7 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 		},
 		{
 			name:     "no github tool",
-			data:     &WorkflowData{Tools: map[string]any{}},
+			data: &WorkflowData{ParsedTools: NewTools(nil)},
 			expected: false,
 			desc:     "no github tool means no guard policy, proxy not needed",
 		},
@@ -587,7 +587,7 @@ func TestHasDIFCGuardsConfigured(t *testing.T) {
 		},
 		{
 			name:     "no github tool",
-			data:     &WorkflowData{Tools: map[string]any{}},
+			data: &WorkflowData{ParsedTools: NewTools(nil)},
 			expected: false,
 		},
 		{

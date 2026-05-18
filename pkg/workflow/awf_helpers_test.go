@@ -922,8 +922,8 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			Features: features,
-			Tools:    tools,
+			Features:    features,
+			ParsedTools: NewTools(tools),
 		}
 	}
 
