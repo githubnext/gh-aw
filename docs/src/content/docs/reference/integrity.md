@@ -66,17 +66,7 @@ merged > approved > unapproved > none > blocked
 
 The four configurable levels (`merged`, `approved`, `unapproved`, `none`) are cumulative and ordered from most restrictive to least. Setting `min-integrity: approved` means only items at `approved` level **or higher** (`merged`) reach the agent. Items at `unapproved` or `none` are filtered out.
 
-`blocked` is not a configurable `min-integrity` value — it is assigned automatically to items from users in the `blocked-users` list and is always denied regardless of the configured threshold.
-
-**`merged`** is the strictest configurable level. A pull request qualifies as `merged` when it has been merged into the target branch. Commits qualify when they are reachable from the default branch. This is useful for workflows that should only act on production content.
-
-**`approved`** corresponds to users who have a formal trust relationship with the repository: owners, members, and collaborators. Items in private repositories are automatically elevated to `approved` (since only collaborators can access them). Recognized platform bots such as dependabot and github-actions also receive `approved` integrity. Users listed in `trusted-users` are also elevated to this level. This is the most common choice for public repository workflows.
-
-**`unapproved`** includes contributors who have had code merged before, as well as first-time contributors. Appropriate when community participation is welcome and the workflow's outputs are reviewed before being applied.
-
-**`none`** allows all content through. Use this deliberately, with appropriate safeguards, for workflows designed to process untrusted input — such as triage bots or spam detection.
-
-**`blocked`** sits below `none` and represents an explicit negative trust decision. Items at this level are unconditionally denied — even `min-integrity: none` does not allow them through. See [Blocking specific users](#blocking-specific-users) below.
+`blocked` is not a configurable `min-integrity` value — it is assigned automatically to items from users in `blocked-users` and is always denied regardless of the threshold, even when `min-integrity: none`. See [Blocking specific users](#blocking-specific-users).
 
 ## Scoping to Repositories
 
@@ -221,16 +211,13 @@ This is useful for managing lists centrally via GitHub repository or organizatio
 
 ### Effective integrity computation
 
-The gateway computes each item's effective integrity in this order:
+The gateway derives each item's effective integrity from the base level (author association, merge status, repo visibility), then applies the first matching rule below. The `min-integrity` threshold check runs against the result.
 
-1. **Start** with the base integrity level from GitHub metadata (author association, merge status, repo visibility).
-2. **If the author is in `blocked-users`**: effective integrity → `blocked` (always denied).
-3. **Else if the item has a label in `refusal-labels`**: effective integrity → `none` (downgraded, overrides any promotion).
-4. **Else if the author is in `trusted-users`**: effective integrity → max(base, `approved`).
-5. **Else if the item has a label in `approval-labels`**: effective integrity → max(base, `approved`).
-6. **Else**: effective integrity → base.
-
-The `min-integrity` threshold check is applied after this computation.
+1. Author in `blocked-users` → `blocked` (always denied).
+2. Item has a `refusal-labels` label → `none` (overrides any promotion).
+3. Author in `trusted-users` → max(base, `approved`).
+4. Item has an `approval-labels` label → max(base, `approved`).
+5. Otherwise → base.
 
 ## Centralized Management via GitHub Variables
 
@@ -295,7 +282,7 @@ The right level depends on who you want the agent to see content from:
 
 ## Examples
 
-**Allow only merged content:**
+**Production-only content (strictest):**
 
 ```aw wrap
 tools:
@@ -304,15 +291,7 @@ tools:
     min-integrity: merged
 ```
 
-**Trusted contributors only (typical for a public repository workflow):**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
-```
-
-**Allow all community contributions (for a triage workflow):**
+**Community triage workflow:**
 
 ```aw wrap
 tools:
@@ -320,91 +299,7 @@ tools:
     min-integrity: unapproved
 ```
 
-**Explicitly disable filtering on a public repository, apart from blocked users:**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: none
-```
-
-**Scope to specific organizations with integrity filtering:**
-
-```aw wrap
-tools:
-  github:
-    allowed-repos:
-      - "myorg/*"
-      - "partner/shared-repo"
-    min-integrity: approved
-```
-
-**Block specific users while allowing all other content:**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: none
-    blocked-users:
-      - "known-spam-bot"
-```
-
-**Trust specific external contributors:**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
-    trusted-users:
-      - "contractor-1"
-      - "partner-dev"
-```
-
-**Human-review gate for external contributions:**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
-    approval-labels:
-      - "agent-approved"
-      - "human-reviewed"
-```
-
-**Suppress specific items from the agent using labels:**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
-    refusal-labels:
-      - "needs-security-review"
-      - "do-not-automate"
-```
-
-**Reaction-based endorsement for fast-tracking contributions (available from v0.68.2):**
-
-```aw wrap
-features:
-  integrity-reactions: true
-tools:
-  github:
-    min-integrity: approved
-```
-
-**Centrally managed lists via GitHub variables:**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
-    blocked-users: ${{ vars.BLOCKED_USERS }}
-    trusted-users: ${{ vars.TRUSTED_USERS }}
-    approval-labels: ${{ vars.APPROVAL_LABELS }}
-    refusal-labels: ${{ vars.REFUSAL_LABELS }}
-```
-
-**Combined: blocking, trusting, labeling, and refusing:**
+**Combined policy — blocking, trusting, labeling, and refusing:**
 
 ```aw wrap
 tools:
@@ -421,14 +316,7 @@ tools:
       - "needs-security-review"
 ```
 
-**Disable the pre-agent integrity proxy:**
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
-    integrity-proxy: false
-```
+See [Adjusting Integrity Per-Item](#adjusting-integrity-per-item) above for individual snippets covering each field.
 
 ## In Logs and Reports
 
