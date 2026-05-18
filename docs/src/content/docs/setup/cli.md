@@ -517,6 +517,19 @@ gh aw logs --format markdown --repo owner/repo --count 10  # Specify repository
 See [Audit Commands](/gh-aw/reference/audit/) for the full reference.
 :::
 
+#### `outcomes`
+
+Check what happened to a workflow run's safe outputs (accepted, rejected, ignored, or pending).
+
+```bash wrap
+gh aw outcomes 1234567890                      # Check outcomes for a specific run
+gh aw outcomes 1234567890 --json               # JSON output
+gh aw outcomes 1234567890 --repo owner/repo    # Specify repository
+gh aw outcomes 1234567890 --outcomes-dir ./otlp # Write outcome JSONL for OTLP export
+```
+
+**Options:** `--json/-j`, `--repo/-r`, `--output/-o`, `--outcomes-dir`
+
 #### `health`
 
 Display workflow health metrics and success rates.
@@ -731,11 +744,13 @@ Create a new GitHub Project V2 owned by a user or organization with optional rep
 gh aw project new "My Project" --owner @me                      # Create user project
 gh aw project new "Team Board" --owner myorg                    # Create org project
 gh aw project new "Bugs" --owner myorg --link myorg/myrepo     # Create and link to repo
+gh aw project new "Project Q1" --owner myorg --with-project-setup # Create with standard views and fields
 ```
 
 **Options:**
 - `--owner` (required): Project owner - use `@me` for current user or specify organization name
 - `--link`: Repository to link project to (format: `owner/repo`)
+- `--with-project-setup`: Create standard project views and custom fields
 
 **Token Requirements:**
 
