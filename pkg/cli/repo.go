@@ -92,13 +92,13 @@ func getCurrentRepoSlugUncached() (string, error) {
 // This is the recommended function to use for repository access across the codebase.
 func GetCurrentRepoSlug() (string, error) {
 	currentRepoSlugCache.mu.Lock()
+	defer currentRepoSlugCache.mu.Unlock()
 	if !currentRepoSlugCache.done {
 		currentRepoSlugCache.result, currentRepoSlugCache.err = getCurrentRepoSlugUncached()
 		currentRepoSlugCache.done = true
 	}
 	result := currentRepoSlugCache.result
 	err := currentRepoSlugCache.err
-	currentRepoSlugCache.mu.Unlock()
 
 	if err != nil {
 		return "", err

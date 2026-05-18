@@ -113,10 +113,10 @@ func (l *Logger) Printf(format string, args ...any) {
 		return
 	}
 	l.mu.Lock()
+	defer l.mu.Unlock()
 	now := time.Now()
 	diff := now.Sub(l.lastLog)
 	l.lastLog = now
-	l.mu.Unlock()
 
 	message := fmt.Sprintf(format, args...)
 	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
@@ -130,10 +130,10 @@ func (l *Logger) Print(args ...any) {
 		return
 	}
 	l.mu.Lock()
+	defer l.mu.Unlock()
 	now := time.Now()
 	diff := now.Sub(l.lastLog)
 	l.lastLog = now
-	l.mu.Unlock()
 
 	message := fmt.Sprint(args...)
 	lipgloss.Fprintf(os.Stderr, "%s %s +%s\n", l.label, message, timeutil.FormatDuration(diff))
