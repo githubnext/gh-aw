@@ -2,8 +2,11 @@
 emoji: "🔍"
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 on:
-  pull_request:
-    types: [ready_for_review]
+  pull_request_reviewer: slash_command
+  slash_command:
+    strategy: centralized
+    name: matt
+    events: [pull_request_comment, pull_request_review_comment]
 permissions:
   contents: read
   pull-requests: read
@@ -51,10 +54,11 @@ pre-agent-steps:
     env:
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
-      gh pr diff "$PR_NUMBER" --repo ${{ github.repository }} \
+      gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
         --exclude '**/*.lock.yml' \
         --exclude '**/generated/**' \
         --exclude '**/dist/**' \
@@ -63,7 +67,7 @@ pre-agent-steps:
         > /tmp/gh-aw/agent/pr-diff.patch
       LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
       gh pr view "$PR_NUMBER" \
-        --repo ${{ github.repository }} \
+        --repo $EXPR_GITHUB_REPOSITORY \
         --json number,title,body,headRefName,additions,deletions,changedFiles,files \
         > /tmp/gh-aw/agent/pr-meta.json
       echo "Pre-fetched PR diff (${LINES} lines) and metadata"
