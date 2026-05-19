@@ -20,7 +20,7 @@ const NetworkAllowedInputName = "network_allowed"
 // It signals to users that this input is managed internally by the agentic workflow system.
 const awContextInputDescription = "Agent caller context (used internally by Agentic Workflows)."
 
-const networkAllowedInputDescription = "Additional allowed network domains or ecosystem identifiers to union with network.allowed."
+const networkAllowedInputDescription = "Additional allowed network domains or ecosystem identifiers to union with network.allowed (comma-separated, for example: \"rust\" or \"python,github.com\")."
 
 // injectAwContextIntoOnYAML adds the aw_context input to internal workflow triggers
 // in the given on-section YAML string.
