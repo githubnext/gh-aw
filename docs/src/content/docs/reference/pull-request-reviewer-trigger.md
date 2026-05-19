@@ -23,6 +23,8 @@ on:
   pull_request_reviewer: reviewer
 ```
 
+`pull_request_reviewer` and `slash_command` are mutually exclusive in the same workflow. Defining both causes a compilation error.
+
 Compiling a workflow with this trigger emits an experimental warning:
 
 ```text
@@ -69,16 +71,8 @@ If the pull request is already closed when routing starts, centralized routing e
 ## Constraints
 
 - Reviewer slash command names must be unique across all `pull_request_reviewer` workflows (case-insensitive).
-- Built-in reviewer slash-command behavior is always enabled. If `slash_command` is also declared, the `pull_request_reviewer` command name and reviewer event set override slash-command settings for this workflow.
+- `pull_request_reviewer` and `slash_command` cannot be declared together in one workflow.
 - `pull_request_review` actions `edited` and `dismissed` are ignored by reviewer lifecycle routing.
-
-For example, in this configuration, `reviewer-bot` is used for reviewer routing (not `fallback`):
-
-```yaml wrap
-on:
-  pull_request_reviewer: reviewer-bot
-  slash_command: fallback
-```
 
 ## Related documentation
 
