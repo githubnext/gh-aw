@@ -748,6 +748,11 @@ jobs:
       - name: Build gh-aw
         run: make build
 
+      - name: Pre-compile validation
+        run: |
+          ./gh-aw compile --validate --no-emit --verbose
+          echo "✓ Pre-compile validation passed"
+
       - name: Compile workflows
         run: |
           ./gh-aw compile --validate --validate-images --verbose

@@ -59,19 +59,19 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Validate dangerous permissions
-	log.Printf("Validating dangerous permissions")
+	workflowLog.Printf("Validating dangerous permissions")
 	if err := validateDangerousPermissions(workflowData, workflowPermissions); err != nil {
 		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
 	// Validate GitHub App-only permissions require a GitHub App to be configured
-	log.Printf("Validating GitHub App-only permissions")
+	workflowLog.Printf("Validating GitHub App-only permissions")
 	if err := validateGitHubAppOnlyPermissions(workflowData, workflowPermissions); err != nil {
 		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
 	// Validate tools.github.github-app.permissions does not use "write"
-	log.Printf("Validating GitHub MCP app permissions (no write)")
+	workflowLog.Printf("Validating GitHub MCP app permissions (no write)")
 	if err := validateGitHubMCPAppPermissionsNoWrite(workflowData); err != nil {
 		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
@@ -80,31 +80,31 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 	warnGitHubAppPermissionsUnsupportedContexts(workflowData)
 
 	// Validate workflow_run triggers have branch restrictions
-	log.Printf("Validating workflow_run triggers for branch restrictions")
+	workflowLog.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
 		return nil, err
 	}
 
 	// Validate pull_request_target trigger security
-	log.Printf("Validating pull_request_target trigger security")
+	workflowLog.Printf("Validating pull_request_target trigger security")
 	if err := c.validatePullRequestTargetTrigger(workflowData, markdownPath); err != nil {
 		return nil, err
 	}
 
 	// Validate permissions against GitHub MCP toolsets
-	log.Printf("Validating permissions for GitHub MCP toolsets")
+	workflowLog.Printf("Validating permissions for GitHub MCP toolsets")
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
 		// Check if GitHub tool was explicitly configured in frontmatter
 		// If permissions exist but tools.github was NOT explicitly configured,
 		// skip validation and let the GitHub MCP server handle permission issues
 		hasPermissions := workflowData.Permissions != ""
 
-		log.Printf("Permission validation check: hasExplicitGitHubTool=%v, hasPermissions=%v",
+		workflowLog.Printf("Permission validation check: hasExplicitGitHubTool=%v, hasPermissions=%v",
 			workflowData.HasExplicitGitHubTool, hasPermissions)
 
 		// Skip validation if permissions exist but GitHub tool was auto-added (not explicit)
 		if hasPermissions && !workflowData.HasExplicitGitHubTool {
-			log.Printf("Skipping permission validation: permissions exist but tools.github not explicitly configured")
+			workflowLog.Printf("Skipping permission validation: permissions exist but tools.github not explicitly configured")
 		} else {
 			// Validate permissions using the typed GitHub tool configuration.
 			// Pass the cached parsed toolsets from applyDefaults to avoid a redundant
@@ -141,7 +141,7 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Emit warning if id-token: write permission is detected
-	log.Printf("Checking for id-token: write permission")
+	workflowLog.Printf("Checking for id-token: write permission")
 	if level, exists := workflowPermissions.Get(PermissionIdToken); exists && level == PermissionWrite {
 		warningMsg := `This workflow grants id-token: write permission
 OIDC tokens can authenticate to cloud providers (AWS, Azure, GCP).

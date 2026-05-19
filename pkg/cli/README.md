@@ -478,6 +478,7 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/gitutil` — Git and GitHub CLI helpers
 - `github.com/github/gh-aw/pkg/repoutil` — repository name parsing and normalization
 - `github.com/github/gh-aw/pkg/stringutil` — string manipulation and sanitization utilities
+- `github.com/github/gh-aw/pkg/syncutil` — thread-safe one-shot caching (used for repository slug lookup)
 
 **External**:
 - `github.com/spf13/cobra` — CLI framework

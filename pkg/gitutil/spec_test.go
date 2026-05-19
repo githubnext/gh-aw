@@ -331,38 +331,40 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 	})
 }
 
-// TestSpec_PublicAPI_ReadFileFromHEADWithRoot validates the documented behavior of
-// ReadFileFromHEADWithRoot as described in the package README.md.
+// TestSpec_PublicAPI_ReadFileFromHEAD validates the documented behavior of
+// ReadFileFromHEAD as described in the package README.md.
 //
 // Specification: Reads a file's content from the HEAD commit without touching
 // the working tree; rejects paths that escape the repository.
-func TestSpec_PublicAPI_ReadFileFromHEADWithRoot(t *testing.T) {
+func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
 	root, err := FindGitRoot()
 	if err != nil {
-		t.Skip("not inside a git repository, skipping ReadFileFromHEADWithRoot tests")
+		t.Skip("not inside a git repository, skipping ReadFileFromHEAD tests")
 	}
 
 	t.Run("reads known file from HEAD without error", func(t *testing.T) {
-		content, err := ReadFileFromHEADWithRoot(filepath.Join(root, "go.mod"), root)
-		require.NoError(t, err, "ReadFileFromHEADWithRoot should read go.mod without error")
+		content, err := ReadFileFromHEAD(filepath.Join(root, "go.mod"), root)
+		require.NoError(t, err, "ReadFileFromHEAD should read go.mod without error")
 		assert.NotEmpty(t, content, "content of go.mod should not be empty")
 	})
 
 	t.Run("returns error for non-existent file", func(t *testing.T) {
-		_, err := ReadFileFromHEADWithRoot("this-file-does-not-exist-xyzzy.txt", root)
-		assert.Error(t, err, "ReadFileFromHEADWithRoot should return error for non-existent file")
+		_, err := ReadFileFromHEAD("this-file-does-not-exist-xyzzy.txt", root)
+		assert.Error(t, err, "ReadFileFromHEAD should return error for non-existent file")
 	})
 
 	t.Run("rejects path with .. traversal", func(t *testing.T) {
 		// Specification: "The function rejects paths that escape the repository
 		// (i.e. paths containing .. after resolution)."
-		_, err := ReadFileFromHEADWithRoot("../outside/file.txt", root)
-		assert.Error(t, err, "ReadFileFromHEADWithRoot should reject path-traversal attempts")
+		outsidePath := filepath.Join(root, "..", "outside.txt")
+		_, err := ReadFileFromHEAD(outsidePath, root)
+		assert.Error(t, err, "ReadFileFromHEAD should reject path-traversal attempts")
+		assert.Contains(t, err.Error(), "outside the git repository root")
 	})
 
 	t.Run("returns error when gitRoot is empty", func(t *testing.T) {
 		// Specification: gitRoot must be the repository root (from FindGitRoot)
-		_, err := ReadFileFromHEADWithRoot("go.mod", "")
-		assert.Error(t, err, "ReadFileFromHEADWithRoot should return error when gitRoot is empty")
+		_, err := ReadFileFromHEAD("go.mod", "")
+		assert.Error(t, err, "ReadFileFromHEAD should return error when gitRoot is empty")
 	})
 }

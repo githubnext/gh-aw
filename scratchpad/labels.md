@@ -24,7 +24,7 @@ Labels help organize and triage issues for better project management. Use labels
 ### Priority Labels (optional)
 - **priority-high** - Critical issues requiring immediate attention
 - **priority-medium** - Important but not urgent
-- **priority-low** - Nice-to-have improvements
+- **priority-low** - Lower-priority improvements
 
 ### Component Labels (optional, choose multiple if needed)
 - **cli** - Command-line interface

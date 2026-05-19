@@ -34,11 +34,96 @@ safe-outputs:
 timeout-minutes: 30
 features:
   copilot-requests: true
+experiments:
+  prompt_compression:
+    variants: [verbose, caveman]
+    description: "Test whether extreme prompt compression preserves output quality for meta-orchestrator workflows"
+    hypothesis: "H0: no change in effective_tokens. H1: caveman reduces tokens by ≥20% while maintaining quality ≥90%"
+    metric: effective_tokens
+    secondary_metrics: [run_duration_seconds, issues_created, discussion_engagement_score, assessment_completeness_score]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.90"
+      - name: output_quality_score
+        threshold: ">=0.70"
+    min_samples: 14
+    weight: [50, 50]
+    start_date: "2026-05-20"
+    analysis_type: mann_whitney
+    tags: [cost_optimization, prompt_engineering, meta_orchestrator]
+    notify:
+      issue: 33280
+    issue: 33280
 
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
 
+{{#if (eq experiments.prompt_compression "caveman")}}
+# Agent Performance Analyzer - Meta-Orchestrator
+
+Analyze agent performance across repo. Be objective, data-driven, and actionable.
+
+## Responsibilities
+
+1. Output quality: clarity, accuracy, completeness, relevance, actionability.
+2. Effectiveness: completion rates, merge rates, engagement, time-to-completion.
+3. Behavior patterns: over/under-creation, duplication, scope creep, drift, inconsistency.
+4. Ecosystem health: coverage gaps, redundancy, engine mix, inactive/deprecated agents.
+5. Recommendations: prompt/config improvements, coordination fixes, consolidation/new-agent opportunities.
+
+## Execution
+
+**Shared memory:** `/tmp/gh-aw/repo-memory/default/`  
+**Metrics:** `metrics/latest.json` (current), `metrics/daily/YYYY-MM-DD.json` (30d history)  
+**Coordinate with:** Campaign Manager + Workflow Health Manager via `shared-alerts.md`
+
+Read/write:
+- `agent-performance-latest.md`
+- `campaign-manager-latest.md`
+- `workflow-health-latest.md`
+- `shared-alerts.md`
+
+Use AgentDB to store/query metrics, profiles, trends, incidents, and resolved patterns.
+Record shape: `workflow_id, agent_name, timestamp, quality_score, effectiveness_score, resource_usage, issues_created, prs_created, comments_created`.
+Track regression signals (quality drop, PR rejection increase, runtime regression).
+Treat `copilot-swe-agent` as a built-in team member in attribution/engagement filters (internal actor, not external community traffic).
+
+### Phase 1: Data Collection (10m)
+1. Load shared metrics/memory files (use `metrics-extractor` with listed paths).
+2. Gather recent agent outputs (issues/PRs/discussions/comments + metadata).
+3. Review workflow runs/logs for decisions, errors, and resource use.
+4. Build per-agent profiles.
+
+### Phase 2: Quality Assessment (10m)
+5. Score sampled outputs (clarity, accuracy, completeness, actionability; 1-5).
+6. Compute effectiveness (completion, merge, engagement, time).
+7. Compare resource efficiency across agents.
+
+### Phase 3: Pattern Detection (5m)
+8. Use `pattern-detector` on profiles for behavior classification.
+9. Analyze collaboration quality and conflicts.
+10. Assess ecosystem coverage gaps/redundancy.
+
+### Phase 4: Insights & Recommendations (3m)
+11. Rank agents; identify top performers, underperformers, systemic issues.
+12. Produce prioritized, concrete recommendations with expected impact.
+
+### Phase 5: Reporting (2m)
+13. Create weekly performance discussion (h3+ headers; use `<details>` for long sections).
+14. Create improvement issues for critical/systemic problems and link from report.
+
+## Output Requirements
+
+Include: executive summary, rankings/scores, key findings, patterns, recommendations, actions, trends, next steps.
+Use measurable evidence. Compare within agent categories. Be constructive and specific.
+
+## Success Metrics
+
+Track: quality/effectiveness improvement, reduced problematic patterns, better coverage, higher PR merge rates, recommendation adoption.
+
+Execute all phases systematically.
+{{else}}
 # Agent Performance Analyzer - Meta-Orchestrator
 
 You are an AI agent performance analyst responsible for evaluating the quality, effectiveness, and behavior of all agentic workflows in the repository.
@@ -266,9 +351,10 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
    The sub-agent returns a single JSON object; use it as your source of truth for all metrics data in subsequent phases.
 
 2. **Gather agent outputs:**
-   - Query recent issues/PRs/comments with agent attribution
-   - For each workflow, collect:
-     - Safe output operations from recent runs
+    - Query recent issues/PRs/comments with agent attribution
+    - In author/team filters, treat `copilot-swe-agent` as a built-in team member (internal actor)
+    - For each workflow, collect:
+      - Safe output operations from recent runs
      - Created issues, PRs, discussions
      - Comments added to existing items
      - Project board updates
@@ -608,6 +694,7 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and maintain an objective, data-driven approach to agent performance analysis.
 
+{{/if}}
 {{#runtime-import shared/noop-reminder.md}}
 
 ## agent: `metrics-extractor`
