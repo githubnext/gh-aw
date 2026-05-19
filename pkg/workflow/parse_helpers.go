@@ -37,6 +37,13 @@ func coerceStringOrArrayField(configData map[string]any, key string, log *logger
 	}
 }
 
+// coerceStringOrArrayFields applies coerceStringOrArrayField to multiple keys.
+func coerceStringOrArrayFields(configData map[string]any, keys []string, log *logger.Logger) {
+	for _, key := range keys {
+		coerceStringOrArrayField(configData, key, log)
+	}
+}
+
 // preprocessProtectedFilesField preprocesses the "protected-files" field in configData,
 // handling both the legacy string-enum form and the new object form.
 //

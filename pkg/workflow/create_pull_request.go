@@ -73,9 +73,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 			return &CreatePullRequestsConfig{}
 		},
 		func(configData map[string]any) bool {
-			coerceStringOrArrayField(configData, "reviewers", createPRLog)
-			coerceStringOrArrayField(configData, "team-reviewers", createPRLog)
-			coerceStringOrArrayField(configData, "assignees", createPRLog)
+			coerceStringOrArrayFields(configData, []string{"reviewers", "team-reviewers", "assignees"}, createPRLog)
 
 			// Pre-process protected-files: supports string enum OR object form {policy, exclude}.
 			// Object form is preprocessed to extract the policy (stored back as string) and
