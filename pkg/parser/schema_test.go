@@ -269,12 +269,12 @@ func TestMCPNetworkSchemaProxyArgsContract(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		schemaPath    string
+		rawSchema     string
 		networkGetter func(map[string]any) map[string]any
 	}{
 		{
-			name:       "main workflow schema stdio_mcp_tool.network",
-			schemaPath: "schemas/main_workflow_schema.json",
+			name:      "main workflow schema stdio_mcp_tool.network",
+			rawSchema: mainWorkflowSchema,
 			networkGetter: func(schema map[string]any) map[string]any {
 				defs, ok := schema["$defs"].(map[string]any)
 				if !ok {
@@ -296,8 +296,8 @@ func TestMCPNetworkSchemaProxyArgsContract(t *testing.T) {
 			},
 		},
 		{
-			name:       "mcp config schema network",
-			schemaPath: "schemas/mcp_config_schema.json",
+			name:      "mcp config schema network",
+			rawSchema: mcpConfigSchema,
 			networkGetter: func(schema map[string]any) map[string]any {
 				props, ok := schema["properties"].(map[string]any)
 				if !ok {
@@ -314,13 +314,8 @@ func TestMCPNetworkSchemaProxyArgsContract(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaContent, err := os.ReadFile(tt.schemaPath)
-			if err != nil {
-				t.Fatalf("failed to read schema: %v", err)
-			}
-
 			var schema map[string]any
-			if err := json.Unmarshal(schemaContent, &schema); err != nil {
+			if err := json.Unmarshal([]byte(tt.rawSchema), &schema); err != nil {
 				t.Fatalf("failed to parse schema json: %v", err)
 			}
 
@@ -330,7 +325,11 @@ func TestMCPNetworkSchemaProxyArgsContract(t *testing.T) {
 			}
 
 			if deprecatedValue, hasDeprecated := network["deprecated"]; hasDeprecated {
-				if deprecatedBool, ok := deprecatedValue.(bool); !ok || deprecatedBool {
+				deprecatedBool, ok := deprecatedValue.(bool)
+				if !ok {
+					t.Fatalf("network.deprecated should be a boolean when present; got %T", deprecatedValue)
+				}
+				if deprecatedBool {
 					t.Fatalf("network field should not be deprecated; got deprecated=%v", deprecatedValue)
 				}
 			}
