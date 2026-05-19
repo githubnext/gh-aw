@@ -37,7 +37,9 @@ imports:
   - shared/mcp/grafana.md
   - shared/mcp/sentry.md
   - shared/otel-queries.md
-  - shared/otlp-backends.md
+  - shared/sentry.md
+  - shared/grafana.md
+  - shared/datadog.md
 ---
 
 # Smoke OTEL
