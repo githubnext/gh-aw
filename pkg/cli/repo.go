@@ -4,26 +4,16 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/syncutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var repoLog = logger.New("cli:repo")
 
-// repoSlugCacheState holds the cached repository slug and protects it with a mutex.
-// Using a mutex-guarded struct instead of sync.Once avoids the data race that arises
-// when resetting sync.Once via struct assignment (= sync.Once{}) after first use.
-type repoSlugCacheState struct {
-	mu     sync.Mutex
-	result string
-	err    error
-	done   bool
-}
-
 // Global cache for current repository info
-var currentRepoSlugCache repoSlugCacheState
+var currentRepoSlugCache syncutil.OnceLoader[string]
 
 // getCurrentRepoSlugUncached gets the current repository slug (owner/repo) using gh CLI (uncached)
 // Falls back to git remote parsing if gh CLI is not available
@@ -91,15 +81,7 @@ func getCurrentRepoSlugUncached() (string, error) {
 // GetCurrentRepoSlug gets the current repository slug with caching.
 // This is the recommended function to use for repository access across the codebase.
 func GetCurrentRepoSlug() (string, error) {
-	result, err := func() (string, error) {
-		currentRepoSlugCache.mu.Lock()
-		defer currentRepoSlugCache.mu.Unlock()
-		if !currentRepoSlugCache.done {
-			currentRepoSlugCache.result, currentRepoSlugCache.err = getCurrentRepoSlugUncached()
-			currentRepoSlugCache.done = true
-		}
-		return currentRepoSlugCache.result, currentRepoSlugCache.err
-	}()
+	result, err := currentRepoSlugCache.Get(getCurrentRepoSlugUncached)
 
 	if err != nil {
 		return "", err

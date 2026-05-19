@@ -49,6 +49,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 var repositoryFeaturesLog = newValidationLogger("repository_features")
@@ -59,22 +60,11 @@ type RepositoryFeatures struct {
 	HasIssues      bool
 }
 
-// currentRepositoryCacheState holds the cached current repository and protects it
-// with a mutex. Using a mutex-guarded struct instead of sync.Once avoids the data
-// race that arises when resetting sync.Once via struct assignment (= sync.Once{})
-// after first use.
-type currentRepositoryCacheState struct {
-	mu     sync.Mutex
-	result string
-	err    error
-	done   bool
-}
-
 // Global cache for repository features and current repository info
 var (
 	repositoryFeaturesCache       = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
 	repositoryFeaturesLoggedCache = sync.Map{} // Tracks which repositories have had their success messages logged
-	currentRepositoryCache        currentRepositoryCacheState
+	currentRepositoryCache        syncutil.OnceLoader[string]
 )
 
 // validateRepositoryFeatures validates that required repository features are enabled
@@ -157,15 +147,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 // getCurrentRepository gets the current repository from git context (with caching)
 func getCurrentRepository() (string, error) {
-	result, err := func() (string, error) {
-		currentRepositoryCache.mu.Lock()
-		defer currentRepositoryCache.mu.Unlock()
-		if !currentRepositoryCache.done {
-			currentRepositoryCache.result, currentRepositoryCache.err = getCurrentRepositoryUncached()
-			currentRepositoryCache.done = true
-		}
-		return currentRepositoryCache.result, currentRepositoryCache.err
-	}()
+	result, err := currentRepositoryCache.Get(getCurrentRepositoryUncached)
 
 	if err != nil {
 		return "", err
