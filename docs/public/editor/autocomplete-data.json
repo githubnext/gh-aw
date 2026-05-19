@@ -638,6 +638,12 @@
           "desc": "List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python', 'node', '*.example.com').",
           "array": true
         },
+        "allowed-input": {
+          "type": "boolean",
+          "desc": "When true and the workflow uses workflow_call, expose a network_allowed string input on the compiled lock file.",
+          "enum": [true, false],
+          "leaf": true
+        },
         "blocked": {
           "type": "array",
           "desc": "List of blocked domains or ecosystem identifiers (e.g., 'python', 'node', 'tracker.example.com').",
@@ -1144,36 +1150,6 @@
               "leaf": true,
               "array": true
             },
-            "toolset": {
-              "type": "string|array",
-              "desc": "Deprecated.",
-              "enum": [
-                "all",
-                "default",
-                "action-friendly",
-                "context",
-                "repos",
-                "issues",
-                "pull_requests",
-                "actions",
-                "code_security",
-                "dependabot",
-                "discussions",
-                "experiments",
-                "gists",
-                "labels",
-                "notifications",
-                "orgs",
-                "projects",
-                "search",
-                "secret_protection",
-                "security_advisories",
-                "stargazers",
-                "users"
-              ],
-              "leaf": true,
-              "array": true
-            },
             "mounts": {
               "type": "array",
               "desc": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only...",
@@ -1182,14 +1158,14 @@
             "allowed-repos": {
               "type": "string|array",
               "desc": "Guard policy: repository access configuration.",
-              "enum": ["all", "public"],
+              "enum": ["all", "public", "${{ github.repository }}"],
               "leaf": true,
               "array": true
             },
             "repos": {
               "type": "string|array",
               "desc": "Deprecated.",
-              "enum": ["all", "public"],
+              "enum": ["all", "public", "${{ github.repository }}"],
               "leaf": true,
               "array": true
             },
@@ -1256,6 +1232,12 @@
                 "private-key": {
                   "type": "string",
                   "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
+                  "leaf": true
+                },
+                "ignore-if-missing": {
+                  "type": "boolean",
+                  "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
+                  "enum": [true, false],
                   "leaf": true
                 },
                 "owner": {
@@ -2117,6 +2099,12 @@
               "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
               "leaf": true
             },
+            "ignore-if-missing": {
+              "type": "boolean",
+              "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
+              "enum": [true, false],
+              "leaf": true
+            },
             "owner": {
               "type": "string",
               "desc": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)",
@@ -2359,6 +2347,12 @@
         "private-key": {
           "type": "string",
           "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
+          "leaf": true
+        },
+        "ignore-if-missing": {
+          "type": "boolean",
+          "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
+          "enum": [true, false],
           "leaf": true
         },
         "owner": {
