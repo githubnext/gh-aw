@@ -730,7 +730,7 @@ describe("push_signed_commits integration tests", () => {
     });
   });
 
-  describe("gitAuthEnv propagation", () => {
+  describe("git auth environment propagation", () => {
     it("should pass gitAuthEnv to ls-remote in the signed-commit path", async () => {
       const gitAuthEnv = {
         GIT_CONFIG_COUNT: "1",
@@ -801,7 +801,7 @@ describe("push_signed_commits integration tests", () => {
       );
     });
 
-    it("should include auth env on every network getExecOutput git call", async () => {
+    it("should include auth env on ls-remote getExecOutput git call", async () => {
       const gitAuthEnv = {
         GIT_CONFIG_COUNT: "1",
         GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
