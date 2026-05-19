@@ -1,7 +1,7 @@
 [
   {
     "name": "create_issue",
-    "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.",
+    "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. This is a write-once declaration for a real intended issue, not a sandbox or probe: do not call it with placeholder titles/bodies or auth experiments. If you are not ready to open the real issue, use noop or report_incomplete instead. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.",
     "inputSchema": {
       "type": "object",
       "required": ["title", "body"],
@@ -245,7 +245,7 @@
   },
   {
     "name": "add_comment",
-    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
+    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. This is a write-once declaration for a real intended comment, not a sandbox or probe: do not call it with placeholder bodies or auth experiments. If you are not ready to post the real comment, use noop or report_incomplete instead. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -289,7 +289,7 @@
   },
   {
     "name": "create_pull_request",
-    "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead.",
+    "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. This is a write-once declaration for a real intended PR, not a sandbox or probe: do not call it with placeholder content, test titles/bodies, or auth experiments. If you are not ready to open the real PR, use noop or report_incomplete instead. For code review comments on an existing PR, use create_pull_request_review_comment instead.",
     "inputSchema": {
       "type": "object",
       "required": ["title", "body"],
@@ -799,7 +799,7 @@
   },
   {
     "name": "update_pull_request",
-    "description": "Update an existing GitHub pull request's title or body. Supports replacing, appending to, or prepending content to the body. Title is always replaced. Only the fields you specify will be updated; other fields remain unchanged.",
+    "description": "Update an existing GitHub pull request's title or body. Supports replacing, appending to, or prepending content to the body. Title is always replaced. Only the fields you specify will be updated; other fields remain unchanged. REQUIRED: You must provide at least one of: 'title' (a non-empty string), 'body' (a string), or 'update_branch' set to true (not false). Omitting all three, or passing only 'update_branch: false', will return a -32602 error.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -818,7 +818,7 @@
         },
         "update_branch": {
           "type": "boolean",
-          "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false."
+          "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false. Note: only true counts as a meaningful update; passing false is the same as omitting this field."
         },
         "pull_request_number": {
           "type": ["number", "string"],
@@ -889,7 +889,7 @@
   },
   {
     "name": "push_to_pull_request_branch",
-    "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. Changes must be committed locally before calling this tool.",
+    "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. This is a write-once declaration for a real intended PR branch update, not a sandbox or probe: do not call it with probe branches, placeholder commit messages, or auth experiments. If you are not ready to push the real update, use noop or report_incomplete instead. Changes must be committed locally before calling this tool.",
     "inputSchema": {
       "type": "object",
       "required": ["message"],

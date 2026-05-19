@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -40,6 +42,11 @@ type FetchedWorkflow struct {
 // The context is used to cancel remote ref resolution retries (for example, on Ctrl-C).
 func FetchWorkflowFromSourceWithContext(ctx context.Context, spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
 	remoteWorkflowLog.Printf("Fetching workflow from source: spec=%s", spec.String())
+
+	// Handle generic HTTP(S) URL imports (non-GitHub hosts).
+	if spec.RawURL != "" {
+		return fetchGenericURLWorkflow(ctx, spec, verbose)
+	}
 
 	// Handle local workflows
 	if isLocalWorkflowPath(spec.WorkflowPath) {
@@ -222,4 +229,89 @@ func isTransientSHAResolutionError(err error) bool {
 	}
 
 	return transientHTTP5xxPattern.MatchString(errorText)
+}
+
+// fetchGenericURLWorkflow fetches a workflow from an arbitrary HTTP(S) URL and dispatches
+// on the response Content-Type to produce a FetchedWorkflow.
+//
+// Supported content types:
+//   - text/markdown, text/x-markdown → treated as raw gh-aw workflow markdown.
+//   - application/json (or any +json suffix) → treated as a JSON workflow definition
+//     and converted via ConvertJSONWorkflowToMarkdown.
+//
+// Any other content type is an error with an actionable message.
+// Warnings from JSON conversion are printed to stderr when verbose is true.
+func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
+	remoteWorkflowLog.Printf("Fetching generic URL workflow")
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow from URL..."))
+	}
+
+	resource, err := FetchImportURL(ctx, spec.RawURL, FetchOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	ct := resource.ContentType
+
+	switch {
+	case ct == "text/markdown" || ct == "text/x-markdown":
+		remoteWorkflowLog.Printf("URL returned markdown content (%d bytes)", len(resource.Body))
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded workflow markdown (%d bytes)", len(resource.Body))))
+		}
+		return &FetchedWorkflow{
+			Content:    resource.Body,
+			CommitSHA:  "",
+			IsLocal:    false,
+			SourcePath: spec.RawURL,
+		}, nil
+
+	case ct == "application/json" || strings.HasSuffix(ct, "+json"):
+		remoteWorkflowLog.Printf("URL returned JSON content (%d bytes); converting", len(resource.Body))
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloaded JSON workflow (%d bytes); converting to markdown...", len(resource.Body))))
+		}
+
+		var wf JSONWorkflow
+		if err := json.Unmarshal(resource.Body, &wf); err != nil {
+			return nil, fmt.Errorf("failed to parse JSON workflow from URL: %w", err)
+		}
+
+		nameOverride := spec.WorkflowName
+		generated, err := ConvertJSONWorkflowToMarkdown(&wf, ConvertOptions{NameOverride: nameOverride})
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert JSON workflow: %w", err)
+		}
+
+		if verbose {
+			for _, w := range generated.Warnings {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("JSON workflow import: "+w))
+			}
+		}
+
+		// Use the generated filename as the WorkflowName on the spec so that
+		// downstream code (e.g. add_command.go) uses the correct file name.
+		spec.WorkflowName = generated.Filename
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Converted JSON workflow to markdown (%d bytes)", len(generated.Markdown))))
+		}
+
+		return &FetchedWorkflow{
+			Content:    []byte(generated.Markdown),
+			CommitSHA:  "",
+			IsLocal:    false,
+			SourcePath: spec.RawURL,
+		}, nil
+
+	default:
+		if ct == "" {
+			return nil, errors.New(console.FormatErrorMessage(
+				"URL did not return a Content-Type header. Expected text/markdown or application/json."))
+		}
+		return nil, errors.New(console.FormatErrorMessage(
+			fmt.Sprintf("unsupported Content-Type %q from URL. Expected text/markdown or application/json.", ct)))
+	}
 }

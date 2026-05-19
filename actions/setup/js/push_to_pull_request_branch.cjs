@@ -921,6 +921,8 @@ async function main(config = {}) {
           cwd: repoCwd || process.cwd(),
           gitAuthEnv,
           signedCommits,
+          resolvedTemporaryIds,
+          currentRepo: itemRepo,
         });
         if (pushedSha) {
           pushedCommitSha = pushedSha;

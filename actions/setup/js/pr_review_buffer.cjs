@@ -364,10 +364,7 @@ function createReviewBuffer() {
     // Sub-pattern A: Guard against empty review submission (no body and no inline comments).
     // GitHub returns 422 "Unprocessable Entity" when both are absent.
     if (comments.length === 0 && !body) {
-      const errorMsg =
-        "Empty review: review body is empty and no inline comments are present" +
-        (bufferedComments.length > 0 ? " (all comment paths were outside the PR diff)" : "") +
-        ". Skipping POST to avoid 422.";
+      const errorMsg = "Empty review: review body is empty and no inline comments are present" + (bufferedComments.length > 0 ? " (all comment paths were outside the PR diff)" : "") + ". Skipping POST to avoid 422.";
       core.warning(errorMsg);
       return { success: false, error: errorMsg };
     }

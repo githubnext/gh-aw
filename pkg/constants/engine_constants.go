@@ -253,10 +253,20 @@ const (
 	// isolated in the AWF API proxy sidecar.
 	CopilotBYOKDummyAPIKey = "dummy-byok-key-for-offline-mode"
 
+	// CopilotBYOKDummyAPIKeyEnvVar is the environment variable that holds the
+	// CopilotBYOKDummyAPIKey sentinel value in generated lock files. Using a
+	// non-*_API_KEY-shaped name for the literal value prevents secret scanners from
+	// flagging the generated artifact. COPILOT_API_KEY is then exported in the run:
+	// shell script via shell variable expansion so the value is never written
+	// inline next to a *_API_KEY key in the YAML env: block.
+	CopilotBYOKDummyAPIKeyEnvVar = "COPILOT_DUMMY_BYOK"
+
 	// CopilotBYOKDefaultModel is the explicit fallback model for Copilot BYOK mode.
 	// BYOK providers require a non-empty model, so this value is used when the
 	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
-	CopilotBYOKDefaultModel = "claude-sonnet-4.6"
+	//
+	// Keep this pinned to a Sonnet tier at or below 6x effective-token multiplier.
+	CopilotBYOKDefaultModel = "claude-sonnet-4.5"
 
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.

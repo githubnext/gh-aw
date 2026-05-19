@@ -1,0 +1,186 @@
+{
+  "scheduling": {
+    "id": "ssl-skill-normalizer",
+    "name": "SSL Skill Normalizer",
+    "goal": "Convert a SKILL.md artifact into a schema-valid Scheduling-Structural-Logical (SSL) JSON representation via a four-pass extraction and validation pipeline",
+    "intent_signature": "normalize($skill_path) -> ($ssl_json, $validation_report)",
+    "inputs": ["$skill_path"],
+    "outputs": ["$ssl_json", "$validation_report"],
+    "dependencies": ["read_file", "write_file", "json_validate"],
+    "control_flow_features": ["sequential", "conditional", "loop"],
+    "entry_scene": "scene_prepare",
+    "subscene_refs": []
+  },
+  "scenes": [
+    {
+      "id": "scene_prepare",
+      "type": "PREPARE",
+      "goal": "Read and parse the source SKILL.md into raw text and frontmatter",
+      "entry_condition": "$skill_path is provided and the file exists",
+      "exit_condition": "$raw_text and $frontmatter are available in memory",
+      "next_scene_rules": [
+        { "condition": "parse succeeded", "target": "scene_reason" },
+        { "condition": "file not found or parse error", "target": "END_FAIL" }
+      ],
+      "inputs": ["$skill_path"],
+      "outputs": ["$raw_text", "$frontmatter"],
+      "entry_logic_step": "step_prepare_read"
+    },
+    {
+      "id": "scene_reason",
+      "type": "REASON",
+      "goal": "Run Passes 1–3: extract scheduling metadata, decompose scenes, and expand logic steps into a draft SSL JSON",
+      "entry_condition": "$raw_text and $frontmatter are available",
+      "exit_condition": "$draft_ssl is produced as an in-memory JSON object",
+      "next_scene_rules": [{ "condition": "draft produced", "target": "scene_verify" }],
+      "inputs": ["$raw_text", "$frontmatter"],
+      "outputs": ["$draft_ssl"],
+      "entry_logic_step": "step_reason_pass1"
+    },
+    {
+      "id": "scene_verify",
+      "type": "VERIFY",
+      "goal": "Run Pass 4: validate $draft_ssl against all SSL schema, enum, graph, and pointer rules",
+      "entry_condition": "$draft_ssl is available",
+      "exit_condition": "$draft_ssl passes all Pass-4 validation rules, or retry budget is exhausted",
+      "next_scene_rules": [
+        { "condition": "all validation rules pass", "target": "scene_finalize" },
+        { "condition": "validation failures detected and retry budget remains", "target": "scene_recover" },
+        { "condition": "validation failures detected and retry budget exhausted", "target": "END_FAIL" }
+      ],
+      "inputs": ["$draft_ssl"],
+      "outputs": ["$validation_failures"],
+      "entry_logic_step": "step_verify_validate"
+    },
+    {
+      "id": "scene_recover",
+      "type": "RECOVER",
+      "goal": "Record validation failures, decrement retry budget, and re-enter reasoning to regenerate the draft",
+      "entry_condition": "$validation_failures is non-empty and $retry_count < retry_budget",
+      "exit_condition": "$retry_count is incremented and $draft_ssl is cleared for regeneration",
+      "next_scene_rules": [
+        { "condition": "retry budget not exhausted", "target": "scene_reason" },
+        { "condition": "retry budget exhausted", "target": "END_FAIL" }
+      ],
+      "inputs": ["$validation_failures", "$retry_count"],
+      "outputs": ["$retry_count", "$failure_log"],
+      "entry_logic_step": "step_recover_log"
+    },
+    {
+      "id": "scene_finalize",
+      "type": "FINALIZE",
+      "goal": "Write the validated ssl.json alongside the source SKILL.md and emit the validation report",
+      "entry_condition": "$draft_ssl passed all validation rules",
+      "exit_condition": "ssl.json is written to disk and $validation_report is emitted",
+      "next_scene_rules": [
+        { "condition": "write succeeded", "target": "END_SUCCESS" },
+        { "condition": "write failed", "target": "END_FAIL" }
+      ],
+      "inputs": ["$draft_ssl", "$failure_log"],
+      "outputs": ["$ssl_json", "$validation_report"],
+      "entry_logic_step": "step_finalize_write"
+    }
+  ],
+  "logic_steps": [
+    {
+      "id": "step_prepare_read",
+      "scene_id": "scene_prepare",
+      "action_type": "READ",
+      "resource_scope": "LOCAL_FS",
+      "description": "Read the SKILL.md file at $skill_path into $raw_text",
+      "inputs": { "path": "$skill_path" },
+      "outputs": { "text": "$raw_text" },
+      "next": "step_prepare_parse"
+    },
+    {
+      "id": "step_prepare_parse",
+      "scene_id": "scene_prepare",
+      "action_type": "INFER",
+      "resource_scope": "MEMORY",
+      "description": "Parse YAML frontmatter and markdown body from $raw_text into $frontmatter and $body",
+      "inputs": { "text": "$raw_text" },
+      "outputs": { "frontmatter": "$frontmatter", "body": "$body" },
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_reason_pass1",
+      "scene_id": "scene_reason",
+      "action_type": "INFER",
+      "resource_scope": "MEMORY",
+      "description": "Pass 1 – Extract scheduling layer: id, name, goal, intent_signature, inputs, outputs, dependencies, control_flow_features, entry_scene, subscene_refs from $frontmatter and $body",
+      "inputs": { "frontmatter": "$frontmatter", "body": "$body" },
+      "outputs": { "scheduling": "$scheduling" },
+      "next": "step_reason_pass2"
+    },
+    {
+      "id": "step_reason_pass2",
+      "scene_id": "scene_reason",
+      "action_type": "INFER",
+      "resource_scope": "MEMORY",
+      "description": "Pass 2 – Decompose skill execution flow into 2–5 macro-level scenes with allowed types, entry/exit conditions, transition rules, and input/output bindings",
+      "inputs": { "body": "$body", "scheduling": "$scheduling" },
+      "outputs": { "scenes": "$scenes" },
+      "next": "step_reason_pass3"
+    },
+    {
+      "id": "step_reason_pass3",
+      "scene_id": "scene_reason",
+      "action_type": "INFER",
+      "resource_scope": "MEMORY",
+      "description": "Pass 3 – Expand each scene into atomic logic steps with allowed action types, resource scopes, and $-prefixed variable bindings",
+      "inputs": { "body": "$body", "scenes": "$scenes" },
+      "outputs": { "logic_steps": "$logic_steps" },
+      "next": "step_reason_compose"
+    },
+    {
+      "id": "step_reason_compose",
+      "scene_id": "scene_reason",
+      "action_type": "WRITE",
+      "resource_scope": "MEMORY",
+      "description": "Assemble $scheduling, $scenes, and $logic_steps into the $draft_ssl JSON object",
+      "inputs": { "scheduling": "$scheduling", "scenes": "$scenes", "logic_steps": "$logic_steps" },
+      "outputs": { "draft": "$draft_ssl" },
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_verify_validate",
+      "scene_id": "scene_verify",
+      "action_type": "VALIDATE",
+      "resource_scope": "MEMORY",
+      "description": "Run all Pass-4 validation rules against $draft_ssl: JSON syntax, required fields, enum membership, unique IDs, entry pointers, transition targets, graph integrity",
+      "inputs": { "draft": "$draft_ssl" },
+      "outputs": { "failures": "$validation_failures" },
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_recover_log",
+      "scene_id": "scene_recover",
+      "action_type": "UPDATE_STATE",
+      "resource_scope": "MEMORY",
+      "description": "Append $validation_failures to $failure_log and increment $retry_count",
+      "inputs": { "failures": "$validation_failures", "retry_count": "$retry_count" },
+      "outputs": { "retry_count": "$retry_count", "failure_log": "$failure_log" },
+      "next": "YIELD_SUCCESS"
+    },
+    {
+      "id": "step_finalize_write",
+      "scene_id": "scene_finalize",
+      "action_type": "WRITE",
+      "resource_scope": "LOCAL_FS",
+      "description": "Write $draft_ssl as ssl.json into the same directory as the source SKILL.md",
+      "inputs": { "draft": "$draft_ssl", "skill_path": "$skill_path" },
+      "outputs": { "ssl_json": "$ssl_json" },
+      "next": "step_finalize_report"
+    },
+    {
+      "id": "step_finalize_report",
+      "scene_id": "scene_finalize",
+      "action_type": "NOTIFY",
+      "resource_scope": "MEMORY",
+      "description": "Compose and emit the validation report containing processed count, valid/rejected counts, and per-artifact diagnostics from $failure_log",
+      "inputs": { "ssl_json": "$ssl_json", "failure_log": "$failure_log" },
+      "outputs": { "report": "$validation_report" },
+      "next": "YIELD_SUCCESS"
+    }
+  ]
+}

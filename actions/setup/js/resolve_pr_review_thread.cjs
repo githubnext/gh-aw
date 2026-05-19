@@ -80,6 +80,27 @@ async function resolveReviewThreadAPI(github, threadId) {
 }
 
 /**
+ * Check whether a GraphQL error indicates integration-token actor restrictions.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isIntegrationAccessError(error) {
+  const integrationErrorFragment = "resource not accessible by integration";
+  /** @type {string[]} */
+  const messages = [getErrorMessage(error)];
+
+  if (error && typeof error === "object" && "errors" in error && Array.isArray(error.errors)) {
+    for (const graphQLError of error.errors) {
+      if (typeof graphQLError?.message === "string") {
+        messages.push(graphQLError.message);
+      }
+    }
+  }
+
+  return messages.some(message => message.toLowerCase().includes(integrationErrorFragment));
+}
+
+/**
  * Main handler factory for resolve_pull_request_review_thread
  * Returns a message handler function that processes individual resolve messages.
  *
@@ -263,7 +284,24 @@ async function main(config = {}) {
         };
       }
 
-      const resolveResult = await resolveReviewThreadAPI(githubClient, threadId);
+      let resolveResult;
+      try {
+        resolveResult = await resolveReviewThreadAPI(githubClient, threadId);
+      } catch (error) {
+        if (isIntegrationAccessError(error)) {
+          const warningMessage =
+            `Skipping resolve_pull_request_review_thread for ${threadId}: configuration mismatch ` +
+            `(GitHub integration token cannot resolve this review thread: Resource not accessible by integration). ` +
+            `Use safe-outputs.resolve-pull-request-review-thread.github-token with a token that can resolve review threads.`;
+          core.warning(warningMessage);
+          return {
+            success: false,
+            skipped: true,
+            error: warningMessage,
+          };
+        }
+        throw error;
+      }
 
       if (resolveResult.isResolved) {
         core.info(`Successfully resolved review thread: ${threadId}`);

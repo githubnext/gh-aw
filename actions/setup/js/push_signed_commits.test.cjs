@@ -307,6 +307,99 @@ describe("push_signed_commits integration tests", () => {
       expect(Buffer.from(variables.input.fileChanges.additions[0].contents, "base64").toString()).toBe("Hello World\n");
     });
 
+    it("should resolve temporary ID references in text file contents before GraphQL replay", async () => {
+      execGit(["checkout", "-b", "temp-id-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "quarantine.cs"), '[QuarantinedTest("https://github.com/test-owner/test-repo/issues/#aw_test1")]\n// linked: #aw_test1\n');
+      execGit(["add", "quarantine.cs"], { cwd: workDir });
+      execGit(["commit", "-m", "Add quarantine reference"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "temp-id-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "temp-id-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        resolvedTemporaryIds: {
+          aw_test1: { repo: "test-owner/test-repo", number: 66708 },
+        },
+        currentRepo: "test-owner/test-repo",
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const additions = githubClient.graphql.mock.calls[0][1].input.fileChanges.additions;
+      expect(additions).toHaveLength(1);
+      const resolvedContent = Buffer.from(additions[0].contents, "base64").toString();
+      expect(resolvedContent).toContain("https://github.com/test-owner/test-repo/issues/66708");
+      expect(resolvedContent).toContain("#66708");
+      expect(resolvedContent).not.toContain("#aw_test1");
+    });
+
+    it("should still run replacement logic for malformed temporary ID candidates and emit warning", async () => {
+      execGit(["checkout", "-b", "temp-id-malformed-candidate-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "quarantine.cs"), "// malformed link: #aw_test-id\n");
+      execGit(["add", "quarantine.cs"], { cwd: workDir });
+      execGit(["commit", "-m", "Add malformed temporary ID reference"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "temp-id-malformed-candidate-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "temp-id-malformed-candidate-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        resolvedTemporaryIds: {
+          aw_test: { repo: "test-owner/test-repo", number: 66708 },
+        },
+        currentRepo: "test-owner/test-repo",
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const additions = githubClient.graphql.mock.calls[0][1].input.fileChanges.additions;
+      const replayedContent = Buffer.from(additions[0].contents, "base64").toString();
+      expect(replayedContent).toContain("#66708-id");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Malformed temporary ID reference '#aw_test-id'"));
+    });
+
+    it("should ignore invalid resolved temporary ID numbers instead of replacing with NaN", async () => {
+      execGit(["checkout", "-b", "temp-id-invalid-number-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "quarantine.cs"), "// linked: #aw_test2\n");
+      execGit(["add", "quarantine.cs"], { cwd: workDir });
+      execGit(["commit", "-m", "Add temporary ID with invalid map entry"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "temp-id-invalid-number-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "temp-id-invalid-number-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        resolvedTemporaryIds: {
+          aw_test2: { repo: "test-owner/test-repo", number: "not-a-number" },
+        },
+        currentRepo: "test-owner/test-repo",
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const additions = githubClient.graphql.mock.calls[0][1].input.fileChanges.additions;
+      const replayedContent = Buffer.from(additions[0].contents, "base64").toString();
+      expect(replayedContent).toContain("#aw_test2");
+      expect(replayedContent).not.toContain("#NaN");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignoring invalid resolved temporary ID number for 'aw_test2'"));
+    });
+
     it("should call GraphQL once per commit for multiple new commits", async () => {
       execGit(["checkout", "-b", "multi-commit-branch"], { cwd: workDir });
 
@@ -727,6 +820,177 @@ describe("push_signed_commits integration tests", () => {
       const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
       const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
       expect(remoteOid).toBe(localOid);
+    });
+  });
+
+  describe("git auth environment propagation", () => {
+    it("should pass gitAuthEnv to ls-remote in the signed-commit path", async () => {
+      const gitAuthEnv = {
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+        GIT_CONFIG_VALUE_0: "Authorization: basic test-token",
+      };
+      const sentinelKey = "PUSH_SIGNED_COMMITS_ENV_SENTINEL_1";
+      const sentinelValue = "sentinel-1";
+      const previousSentinel = process.env[sentinelKey];
+      process.env[sentinelKey] = sentinelValue;
+
+      const getExecOutput = vi.fn(async (_program, args) => {
+        if (args[0] === "rev-list") {
+          return {
+            exitCode: 0,
+            stdout: "1111111111111111111111111111111111111111 0000000000000000000000000000000000000000\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "diff-tree") {
+          return {
+            exitCode: 0,
+            stdout: ":100644 100644 0000000000000000000000000000000000000000 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa M\tmemory.json\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "ls-remote") {
+          return {
+            exitCode: 0,
+            stdout: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\trefs/heads/auth-check-branch\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "log") {
+          return { exitCode: 0, stdout: "Auth check commit\n", stderr: "" };
+        }
+        throw new Error(`Unexpected git command: ${args.join(" ")}`);
+      });
+
+      const execProgram = vi.fn(async (_program, args, opts = {}) => {
+        if (args[0] === "cat-file" && args[1] === "blob") {
+          opts.listeners?.stdout?.(Buffer.from("memory data\n"));
+          return 0;
+        }
+        throw new Error(`Unexpected exec command: ${args.join(" ")}`);
+      });
+
+      global.exec = {
+        getExecOutput,
+        exec: execProgram,
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      try {
+        await pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "auth-check-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          gitAuthEnv,
+        });
+      } finally {
+        if (previousSentinel === undefined) {
+          delete process.env[sentinelKey];
+        } else {
+          process.env[sentinelKey] = previousSentinel;
+        }
+      }
+
+      const lsRemoteCall = getExecOutput.mock.calls.find(call => call[1][0] === "ls-remote");
+      expect(lsRemoteCall).toBeDefined();
+      expect(lsRemoteCall[2]).toEqual(
+        expect.objectContaining({
+          cwd: workDir,
+          env: expect.objectContaining({
+            ...gitAuthEnv,
+            [sentinelKey]: sentinelValue,
+          }),
+        })
+      );
+    });
+
+    it("should include auth env on ls-remote getExecOutput git call", async () => {
+      const gitAuthEnv = {
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+        GIT_CONFIG_VALUE_0: "Authorization: basic test-token",
+      };
+      const sentinelKey = "PUSH_SIGNED_COMMITS_ENV_SENTINEL_2";
+      const sentinelValue = "sentinel-2";
+      const previousSentinel = process.env[sentinelKey];
+      process.env[sentinelKey] = sentinelValue;
+
+      const getExecOutput = vi.fn(async (_program, args) => {
+        if (args[0] === "rev-list") {
+          return {
+            exitCode: 0,
+            stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "diff-tree") {
+          return {
+            exitCode: 0,
+            stdout: ":100644 100644 0000000000000000000000000000000000000000 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb M\tmemory.json\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "ls-remote") {
+          return {
+            exitCode: 0,
+            stdout: "cafebabecafebabecafebabecafebabecafebabe\trefs/heads/auth-check-branch\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "log") {
+          return { exitCode: 0, stdout: "Auth guard commit\n", stderr: "" };
+        }
+        throw new Error(`Unexpected git command: ${args.join(" ")}`);
+      });
+
+      global.exec = {
+        getExecOutput,
+        exec: async (_program, args, opts = {}) => {
+          if (args[0] === "cat-file" && args[1] === "blob") {
+            opts.listeners?.stdout?.(Buffer.from("memory data\n"));
+            return 0;
+          }
+          throw new Error(`Unexpected exec command: ${args.join(" ")}`);
+        },
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      try {
+        await pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "auth-check-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          gitAuthEnv,
+        });
+      } finally {
+        if (previousSentinel === undefined) {
+          delete process.env[sentinelKey];
+        } else {
+          process.env[sentinelKey] = previousSentinel;
+        }
+      }
+
+      const networkGitCalls = getExecOutput.mock.calls.filter(call => call[1][0] === "ls-remote");
+      expect(networkGitCalls).toHaveLength(1);
+      for (const call of networkGitCalls) {
+        expect(call[2]).toEqual(
+          expect.objectContaining({
+            env: expect.objectContaining({
+              ...gitAuthEnv,
+              [sentinelKey]: sentinelValue,
+            }),
+          })
+        );
+      }
     });
   });
 

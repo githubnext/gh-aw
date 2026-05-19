@@ -42,7 +42,7 @@ The standalone script provides more detailed output about the API interaction.
 
 The live API test:
 1. Fetches the `audit-workflows.md` workflow from the `github/gh-aw` repository
-2. Resolves and fetches all imported files (like `shared/mcp/gh-aw.md`)
+2. Resolves and fetches all imported files (like `shared/mcp/tavily.md`)
 3. Computes the frontmatter hash using the JavaScript implementation
 4. Verifies the hash is deterministic by computing it twice
 5. Confirms the hash format is a valid SHA-256 hex string
@@ -81,7 +81,7 @@ Workflow: .github/workflows/audit-workflows.md
 
 📊 Summary:
    - Successfully fetched workflow from live GitHub API
-   - Processed workflow with imports (shared/mcp/gh-aw.md, etc.)
+   - Processed workflow with imports (shared/mcp/tavily.md, etc.)
    - Computed deterministic SHA-256 hash
    - Verified hash consistency across multiple API calls
 

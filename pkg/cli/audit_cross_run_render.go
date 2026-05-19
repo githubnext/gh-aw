@@ -141,6 +141,7 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 
 	// Drain3 insights
 	if len(report.Drain3Insights) > 0 {
+		crossRunRenderLog.Printf("Rendering markdown drain3 insights: count=%d", len(report.Drain3Insights))
 		fmt.Println("## Agent Event Pattern Analysis")
 		fmt.Println()
 		for _, insight := range report.Drain3Insights {
@@ -359,6 +360,7 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 
 	// Final status
 	if report.RunsWithData == 0 && len(report.MCPHealth) == 0 && report.MetricsTrend.TotalTokens == 0 {
+		crossRunRenderLog.Printf("No data found in any analyzed runs: runs_analyzed=%d", report.RunsAnalyzed)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No data found in any of the analyzed runs."))
 	} else {
 		parts := []string{

@@ -55,7 +55,7 @@ an HTTP server with SSE (Server-Sent Events) transport instead.
 Examples:
   gh aw mcp-server                                     # Run with stdio transport (default for MCP clients)
   gh aw mcp-server --validate-actor                    # Run with actor validation enforced
-  gh aw mcp-server --port 8080                         # Run HTTP server on port 8080 (for web-based clients)
+  gh aw mcp-server --port 8080                         # Run HTTP server on port 8080 with SSE transport (for web-based clients)
   gh aw mcp-server --cmd ./gh-aw                       # Use custom gh-aw binary path
   GITHUB_ACTOR=octocat gh aw mcp-server                # Set actor via environment variable for access control
   DEBUG=mcp:* GITHUB_ACTOR=octocat gh aw mcp-server    # Run with verbose debug logging and actor set via environment variable`,

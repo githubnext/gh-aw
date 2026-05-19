@@ -22,8 +22,8 @@
     },
     "emoji": {
       "type": "string",
-      "description": "Optional emoji to represent the workflow visually (e.g. in listings and UI surfaces).",
-      "examples": ["🤖", "🔍", "🚀"]
+      "description": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
+      "examples": ["\ud83e\udd16", "\ud83d\udd0d", "\ud83d\ude80"]
     },
     "source": {
       "type": "string",
@@ -340,7 +340,7 @@
       ],
       "examples": [
         ["shared/jqschema.md", "shared/reporting.md"],
-        ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
+        ["shared/mcp/tavily.md", "shared/jqschema.md", "shared/reporting.md"],
         ["../instructions/documentation.instructions.md"],
         [".github/agents/my-agent.md"],
         [
@@ -2782,7 +2782,7 @@
       ]
     },
     "models": {
-      "description": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto.",
+      "description": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude, codex, gemini.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
@@ -3231,6 +3231,10 @@
                 "description": "Domain name or ecosystem identifier. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself). Ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (RubyGems), 'rust' (Cargo), 'swift' (Swift PM), 'php' (Composer), 'dart' (pub.dev), 'haskell' (Hackage), 'perl' (CPAN), 'containers' (Docker/GHCR), 'github' (GitHub domains), 'terraform' (HashiCorp), 'linux-distros' (apt/yum), 'playwright' (browser testing), 'defaults' (basic infrastructure)."
               },
               "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions. Wildcard patterns like '*.example.com' are allowed; only standalone '*' is blocked in strict mode."
+            },
+            "allowed-input": {
+              "type": "boolean",
+              "description": "When true and the workflow uses workflow_call, expose a network_allowed string input on the compiled lock file. The caller-supplied value is unioned with network.allowed at runtime, supporting ecosystem identifiers (for example 'rust') or comma-separated domains."
             },
             "blocked": {
               "type": "array",
@@ -3726,7 +3730,9 @@
       "oneOf": [
         {
           "type": "integer",
-          "not": { "enum": [0] },
+          "not": {
+            "enum": [0]
+          },
           "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
         },
         {
@@ -3910,25 +3916,6 @@
                     }
                   ]
                 },
-                "toolset": {
-                  "description": "Deprecated. Use 'toolsets' instead.",
-                  "deprecated": true,
-                  "oneOf": [
-                    {
-                      "$ref": "#/$defs/github_toolset_name",
-                      "description": "A single GitHub MCP server toolset name (shorthand for a one-element array)"
-                    },
-                    {
-                      "type": "array",
-                      "description": "Array of GitHub MCP server toolset names",
-                      "items": {
-                        "$ref": "#/$defs/github_toolset_name"
-                      },
-                      "minItems": 1,
-                      "maxItems": 20
-                    }
-                  ]
-                },
                 "mounts": {
                   "type": "array",
                   "description": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write). Applies to local mode only. Example: '/data:/data:ro'",
@@ -3940,12 +3927,12 @@
                   "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
                 },
                 "allowed-repos": {
-                  "description": "Guard policy: repository access configuration. Restricts which repositories the agent can access. Use 'all' to allow all repos, 'public' for public repositories only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*').",
+                  "description": "Guard policy: repository access configuration. Restricts which repositories the agent can access. Use 'all' to allow all repos, 'public' for public repositories only, '${{ github.repository }}' for the current repository, or an array of repository patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*').",
                   "oneOf": [
                     {
                       "type": "string",
-                      "enum": ["all", "public"],
-                      "description": "Allow access to all repositories ('all') or only public repositories ('public')"
+                      "enum": ["all", "public", "${{ github.repository }}"],
+                      "description": "Allow access to all repositories ('all'), only public repositories ('public'), or the current repository ('${{ github.repository }}')"
                     },
                     {
                       "type": "array",
@@ -3964,8 +3951,8 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "enum": ["all", "public"],
-                      "description": "Allow access to all repositories ('all') or only public repositories ('public')"
+                      "enum": ["all", "public", "${{ github.repository }}"],
+                      "description": "Allow access to all repositories ('all'), only public repositories ('public'), or the current repository ('${{ github.repository }}')"
                     },
                     {
                       "type": "array",
@@ -9760,64 +9747,6 @@
         }
       ]
     },
-    "dependencies": {
-      "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and isolated fields.",
-      "examples": [
-        ["microsoft/apm-sample-package", "acme/custom-tools"],
-        {
-          "packages": ["microsoft/apm-sample-package"],
-          "isolated": true
-        }
-      ],
-      "oneOf": [
-        {
-          "type": "array",
-          "description": "Simple array of APM package references.",
-          "items": {
-            "type": "string",
-            "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-            "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-          }
-        },
-        {
-          "type": "object",
-          "description": "Object format with packages and optional isolated flag.",
-          "properties": {
-            "packages": {
-              "type": "array",
-              "description": "List of APM package references to install.",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-              }
-            },
-            "isolated": {
-              "type": "boolean",
-              "description": "If true, agent restore step clears primitive dirs before unpacking."
-            },
-            "github-app": {
-              "$ref": "#/$defs/github_app",
-              "description": "GitHub App credentials for minting installation access tokens used by APM to access cross-org private repositories."
-            },
-            "env": {
-              "type": "object",
-              "description": "Environment variables to set on the APM pack step (e.g., tokens or registry URLs).",
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
-            "github-token": {
-              "type": "string",
-              "description": "GitHub token expression to authenticate APM with private package repositories. Uses cascading fallback (GH_AW_PLUGINS_TOKEN \u2192 GH_AW_GITHUB_TOKEN \u2192 GITHUB_TOKEN) when not specified. Takes effect unless github-app is also configured (which takes precedence).",
-              "examples": ["${{ secrets.MY_TOKEN }}", "${{ secrets.GH_AW_GITHUB_TOKEN }}"]
-            }
-          },
-          "required": ["packages"],
-          "additionalProperties": false
-        }
-      ]
-    },
     "github-app": {
       "$ref": "#/$defs/github_app",
       "description": "Top-level GitHub App configuration used as a fallback for all nested github-app token minting operations (on, safe-outputs, checkout, tools.github, dependencies). When a nested section does not define its own github-app, this top-level configuration is used automatically."
@@ -10969,6 +10898,10 @@
           "type": "string",
           "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to mint a GitHub App token.",
           "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
+        },
+        "ignore-if-missing": {
+          "type": "boolean",
+          "description": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime. Defaults to false."
         },
         "owner": {
           "type": "string",

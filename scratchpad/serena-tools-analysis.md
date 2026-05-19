@@ -44,7 +44,7 @@ This report provides a statistical analysis of Serena MCP (Model Context Protoco
 | 9 | `mcp__serena__check_onboarding_performed` | 1 | 2.27% |
 | 10 | `mcp__serena__list_memories` | 1 | 2.27% |
 
-## Serena Tool Usage Deep Dive
+## Serena Tool Usage Analysis
 
 ### Serena Tools Used (6 tools)
 
@@ -167,7 +167,7 @@ This indicates:
 
 **Bandwidth Implications:**
 - Serena tools use **minimal bandwidth** compared to Bash operations
-- Despite lower usage rate, Serena tools are highly **bandwidth-efficient**
+- Despite lower usage rate, Serena tools are **bandwidth-efficient**
 - Pattern: Language-aware tools return structured, compact data vs. verbose text outputs
 
 ## Statistical Insights

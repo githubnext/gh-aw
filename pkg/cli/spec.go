@@ -34,6 +34,10 @@ type WorkflowSpec struct {
 	WorkflowName string // e.g., "workflow-name"
 	IsWildcard   bool   // true if this is a wildcard spec (e.g., "owner/repo/*")
 	Host         string // explicit hostname from URL (e.g., "github.com", "myorg.ghe.com"); empty = use configured GH_HOST
+	// RawURL is set only for generic HTTP(S) URL specs whose host is not a recognized
+	// GitHub host.  When non-empty, WorkflowPath, RepoSlug, Version, and Host are all
+	// empty; the spec is resolved by fetching the URL and dispatching on Content-Type.
+	RawURL string
 }
 
 // isLocalWorkflowPath checks if a path refers to a local filesystem workflow.
@@ -64,8 +68,14 @@ func isLocalWorkflowPath(path string) bool {
 }
 
 // String returns the canonical string representation of the workflow spec
-// in the format "owner/repo/path[@version]" or just the WorkflowPath for local specs
+// in the format "owner/repo/path[@version]", just the WorkflowPath for local
+// specs, or the raw URL for generic URL specs.
 func (w *WorkflowSpec) String() string {
+	// For generic URL specs, return the raw URL.
+	if w.RawURL != "" {
+		return w.RawURL
+	}
+
 	// For local workflows, return just the WorkflowPath
 	if isLocalWorkflowPath(w.WorkflowPath) {
 		return w.WorkflowPath
@@ -231,8 +241,26 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	// Check if this is a GitHub URL
 	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
-		specLog.Print("Detected GitHub URL format")
-		return parseGitHubURL(spec)
+		specLog.Print("Detected URL format")
+		// Try to parse as a recognized GitHub URL first.
+		parsedURL, urlErr := url.Parse(spec)
+		if urlErr == nil && isGitHubHost(parsedURL.Host) {
+			specLog.Print("Detected GitHub URL format")
+			return parseGitHubURL(spec)
+		}
+		// Non-GitHub HTTP(S) URL: return a generic URL spec whose content will be
+		// fetched at resolution time and dispatched on Content-Type.
+		if urlErr != nil {
+			return nil, fmt.Errorf("invalid URL %q: %w", spec, urlErr)
+		}
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+			return nil, fmt.Errorf("unsupported URL scheme %q: only http and https are supported", parsedURL.Scheme)
+		}
+		specLog.Printf("Detected generic import URL: %s", spec)
+		return &WorkflowSpec{
+			RawURL:       spec,
+			WorkflowName: genericURLWorkflowName(spec),
+		}, nil
 	}
 
 	// Check if this is a local path
@@ -433,4 +461,41 @@ func IsCommitSHA(version string) bool {
 		}
 	}
 	return true
+}
+
+// genericURLWorkflowName derives a best-effort workflow name from a raw import URL.
+// It uses the last non-empty path segment, stripping any well-known file extensions.
+// If no useful name can be derived the constant "imported-workflow" is returned.
+func genericURLWorkflowName(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "imported-workflow"
+	}
+
+	// Walk path segments from the end looking for a non-empty one.
+	segments := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	for i := len(segments) - 1; i >= 0; i-- {
+		seg := segments[i]
+		if seg == "" {
+			continue
+		}
+		// Strip known extensions: .md, .json, .yaml, .yml
+		for _, ext := range []string{".md", ".json", ".yaml", ".yml"} {
+			if s, ok := strings.CutSuffix(seg, ext); ok {
+				seg = s
+				break
+			}
+		}
+		if seg == "" {
+			continue
+		}
+		// URL-decode percent-encoded characters (e.g. %20 → space) before
+		// applying kebab-casing so that names like "My%20Workflow" become
+		// "my-workflow" rather than "my-20workflow".
+		if decoded, err := url.PathUnescape(seg); err == nil {
+			seg = decoded
+		}
+		return toKebabCase(seg)
+	}
+	return "imported-workflow"
 }

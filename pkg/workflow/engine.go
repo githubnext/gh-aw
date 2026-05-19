@@ -17,6 +17,14 @@ import (
 
 var engineLog = logger.New("workflow:engine")
 
+const WorkflowCallNetworkAllowedEnvVar = "GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED"
+
+func injectWorkflowCallNetworkAllowedEnv(env map[string]string, workflowData *WorkflowData) {
+	if shouldUseWorkflowCallNetworkAllowedInput(workflowData) {
+		env[WorkflowCallNetworkAllowedEnvVar] = fmt.Sprintf("${{ inputs.%s }}", NetworkAllowedInputName)
+	}
+}
+
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
 	ID                 string
@@ -105,7 +113,8 @@ type EngineAuthConfig struct {
 // Ecosystem identifiers in the Allowed list are expanded to their corresponding domain lists.
 // See GetAllowedDomains() for the list of supported ecosystem identifiers.
 type NetworkPermissions struct {
-	Allowed           []string        `yaml:"allowed,omitempty"`  // List of allowed domains or ecosystem identifiers (e.g., "defaults", "github", "python")
+	Allowed           []string        `yaml:"allowed,omitempty"` // List of allowed domains or ecosystem identifiers (e.g., "defaults", "github", "python")
+	AllowedInput      bool            `yaml:"allowed-input,omitempty"`
 	Blocked           []string        `yaml:"blocked,omitempty"`  // List of blocked domains (takes precedence over allowed)
 	Firewall          *FirewallConfig `yaml:"firewall,omitempty"` // AWF firewall configuration (see firewall.go)
 	ExplicitlyDefined bool            `yaml:"-"`                  // Internal flag: true if network field was explicitly set in frontmatter

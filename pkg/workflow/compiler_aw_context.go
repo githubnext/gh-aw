@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -12,9 +13,15 @@ var awContextLog = logger.New("workflow:compiler_aw_context")
 // It is managed internally by the agentic workflow system and should not be surfaced to users.
 const AwContextInputName = "aw_context"
 
+// NetworkAllowedInputName is the optional workflow_call input that extends the compiled
+// network allowlist at runtime for reusable workflows.
+const NetworkAllowedInputName = "network_allowed"
+
 // awContextInputDescription is the description for the aw_context workflow_dispatch input.
 // It signals to users that this input is managed internally by the agentic workflow system.
 const awContextInputDescription = "Agent caller context (used internally by Agentic Workflows)."
+
+const networkAllowedInputDescription = "Additional allowed network domains or ecosystem identifiers to union with network.allowed (comma-separated, for example: \"rust\" or \"python,github.com\")."
 
 // injectAwContextIntoOnYAML adds the aw_context input to internal workflow triggers
 // in the given on-section YAML string.
@@ -30,17 +37,24 @@ const awContextInputDescription = "Agent caller context (used internally by Agen
 //
 // The function is idempotent: calling it twice produces the same result.
 func injectAwContextIntoOnYAML(onSection string) string {
-	updated := injectAwContextIntoTrigger(onSection, "workflow_dispatch")
-	updated = injectAwContextIntoTrigger(updated, "workflow_call")
+	updated := injectInputIntoTrigger(onSection, "workflow_dispatch", AwContextInputName, buildAwContextInputLines)
+	updated = injectInputIntoTrigger(updated, "workflow_call", AwContextInputName, buildAwContextInputLines)
 	return updated
 }
 
-func injectAwContextIntoTrigger(onSection string, triggerName string) string {
-	if !strings.Contains(onSection, triggerName) {
-		awContextLog.Printf("No %s trigger found, skipping aw_context injection", triggerName)
+func injectNetworkAllowedIntoOnYAML(onSection string, network *NetworkPermissions) string {
+	if network == nil || !network.AllowedInput {
 		return onSection
 	}
-	awContextLog.Printf("Injecting aw_context input into %s trigger", triggerName)
+	return injectInputIntoTrigger(onSection, "workflow_call", NetworkAllowedInputName, buildNetworkAllowedInputLines)
+}
+
+func injectInputIntoTrigger(onSection string, triggerName string, inputName string, buildInputLines func(int) []string) string {
+	if !strings.Contains(onSection, triggerName) {
+		awContextLog.Printf("No %s trigger found, skipping %s injection", triggerName, inputName)
+		return onSection
+	}
+	awContextLog.Printf("Injecting %s input into %s trigger", inputName, triggerName)
 
 	lines := strings.Split(onSection, "\n")
 
@@ -61,10 +75,10 @@ func injectAwContextIntoTrigger(onSection string, triggerName string) string {
 	}
 
 	if triggerLineIdx == -1 {
-		awContextLog.Printf("No bare %s: line found, skipping aw_context injection", triggerName)
+		awContextLog.Printf("No bare %s: line found, skipping %s injection", triggerName, inputName)
 		return onSection
 	}
-	awContextLog.Printf("Found %s at line %d (indent=%d), injecting aw_context", triggerName, triggerLineIdx, triggerIndent)
+	awContextLog.Printf("Found %s at line %d (indent=%d), injecting %s", triggerName, triggerLineIdx, triggerIndent, inputName)
 
 	// Look for an "inputs:" key directly inside the trigger block.
 	// Only the first non-empty, non-comment line after the trigger matters.
@@ -95,16 +109,16 @@ func injectAwContextIntoTrigger(onSection string, triggerName string) string {
 			if lineIndent <= inputsIndent {
 				break
 			}
-			if strings.HasPrefix(stripped, AwContextInputName+":") {
-				awContextLog.Printf("aw_context already injected into %s, skipping", triggerName)
+			if strings.HasPrefix(stripped, inputName+":") {
+				awContextLog.Printf("%s already injected into %s, skipping", inputName, triggerName)
 				return onSection
 			}
 		}
 	}
 
-	awContextLines := buildAwContextInputLines(triggerIndent)
+	inputLines := buildInputLines(triggerIndent)
 
-	result := make([]string, 0, len(lines)+len(awContextLines)+1)
+	result := make([]string, 0, len(lines)+len(inputLines)+1)
 	for i, line := range lines {
 		// When the trigger line contains an explicit null/~ value,
 		// replace it with a bare trigger so sub-keys can follow.
@@ -116,12 +130,11 @@ func injectAwContextIntoTrigger(onSection string, triggerName string) string {
 		result = append(result, line)
 
 		if inputsLineIdx != -1 && i == inputsLineIdx {
-			// Insert aw_context as the first entry under existing inputs:
-			result = append(result, awContextLines...)
+			result = append(result, inputLines...)
 		} else if inputsLineIdx == -1 && i == triggerLineIdx {
-			// Trigger is bare — add inputs: + aw_context
+			// Trigger is bare — add inputs: + the requested internal input.
 			result = append(result, strings.Repeat(" ", triggerIndent+2)+"inputs:")
-			result = append(result, awContextLines...)
+			result = append(result, inputLines...)
 		}
 	}
 
@@ -136,7 +149,19 @@ func buildAwContextInputLines(wdIndent int) []string {
 	return []string{
 		awIndent + AwContextInputName + ":",
 		propIndent + "default: \"\"",
-		propIndent + "description: " + awContextInputDescription,
+		propIndent + "description: " + strconv.Quote(awContextInputDescription),
+		propIndent + "required: false",
+		propIndent + "type: string",
+	}
+}
+
+func buildNetworkAllowedInputLines(wdIndent int) []string {
+	inputIndent := strings.Repeat(" ", wdIndent+4)
+	propIndent := strings.Repeat(" ", wdIndent+6)
+	return []string{
+		inputIndent + NetworkAllowedInputName + ":",
+		propIndent + "default: \"\"",
+		propIndent + "description: " + strconv.Quote(networkAllowedInputDescription),
 		propIndent + "required: false",
 		propIndent + "type: string",
 	}

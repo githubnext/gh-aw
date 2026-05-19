@@ -530,6 +530,7 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | Alias | Patterns (in order) |
 |-------|---------------------|
 | `sonnet` | `copilot/*sonnet*`, `anthropic/*sonnet*` |
+| `sonnet-6x` | `copilot/*sonnet-4.5*`, `copilot/*sonnet-4-5*`, `anthropic/*sonnet-4.5*`, `anthropic/*sonnet-4-5*`, `copilot/*sonnet-3.7*`, `copilot/*sonnet-3-7*`, `anthropic/*sonnet-3.7*`, `anthropic/*sonnet-3-7*`, `copilot/*sonnet-3.5*`, `copilot/*sonnet-3-5*`, `anthropic/*sonnet-3.5*`, `anthropic/*sonnet-3-5*` |
 | `haiku` | `copilot/*haiku*`, `anthropic/*haiku*` |
 | `opus` | `copilot/*opus*`, `anthropic/*opus*` |
 | `gpt-4.1` | `copilot/gpt-4.1*`, `openai/gpt-4.1*` |
@@ -550,6 +551,12 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash-lite` |
 | `large` | `sonnet`, `gpt-5`, `gemini-pro` |
 | `auto` | `large` |
+| `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
+| `agent` | `sonnet-6x`, `gpt-5.4`, `gpt-5`, `gemini-pro`, `haiku`, `any` |
+| `copilot` | `agent`, `gpt-5.4`, `sonnet`, `gpt-5`, `any` |
+| `claude` | `agent`, `sonnet-6x`, `haiku`, `any` |
+| `codex` | `agent`, `gpt-5-codex`, `gpt-5`, `any` |
+| `gemini` | `agent`, `gemini-pro`, `gemini-flash`, `any` |
 
 Meta-aliases reference other aliases and are resolved recursively. They allow workflow authors to express capability tiers (`mini`, `large`) without committing to a specific vendor.
 

@@ -25,6 +25,7 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	// Wrap in array for step list format and marshal with proper options
 	yamlBytes, err := yaml.MarshalWithOptions([]yaml.MapSlice{orderedStep}, DefaultMarshalOptions...)
 	if err != nil {
+		stepConversionLog.Printf("Step YAML marshal failed: %v", err)
 		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
 	}
 
@@ -108,6 +109,7 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 	// env: variables to prevent shell injection attacks.  A compiler warning is emitted
 	// for every expression that is moved so that authors know their script was changed.
 	if sanitized, warnings, changed := sanitizeRunStepExpressions(step); changed {
+		stepConversionLog.Printf("Sanitized run-step expressions: %d warning(s) emitted", len(warnings))
 		for _, w := range warnings {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
 			c.IncrementWarningCount()

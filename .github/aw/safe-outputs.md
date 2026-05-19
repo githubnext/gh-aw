@@ -140,7 +140,9 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   safe-outputs:
     create-pull-request:
       title-prefix: "[ai] "           # Optional: prefix for PR titles
+      branch-prefix: "signed/"        # Optional: prefix prepended to the PR branch name (e.g. for branch-protection conventions)
       labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+      allowed-labels: [bug, fix]      # Optional: restrict which labels the agent can set (any label allowed if omitted)
       reviewers: [user1, copilot]     # Optional: reviewers (use 'copilot' for bot)
       team-reviewers: [platform-team] # Optional: team slugs to assign as reviewers
       draft: true                     # Optional: create as draft PR (defaults to true)
@@ -152,6 +154,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       preserve-branch-name: true      # Optional: skip random salt suffix on agent-specified branch names (default: false)
       recreate-ref: false             # Optional: force-recreate existing remote branch when preserve-branch-name is true (default: false)
       allow-workflows: false          # Optional: add workflows:write permission when allowed-files targets .github/workflows/ paths (default: false; requires github-app)
+      patch-format: "bundle"          # Optional: "bundle" (default, preserves merge commits & per-commit metadata) or "am" (git format-patch/am)
+      signed-commits: true            # Optional: when true (default), push via createCommitOnBranch GraphQL so GitHub signs commits; set false to use plain git push (required for merge commits)
       assignees: [user1]              # Optional: assignees for fallback issues on PR creation failure
       fallback-labels: [needs-review] # Optional: labels for fallback issues (defaults to PR labels)
       fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
@@ -465,12 +469,19 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   safe-outputs:
     push-to-pull-request-branch:
       target: "*"                     # Optional: "triggering" (default), "*", or number
+      branch: "triggering"            # Optional: branch to push to (default: "triggering")
       title-prefix: "[bot] "          # Optional: require title prefix
       labels: [automated]             # Optional: require all labels
       if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+      ignore-missing-branch-failure: false  # Optional: treat deleted PR branches as skipped pushes (default: false)
       commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
       staged: true                    # Optional: preview mode (default: follows global staged)
       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on pushed commits
+      fallback-as-pull-request: true  # Optional: when push fails (e.g. diverged branch), open a fallback PR targeting the original branch (default: true)
+      patch-format: "bundle"          # Optional: "bundle" (default, supports merge commits) or "am"; auto-falls back to "bundle" when the incremental range contains a merge commit
+      signed-commits: true            # Optional: when true (default), push via createCommitOnBranch GraphQL so GitHub signs commits; set false to push merge commits via plain git push
+      allow-workflows: false          # Optional: add workflows:write permission for .github/workflows/ paths (requires github-app)
+      check-branch-protection: true   # Optional: when true (default), pre-flight check branch protection; set false to skip and avoid administration:read permission
       allowed-files:                  # Recommended: always restrict to specific paths or extensions to limit agent scope
         - "src/**"
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely

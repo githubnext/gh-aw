@@ -8,6 +8,7 @@
  */
 
 const { ERR_API } = require("./error_codes.cjs");
+const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
@@ -125,6 +126,45 @@ async function readBlobAsBase64(blobHash, cwd) {
 }
 
 /**
+ * Replace temporary ID references in base64-encoded UTF-8 text content.
+ * Returns original content unchanged for:
+ * - binary / non-UTF8 blobs
+ * - UTF-8 text with no temporary ID matches
+ * Returns rewritten base64 content when UTF-8 text contains resolvable temporary IDs.
+ *
+ * @param {string} base64Content
+ * @param {Map<string, {repo: string, number: number}>} temporaryIdMap
+ * @param {string} currentRepo
+ * @param {string} filePath
+ * @returns {string}
+ */
+function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, currentRepo, filePath) {
+  if (!(temporaryIdMap instanceof Map) || temporaryIdMap.size === 0) {
+    return base64Content;
+  }
+
+  const rawBytes = Buffer.from(base64Content, "base64");
+  const utf8Text = rawBytes.toString("utf8");
+
+  // Treat only clean UTF-8 round-trippable content as text.
+  if (!Buffer.from(utf8Text, "utf8").equals(rawBytes)) {
+    return base64Content;
+  }
+
+  if (!TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN.test(utf8Text)) {
+    return base64Content;
+  }
+
+  const replaced = replaceTemporaryIdReferencesInPatch(utf8Text, temporaryIdMap, currentRepo);
+  if (replaced === utf8Text) {
+    return base64Content;
+  }
+
+  core.info(`pushSignedCommits: resolved temporary ID references in file content: ${filePath}`);
+  return Buffer.from(replaced, "utf8").toString("base64");
+}
+
+/**
  * Push the local branch to origin using git directly and return the local HEAD
  * SHA after the push succeeds.
  *
@@ -167,9 +207,20 @@ async function resolveLocalHeadSha(cwd) {
  * @param {string} opts.cwd - Working directory of the local git checkout
  * @param {object} [opts.gitAuthEnv] - Environment variables for git push fallback auth
  * @param {boolean} [opts.signedCommits=true] - When false, skip GraphQL signed commits and use git push directly
+ * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map
+ * @param {string} [opts.currentRepo] - Repository slug used for same-repo temporary ID resolution
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
-async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true }) {
+async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true, resolvedTemporaryIds, currentRepo }) {
+  const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
+  const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
+    defaultRepo: effectiveCurrentRepo,
+    validatePositiveIntegers: true,
+    onInvalidNumber: (normalizedKey, rawValue) => {
+      core.warning(`pushSignedCommits: ignoring invalid resolved temporary ID number for '${normalizedKey}': ${String(rawValue)}`);
+    },
+  });
+
   // The default parameter value converts undefined to true; this check tests only the explicit false value.
   if (signedCommits === false) {
     core.info(`pushSignedCommits: signed-commits disabled (using direct git push) for branch ${branch}`);
@@ -303,7 +354,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${renamedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          additions.push({ path: renamedPath, contents: await readBlobAsBase64(dstHash, cwd) });
+          const blobContents = await readBlobAsBase64(dstHash, cwd);
+          additions.push({ path: renamedPath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, renamedPath) });
         } else if (status && status.startsWith("C")) {
           // Copy: source path is kept (no deletion), only the destination path is added
           const copiedPath = unquoteCPath(paths[1]);
@@ -322,7 +374,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${copiedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          additions.push({ path: copiedPath, contents: await readBlobAsBase64(dstHash, cwd) });
+          const blobContents = await readBlobAsBase64(dstHash, cwd);
+          additions.push({ path: copiedPath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, copiedPath) });
         } else {
           // Added or Modified
           if (dstMode === "160000") {
@@ -336,7 +389,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${filePath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          additions.push({ path: filePath, contents: await readBlobAsBase64(dstHash, cwd) });
+          const blobContents = await readBlobAsBase64(dstHash, cwd);
+          additions.push({ path: filePath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, filePath) });
         }
       }
 
@@ -360,7 +414,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         core.info(`pushSignedCommits: using chained OID from previous mutation: ${expectedHeadOid}`);
       } else {
         // First commit: check whether the branch already exists on the remote.
-        const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd });
+        const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
         expectedHeadOid = oidOut.trim().split(/\s+/)[0];
         if (!expectedHeadOid) {
           // Branch does not exist on the remote yet.

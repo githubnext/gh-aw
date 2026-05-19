@@ -47,12 +47,102 @@ func NewExpressionExtractor() *ExpressionExtractor {
 	}
 }
 
+// contentTransformer is a function that rewrites an expression's content string.
+// It receives the current content and returns the (possibly) transformed content.
+// If no transformation applies it returns the input unchanged.
+type contentTransformer func(string) string
+
+// defaultContentTransformers is the ordered pipeline of content transformations
+// applied to every expression before it is mapped to an env var.
+// Transformers are applied in sequence; the output of one becomes the input of
+// the next. To extend the pipeline without modifying ExtractExpressions, append
+// to this slice before calling NewExpressionExtractor.
+var defaultContentTransformers = []contentTransformer{
+	transformActivationOutputs,
+	transformExperimentsExpression,
+	transformAwContextExpression,
+}
+
+// applyContentTransformers runs content through each transformer in order,
+// logging changes, and returns the fully-transformed content.
+func applyContentTransformers(content string, transformers []contentTransformer) string {
+	for _, t := range transformers {
+		if transformed := t(content); transformed != content {
+			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformed)
+			content = transformed
+		}
+	}
+	return content
+}
+
+// addSubExpressionMappings registers a synthetic ExpressionMapping for every
+// qualifying terminal sub-expression inside a compound expression so that the
+// runtime evaluator can resolve each operand via a deterministic GH_AW_* env var.
+//
+// For compound expressions (one that is not a simple identifier), the runtime
+// evaluator (runtime_import.cjs evaluateExpression()) recurses on || / && operands
+// and looks up "GH_AW_" + toUpperCase(expr.replace(/\./g, "_")) for each terminal.
+// Without this method only the hash env var for the full compound expression is
+// present in the step's env block, so individual operands always appear unresolved.
+func (e *ExpressionExtractor) addSubExpressionMappings(content string) {
+	if simpleIdentifierRegex.MatchString(content) {
+		return
+	}
+	for _, subExpr := range extractTerminalSubExpressions(content) {
+		syntheticOriginal := "${{ " + subExpr + " }}"
+		if _, exists := e.mappings[syntheticOriginal]; !exists {
+			// Sub-expressions are guaranteed to be simple identifiers by
+			// extractTerminalSubExpressions, so generateEnvVarName produces a
+			// deterministic pretty name (e.g. GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT).
+			e.mappings[syntheticOriginal] = &ExpressionMapping{
+				Original: syntheticOriginal,
+				EnvVar:   e.generateEnvVarName(subExpr),
+				Content:  subExpr,
+			}
+		}
+	}
+}
+
+// processMatch handles a single regex match from the expression extraction regex.
+// It applies content transformations, emits any deprecation warnings, registers
+// the primary mapping, and expands compound expressions into sub-expression
+// mappings. It is a no-op for empty content or already-seen expressions.
+func (e *ExpressionExtractor) processMatch(originalExpr, rawContent string) {
+	content := strings.TrimSpace(rawContent)
+	if content == "" {
+		expressionExtractionLog.Printf("Skipping empty expression: %s", originalExpr)
+		return
+	}
+
+	originalContent := content
+	content = applyContentTransformers(content, defaultContentTransformers)
+
+	// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
+	if _, exists := e.mappings[originalExpr]; exists {
+		return
+	}
+
+	// Emit deprecation warning once per unique deprecated activation-output expression
+	if content != originalContent && strings.HasPrefix(content, "steps.sanitized.outputs.") {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", originalContent, content),
+		))
+	}
+
+	e.mappings[originalExpr] = &ExpressionMapping{
+		Original: originalExpr,
+		EnvVar:   e.generateEnvVarName(content),
+		Content:  content,
+	}
+
+	e.addSubExpressionMappings(content)
+}
+
 // ExtractExpressions extracts all ${{ ... }} expressions from the markdown content
-// and creates environment variable mappings for each unique expression
+// and creates environment variable mappings for each unique expression.
 func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*ExpressionMapping, error) {
 	expressionExtractionLog.Printf("Extracting expressions from markdown: content_length=%d", len(markdown))
 
-	// Use pre-compiled regex from package level for performance
 	matches := expressionExtractionRegex.FindAllStringSubmatch(markdown, -1)
 	expressionExtractionLog.Printf("Found %d expression matches", len(matches))
 
@@ -60,59 +150,7 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		if len(match) < 2 {
 			continue
 		}
-
-		// Extract the full original expression including ${{ }}
-		originalExpr := match[0]
-
-		// Extract the content (without ${{ }})
-		content := strings.TrimSpace(match[1])
-		originalContent := content
-
-		// Apply activation output transformation for backward compatibility
-		// This transforms needs.activation.outputs.{text|title|body} to steps.sanitized.outputs.{text|title|body}
-		// Users should now use steps.sanitized.outputs.* directly; this transformation exists only for
-		// backward compatibility with existing workflows.
-		if t := transformActivationOutputs(content); t != content {
-			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, t)
-			content = t
-		}
-
-		// Detect experiments.NAME expressions and remap them to steps.pick-experiment.outputs.NAME
-		// so the substitution step reads the variant value from the pick_experiment step output.
-		if t := transformExperimentsExpression(content); t != content {
-			expressionExtractionLog.Printf("Transformed experiment expression: %s -> %s", content, t)
-			content = t
-		}
-
-		// Expand github.aw.context.<field> syntax sugar to parsed aw_context access.
-		if t := transformAwContextExpression(content); t != content {
-			expressionExtractionLog.Printf("Transformed aw_context expression: %s -> %s", content, t)
-			content = t
-		}
-
-		// Skip if we've already seen this expression (also prevents duplicate deprecation warnings)
-		if _, exists := e.mappings[originalExpr]; exists {
-			continue
-		}
-
-		// Emit deprecation warning once per unique deprecated activation-output expression
-		if content != originalContent && strings.HasPrefix(content, "steps.sanitized.outputs.") {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("Deprecated expression ${{ %s }}: use ${{ %s }} instead.", originalContent, content),
-			))
-		}
-
-		// Generate environment variable name
-		envVar := e.generateEnvVarName(content)
-
-		// Create mapping
-		mapping := &ExpressionMapping{
-			Original: originalExpr,
-			EnvVar:   envVar,
-			Content:  content,
-		}
-
-		e.mappings[originalExpr] = mapping
+		e.processMatch(match[0], match[1])
 	}
 
 	// Convert map to sorted slice for consistent ordering
@@ -271,6 +309,72 @@ func transformAwContextExpression(expr string) string {
 // "github.event.issue.number" or "needs.activation.outputs.text"
 // Each identifier must start with a letter or underscore, followed by alphanumeric or underscore
 var simpleIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$`)
+
+// runtimeEvalEnvVarPrefixRegex matches the expression prefixes for which the runtime
+// evaluator (runtime_import.cjs evaluateExpression) resolves values via deterministic
+// GH_AW_* environment variable names (rather than via the GitHub context object).
+// See the `if (trimmed.startsWith("needs.") || ...)` block in evaluateExpression().
+var runtimeEvalEnvVarPrefixRegex = regexp.MustCompile(`^(?:needs|steps|inputs)\.`)
+
+// isQualifyingSubExpression reports whether expr is a simple property-access chain
+// (matching simpleIdentifierRegex) that starts with needs.*, steps.*, or inputs.*.
+// These are the sub-expressions for which the runtime evaluator looks up a deterministic
+// GH_AW_* environment variable name.
+func isQualifyingSubExpression(expr string) bool {
+	return expr != "" &&
+		simpleIdentifierRegex.MatchString(expr) &&
+		runtimeEvalEnvVarPrefixRegex.MatchString(expr)
+}
+
+// extractTerminalSubExpressions returns the simple-identifier sub-expressions from a
+// compound expression (one containing `||` or `&&` operators, and optionally parentheses)
+// that the runtime evaluator resolves via deterministic GH_AW_* environment variable names.
+//
+// It delegates parsing to the existing ParseExpression / VisitExpressionTree helpers in
+// expression_parser.go so that all operator precedence, parenthesis grouping, and quoted
+// string handling are handled consistently with the rest of the workflow expression system.
+//
+// Only leaf ExpressionNode values that:
+//
+//  1. are valid simple property-access chains (matching simpleIdentifierRegex), and
+//  2. start with needs.*, steps.*, or inputs.*
+//
+// are returned. github.* sub-expressions are deliberately excluded because the runtime
+// evaluator resolves them through the GitHub context object, not through env vars.
+//
+// Examples:
+//
+//	"steps.sanitized.outputs.text || inputs.command"
+//	→ ["steps.sanitized.outputs.text", "inputs.command"]
+//
+//	"(steps.sanitized.outputs.text || inputs.command) && inputs.flag"
+//	→ ["steps.sanitized.outputs.text", "inputs.command", "inputs.flag"]
+//
+//	"github.event.issue.number || inputs.item_number"
+//	→ ["inputs.item_number"]
+//
+//	"steps.pick-experiment.outputs.name == 'concise'"
+//	→ []  (hyphenated segment; not a simpleIdentifier)
+func extractTerminalSubExpressions(content string) []string {
+	tree, err := ParseExpression(content)
+	if err != nil {
+		// Unparseable expression (e.g. malformed input) — return empty safely.
+		expressionExtractionLog.Printf("Could not parse expression %q for sub-expression extraction (skipping): %v", content, err)
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	var result []string
+	_ = VisitExpressionTree(tree, func(node *ExpressionNode) error {
+		expr := strings.TrimSpace(node.Expression)
+		if isQualifyingSubExpression(expr) && !seen[expr] {
+			seen[expr] = true
+			result = append(result, expr)
+		}
+		return nil
+	})
+	return result
+}
 
 // generateEnvVarName generates a unique environment variable name for an expression
 // For simple JavaScript property access chains (e.g., "github.event.issue.number"),

@@ -655,6 +655,9 @@ func (c *Compiler) buildPreActivationAppTokenMintStep(app *GitHubAppConfig) []st
 
 	steps = append(steps, "      - name: Generate GitHub App token for skip-if checks\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", tokenStepID))
+	if app.shouldIgnoreMissingKey() {
+		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
+	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
@@ -689,6 +692,12 @@ func (c *Compiler) buildPreActivationAppTokenMintStep(app *GitHubAppConfig) []st
 // When non-empty, callers should emit `with.github-token: <value>` in the step.
 func (c *Compiler) resolvePreActivationSkipIfToken(data *WorkflowData) string {
 	if data.ActivationGitHubApp != nil {
+		if data.ActivationGitHubApp.shouldIgnoreMissingKey() {
+			return combineTokenExpressions(
+				fmt.Sprintf("${{ steps.%s.outputs.token }}", constants.PreActivationAppTokenStepID),
+				"${{ secrets.GITHUB_TOKEN }}",
+			)
+		}
 		return fmt.Sprintf("${{ steps.%s.outputs.token }}", constants.PreActivationAppTokenStepID)
 	}
 	if data.ActivationGitHubToken != "" {

@@ -231,8 +231,8 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 	}
 }
 
-// validateWorkflowRunBranches validates that workflow_run triggers include branch restrictions
-// This is a security best practice to avoid running on all branches
+// validateWorkflowRunBranches validates workflow_run trigger requirements.
+// It enforces required workflows and branch restrictions guidance.
 func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markdownPath string) error {
 	// Fast path: skip expensive YAML parsing when the On field cannot possibly contain
 	// a workflow_run trigger (including when it is empty). This avoids yaml.Unmarshal
@@ -241,7 +241,7 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 		return nil
 	}
 
-	agentValidationLog.Print("Validating workflow_run triggers for branch restrictions")
+	agentValidationLog.Print("Validating workflow_run trigger requirements")
 
 	// Parse the On field as YAML to check for workflow_run
 	// The On field is a YAML string that starts with "on:" key
@@ -272,13 +272,29 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 		return nil
 	}
 
-	// Check if workflow_run has branches field
 	workflowRunMap, isMap := workflowRunVal.(map[string]any)
 	if !isMap {
 		// workflow_run is not a map (unusual), skip validation
 		return nil
 	}
 
+	// workflow_run requires workflows to be present and non-empty.
+	workflowsVal, hasWorkflows := workflowRunMap["workflows"]
+	if !hasWorkflows || !hasNonEmptyWorkflowRunWorkflows(workflowsVal) {
+		message := `workflow_run trigger must include a non-empty workflows field.
+
+GitHub Actions requires on.workflow_run.workflows to reference at least one workflow.
+Without it, the compiled workflow is invalid and will be rejected.
+
+Suggested fix:
+on:
+  workflow_run:
+    workflows: ["your-workflow"]
+    types: [completed]`
+		return formatCompilerError(markdownPath, "error", message, nil)
+	}
+
+	// Check if workflow_run has branches field
 	_, hasBranches := workflowRunMap["branches"]
 	if hasBranches {
 		// Has branch restrictions, validation passed
@@ -312,4 +328,37 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	c.IncrementWarningCount()
 
 	return nil
+}
+
+// hasNonEmptyWorkflowRunWorkflows returns true when workflow_run.workflows
+// includes at least one non-empty workflow name.
+//
+// Supported types:
+//   - string: valid when non-empty after trimming whitespace
+//   - []string: valid when any item is non-empty after trimming whitespace
+//   - []any: valid when any string item is non-empty after trimming whitespace
+//
+// For all other types, it returns false.
+func hasNonEmptyWorkflowRunWorkflows(v any) bool {
+	switch workflows := v.(type) {
+	case string:
+		return strings.TrimSpace(workflows) != ""
+	case []string:
+		for _, workflow := range workflows {
+			if strings.TrimSpace(workflow) != "" {
+				return true
+			}
+		}
+		return false
+	case []any:
+		for _, workflow := range workflows {
+			s, ok := workflow.(string)
+			if ok && strings.TrimSpace(s) != "" {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
 }

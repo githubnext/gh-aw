@@ -14,6 +14,7 @@ const {
   emitInfrastructureIncomplete,
   extractDeniedCommands,
   hasNumerousPermissionDeniedIssues,
+  isAuthenticationFailedError,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
@@ -410,6 +411,16 @@ describe("copilot_harness.cjs", () => {
     });
   });
 
+  describe("authentication-failed detection pattern", () => {
+    it("matches authentication failed with request id", () => {
+      expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
+    });
+
+    it("does not match no-auth-info error", () => {
+      expect(isAuthenticationFailedError("Error: No authentication information found.")).toBe(false);
+    });
+  });
+
   describe("auth error prevents retry", () => {
     // Inline the same retry logic as the driver, including auth error check
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
@@ -426,6 +437,7 @@ describe("copilot_harness.cjs", () => {
       if (result.exitCode === 0) return false;
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
+      if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
       // Auth error on --continue: fall back to fresh run once; on fresh run: bail
       if (NO_AUTH_INFO_PATTERN.test(result.output)) {
         return useContinueOnRetry && attempt < MAX_RETRIES;
@@ -435,6 +447,11 @@ describe("copilot_harness.cjs", () => {
 
     it("does not retry when auth fails on first attempt (no real work done)", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(result, 0, false)).toBe(false);
+    });
+
+    it("does not retry when first attempt reports authentication failed", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Authentication failed (Request ID: ABC123)" };
       expect(shouldRetry(result, 0, false)).toBe(false);
     });
 

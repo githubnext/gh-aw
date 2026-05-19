@@ -38,6 +38,12 @@ const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9_]{3,12})\b/gi;
 const TEMPORARY_ID_CANDIDATE_PATTERN = /#aw_([A-Za-z0-9_-]+)/gi;
 
 /**
+ * Regex pattern for quick candidate detection of temporary ID references.
+ * Non-global on purpose so repeated `.test()` calls are state-free.
+ */
+const TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN = /#aw_/i;
+
+/**
  * @typedef {Object} RepoIssuePair
  * @property {string} repo - Repository slug in "owner/repo" format
  * @property {number} number - Issue or discussion number
@@ -256,9 +262,13 @@ function loadTemporaryIdMap() {
  * - { repo, number }
  *
  * @param {any} resolvedTemporaryIds - Object or Map of temporary IDs to resolved values
+ * @param {object} [options]
+ * @param {string} [options.defaultRepo] - Fallback repo for legacy number-only values; when null/undefined, uses GitHub Action context repo when available, else ""
+ * @param {boolean} [options.validatePositiveIntegers] - When true, ignore non-positive-integer numbers
+ * @param {(normalizedKey: string, rawValue: unknown) => void} [options.onInvalidNumber] - Callback invoked when a value is skipped for non-finite parsing, or for non-positive/non-integer values when `validatePositiveIntegers` is true
  * @returns {Map<string, RepoIssuePair>} Map of normalized temporary_id to {repo, number}
  */
-function loadTemporaryIdMapFromResolved(resolvedTemporaryIds) {
+function loadTemporaryIdMapFromResolved(resolvedTemporaryIds, options = {}) {
   /** @type {Map<string, RepoIssuePair>} */
   const result = new Map();
 
@@ -266,22 +276,59 @@ function loadTemporaryIdMapFromResolved(resolvedTemporaryIds) {
     return result;
   }
 
-  const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+  const contextRepo = options.defaultRepo ?? (typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "");
+
+  /**
+   * @param {string} normalizedKey
+   * @param {unknown} rawValue
+   * @returns {number | null}
+   */
+  const toNumber = (normalizedKey, rawValue) => {
+    const number = Number(rawValue);
+    if (!Number.isFinite(number)) {
+      if (typeof options.onInvalidNumber === "function") {
+        options.onInvalidNumber(normalizedKey, rawValue);
+      }
+      return null;
+    }
+    if (!options.validatePositiveIntegers) {
+      return number;
+    }
+    if (!Number.isInteger(number) || number < 1) {
+      if (typeof options.onInvalidNumber === "function") {
+        options.onInvalidNumber(normalizedKey, rawValue);
+      }
+      return null;
+    }
+    return number;
+  };
 
   const entries = resolvedTemporaryIds instanceof Map ? Array.from(resolvedTemporaryIds.entries()) : Object.entries(resolvedTemporaryIds);
   for (const [key, value] of entries) {
     const normalizedKey = normalizeTemporaryId(key);
     if (typeof value === "number") {
-      result.set(normalizedKey, { repo: contextRepo, number: value });
+      const number = toNumber(normalizedKey, value);
+      if (number === null) {
+        continue;
+      }
+      result.set(normalizedKey, { repo: contextRepo, number });
       continue;
     }
     if (typeof value === "object" && value !== null) {
       if ("repo" in value && "number" in value) {
-        result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+        const number = toNumber(normalizedKey, value.number);
+        if (number === null) {
+          continue;
+        }
+        result.set(normalizedKey, { repo: String(value.repo), number });
         continue;
       }
       if ("number" in value) {
-        result.set(normalizedKey, { repo: contextRepo, number: Number(value.number) });
+        const number = toNumber(normalizedKey, value.number);
+        if (number === null) {
+          continue;
+        }
+        result.set(normalizedKey, { repo: contextRepo, number });
         continue;
       }
     }
@@ -388,6 +435,64 @@ function resolveRepoIssueTarget(value, temporaryIdMap, defaultOwner, defaultRepo
     wasTemporaryId: result.wasTemporaryId,
     errorMessage: null,
   };
+}
+
+/**
+ * Resolve a safe-output issue/PR target number from a message.
+ * Handles temporary IDs, field aliases, and deferred resolution.
+ *
+ * Returns one of:
+ * - `{ success: true, number: n }` — explicit number found and resolved
+ * - `{ success: true, number: null }` — no explicit number; caller should use context fallback
+ * - `{ success: false, deferred: true, error }` — unresolved temporary ID; caller should defer
+ * - `{ success: false, error }` — validation or resolution error
+ *
+ * @param {Object} options
+ * @param {Object} options.message - The safe-output message
+ * @param {Object|null|undefined} [options.resolvedTemporaryIds] - Plain object of resolved temp IDs
+ * @param {Map<string, any>|null|undefined} [options.tempIdMap] - Pre-built Map (takes precedence over resolvedTemporaryIds)
+ * @param {{owner: string, repo: string}} options.repoParts - Parsed repo owner/repo
+ * @param {string} options.handlerType - Handler name used in log messages (e.g. "add_labels")
+ * @param {string[]} [options.aliases] - Message field names to check in order; defaults to
+ *   ["item_number", "issue_number", "pr_number", "pull_number"]
+ * @returns {{success: true, number: number|null} | {success: false, deferred?: boolean, error: string}}
+ */
+function resolveSafeOutputIssueTarget({ message, resolvedTemporaryIds, tempIdMap, repoParts, handlerType, aliases = ["item_number", "issue_number", "pr_number", "pull_number"] }) {
+  const fieldNames = aliases;
+
+  // Find the first non-null explicit value across all provided field aliases
+  let explicitValue;
+  for (const alias of fieldNames) {
+    if (message[alias] !== undefined && message[alias] !== null) {
+      explicitValue = message[alias];
+      break;
+    }
+  }
+
+  if (explicitValue === undefined) {
+    // No explicit item number provided — caller should fall back to event context
+    return { success: true, number: null };
+  }
+
+  const map = tempIdMap ?? loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+  const resolvedTarget = resolveRepoIssueTarget(explicitValue, map, repoParts.owner, repoParts.repo);
+
+  if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
+    core.info(`Deferring ${handlerType}: unresolved temporary ID (${explicitValue})`);
+    return {
+      success: false,
+      deferred: true,
+      error: resolvedTarget.errorMessage ?? `Unresolved temporary ID: ${explicitValue}`,
+    };
+  }
+
+  if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
+    const error = `Invalid item number: ${explicitValue}`;
+    core.warning(error);
+    return { success: false, error };
+  }
+
+  return { success: true, number: resolvedTarget.resolved.number };
 }
 
 /**
@@ -673,6 +778,7 @@ function resolveNumberFromTemporaryId(value, resolvedTemporaryIds) {
 module.exports = {
   TEMPORARY_ID_PATTERN,
   TEMPORARY_ID_CANDIDATE_PATTERN,
+  TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN,
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,
@@ -685,6 +791,7 @@ module.exports = {
   loadTemporaryIdMapFromResolved,
   resolveIssueNumber,
   resolveRepoIssueTarget,
+  resolveSafeOutputIssueTarget,
   resolveNumberFromTemporaryId,
   hasUnresolvedTemporaryIds,
   serializeTemporaryIdMap,

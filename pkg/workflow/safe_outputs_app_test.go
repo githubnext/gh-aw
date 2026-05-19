@@ -85,6 +85,88 @@ Test workflow with minimal app configuration.
 	assert.Empty(t, workflowData.SafeOutputs.GitHubApp.Repositories)
 }
 
+func TestSafeOutputsAppIgnoreIfMissing(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on: issues
+safe-outputs:
+  add-comment:
+  github-app:
+    app-id: ${{ secrets.GH_AW_APP_ID }}
+    private-key: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}
+    ignore-if-missing: true
+---
+
+# Test Workflow
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "GitHub app configuration should be parsed")
+	assert.True(t, workflowData.SafeOutputs.GitHubApp.IgnoreIfMissing)
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "main", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+	assert.Contains(t, stepsStr, "if: ${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}")
+	assert.NotContains(t, stepsStr, "GH_AW_APP_CLIENT_ID:")
+	assert.NotContains(t, stepsStr, "GH_AW_APP_PRIVATE_KEY:")
+	assert.Contains(t, stepsStr, "github-token: ${{ steps.safe-outputs-app-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
+}
+
+func TestSafeOutputsAppIgnoreIfMissingInvalidType(t *testing.T) {
+	app := parseAppConfig(map[string]any{
+		"client-id":         "${{ vars.APP_ID }}",
+		"private-key":       "${{ secrets.APP_PRIVATE_KEY }}",
+		"ignore-if-missing": "not-a-bool",
+	})
+
+	require.NotNil(t, app)
+	assert.False(t, app.IgnoreIfMissing)
+	assert.False(t, app.shouldIgnoreMissingKey())
+}
+
+func TestBuildIgnoreIfMissingCondition(t *testing.T) {
+	tests := []struct {
+		name       string
+		appID      string
+		privateKey string
+		expected   string
+	}{
+		{
+			name:       "wrapped expressions",
+			appID:      "${{ secrets.GH_AW_APP_ID }}",
+			privateKey: "${{ secrets.GH_AW_APP_PRIVATE_KEY }}",
+			expected:   "${{ secrets.GH_AW_APP_ID != '' && secrets.GH_AW_APP_PRIVATE_KEY != '' }}",
+		},
+		{
+			name:       "literal values",
+			appID:      "  id value  ",
+			privateKey: "key'value",
+			expected:   "${{ 'id value' != '' && 'key''value' != '' }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &GitHubAppConfig{
+				AppID:      tt.appID,
+				PrivateKey: tt.privateKey,
+			}
+			assert.Equal(t, tt.expected, buildIgnoreIfMissingCondition(app))
+		})
+	}
+}
+
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
 func TestSafeOutputsAppWithoutSafeOutputs(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))

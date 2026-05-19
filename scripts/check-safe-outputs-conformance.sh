@@ -4,7 +4,7 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/reference/safe-outputs-specification.md
-# Version: 1.19.0 (2026-04-30)
+# Version: 1.20.0 (2026-05-15)
 
 set -euo pipefail
 
@@ -1137,12 +1137,12 @@ check_system_types_ordering() {
 }
 check_system_types_ordering
 
-# EXEC-002: Zero Max Limit Disables Type (Section 10.5)
+# EXEC-002: Zero Max Limit Disables Type (Section 10.6)
 echo "Running EXEC-002: Zero Max Limit Disables Type..."
 check_zero_max_disables_type() {
     local failed=0
 
-    # Per spec Section 10.5: When max: 0 is configured for a safe output type,
+    # Per spec Section 10.6: When max: 0 is configured for a safe output type,
     # the type MUST be disabled (MCP tool not registered, no config generated).
 
     # Check Go compiler: types with max: 0 should not appear in generated config
@@ -1174,6 +1174,154 @@ check_zero_max_disables_type() {
     fi
 }
 check_zero_max_disables_type
+
+# WTD-001: Reviewable Annotation Requirements (Section 10.5 WTD1, T-WTD-001)
+echo "Running WTD-001: Reviewable Annotation Requirements..."
+check_wtd_reviewable_annotation() {
+    local threat_warning_file="actions/setup/js/threat_detection_warning.cjs"
+    local footer_file="actions/setup/js/generate_footer.cjs"
+    local failed=0
+
+    # Per spec Section 10.5 WTD1: Reviewable outputs MUST include all three of:
+    # 1. A caution block with "agentic threat detected" text
+    # 2. A visible threat label string: "agentic threat detected"
+    # 3. An XML comment marker: <!-- gh-aw-threat-detected -->
+    # The implementation uses generate_footer.cjs (for the caution block) and
+    # threat_detection_warning.cjs (centralised marker/helper).
+
+    if [ ! -f "$footer_file" ]; then
+        log_high "WTD-001: Footer generator missing: $footer_file"
+        return
+    fi
+
+    # Check caution block with WTD1-required text (requirement 1)
+    if ! grep -q "\[!CAUTION\]" "$footer_file"; then
+        log_critical "WTD-001: Footer generator missing [!CAUTION] block (WTD1 requirement 1)"
+        failed=1
+    fi
+
+    # Check label string "agentic threat detected" (requirement 2)
+    if ! grep -q "agentic threat detected" "$footer_file"; then
+        log_critical "WTD-001: Footer generator missing 'agentic threat detected' label string (WTD1 requirement 2)"
+        failed=1
+    fi
+
+    # Check XML comment marker (requirement 3) — may be defined in the centralised
+    # threat_detection_warning.cjs helper and injected via getThreatDetectedMarker()
+    local marker_found=0
+    if grep -q "gh-aw-threat-detected" "$footer_file" 2>/dev/null; then
+        marker_found=1
+    elif [ -f "$threat_warning_file" ] && grep -q "gh-aw-threat-detected" "$threat_warning_file" 2>/dev/null; then
+        # Footer delegates to threat_detection_warning.cjs via getThreatDetectedMarker
+        if grep -q "getThreatDetectedMarker" "$footer_file"; then
+            marker_found=1
+        fi
+    fi
+    if [ $marker_found -eq 0 ]; then
+        log_critical "WTD-001: XML marker '<!-- gh-aw-threat-detected -->' not found in footer or centralised helper (WTD1 requirement 3)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "WTD-001: Reviewable annotation includes caution block, threat label, and XML marker (WTD1)"
+    fi
+}
+check_wtd_reviewable_annotation
+
+# WTD-002: Convertible Fallback push_to_pull_request_branch → create_pull_request (Section 10.5 WTD2, T-WTD-002)
+echo "Running WTD-002: Convertible Fallback for push_to_pull_request_branch..."
+check_wtd_convertible_fallback() {
+    local push_handler="actions/setup/js/push_to_pull_request_branch.cjs"
+    local manager="actions/setup/js/safe_output_handler_manager.cjs"
+    local failed=0
+
+    # Per spec Section 10.5 WTD2: push_to_pull_request_branch MUST fall back to
+    # create_pull_request with WTD1 caution, label, and XML marker when threat
+    # detection executes in warn mode and reports a threat signal.
+
+    if [ ! -f "$push_handler" ]; then
+        log_high "WTD-002: push_to_pull_request_branch handler missing: $push_handler"
+        failed=1
+    else
+        # Check the handler has detection conclusion handling
+        if ! grep -q "GH_AW_DETECTION_CONCLUSION\|detectionConclusionEnv" "$push_handler"; then
+            log_high "WTD-002: push_to_pull_request_branch handler does not check GH_AW_DETECTION_CONCLUSION (WTD2)"
+            failed=1
+        fi
+
+        # Check it creates a review PR (fallback to create_pull_request semantics)
+        # The handler may create a pull request directly via octokit rather than
+        # delegating to the create_pull_request safe output type
+        if ! grep -qE "create_pull_request|createPullRequest|review.*PR|review.*pr|pulls\.create|review_pr" "$push_handler"; then
+            log_high "WTD-002: push_to_pull_request_branch handler missing create_pull_request fallback (WTD2)"
+            failed=1
+        fi
+
+        # Check that the caution text is emitted in the fallback
+        if ! grep -q "agentic threat detected" "$push_handler"; then
+            log_high "WTD-002: push_to_pull_request_branch fallback missing 'agentic threat detected' text (WTD2 / WTD1)"
+            failed=1
+        fi
+    fi
+
+    # Also verify the handler manager registers push_to_pull_request_branch as Convertible
+    if [ -f "$manager" ]; then
+        if ! grep -qE "convertible|push_to_pull_request_branch.*create_pull_request|Convertible" "$manager"; then
+            log_medium "WTD-002: Handler manager does not declare push_to_pull_request_branch as Convertible (WTD2)"
+            failed=1
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "WTD-002: push_to_pull_request_branch has convertible fallback to create_pull_request (WTD2)"
+    fi
+}
+check_wtd_convertible_fallback
+
+# WTD-003: Abort-Class Outputs Produce Threat-Detected Error Outcomes (Section 10.5 WTD3, T-WTD-003)
+echo "Running WTD-003: Abort-Class Output Handling..."
+check_wtd_abort_outputs() {
+    local manager="actions/setup/js/safe_output_handler_manager.cjs"
+    local failed=0
+
+    # Per spec Section 10.5 WTD3: Abort-classified outputs MUST NOT be applied.
+    # Implementations MUST activate a threat-detected code path, emit an explicit
+    # failure summary, and return a machine-readable threat-detected error outcome.
+
+    if [ ! -f "$manager" ]; then
+        log_high "WTD-003: Safe output handler manager missing: $manager"
+        return
+    fi
+
+    # Check THREAT_WARNING_ABORT_TYPES set exists (defines abort-class types)
+    if ! grep -q "THREAT_WARNING_ABORT_TYPES" "$manager"; then
+        log_critical "WTD-003: THREAT_WARNING_ABORT_TYPES not defined in handler manager (WTD3)"
+        failed=1
+    fi
+
+    # Check abort policy stops execution (MUST NOT apply the safe output)
+    if ! grep -qE "policy.*abort|abort.*policy|abort.*threat|threat.*abort" "$manager"; then
+        log_high "WTD-003: Abort policy branch not found in handler manager (WTD3)"
+        failed=1
+    fi
+
+    # Check machine-readable threat-detected error outcome is returned
+    if ! grep -qE "threat_detected_abort_policy|threatDetected.*true|errorCode.*threat" "$manager"; then
+        log_high "WTD-003: No machine-readable threat-detected error outcome in handler manager (WTD3)"
+        failed=1
+    fi
+
+    # Verify WTD3 requirement ID is referenced in code comments (for traceability)
+    if ! grep -q "WTD3\|WTD-3\|Requirement.*WTD" "$manager"; then
+        log_low "WTD-003: WTD3 requirement ID not referenced in handler manager for traceability"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "WTD-003: Abort-class outputs have threat-detected abort handling and machine-readable error outcomes (WTD3)"
+    fi
+}
+check_wtd_abort_outputs
 
 # Summary
 echo ""

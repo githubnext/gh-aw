@@ -13,10 +13,10 @@ var contentExtractorLog = logger.New("parser:content_extractor")
 
 // extractToolsFromContent extracts tools and mcp-servers sections from frontmatter as JSON string
 func extractToolsFromContent(content string) (string, error) {
-	log.Printf("Extracting tools from content: size=%d bytes", len(content))
+	parserLog.Printf("Extracting tools from content: size=%d bytes", len(content))
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
-		log.Printf("Failed to extract frontmatter: %v", err)
+		parserLog.Printf("Failed to extract frontmatter: %v", err)
 		return "{}", nil // Return empty object on error to match bash behavior
 	}
 
@@ -40,11 +40,11 @@ func extractToolsFromContent(content string) (string, error) {
 
 	// If nothing was extracted, return empty object
 	if len(extracted) == 0 {
-		log.Print("No tools or mcp-servers found in content")
+		parserLog.Print("No tools or mcp-servers found in content")
 		return "{}", nil
 	}
 
-	log.Printf("Extracted %d tool/server configurations", len(extracted))
+	parserLog.Printf("Extracted %d tool/server configurations", len(extracted))
 	// Convert to JSON string
 	extractedJSON, err := json.Marshal(extracted)
 	if err != nil {

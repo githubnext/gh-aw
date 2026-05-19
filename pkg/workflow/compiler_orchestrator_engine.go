@@ -264,7 +264,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()
 		engineSetting = defaultEngine.GetID()
-		log.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
+		workflowLog.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
 		// Create a default EngineConfig with the default engine ID if not already set
 		if engineConfig == nil {
 			engineConfig = &EngineConfig{ID: engineSetting}
@@ -352,7 +352,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, fmt.Errorf("engine %s RenderConfig failed: %w", engineSetting, err)
 	}
 
-	log.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
+	workflowLog.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
 	if agenticEngine.IsExperimental() && c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental engine: "+agenticEngine.GetDisplayName()))
 		c.IncrementWarningCount()

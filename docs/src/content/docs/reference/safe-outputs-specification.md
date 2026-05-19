@@ -3095,6 +3095,8 @@ This section provides complete definitions for all remaining safe output types. 
 **Notes**:
 
 - Higher default max (10) enables resolving multiple threads per review cycle
+- GitHub can reject `resolveReviewThread` with `Resource not accessible by integration` for some `GITHUB_TOKEN` contexts even with `pull-requests: write`; gh-aw treats this specific response as a soft-skip warning for this handler
+- For reliable resolution, configure `safe-outputs.resolve-pull-request-review-thread.github-token` with a token that can resolve review threads in the target repository
 
 ---
 

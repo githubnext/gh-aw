@@ -1230,8 +1230,8 @@ describe("Safe Output Handler Manager", () => {
     });
   });
 
-  describe("code-push fail-fast behaviour", () => {
-    it("should cancel subsequent non-add_comment messages when push_to_pull_request_branch fails", async () => {
+  describe("code-push failure behaviour", () => {
+    it("should continue processing non-code-push messages when push_to_pull_request_branch fails", async () => {
       const messages = [{ type: "push_to_pull_request_branch" }, { type: "add_comment", body: "Success!" }, { type: "create_issue", title: "Issue" }];
 
       const codePushHandler = vi.fn().mockResolvedValue({ success: false, error: "Branch not found" });
@@ -1260,11 +1260,10 @@ describe("Safe Output Handler Manager", () => {
       const calledMessage = commentHandler.mock.calls[0][0];
       expect(calledMessage.body).toContain("push_to_pull_request_branch");
       expect(calledMessage.body).toContain("Branch not found");
-      // create_issue IS still cancelled (non-add_comment non-code-push type)
-      expect(result.results[2].success).toBe(false);
-      expect(result.results[2].cancelled).toBe(true);
-      // create_issue handler was NOT called
-      expect(issueHandler).not.toHaveBeenCalled();
+      // non-code-push message should continue to execute
+      expect(result.results[2].success).toBe(true);
+      expect(result.results[2].cancelled).toBeUndefined();
+      expect(issueHandler).toHaveBeenCalledTimes(1);
     });
 
     it("should allow add_comment through when create_pull_request fails via exception", async () => {

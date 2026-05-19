@@ -107,6 +107,72 @@ describe("remove_labels", () => {
       expect(removeLabelCalls[1].name).toBe("enhancement");
     });
 
+    it("should accept issue_number as an alias for item_number", async () => {
+      const handler = await main({ max: 10 });
+      const removeLabelCalls = [];
+
+      mockGithub.rest.issues.removeLabel = async params => {
+        removeLabelCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          issue_number: 456,
+          labels: ["bug"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(456);
+      expect(removeLabelCalls[0].issue_number).toBe(456);
+    });
+
+    it("should accept pr_number as an alias for item_number", async () => {
+      const handler = await main({ max: 10 });
+      const removeLabelCalls = [];
+
+      mockGithub.rest.issues.removeLabel = async params => {
+        removeLabelCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          pr_number: 789,
+          labels: ["enhancement"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(789);
+      expect(removeLabelCalls[0].issue_number).toBe(789);
+    });
+
+    it("should accept pull_number as an alias for item_number", async () => {
+      const handler = await main({ max: 10 });
+      const removeLabelCalls = [];
+
+      mockGithub.rest.issues.removeLabel = async params => {
+        removeLabelCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          pull_number: 101,
+          labels: ["needs-review"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(101);
+      expect(removeLabelCalls[0].issue_number).toBe(101);
+    });
+
     it("should remove labels from an issue from context when item_number not provided", async () => {
       const handler = await main({ max: 10 });
       const removeLabelCalls = [];

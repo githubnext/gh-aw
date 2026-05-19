@@ -37,8 +37,8 @@ func NewForecastCommand() *cobra.Command {
 recent run history and projecting forward on a per-week or per-month basis.
 
 The forecaster downloads a sample of recent completed workflow runs and derives
-per-run metrics (effective tokens, duration, success rate).  When runs have been
-previously processed by 'gh aw logs', cached token-usage data is used.  The
+per-run metrics (effective tokens, duration, success rate). When runs have been
+previously processed by 'gh aw logs', cached token-usage data is used. The
 observed run frequency is then projected to the target period using a Monte Carlo
 simulation that models three sources of uncertainty: run count (Poisson), per-run
 token usage (bootstrap resampling), and per-run success (Bernoulli).
@@ -57,7 +57,7 @@ Backtesting (--eval):
   Shifts the training window back by one projection period, builds the forecast,
   then measures actual runs in that period and computes quality metrics:
   P50 absolute/percentage error and whether the actual value fell inside the
-  P10–P90 confidence interval.  Use this to validate the model before relying on
+  P10–P90 confidence interval. Use this to validate the model before relying on
   forward projections.
 
 ` + WorkflowIDExplanation + `

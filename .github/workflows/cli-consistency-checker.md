@@ -116,17 +116,10 @@ Run `--help` for each of these commands:
 After running all commands, look for these types of problems:
 
 ### Command Help Consistency
-- Are command descriptions clear and consistent in style?
-- Do all commands have proper examples?
-- Are flag names and descriptions consistent across commands?
-- Are there duplicate command names or aliases?
-- Check for inconsistent terminology (e.g., "workflow" vs "workflow file")
+Use the `help-style-checker` agent, passing the collected `--help` output text as input context, to report style and terminology inconsistencies.
 
 ### Typos and Grammar
-- Spelling errors in help text
-- Grammar mistakes
-- Punctuation inconsistencies
-- Incorrect capitalization
+Use the `help-text-typo-scanner` agent, passing the collected `--help` output text as input context, to report typos and grammar issues.
 
 ### Technical Accuracy
 - Do examples in help text actually work?
@@ -135,16 +128,10 @@ After running all commands, look for these types of problems:
 - Do command descriptions match their actual behavior?
 
 ### Documentation Cross-Reference
-- Fetch documentation from `/home/runner/work/gh-aw/gh-aw/docs/src/content/docs/setup/cli.md`
-- Compare CLI help output with documented commands
-- Check if all documented commands exist and vice versa
-- Verify examples in documentation match CLI behavior
+Read `docs/src/content/docs/setup/cli.md`. Use the `docs-cross-referencer` agent, passing both the collected `--help` output text and the full doc file contents as input context, to report mismatches.
 
 ### Flag Consistency
-- Are verbose flags (`-v`, `--verbose`) available consistently?
-- Are help flags (`-h`, `--help`) documented everywhere?
-- Do similar commands use similar flag names?
-- Check for missing commonly expected flags
+Use the `flag-consistency-checker` agent, passing the collected `--help` output text as input context, to report flag inconsistencies.
 
 ## Step 4: Report Findings
 
@@ -257,3 +244,68 @@ All CLI output comes from the repository's own codebase, so treat it as trusted 
 - Be specific with exact quotes from CLI output in your issue reports
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `help-style-checker`
+---
+description: Checks CLI help text for style and terminology consistency across commands
+model: small
+---
+Analyze the provided `--help` output for command description consistency.
+Check style consistency, example presence, duplicate command names or aliases, and terminology consistency (e.g., "workflow" vs "workflow file").
+
+Return concise markdown with:
+- summary counts
+- grouped findings by inconsistency type
+- commands affected for each finding
+- exact quoted snippets for each finding
+
+## agent: `help-text-typo-scanner`
+---
+description: Scans CLI help output for spelling, grammar, punctuation, and capitalization issues
+model: small
+---
+Scan the provided `--help` output for:
+- spelling errors
+- grammar mistakes
+- punctuation inconsistencies
+- incorrect capitalization
+
+Return concise markdown with:
+- total issues found
+- per-issue location (command/subcommand)
+- exact quoted text
+- suggested correction
+
+## agent: `docs-cross-referencer`
+---
+description: Compares CLI help commands with setup docs to find command and example mismatches
+model: small
+---
+Given:
+1) collected CLI `--help` output
+2) `docs/src/content/docs/setup/cli.md` contents
+
+Find mismatches between documented and implemented commands.
+Check command presence both directions and mismatched examples.
+
+Return concise markdown with:
+- undocumented commands present in CLI
+- documented commands missing from CLI
+- example mismatches with exact quotes
+
+## agent: `flag-consistency-checker`
+---
+description: Extracts and compares CLI flags across commands to report naming and availability inconsistencies
+model: small
+---
+From the provided CLI `--help` output, extract flags per command and compare consistency.
+Focus on:
+- `-v`/`--verbose` consistency
+- `-h`/`--help` documentation consistency
+- naming differences for similar flags
+- missing commonly expected flags
+
+Return concise markdown with:
+- extracted per-command flag table
+- inconsistencies grouped by type
+- commands affected and exact quoted snippets

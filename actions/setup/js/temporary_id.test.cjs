@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock core for loadTemporaryIdMap
 const mockCore = {
+  info: vi.fn(),
   warning: vi.fn(),
 };
 global.core = mockCore;
@@ -1196,6 +1197,92 @@ describe("temporary_id.cjs", () => {
       expect(result.resolved).toBeNull();
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toContain("Invalid number");
+    });
+  });
+
+  describe("resolveSafeOutputIssueTarget", () => {
+    const repoParts = { owner: "testowner", repo: "testrepo" };
+
+    it("should return number: null when no alias fields are present", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { body: "hello" }, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(true);
+      expect(result.number).toBeNull();
+    });
+
+    it("should return number: null when alias fields are all null or undefined", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { item_number: null, issue_number: undefined }, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(true);
+      expect(result.number).toBeNull();
+    });
+
+    it("should resolve an explicit item_number", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { item_number: 42 }, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(42);
+    });
+
+    it("should resolve issue_number alias when item_number is absent", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { issue_number: 99 }, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(99);
+    });
+
+    it("should prefer item_number over issue_number when both are present", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { item_number: 10, issue_number: 20 }, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(10);
+    });
+
+    it("should resolve a resolved temporary ID", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const resolvedTemporaryIds = { aw_issue1: { repo: "testowner/testrepo", number: 55 } };
+      const result = resolveSafeOutputIssueTarget({ message: { item_number: "aw_issue1" }, resolvedTemporaryIds, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(55);
+    });
+
+    it("should defer when temporary ID is not yet resolved", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { item_number: "aw_notyet1" }, resolvedTemporaryIds: {}, repoParts, handlerType: "my_handler" });
+      expect(result.success).toBe(false);
+      expect(result.deferred).toBe(true);
+      expect(result.error).toContain("aw_notyet1");
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should return error for invalid item number", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { item_number: "not-valid" }, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(false);
+      expect(result.deferred).toBeFalsy();
+      expect(result.error).toContain("Invalid item number");
+    });
+
+    it("should accept custom aliases", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { issue_number: 77 }, repoParts, handlerType: "test_handler", aliases: ["issue_number"] });
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(77);
+    });
+
+    it("should use a pre-built tempIdMap when provided", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const tempIdMap = new Map([["aw_map1", { repo: "testowner/testrepo", number: 88 }]]);
+      const result = resolveSafeOutputIssueTarget({ message: { item_number: "aw_map1" }, tempIdMap, repoParts, handlerType: "test_handler" });
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(88);
+    });
+
+    it("should support hyphenated aliases like pr-number", async () => {
+      const { resolveSafeOutputIssueTarget } = await import("./temporary_id.cjs");
+      const result = resolveSafeOutputIssueTarget({ message: { "pr-number": 33 }, repoParts, handlerType: "test_handler", aliases: ["item_number", "issue_number", "pr-number"] });
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(33);
     });
   });
 });

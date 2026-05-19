@@ -52,6 +52,7 @@ type builtinModelAliasesFile struct {
 // The alias data is loaded from data/model_aliases.json (embedded at compile time).
 // Vendor aliases (patterns use * as a glob wildcard, prefer copilot gateway first):
 //   - "sonnet"         → Anthropic Sonnet family
+//   - "sonnet-6x"      → Sonnet family constrained to <=6x multiplier tiers (excludes 4.6+)
 //   - "haiku"          → Anthropic Haiku family
 //   - "opus"           → Anthropic Opus family
 //   - "gpt-4.1"        → OpenAI GPT-4.1 family
@@ -67,9 +68,17 @@ type builtinModelAliasesFile struct {
 //   - "deep-research"  → Google Gemini deep-research family (specialized research agents)
 //
 // Meta-aliases (reference other aliases; resolved recursively by AWF):
-//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite
+//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite, copilot/raptor*mini*
 //   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
 //   - "auto"  → large (convenience alias for the default capable tier)
+//   - "any"   → copilot/*, anthropic/*, openai/*, google/*, gemini/*
+//   - "agent" → sonnet-6x, gpt-5.4, gpt-5, gemini-pro, haiku, any
+//
+// Per-engine default aliases:
+//   - "copilot" → agent, gpt-5.4, sonnet, gpt-5, any
+//   - "claude"  → agent, sonnet-6x, haiku, any
+//   - "codex"   → agent, gpt-5-codex, gpt-5, any
+//   - "gemini"  → agent, gemini-pro, gemini-flash, any
 func BuiltinModelAliases() map[string][]string {
 	var data builtinModelAliasesFile
 	if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {

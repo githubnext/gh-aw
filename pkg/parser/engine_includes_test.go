@@ -8,14 +8,23 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExpandIncludesForEngines(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create include file with engine specification
-	includeContent := `---
+	tests := []struct {
+		name             string
+		includeFiles     map[string]string
+		mainContent      string
+		expectedLen      int
+		expectedExact    map[int]string
+		expectedContains map[int][]string
+	}{
+		{
+			name: "single string engine",
+			includeFiles: map[string]string{
+				"include-engine.md": `---
 engine: codex
 tools:
   github:
@@ -23,43 +32,21 @@ tools:
 ---
 
 # Include with Engine
-`
-	includeFile := filepath.Join(tmpDir, "include-engine.md")
-	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create main markdown content with include directive
-	mainContent := `# Main Workflow
+`,
+			},
+			mainContent: `# Main Workflow
 
 @include include-engine.md
 
 Some content here.
-`
-
-	// Test engine expansion
-	engines, err := ExpandIncludesForEngines(mainContent, tmpDir)
-	if err != nil {
-		t.Fatalf("Expected successful engine expansion, got error: %v", err)
-	}
-
-	// Should find one engine
-	if len(engines) != 1 {
-		t.Fatalf("Expected 1 engine, got %d", len(engines))
-	}
-
-	// Should extract "codex" engine
-	if engines[0] != `"codex"` {
-		t.Errorf("Expected engine 'codex', got %s", engines[0])
-	}
-}
-
-func TestExpandIncludesForEnginesObjectFormat(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create include file with object-format engine specification
-	includeContent := `---
+`,
+			expectedLen:   1,
+			expectedExact: map[int]string{0: `"codex"`},
+		},
+		{
+			name: "object format engine",
+			includeFiles: map[string]string{
+				"include-object-engine.md": `---
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -70,84 +57,43 @@ tools:
 ---
 
 # Include with Object Engine
-`
-	includeFile := filepath.Join(tmpDir, "include-object-engine.md")
-	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create main markdown content with include directive
-	mainContent := `# Main Workflow
+`,
+			},
+			mainContent: `# Main Workflow
 
 @include include-object-engine.md
 
 Some content here.
-`
-
-	// Test engine expansion
-	engines, err := ExpandIncludesForEngines(mainContent, tmpDir)
-	if err != nil {
-		t.Fatalf("Expected successful engine expansion, got error: %v", err)
-	}
-
-	// Should find one engine
-	if len(engines) != 1 {
-		t.Fatalf("Expected 1 engine, got %d", len(engines))
-	}
-
-	// Should extract engine object as JSON
-	expectedFields := []string{`"id":"claude"`, `"model":"claude-3-5-sonnet-20241022"`, `"max-turns":5`}
-	for _, field := range expectedFields {
-		if !contains(engines[0], field) {
-			t.Errorf("Expected engine JSON to contain %s, got %s", field, engines[0])
-		}
-	}
-}
-
-func TestExpandIncludesForEnginesNoEngine(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create include file without engine specification
-	includeContent := `---
+`,
+			expectedLen: 1,
+			expectedContains: map[int][]string{
+				0: {`"id":"claude"`, `"model":"claude-3-5-sonnet-20241022"`, `"max-turns":5`},
+			},
+		},
+		{
+			name: "include without engine",
+			includeFiles: map[string]string{
+				"include-no-engine.md": `---
 tools:
   github:
     allowed: ["list_issues"]
 ---
 
 # Include without Engine
-`
-	includeFile := filepath.Join(tmpDir, "include-no-engine.md")
-	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create main markdown content with include directive
-	mainContent := `# Main Workflow
+`,
+			},
+			mainContent: `# Main Workflow
 
 @include include-no-engine.md
 
 Some content here.
-`
-
-	// Test engine expansion
-	engines, err := ExpandIncludesForEngines(mainContent, tmpDir)
-	if err != nil {
-		t.Fatalf("Expected successful engine expansion, got error: %v", err)
-	}
-
-	// Should find no engines
-	if len(engines) != 0 {
-		t.Errorf("Expected 0 engines, got %d: %v", len(engines), engines)
-	}
-}
-
-func TestExpandIncludesForEnginesMultipleIncludes(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create first include file with engine
-	include1Content := `---
+`,
+			expectedLen: 0,
+		},
+		{
+			name: "multiple includes",
+			includeFiles: map[string]string{
+				"include1.md": `---
 engine: claude
 tools:
   github:
@@ -155,14 +101,8 @@ tools:
 ---
 
 # First Include
-`
-	include1File := filepath.Join(tmpDir, "include1.md")
-	if err := os.WriteFile(include1File, []byte(include1Content), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create second include file with engine
-	include2Content := `---
+`,
+				"include2.md": `---
 engine: codex
 tools:
   claude:
@@ -170,14 +110,9 @@ tools:
 ---
 
 # Second Include
-`
-	include2File := filepath.Join(tmpDir, "include2.md")
-	if err := os.WriteFile(include2File, []byte(include2Content), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create main markdown content with multiple include directives
-	mainContent := `# Main Workflow
+`,
+			},
+			mainContent: `# Main Workflow
 
 @include include1.md
 
@@ -186,49 +121,73 @@ Some content here.
 @include include2.md
 
 More content.
-`
-
-	// Test engine expansion
-	engines, err := ExpandIncludesForEngines(mainContent, tmpDir)
-	if err != nil {
-		t.Fatalf("Expected successful engine expansion, got error: %v", err)
-	}
-
-	// Should find two engines
-	if len(engines) != 2 {
-		t.Fatalf("Expected 2 engines, got %d: %v", len(engines), engines)
-	}
-
-	// Should extract both engines
-	if engines[0] != `"claude"` {
-		t.Errorf("Expected first engine 'claude', got %s", engines[0])
-	}
-	if engines[1] != `"codex"` {
-		t.Errorf("Expected second engine 'codex', got %s", engines[1])
-	}
-}
-
-func TestExpandIncludesForEnginesOptionalMissing(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create main markdown content with optional include directive to non-existent file
-	mainContent := `# Main Workflow
+`,
+			expectedLen:   2,
+			expectedExact: map[int]string{0: `"claude"`, 1: `"codex"`},
+		},
+		{
+			name: "optional include missing file",
+			mainContent: `# Main Workflow
 
 @include? missing-file.md
 
 Some content here.
-`
+`,
+			expectedLen: 0,
+		},
+		{
+			name: "object engine with command",
+			includeFiles: map[string]string{
+				"include-command.md": `---
+engine:
+  id: copilot
+  command: /custom/path/to/copilot
+  version: "1.0.0"
+tools:
+  github:
+    allowed: ["list_issues"]
+---
 
-	// Test engine expansion - should not fail for optional includes
-	engines, err := ExpandIncludesForEngines(mainContent, tmpDir)
-	if err != nil {
-		t.Fatalf("Expected successful engine expansion with optional missing include, got error: %v", err)
+# Include with Custom Command
+`,
+			},
+			mainContent: `# Main Workflow
+
+@include include-command.md
+
+Some content here.
+`,
+			expectedLen: 1,
+			expectedContains: map[int][]string{
+				0: {`"id":"copilot"`, `"command":"/custom/path/to/copilot"`, `"version":"1.0.0"`},
+			},
+		},
 	}
 
-	// Should find no engines
-	if len(engines) != 0 {
-		t.Errorf("Expected 0 engines, got %d: %v", len(engines), engines)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-*")
+			for fileName, fileContent := range tt.includeFiles {
+				includeFile := filepath.Join(tmpDir, fileName)
+				err := os.WriteFile(includeFile, []byte(fileContent), 0644)
+				require.NoError(t, err, "Should write include file %s", fileName)
+			}
+
+			engines, err := ExpandIncludesForEngines(tt.mainContent, tmpDir)
+			require.NoError(t, err, "Should expand includes for test case %q", tt.name)
+
+			require.Len(t, engines, tt.expectedLen, "Should return expected number of engines for test case %q", tt.name)
+
+			for idx, expected := range tt.expectedExact {
+				assert.Equal(t, expected, engines[idx], "Engine %d should match expected value for test case %q", idx, tt.name)
+			}
+
+			for idx, expectedFields := range tt.expectedContains {
+				for _, expectedField := range expectedFields {
+					assert.Containsf(t, engines[idx], expectedField, "Engine %d should include field %q for test case %q", idx, expectedField, tt.name)
+				}
+			}
+		})
 	}
 }
 
@@ -281,62 +240,8 @@ Just markdown content.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := extractFrontmatterField(tt.content, "engine", "")
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-			if result != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, result)
-			}
+			require.NoError(t, err, "Should extract engine field without error for case %q", tt.name)
+			assert.Equal(t, tt.expected, result, "Extracted engine should match expected value for case %q", tt.name)
 		})
-	}
-}
-
-func TestExpandIncludesForEnginesWithCommand(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create include file with engine command specification
-	includeContent := `---
-engine:
-  id: copilot
-  command: /custom/path/to/copilot
-  version: "1.0.0"
-tools:
-  github:
-    allowed: ["list_issues"]
----
-
-# Include with Custom Command
-`
-	includeFile := filepath.Join(tmpDir, "include-command.md")
-	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create main markdown content with include directive
-	mainContent := `# Main Workflow
-
-@include include-command.md
-
-Some content here.
-`
-
-	// Test engine expansion
-	engines, err := ExpandIncludesForEngines(mainContent, tmpDir)
-	if err != nil {
-		t.Fatalf("Expected successful engine expansion, got error: %v", err)
-	}
-
-	// Should find one engine
-	if len(engines) != 1 {
-		t.Fatalf("Expected 1 engine, got %d", len(engines))
-	}
-
-	// Should extract engine object as JSON with command field
-	expectedFields := []string{`"id":"copilot"`, `"command":"/custom/path/to/copilot"`, `"version":"1.0.0"`}
-	for _, field := range expectedFields {
-		if !contains(engines[0], field) {
-			t.Errorf("Expected engine JSON to contain %s, got %s", field, engines[0])
-		}
 	}
 }

@@ -151,6 +151,7 @@ Add a workflow with interactive guided setup. Checks requirements, adds the mark
 ```bash wrap
 gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
 gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
+gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary URL (JSON workflow)
 gh aw add-wizard githubnext/agentics/ci-doctor --skip-secret  # Skip secret prompt
 ```
 
@@ -165,11 +166,15 @@ gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
 gh aw add githubnext/agentics/ci-doctor --dir shared                  # Organize in subdirectory
 gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
+gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary HTTPS URL (markdown)
+gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
 ```
 
 **Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
+
+`add` and `add-wizard` also accept arbitrary `http(s)://` URLs. The fetched response is dispatched by `Content-Type`: `text/markdown` (and `text/x-markdown`) is installed as a raw gh-aw workflow, and `application/json` (or any `*+json` suffix) is converted to a workflow markdown file before installation. Unknown content types produce an actionable error listing the detected type. For non-GitHub hosts, no include/dispatch-workflow dependency resolution is performed, and no GitHub authentication token is sent to the remote server.
 
 #### `new`
 
@@ -517,6 +522,19 @@ gh aw logs --format markdown --repo owner/repo --count 10  # Specify repository
 See [Audit Commands](/gh-aw/reference/audit/) for the full reference.
 :::
 
+#### `outcomes`
+
+Check what happened to a workflow run's safe outputs (accepted, rejected, ignored, or pending).
+
+```bash wrap
+gh aw outcomes 1234567890                      # Check outcomes for a specific run
+gh aw outcomes 1234567890 --json               # JSON output
+gh aw outcomes 1234567890 --repo owner/repo    # Specify repository
+gh aw outcomes 1234567890 --outcomes-dir ./otlp # Write outcome JSONL for OTLP export
+```
+
+**Options:** `--json/-j`, `--repo/-r`, `--output/-o`, `--outcomes-dir`
+
 #### `health`
 
 Display workflow health metrics and success rates.
@@ -731,11 +749,13 @@ Create a new GitHub Project V2 owned by a user or organization with optional rep
 gh aw project new "My Project" --owner @me                      # Create user project
 gh aw project new "Team Board" --owner myorg                    # Create org project
 gh aw project new "Bugs" --owner myorg --link myorg/myrepo     # Create and link to repo
+gh aw project new "Project Q1" --owner myorg --with-project-setup # Create with standard views and fields
 ```
 
 **Options:**
 - `--owner` (required): Project owner - use `@me` for current user or specify organization name
 - `--link`: Repository to link project to (format: `owner/repo`)
+- `--with-project-setup`: Create standard project views and custom fields
 
 **Token Requirements:**
 

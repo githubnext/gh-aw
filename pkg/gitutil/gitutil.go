@@ -142,10 +142,12 @@ func FindGitRootFrom(startDir string) (string, error) {
 	}
 }
 
-// ReadFileFromHEADWithRoot is like ReadFileFromHEAD but accepts a pre-computed git
-// repository root, avoiding the subprocess overhead of calling FindGitRoot().
+// ReadFileFromHEAD reads a file from git HEAD using a pre-computed repository root.
+// filePath is resolved with filepath.Abs, so relative paths are interpreted from the
+// current process working directory (not gitRoot). Prefer passing an absolute path
+// within gitRoot, such as filepath.Join(gitRoot, "path/to/file").
 // Use this when the caller already knows the git root (e.g. from a cached value).
-func ReadFileFromHEADWithRoot(filePath, gitRoot string) (string, error) {
+func ReadFileFromHEAD(filePath, gitRoot string) (string, error) {
 	if gitRoot == "" {
 		return "", fmt.Errorf("gitRoot must not be empty when reading %q from HEAD", filePath)
 	}

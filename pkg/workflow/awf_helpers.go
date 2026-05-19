@@ -23,6 +23,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -35,6 +36,7 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
@@ -76,6 +78,66 @@ type AWFCommandConfig struct {
 	// variable is excluded — the agent can never read raw token values via `env`/`printenv`.
 	// Requires AWF v0.25.3+ for --exclude-env support.
 	ExcludeEnvVarNames []string
+}
+
+func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
+	return data != nil &&
+		data.NetworkPermissions != nil &&
+		data.NetworkPermissions.AllowedInput &&
+		hasWorkflowCallTrigger(data.On)
+}
+
+func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
+	ecosystemMap := make(map[string][]string, len(ecosystemDomains)+len(compoundEcosystems))
+	for ecosystem := range ecosystemDomains {
+		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
+	}
+	for ecosystem := range compoundEcosystems {
+		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
+	}
+
+	ecosystemJSON, err := json.Marshal(ecosystemMap)
+	if err != nil {
+		return "", fmt.Errorf("marshal network allowed ecosystem map: %w", err)
+	}
+
+	return fmt.Sprintf(`python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+runner_temp = os.environ.get("RUNNER_TEMP")
+if not runner_temp:
+    raise SystemExit("RUNNER_TEMP is not set")
+
+config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
+try:
+    config = json.loads(config_path.read_text())
+except FileNotFoundError as exc:
+    raise SystemExit(f"Missing AWF config file at {config_path}") from exc
+except json.JSONDecodeError as exc:
+    raise SystemExit(f"Invalid AWF config JSON at {config_path}: {exc}") from exc
+except OSError as exc:
+    raise SystemExit(f"Failed to read AWF config file at {config_path}: {exc}") from exc
+
+network_allowed = os.environ.get(%q, "")
+tokens = [token.strip() for token in network_allowed.split(",") if token.strip()]
+
+if tokens:
+    ecosystem_map = json.loads(r'''%s''')
+    allow_domains = config.setdefault("network", {}).setdefault("allowDomains", [])
+    seen = set(allow_domains)
+    for token in tokens:
+        for domain in ecosystem_map.get(token, [token]):
+            if domain not in seen:
+                allow_domains.append(domain)
+                seen.add(domain)
+
+try:
+    config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
+except OSError as exc:
+    raise SystemExit(f"Failed to write AWF config file at {config_path}: {exc}") from exc
+PY`, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.
@@ -147,12 +209,21 @@ fi`,
 		// startup) and also copy it to /tmp/gh-aw/awf-config.json so the unified agent artifact
 		// upload can include it alongside the other /tmp/gh-aw/ files.
 		configFileSetup = fmt.Sprintf(
-			"printf '%%s\\n' %s > \"${RUNNER_TEMP}/gh-aw/awf-config.json\" && cp \"${RUNNER_TEMP}/gh-aw/awf-config.json\" %s",
+			"printf '%%s\\n' %s > %q",
 			shellEscapeArg(awfConfigJSON),
-			constants.AWFConfigFilePath,
+			awfConfigRuntimePathExpr,
 		)
+		if shouldUseWorkflowCallNetworkAllowedInput(config.WorkflowData) {
+			updateScript, updateErr := buildWorkflowCallNetworkAllowedUpdateScript()
+			if updateErr != nil {
+				awfHelpersLog.Printf("Warning: failed to build workflow_call network_allowed updater: %v", updateErr)
+			} else {
+				configFileSetup += "\n" + updateScript
+			}
+		}
+		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
 		// Add --config as the first expandable arg so it appears before --container-workdir.
-		expandableArgs = `--config "${RUNNER_TEMP}/gh-aw/awf-config.json" ` + expandableArgs
+		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
 		awfHelpersLog.Print("Using AWF config file (--config flag)")
 	}
 

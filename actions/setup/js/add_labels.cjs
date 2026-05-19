@@ -8,7 +8,14 @@
  */
 
 /**
- * @typedef {{ item_number?: number|string, labels?: string[], repo?: string }} AddLabelsMessage
+ * @typedef {{
+ *   item_number?: number|string,
+ *   issue_number?: number|string,
+ *   pr_number?: number|string,
+ *   pull_number?: number|string,
+ *   labels?: string[],
+ *   repo?: string
+ * }} AddLabelsMessage
  */
 
 /** @type {string} Safe output type handled by this module */
@@ -20,7 +27,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { resolveRepoIssueTarget, loadTemporaryIdMapFromResolved } = require("./temporary_id.cjs");
+const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
@@ -63,35 +70,12 @@ const main = createCountGatedHandler({
       core.info(`Target repository: ${itemRepo}`);
 
       // Determine target issue/PR number
-      let itemNumber;
-      if (message.item_number !== undefined) {
-        // Resolve temporary IDs if present
-        const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
-        const resolvedTarget = resolveRepoIssueTarget(message.item_number, tempIdMap, repoParts.owner, repoParts.repo);
+      // Accept common aliases: issue_number, pr_number, and pull_number are normalised to item_number
+      const targetResult = resolveSafeOutputIssueTarget({ message, resolvedTemporaryIds, repoParts, handlerType: HANDLER_TYPE });
+      if (!targetResult.success) return targetResult;
+      const itemNumber = targetResult.number ?? context.payload?.issue?.number ?? context.payload?.pull_request?.number;
 
-        // Check if this is an unresolved temporary ID
-        if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
-          core.info(`Deferring add_labels: unresolved temporary ID (${message.item_number})`);
-          return {
-            success: false,
-            deferred: true,
-            error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${message.item_number}`,
-          };
-        }
-
-        // Check for other resolution errors
-        if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-          const error = `Invalid item number: ${message.item_number}`;
-          core.warning(error);
-          return { success: false, error };
-        }
-
-        itemNumber = resolvedTarget.resolved.number;
-      } else {
-        itemNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
-      }
-
-      if (!itemNumber || isNaN(itemNumber)) {
+      if (!itemNumber || Number.isNaN(Number(itemNumber))) {
         const error = "No issue/PR number available";
         core.warning(error);
         return { success: false, error };
@@ -118,6 +102,7 @@ const main = createCountGatedHandler({
 
       // Use validation helper to sanitize and validate labels
       const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount, blockedPatterns);
+
       if (!labelsResult.valid) {
         // If no valid labels, log info and return gracefully
         if (labelsResult.error?.includes("No valid labels")) {
@@ -129,6 +114,7 @@ const main = createCountGatedHandler({
             message: "No valid labels found",
           };
         }
+
         // For other validation errors, return error
         core.warning(`Label validation failed: ${labelsResult.error}`);
         return {

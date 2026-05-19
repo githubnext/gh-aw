@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+const (
+	githubRepositoryExpression = "${{ github.repository }}"
+)
+
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
 // The GitHub MCP server always operates in read-only mode; write access is not permitted.
 func validateGitHubReadOnly(tools *Tools, workflowName string) error {
@@ -127,9 +131,9 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 func validateReposScope(repos any, workflowName string) error {
 	// Case 1: String value ("all" or "public")
 	if reposStr, ok := repos.(string); ok {
-		if reposStr != "all" && reposStr != "public" {
+		if reposStr != "all" && reposStr != "public" && !isExactGitHubRepositoryExpression(reposStr) {
 			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
-			return errors.New("invalid guard policy: 'github.allowed-repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
+			return errors.New("invalid guard policy: 'github.allowed-repos' string must be 'all', 'public', or '${{ github.repository }}'. Got: '" + reposStr + "'")
 		}
 		return nil
 	}
@@ -179,6 +183,10 @@ func validateReposScope(repos any, workflowName string) error {
 
 // validateRepoPattern validates a single repository pattern
 func validateRepoPattern(pattern string, workflowName string) error {
+	if isExactGitHubRepositoryExpression(pattern) {
+		return nil
+	}
+
 	// Pattern must be lowercase
 	if strings.ToLower(pattern) != pattern {
 		toolsValidationLog.Printf("Repository pattern '%s' is not lowercase in workflow: %s", pattern, workflowName)
@@ -236,6 +244,46 @@ func isValidOwnerOrRepo(s string) bool {
 		}
 	}
 	return true
+}
+
+func isExactGitHubRepositoryExpression(value string) bool {
+	return value == githubRepositoryExpression
+}
+
+func normalizeGitHubRepositoryInReposScope(repos any) any {
+	switch r := repos.(type) {
+	case string:
+		if isExactGitHubRepositoryExpression(r) {
+			return githubRepositoryExpression
+		}
+		return r
+	case []string:
+		normalized := make([]string, len(r))
+		for i, repo := range r {
+			if isExactGitHubRepositoryExpression(repo) {
+				normalized[i] = githubRepositoryExpression
+				continue
+			}
+			normalized[i] = repo
+		}
+		return normalized
+	case []any:
+		normalized := make([]any, len(r))
+		for i, repo := range r {
+			if repoStr, ok := repo.(string); ok {
+				if isExactGitHubRepositoryExpression(repoStr) {
+					normalized[i] = githubRepositoryExpression
+					continue
+				}
+				normalized[i] = repoStr
+				continue
+			}
+			normalized[i] = repo
+		}
+		return normalized
+	default:
+		return repos
+	}
 }
 
 // Note: validateGitToolForSafeOutputs was removed because git commands are automatically

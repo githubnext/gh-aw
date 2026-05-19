@@ -25,6 +25,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 		if actionTagVal, exists := data.Features["action-tag"]; exists {
 			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
 				// action-tag is set, use remote actions - no checkout needed
+				compilerYamlStepGenerationLog.Printf("Skipping checkout actions folder: action-tag=%s requests remote actions", actionTagStr)
 				return nil
 			}
 		}
@@ -241,6 +242,7 @@ func (c *Compiler) generateSetRuntimePathsStep() []string {
 //
 // Only call this in script mode (c.actionMode.IsScript()).
 func (c *Compiler) generateScriptModeCleanupStep() string {
+	compilerYamlStepGenerationLog.Print("Generating script-mode cleanup step")
 	var step strings.Builder
 	step.WriteString("      - name: Clean Scripts\n")
 	step.WriteString("        if: always()\n")

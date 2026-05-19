@@ -344,6 +344,8 @@ function buildOTLPResourceAttributes(serviceName, scopeVersion, resourceAttribut
  *   runnerArch?: string,
  *   runnerName?: string,
  *   runnerEnvironment?: string,
+ *   awfVersion?: string,
+ *   awmgVersion?: string,
  *   staged: boolean,
  *   runAttempt?: string,
  * }} ctx
@@ -364,6 +366,8 @@ function buildGitHubActionsResourceAttributes({
   runnerArch = "",
   runnerName = "",
   runnerEnvironment = "",
+  awfVersion = "",
+  awmgVersion = "",
   staged,
   runAttempt = "1",
 }) {
@@ -407,6 +411,12 @@ function buildGitHubActionsResourceAttributes({
   }
   if (runnerEnvironment) {
     resourceAttributes.push(buildAttr("runner.environment", runnerEnvironment));
+  }
+  if (awfVersion) {
+    resourceAttributes.push(buildAttr("gh-aw.awf.version", awfVersion));
+  }
+  if (awmgVersion) {
+    resourceAttributes.push(buildAttr("gh-aw.awmg.version", awmgVersion));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
   return resourceAttributes;
@@ -1052,6 +1062,8 @@ async function sendJobSetupSpan(options = {}) {
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const awfVersion = (typeof awInfo.awf_version === "string" ? awInfo.awf_version : "") || process.env.GH_AW_INFO_AWF_VERSION || "";
+  const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
@@ -1147,6 +1159,8 @@ async function sendJobSetupSpan(options = {}) {
     runnerArch,
     runnerName,
     runnerEnvironment,
+    awfVersion,
+    awmgVersion,
     staged,
     runAttempt,
   });
@@ -1456,6 +1470,7 @@ function getErrorMessage(errorEntry) {
  * @property {number | undefined} turns
  * @property {number | undefined} estimatedCostUsd
  * @property {string | undefined} stopReason
+ * @property {string | undefined} resolvedModel
  * @property {number} warningCount
  */
 
@@ -1466,11 +1481,40 @@ function getErrorMessage(errorEntry) {
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, warningCount: 0 };
+  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, resolvedModel: undefined, warningCount: 0 };
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
     const lines = content.split("\n");
+
+    const applyRuntimeEntry = parsed => {
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return;
+      }
+
+      // Engine logs normalize init events to either:
+      // - { type: "system", subtype: "init", ... } (Claude/Copilot-style entries)
+      // - { type: "init", ... } (some normalized parsers/custom engines)
+      if ((parsed.type === "system" && parsed.subtype === "init") || parsed.type === "init") {
+        if (typeof parsed.model === "string" && parsed.model.trim()) {
+          metrics.resolvedModel = parsed.model.trim();
+        }
+      }
+
+      if (parsed.type !== "result") {
+        return;
+      }
+
+      if (typeof parsed.num_turns === "number" && parsed.num_turns >= 0) {
+        metrics.turns = parsed.num_turns;
+      }
+      if (typeof parsed.total_cost_usd === "number" && Number.isFinite(parsed.total_cost_usd) && parsed.total_cost_usd >= 0) {
+        metrics.estimatedCostUsd = parsed.total_cost_usd;
+      }
+      if (typeof parsed.stop_reason === "string" && parsed.stop_reason) {
+        metrics.stopReason = parsed.stop_reason;
+      }
+    };
 
     for (const rawLine of lines) {
       const line = rawLine.trim();
@@ -1482,26 +1526,29 @@ function readAgentRuntimeMetrics() {
         metrics.warningCount += 1;
       }
 
-      const jsonStart = line.indexOf("{");
+      const jsonObjectStart = line.indexOf("{");
+      const jsonArrayStart = line.indexOf("[{");
+      let jsonStart = -1;
+      if (jsonObjectStart >= 0 && jsonArrayStart >= 0) {
+        jsonStart = Math.min(jsonObjectStart, jsonArrayStart);
+      } else if (jsonObjectStart >= 0) {
+        jsonStart = jsonObjectStart;
+      } else {
+        jsonStart = jsonArrayStart;
+      }
       if (jsonStart < 0) {
         continue;
       }
 
       try {
         const parsed = JSON.parse(line.slice(jsonStart));
-        if (!parsed || parsed.type !== "result") {
+        if (Array.isArray(parsed)) {
+          for (const entry of parsed) {
+            applyRuntimeEntry(entry);
+          }
           continue;
         }
-
-        if (typeof parsed.num_turns === "number" && parsed.num_turns >= 0) {
-          metrics.turns = parsed.num_turns;
-        }
-        if (typeof parsed.total_cost_usd === "number" && Number.isFinite(parsed.total_cost_usd) && parsed.total_cost_usd >= 0) {
-          metrics.estimatedCostUsd = parsed.total_cost_usd;
-        }
-        if (typeof parsed.stop_reason === "string" && parsed.stop_reason) {
-          metrics.stopReason = parsed.stop_reason;
-        }
+        applyRuntimeEntry(parsed);
       } catch {
         // Ignore non-JSON and truncated log lines.
       }
@@ -1612,6 +1659,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const commentId = typeof awInfo.context?.comment_id === "string" ? awInfo.context.comment_id : "";
   const frontmatterSource = (typeof awInfo.frontmatter_source === "string" ? awInfo.frontmatter_source : "") || process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
   const frontmatterEmoji = (typeof awInfo.frontmatter_emoji === "string" ? awInfo.frontmatter_emoji : "") || process.env.GH_AW_INFO_FRONTMATTER_EMOJI || "";
+  const awfVersion = (typeof awInfo.awf_version === "string" ? awInfo.awf_version : "") || process.env.GH_AW_INFO_AWF_VERSION || "";
+  const awmgVersion = (typeof awInfo.awmg_version === "string" ? awInfo.awmg_version : "") || process.env.GH_AW_INFO_AWMG_VERSION || "";
   const bodyModified = typeof awInfo.body_modified === "boolean" ? awInfo.body_modified : parseBooleanEnv(process.env.GH_AW_INFO_BODY_MODIFIED);
   const trackerId = process.env.GH_AW_TRACKER_ID || awInfo.tracker_id || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
@@ -1648,7 +1697,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const isAgentCancelled = agentConclusion === "cancelled";
   const isAgentNonOK = isAgentFailure || isAgentCancelled;
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
-  const statusCode = isAgentNonOK ? 2 : 1;
+  let statusCode = isAgentNonOK ? 2 : 1;
   let statusMessage;
   if (isAgentFailure) {
     statusMessage = `agent ${agentConclusion}`;
@@ -1673,6 +1722,15 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     runStatus = "cancelled";
   } else if (rawRunStatus === "failure" || rawRunStatus === "timed_out") {
     runStatus = "failure";
+  }
+
+  // When GH_AW_AGENT_CONCLUSION and workflowRunConclusion are both absent (e.g. in the
+  // agent job's own post-step where needs.<job>.result is not yet visible), fall back to
+  // observable failure evidence so gh-aw.run.status and status.code are accurate.
+  if (!rawRunStatus && outputErrors.length > 0) {
+    runStatus = "failure";
+    statusCode = 2;
+    statusMessage = (errorMessages.length > 0 ? `errors detected: ${errorMessages[0]}` : "errors detected").slice(0, 256);
   }
 
   if (isAgentFailure && errorMessages.length > 0) {
@@ -1721,6 +1779,16 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (typeof runtimeMetrics.estimatedCostUsd === "number") {
     attributes.push(buildAttr("gh-aw.estimated_cost_usd", runtimeMetrics.estimatedCostUsd));
+  }
+  if (jobName === "agent") {
+    // Emit OTel GenAI semantic attributes on agent conclusion spans even when the
+    // dedicated agent sub-span is missing, so LLM activity remains discoverable.
+    attributes.push(buildAttr("gen_ai.operation.name", "chat"));
+    if (workflowName) attributes.push(buildAttr("gen_ai.workflow.name", workflowName));
+    if (runtimeMetrics.resolvedModel) attributes.push(buildAttr("gen_ai.response.model", runtimeMetrics.resolvedModel));
+    if (runtimeMetrics.stopReason) {
+      attributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [runtimeMetrics.stopReason]));
+    }
   }
 
   if (agentConclusion) {
@@ -1809,6 +1877,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     runnerArch,
     runnerName,
     runnerEnvironment,
+    awfVersion,
+    awmgVersion,
     staged,
     runAttempt,
   });
@@ -1912,20 +1982,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // Token-usage attributes are included here (and only here) to prevent
     // double-counting with the conclusion span.
     const agentAttributes = [...attributes, ...usageAttrs];
-    // gen_ai.operation.name is Required by the OTel GenAI spec for inference spans.
-    // All gh-aw agent executions are chat-style LLM completions.
-    agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
-    // gen_ai.request.model is already present in agentAttributes via the spread above
-    // (added to attributes at the top of this function); do not push again.
-    // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
-    // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
-    if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));
-    // gen_ai.response.finish_reasons is a standard OTel GenAI response attribute (array of strings).
-    // It exposes the stop_reason from the agent's result line so operators can detect truncated
-    // runs (e.g. "max_tokens") that would otherwise silently appear as STATUS_OK.
-    if (runtimeMetrics.stopReason) {
-      agentAttributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [runtimeMetrics.stopReason]));
-    }
+    // gen_ai.operation.name / gen_ai.workflow.name / gen_ai.response.finish_reasons
+    // are already included via the shared attributes list above.
 
     const agentPayload = buildOTLPPayload({
       traceId,

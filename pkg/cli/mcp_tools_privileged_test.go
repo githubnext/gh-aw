@@ -379,6 +379,96 @@ func TestAuditTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
 	assert.NotContains(t, strings.Join(capturedArgs, " "), "max_tokens", "audit command args should ignore max_tokens")
 }
 
+func TestAuditTool_AcceptsRunIDAlias(t *testing.T) {
+	testCases := []struct {
+		name           string
+		runIDValue     any
+		expectedRunArg string
+	}{
+		{
+			name:           "string_run_id",
+			runIDValue:     "1234567890",
+			expectedRunArg: "1234567890",
+		},
+		{
+			name:           "numeric_run_id",
+			runIDValue:     1234567890,
+			expectedRunArg: "1234567890",
+		},
+		{
+			name:           "run_url",
+			runIDValue:     "https://github.com/owner/repo/actions/runs/1234567890",
+			expectedRunArg: "https://github.com/owner/repo/actions/runs/1234567890",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			const expectedStdout = `{"overview":{"run_id":"1234567890"}}`
+
+			var capturedArgs []string
+			mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+				capturedArgs = slices.Clone(args)
+				return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+			}
+
+			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+			err := registerAuditTool(server, mockExecCmd, "", false)
+			require.NoError(t, err, "registerAuditTool should succeed")
+
+			session := connectInMemory(t, server)
+			result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+				Name: "audit",
+				Arguments: map[string]any{
+					"run_id": tc.runIDValue,
+				},
+			})
+			require.NoError(t, err, "audit tool should accept run_id alias")
+			require.NotNil(t, result, "result should not be nil")
+
+			textContent, ok := result.Content[0].(*mcp.TextContent)
+			require.True(t, ok, "expected text content in audit response")
+			assert.JSONEq(t, expectedStdout, textContent.Text, "audit tool should return subprocess stdout")
+
+			require.GreaterOrEqual(t, len(capturedArgs), 2, "captured args should include command and run ID")
+			assert.Equal(t, "audit", capturedArgs[0], "first arg should be audit command")
+			assert.Equal(t, tc.expectedRunArg, capturedArgs[1], "run_id alias should be forwarded as positional run input")
+		})
+	}
+}
+
+func TestAuditTool_AcceptsNumericRunIDOrURLField(t *testing.T) {
+	const expectedStdout = `{"overview":{"run_id":"1234567890"}}`
+
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = slices.Clone(args)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", expectedStdout)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_id_or_url": 1234567890,
+		},
+	})
+	require.NoError(t, err, "audit tool should accept numeric run_id_or_url")
+	require.NotNil(t, result, "result should not be nil")
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok, "expected text content in audit response")
+	assert.JSONEq(t, expectedStdout, textContent.Text, "audit tool should return subprocess stdout")
+
+	require.GreaterOrEqual(t, len(capturedArgs), 2, "captured args should include command and run ID")
+	assert.Equal(t, "audit", capturedArgs[0], "first arg should be audit command")
+	assert.Equal(t, "1234567890", capturedArgs[1], "numeric run_id_or_url should be normalized to positional string run ID")
+}
+
 // TestAuditTool_MultiRunDiffMode verifies that when run_ids_or_urls contains
 // multiple entries the audit tool passes all of them as positional arguments
 // to the audit command (which then runs in diff mode).

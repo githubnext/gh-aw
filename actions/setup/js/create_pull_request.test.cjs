@@ -2341,6 +2341,76 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(result.error).toBe("Failed to apply patch");
   });
 
+  it("should recover add/add conflicts during fallback git am --3way and continue", async () => {
+    let am3WayAttempts = 0;
+    let unresolvedChecks = 0;
+    const conflictedPath = " docs/file.md ";
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args)) {
+          am3WayAttempts += 1;
+          throw new Error("CONFLICT (add/add): Merge conflict in docs/file.md");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args.includes("--diff-filter=U")) {
+          unresolvedChecks += 1;
+          // First recovery attempt (after initial apply failure): no add/add conflicts.
+          // Second recovery attempt (during fallback): add/add conflict present.
+          if (unresolvedChecks === 1) {
+            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: `${conflictedPath}\0`, stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "status" && args[1] === "--porcelain") {
+          return Promise.resolve({ exitCode: 0, stdout: `AA ${conflictedPath}\0`, stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--continue"]);
+    expect(global.core.debug).toHaveBeenCalledWith(expect.stringContaining("Add/add recovery probe unresolved files"));
+  });
+
+  it("should log recovery failure details when add/add recovery throws", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args)) {
+          throw new Error("CONFLICT (add/add): Merge conflict in docs/file.md");
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "--theirs") {
+          throw new Error("failed to checkout theirs");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args.includes("--diff-filter=U")) {
+          return Promise.resolve({ exitCode: 0, stdout: "docs/file.md\0", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "status" && args[1] === "--porcelain") {
+          return Promise.resolve({ exitCode: 0, stdout: "AA docs/file.md\0", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Automatic add/add conflict recovery attempt failed"));
+  });
+
   it("should return error when original base commit is not available (cross-repo scenario)", async () => {
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
@@ -2480,6 +2550,60 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(result.success).toBe(false);
     expect(result.error_type).toBe("push_failed");
     expect(result.error).toContain('Failed to delete existing remote branch "preserve-me"');
+  });
+
+  it("should rename with random suffix when deleteRef is blocked by branch protection rules (recreate-ref fallback)", async () => {
+    let capturedRenamedBranch = null;
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        // Capture the new branch name from: git branch -m <old> <new>
+        const renameMatch = cmdStr.match(/git branch -m \S+ (\S+)/);
+        if (renameMatch) {
+          capturedRenamedBranch = renameMatch[1];
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("ls-remote --heads origin")) {
+          return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/chaos/preserve-me\n", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+    // Simulate the 422 "Repository rule violations found / Cannot delete this branch" error
+    // that occurs when chaos/* branches are protected by a ruleset that blocks deletion.
+    const ruleViolationError = Object.assign(new Error("Repository rule violations found\n\nCannot delete this branch\n\n - https://docs.github.com/rest/git/refs#delete-a-reference"), { status: 422 });
+    global.github.rest.git.deleteRef = vi.fn().mockRejectedValue(ruleViolationError);
+
+    const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+    const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ preserve_branch_name: true, recreate_ref: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "chaos/preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    // Should have attempted to delete the ref
+    expect(global.github.rest.git.deleteRef).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      ref: "heads/chaos/preserve-me",
+    });
+    // Should have fallen back to rename with suffix
+    expect(capturedRenamedBranch).not.toBeNull();
+    expect(capturedRenamedBranch).toMatch(/^chaos\/preserve-me-[0-9a-f]{8}$/);
+    const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
+    expect(warningCalls.some(msg => msg.includes("cannot be deleted due to branch protection rules"))).toBe(true);
+    expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(true);
+    // The renamed branch must be used for the push and PR creation, not the original protected name
+    expect(pushSignedSpy).toHaveBeenCalledWith(expect.objectContaining({ branch: capturedRenamedBranch }));
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ head: capturedRenamedBranch }));
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalledWith(expect.objectContaining({ head: "chaos/preserve-me" }));
+
+    pushSignedSpy.mockRestore();
   });
 
   it("should append random suffix when preserve-branch-name is false and remote branch already exists", async () => {
