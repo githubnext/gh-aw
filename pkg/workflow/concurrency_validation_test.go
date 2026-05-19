@@ -756,3 +756,78 @@ func TestExtractConcurrencyGroupFromYAML(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
+	tests := []struct {
+		name        string
+		concurrency string
+		wantErr     bool
+	}{
+		{
+			name: "queue max with cancel true is rejected",
+			concurrency: `concurrency:
+  group: "my-group"
+  cancel-in-progress: true
+  queue: max`,
+			wantErr: true,
+		},
+		{
+			name: "quoted queue max with cancel true is rejected",
+			concurrency: `concurrency:
+  group: "my-group"
+  queue: "max"
+  cancel-in-progress: true`,
+			wantErr: true,
+		},
+		{
+			name: "queue max with cancel false is allowed",
+			concurrency: `concurrency:
+  group: "my-group"
+  cancel-in-progress: false
+  queue: max`,
+			wantErr: false,
+		},
+		{
+			name: "queue max without cancel-in-progress is allowed",
+			concurrency: `concurrency:
+  group: "my-group"
+  queue: max`,
+			wantErr: false,
+		},
+		{
+			name: "queue single with cancel true is allowed",
+			concurrency: `concurrency:
+  group: "my-group"
+  cancel-in-progress: true
+  queue: single`,
+			wantErr: false,
+		},
+		{
+			name:        "string concurrency is allowed",
+			concurrency: `concurrency: "my-group-${{ github.ref }}"`,
+			wantErr:     false,
+		},
+		{
+			name:        "empty concurrency string is allowed",
+			concurrency: ``,
+			wantErr:     false,
+		},
+		{
+			name:        "whitespace-only concurrency string is allowed",
+			concurrency: "  \n\t  ",
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConcurrencyQueueConfiguration(tt.concurrency)
+			if tt.wantErr {
+				require.Error(t, err, "invalid queue/cancel-in-progress combination should fail validation")
+				assert.Contains(t, err.Error(), "queue: max cannot be combined with cancel-in-progress: true", "error should explain the queue/cancel-in-progress constraint")
+				return
+			}
+			assert.NoError(t, err, "valid concurrency configuration should pass queue/cancel-in-progress validation")
+		})
+	}
+}
