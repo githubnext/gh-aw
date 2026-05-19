@@ -689,10 +689,10 @@ async function main(config = {}) {
     if (rawTarget !== undefined && rawTarget !== "status") {
       return {
         success: false,
-        error: "target must be exactly 'status' when provided",
+        error: "target must be one of: [status]",
       };
     }
-    const targetStatusComment = rawTarget === "status";
+    const isStatusCommentTarget = rawTarget === "status";
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
     let commentIdToReuse = null;
     if (explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "") {
@@ -703,7 +703,7 @@ async function main(config = {}) {
           error: "comment_id must be a positive integer",
         };
       }
-    } else if (targetStatusComment) {
+    } else if (isStatusCommentTarget) {
       const parsedStatusCommentId = Number(statusCommentIdRaw);
       if (Number.isInteger(parsedStatusCommentId) && parsedStatusCommentId > 0) {
         commentIdToReuse = parsedStatusCommentId;
