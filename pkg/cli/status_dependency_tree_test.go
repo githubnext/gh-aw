@@ -31,6 +31,22 @@ func TestExtractWorkflowDependencies(t *testing.T) {
 	}
 }
 
+func TestExtractWorkflowDependencies_ImportsObjectAW(t *testing.T) {
+	frontmatter := map[string]any{
+		"imports": map[string]any{
+			"aw": []any{
+				map[string]any{"path": "shared/one.md#setup"},
+				map[string]any{"uses": "shared/two.md"},
+				"shared/three.md",
+			},
+		},
+	}
+
+	got := extractWorkflowDependencies("", frontmatter)
+	want := []string{"shared/one.md", "shared/three.md", "shared/two.md"}
+	assert.Equal(t, want, got)
+}
+
 func TestRenderWorkflowDependencyTree(t *testing.T) {
 	statuses := []WorkflowStatus{
 		{

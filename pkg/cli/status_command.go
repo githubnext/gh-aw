@@ -341,21 +341,7 @@ func extractWorkflowDependencies(content string, frontmatter map[string]any) []s
 	}
 
 	if frontmatter != nil {
-		switch imports := frontmatter["imports"].(type) {
-		case string:
-			addDependency(imports)
-		case []any:
-			for _, item := range imports {
-				switch importItem := item.(type) {
-				case string:
-					addDependency(importItem)
-				case map[string]any:
-					if uses, ok := importItem["uses"].(string); ok {
-						addDependency(uses)
-					}
-				}
-			}
-		}
+		addDependenciesFromImports(frontmatter["imports"], addDependency)
 	}
 
 	includes, err := findIncludesInContent(content)
@@ -375,6 +361,42 @@ func extractWorkflowDependencies(content string, frontmatter map[string]any) []s
 	}
 	slices.Sort(dependencies)
 	return dependencies
+}
+
+func addDependenciesFromImports(imports any, addDependency func(string)) {
+	switch value := imports.(type) {
+	case string:
+		addDependency(value)
+	case []string:
+		for _, item := range value {
+			addDependency(item)
+		}
+	case []any:
+		for _, item := range value {
+			switch importItem := item.(type) {
+			case string:
+				addDependency(importItem)
+			case map[string]any:
+				if uses, ok := importItem["uses"].(string); ok {
+					addDependency(uses)
+				} else if path, ok := importItem["path"].(string); ok {
+					addDependency(path)
+				}
+			}
+		}
+	case map[string]any:
+		// Object form: imports: { aw: [...] }
+		if aw, ok := value["aw"]; ok {
+			addDependenciesFromImports(aw, addDependency)
+			return
+		}
+		// Allow direct single-object form for resilience.
+		if uses, ok := value["uses"].(string); ok {
+			addDependency(uses)
+		} else if path, ok := value["path"].(string); ok {
+			addDependency(path)
+		}
+	}
 }
 
 func normalizeWorkflowDependency(dependency string) string {

@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2/tree"
@@ -194,7 +196,15 @@ func renderMCPInspectionTree(workflowPath string, workflowData *workflow.Workflo
 	}
 
 	serversTree := tree.Root("MCP Servers")
-	for _, config := range mcpConfigs {
+	sortedConfigs := append([]parser.RegistryMCPServerConfig(nil), mcpConfigs...)
+	slices.SortFunc(sortedConfigs, func(a, b parser.RegistryMCPServerConfig) int {
+		if nameCmp := strings.Compare(a.Name, b.Name); nameCmp != 0 {
+			return nameCmp
+		}
+		return strings.Compare(a.Type, b.Type)
+	})
+
+	for _, config := range sortedConfigs {
 		serversTree.Child(fmt.Sprintf("%s (%s)", config.Name, config.Type))
 	}
 
