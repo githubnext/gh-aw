@@ -308,10 +308,7 @@ Test the %s engine compilation path.
 			yamlOutput, err := compiler.CompileToYAML(wd, "workflow.md")
 			require.NoError(t, err, "%s engine compile failed", eng.name)
 
-			// Verify engine-specific output
-			require.Contains(t, yamlOutput, "name:", "%s engine output missing name", eng.name)
-			require.Contains(t, yamlOutput, "on:", "%s engine output missing on", eng.name)
-			require.Contains(t, yamlOutput, "jobs:", "%s engine output missing jobs", eng.name)
+			golden.RequireEqual(t, normalizeOutput(yamlOutput))
 		})
 	}
 }

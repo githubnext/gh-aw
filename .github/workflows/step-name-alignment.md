@@ -42,6 +42,27 @@ tools:
     - "cat docs/src/content/docs/reference/glossary.md"
     - "git log --since='24 hours ago' --oneline --name-only -- '.github/workflows/*.lock.yml'"
 
+steps:
+  - name: Build step alignment manifest
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+
+      MANIFEST_JSONL="/tmp/gh-aw/agent/step-alignment-input.jsonl"
+      MANIFEST_JSON="/tmp/gh-aw/agent/step-alignment-input.json"
+      : > "$MANIFEST_JSONL"
+
+      while IFS= read -r workflow_file; do
+        yq -o=json \
+          '.jobs | to_entries[] | .value.steps[]? | {"workflow_file": "'"$workflow_file"'", "step_name": (.name // ""), "action_uses": (.uses // "")}' \
+          "$workflow_file" >> "$MANIFEST_JSONL"
+      done < <(find .github/workflows -name "*.lock.yml" -type f | sort)
+
+      jq -s '.' "$MANIFEST_JSONL" > "$MANIFEST_JSON"
+      rm -f "$MANIFEST_JSONL"
+
+      echo "Wrote $(jq 'length' "$MANIFEST_JSON") step records to $MANIFEST_JSON"
+
 timeout-minutes: 30
 
 
@@ -54,7 +75,7 @@ You are an AI agent that ensures consistency and accuracy in step names across a
 ## Your Mission
 
 Maintain consistent, accurate, and descriptive step names by:
-1. Scanning all `.lock.yml` files to collect step names using `yq`
+1. Reading the pre-built manifest at `/tmp/gh-aw/agent/step-alignment-input.json`
 2. Analyzing step names against their intent and context
 3. Comparing terminology with the project glossary
 4. Identifying inconsistencies, inaccuracies, or unclear names
@@ -115,34 +136,25 @@ cat docs/src/content/docs/reference/glossary.md
 
 ### 3. Collect All Step Names
 
-Use `yq` to extract step names from all `.lock.yml` files:
+A deterministic pre-agent step has already collected step records from all `.lock.yml` files and written them to:
 
-```bash
-# List all lock files
-find .github/workflows -name "*.lock.yml" -type f
+`/tmp/gh-aw/agent/step-alignment-input.json`
 
-# For each lock file, extract step names
-yq eval '.jobs.*.steps[].name' .github/workflows/example.lock.yml
-```
+Read this manifest first and use it as your primary dataset.
 
-**Build a comprehensive list** of all step names used across workflows, grouped by workflow file.
+The manifest contains records in this shape:
 
-**Data structure:**
 ```json
-{
-  "glossary-maintainer.lock.yml": [
-    "Checkout actions folder",
-    "Setup Scripts",
-    "Check workflow file timestamps",
-    "Install GitHub Copilot CLI",
-    "Write Safe Outputs Config",
-    ...
-  ],
-  "step-name-alignment.lock.yml": [
-    ...
-  ]
-}
+[
+  {
+    "workflow_file": ".github/workflows/example.lock.yml",
+    "step_name": "Install GitHub Copilot CLI",
+    "action_uses": "actions/setup-node@v4"
+  }
+]
 ```
+
+Only if you detect missing or suspicious entries should you run targeted spot-checks with `yq`/`Read` against specific files. Avoid broad filesystem re-enumeration.
 
 ### 4. Analyze Step Names
 

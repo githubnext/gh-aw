@@ -218,6 +218,37 @@ assert "flattening message logged" \
   "printf '%s' \"${OUTPUT}\" | grep -q 'Flattening legacy nested cache directory'"
 echo ""
 
+# ── Test 13: Corrupted git metadata is healed automatically ───────────────────
+echo "Test 13: Corrupted git metadata is reinitialized"
+D="${WORKSPACE}/test13"
+make_cache_dir "${D}" "data.json"
+pushd "${D}" >/dev/null
+TREE_OBJ="$(git rev-parse HEAD^{tree})"
+TREE_OBJ_PATH=".git/objects/${TREE_OBJ:0:2}/${TREE_OBJ:2}"
+if [ ! -f "${TREE_OBJ_PATH}" ]; then
+  echo "  ✗ expected loose tree object to exist at ${TREE_OBJ_PATH}"
+  TESTS_FAILED=$((TESTS_FAILED + 1))
+else
+  rm -f "${TREE_OBJ_PATH}"
+fi
+popd >/dev/null
+
+set +e
+OUTPUT="$(run_script "${D}" none)"
+EXIT_CODE=$?
+set -e
+assert "corrupted repo exits successfully" \
+  "[ '${EXIT_CODE}' -eq 0 ]"
+assert "corruption warning logged" \
+  "printf '%s' \"${OUTPUT}\" | grep -qi 'Detected corrupted cache-memory git repository'"
+assert "git metadata recreated" \
+  "[ -d '${D}/.git' ]"
+assert "restored file preserved after recovery" \
+  "[ -f '${D}/data.json' ]"
+assert "integrity branch exists after recovery" \
+  "git -C '${D}' rev-parse --verify none >/dev/null 2>&1"
+echo ""
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "Tests passed: ${TESTS_PASSED}"
 echo "Tests failed: ${TESTS_FAILED}"

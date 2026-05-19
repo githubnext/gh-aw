@@ -2820,6 +2820,12 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.engine.id"]).toBe("claude");
     expect(attrs["gh-aw.engine"]).toBeUndefined();
     expect(attrs["gen_ai.workflow.name"]).toBe("otel-advisor");
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const conclusionAttrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
+    expect(conclusionAttrs["gen_ai.operation.name"]).toBe("chat");
+    expect(conclusionAttrs["gen_ai.workflow.name"]).toBe("otel-advisor");
   });
 
   it("does not duplicate gen_ai.request.model on the agent span", async () => {
@@ -2970,6 +2976,12 @@ describe("sendJobConclusionSpan", () => {
     const finishAttr = agentSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
     expect(finishAttr).toBeDefined();
     expect(finishAttr.value.arrayValue.values).toEqual([{ stringValue: "end_turn" }]);
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const conclusionFinishAttr = conclusionSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
+    expect(conclusionFinishAttr).toBeDefined();
+    expect(conclusionFinishAttr.value.arrayValue.values).toEqual([{ stringValue: "end_turn" }]);
   });
 
   it("omits gen_ai.response.finish_reasons from the agent span when stop_reason is absent in agent-stdio.log", async () => {
@@ -2999,6 +3011,11 @@ describe("sendJobConclusionSpan", () => {
     expect(agentSpan.name).toBe("gh-aw.agent.agent");
     const keys = agentSpan.attributes.map(a => a.key);
     expect(keys).not.toContain("gen_ai.response.finish_reasons");
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
+    expect(conclusionKeys).not.toContain("gen_ai.response.finish_reasons");
   });
 
   it("includes gen_ai.response.finish_reasons with max_tokens on the agent span when truncated", async () => {

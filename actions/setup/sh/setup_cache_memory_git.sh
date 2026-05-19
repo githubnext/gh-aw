@@ -28,6 +28,39 @@ INTEGRITY="${GH_AW_MIN_INTEGRITY:-none}"
 # All integrity levels in descending order (highest first)
 LEVELS=("merged" "approved" "unapproved" "none")
 
+initialize_cache_memory_git_repo() {
+  # No git repo yet — either a fresh cache or a legacy flat-file cache.
+  # Initialize a git repository with an empty baseline commit on the highest-trust
+  # branch, then create all other integrity branches from that empty state.
+  # IMPORTANT: Legacy flat files (written at unknown/none integrity in a previous
+  # version of gh-aw) are committed to the 'none' branch only to prevent trust
+  # escalation — do NOT commit them to 'merged' or any higher-trust branch.
+  git init -b merged -q
+  git config user.email "gh-aw@github.com"
+  git config user.name "gh-aw"
+  # Disable hooks immediately after init so that no cached hook file can fire
+  # during checkout or merge operations later in this script.
+  git config core.hooksPath /dev/null
+  # Create an empty initial commit as the trusted baseline for all branches
+  git commit --allow-empty -m "initial" -q
+
+  # Create all integrity branches from the empty baseline
+  for level in "${LEVELS[@]}"; do
+    if [ "$level" != "merged" ]; then
+      git branch "$level" 2>/dev/null || true
+    fi
+  done
+
+  # Migrate any pre-existing flat files to the 'none' branch only (lowest trust).
+  # Switching to 'none' before staging ensures legacy data cannot be read by
+  # higher-integrity runs via the merge-down step.
+  git checkout -q none
+  git add -A
+  git commit --allow-empty -m "migrate-legacy-files" -q
+
+  echo "Cache memory git repository initialized with branches: ${LEVELS[*]}"
+}
+
 mkdir -p "$CACHE_DIR"
 cd "$CACHE_DIR"
 
@@ -84,45 +117,42 @@ fi
 
 # --- Format detection & migration ---
 if [ ! -d .git ]; then
-  # No git repo yet — either a fresh cache or a legacy flat-file cache.
-  # Initialize a git repository with an empty baseline commit on the highest-trust
-  # branch, then create all other integrity branches from that empty state.
-  # IMPORTANT: Legacy flat files (written at unknown/none integrity in a previous
-  # version of gh-aw) are committed to the 'none' branch only to prevent trust
-  # escalation — do NOT commit them to 'merged' or any higher-trust branch.
-  git init -b merged -q
-  git config user.email "gh-aw@github.com"
-  git config user.name "gh-aw"
-  # Disable hooks immediately after init so that no cached hook file can fire
-  # during checkout or merge operations later in this script.
-  git config core.hooksPath /dev/null
-  # Create an empty initial commit as the trusted baseline for all branches
-  git commit --allow-empty -m "initial" -q
-
-  # Create all integrity branches from the empty baseline
-  for level in "${LEVELS[@]}"; do
-    if [ "$level" != "merged" ]; then
-      git branch "$level" 2>/dev/null || true
-    fi
-  done
-
-  # Migrate any pre-existing flat files to the 'none' branch only (lowest trust).
-  # Switching to 'none' before staging ensures legacy data cannot be read by
-  # higher-integrity runs via the merge-down step.
-  git checkout -q none
-  git add -A
-  git commit --allow-empty -m "migrate-legacy-files" -q
-
-  echo "Cache memory git repository initialized with branches: ${LEVELS[*]}"
+  initialize_cache_memory_git_repo
 else
   # Existing repo: disable hooks as belt-and-suspenders after the hook-file
   # deletion above, ensuring no residual configuration can re-enable hooks.
   git config core.hooksPath /dev/null
+  # If restored git metadata is corrupt (for example missing tree objects from a
+  # raced or force-pushed cache branch), reset to a clean repo while preserving
+  # restored files in the working tree.
+  if ! git fsck --connectivity-only --no-progress >/tmp/gh-aw-git-fsck-out 2>/tmp/gh-aw-git-fsck-err; then
+    echo "WARNING: Detected corrupted cache-memory git repository; reinitializing git metadata"
+    cat /tmp/gh-aw-git-fsck-err 2>/dev/null || true
+    rm -rf .git
+    IS_CACHE_HIT=false
+    initialize_cache_memory_git_repo
+  fi
+  rm -f /tmp/gh-aw-git-fsck-out /tmp/gh-aw-git-fsck-err 2>/dev/null || true
 fi
 
 # --- Checkout current integrity branch ---
 # Use -q to suppress "Switched to branch" noise
-git checkout -q "$INTEGRITY"
+if ! git checkout -q "$INTEGRITY" 2>/tmp/gh-aw-checkout-err; then
+  checkout_exit=$?
+  if grep -qiE "unable to read tree|could not parse HEAD|bad object|missing tree" /tmp/gh-aw-checkout-err 2>/dev/null; then
+    echo "WARNING: checkout failed due to cache-memory git corruption; reinitializing git metadata"
+    cat /tmp/gh-aw-checkout-err 2>/dev/null || true
+    rm -rf .git
+    IS_CACHE_HIT=false
+    initialize_cache_memory_git_repo
+    git checkout -q "$INTEGRITY"
+  else
+    echo "ERROR: failed to checkout integrity branch '$INTEGRITY' (exit $checkout_exit):" >&2
+    cat /tmp/gh-aw-checkout-err >&2
+    exit "$checkout_exit"
+  fi
+fi
+rm -f /tmp/gh-aw-checkout-err 2>/dev/null || true
 
 # --- Merge down from higher-integrity branches ---
 # Read semantics: lower-integrity runs see higher-integrity data via merge,

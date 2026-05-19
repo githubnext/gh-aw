@@ -1747,6 +1747,15 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (typeof runtimeMetrics.estimatedCostUsd === "number") {
     attributes.push(buildAttr("gh-aw.estimated_cost_usd", runtimeMetrics.estimatedCostUsd));
   }
+  if (jobName === "agent") {
+    // Emit OTel GenAI semantic attributes on agent conclusion spans even when the
+    // dedicated agent sub-span is missing, so LLM activity remains discoverable.
+    attributes.push(buildAttr("gen_ai.operation.name", "chat"));
+    if (workflowName) attributes.push(buildAttr("gen_ai.workflow.name", workflowName));
+    if (runtimeMetrics.stopReason) {
+      attributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [runtimeMetrics.stopReason]));
+    }
+  }
 
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
@@ -1939,20 +1948,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // Token-usage attributes are included here (and only here) to prevent
     // double-counting with the conclusion span.
     const agentAttributes = [...attributes, ...usageAttrs];
-    // gen_ai.operation.name is Required by the OTel GenAI spec for inference spans.
-    // All gh-aw agent executions are chat-style LLM completions.
-    agentAttributes.push(buildAttr("gen_ai.operation.name", "chat"));
-    // gen_ai.request.model is already present in agentAttributes via the spread above
-    // (added to attributes at the top of this function); do not push again.
-    // gen_ai.workflow.name identifies the agentic workflow, matching the OTel spec example
-    // use-cases (e.g. "multi_agent_rag", "customer_support_pipeline").
-    if (workflowName) agentAttributes.push(buildAttr("gen_ai.workflow.name", workflowName));
-    // gen_ai.response.finish_reasons is a standard OTel GenAI response attribute (array of strings).
-    // It exposes the stop_reason from the agent's result line so operators can detect truncated
-    // runs (e.g. "max_tokens") that would otherwise silently appear as STATUS_OK.
-    if (runtimeMetrics.stopReason) {
-      agentAttributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [runtimeMetrics.stopReason]));
-    }
+    // gen_ai.operation.name / gen_ai.workflow.name / gen_ai.response.finish_reasons
+    // are already included via the shared attributes list above.
 
     const agentPayload = buildOTLPPayload({
       traceId,
