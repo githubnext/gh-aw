@@ -56,22 +56,30 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	runtimeStepGeneratorLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
 	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
 
-	// In dev mode, install gh-aw from the checked-out source tree instead of
-	// using setup-cli (which installs released tags).
-	if runtime.ID == "gh-aw" && !IsRelease() {
-		step := GitHubActionStep{"      - name: Build and install gh-aw CLI from source"}
-		if req.IfCondition != "" {
-			step = append(step, "        if: "+req.IfCondition)
+	if runtime.ID == "gh-aw" {
+		if version == "" {
+			version = getDefaultGhAWRuntimeVersion()
 		}
-		step = append(step,
-			"        run: |",
-			"          gh extension remove gh-aw || true",
-			"          make build",
-			"          gh extension install .",
-			"          gh aw version",
-			"        env:",
-			"          GH_TOKEN: ${{ github.token }}",
-		)
+
+		allExtraFields := make(map[string]string)
+		// runtime.ExtraWithFields are already YAML-formatted by runtime definitions.
+		maps.Copy(allExtraFields, runtime.ExtraWithFields)
+		// req.ExtraFields come from user input and need YAML formatting.
+		for k, v := range req.ExtraFields {
+			allExtraFields[k] = formatYAMLValue(v)
+		}
+
+		step, err := generateGhAwSetupStep(ghAwSetupStepConfig{
+			actionMode:           actionModeForRuntimeSetup(IsRelease()),
+			ifCondition:          req.IfCondition,
+			cliVersion:           version,
+			actionRepo:           runtime.ActionRepo,
+			fallbackActionRefTag: runtime.ActionVersion,
+			withFields:           allExtraFields,
+		})
+		if err != nil {
+			runtimeStepGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", runtime.ActionRepo, version, err)
+		}
 		return step
 	}
 
@@ -161,8 +169,15 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	sort.Strings(allKeys)
 	for _, key := range allKeys {
 		step = append(step, fmt.Sprintf("          %s: %s", key, allExtraFields[key]))
-		log.Printf("  Added extra field to runtime setup: %s = %s", key, allExtraFields[key])
+		workflowLog.Printf("  Added extra field to runtime setup: %s = %s", key, allExtraFields[key])
 	}
 
 	return step
+}
+
+func actionModeForRuntimeSetup(isRelease bool) ActionMode {
+	if isRelease {
+		return ActionModeRelease
+	}
+	return ActionModeDev
 }

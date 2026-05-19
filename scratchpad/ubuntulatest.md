@@ -653,7 +653,7 @@ docker run -it --rm \
 
 ## Key Differences from Runner
 
-The GitHub Actions runner environment has several aspects that cannot be perfectly replicated in a Docker image:
+The GitHub Actions runner environment has several aspects that cannot be fully replicated in a Docker image:
 
 ### 1. GitHub Actions Context
 - **Environment Variables**: The runner provides GitHub-specific context variables (`GITHUB_ACTOR`, `GITHUB_REPOSITORY`, `GITHUB_SHA`, etc.) that won't be available

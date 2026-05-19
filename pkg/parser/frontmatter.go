@@ -4,4 +4,4 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var log = logger.New("parser:frontmatter")
+var parserLog = logger.New("parser:frontmatter")

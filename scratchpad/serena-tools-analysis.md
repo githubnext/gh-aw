@@ -44,7 +44,7 @@ This report provides a statistical analysis of Serena MCP (Model Context Protoco
 | 9 | `mcp__serena__check_onboarding_performed` | 1 | 2.27% |
 | 10 | `mcp__serena__list_memories` | 1 | 2.27% |
 
-## Serena Tool Usage Deep Dive
+## Serena Tool Usage Analysis
 
 ### Serena Tools Used (6 tools)
 

@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 9.10
-**Last Updated**: 2026-05-18
+**Version**: 9.11
+**Last Updated**: 2026-05-19
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2974,6 +2974,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v9.11 (2026-05-19): Maintenance tone scan — fixed 3 tone issues across 3 spec files: `labels.md` (1 fix: "Nice-to-have improvements"→"Lower-priority improvements" line 27; matches the v8.0 "nice to have"→"non-blocking" pattern applied to `agents/hierarchical-agents-quickstart.md`); `serena-tools-analysis.md` (1 fix: "## Serena Tool Usage Deep Dive"→"## Serena Tool Usage Analysis" line 47; matches the v3.8 "Deep analysis"→"Detailed analysis" pattern and v9.7 "deep dive"→"statistical analysis" replacement applied to `serena-tools-quick-reference.md`); `ubuntulatest.md` (1 fix: "cannot be perfectly replicated"→"cannot be fully replicated" line 656; removed redundant intensifier — "perfectly" adds no information when contrasting partial vs. complete replication). Coverage: 64 spec files (no new files).
 - v9.10 (2026-05-18): Maintenance tone scan — fixed 4 tone issues across 4 spec files: `testing.md` (1 fix: "extensive testing practices (699 test files, 1,061+ table-driven tests)"→"uses 699 test files and 1,061+ table-driven tests" line 7; "extensive" is subjective when the concrete count is already provided); `html-entity-mention-bypass-fix.md` (1 fix: "Extensive test suite validates all attack vectors"→"Test suite validates all attack vectors" line 137; matches the v6.1 "Comprehensive"→removed pattern); `safe-outputs-specification.md` (1 fix: "Due to the extensive nature of GitHub operations (20+ operation types)"→"Given the number of GitHub operations (20+ operation types)" line 810); `serena-tools-analysis.md` (1 fix: "Serena tools are highly **bandwidth-efficient**"→"Serena tools are **bandwidth-efficient**" line 170; redundant intensifier — preceding line already states "minimal bandwidth"). Coverage: 64 spec files (no new files).
 - v9.9 (2026-05-17): Maintenance tone scan — fixed 1 tone issue: `mcp_logs_guardrails.md` (1 fix: "Returns a simplified list of runs with just the essential fields."→"Returns a list of runs containing only the `database_id`, `workflow_name`, and `status` fields." line 125; removed subjective "essential fields" in favor of explicit field enumeration). Coverage: 63 spec files (no new files).
 - v9.8 (2026-05-16): Maintenance tone scan — fixed 5 tone issues across 2 spec files: `oh-my-code.md` (4 fixes: "**Magic Word Feature**: `ultrawork` or `ulw`"→"**Activation Keyword**: `ultrawork` or `ulw`" line 811, "| **Session persistence** | Instant | Local state, no cold start |"→"| **Session persistence** | Immediate (local file) | Local state, no cold start |" line 1047, "Leverage LSP for instant code intelligence"→"Use LSP for low-latency code lookups" line 1058, "#### 5. Magic Word / Auto-Configuration"→"#### 5. Keyword-Based Auto-Configuration" line 1221); `mdflow.md` (1 fix: "**Zero Config**: Works immediately with `mdflow task.claude.md`"→"**No required configuration**: Runs with `mdflow task.claude.md`" line 202). Coverage: 63 spec files (no new files).
