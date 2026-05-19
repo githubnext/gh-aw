@@ -105,8 +105,10 @@ function summarizeListForLog(values, limit = 10) {
 }
 
 /**
- * Count completed failed workflow runs for a branch. This is used to stop repeated
- * push/retry loops after the branch has already accumulated multiple failing runs.
+ * Count completed workflow runs on a branch whose conclusions are treated as blocking
+ * failures for retry protection (`failure`, `timed_out`, `startup_failure`, `stale`).
+ * This is used to stop repeated push/retry loops after the branch has already
+ * accumulated multiple blocking failures.
  *
  * @param {Object} githubClient
  * @param {{ owner: string, repo: string }} repoParts
@@ -143,7 +145,7 @@ async function getFailedWorkflowRunsForBranch(githubClient, repoParts, branchNam
     }
 
     for (const run of runs) {
-      if (!RETRY_BLOCKED_WORKFLOW_CONCLUSIONS.has(run?.conclusion)) {
+      if (!run || !run.conclusion || !RETRY_BLOCKED_WORKFLOW_CONCLUSIONS.has(run.conclusion)) {
         continue;
       }
       failedRuns.push({
