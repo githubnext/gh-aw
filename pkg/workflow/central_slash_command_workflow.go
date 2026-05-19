@@ -90,7 +90,7 @@ func validateUniqueReviewerSlashCommands(workflowDataList []*WorkflowData) error
 		if wd == nil || !wd.PullRequestReviewer {
 			continue
 		}
-		for _, commandName := range wd.Command {
+		for _, commandName := range centralRoutingCommandNames(wd) {
 			normalizedCommand := strings.ToLower(strings.TrimSpace(commandName))
 			if normalizedCommand == "" {
 				continue
@@ -104,6 +104,22 @@ func validateUniqueReviewerSlashCommands(workflowDataList []*WorkflowData) error
 				)
 			}
 			reviewerCommandOwners[normalizedCommand] = wd.WorkflowID
+		}
+	}
+	return nil
+}
+
+func centralRoutingCommandNames(wd *WorkflowData) []string {
+	if wd == nil {
+		return nil
+	}
+	if len(wd.Command) > 0 {
+		return wd.Command
+	}
+	if wd.PullRequestReviewer {
+		inferred := strings.TrimSpace(wd.WorkflowID)
+		if inferred != "" {
+			return []string{inferred}
 		}
 	}
 	return nil
@@ -137,7 +153,8 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 	mergedEvents := make(map[string]map[string]bool)
 
 	for _, wd := range workflowDataList {
-		if wd == nil || !wd.CommandCentralized || len(wd.Command) == 0 {
+		commandNames := centralRoutingCommandNames(wd)
+		if wd == nil || !wd.CommandCentralized || len(commandNames) == 0 {
 			continue
 		}
 
@@ -162,7 +179,7 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 			}
 		}
 
-		for _, commandName := range wd.Command {
+		for _, commandName := range commandNames {
 			routesByCommand[commandName] = append(routesByCommand[commandName], buildCentralizedRoutes(wd, routeEvents)...)
 		}
 	}
