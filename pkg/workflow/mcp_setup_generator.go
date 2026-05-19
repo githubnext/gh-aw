@@ -119,8 +119,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	hasAgenticWorkflows := slices.Contains(mcpTools, "agentic-workflows")
-	hasGhAwImport := hasGhAwSharedImport(workflowData)
-	generateAgenticWorkflowsInstallStep(yaml, hasAgenticWorkflows, hasGhAwImport)
+	generateAgenticWorkflowsInstallStep(yaml, hasAgenticWorkflows)
 
 	generateSafeOutputsSetup(c, yaml, safeOutputConfig, workflowData)
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
@@ -174,39 +173,18 @@ func generateSafeOutputsConfigIfEnabled(workflowData *WorkflowData) (string, err
 	return safeOutputConfig, nil
 }
 
-func hasGhAwSharedImport(workflowData *WorkflowData) bool {
-	for _, importPath := range workflowData.ImportedFiles {
-		if strings.Contains(importPath, "shared/mcp/gh-aw.md") {
-			return true
-		}
-	}
-	return false
-}
-
-func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkflows bool, hasGhAwImport bool) {
+func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkflows bool) {
 	if !hasAgenticWorkflows {
-		return
-	}
-	if hasGhAwImport {
-		mcpSetupGeneratorLog.Print("Skipping gh-aw extension installation step (provided by shared/mcp/gh-aw.md import)")
 		return
 	}
 	effectiveToken := getEffectiveGitHubToken("")
 	yaml.WriteString("      - name: Install gh-aw extension\n")
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
+	yaml.WriteString("        uses: github/gh-aw/actions/setup-cli@main\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          version: latest\n")
+	fmt.Fprintf(yaml, "          github-token: %s\n", effectiveToken)
+	yaml.WriteString("      - name: Copy gh-aw binary for MCP server\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Check if gh-aw command is already available (extension or standalone binary)\n")
-	yaml.WriteString("          if gh aw --version >/dev/null 2>&1; then\n")
-	yaml.WriteString("            echo \"gh-aw command already available, using existing install\"\n")
-	yaml.WriteString("            # If installed as a managed extension, attempt best-effort upgrade\n")
-	yaml.WriteString("            if gh extension list | grep -qE '(^|[[:space:]]|/)gh-aw($|[[:space:]])'; then\n")
-	yaml.WriteString("              gh extension upgrade gh-aw || true\n")
-	yaml.WriteString("            fi\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"Installing gh-aw extension...\"\n")
-	yaml.WriteString("            gh extension install github/gh-aw\n")
-	yaml.WriteString("          fi\n")
 	yaml.WriteString("          gh aw --version\n")
 	yaml.WriteString("          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
