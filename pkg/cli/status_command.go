@@ -363,6 +363,10 @@ func extractWorkflowDependencies(content string, frontmatter map[string]any) []s
 	return dependencies
 }
 
+// addDependenciesFromImports collects dependency paths from supported imports formats:
+// string, []string, []any (string or object with "path"/"uses"), and object form
+// map[string]any with nested "aw" entries. The recursive call handles imports.aw
+// structures that mirror the parser's object-form import syntax.
 func addDependenciesFromImports(imports any, addDependency func(string)) {
 	switch value := imports.(type) {
 	case string:
