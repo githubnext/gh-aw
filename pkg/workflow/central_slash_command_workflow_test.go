@@ -152,6 +152,30 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesForDecentralizedLabelsOnly
 	require.Contains(t, text, "#     ci-doctor -> ci-doctor [pull_request]")
 }
 
+func TestGenerateCentralSlashCommandWorkflow_IncludesPullRequestReviewerRoutes(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-reviewer-workflow-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:          "pr-reviewer",
+			Command:             []string{"review"},
+			CommandEvents:       []string{"pull_request_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	text := string(content)
+	require.Contains(t, text, "GH_AW_REVIEWER_ROUTING")
+	require.Contains(t, text, `"workflow":"pr-reviewer","events":["pull_request","pull_request_review"]`)
+	require.Contains(t, text, "pull_request_review:")
+	require.Contains(t, text, "ready_for_review")
+	require.Contains(t, text, "#   pull-request reviewers:")
+	require.Contains(t, text, "#     pr-reviewer [pull_request,pull_request_review]")
+}
+
 func TestCollectCentralLabelCommandRoutes_IncludesSlashCentralizedLabelCommands(t *testing.T) {
 	data := []*WorkflowData{
 		{
@@ -165,7 +189,7 @@ func TestCollectCentralLabelCommandRoutes_IncludesSlashCentralizedLabelCommands(
 		},
 	}
 
-	_, labelRoutesByCommand, mergedEvents := collectCentralCommandRoutes(data)
+	_, labelRoutesByCommand, _, mergedEvents := collectCentralCommandRoutes(data)
 	require.Equal(t, []slashCommandRoute{
 		{Workflow: "triage", Events: []string{"issues"}, AIReaction: "eyes"},
 	}, labelRoutesByCommand["triage"])
@@ -323,12 +347,12 @@ func TestBuildCommandsHeaderMetadata_UsesReleaseVersionOnlyForReleaseBuilds(t *t
 
 	SetVersion("abc1234")
 	SetIsRelease(false)
-	metadata := buildCommandsHeaderMetadata(routesByCommand, nil)
+	metadata := buildCommandsHeaderMetadata(routesByCommand, nil, nil)
 	require.Equal(t, "dev", metadata.Compiler)
 
 	SetVersion("v1.2.3")
 	SetIsRelease(true)
-	metadata = buildCommandsHeaderMetadata(routesByCommand, nil)
+	metadata = buildCommandsHeaderMetadata(routesByCommand, nil, nil)
 	require.Equal(t, "v1.2.3", metadata.Compiler)
 }
 

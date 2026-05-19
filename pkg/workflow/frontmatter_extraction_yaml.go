@@ -1139,6 +1139,31 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 	return nil, nil, false, true
 }
 
+// extractPullRequestReviewerConfig extracts the synthetic on.pull_request_reviewer configuration.
+// Currently supported value:
+//
+//	on:
+//	  pull_request_reviewer: slash_command
+func (c *Compiler) extractPullRequestReviewerConfig(frontmatter map[string]any) bool {
+	onValue, exists := frontmatter["on"]
+	if !exists {
+		return false
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return false
+	}
+	rawValue, hasReviewer := onMap["pull_request_reviewer"]
+	if !hasReviewer {
+		return false
+	}
+	value, ok := rawValue.(string)
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(value), "slash_command")
+}
+
 // isGitHubAppNestedField returns true if the trimmed YAML line represents a known
 // nested field or array item inside an on.github-app object.
 func isGitHubAppNestedField(trimmedLine string) bool {

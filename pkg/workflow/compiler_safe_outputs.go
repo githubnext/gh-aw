@@ -27,6 +27,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	var hasReaction bool
 	var hasStopAfter bool
 	var hasStatusComment bool
+	var hasPullRequestReviewer bool
 	var otherEvents map[string]any
 
 	// Use cached On field from ParsedFrontmatter if available, otherwise fall back to map access
@@ -143,6 +144,35 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			}
 
 			// Check for slash_command (preferred) or command (deprecated)
+			if reviewerValue, hasReviewerTrigger := onMap["pull_request_reviewer"]; hasReviewerTrigger {
+				reviewerMode, ok := reviewerValue.(string)
+				if !ok || !strings.EqualFold(strings.TrimSpace(reviewerMode), "slash_command") {
+					return errors.New("on.pull_request_reviewer must be set to 'slash_command'")
+				}
+				hasPullRequestReviewer = true
+				hasCommand = true
+				workflowData.PullRequestReviewer = true
+				workflowData.CommandCentralized = true
+				if len(workflowData.Command) == 0 {
+					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+					workflowData.Command = []string{baseName}
+				}
+				if len(workflowData.CommandEvents) == 0 {
+					workflowData.CommandEvents = []string{"pull_request_comment", "pull_request_review_comment"}
+				}
+				if _, hasConcurrency := frontmatter["concurrency"]; !hasConcurrency && workflowData.Concurrency == "" {
+					workflowData.Concurrency = "concurrency:\n  group: \"gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}-all-reviewers\"\n  queue: max"
+				}
+				// Ensure reviewer lifecycle events are always subscribed.
+				if _, exists := onMap["pull_request"]; !exists {
+					onMap["pull_request"] = map[string]any{"types": []any{"ready_for_review"}}
+				}
+				if _, exists := onMap["pull_request_review"]; !exists {
+					onMap["pull_request_review"] = map[string]any{"types": []any{"submitted", "edited", "dismissed"}}
+				}
+				workflowData.On = ""
+			}
+
 			if _, hasSlashCommandKey := onMap["slash_command"]; hasSlashCommandKey {
 				hasCommand = true
 				// Set default command to filename if not specified in the command section
@@ -223,7 +253,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			}
 
 			// Extract other (non-conflicting) events excluding slash_command, command, label_command, reaction, status-comment, and stop-after
-			otherEvents = excludeMapKeys(onMap, "slash_command", "command", "label_command", "reaction", "status-comment", "stop-after", "github-token", "github-app", "needs")
+			otherEvents = excludeMapKeys(onMap, "slash_command", "command", "label_command", "pull_request_reviewer", "reaction", "status-comment", "stop-after", "github-token", "github-app", "needs")
 		}
 	}
 
@@ -237,6 +267,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		workflowData.LabelCommand = nil
 		workflowData.LabelCommandEvents = nil
 		workflowData.LabelCommandDecentralized = false
+	}
+	if !hasPullRequestReviewer {
+		workflowData.PullRequestReviewer = false
 	}
 
 	// Auto-enable "eyes" reaction for slash_command/label_command (and deprecated command) triggers if no explicit reaction was specified

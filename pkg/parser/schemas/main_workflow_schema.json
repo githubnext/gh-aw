@@ -630,6 +630,11 @@
                 }
               ]
             },
+            "pull_request_reviewer": {
+              "type": "string",
+              "enum": ["slash_command"],
+              "description": "Synthetic reviewer lifecycle trigger. 'slash_command' enables centralized slash-command routing plus pull_request ready_for_review and pull_request_review submitted/edited/dismissed lifecycle events."
+            },
             "push": {
               "description": "Push event trigger that runs the workflow when code is pushed to the repository",
               "type": "object",
