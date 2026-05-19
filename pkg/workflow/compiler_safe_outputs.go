@@ -16,6 +16,18 @@ import (
 
 var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 
+func isValidPullRequestReviewerValue(value any) bool {
+	if value == nil {
+		return true
+	}
+	reviewerMode, ok := value.(string)
+	if !ok {
+		return false
+	}
+	normalized := strings.TrimSpace(reviewerMode)
+	return normalized == "" || strings.EqualFold(normalized, "slash_command")
+}
+
 // parseOnSection handles parsing of the "on" section from frontmatter, extracting command triggers,
 // reactions, and stop-after configurations while detecting conflicts with other event types.
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
@@ -145,11 +157,8 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 
 			// Check for slash_command (preferred) or command (deprecated)
 			if reviewerValue, hasReviewerTrigger := onMap["pull_request_reviewer"]; hasReviewerTrigger {
-				if reviewerValue != nil {
-					reviewerMode, ok := reviewerValue.(string)
-					if !ok || (!strings.EqualFold(strings.TrimSpace(reviewerMode), "slash_command") && strings.TrimSpace(reviewerMode) != "") {
-						return errors.New("on.pull_request_reviewer must be empty (recommended) or set to 'slash_command'")
-					}
+				if !isValidPullRequestReviewerValue(reviewerValue) {
+					return errors.New("on.pull_request_reviewer must be empty (recommended) or set to 'slash_command'")
 				}
 				hasPullRequestReviewer = true
 				hasCommand = true
