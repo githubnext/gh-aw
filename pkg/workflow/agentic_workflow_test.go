@@ -139,6 +139,8 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 
 	// Create compiler using helper
 	c := testCompiler()
+	c.actionMode = ActionModeAction
+	c.version = "v0.72.1"
 
 	// Generate MCP setup
 	var yaml strings.Builder
@@ -152,12 +154,16 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 		"MCP setup should include gh-aw installation step when agentic-workflows tool is enabled")
 
 	// Verify setup-cli action is used with default token expression
-	assert.Contains(t, result, "uses: github/gh-aw/actions/setup-cli@main",
+	assert.Contains(t, result, "uses: github/gh-aw/actions/setup-cli@",
 		"install step should use setup-cli action")
-	assert.Contains(t, result, "version: latest",
-		"install step should install latest gh-aw version")
+	assert.Contains(t, result, "version: 'v0.72.1'",
+		"install step should install the compiler release version")
 	assert.Contains(t, result, "github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 		"install step should use default github-token fallback chain when no custom token is specified")
+	assert.NotContains(t, result, "setup-cli@main",
+		"install step should not use mutable main ref for setup-cli action")
+	assert.NotContains(t, result, "version: latest",
+		"install step should not use mutable latest CLI version")
 
 	// Verify follow-up copy/verification commands are present
 	assert.Contains(t, result, "Copy gh-aw binary for MCP server",
@@ -176,6 +182,7 @@ func TestAgenticWorkflowsInstallStepPresentWithoutImport(t *testing.T) {
 
 	// Create compiler using helper
 	c := testCompiler()
+	c.actionMode = ActionModeDev
 
 	// Generate MCP setup
 	var yaml strings.Builder
@@ -184,13 +191,13 @@ func TestAgenticWorkflowsInstallStepPresentWithoutImport(t *testing.T) {
 	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData))
 	result := yaml.String()
 
-	// Verify the install step is always present for agentic-workflows tool
-	assert.Contains(t, result, "Install gh-aw extension",
-		"install step should be present when agentic-workflows tool is configured")
-
-	// Verify setup-cli action is present
-	assert.Contains(t, result, "uses: github/gh-aw/actions/setup-cli@main",
-		"setup-cli action should be present when agentic-workflows tool is configured")
+	// Verify dev install step is present for agentic-workflows tool
+	assert.Contains(t, result, "Build and install gh-aw CLI from source",
+		"dev mode should build and install gh-aw from source")
+	assert.Contains(t, result, "gh extension install .",
+		"dev mode should install gh-aw extension from local checkout")
+	assert.NotContains(t, result, "uses: github/gh-aw/actions/setup-cli@",
+		"dev mode should not use setup-cli action")
 }
 
 // TestAgenticWorkflowsErrorCases tests error handling for invalid configurations

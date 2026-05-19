@@ -119,7 +119,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	hasAgenticWorkflows := slices.Contains(mcpTools, "agentic-workflows")
-	generateAgenticWorkflowsInstallStep(yaml, hasAgenticWorkflows)
+	generateAgenticWorkflowsInstallStep(c, yaml, hasAgenticWorkflows, workflowData)
 
 	generateSafeOutputsSetup(c, yaml, safeOutputConfig, workflowData)
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
@@ -173,16 +173,54 @@ func generateSafeOutputsConfigIfEnabled(workflowData *WorkflowData) (string, err
 	return safeOutputConfig, nil
 }
 
-func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkflows bool) {
+func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, hasAgenticWorkflows bool, workflowData *WorkflowData) {
 	if !hasAgenticWorkflows {
 		return
 	}
-	effectiveToken := getEffectiveGitHubToken("")
-	yaml.WriteString("      - name: Install gh-aw extension\n")
-	yaml.WriteString("        uses: github/gh-aw/actions/setup-cli@main\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          version: latest\n")
-	fmt.Fprintf(yaml, "          github-token: %s\n", effectiveToken)
+
+	if c != nil && c.actionMode == ActionModeDev {
+		yaml.WriteString("      - name: Build and install gh-aw CLI from source\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          gh extension remove gh-aw || true\n")
+		yaml.WriteString("          make build\n")
+		yaml.WriteString("          gh extension install .\n")
+		yaml.WriteString("          gh aw version\n")
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+	} else {
+		cliVersion := ""
+		if c != nil {
+			cliVersion = c.actionTag
+			if cliVersion == "" && workflowData != nil && workflowData.Features != nil {
+				if actionTagVal, exists := workflowData.Features["action-tag"]; exists {
+					if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+						cliVersion = actionTagStr
+					}
+				}
+			}
+			if cliVersion == "" {
+				cliVersion = c.version
+			}
+		}
+		if cliVersion == "" || cliVersion == "dev" {
+			cliVersion = getDefaultGhAWRuntimeVersion()
+		}
+
+		actionRepo := GitHubOrgRepo + "/actions/setup-cli"
+		actionRef := fmt.Sprintf("%s@%s", actionRepo, cliVersion)
+		if workflowData != nil {
+			if pinnedRef, err := getActionPinWithData(actionRepo, cliVersion, workflowData); err == nil && pinnedRef != "" {
+				actionRef = pinnedRef
+			}
+		}
+
+		effectiveToken := getEffectiveGitHubToken("")
+		yaml.WriteString("      - name: Install gh-aw extension\n")
+		fmt.Fprintf(yaml, "        uses: %s\n", actionRef)
+		yaml.WriteString("        with:\n")
+		fmt.Fprintf(yaml, "          version: '%s'\n", cliVersion)
+		fmt.Fprintf(yaml, "          github-token: %s\n", effectiveToken)
+	}
 	yaml.WriteString("      - name: Copy gh-aw binary for MCP server\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          gh aw --version\n")
