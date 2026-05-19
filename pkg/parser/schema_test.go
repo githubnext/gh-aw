@@ -324,7 +324,8 @@ func TestMCPNetworkSchemaProxyArgsSupportAndAllowedDeprecation(t *testing.T) {
 				t.Fatal("network schema not found")
 			}
 
-			if deprecatedValue, hasDeprecated := network["deprecated"]; hasDeprecated {
+			deprecatedValue, hasDeprecated := network["deprecated"]
+			if hasDeprecated {
 				deprecatedBool, ok := deprecatedValue.(bool)
 				if !ok {
 					t.Fatalf("network.deprecated should be a boolean when present; got %T", deprecatedValue)
@@ -332,6 +333,9 @@ func TestMCPNetworkSchemaProxyArgsSupportAndAllowedDeprecation(t *testing.T) {
 				if deprecatedBool {
 					t.Fatalf("network field should not be deprecated; got deprecated=%v", deprecatedValue)
 				}
+			}
+			if hasDeprecated {
+				t.Fatalf("network.deprecated should be absent from schema, got: %v", deprecatedValue)
 			}
 
 			description, ok := network["description"].(string)
@@ -341,10 +345,16 @@ func TestMCPNetworkSchemaProxyArgsSupportAndAllowedDeprecation(t *testing.T) {
 			if !strings.Contains(description, "proxy-args") {
 				t.Fatalf("network description should mention proxy-args support, got: %q", description)
 			}
-			if strings.Contains(strings.ToLower(description), "field is ignored") {
-				t.Fatalf("network description must not claim the entire field is ignored, got: %q", description)
-			}
 			descriptionLower := strings.ToLower(description)
+			disallowedPhrases := []string{
+				"per-server network configuration is no longer supported",
+				"this field is ignored",
+			}
+			for _, phrase := range disallowedPhrases {
+				if strings.Contains(descriptionLower, phrase) {
+					t.Fatalf("network description must not claim the entire field is ignored/deprecated, got: %q", description)
+				}
+			}
 			if !strings.Contains(descriptionLower, "allowed") || !strings.Contains(descriptionLower, "ignored") {
 				t.Fatalf("network description should mention that 'allowed' is ignored, got: %q", description)
 			}
