@@ -80,7 +80,7 @@ Before using that fallback message, verify whether experiment data is being writ
 1. Find at least one workflow that declares `experiments:` in frontmatter.
 2. List recent workflow runs for that workflow (latest completed runs).
 3. Inspect jobs in one recent run and confirm whether `push_experiments_state` ran.
-4. Read `state.json` from the expected `experiments/<sanitized-workflow-id>` branch.
+4. Read `state.json` from the expected `experiments/<sanitized-workflow-id>` branch (the same branch used in `GH_AW_EXPERIMENT_BRANCH`; for example, `ci-coach` maps to `experiments/cicoach`).
 
 If runs exist and `state.json` contains counts/runs, treat experiments as active and continue the report.
 Only emit the "No active experiments" message when this verification also confirms no usable experiment state.
