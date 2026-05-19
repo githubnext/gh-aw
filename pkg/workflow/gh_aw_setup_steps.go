@@ -23,7 +23,7 @@ func generateGhAwSetupStep(config ghAwSetupStepConfig) (GitHubActionStep, error)
 		}
 		step = append(step,
 			"        run: |",
-			"          gh extension remove gh-aw || true",
+			"          gh extension remove aw --force || true",
 			"          make build",
 			"          gh extension install .",
 			"          gh aw version",
