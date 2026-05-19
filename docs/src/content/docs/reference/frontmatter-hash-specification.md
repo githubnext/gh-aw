@@ -312,12 +312,18 @@ This section maps the frontmatter hash specification to the source files that im
 3. Run the cross-language test: `go test ./pkg/parser/ -run TestFrontmatterHash`
 4. Run `make recompile` to regenerate all lock files with fresh hashes
 5. Verify cross-language consistency for the test cases listed in Section 5
+6. Verify BFS diamond-import tie-breaking remains deterministic: when the same imported file is
+   reachable through multiple import paths at the same depth, the canonical traversal MUST prefer
+   first-seen path order and MUST NOT duplicate imported content in hash input.
 
 **Runtime behavior**: text-based approach is authoritative (see Implementation Notes § Resolution).
 
-**Resolution log (2026-05-12)**: Sync status re-verified after SPDD review. Approach retained:
-text-based canonicalization remains authoritative at runtime, and Section 2 field-selection stays
-documented as future-state design intent only.
+**Resolution log (2026-05-08, authoritative)**: Text-based canonicalization is the resolved,
+runtime-authoritative algorithm. Section 2 field-selection remains future-state design intent only
+until an explicit migration milestone is approved.
+
+**Sync verification (2026-05-12)**: SPDD review reconfirmed that the 2026-05-08 text-based
+resolution remains in force.
 
 ---
 
@@ -422,4 +428,23 @@ bots:
 ---
 
 # Complex Workflow
+```
+
+### FH-TV-004
+
+Expected hash: `701dc12776a417c6ce4c82b16d1fcc9de343130efb554fda27a701386b17d134`
+
+This vector validates deterministic hash input when frontmatter includes agent file imports.
+It also exercises BFS diamond-import tie-breaking where multiple import branches reference the same
+transitive file.
+
+```yaml
+---
+engine: copilot
+imports:
+  - ./agents/router.agent.md
+  - ./agents/summarizer.agent.md
+---
+
+# Import-based Workflow
 ```

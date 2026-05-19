@@ -292,6 +292,15 @@ In remote mode (when `--repo owner/repo` is specified), the implementation MUST:
 2. **R-DISC-011**: Filter the returned workflows to those identified as agentic (e.g., by inspecting file-path conventions, labels, or other implementation-defined heuristics).
 3. **R-DISC-012**: Match any caller-supplied `workflow_id` positional arguments against workflow display names and file-path basenames using case-insensitive string comparison.
 4. **R-DISC-013**: If rate-limit exhaustion occurs after at least one caller-supplied workflow identifier can still be attempted, the implementation MUST continue with that subset as a partial result set and MUST emit a warning identifying the degraded discovery mode.
+5. **R-DISC-014**: Implementations MUST tolerate workflow discovery race conditions where a workflow is renamed, disabled, or deleted after enumeration but before run sampling. The affected workflow MUST be reported as a per-workflow partial failure without aborting the overall forecast.
+
+Remote workflow discovery race-condition mitigation:
+
+- Capture a stable snapshot of discovered workflow IDs from the initial listing call.
+- During per-workflow run sampling, treat HTTP 404/410 for a previously listed workflow as a
+  recoverable per-workflow partial failure.
+- Emit a warning that identifies the workflow and the race condition class (renamed, removed, or
+  inaccessible at sample time).
 
 In remote mode, frontmatter metadata (triggers, concurrency, experiment variants) is UNAVAILABLE because the workflow source files are not accessible. The implementation MUST degrade gracefully: fields that depend on frontmatter MUST be omitted from output or reported as their zero/empty values rather than causing an error.
 
@@ -636,6 +645,7 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
 ```json
 {
   "sampled_episodes": <integer>,
+  "episode_count_is_lower_bound": <boolean>,
   "runs_per_episode": <number>,
   "avg_effective_tokens_per_episode": <number>,
   "observed_episodes_per_period": <number>
@@ -645,6 +655,7 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `sampled_episodes` | integer | MUST | Distinct episode count. Lower-bound estimate when artifact linkage is unavailable. |
+| `episode_count_is_lower_bound` | boolean | SHOULD | `true` when episode linkage data is incomplete (for example, remote mode without artifacts); otherwise `false`. |
 | `runs_per_episode` | number | MUST | Mean runs per episode. |
 | `avg_effective_tokens_per_episode` | number | MUST | Mean ET per episode. |
 | `observed_episodes_per_period` | number | MUST | Extrapolated episode rate for the projection period. |
@@ -697,6 +708,7 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
       },
       "episode_analysis": {
         "sampled_episodes": 40,
+        "episode_count_is_lower_bound": true,
         "runs_per_episode": 1.05,
         "avg_effective_tokens_per_episode": 13100,
         "observed_episodes_per_period": 36.7
@@ -722,9 +734,13 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
 
 ### 9.3 Output Ordering
 
-- **R-OUT-010**: In both console and JSON output, workflows MUST be ordered by `projected_effective_tokens` (P50 value) in descending order.
+- **R-OUT-010**: In both console and JSON output, workflows MUST be ordered by
+  `projected_effective_tokens` (P50 value) in descending order.
 - **R-OUT-011**: Workflows with zero projected tokens MUST appear after all workflows with non-zero projections.
 - **R-OUT-012**: Among workflows with equal projected tokens, the ordering SHOULD be deterministic (e.g., alphabetical by workflow ID).
+- **R-OUT-013**: JSON output SHOULD disclose episode lower-bound semantics by including
+  `episode_analysis.episode_count_is_lower_bound` for each workflow. Console output SHOULD include
+  a note when this field is `true`.
 
 ---
 
@@ -998,12 +1014,46 @@ Traditional projection models assume a parametric distribution (e.g., log-normal
 
 For orchestrator workflows that primarily use `workflow_call` or `workflow_dispatch` triggers, episodes are initiated by calls from another workflow rather than directly by GitHub events. These cross-workflow links are embedded in `aw_info.json` artifacts and are unavailable during forecasting when artifacts cannot be retrieved. As a result, each received `workflow_call` is counted as a separate episode, causing the episode count to overcount episodes and undercount the linkage. This means `runs_per_episode` may appear closer to `1.0` than its true value. Callers MUST treat `sampled_episodes` as a lower-bound estimate in this scenario and SHOULD note this limitation in any capacity planning documents.
 
-### Appendix E: Security Considerations
+### Appendix E: Workflow Discovery Race Conditions
 
-- **Credential scope**: The forecast command accesses the GitHub Actions API using the credentials of the `gh` CLI. Token permissions MUST include `actions:read` for the target repository. Callers SHOULD use the minimum necessary scope.
-- **Artifact content**: The `aw_info.json` artifact MAY contain sensitive information such as prompt fragments embedded in ET metadata. Implementations MUST NOT log artifact payloads at verbosity levels accessible to non-administrative users.
-- **Remote repository access**: When `--repo` targets a repository the caller does not own, the caller MUST have explicit read access. The implementation MUST NOT attempt to bypass or circumvent repository access controls.
-- **JSON output**: The JSON output schema exposes token consumption patterns that MAY reveal information about system architecture and model configuration. JSON output SHOULD be treated as internal operational data and not exposed publicly.
+Remote discovery is inherently eventually consistent. Between the workflow listing call and
+subsequent run/artifact sampling calls, any workflow may be renamed, disabled, or deleted.
+
+Conforming implementations SHOULD:
+
+1. Use workflow IDs from the listing response as the stable key for subsequent requests.
+2. Treat per-workflow 404/410 responses as recoverable partial failures.
+3. Continue processing unaffected workflows and emit a warning for each raced workflow.
+
+### Appendix F: Safeguards
+
+#### F.1 Threat Model
+
+- **Credential scope abuse**: Over-scoped credentials could allow unauthorized repository access.
+- **Artifact privacy leakage**: `aw_info.json` artifacts may contain operationally sensitive ET
+  metadata and prompt-adjacent context.
+- **Rate-limit abuse**: Aggressive polling or unrestricted retries can amplify API pressure and
+  trigger organizational throttling.
+
+#### F.2 Required Mitigations
+
+- **Credential scope**: The forecast command accesses the GitHub Actions API using `gh` CLI
+  credentials. Token permissions MUST include only the minimum required scope (`actions:read` for
+  target repositories).
+- **Artifact privacy**: Implementations MUST NOT log raw artifact payloads at default verbosity and
+  SHOULD redact prompt-adjacent fields in diagnostic output.
+- **Rate-limit abuse controls**: Implementations MUST implement bounded retry/backoff behavior and
+  MUST stop retrying when the retry budget is exhausted.
+- **Remote repository access**: When `--repo` targets a repository the caller does not own, the
+  caller MUST have explicit read access. Implementations MUST NOT bypass repository access controls.
+- **JSON output handling**: The JSON schema can expose model and usage topology; operators SHOULD
+  treat it as internal data and apply least-privilege access controls.
+
+#### F.3 Residual Risk
+
+Even with these safeguards, operators with valid read access can still infer workload intensity
+from forecast outputs. This residual risk is accepted and MUST be managed through repository
+visibility and access-governance controls.
 
 ---
 
@@ -1028,6 +1078,9 @@ For orchestrator workflows that primarily use `workflow_call` or `workflow_dispa
 
 ### Version 0.1.0 (Experimental Draft)
 
+- Updated remote discovery requirements with workflow-race mitigation guidance (R-DISC-014)
+- Added optional JSON lower-bound disclosure field `episode_count_is_lower_bound` and recommendation R-OUT-013 (without reassigning existing R-OUT-010..012 semantics)
+- Added Appendix F safeguards format (threat model, mitigations, residual risk)
 - Initial specification for `gh aw forecast` command
 - Defined command interface: flags `--days`, `--period`, `--sample`, `--repo`, `--json`, `--verbose`
 - Defined local and remote workflow discovery modes
@@ -1038,7 +1091,7 @@ For orchestrator workflows that primarily use `workflow_call` or `workflow_dispa
 - Defined JSON output schema (Sections 9.2.1–9.2.6)
 - Defined error handling and exit codes
 - Defined compliance test suite (T-FC-001 through T-FC-055)
-- Added appendices: worked example, algorithm rationale, security considerations
+- Added appendices: worked example, algorithm rationale, and safeguards
 
 ---
 

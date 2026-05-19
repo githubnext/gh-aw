@@ -140,3 +140,216 @@ func TestExtractReplacementFromDescription(t *testing.T) {
 		})
 	}
 }
+
+// --- Tests for deep walker -------------------------------------------------------
+
+func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
+	fields, err := GetMainWorkflowDeprecatedFieldsDeep()
+	if err != nil {
+		t.Fatalf("GetMainWorkflowDeprecatedFieldsDeep() error = %v", err)
+	}
+
+	// Build path→field map for easy lookup.
+	byPath := make(map[string]DeprecatedField, len(fields))
+	for _, f := range fields {
+		byPath[f.Path] = f
+	}
+
+	// tools.grep must be detected with its x-deprecation-message.
+	grep, ok := byPath["tools.grep"]
+	if !ok {
+		t.Error("expected 'tools.grep' in deep deprecated fields, not found")
+	} else {
+		if grep.DeprecationMessage == "" {
+			t.Error("tools.grep: DeprecationMessage should not be empty")
+		}
+	}
+
+	// tools.serena must be detected.
+	if _, ok := byPath["tools.serena"]; !ok {
+		t.Error("expected 'tools.serena' in deep deprecated fields, not found")
+	}
+
+	// tools.github.repos must be detected with its x-deprecation-message.
+	repos, ok := byPath["tools.github.repos"]
+	if !ok {
+		t.Error("expected 'tools.github.repos' in deep deprecated fields, not found")
+	} else {
+		if repos.DeprecationMessage == "" {
+			t.Error("tools.github.repos: DeprecationMessage should not be empty")
+		}
+	}
+
+	// tools.github.toolset must be detected.
+	if _, ok := byPath["tools.github.toolset"]; !ok {
+		t.Error("expected 'tools.github.toolset' in deep deprecated fields, not found")
+	}
+
+	t.Logf("Found %d deep deprecated fields in schema", len(fields))
+}
+
+func TestCollectDeprecatedDeep(t *testing.T) {
+	// Build a minimal schema that exercises nesting and oneOf traversal.
+	schema := map[string]any{
+		"properties": map[string]any{
+			"tools": map[string]any{
+				"properties": map[string]any{
+					"grep": map[string]any{
+						"deprecated":            true,
+						"description":           "DEPRECATED: grep is always available.",
+						"x-deprecation-message": "Use bash instead.",
+					},
+					"github": map[string]any{
+						"oneOf": []any{
+							map[string]any{"type": "boolean"},
+							map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"repos": map[string]any{
+										"deprecated":            true,
+										"description":           "Deprecated. Use 'allowed-repos' instead.",
+										"x-deprecation-message": "'tools.github.repos' is deprecated. Use 'tools.github.allowed-repos' instead.",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var results []DeprecatedField
+	collectDeprecatedDeep(schema, "", &results)
+
+	byPath := make(map[string]DeprecatedField)
+	for _, f := range results {
+		byPath[f.Path] = f
+	}
+
+	if _, ok := byPath["tools.grep"]; !ok {
+		t.Error("expected tools.grep to be found")
+	}
+	if _, ok := byPath["tools.github.repos"]; !ok {
+		t.Error("expected tools.github.repos to be found")
+	}
+	// Non-deprecated fields must not appear.
+	if _, ok := byPath["tools"]; ok {
+		t.Error("tools (non-deprecated) should not appear")
+	}
+	if _, ok := byPath["tools.github"]; ok {
+		t.Error("tools.github (non-deprecated) should not appear")
+	}
+}
+
+func TestFindDeprecatedFieldsInFrontmatterDeep(t *testing.T) {
+	fields := []DeprecatedField{
+		{Name: "grep", Path: "tools.grep", DeprecationMessage: "Use bash instead."},
+		{Name: "repos", Path: "tools.github.repos", DeprecationMessage: "Use allowed-repos."},
+		{Name: "old", Path: "old", DeprecationMessage: "Field removed."},
+	}
+
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		wantPaths   []string
+	}{
+		{
+			name: "no deprecated fields used",
+			frontmatter: map[string]any{
+				"engine": "copilot",
+				"tools":  map[string]any{"bash": true},
+			},
+			wantPaths: nil,
+		},
+		{
+			name: "tools.grep present",
+			frontmatter: map[string]any{
+				"tools": map[string]any{"grep": true},
+			},
+			wantPaths: []string{"tools.grep"},
+		},
+		{
+			name: "nested tools.github.repos present",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{"repos": []any{"owner/repo"}},
+				},
+			},
+			wantPaths: []string{"tools.github.repos"},
+		},
+		{
+			name: "top-level deprecated field present",
+			frontmatter: map[string]any{
+				"old": "value",
+			},
+			wantPaths: []string{"old"},
+		},
+		{
+			name: "multiple deprecated fields",
+			frontmatter: map[string]any{
+				"old":   "value",
+				"tools": map[string]any{"grep": true},
+			},
+			wantPaths: []string{"old", "tools.grep"},
+		},
+		{
+			name: "tools key present but not grep",
+			frontmatter: map[string]any{
+				"tools": map[string]any{"bash": true},
+			},
+			wantPaths: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			found := FindDeprecatedFieldsInFrontmatterDeep(tt.frontmatter, fields)
+
+			foundPaths := make(map[string]bool)
+			for _, f := range found {
+				foundPaths[f.Path] = true
+			}
+
+			if len(found) != len(tt.wantPaths) {
+				t.Errorf("FindDeprecatedFieldsInFrontmatterDeep() found %d, want %d (%v vs %v)",
+					len(found), len(tt.wantPaths), foundPaths, tt.wantPaths)
+			}
+			for _, p := range tt.wantPaths {
+				if !foundPaths[p] {
+					t.Errorf("expected path %q to be found, got %v", p, foundPaths)
+				}
+			}
+		})
+	}
+}
+
+func TestFieldExistsAtPath(t *testing.T) {
+	m := map[string]any{
+		"tools": map[string]any{
+			"grep":   true,
+			"github": map[string]any{"repos": []any{"owner/repo"}},
+		},
+	}
+
+	tests := []struct {
+		segments []string
+		want     bool
+	}{
+		{[]string{"tools"}, true},
+		{[]string{"tools", "grep"}, true},
+		{[]string{"tools", "github", "repos"}, true},
+		{[]string{"tools", "bash"}, false},
+		{[]string{"engine"}, false},
+		{[]string{}, false},
+		// tools is not a scalar — deeper navigation not possible from non-map
+		{[]string{"tools", "grep", "nested"}, false},
+	}
+
+	for _, tt := range tests {
+		got := fieldExistsAtPath(m, tt.segments)
+		if got != tt.want {
+			t.Errorf("fieldExistsAtPath(%v) = %v, want %v", tt.segments, got, tt.want)
+		}
+	}
+}

@@ -266,6 +266,12 @@ mcp-scripts:
 - Dependency installation failures MUST result in tool execution errors
 - Package names MUST be valid for the target package manager
 - Implementations MAY enforce security policies on allowed packages
+- Deterministic dependency failures (for example, package not found, unsupported platform, invalid
+  version specifier, or permission denied) MUST fail fast without retries
+- Transient dependency failures (for example, network timeout or temporary registry unavailability)
+  MAY be retried with bounded backoff (maximum 2 retries after the initial attempt)
+- If transient retries are exhausted, execution MUST fail with a terminal tool error and MUST NOT
+  continue to user code
 
 ### 4.4 Input Parameter Schema
 
@@ -518,6 +524,10 @@ mcp-scripts:
 - Tools MAY use these globals alongside user code
 - Implementations MUST provide same version of libraries as GitHub Actions runtime
 - No restrictions on where tools execute (in-process or containerized)
+- Tool code MUST NOT invoke workflow-control side effects via global objects (`core.setFailed()`,
+  `core.setOutput()`, workflow summary writes, or equivalent run-level mutators)
+- Tool failures MUST be expressed by returning structured error payloads or by throwing exceptions
+  handled as tool-level failures, not by mutating workflow/job status directly
 
 #### 6.1.3 Code Wrapping
 
@@ -933,6 +943,8 @@ A conforming implementation MUST pass the following test categories:
 - **T-SEC-006**: Secret masking in logs
 - **T-SEC-007**: Dependency installation security
 - **T-SEC-008**: GitHub Actions global objects access control
+- **T-MCP-050**: Go sandbox network isolation (no unrestricted outbound access without explicit
+  `network.allowed` entries)
 
 #### 10.1.5 Large Output Tests
 
@@ -975,6 +987,7 @@ A conforming implementation MUST pass the following test categories:
 | Input validation | T-VAL-* | 1 | Required |
 | Secret isolation | T-SEC-001, T-SEC-002 | 1 | Required |
 | Process isolation | T-SEC-003 | 2 | Standard |
+| Go sandbox network isolation | T-MCP-050 | 3 | Complete |
 | Timeout handling | T-EXE-006 | 2 | Standard |
 | Large output handling | T-OUT-* | 3 | Complete |
 | Dependencies support | T-DEP-* | 2 | Standard |
@@ -1374,6 +1387,40 @@ mcp-scripts:
 
 ---
 
+### Appendix D: Safeguards
+
+#### D.1 Threat Model
+
+Primary threat classes for MCP Scripts deployments:
+
+1. **Secret leakage vectors**: tool stdout/stderr, JSON responses, dependency installer logs, and
+   exception stack traces may expose secret values.
+2. **Container escape scenarios**: shell/python/go tools may attempt privilege escalation through
+   host mounts, kernel interfaces, or unrestricted network egress.
+3. **Cross-tool contamination**: one tool invocation attempting to read another tool's environment
+   or temporary output artifacts.
+
+#### D.2 Required Mitigations
+
+- **Secret isolation**: only explicitly declared `env` keys are injected; undeclared secrets MUST be
+  inaccessible.
+- **Output sanitization**: all tool output MUST pass through redaction before client return (see
+  §7.4 SM-01..SM-03).
+- **Execution isolation**: shell/python/go tools MUST execute in isolated containers/processes with
+  bounded resources and no host workspace mount by default.
+- **Network isolation**: outbound access from containerized tools MUST be denied by default and MUST
+  be granted only for explicitly allowed domains.
+- **Dependency controls**: dependency installation MUST fail closed when package integrity cannot be
+  established.
+
+#### D.3 Residual Risk
+
+Residual risk remains for logic-level exfiltration via intentionally returned non-secret metadata
+and for zero-day container runtime vulnerabilities. Operators SHOULD pair this specification with
+repository-level least privilege and continuous runtime patching.
+
+---
+
 ## Sync Notes
 
 This section maps each normative section of the MCP Scripts Specification to the Go source
@@ -1505,8 +1552,12 @@ and §5.7 defines how callers MUST/SHOULD interpret that signal for retries.
 - **Added**: GitHub Actions global objects for JavaScript tools (Section 6.1.2)
   - Global `github`, `context`, `core`, `io`, `exec`, `glob`, `artifact` objects
   - Available without explicit `require()` statements
+  - Added side-effect constraint: tools MUST NOT call workflow control mutators (for example, `core.setFailed()`)
   - No restrictions on execution location (in-process or containerized)
   - Example demonstrating GitHub API usage via global objects
+- **Clarified**: `dependencies` installation failure semantics in Section 4.3 (fail-fast for deterministic failures, bounded retry for transient failures)
+- **Added**: Appendix D safeguards threat model covering secret leakage vectors, container escape scenarios, and residual risk
+- **Added**: Compliance test ID `T-MCP-050` for Go sandbox network isolation
 - **Updated**: Section numbering to accommodate new sections
 
 ### Version 1.0.0 (Draft)
