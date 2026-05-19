@@ -29,8 +29,9 @@ describe("generate_safe_outputs_tools", () => {
       inputSchema: {
         type: "object",
         properties: {
-          title: { type: "string", description: "Issue title", alias: ["issueTitle", "issue-title"] },
+          title: { type: "string", description: "Issue title" },
           body: { type: "string", description: "Issue body" },
+          temporary_id: { type: "string", description: "Temporary identifier", alias: ["temporaryId", "temporary-id"] },
         },
         required: ["title"],
       },
@@ -158,10 +159,10 @@ describe("generate_safe_outputs_tools", () => {
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     const createIssueTool = result.find((/** @type {ToolWithAliases} */ t) => t.name === "create_issue");
     expect(createIssueTool).toBeDefined();
-    expect(createIssueTool.inputSchema.properties.title.alias).toEqual(["issueTitle", "issue-title"]);
-    expect(createIssueTool.inputSchema.properties.title.alias).toHaveLength(2);
+    expect(createIssueTool.inputSchema.properties.temporary_id.alias).toEqual(["temporaryId", "temporary-id"]);
+    expect(createIssueTool.inputSchema.properties.temporary_id.alias).toHaveLength(2);
     // Set size matching array length confirms the generated alias list has no duplicates.
-    expect(new Set(createIssueTool.inputSchema.properties.title.alias).size).toBe(createIssueTool.inputSchema.properties.title.alias.length);
+    expect(new Set(createIssueTool.inputSchema.properties.temporary_id.alias).size).toBe(createIssueTool.inputSchema.properties.temporary_id.alias.length);
   });
 
   it("appends dynamic tools from tools_meta", () => {

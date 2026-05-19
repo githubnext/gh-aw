@@ -102,8 +102,7 @@
         },
         "category": {
           "type": "string",
-          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
-          "alias": ["category_id", "categoryId"]
+          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository."
         },
         "secrecy": {
           "type": "string",
@@ -315,13 +314,11 @@
         },
         "branch": {
           "type": "string",
-          "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
-          "alias": ["branch_name", "branchName"]
+          "description": "Source branch name containing the changes. If omitted, uses the current working branch."
         },
         "base": {
           "type": "string",
-          "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns.",
-          "alias": ["base_branch", "baseBranch"]
+          "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns."
         },
         "labels": {
           "type": "array",
@@ -332,13 +329,11 @@
         },
         "draft": {
           "type": "boolean",
-          "description": "Whether to create the PR as a draft. Draft PRs cannot be merged until marked as ready for review. Use mark_pull_request_as_ready_for_review to convert a draft PR. Default: true.",
-          "alias": ["is_draft", "isDraft"]
+          "description": "Whether to create the PR as a draft. Draft PRs cannot be merged until marked as ready for review. Use mark_pull_request_as_ready_for_review to convert a draft PR. Default: true."
         },
         "repo": {
           "type": "string",
-          "description": "Target repository in 'owner/repo' format. Required when changes are in a subdirectory checkout (e.g., 'repos/repo-a/'). Must be in the allowed-repos list. If omitted, uses the repository at the workspace root.",
-          "alias": ["repository"]
+          "description": "Target repository in 'owner/repo' format. Required when changes are in a subdirectory checkout (e.g., 'repos/repo-a/'). Must be in the allowed-repos list. If omitted, uses the repository at the workspace root."
         },
         "secrecy": {
           "type": "string",
@@ -361,13 +356,11 @@
       "properties": {
         "path": {
           "type": "string",
-          "description": "File path relative to the repository root (e.g., 'src/auth/login.js'). Must be a file that was changed in the PR.",
-          "alias": ["file_path", "filePath"]
+          "description": "File path relative to the repository root (e.g., 'src/auth/login.js'). Must be a file that was changed in the PR."
         },
         "line": {
           "type": ["number", "string"],
-          "description": "Line number for the comment. For single-line comments, this is the target line. For multi-line comments, this is the ending line.",
-          "alias": ["line_number", "lineNumber"]
+          "description": "Line number for the comment. For single-line comments, this is the target line. For multi-line comments, this is the ending line."
         },
         "body": {
           "type": "string",
@@ -390,8 +383,7 @@
         },
         "repo": {
           "type": "string",
-          "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified.",
-          "alias": ["repository"]
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
         "secrecy": {
           "type": "string",
@@ -498,13 +490,11 @@
       "properties": {
         "file": {
           "type": "string",
-          "description": "File path relative to the repository root where the issue was found (e.g., 'src/auth/password.js').",
-          "alias": ["file_path", "filePath"]
+          "description": "File path relative to the repository root where the issue was found (e.g., 'src/auth/password.js')."
         },
         "line": {
           "type": ["number", "string"],
-          "description": "Line number where the issue was found in the file.",
-          "alias": ["line_number", "lineNumber"]
+          "description": "Line number where the issue was found in the file."
         },
         "severity": {
           "type": "string",
@@ -513,8 +503,7 @@
         },
         "message": {
           "type": "string",
-          "description": "Clear description of the security issue or finding. Include what's wrong and ideally how to fix it.",
-          "alias": ["text", "content"]
+          "description": "Clear description of the security issue or finding. Include what's wrong and ideally how to fix it."
         },
         "column": {
           "type": ["number", "string"],
@@ -763,8 +752,7 @@
         },
         "repo": {
           "type": "string",
-          "description": "Target repository in 'owner/repo' format. If omitted, uses the current repository. Must be in allowed-repos list if specified.",
-          "alias": ["repository"]
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the current repository. Must be in allowed-repos list if specified."
         },
         "secrecy": {
           "type": "string",
@@ -877,8 +865,7 @@
         },
         "draft": {
           "type": "boolean",
-          "description": "Whether the PR should be a draft (true) or ready for review (false). Use to convert between draft and ready states.",
-          "alias": ["is_draft", "isDraft"]
+          "description": "Whether the PR should be a draft (true) or ready for review (false). Use to convert between draft and ready states."
         },
         "secrecy": {
           "type": "string",
@@ -921,8 +908,7 @@
         },
         "repo": {
           "type": "string",
-          "description": "Target repository in 'owner/repo' format for cross-repository merge operations. If omitted, uses the configured default target repository.",
-          "alias": ["repository"]
+          "description": "Target repository in 'owner/repo' format for cross-repository merge operations. If omitted, uses the configured default target repository."
         },
         "secrecy": {
           "type": "string",
@@ -945,13 +931,11 @@
       "properties": {
         "branch": {
           "type": "string",
-          "description": "Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch.",
-          "alias": ["branch_name", "branchName"]
+          "description": "Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch."
         },
         "message": {
           "type": "string",
-          "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits).",
-          "alias": ["text", "content"]
+          "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits)."
         },
         "pull_request_number": {
           "type": ["number", "string"],
@@ -979,8 +963,7 @@
       "properties": {
         "path": {
           "type": "string",
-          "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
-          "alias": ["file_path", "filePath"]
+          "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration."
         },
         "secrecy": {
           "type": "string",
@@ -1002,8 +985,7 @@
       "properties": {
         "path": {
           "type": "string",
-          "description": "Path to the file or directory to upload. Three formats are accepted: (1) filename only (e.g., \"chart.png\") for files already in the upload staging directory at /tmp/gh-aw/safeoutputs/upload-artifacts/; (2) absolute path (e.g., \"/tmp/gh-aw/charts/chart.png\") to auto-copy from disk into the staging directory; (3) workspace-relative path (e.g., \"reports/summary.json\") resolved from the workspace root. Do NOT use shell variable syntax like \"$VAR/...\" because shell variables are not expanded in JSON string values. Example: \"path\": \"activity_overview.png\" is correct for staged files, while \"path\": \"$VAR/gh-aw/safeoutputs/upload-artifacts/activity_overview.png\" is invalid. Required unless filters is provided.",
-          "alias": ["file_path", "filePath"]
+          "description": "Path to the file or directory to upload. Three formats are accepted: (1) filename only (e.g., \"chart.png\") for files already in the upload staging directory at /tmp/gh-aw/safeoutputs/upload-artifacts/; (2) absolute path (e.g., \"/tmp/gh-aw/charts/chart.png\") to auto-copy from disk into the staging directory; (3) workspace-relative path (e.g., \"reports/summary.json\") resolved from the workspace root. Do NOT use shell variable syntax like \"$VAR/...\" because shell variables are not expanded in JSON string values. Example: \"path\": \"activity_overview.png\" is correct for staged files, while \"path\": \"$VAR/gh-aw/safeoutputs/upload-artifacts/activity_overview.png\" is invalid. Required unless filters is provided."
         },
         "filters": {
           "type": "object",
@@ -1053,8 +1035,7 @@
       "properties": {
         "tag": {
           "type": "string",
-          "description": "Release tag name (e.g., 'v1.0.0'). REQUIRED - must be provided explicitly as the tag cannot always be inferred from event context.",
-          "alias": ["tag_name", "tagName"]
+          "description": "Release tag name (e.g., 'v1.0.0'). REQUIRED - must be provided explicitly as the tag cannot always be inferred from event context."
         },
         "operation": {
           "type": "string",
@@ -1086,8 +1067,7 @@
       "properties": {
         "tool": {
           "type": "string",
-          "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
-          "alias": ["tool_name", "toolName"]
+          "description": "Optional: Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed."
         },
         "reason": {
           "type": "string",
@@ -1118,8 +1098,7 @@
       "properties": {
         "message": {
           "type": "string",
-          "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
-          "alias": ["text", "content"]
+          "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing')."
         },
         "secrecy": {
           "type": "string",
@@ -1244,8 +1223,7 @@
         },
         "value": {
           "type": "string",
-          "description": "Field value to set. For single-select fields, this must match an existing option name (e.g., \"P1\" or \"High\"). For date fields, use format: YYYY-MM-DD (for example, 2026-05-08).",
-          "alias": ["field_value", "fieldValue"]
+          "description": "Field value to set. For single-select fields, this must match an existing option name (e.g., \"P1\" or \"High\"). For date fields, use format: YYYY-MM-DD (for example, 2026-05-08)."
         },
         "secrecy": {
           "type": "string",

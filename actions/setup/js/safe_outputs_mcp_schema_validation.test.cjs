@@ -22,6 +22,19 @@ describe("Safe Outputs MCP Schema Validation", () => {
   const toolsContent = fs.readFileSync(toolsPath, "utf8");
   tools = JSON.parse(toolsContent);
 
+  /**
+   * @param {string} value
+   * @returns {string[]}
+   */
+  function normalizeAliasTokens(value) {
+    return value
+      .replace(/-/g, "_")
+      .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+      .split("_")
+      .filter(Boolean)
+      .map(part => part.toLowerCase());
+  }
+
   describe("Schema Completeness", () => {
     it("should load tools schema successfully", () => {
       expect(tools).toBeDefined();
@@ -371,7 +384,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       }
     });
 
-    it("should keep parameter alias metadata capped at two entries, unique, and non-colliding", () => {
+    it("should keep parameter alias metadata capped at two entries, unique, non-colliding, and mechanically normalized", () => {
       const aliasIssues = [];
 
       tools.forEach(tool => {
@@ -435,6 +448,14 @@ describe("Safe Outputs MCP Schema Validation", () => {
               });
             }
             seenAliases.add(alias);
+
+            if (JSON.stringify(normalizeAliasTokens(alias)) !== JSON.stringify(normalizeAliasTokens(fieldName))) {
+              aliasIssues.push({
+                tool: tool.name,
+                field: fieldName,
+                issue: `alias '${alias}' must be a mechanical normalization of '${fieldName}'`,
+              });
+            }
           });
         });
       });
