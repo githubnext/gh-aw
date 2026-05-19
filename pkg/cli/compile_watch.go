@@ -133,7 +133,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
 		// Print summary instead of just "Recompiled"
-		printCompilationSummary(stats)
+		printCompilationSummary(stats, false)
 	} else {
 		// Reset warning count before compilation
 		compiler.ResetWarningCount()
@@ -153,7 +153,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 		stats.Warnings = compiler.GetWarningCount()
 
 		// Print summary instead of just "Recompiled"
-		printCompilationSummary(stats)
+		printCompilationSummary(stats, false)
 	}
 
 	// Main watch loop
