@@ -1149,6 +1149,11 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 //
 //	on:
 //	  pull_request_reviewer: slash_command
+//
+// or custom command name:
+//
+//	on:
+//	  pull_request_reviewer: my-reviewer
 func (c *Compiler) extractPullRequestReviewerConfig(frontmatter map[string]any) bool {
 	onValue, exists := frontmatter["on"]
 	if !exists {
@@ -1166,9 +1171,8 @@ func (c *Compiler) extractPullRequestReviewerConfig(frontmatter map[string]any) 
 	if rawValue == nil {
 		return true
 	}
-	if value, ok := rawValue.(string); ok {
-		trimmed := strings.TrimSpace(value)
-		return trimmed == "" || strings.EqualFold(trimmed, "slash_command")
+	if _, ok := rawValue.(string); ok {
+		return true
 	}
 	return false
 }

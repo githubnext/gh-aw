@@ -116,6 +116,9 @@ func centralRoutingCommandNames(wd *WorkflowData) []string {
 	if len(wd.Command) > 0 {
 		return wd.Command
 	}
+	if wd.PullRequestReviewer && wd.WorkflowID != "" {
+		return []string{wd.WorkflowID}
+	}
 	return nil
 }
 

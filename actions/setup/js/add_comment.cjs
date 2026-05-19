@@ -682,10 +682,33 @@ async function main(config = {}) {
       core.warning("Ignoring empty discussion reply_to_id after normalization");
     }
 
+    const explicitCommentIdRaw = message.comment_id ?? message.commentId;
+    const reuseStatusComment = message.reuse_status_comment === true || message["reuse-status-comment"] === true;
+    const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
+    let commentIdToReuse = null;
+    if (explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "") {
+      commentIdToReuse = Number(explicitCommentIdRaw);
+      if (!Number.isInteger(commentIdToReuse) || commentIdToReuse <= 0) {
+        return {
+          success: false,
+          error: "comment_id must be a positive integer",
+        };
+      }
+    } else if (reuseStatusComment) {
+      const parsedStatusCommentId = Number(statusCommentIdRaw);
+      if (Number.isInteger(parsedStatusCommentId) && parsedStatusCommentId > 0) {
+        commentIdToReuse = parsedStatusCommentId;
+      } else {
+        core.info("reuse_status_comment was requested but no reusable status comment id was available; creating a new comment");
+      }
+    }
+
     try {
       // Hide older comments if enabled AND append-only-comments is not enabled
       // When append-only-comments is true, we want to keep all comments visible
-      if (hideOlderCommentsEnabled && !appendOnlyComments && workflowId) {
+      if (hideOlderCommentsEnabled && commentIdToReuse !== null) {
+        core.info("Skipping hide-older-comments because an existing comment is being updated");
+      } else if (hideOlderCommentsEnabled && !appendOnlyComments && workflowId) {
         await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
       } else if (hideOlderCommentsEnabled && appendOnlyComments) {
         core.info("Skipping hide-older-comments because append-only-comments is enabled");
@@ -694,6 +717,12 @@ async function main(config = {}) {
       /** @type {{ id: string | number, html_url: string }} */
       let comment;
       if (isDiscussion) {
+        if (commentIdToReuse !== null) {
+          return {
+            success: false,
+            error: "comment_id/reuse_status_comment is only supported for issue and pull request comments",
+          };
+        }
         // When triggered by a discussion_comment event (without explicit item_number),
         // reply as a threaded comment to the triggering comment instead of posting top-level.
         // GitHub Discussions only supports two nesting levels, so if the triggering comment is
@@ -726,6 +755,15 @@ async function main(config = {}) {
             repo: repoParts.repo,
             pull_number: itemNumber,
             comment_id: triggeringReviewCommentId,
+            body: processedBody,
+          });
+          comment = data;
+        } else if (commentIdToReuse !== null) {
+          core.info(`Updating existing comment ID: ${commentIdToReuse}`);
+          const { data } = await githubClient.rest.issues.updateComment({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            comment_id: commentIdToReuse,
             body: processedBody,
           });
           comment = data;

@@ -178,7 +178,7 @@ func TestGenerateCentralSlashCommandWorkflow_IncludesPullRequestReviewerRoutes(t
 	require.Contains(t, text, "#     pr-reviewer [pull_request,pull_request_review]")
 }
 
-func TestGenerateCentralSlashCommandWorkflow_DoesNotInferReviewerCommandWhenMissing(t *testing.T) {
+func TestGenerateCentralSlashCommandWorkflow_InfersReviewerCommandFromWorkflowIDWhenMissing(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "central-reviewer-infer-command-test")
 	data := []*WorkflowData{
 		{
@@ -193,7 +193,7 @@ func TestGenerateCentralSlashCommandWorkflow_DoesNotInferReviewerCommandWhenMiss
 	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
 	require.NoError(t, err)
 	text := string(content)
-	require.NotContains(t, text, `"pr-reviewer":[{"workflow":"pr-reviewer","events":["pull_request_comment"]}]`)
+	require.Contains(t, text, `"pr-reviewer":[{"workflow":"pr-reviewer","events":["pull_request_comment"]}]`)
 }
 
 func TestGenerateCentralSlashCommandWorkflow_ErrorsOnDuplicateReviewerCommandName(t *testing.T) {

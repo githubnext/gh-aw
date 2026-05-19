@@ -434,7 +434,7 @@ func TestCompilerMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 	}
 }
 
-func TestParseOnSection_PullRequestReviewerDoesNotInferCommand(t *testing.T) {
+func TestParseOnSection_PullRequestReviewerInfersDefaultCommand(t *testing.T) {
 	c := &Compiler{}
 	frontmatter := map[string]any{
 		"on": map[string]any{
@@ -445,7 +445,21 @@ func TestParseOnSection_PullRequestReviewerDoesNotInferCommand(t *testing.T) {
 
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
 	require.NoError(t, err)
-	assert.Empty(t, workflowData.Command)
+	assert.Equal(t, []string{"reviewer"}, workflowData.Command)
+}
+
+func TestParseOnSection_PullRequestReviewerUsesCustomCommand(t *testing.T) {
+	c := &Compiler{}
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"pull_request_reviewer": "custom-review",
+		},
+	}
+	workflowData := &WorkflowData{}
+
+	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"custom-review"}, workflowData.Command)
 }
 
 func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {

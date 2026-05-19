@@ -18,9 +18,10 @@ var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 
 // isValidPullRequestReviewerValue validates on.pull_request_reviewer trigger syntax.
 // Accepted values are:
-//   - Go nil (YAML `pull_request_reviewer:` with no value, recommended)
+//   - Go nil (YAML `pull_request_reviewer:` with no value, uses default slash command name)
 //   - empty Go string ("", from YAML `pull_request_reviewer: ""`)
 //   - legacy string "slash_command"
+//   - custom slash command name string
 func isValidPullRequestReviewerValue(value any) bool {
 	if value == nil {
 		return true
@@ -30,7 +31,26 @@ func isValidPullRequestReviewerValue(value any) bool {
 		return false
 	}
 	normalized := strings.TrimSpace(reviewerMode)
-	return normalized == "" || strings.EqualFold(normalized, "slash_command")
+	if normalized == "" || strings.EqualFold(normalized, "slash_command") {
+		return true
+	}
+	commandName := strings.TrimPrefix(normalized, "/")
+	if commandName == "" {
+		return false
+	}
+	return !strings.ContainsAny(commandName, " \t\r\n")
+}
+
+func extractPullRequestReviewerCommandName(value any) string {
+	reviewerMode, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	normalized := strings.TrimSpace(reviewerMode)
+	if normalized == "" || strings.EqualFold(normalized, "slash_command") {
+		return ""
+	}
+	return strings.TrimPrefix(normalized, "/")
 }
 
 // parseOnSection handles parsing of the "on" section from frontmatter, extracting command triggers,
@@ -163,12 +183,19 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Check for slash_command (preferred) or command (deprecated)
 			if reviewerValue, hasReviewerTrigger := onMap["pull_request_reviewer"]; hasReviewerTrigger {
 				if !isValidPullRequestReviewerValue(reviewerValue) {
-					return errors.New("on.pull_request_reviewer must be empty (pull_request_reviewer:) or \"slash_command\"")
+					return errors.New("on.pull_request_reviewer must be empty (pull_request_reviewer:) or a slash command name")
 				}
 				hasPullRequestReviewer = true
 				hasCommand = true
 				workflowData.PullRequestReviewer = true
 				workflowData.CommandCentralized = true
+				if len(workflowData.Command) == 0 {
+					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+					workflowData.Command = []string{baseName}
+					if reviewerCommandName := extractPullRequestReviewerCommandName(reviewerValue); reviewerCommandName != "" {
+						workflowData.Command = []string{reviewerCommandName}
+					}
+				}
 				if len(workflowData.CommandEvents) == 0 {
 					workflowData.CommandEvents = []string{"pull_request_comment", "pull_request_review_comment"}
 				}
