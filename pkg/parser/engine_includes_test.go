@@ -17,7 +17,8 @@ func TestExpandIncludesForEngines(t *testing.T) {
 		name             string
 		includeFiles     map[string]string
 		mainContent      string
-		expectedEngines  []string
+		expectedLen      int
+		expectedExact    map[int]string
 		expectedContains map[int][]string
 	}{
 		{
@@ -39,7 +40,8 @@ tools:
 
 Some content here.
 `,
-			expectedEngines: []string{`"codex"`},
+			expectedLen:   1,
+			expectedExact: map[int]string{0: `"codex"`},
 		},
 		{
 			name: "object format engine",
@@ -63,7 +65,7 @@ tools:
 
 Some content here.
 `,
-			expectedEngines: []string{""},
+			expectedLen: 1,
 			expectedContains: map[int][]string{
 				0: {`"id":"claude"`, `"model":"claude-3-5-sonnet-20241022"`, `"max-turns":5`},
 			},
@@ -86,6 +88,7 @@ tools:
 
 Some content here.
 `,
+			expectedLen: 0,
 		},
 		{
 			name: "multiple includes",
@@ -119,7 +122,8 @@ Some content here.
 
 More content.
 `,
-			expectedEngines: []string{`"claude"`, `"codex"`},
+			expectedLen:   2,
+			expectedExact: map[int]string{0: `"claude"`, 1: `"codex"`},
 		},
 		{
 			name: "optional include missing file",
@@ -129,6 +133,7 @@ More content.
 
 Some content here.
 `,
+			expectedLen: 0,
 		},
 		{
 			name: "object engine with command",
@@ -152,7 +157,7 @@ tools:
 
 Some content here.
 `,
-			expectedEngines: []string{""},
+			expectedLen: 1,
 			expectedContains: map[int][]string{
 				0: {`"id":"copilot"`, `"command":"/custom/path/to/copilot"`, `"version":"1.0.0"`},
 			},
@@ -171,12 +176,10 @@ Some content here.
 			engines, err := ExpandIncludesForEngines(tt.mainContent, tmpDir)
 			require.NoError(t, err, "Should expand includes for test case %q", tt.name)
 
-			require.Len(t, engines, len(tt.expectedEngines), "Should return expected number of engines for test case %q", tt.name)
+			require.Len(t, engines, tt.expectedLen, "Should return expected number of engines for test case %q", tt.name)
 
-			for idx, expected := range tt.expectedEngines {
-				if expected != "" {
-					assert.Equal(t, expected, engines[idx], "Engine %d should match expected value for test case %q", idx, tt.name)
-				}
+			for idx, expected := range tt.expectedExact {
+				assert.Equal(t, expected, engines[idx], "Engine %d should match expected value for test case %q", idx, tt.name)
 			}
 
 			for idx, expectedFields := range tt.expectedContains {
