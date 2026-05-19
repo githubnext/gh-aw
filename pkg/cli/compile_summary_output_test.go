@@ -193,7 +193,7 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 func assertHeadingContainsMessage(t *testing.T, output string, heading string, message string) {
 	t.Helper()
 
-	pattern := heading + `:[\s\S]*?` + regexp.QuoteMeta(message)
+	pattern := `(?s)` + heading + `:.*?` + regexp.QuoteMeta(message)
 	matched, err := regexp.MatchString(pattern, output)
 	if err != nil {
 		t.Fatalf("Failed to compile regex pattern %q: %v", pattern, err)

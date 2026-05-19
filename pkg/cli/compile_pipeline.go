@@ -38,7 +38,7 @@ import (
 
 var compileOrchestrationLog = logger.New("cli:compile_pipeline")
 
-const emptyCompilationErrorMessage = "compilation failed (no detailed error message available)"
+const fallbackCompilationErrorMessage = "compilation failed (no detailed error message available)"
 
 // compileSpecificFiles compiles a specific list of workflow files
 func compileSpecificFiles(
@@ -117,7 +117,7 @@ func compileSpecificFiles(
 				errMsgs = append(errMsgs, verr.Message)
 			}
 			if len(errMsgs) == 0 {
-				errMsgs = []string{emptyCompilationErrorMessage}
+				errMsgs = []string{fallbackCompilationErrorMessage}
 			}
 			errorCount++
 			stats.Errors += len(errMsgs)
@@ -305,7 +305,7 @@ func compileAllFilesInDirectory(
 				errMsgs = append(errMsgs, verr.Message)
 			}
 			if len(errMsgs) == 0 {
-				errMsgs = []string{emptyCompilationErrorMessage}
+				errMsgs = []string{fallbackCompilationErrorMessage}
 			}
 			errorCount++
 			stats.Errors += len(errMsgs)

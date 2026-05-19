@@ -318,21 +318,21 @@ func classifyErrorMessage(message string) PrioritizedError {
 	}
 }
 
-func buildRecoveryPlan(errors []PrioritizedError, suppressedCount int) *RecoveryPlan {
+func buildRecoveryPlan(prioritized []PrioritizedError, suppressedCount int) *RecoveryPlan {
 	steps := make([]string, 0, 4)
-	if hasSeverity(errors, SeverityCritical) {
+	if hasSeverity(prioritized, SeverityCritical) {
 		steps = append(steps, "Fix the critical syntax and required-configuration errors first.")
 	}
-	if hasSeverity(errors, SeverityCritical) || suppressedCount > 0 {
+	if hasSeverity(prioritized, SeverityCritical) || suppressedCount > 0 {
 		steps = append(steps, "Re-run `gh aw compile` after the first fixes to confirm whether cascading errors disappear.")
 	}
-	if hasSeverity(errors, SeverityHigh) {
+	if hasSeverity(prioritized, SeverityHigh) {
 		steps = append(steps, "Address the remaining high-priority network, tool, or MCP configuration issues next.")
 	}
-	if hasSeverity(errors, SeverityMedium) {
+	if hasSeverity(prioritized, SeverityMedium) {
 		steps = append(steps, "Resolve the remaining event, permission, and runtime validation errors.")
 	}
-	if hasSeverity(errors, SeverityLow) {
+	if hasSeverity(prioritized, SeverityLow) {
 		steps = append(steps, "Clean up any remaining warnings or deprecated fields last.")
 	}
 	if len(steps) == 0 {
@@ -342,8 +342,8 @@ func buildRecoveryPlan(errors []PrioritizedError, suppressedCount int) *Recovery
 	return &RecoveryPlan{Steps: steps}
 }
 
-func hasSeverity(errors []PrioritizedError, severity ErrorSeverity) bool {
-	for _, err := range errors {
+func hasSeverity(prioritized []PrioritizedError, severity ErrorSeverity) bool {
+	for _, err := range prioritized {
 		if err.Severity == severity {
 			return true
 		}
