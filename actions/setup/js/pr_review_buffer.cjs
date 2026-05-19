@@ -28,6 +28,10 @@ const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflo
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
 const MAX_REVIEW_BODY_LENGTH = 65000;
 const DEFAULT_FALLBACK_EXCERPT_LENGTH = 500;
+const FALLBACK_SECTION_HEADER = "### Comments that could not be inline-anchored";
+const FALLBACK_EMPTY_COMMENT_BODY = "_(empty comment body)_";
+const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit GitHub length limits.)_";
+const ELLIPSIS = "…";
 
 /**
  * @typedef {Object} BufferedComment
@@ -616,18 +620,25 @@ module.exports = { createReviewBuffer };
  */
 function appendUnanchoredCommentsSection(reviewBody, comments) {
   const baseBody = reviewBody || "";
-  const sectionHeader = "### Comments that could not be inline-anchored";
-  const sectionPrefix = baseBody ? `\n\n${sectionHeader}\n\n` : `${sectionHeader}\n\n`;
-  const detailsOverheads = comments.map(comment => `<details><summary>${comment.path}:${comment.line}</summary>\n\n\n\n</details>`);
-  const overheadLength = detailsOverheads.reduce((sum, part) => sum + part.length, 0);
+  const sectionPrefix = baseBody ? `\n\n${FALLBACK_SECTION_HEADER}\n\n` : `${FALLBACK_SECTION_HEADER}\n\n`;
+  const overheadLength = comments.reduce((sum, comment, index) => {
+    const separatorLength = index > 0 ? 2 : 0; // \n\n separator used by join("\n\n")
+    return sum + separatorLength + renderUnanchoredCommentBlock(comment, "").length;
+  }, 0);
   const availableExcerptChars = MAX_REVIEW_BODY_LENGTH - (baseBody.length + sectionPrefix.length + overheadLength);
-  const perCommentExcerptLimit = comments.length > 0 ? Math.max(0, Math.min(DEFAULT_FALLBACK_EXCERPT_LENGTH, Math.floor(availableExcerptChars / comments.length))) : DEFAULT_FALLBACK_EXCERPT_LENGTH;
+
+  let perCommentExcerptLimit = DEFAULT_FALLBACK_EXCERPT_LENGTH;
+  if (comments.length > 0) {
+    perCommentExcerptLimit = Math.max(0, Math.min(DEFAULT_FALLBACK_EXCERPT_LENGTH, Math.floor(availableExcerptChars / comments.length)));
+  }
 
   const detailsBlocks = comments.map(comment => {
     const rawBody = (comment.body || "").trim();
-    const excerpt = perCommentExcerptLimit > 0 && rawBody.length > perCommentExcerptLimit ? `${rawBody.substring(0, perCommentExcerptLimit - 1)}…` : rawBody;
-    const safeExcerpt = excerpt || "_(empty comment body)_";
-    return `<details><summary>${comment.path}:${comment.line}</summary>\n\n${safeExcerpt}\n\n</details>`;
+    const shouldTruncate = perCommentExcerptLimit > 0 && rawBody.length > perCommentExcerptLimit;
+    const truncatedBody = shouldTruncate ? rawBody.substring(0, Math.max(0, perCommentExcerptLimit - ELLIPSIS.length)) : rawBody;
+    const excerpt = shouldTruncate ? `${truncatedBody}${ELLIPSIS}` : rawBody;
+    const safeExcerpt = excerpt || FALLBACK_EMPTY_COMMENT_BODY;
+    return renderUnanchoredCommentBlock(comment, safeExcerpt);
   });
 
   const mergedBody = `${baseBody}${sectionPrefix}${detailsBlocks.join("\n\n")}`;
@@ -635,5 +646,15 @@ function appendUnanchoredCommentsSection(reviewBody, comments) {
     return mergedBody;
   }
 
-  return `${mergedBody.substring(0, MAX_REVIEW_BODY_LENGTH - 58)}\n\n_(Fallback review body truncated to fit GitHub length limits.)_`;
+  const maxBodyLength = Math.max(0, MAX_REVIEW_BODY_LENGTH - FALLBACK_TRUNCATION_SUFFIX.length);
+  return `${mergedBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
+}
+
+/**
+ * @param {BufferedComment} comment
+ * @param {string} bodyText
+ * @returns {string}
+ */
+function renderUnanchoredCommentBlock(comment, bodyText) {
+  return `<details><summary>${comment.path}:${comment.line}</summary>\n\n${bodyText}\n\n</details>`;
 }
