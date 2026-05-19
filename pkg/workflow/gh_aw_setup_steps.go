@@ -33,14 +33,16 @@ func generateGhAwSetupStep(config ghAwSetupStepConfig) (GitHubActionStep, error)
 		return step, nil
 	}
 
+	// Pinning errors are non-fatal: we still emit a valid step with the fallback
+	// action reference so compilation and workflow execution can continue.
 	actionRef, pinErr := resolveGhAwSetupActionRef(config)
 	step := GitHubActionStep{
 		"      - name: Install gh-aw extension",
-		"        uses: " + actionRef,
 	}
 	if config.ifCondition != "" {
 		step = append(step, "        if: "+config.ifCondition)
 	}
+	step = append(step, "        uses: "+actionRef)
 	step = append(step, "        with:")
 	step = append(step, fmt.Sprintf("          version: '%s'", config.cliVersion))
 
@@ -56,6 +58,10 @@ func generateGhAwSetupStep(config ghAwSetupStepConfig) (GitHubActionStep, error)
 	return step, pinErr
 }
 
+// resolveGhAwSetupActionRef resolves the setup-cli action reference in priority order:
+//  1. Use workflow-aware pin resolution (getActionPinWithData) when WorkflowData exists.
+//  2. Otherwise use the static pin table (getActionPin) when available.
+//  3. Otherwise fall back to repo@tag, then repo with no ref as a final fallback.
 func resolveGhAwSetupActionRef(config ghAwSetupStepConfig) (string, error) {
 	if config.workflowData != nil {
 		actionRef := fmt.Sprintf("%s@%s", config.actionRepo, config.cliVersion)

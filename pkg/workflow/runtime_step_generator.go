@@ -62,7 +62,9 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 		}
 
 		allExtraFields := make(map[string]string)
+		// runtime.ExtraWithFields are already YAML-formatted by runtime definitions.
 		maps.Copy(allExtraFields, runtime.ExtraWithFields)
+		// req.ExtraFields come from user input and need YAML formatting.
 		for k, v := range req.ExtraFields {
 			allExtraFields[k] = formatYAMLValue(v)
 		}

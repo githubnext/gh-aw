@@ -180,10 +180,11 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 
 	cliVersion := resolveAgenticWorkflowsCLIVersion(c, workflowData)
 	effectiveToken := getEffectiveGitHubToken("")
+	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
 	installStep, err := generateGhAwSetupStep(ghAwSetupStepConfig{
 		actionMode:           c.actionMode,
 		cliVersion:           cliVersion,
-		actionRepo:           GitHubOrgRepo + "/actions/setup-cli",
+		actionRepo:           actionRepo,
 		fallbackActionRefTag: cliVersion,
 		workflowData:         workflowData,
 		withFields: map[string]string{
@@ -191,7 +192,7 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 		},
 	})
 	if err != nil {
-		mcpSetupGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", GitHubOrgRepo+"/actions/setup-cli", cliVersion, err)
+		mcpSetupGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", actionRepo, cliVersion, err)
 	}
 	for _, line := range installStep {
 		yaml.WriteString(line + "\n")
