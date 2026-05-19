@@ -31,6 +31,7 @@ const DEFAULT_FALLBACK_EXCERPT_LENGTH = 500;
 const FALLBACK_SECTION_HEADER = "### Comments that could not be inline-anchored";
 const FALLBACK_EMPTY_COMMENT_BODY = "_(empty comment body)_";
 const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit GitHub length limits.)_";
+const FALLBACK_OMISSION_NOTE = "_(Unanchored comment details omitted to fit GitHub length limits.)_";
 const ELLIPSIS = "…";
 
 /**
@@ -629,13 +630,18 @@ function appendUnanchoredCommentsSection(reviewBody, comments) {
 
   let perCommentExcerptLimit = DEFAULT_FALLBACK_EXCERPT_LENGTH;
   if (comments.length > 0) {
-    perCommentExcerptLimit = Math.max(0, Math.min(DEFAULT_FALLBACK_EXCERPT_LENGTH, Math.floor(availableExcerptChars / comments.length)));
+    if (availableExcerptChars <= 0) {
+      perCommentExcerptLimit = 0;
+    } else {
+      perCommentExcerptLimit = Math.min(DEFAULT_FALLBACK_EXCERPT_LENGTH, Math.floor(availableExcerptChars / comments.length));
+    }
   }
 
   const detailsBlocks = comments.map(comment => {
     const rawBody = (comment.body || "").trim();
     const shouldTruncate = perCommentExcerptLimit > 0 && rawBody.length > perCommentExcerptLimit;
-    const truncatedBody = shouldTruncate ? rawBody.substring(0, Math.max(0, perCommentExcerptLimit - ELLIPSIS.length)) : rawBody;
+    const truncateLength = perCommentExcerptLimit >= ELLIPSIS.length ? perCommentExcerptLimit - ELLIPSIS.length : 0;
+    const truncatedBody = shouldTruncate ? rawBody.substring(0, truncateLength) : rawBody;
     const excerpt = shouldTruncate ? `${truncatedBody}${ELLIPSIS}` : rawBody;
     const safeExcerpt = excerpt || FALLBACK_EMPTY_COMMENT_BODY;
     return renderUnanchoredCommentBlock(comment, safeExcerpt);
@@ -647,7 +653,16 @@ function appendUnanchoredCommentsSection(reviewBody, comments) {
   }
 
   const maxBodyLength = Math.max(0, MAX_REVIEW_BODY_LENGTH - FALLBACK_TRUNCATION_SUFFIX.length);
-  return `${mergedBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
+  if (baseBody.length > maxBodyLength) {
+    return `${baseBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
+  }
+
+  const omissionBody = `${baseBody}${sectionPrefix}${FALLBACK_OMISSION_NOTE}`;
+  if (omissionBody.length <= MAX_REVIEW_BODY_LENGTH) {
+    return omissionBody;
+  }
+
+  return `${baseBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
 }
 
 /**
