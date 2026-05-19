@@ -250,6 +250,7 @@ from where the previous request stopped due to timeout.`,
 
 // auditArgs holds the input parameters for the audit tool.
 type auditArgs struct {
+	RunID        string   `json:"run_id,omitempty"          jsonschema:"Alias for run_id_or_url. Single GitHub Actions workflow run ID."`
 	RunIDOrURL   string   `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Single GitHub Actions workflow run ID or URL."`
 	RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
 	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
@@ -329,13 +330,16 @@ Multi-run diff returns JSON describing changes between the base and each compari
 		}
 
 		// Resolve the list of run IDs/URLs to pass to the audit command.
-		// run_ids_or_urls takes precedence; fall back to the deprecated run_id_or_url field.
+		// run_ids_or_urls takes precedence; fall back to run_id, then deprecated run_id_or_url.
 		runItems := args.RunIDsOrURLs
+		if len(runItems) == 0 && args.RunID != "" {
+			runItems = []string{args.RunID}
+		}
 		if len(runItems) == 0 && args.RunIDOrURL != "" {
 			runItems = []string{args.RunIDOrURL}
 		}
 		if len(runItems) == 0 {
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls or run_id_or_url", nil)
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls, run_id, or run_id_or_url", nil)
 		}
 
 		// Build command arguments.

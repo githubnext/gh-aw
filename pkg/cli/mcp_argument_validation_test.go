@@ -351,6 +351,7 @@ func TestMCPToolParams(t *testing.T) {
 			case "audit":
 				// experiment and variant were previously missing from the hardcoded map;
 				// reflection must now include them automatically.
+				assert.Contains(t, toolParams, "run_id", "audit tool must include 'run_id' alias param")
 				assert.Contains(t, toolParams, "experiment", "audit tool must include 'experiment' param")
 				assert.Contains(t, toolParams, "variant", "audit tool must include 'variant' param")
 			}
