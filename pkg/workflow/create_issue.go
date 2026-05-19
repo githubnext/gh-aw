@@ -43,7 +43,7 @@ func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssu
 			return &CreateIssuesConfig{}
 		},
 		func(configData map[string]any) bool {
-			coerceStringOrArrayField(configData, "assignees", createIssueLog)
+			coerceStringOrArrayFields(configData, []string{"assignees"}, createIssueLog)
 			return true
 		},
 		func(_ map[string]any, config *CreateIssuesConfig, expiresDisabled bool) {
