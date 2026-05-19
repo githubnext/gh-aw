@@ -44,11 +44,13 @@ func TestIsForbiddenError(t *testing.T) {
 		want bool
 	}{
 		{name: "nil error", err: nil, want: false},
-		{name: "403 numeric literal", err: errors.New("HTTP 403: Forbidden"), want: true},
-		{name: "lowercase forbidden", err: errors.New("request forbidden"), want: true},
-		{name: "uppercase FORBIDDEN", err: errors.New("RESOURCE FORBIDDEN"), want: true},
-		{name: "wrapped forbidden", err: fmt.Errorf("request failed: %w", errors.New("forbidden")), want: true},
-		{name: "bare 403 in message", err: errors.New("server returned 403"), want: true},
+		{name: "http 403 forbidden", err: errors.New("HTTP 403: Forbidden"), want: true},
+		{name: "parenthesized http 403", err: errors.New("gh: API rate limit exceeded (HTTP 403)"), want: true},
+		{name: "status 403", err: errors.New("request failed with status 403"), want: true},
+		{name: "wrapped http 403", err: fmt.Errorf("request failed: %w", errors.New("HTTP 403: access denied")), want: true},
+		{name: "forbidden without http status", err: errors.New("request forbidden"), want: false},
+		{name: "forbidden character", err: errors.New("invalid forbidden character in query"), want: false},
+		{name: "bare 403 in message", err: errors.New("server returned 403"), want: false},
 		{name: "404 Not Found", err: errors.New("HTTP 404: Not Found"), want: false},
 		{name: "generic error", err: errors.New("something went wrong"), want: false},
 	}
@@ -70,11 +72,13 @@ func TestIsGoneError(t *testing.T) {
 		want bool
 	}{
 		{name: "nil error", err: nil, want: false},
-		{name: "410 numeric literal", err: errors.New("HTTP 410: Gone"), want: true},
-		{name: "lowercase gone", err: errors.New("artifact gone"), want: true},
-		{name: "uppercase GONE", err: errors.New("RESOURCE GONE"), want: true},
-		{name: "wrapped gone", err: fmt.Errorf("request failed: %w", errors.New("gone")), want: true},
-		{name: "bare 410 in message", err: errors.New("server returned 410"), want: true},
+		{name: "http 410 gone", err: errors.New("HTTP 410: Gone"), want: true},
+		{name: "parenthesized http 410", err: errors.New("gh: workflow logs expired (HTTP 410)"), want: true},
+		{name: "status 410", err: errors.New("request failed with status 410"), want: true},
+		{name: "wrapped http 410", err: fmt.Errorf("request failed: %w", errors.New("HTTP 410: logs unavailable")), want: true},
+		{name: "gone without http status", err: errors.New("artifact gone"), want: false},
+		{name: "gone away", err: errors.New("connection has gone away"), want: false},
+		{name: "bare 410 in message", err: errors.New("server returned 410"), want: false},
 		{name: "403 Forbidden", err: errors.New("HTTP 403: Forbidden"), want: false},
 		{name: "generic error", err: errors.New("something went wrong"), want: false},
 	}

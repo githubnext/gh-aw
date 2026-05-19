@@ -13,8 +13,8 @@ This package currently exposes focused helpers for identifying common error cate
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `IsNotFoundError` | `func(err error) bool` | Returns `true` when `err` indicates a "not found" condition by matching case-insensitive `404` or `not found` text; returns `false` for `nil` and non-matching errors |
-| `IsForbiddenError` | `func(err error) bool` | Returns `true` when `err` indicates a "forbidden" condition by matching case-insensitive `403` or `forbidden` text; returns `false` for `nil` and non-matching errors |
-| `IsGoneError` | `func(err error) bool` | Returns `true` when `err` indicates a "gone" condition by matching case-insensitive `410` or `gone` text; returns `false` for `nil` and non-matching errors |
+| `IsForbiddenError` | `func(err error) bool` | Returns `true` when `err` indicates an HTTP-style `403`/"forbidden" response by matching case-insensitive patterns like `HTTP 403` or `403 Forbidden`; returns `false` for `nil` and non-matching errors |
+| `IsGoneError` | `func(err error) bool` | Returns `true` when `err` indicates an HTTP-style `410`/"gone" response by matching case-insensitive patterns like `HTTP 410` or `410 Gone`; returns `false` for `nil` and non-matching errors |
 
 ## Usage Examples
 
@@ -41,6 +41,7 @@ None.
 ## Design Notes
 
 - `IsNotFoundError`, `IsForbiddenError`, and `IsGoneError` intentionally accept multiple message formats to cover errors produced by GitHub API responses, `gh` CLI output, and `go-gh` wrappers.
+- `IsForbiddenError` and `IsGoneError` intentionally require HTTP-style status context so unrelated phrases like `forbidden character` or `gone away` are not misclassified.
 
 ---
 

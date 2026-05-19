@@ -36,7 +36,7 @@ func checkSecretExists(secretName string) (bool, error) {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
 			if strings.Contains(string(exitError.Stderr), "403") {
-				return false, errors.New("403 access denied")
+				return false, errors.New("HTTP 403: access denied")
 			}
 		}
 		return false, fmt.Errorf("failed to list secrets: %w", err)

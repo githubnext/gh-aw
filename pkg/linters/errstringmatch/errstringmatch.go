@@ -25,6 +25,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	noLintLinesByFile := buildNoLintLineIndex(pass)
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -57,7 +58,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isStringLiteral(pass, outer.Args[1]) {
 			return
 		}
-		if hasNoLintDirective(pass, position) {
+		if hasNoLintDirective(position, noLintLinesByFile) {
 			return
 		}
 
@@ -142,31 +143,41 @@ func isStringLiteral(pass *analysis.Pass, expr ast.Expr) bool {
 	return ok && basic.Kind() == types.String
 }
 
-func hasNoLintDirective(pass *analysis.Pass, position token.Position) bool {
+func hasNoLintDirective(position token.Position, noLintLinesByFile map[string]map[int]struct{}) bool {
 	if position.Filename == "" {
 		return false
 	}
 
+	noLintLines := noLintLinesByFile[position.Filename]
+	if noLintLines == nil {
+		return false
+	}
+
+	_, sameLine := noLintLines[position.Line]
+	_, previousLine := noLintLines[position.Line-1]
+	return sameLine || previousLine
+}
+
+func buildNoLintLineIndex(pass *analysis.Pass) map[string]map[int]struct{} {
+	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
 	for _, file := range pass.Files {
-		filePos := pass.Fset.PositionFor(file.Pos(), false)
-		if filePos.Filename != position.Filename {
+		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
+		if filename == "" {
 			continue
 		}
-
 		for _, group := range file.Comments {
 			for _, comment := range group.List {
-				commentPos := pass.Fset.PositionFor(comment.Slash, false)
-				if commentPos.Line != position.Line && commentPos.Line != position.Line-1 {
+				text := strings.TrimPrefix(comment.Text, "//")
+				if !strings.HasPrefix(text, "nolint:errstringmatch") && !strings.HasPrefix(text, "nolint:all") {
 					continue
 				}
-
-				text := strings.TrimPrefix(comment.Text, "//")
-				if strings.HasPrefix(text, "nolint:errstringmatch") || strings.HasPrefix(text, "nolint:all") {
-					return true
+				line := pass.Fset.PositionFor(comment.Slash, false).Line
+				if noLintLinesByFile[filename] == nil {
+					noLintLinesByFile[filename] = make(map[int]struct{})
 				}
+				noLintLinesByFile[filename][line] = struct{}{}
 			}
 		}
 	}
-
-	return false
+	return noLintLinesByFile
 }
