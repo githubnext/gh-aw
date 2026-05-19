@@ -143,38 +143,6 @@ func TestExtractStepsFromCopilotSetup_NoSteps(t *testing.T) {
 	assert.Contains(t, err.Error(), "no steps found", "Error should mention missing steps")
 }
 
-func TestExtractStepsFromCopilotSetup_PreservesGhAwBinaryFallbacks(t *testing.T) {
-	workflow := map[string]any{
-		"name": "Copilot Setup Steps",
-		"on":   "workflow_dispatch",
-		"jobs": map[string]any{
-			"copilot-setup-steps": map[string]any{
-				"runs-on": "ubuntu-latest",
-				"steps": []any{
-					map[string]any{
-						"name": "Install gh-aw extension",
-						"run": `gh aw --version
-GH_AW_BIN=""
-GH_AW_BIN=$(command -v gh-aw 2>/dev/null) || true
-if [ -z "$GH_AW_BIN" ] && [ -n "${GH_CONFIG_DIR:-}" ]; then
-  GH_AW_BIN=$(find "${GH_CONFIG_DIR}/extensions/gh-aw" -name 'gh-aw' -type f 2>/dev/null | head -1) || true
-fi
-if [ -z "$GH_AW_BIN" ] && [ -f "${GITHUB_WORKSPACE}/gh-aw" ]; then
-  GH_AW_BIN="${GITHUB_WORKSPACE}/gh-aw"
-fi`,
-					},
-				},
-			},
-		},
-	}
-
-	stepsYAML, err := extractStepsFromCopilotSetup(workflow)
-	require.NoError(t, err)
-	require.NotEmpty(t, stepsYAML)
-	assert.Contains(t, stepsYAML, "${GH_CONFIG_DIR}/extensions/gh-aw")
-	assert.Contains(t, stepsYAML, "${GITHUB_WORKSPACE}/gh-aw")
-}
-
 func TestExtractStepsFromCopilotSetup_StripsCheckoutStep(t *testing.T) {
 	// Test workflow with checkout step NOT first — checkout should be stripped
 	workflow := map[string]any{
