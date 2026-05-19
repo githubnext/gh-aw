@@ -469,6 +469,7 @@ hooks were also removed.
 
 **Migration:**
 - Replace `supportsLLMGateway: true` with `llmGatewayPort: <port>`
+- Run `gh aw fix` to apply the codemod automatically for workflow frontmatter
 - Update custom engine implementations that relied on `SupportsLLMGateway`
 
 #### Decouple status comment from AI reaction defaults

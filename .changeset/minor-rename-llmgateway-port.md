@@ -17,3 +17,4 @@ Renamed the agentic workflow engine's `supportsLLMGateway` flag to `llmGatewayPo
   ```
 - If you were using `SupportsLLMGateway` interface hooks in custom engine implementations, migrate to the new `llmGatewayPort`-based configuration
 - The `llmGatewayPort` field is now required when enabling LLM gateway support
+- Run `gh aw fix` to automatically migrate `supportsLLMGateway: true` in workflow frontmatter
