@@ -6,7 +6,7 @@ on:
   slash_command:
     strategy: centralized
     name: matt
-    events: [pull_request_comment, pull_request_review_comment]
+    events: [issue_comment, pull_request_review_comment]
 permissions:
   contents: read
   pull-requests: read
