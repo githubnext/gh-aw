@@ -835,7 +835,12 @@ jobs:
 `)
 
 		yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
-		yaml.WriteString(`      - name: Compile workflows
+		yaml.WriteString(`      - name: Pre-compile validation
+        run: |
+          ` + getCLICmdPrefix(actionMode) + ` compile --validate --no-emit --verbose
+          echo "✓ Pre-compile validation passed"
+
+      - name: Compile workflows
         run: |
           ` + getCLICmdPrefix(actionMode) + ` compile --validate --validate-images --verbose
           echo "✓ All workflows compiled successfully"
