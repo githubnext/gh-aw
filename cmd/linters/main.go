@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
+	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
@@ -28,6 +29,7 @@ import (
 func main() {
 	multichecker.Main(
 		ctxbackground.Analyzer,
+		errormessage.Analyzer,
 		errstringmatch.Analyzer,
 		excessivefuncparams.Analyzer,
 		largefunc.Analyzer,
