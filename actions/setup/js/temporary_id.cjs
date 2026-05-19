@@ -262,9 +262,13 @@ function loadTemporaryIdMap() {
  * - { repo, number }
  *
  * @param {any} resolvedTemporaryIds - Object or Map of temporary IDs to resolved values
+ * @param {object} [options]
+ * @param {string} [options.defaultRepo] - Fallback repo to use for legacy number-only values
+ * @param {boolean} [options.validatePositiveIntegers] - When true, ignore non-positive-integer numbers
+ * @param {(normalizedKey: string, rawValue: unknown) => void} [options.onInvalidNumber] - Callback for invalid numbers when validation is enabled
  * @returns {Map<string, RepoIssuePair>} Map of normalized temporary_id to {repo, number}
  */
-function loadTemporaryIdMapFromResolved(resolvedTemporaryIds) {
+function loadTemporaryIdMapFromResolved(resolvedTemporaryIds, options = {}) {
   /** @type {Map<string, RepoIssuePair>} */
   const result = new Map();
 
@@ -272,22 +276,53 @@ function loadTemporaryIdMapFromResolved(resolvedTemporaryIds) {
     return result;
   }
 
-  const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+  const contextRepo = options.defaultRepo ?? (typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "");
+
+  /**
+   * @param {string} normalizedKey
+   * @param {unknown} rawValue
+   * @returns {number | null}
+   */
+  const toNumber = (normalizedKey, rawValue) => {
+    const number = Number(rawValue);
+    if (!options.validatePositiveIntegers) {
+      return number;
+    }
+    if (!Number.isInteger(number) || number < 1) {
+      if (typeof options.onInvalidNumber === "function") {
+        options.onInvalidNumber(normalizedKey, rawValue);
+      }
+      return null;
+    }
+    return number;
+  };
 
   const entries = resolvedTemporaryIds instanceof Map ? Array.from(resolvedTemporaryIds.entries()) : Object.entries(resolvedTemporaryIds);
   for (const [key, value] of entries) {
     const normalizedKey = normalizeTemporaryId(key);
     if (typeof value === "number") {
-      result.set(normalizedKey, { repo: contextRepo, number: value });
+      const number = toNumber(normalizedKey, value);
+      if (number === null) {
+        continue;
+      }
+      result.set(normalizedKey, { repo: contextRepo, number });
       continue;
     }
     if (typeof value === "object" && value !== null) {
       if ("repo" in value && "number" in value) {
-        result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+        const number = toNumber(normalizedKey, value.number);
+        if (number === null) {
+          continue;
+        }
+        result.set(normalizedKey, { repo: String(value.repo), number });
         continue;
       }
       if ("number" in value) {
-        result.set(normalizedKey, { repo: contextRepo, number: Number(value.number) });
+        const number = toNumber(normalizedKey, value.number);
+        if (number === null) {
+          continue;
+        }
+        result.set(normalizedKey, { repo: contextRepo, number });
         continue;
       }
     }

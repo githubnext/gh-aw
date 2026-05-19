@@ -8,7 +8,7 @@
  */
 
 const { ERR_API } = require("./error_codes.cjs");
-const { normalizeTemporaryId, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
+const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
@@ -126,58 +126,6 @@ async function readBlobAsBase64(blobHash, cwd) {
 }
 
 /**
- * Build a normalized temporary ID map from resolved temporary IDs.
- *
- * @param {Record<string, any> | null | undefined} resolvedTemporaryIds
- * @param {string} currentRepo
- * @returns {Map<string, {repo: string, number: number}>}
- */
-function buildTemporaryIdMap(resolvedTemporaryIds, currentRepo) {
-  /** @type {Map<string, {repo: string, number: number}>} */
-  const map = new Map();
-  if (!resolvedTemporaryIds || typeof resolvedTemporaryIds !== "object" || Array.isArray(resolvedTemporaryIds)) {
-    return map;
-  }
-
-  /**
-   * @param {unknown} raw
-   * @returns {number | null}
-   */
-  const toPositiveInteger = raw => {
-    const num = Number(raw);
-    if (!Number.isInteger(num) || num < 1) {
-      return null;
-    }
-    return num;
-  };
-
-  for (const [key, value] of Object.entries(resolvedTemporaryIds)) {
-    const normalizedKey = normalizeTemporaryId(key);
-    if (typeof value === "number") {
-      const number = toPositiveInteger(value);
-      if (number === null) {
-        core.warning(`pushSignedCommits: ignoring invalid resolved temporary ID number for '${normalizedKey}': ${String(value)}`);
-        continue;
-      }
-      map.set(normalizedKey, { repo: currentRepo, number });
-      continue;
-    }
-    if (value && typeof value === "object" && "number" in value) {
-      const number = toPositiveInteger(value.number);
-      if (number === null) {
-        core.warning(`pushSignedCommits: ignoring invalid resolved temporary ID number for '${normalizedKey}': ${String(value.number)}`);
-        continue;
-      }
-      map.set(normalizedKey, {
-        repo: String("repo" in value && value.repo ? value.repo : currentRepo),
-        number,
-      });
-    }
-  }
-  return map;
-}
-
-/**
  * Replace temporary ID references in base64-encoded UTF-8 text content.
  * Returns original content unchanged for:
  * - binary / non-UTF8 blobs
@@ -265,7 +213,13 @@ async function resolveLocalHeadSha(cwd) {
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true, resolvedTemporaryIds, currentRepo }) {
   const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
-  const temporaryIdMap = buildTemporaryIdMap(resolvedTemporaryIds, effectiveCurrentRepo);
+  const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
+    defaultRepo: effectiveCurrentRepo,
+    validatePositiveIntegers: true,
+    onInvalidNumber: (normalizedKey, rawValue) => {
+      core.warning(`pushSignedCommits: ignoring invalid resolved temporary ID number for '${normalizedKey}': ${String(rawValue)}`);
+    },
+  });
 
   // The default parameter value converts undefined to true; this check tests only the explicit false value.
   if (signedCommits === false) {
