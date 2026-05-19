@@ -527,18 +527,6 @@
           "type": "number",
           "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow."
         },
-        "issue_number": {
-          "type": ["number", "string"],
-          "description": "Alias for item_number. Prefer item_number in new calls."
-        },
-        "pr_number": {
-          "type": ["number", "string"],
-          "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls."
-        },
-        "pull_number": {
-          "type": ["number", "string"],
-          "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls."
-        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -569,18 +557,6 @@
         "item_number": {
           "type": "number",
           "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, removes labels from the item that triggered this workflow."
-        },
-        "issue_number": {
-          "type": ["number", "string"],
-          "description": "Alias for item_number. Prefer item_number in new calls."
-        },
-        "pr_number": {
-          "type": ["number", "string"],
-          "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls."
-        },
-        "pull_number": {
-          "type": ["number", "string"],
-          "description": "Alias for item_number when targeting a pull request. Prefer item_number in new calls."
         },
         "secrecy": {
           "type": "string",
@@ -854,10 +830,6 @@
           "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
         },
         "pr": {
-          "type": ["number", "string"],
-          "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
-        },
-        "pull_number": {
           "type": ["number", "string"],
           "description": "Alias for pull_request_number. Prefer pull_request_number in new calls."
         },
