@@ -76,26 +76,31 @@ pre-agent-steps:
       npm install
   - name: Start documentation server
     run: |
+      LOG_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.log"
+      PID_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.pid"
       cd "${{ github.workspace }}/docs"
-      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
+      nohup npm run dev -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
       PID=$!
-      echo $PID > /tmp/server.pid
+      echo $PID > "$PID_FILE"
       echo "Server PID: $PID"
+      echo "Server log: $LOG_FILE"
   - name: Wait for server readiness
     run: |
-      MAX_WAIT=135  # 45 attempts × 3s = 135s max wait
+      PID_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.pid"
+      LOG_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.log"
+      MAX_WAIT=135  # Maximum 135 seconds wait time
       WAITED=0
       until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
         # Check if the server process has already died
-        if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+        if [ -f "$PID_FILE" ] && ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
           echo "::error::Documentation server process died before becoming ready. Server log:"
-          cat /tmp/preview.log
+          cat "$LOG_FILE"
           exit 1
         fi
         WAITED=$((WAITED + 3))
         if [ $WAITED -ge $MAX_WAIT ]; then
           echo "::error::Documentation server did not start after ${MAX_WAIT}s. Server log:"
-          cat /tmp/preview.log
+          cat "$LOG_FILE"
           exit 1
         fi
         echo "Waiting for server... ($WAITED/${MAX_WAIT}s)"
