@@ -264,7 +264,7 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 	}
 }
 
-func TestMCPNetworkSchemaProxyArgsSupportAndAllowedDeprecation(t *testing.T) {
+func TestMCPNetworkSchemaDeprecation(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
