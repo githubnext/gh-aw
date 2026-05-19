@@ -148,7 +148,7 @@ The canonical JSON includes all frontmatter fields plus version information:
   "cache": {},
   "description": "Daily audit of workflow runs",
   "engine": "claude",
-  "imports": ["shared/mcp/gh-aw.md", "shared/jqschema.md"],
+  "imports": ["shared/mcp/tavily.md", "shared/jqschema.md"],
   "jobs": {},
   "labels": ["audit", "automation"],
   "mcp-servers": {},

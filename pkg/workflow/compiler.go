@@ -363,7 +363,7 @@ func (c *Compiler) readLockFileFromHEAD(lockFile string) (string, error) {
 	if c.gitRoot == "" {
 		return "", errors.New("git root not available (not in a git repository or git not installed)")
 	}
-	return gitutil.ReadFileFromHEADWithRoot(lockFile, c.gitRoot)
+	return gitutil.ReadFileFromHEAD(lockFile, c.gitRoot)
 }
 
 // CompileWorkflowData compiles pre-parsed workflow content into GitHub Actions YAML.
