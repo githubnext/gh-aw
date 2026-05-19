@@ -585,6 +585,7 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	diff.GitHubRateLimitDetails = computeGitHubRateLimitDiff(rl1, rl2)
 	diff.ToolCallsDiff = computeToolCallsDiff(m1, m2)
 
+	auditDiffLog.Printf("Run metrics diff: tokens %d->%d, turns %d->%d, has_token_details=%t, has_rate_limit_details=%t", run1Tokens, run2Tokens, run1Turns, run2Turns, hasTokenDetails, hasRateLimitDetails)
 	return diff
 }
 
@@ -932,6 +933,7 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 // summary with only FirewallAnalysis populated.
 // artifactFilter restricts which artifacts are downloaded; nil means download all.
 func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, owner, repo, hostname string, verbose bool, artifactFilter []string) (*RunSummary, error) {
+	auditDiffLog.Printf("Loading run summary for diff: run_id=%d, owner=%q, repo=%q, artifact_filter=%v", runID, owner, repo, artifactFilter)
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
 	if absDir, err := filepath.Abs(runOutputDir); err == nil {
 		runOutputDir = absDir
@@ -946,8 +948,10 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 	// Download artifacts if needed
 	if err := downloadRunArtifacts(ctx, runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
+			auditDiffLog.Printf("Failed to download artifacts for run %d: %v", runID, err)
 			return nil, fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
 		}
+		auditDiffLog.Printf("No artifacts found for run %d, proceeding with partial summary", runID)
 	}
 
 	// Analyze firewall logs only when the agent artifact was included in the filter.
