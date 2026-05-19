@@ -121,6 +121,8 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `GetSafeOutputTypeKeys` | `func() ([]string, error)` | Returns valid safe-output type keys from the schema |
 | `GetMainWorkflowDeprecatedFields` | `func() ([]DeprecatedField, error)` | Returns deprecated frontmatter fields with migration notes |
 | `FindDeprecatedFieldsInFrontmatter` | `func(map[string]any, []DeprecatedField) []DeprecatedField` | Finds deprecated fields present in a parsed frontmatter map |
+| `GetMainWorkflowDeprecatedFieldsDeep` | `func() ([]DeprecatedField, error)` | Returns deprecated fields at any schema nesting level (e.g. `tools.grep`) with dot-separated paths |
+| `FindDeprecatedFieldsInFrontmatterDeep` | `func(map[string]any, []DeprecatedField) []DeprecatedField` | Finds deprecated fields at any nesting depth in frontmatter using dot-separated paths |
 | `FindClosestMatches` | `func(target string, candidates []string, maxResults int) []string` | Finds the closest string matches (for typo suggestions) |
 | `LevenshteinDistance` | `func(a, b string) int` | Computes edit distance between two strings |
 
