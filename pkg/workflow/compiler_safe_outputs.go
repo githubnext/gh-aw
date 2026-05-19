@@ -19,7 +19,7 @@ var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 // isValidPullRequestReviewerValue validates on.pull_request_reviewer trigger syntax.
 // Accepted values are:
 //   - Go nil (YAML `pull_request_reviewer:` with no value, recommended)
-//   - empty Go string ("")
+//   - empty Go string ("", from YAML `pull_request_reviewer: ""`)
 //   - legacy string "slash_command"
 func isValidPullRequestReviewerValue(value any) bool {
 	if value == nil {
@@ -163,7 +163,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Check for slash_command (preferred) or command (deprecated)
 			if reviewerValue, hasReviewerTrigger := onMap["pull_request_reviewer"]; hasReviewerTrigger {
 				if !isValidPullRequestReviewerValue(reviewerValue) {
-					return errors.New("on.pull_request_reviewer must be set to an empty value (i.e. `pull_request_reviewer:` with no value) or the legacy string `slash_command`")
+					return errors.New("on.pull_request_reviewer must be empty (pull_request_reviewer:) or \"slash_command\"")
 				}
 				hasPullRequestReviewer = true
 				hasCommand = true
