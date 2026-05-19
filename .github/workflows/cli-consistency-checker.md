@@ -28,19 +28,37 @@ pre-agent-steps:
 
       output_dir="/tmp/gh-aw/agent/help-output"
       mkdir -p "${output_dir}"
+      extract_commands='
+        /^[[:space:]]+[[:alnum:]_-]+([[:space:]]|$)/ {
+          cmd=$1
+          gsub(/:$/, "", cmd)
+          if (cmd != "" && cmd != "Commands") print cmd
+        }
+      '
 
       ./gh-aw --help > "${output_dir}/main.txt"
-      mapfile -t top_commands < <(awk '/^[[:space:]]+[a-z][a-z0-9-]*[[:space:]]/ {print $1}' "${output_dir}/main.txt" | sort -u)
+      mapfile -t top_commands < <(awk "${extract_commands}" "${output_dir}/main.txt" | sort -u)
 
       for cmd in "${top_commands[@]}"; do
-        ./gh-aw "$cmd" --help > "${output_dir}/${cmd}.txt" 2>&1 || true
-        mapfile -t subcommands < <(awk '/^[[:space:]]+[a-z][a-z0-9-]*[[:space:]]/ {print $1}' "${output_dir}/${cmd}.txt" | sort -u)
+        if ! ./gh-aw "$cmd" --help > "${output_dir}/${cmd}.txt" 2>&1; then
+          echo "warning: failed to collect help for '${cmd}'" >&2
+          continue
+        fi
+        mapfile -t subcommands < <(awk "${extract_commands}" "${output_dir}/${cmd}.txt" | sort -u)
         for sub in "${subcommands[@]}"; do
-          ./gh-aw "$cmd" "$sub" --help > "${output_dir}/${cmd}-${sub}.txt" 2>&1 || true
+          if ! ./gh-aw "$cmd" "$sub" --help > "${output_dir}/${cmd}-${sub}.txt" 2>&1; then
+            echo "warning: failed to collect help for '${cmd} ${sub}'" >&2
+          fi
         done
       done
 
-      cat "${output_dir}"/*.txt > /tmp/gh-aw/agent/all-help.txt
+      shopt -s nullglob
+      help_files=("${output_dir}"/*.txt)
+      if [ ${#help_files[@]} -eq 0 ]; then
+        echo "No help output files were generated" >&2
+        exit 1
+      fi
+      cat "${help_files[@]}" > /tmp/gh-aw/agent/all-help.txt
       wc -l /tmp/gh-aw/agent/all-help.txt | awk '{print "Pre-collected help lines:", $1}'
 safe-outputs:
   create-issue:
@@ -64,7 +82,7 @@ Treat all CLI output as trusted data since it comes from the repository's own co
 
 ## Critical Requirement
 
-**Use real CLI output as source of truth**. All help output is pre-collected by `pre-agent-steps` in `/tmp/gh-aw/agent/all-help.txt`. Do not infer behavior from source code alone.
+**Use real CLI output as source of truth**. All help output is pre-collected by `pre-agent-steps` in `/tmp/gh-aw/agent/all-help.txt`; treat this file as the authoritative source for CLI behavior.
 
 ## Step 1: Load Pre-Collected Help Output
 
