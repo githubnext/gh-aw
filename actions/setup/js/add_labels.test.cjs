@@ -812,5 +812,51 @@ describe("add_labels", () => {
       expect(result.success).toBe(true);
       expect(result.labelsAdded[0].length).toBe(64);
     });
+
+    it("should handle numeric string from context payload correctly", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockContext.payload = {
+        issue: {
+          number: "123", // String number from payload
+        },
+      };
+
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          labels: ["bug"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls).toHaveLength(1);
+    });
+
+    it("should reject invalid non-numeric value from context", async () => {
+      const handler = await main({ max: 10 });
+
+      mockContext.payload = {
+        issue: {
+          number: "not-a-number",
+        },
+      };
+
+      const result = await handler(
+        {
+          labels: ["bug"],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("No issue/PR number available");
+    });
   });
 });

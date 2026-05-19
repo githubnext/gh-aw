@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -235,7 +236,7 @@ func extractBuiltinMCPTools(frontmatter map[string]any, serverFilter string, con
 	}
 	for toolName, toolValue := range tools {
 		if toolName == "serena" {
-			return fmt.Errorf("tools.serena is removed")
+			return errors.New("tools.serena is removed")
 		}
 		if toolName == "github" || toolName == "playwright" {
 			config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)

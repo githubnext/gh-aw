@@ -83,16 +83,20 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 
 // EvaluateOutcomes checks the current state of all safe output items from a run.
 func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeReport {
+	outcomeEvalLog.Printf("Evaluating outcomes: items=%d, repo_override=%q", len(items), repoOverride)
 	if repoOverride == "" {
 		slug, err := GetCurrentRepoSlug()
 		if err == nil {
 			repoOverride = slug
+			outcomeEvalLog.Printf("Resolved repo override from current repo slug: %s", repoOverride)
 		}
 	}
 
 	reports := make([]OutcomeReport, 0, len(items))
+	skipped := 0
 	for _, item := range items {
 		if item.Type == "noop" || item.Type == "missing_tool" || item.Type == "missing_data" || item.Type == "report_incomplete" {
+			skipped++
 			continue
 		}
 		repo := item.Repo
@@ -101,6 +105,7 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 		}
 		eval, ok := outcomeEvaluators[item.Type]
 		if !ok {
+			outcomeEvalLog.Printf("No evaluator registered for type %q, using generic sticky", item.Type)
 			eval = evalGenericSticky
 		}
 		report := eval(item, repo)
@@ -108,6 +113,7 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 		report.CheckedAt = time.Now().UTC().Format(time.RFC3339)
 		reports = append(reports, report)
 	}
+	outcomeEvalLog.Printf("Outcome evaluation complete: reports=%d, skipped=%d", len(reports), skipped)
 	return reports
 }
 
@@ -171,6 +177,7 @@ func normalizeRepoForAPI(repo string) (ownerRepo string, host string) {
 // ghAPIGet calls the GitHub REST API via gh cli and returns the parsed JSON.
 func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 	ownerRepo, host := normalizeRepoForAPI(repo)
+	outcomeEvalLog.Printf("gh api GET: repo=%s, endpoint=%s, host=%q", ownerRepo, endpoint, host)
 	args := []string{"api", fmt.Sprintf("repos/%s/%s", ownerRepo, endpoint)}
 	var output []byte
 	var err error
@@ -180,6 +187,7 @@ func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 		output, err = workflow.RunGH("Checking outcome...", args...)
 	}
 	if err != nil {
+		outcomeEvalLog.Printf("gh api GET failed: endpoint=%s, err=%v", endpoint, err)
 		return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
 	}
 	var result map[string]any

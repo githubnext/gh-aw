@@ -73,6 +73,7 @@ const main = createCountGatedHandler({
       // Accept common aliases: issue_number, pr_number, and pull_number are normalised to item_number
       const explicitItemNumber = message.item_number ?? message.issue_number ?? message.pr_number ?? message.pull_number;
       let itemNumber;
+
       if (explicitItemNumber !== undefined) {
         // Resolve temporary IDs if present
         const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
@@ -84,7 +85,7 @@ const main = createCountGatedHandler({
           return {
             success: false,
             deferred: true,
-            error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${explicitItemNumber}`,
+            error: resolvedTarget.errorMessage ?? `Unresolved temporary ID: ${explicitItemNumber}`,
           };
         }
 
@@ -100,7 +101,7 @@ const main = createCountGatedHandler({
         itemNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
       }
 
-      if (!itemNumber || isNaN(itemNumber)) {
+      if (!itemNumber || Number.isNaN(Number(itemNumber))) {
         const error = "No issue/PR number available";
         core.warning(error);
         return { success: false, error };
@@ -127,6 +128,7 @@ const main = createCountGatedHandler({
 
       // Use validation helper to sanitize and validate labels
       const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount, blockedPatterns);
+
       if (!labelsResult.valid) {
         // If no valid labels, log info and return gracefully
         if (labelsResult.error?.includes("No valid labels")) {
@@ -138,6 +140,7 @@ const main = createCountGatedHandler({
             message: "No valid labels found",
           };
         }
+
         // For other validation errors, return error
         core.warning(`Label validation failed: ${labelsResult.error}`);
         return {

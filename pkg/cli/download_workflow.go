@@ -38,6 +38,7 @@ func downloadWorkflowContentViaGit(ctx context.Context, repo, path, ref string, 
 	cmd := exec.CommandContext(ctx, "git", "archive", "--remote="+repoURL, ref, path)
 	archiveOutput, err := cmd.Output()
 	if err != nil {
+		downloadLog.Printf("git archive failed, falling back to git clone: repo=%s, ref=%s, err=%v", repo, ref, err)
 		// If git archive fails, try with git clone + read file as a fallback
 		return downloadWorkflowContentViaGitClone(ctx, repo, path, ref, verbose)
 	}
@@ -45,8 +46,10 @@ func downloadWorkflowContentViaGit(ctx context.Context, repo, path, ref string, 
 	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
 	content, err := fileutil.ExtractFileFromTar(archiveOutput, path)
 	if err != nil {
+		downloadLog.Printf("Failed to extract %s from git archive: %v", path, err)
 		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
 	}
+	downloadLog.Printf("Extracted file from git archive: path=%s, size=%d bytes", path, len(content))
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Successfully fetched via git archive"))
@@ -143,12 +146,15 @@ func downloadWorkflowContentViaGitClone(ctx context.Context, repo, path, ref str
 	// Read the file
 	filePath := filepath.Join(tmpDir, path)
 	if err := fileutil.ValidatePathWithinBase(tmpDir, filePath); err != nil {
+		downloadLog.Printf("Refusing to read file outside clone directory: %s", filePath)
 		return nil, fmt.Errorf("refusing to read file outside clone directory: %w", err)
 	}
 	content, err := os.ReadFile(filePath)
 	if err != nil {
+		downloadLog.Printf("Failed to read cloned file: path=%s, err=%v", filePath, err)
 		return nil, fmt.Errorf("failed to read file from cloned repository: %w", err)
 	}
+	downloadLog.Printf("Read cloned file: path=%s, size=%d bytes", path, len(content))
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Successfully fetched via git sparse checkout"))
@@ -192,7 +198,9 @@ func decodeBase64FileContent(raw string) ([]byte, error) {
 	cleaned := strings.ReplaceAll(strings.TrimSpace(raw), "\n", "")
 	content, err := base64.StdEncoding.DecodeString(cleaned)
 	if err != nil {
+		downloadLog.Printf("Base64 decode failed: cleaned_len=%d, err=%v", len(cleaned), err)
 		return nil, fmt.Errorf("failed to decode file content: %w", err)
 	}
+	downloadLog.Printf("Decoded base64 file content: bytes=%d", len(content))
 	return content, nil
 }
