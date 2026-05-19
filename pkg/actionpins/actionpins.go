@@ -22,7 +22,7 @@ import (
 	"github.com/github/gh-aw/pkg/semverutil"
 )
 
-var log = logger.New("workflow:action_pins")
+var actionPinsLog = logger.New("actionpins:actionpins")
 
 //go:embed data/action_pins.json
 var actionPinsJSON []byte
@@ -109,16 +109,16 @@ var (
 
 func getActionPins() []ActionPin {
 	actionPinsOnce.Do(func() {
-		log.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
+		actionPinsLog.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
 
 		var data ActionPinsData
 		if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
-			log.Printf("Failed to unmarshal action pins JSON: %v", err)
+			actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
 			panic(fmt.Sprintf("failed to load action pins: %v", err))
 		}
 
 		if n := countPinKeyMismatches(data.Entries); n > 0 {
-			log.Printf("Found %d key/version mismatches in action_pins.json", n)
+			actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", n)
 		}
 
 		pins := slices.Collect(maps.Values(data.Entries))
@@ -130,17 +130,17 @@ func getActionPins() []ActionPin {
 			return cmp.Compare(a.Repo, b.Repo)
 		})
 
-		log.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
+		actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
 		cachedActionPins = pins
 
 		cachedActionPinsByRepo = buildByRepoIndex(pins)
-		log.Printf("Built per-repo action pin index for %d repos", len(cachedActionPinsByRepo))
+		actionPinsLog.Printf("Built per-repo action pin index for %d repos", len(cachedActionPinsByRepo))
 
 		cachedContainerPins = data.Containers
 		if cachedContainerPins == nil {
 			cachedContainerPins = make(map[string]ContainerPin)
 		}
-		log.Printf("Loaded %d container pins from JSON", len(cachedContainerPins))
+		actionPinsLog.Printf("Loaded %d container pins from JSON", len(cachedContainerPins))
 	})
 
 	return cachedActionPins
@@ -156,7 +156,7 @@ func countPinKeyMismatches(entries map[string]ActionPin) int {
 			if keyVersion != pin.Version {
 				count++
 				shortSHA := pin.SHA[:min(len(pin.SHA), 8)]
-				log.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
+				actionPinsLog.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
 					key, keyVersion, pin.Version, shortSHA)
 			}
 		}
@@ -309,40 +309,40 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	if ctx == nil {
 		ctx = &PinContext{}
 	}
-	log.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, ctx.StrictMode)
+	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, ctx.StrictMode)
 
 	isAlreadySHA := isValidFullSHA(version)
 
 	if ctx.Resolver != nil && !isAlreadySHA {
-		log.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
+		actionPinsLog.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
 		sha, err := ctx.Resolver.ResolveSHA(cmp.Or(ctx.Ctx, context.Background()), actionRepo, version)
 		if err == nil && sha != "" {
-			log.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
+			actionPinsLog.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
 			resolvedVersion := findVersionBySHA(actionRepo, sha)
 			result := formatPinnedActionWithResolution(actionRepo, sha, version, resolvedVersion)
-			log.Printf("Returning pinned reference: %s", result)
+			actionPinsLog.Printf("Returning pinned reference: %s", result)
 			return result, nil
 		}
-		log.Printf("Dynamic resolution failed for %s@%s: %v", actionRepo, version, err)
+		actionPinsLog.Printf("Dynamic resolution failed for %s@%s: %v", actionRepo, version, err)
 	} else {
 		if isAlreadySHA {
-			log.Printf("Version is already a SHA, skipping dynamic resolution")
+			actionPinsLog.Printf("Version is already a SHA, skipping dynamic resolution")
 		} else {
-			log.Printf("No action resolver available, skipping dynamic resolution")
+			actionPinsLog.Printf("No action resolver available, skipping dynamic resolution")
 		}
 	}
 
-	log.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
+	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
 	matchingPins := GetActionPinsByRepo(actionRepo)
 
 	if len(matchingPins) == 0 {
-		log.Printf("No hardcoded pins found for %s", actionRepo)
+		actionPinsLog.Printf("No hardcoded pins found for %s", actionRepo)
 	} else {
-		log.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
+		actionPinsLog.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
 
 		for _, pin := range matchingPins {
 			if pin.Version == version {
-				log.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
+				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
 				return FormatPinnedActionReference(actionRepo, pin.SHA, pin.Version), nil
 			}
 		}
@@ -350,21 +350,21 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 		if isAlreadySHA {
 			for _, pin := range matchingPins {
 				if pin.SHA == version {
-					log.Printf("Exact SHA match: requested=%s, found version=%s", version, pin.Version)
+					actionPinsLog.Printf("Exact SHA match: requested=%s, found version=%s", version, pin.Version)
 					return FormatPinnedActionReference(actionRepo, pin.SHA, pin.Version), nil
 				}
 			}
-			log.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
+			actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
 			return FormatPinnedActionReference(actionRepo, version, version), nil
 		}
 
 		if !ctx.StrictMode && len(matchingPins) > 0 {
 			selectedPin, foundCompatible := findCompatiblePin(matchingPins, version)
 			if foundCompatible {
-				log.Printf("No exact match for version %s, using highest semver-compatible version: %s", version, selectedPin.Version)
+				actionPinsLog.Printf("No exact match for version %s, using highest semver-compatible version: %s", version, selectedPin.Version)
 			} else {
 				selectedPin = matchingPins[0]
-				log.Printf("No exact match for version %s, no semver-compatible versions found, using highest available: %s", version, selectedPin.Version)
+				actionPinsLog.Printf("No exact match for version %s, no semver-compatible versions found, using highest available: %s", version, selectedPin.Version)
 			}
 
 			if !isAlreadySHA {
@@ -377,14 +377,14 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 					ctx.Warnings[cacheKey] = true
 				}
 			}
-			log.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
+			actionPinsLog.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
 				actionRepo, version, actionRepo, selectedPin.Version)
 			return formatPinnedActionWithResolution(actionRepo, selectedPin.SHA, version, selectedPin.Version), nil
 		}
 	}
 
 	if isAlreadySHA {
-		log.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
+		actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
 		return FormatPinnedActionReference(actionRepo, version, version), nil
 	}
 

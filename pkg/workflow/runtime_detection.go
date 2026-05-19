@@ -112,7 +112,7 @@ func requiresNodeForEngineHarness(workflowData *WorkflowData) bool {
 
 // detectFromCustomSteps scans custom steps YAML for runtime commands
 func detectFromCustomSteps(customSteps string, requirements map[string]*RuntimeRequirement) {
-	log.Print("Scanning custom steps for runtime commands")
+	workflowLog.Print("Scanning custom steps for runtime commands")
 	lines := strings.SplitSeq(customSteps, "\n")
 	for line := range lines {
 		// Look for run: commands
@@ -189,7 +189,7 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 	}
 
 	allTools := tools.ToMap()
-	log.Printf("Scanning %d MCP configurations for runtime commands", len(allTools))
+	workflowLog.Printf("Scanning %d MCP configurations for runtime commands", len(allTools))
 
 	// Scan custom MCP tools for runtime commands
 	// Skip containerized MCP servers as they don't need host runtime setup

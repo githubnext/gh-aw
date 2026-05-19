@@ -4,7 +4,7 @@ import "github.com/github/gh-aw/pkg/logger"
 
 // parseProjectViews parses the "views" list from a project config map.
 // Only views with both name and layout fields are included; invalid ones are skipped.
-func parseProjectViews(configMap map[string]any, log *logger.Logger) []ProjectView {
+func parseProjectViews(configMap map[string]any, debugLog *logger.Logger) []ProjectView {
 	viewsData, exists := configMap["views"]
 	if !exists {
 		return nil
@@ -64,9 +64,9 @@ func parseProjectViews(configMap map[string]any, log *logger.Logger) []ProjectVi
 		// Only add view if it has required fields
 		if view.Name != "" && view.Layout != "" {
 			views = append(views, view)
-			log.Printf("Parsed view %d: %s (%s)", i+1, view.Name, view.Layout)
+			debugLog.Printf("Parsed view %d: %s (%s)", i+1, view.Name, view.Layout)
 		} else {
-			log.Printf("Skipping invalid view %d: missing required fields", i+1)
+			debugLog.Printf("Skipping invalid view %d: missing required fields", i+1)
 		}
 	}
 	return views
@@ -74,7 +74,7 @@ func parseProjectViews(configMap map[string]any, log *logger.Logger) []ProjectVi
 
 // parseProjectFieldDefinitions parses the "field-definitions" (or "field_definitions") list
 // from a project config map. Only fields with both name and data-type are included.
-func parseProjectFieldDefinitions(configMap map[string]any, log *logger.Logger) []ProjectFieldDefinition {
+func parseProjectFieldDefinitions(configMap map[string]any, debugLog *logger.Logger) []ProjectFieldDefinition {
 	fieldsData, hasFields := configMap["field-definitions"]
 	if !hasFields {
 		// Allow underscore variant as well
@@ -123,7 +123,7 @@ func parseProjectFieldDefinitions(configMap map[string]any, log *logger.Logger) 
 
 		if field.Name != "" && field.DataType != "" {
 			fields = append(fields, field)
-			log.Printf("Parsed field definition %d: %s (%s)", i+1, field.Name, field.DataType)
+			debugLog.Printf("Parsed field definition %d: %s (%s)", i+1, field.Name, field.DataType)
 		}
 	}
 	return fields

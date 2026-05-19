@@ -23,7 +23,7 @@ type FrontmatterResult struct {
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
 func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
-	log.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
+	parserLog.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
 	// Fast-path: inspect only the first line to determine whether frontmatter exists.
 	firstNewline := strings.IndexByte(content, '\n')
 	firstLine := content
@@ -33,7 +33,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 
 	// Check if file starts with frontmatter delimiter.
 	if !isFrontmatterDelimiterLine(firstLine) {
-		log.Print("No frontmatter delimiter found, returning content as markdown")
+		parserLog.Print("No frontmatter delimiter found, returning content as markdown")
 		// No frontmatter, return entire content as markdown
 		return &FrontmatterResult{
 			Frontmatter:      make(map[string]any),
@@ -113,7 +113,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		markdown = content[markdownStart:]
 	}
 
-	log.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
+	parserLog.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
 	return &FrontmatterResult{
 		Frontmatter:      frontmatter,
 		Markdown:         strings.TrimSpace(markdown),
@@ -190,7 +190,7 @@ func ExtractFrontmatterFromBuiltinFile(path string, content []byte) (*Frontmatte
 // ExtractMarkdownSection extracts a specific section from markdown content
 // Supports H1-H3 headers and proper nesting (matches bash implementation)
 func ExtractMarkdownSection(content, sectionName string) (string, error) {
-	log.Printf("Extracting markdown section: section=%s, content_size=%d bytes", sectionName, len(content))
+	parserLog.Printf("Extracting markdown section: section=%s, content_size=%d bytes", sectionName, len(content))
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var sectionContent bytes.Buffer
 	inSection := false
@@ -225,12 +225,12 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 	}
 
 	if !inSection {
-		log.Printf("Section not found: %s", sectionName)
+		parserLog.Printf("Section not found: %s", sectionName)
 		return "", fmt.Errorf("section '%s' not found", sectionName)
 	}
 
 	extractedContent := strings.TrimSpace(sectionContent.String())
-	log.Printf("Successfully extracted section: size=%d bytes", len(extractedContent))
+	parserLog.Printf("Successfully extracted section: size=%d bytes", len(extractedContent))
 	return extractedContent, nil
 }
 
@@ -269,15 +269,15 @@ func findH1WorkflowName(markdownBody string) string {
 // avoids the redundant file-read and YAML-parse that those functions perform when the caller
 // already holds the parsed FrontmatterResult.
 func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string) (string, error) {
-	log.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
+	parserLog.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
 
 	if name := findH1WorkflowName(markdownBody); name != "" {
-		log.Printf("Found workflow name from H1 header: %s", name)
+		parserLog.Printf("Found workflow name from H1 header: %s", name)
 		return name, nil
 	}
 
 	defaultName := generateDefaultWorkflowName(virtualPath)
-	log.Printf("No H1 header found, using default name: %s", defaultName)
+	parserLog.Printf("No H1 header found, using default name: %s", defaultName)
 	return defaultName, nil
 }
 
@@ -285,7 +285,7 @@ func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string
 // This is the in-memory equivalent of ExtractWorkflowNameFromMarkdown, used by Wasm builds
 // where filesystem access is unavailable.
 func ExtractWorkflowNameFromContent(content string, virtualPath string) (string, error) {
-	log.Printf("Extracting workflow name from content: virtualPath=%s, size=%d bytes", virtualPath, len(content))
+	parserLog.Printf("Extracting workflow name from content: virtualPath=%s, size=%d bytes", virtualPath, len(content))
 
 	markdownContent, err := ExtractMarkdownContent(content)
 	if err != nil {
@@ -293,12 +293,12 @@ func ExtractWorkflowNameFromContent(content string, virtualPath string) (string,
 	}
 
 	if name := findH1WorkflowName(markdownContent); name != "" {
-		log.Printf("Found workflow name from H1 header: %s", name)
+		parserLog.Printf("Found workflow name from H1 header: %s", name)
 		return name, nil
 	}
 
 	defaultName := generateDefaultWorkflowName(virtualPath)
-	log.Printf("No H1 header found, using default name: %s", defaultName)
+	parserLog.Printf("No H1 header found, using default name: %s", defaultName)
 	return defaultName, nil
 }
 

@@ -100,7 +100,7 @@ func newImportAccumulator() *importAccumulator {
 // skip-roles, skip-bots, pre-steps, pre-agent-steps, post-steps, labels, cache, and features.
 // The work is delegated to focused helper methods, each handling one logical phase.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
-	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
+	parserLog.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 
 	// Phase 1: Parse, apply defaults, substitute inputs, extract tools and markdown.
 	origFm, fm, err := acc.prepareFrontmatter(content, item, visited)
@@ -204,7 +204,7 @@ func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueu
 	for _, w := range agentWarnings {
 		msg := fmt.Sprintf("import '%s': %s", item.importPath, w)
 		acc.warnings = append(acc.warnings, msg)
-		log.Printf("%s", msg)
+		parserLog.Printf("%s", msg)
 	}
 
 	// Extract tools from imported file.
@@ -234,12 +234,12 @@ func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueu
 	if !wasSubstituted && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
 		// No substitution happened and not a builtin - use runtime-import macro
 		acc.importPaths = append(acc.importPaths, importRelPath)
-		log.Printf("Added import path for runtime-import: %s", importRelPath)
+		parserLog.Printf("Added import path for runtime-import: %s", importRelPath)
 	} else if wasSubstituted {
 		// Content was modified by substitution - inline for compile-time substitution.
 		// Extract markdown from the already-substituted content so that import-inputs
 		// expressions embedded in the markdown body are resolved here.
-		log.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
+		parserLog.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
 		markdownContent, merr := ExtractMarkdownContent(rawContent)
 		if merr != nil {
 			return nil, nil, fmt.Errorf("failed to extract markdown from imported file '%s': %w", item.fullPath, merr)
@@ -286,7 +286,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 	if !hasEngine {
 		return
 	}
-	log.Printf("Found engine config in import: %s", fullPath)
+	parserLog.Printf("Found engine config in import: %s", fullPath)
 
 	switch v := engineVal.(type) {
 	case string:
@@ -303,14 +303,14 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 				if acc.mergedEngineMCPToolTimeout == "" {
 					if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
 						acc.mergedEngineMCPToolTimeout = ttStr
-						log.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", fullPath, ttStr)
+						parserLog.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", fullPath, ttStr)
 					}
 				}
 				// Extract session-timeout (first-wins across all imports)
 				if acc.mergedEngineMCPSessionTimeout == "" {
 					if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
 						acc.mergedEngineMCPSessionTimeout = stStr
-						log.Printf("Extracted engine.mcp.session-timeout from import %s: %s", fullPath, stStr)
+						parserLog.Printf("Extracted engine.mcp.session-timeout from import %s: %s", fullPath, stStr)
 					}
 				}
 			}
@@ -332,7 +332,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 			if modelStr, ok := v["model"].(string); ok && modelStr != "" {
 				if acc.mergedEngineModel == "" {
 					acc.mergedEngineModel = modelStr
-					log.Printf("Extracted engine.model preference from import %s: %s", fullPath, modelStr)
+					parserLog.Printf("Extracted engine.model preference from import %s: %s", fullPath, modelStr)
 				}
 			}
 		}
@@ -357,7 +357,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 		if maxRunsJSON, merr := extractFieldJSONFromMap(fm, "max-runs", ""); merr == nil &&
 			maxRunsJSON != "" && maxRunsJSON != "null" {
 			acc.mergedMaxRuns = maxRunsJSON
-			log.Printf("Extracted max-runs from import: %s", fullPath)
+			parserLog.Printf("Extracted max-runs from import: %s", fullPath)
 		}
 	}
 
@@ -366,7 +366,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 		if maxTokensJSON, merr := extractFieldJSONFromMap(fm, "max-effective-tokens", ""); merr == nil &&
 			maxTokensJSON != "" && maxTokensJSON != "null" {
 			acc.mergedMaxEffectiveTokens = maxTokensJSON
-			log.Printf("Extracted max-effective-tokens from import: %s", fullPath)
+			parserLog.Printf("Extracted max-effective-tokens from import: %s", fullPath)
 		}
 	}
 
@@ -458,7 +458,7 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 	if acc.skipIfMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
 			acc.skipIfMatch = skipJSON
-			log.Printf("Extracted on.skip-if-match from import: %s", item.fullPath)
+			parserLog.Printf("Extracted on.skip-if-match from import: %s", item.fullPath)
 		}
 	}
 
@@ -466,7 +466,7 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 	if acc.skipIfNoMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-no-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
 			acc.skipIfNoMatch = skipJSON
-			log.Printf("Extracted on.skip-if-no-match from import: %s", item.fullPath)
+			parserLog.Printf("Extracted on.skip-if-no-match from import: %s", item.fullPath)
 		}
 	}
 
@@ -476,7 +476,7 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 			var token string
 			if jsonErr := json.Unmarshal([]byte(tokenJSON), &token); jsonErr == nil && token != "" {
 				acc.activationGitHubToken = token
-				log.Printf("Extracted on.github-token from import: %s", item.fullPath)
+				parserLog.Printf("Extracted on.github-token from import: %s", item.fullPath)
 			}
 		}
 	}
@@ -486,7 +486,7 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 		if appJSON, appErr := extractOnSectionAnyFieldFromMap(fm, "github-app"); appErr == nil {
 			if validated := validateGitHubAppJSON(appJSON); validated != "" {
 				acc.activationGitHubApp = validated
-				log.Printf("Extracted on.github-app from import: %s", item.fullPath)
+				parserLog.Printf("Extracted on.github-app from import: %s", item.fullPath)
 			}
 		}
 	}
@@ -496,7 +496,7 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 		if appJSON, appErr := extractFieldJSONFromMap(fm, "github-app", ""); appErr == nil {
 			if validated := validateGitHubAppJSON(appJSON); validated != "" {
 				acc.topLevelGitHubApp = validated
-				log.Printf("Extracted top-level github-app from import: %s", item.fullPath)
+				parserLog.Printf("Extracted top-level github-app from import: %s", item.fullPath)
 			}
 		}
 	}
@@ -506,7 +506,7 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 	// for later parsing by the compiler.
 	if checkoutJSON, checkoutErr := extractFieldJSONFromMap(fm, "checkout", ""); checkoutErr == nil && checkoutJSON != "" && checkoutJSON != "null" && checkoutJSON != "false" {
 		acc.checkouts = append(acc.checkouts, checkoutJSON)
-		log.Printf("Extracted checkout from import: %s", item.fullPath)
+		parserLog.Printf("Extracted checkout from import: %s", item.fullPath)
 	}
 }
 
@@ -586,7 +586,7 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 		var featuresMap map[string]any
 		if jsonErr := json.Unmarshal([]byte(featuresContent), &featuresMap); jsonErr == nil {
 			acc.features = append(acc.features, featuresMap)
-			log.Printf("Extracted features from import: %d entries", len(featuresMap))
+			parserLog.Printf("Extracted features from import: %d entries", len(featuresMap))
 		}
 	}
 
@@ -608,7 +608,7 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 			}
 			if len(modelsMap) > 0 {
 				acc.models = append(acc.models, modelsMap)
-				log.Printf("Extracted model aliases from import: %d entries", len(modelsMap))
+				parserLog.Printf("Extracted model aliases from import: %d entries", len(modelsMap))
 			}
 		}
 	}
@@ -620,7 +620,7 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 		if rsAny, hasRS := fm["run-install-scripts"]; hasRS {
 			if rsBool, ok := rsAny.(bool); ok && rsBool {
 				acc.runInstallScripts = true
-				log.Printf("Extracted run-install-scripts: true from import: %s", fullPath)
+				parserLog.Printf("Extracted run-install-scripts: true from import: %s", fullPath)
 			}
 		}
 		// Also check runtimes.node.run-install-scripts
@@ -631,7 +631,7 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 						if rsAny, hasRS := nodeMap["run-install-scripts"]; hasRS {
 							if rsBool, ok := rsAny.(bool); ok && rsBool {
 								acc.runInstallScripts = true
-								log.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", fullPath)
+								parserLog.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", fullPath)
 							}
 						}
 					}
@@ -645,14 +645,14 @@ func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string
 	// single array happens in toImportsResult.
 	if obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}"); obsErr == nil && obsContent != "" && obsContent != "{}" {
 		acc.observabilityConfigs = append(acc.observabilityConfigs, obsContent)
-		log.Printf("Extracted observability from import: %s", fullPath)
+		parserLog.Printf("Extracted observability from import: %s", fullPath)
 	}
 }
 
 // toImportsResult converts the accumulated state to a final ImportsResult.
 // topologicalOrder is the result from topologicalSortImports.
 func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *ImportsResult {
-	log.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, labels=%d",
+	parserLog.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, labels=%d",
 		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.labels))
 	return &ImportsResult{
 		MergedTools:                   acc.toolsBuilder.String(),
@@ -782,7 +782,7 @@ func mergeObservabilityConfigs(configs []string) string {
 		}
 		var obs map[string]any
 		if err := json.Unmarshal([]byte(cfgJSON), &obs); err != nil {
-			log.Printf("Failed to unmarshal observability config from import %d during merge: %v", i, err)
+			parserLog.Printf("Failed to unmarshal observability config from import %d during merge: %v", i, err)
 			continue
 		}
 		for _, e := range extractOTLPEndpointsFromObsMap(obs) {
@@ -806,7 +806,7 @@ func mergeObservabilityConfigs(configs []string) string {
 	}
 	b, err := json.Marshal(merged)
 	if err != nil {
-		log.Printf("Failed to marshal %d merged OTLP endpoints: %v", len(allEndpoints), err)
+		parserLog.Printf("Failed to marshal %d merged OTLP endpoints: %v", len(allEndpoints), err)
 		return ""
 	}
 	return string(b)

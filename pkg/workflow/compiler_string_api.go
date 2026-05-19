@@ -25,7 +25,7 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 
 	startTime := time.Now()
 	defer func() {
-		log.Printf("CompileToYAML completed in %v", time.Since(startTime))
+		workflowLog.Printf("CompileToYAML completed in %v", time.Since(startTime))
 	}()
 
 	c.stepOrderTracker = NewStepOrderTracker()
@@ -55,7 +55,7 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 // This is the primary entry point for Wasm/browser usage where filesystem access is unavailable.
 // The virtualPath is used for error messages and lock file naming (e.g., "workflow.md").
 func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*WorkflowData, error) {
-	log.Printf("ParseWorkflowString: parsing %d bytes with virtual path %s", len(content), virtualPath)
+	workflowLog.Printf("ParseWorkflowString: parsing %d bytes with virtual path %s", len(content), virtualPath)
 
 	cleanPath := filepath.Clean(virtualPath)
 

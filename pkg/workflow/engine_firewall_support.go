@@ -147,12 +147,12 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 // defaultGetSquidLogsSteps returns the steps for uploading and parsing Squid logs after
 // secret redaction. It is shared across engines (Claude, Codex, Copilot) whose
 // GetSquidLogsSteps implementations are otherwise identical save for the logger used.
-func defaultGetSquidLogsSteps(workflowData *WorkflowData, log *logger.Logger) []GitHubActionStep {
+func defaultGetSquidLogsSteps(workflowData *WorkflowData, debugLog *logger.Logger) []GitHubActionStep {
 	var steps []GitHubActionStep
 
 	// Only add upload and parsing steps if firewall is enabled
 	if isFirewallEnabled(workflowData) {
-		log.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
+		debugLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
 
 		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
 		steps = append(steps, squidLogsUpload)
@@ -161,7 +161,7 @@ func defaultGetSquidLogsSteps(workflowData *WorkflowData, log *logger.Logger) []
 		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
 		steps = append(steps, firewallLogParsing)
 	} else {
-		log.Print("Firewall disabled, skipping Squid logs upload")
+		debugLog.Print("Firewall disabled, skipping Squid logs upload")
 	}
 
 	return steps

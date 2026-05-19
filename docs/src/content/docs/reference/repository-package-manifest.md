@@ -11,7 +11,7 @@ Use `aw.yml` to describe an installable workflow package for `gh aw add`.
 - Nested packages use `owner/repo/path/to/package`
 - `gh aw compile` validates a repository-root `aw.yml` before compiling workflows
 
-For the normative file-format definition, see the [aw.yml repository package manifest specification](/gh-aw/reference/repository-package-manifest-specification/).
+For the normative file-format definition, see the [Package Management (Spec)](/gh-aw/reference/repository-package-manifest-specification/).
 
 ## Example
 
