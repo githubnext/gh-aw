@@ -10,6 +10,8 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 )
 
+// Keep subtest names path-safe (no "/") since golden.RequireEqual maps them to testdata paths.
+
 // TestGolden_TableRendering tests table rendering with different configurations
 func TestGolden_TableRendering(t *testing.T) {
 	tests := []struct {
@@ -128,8 +130,6 @@ func TestGolden_BoxRendering(t *testing.T) {
 		})
 	}
 }
-
-// TestGolden_LayoutBoxRendering tests layout box rendering (returns string)
 
 // TestGolden_ErrorFormatting tests error formatting with context
 func TestGolden_ErrorFormatting(t *testing.T) {
@@ -316,10 +316,6 @@ func TestGolden_MessageFormatting(t *testing.T) {
 		})
 	}
 }
-
-// TestGolden_LayoutComposition tests composing multiple layout elements
-
-// TestGolden_LayoutEmphasisBox tests emphasis boxes with different colors
 
 // TestGolden_InfoSection tests info section rendering
 func TestGolden_InfoSection(t *testing.T) {
