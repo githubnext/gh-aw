@@ -796,9 +796,9 @@ func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "string concurrency is allowed",
+			name:        "string concurrency is allowed",
 			concurrency: `concurrency: "my-group-${{ github.ref }}"`,
-			wantErr: false,
+			wantErr:     false,
 		},
 	}
 
@@ -806,7 +806,7 @@ func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateConcurrencyQueueConfiguration(tt.concurrency)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), "queue: max cannot be combined with cancel-in-progress: true")
 				return
 			}
