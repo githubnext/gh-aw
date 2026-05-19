@@ -9,7 +9,7 @@
 
 const { ERR_API } = require("./error_codes.cjs");
 const { normalizeTemporaryId, replaceTemporaryIdReferencesInPatch } = require("./temporary_id.cjs");
-const TEMPORARY_ID_REFERENCE_PATTERN = /#aw_[A-Za-z0-9_]{3,12}\b/i;
+const TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN = /#aw_/i;
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
@@ -139,16 +139,39 @@ function buildTemporaryIdMap(resolvedTemporaryIds, currentRepo) {
   if (!resolvedTemporaryIds || typeof resolvedTemporaryIds !== "object" || Array.isArray(resolvedTemporaryIds)) {
     return map;
   }
+
+  /**
+   * @param {unknown} raw
+   * @returns {number | null}
+   */
+  const toPositiveInteger = raw => {
+    const num = Number(raw);
+    if (!Number.isInteger(num) || num < 1) {
+      return null;
+    }
+    return num;
+  };
+
   for (const [key, value] of Object.entries(resolvedTemporaryIds)) {
     const normalizedKey = normalizeTemporaryId(key);
     if (typeof value === "number") {
-      map.set(normalizedKey, { repo: currentRepo, number: value });
+      const number = toPositiveInteger(value);
+      if (number === null) {
+        core.warning(`pushSignedCommits: ignoring invalid resolved temporary ID number for '${normalizedKey}': ${String(value)}`);
+        continue;
+      }
+      map.set(normalizedKey, { repo: currentRepo, number });
       continue;
     }
     if (value && typeof value === "object" && "number" in value) {
+      const number = toPositiveInteger(value.number);
+      if (number === null) {
+        core.warning(`pushSignedCommits: ignoring invalid resolved temporary ID number for '${normalizedKey}': ${String(value.number)}`);
+        continue;
+      }
       map.set(normalizedKey, {
         repo: String("repo" in value && value.repo ? value.repo : currentRepo),
-        number: Number(value.number),
+        number,
       });
     }
   }
@@ -181,7 +204,7 @@ function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, 
     return base64Content;
   }
 
-  if (!TEMPORARY_ID_REFERENCE_PATTERN.test(utf8Text)) {
+  if (!TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN.test(utf8Text)) {
     return base64Content;
   }
 
