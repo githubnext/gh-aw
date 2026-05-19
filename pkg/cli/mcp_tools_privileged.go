@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -259,6 +260,10 @@ type auditArgs struct {
 	Variant      string   `json:"variant,omitempty"          jsonschema:"Filter to runs assigned this specific variant value. Requires experiment to be set."`
 }
 
+// normalizeAuditRunInput converts a single-run audit input (run_id or
+// run_id_or_url) from supported MCP argument types into the CLI positional
+// argument format. The bool return indicates whether a non-empty value was
+// provided.
 func normalizeAuditRunInput(input any, fieldName string) (string, bool, error) {
 	switch v := input.(type) {
 	case nil:
@@ -277,7 +282,7 @@ func normalizeAuditRunInput(input any, fieldName string) (string, bool, error) {
 	case int64:
 		return strconv.FormatInt(v, 10), true, nil
 	default:
-		return "", false, errors.New(fieldName + " must be a string or number")
+		return "", false, fmt.Errorf("%s must be a string or number", fieldName)
 	}
 }
 
