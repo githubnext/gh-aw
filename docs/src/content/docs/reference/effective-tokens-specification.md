@@ -247,6 +247,15 @@ parent node flagged until all known descendants are either observed or explicitl
 unobservable. Repeated computations over the same partially observed graph MUST produce the same
 partial-ordering and subtotal sequence.
 
+Implementation ordering constraints for multi-invocation aggregation:
+
+1. Traverse child subtrees in deterministic order (for example, stable sibling order by invocation
+   ID or first-seen sequence).
+2. For each subtree, aggregate fully observed deepest descendants before applying fallback estimates
+   for unobservable nodes in that same subtree.
+3. Add the current node's local invocation ET only after all descendant contributions for that node
+   are finalized.
+
 ---
 
 ## 7. Reporting
@@ -403,6 +412,8 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 - **T-ET-020**: Root node has `parent_id = null`
 - **T-ET-021**: All sub-agent nodes reference a valid `parent_id`
 - **T-ET-022**: Node schema includes all required fields
+- **T-ET-032**: Deep (3+ level) execution graphs aggregate ET in deterministic post-order and keep
+  partial subtotals stable under partial observability
 
 #### 10.1.5 Reporting Tests
 
@@ -415,11 +426,11 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 
 | Category | Count |
 |---|---|
-| Total tests defined | 13 |
-| Required tests | 13 |
+| Total tests defined | 14 |
+| Required tests | 14 |
 | Optional tests | 0 |
 
-Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `006`, `010–012`, `020–022`, `030–031`).
+Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `006`, `010–012`, `020–022`, `030–032`).
 
 | Requirement | Test ID | Level | Status |
 |---|---|---|---|
@@ -428,6 +439,7 @@ Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `006`, `010–012`, `0
 | Multi-invocation aggregation | T-ET-010–012 | 2 | Implemented |
 | Zero-ET leaf node aggregation | T-ET-006 | 2 | Required |
 | Execution graph node schema | T-ET-020–022 | 2 | Implemented |
+| Deep graph post-order aggregation | T-ET-032 | 2 | Required |
 | Summary reporting | T-ET-030–031 | 3 | Implemented |
 | Custom weight disclosure | T-ET-004 | 1 | Implemented |
 | Versioning of weights/multipliers | — | 3 | Recommended |
@@ -513,6 +525,36 @@ synthesis:
   }
 }
 ```
+
+#### A.5 Partial Observability Examples
+
+When some descendant invocations are unobservable, implementations still report deterministic
+partial totals and preserve stable ordering.
+
+**Example A (deep graph with one unobservable leaf):**
+
+```text
+root
+├─ planner
+│  ├─ retrieval (observed ET=120)
+│  │  └─ shard-1 (observed ET=60)
+│  └─ shard-2 (unobservable fallback ET=25)
+└─ synthesis (observed ET=40)
+```
+
+Deterministic post-order subtotal sequence:
+1. `shard-1` → 60
+2. `retrieval` local ET (120) → subtotal 180
+3. `shard-2` fallback ET (25) → subtotal 205
+4. `planner` local ET → subtotal
+5. `synthesis` local ET → subtotal
+6. `root` local ET → final total
+
+**Example B (all descendants unobservable):**
+
+If all descendants of a node are unobservable, that node MUST still be included with
+`derived.effective_tokens = 0` and `flagged.code = "UNOBSERVABLE_INVOCATION"` until concrete
+usage is observed.
 
 ### Appendix B: Core Formula Reference
 
@@ -628,6 +670,7 @@ Conforming releases SHOULD include a test assertion for newly added model multip
 - **Added**: Model Multiplier Registry section with normative requirements R-REG-001 through R-REG-009
 - **Added**: R-REG-009: model deprecation/sunset lifecycle norm (models must carry a `deprecated` marker for one minor version before removal)
 - **Added**: Compliance test skeleton file `pkg/cli/effective_tokens_compliance_test.go` with Go test stubs for T-ET-001..T-ET-031
+- **Added**: T-ET-032 requirement for deterministic post-order aggregation in deep (3+ level) partially observed execution graphs
 - **Updated**: Compliance checklist §10.2 status column from "Required" to "Implemented" for all test IDs T-ET-001–T-ET-031 (all tests now implemented and passing)
 - **Audit (Appendix C — Security)**: Verified Appendix C requirements against `pkg/cli/effective_tokens.go` and `pkg/cli/data/model_multipliers.json`. Findings:
   - _Sensitive usage patterns_ (Appendix C §1): Per-invocation token data is not exposed directly by the CLI; only aggregate `TotalEffectiveTokens` is surfaced in the audit output. Access control is delegated to GitHub repository permissions. **No gaps found.**

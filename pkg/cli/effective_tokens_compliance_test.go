@@ -251,6 +251,64 @@ func TestETCompliance_T_ET_031_SummaryConsistentWithInvocations(t *testing.T) {
 		"T-ET-031: summary.effective_tokens must equal sum of per-invocation effective_tokens")
 }
 
+// T-ET-032: Deep (3+ level) execution graphs aggregate ET in deterministic post-order.
+// Spec §6.3: deepest observed descendants are accumulated first, then fallback estimates,
+// then parent local invocation ET.
+func TestETCompliance_T_ET_032_DeepGraphPostOrderAggregation(t *testing.T) {
+	type testNode struct {
+		id       string
+		localET  float64
+		observed bool
+		children []*testNode
+		fallback float64
+	}
+
+	// root
+	// ├─ planner
+	// │  ├─ retrieval
+	// │  │  └─ shard-1
+	// │  └─ shard-2 (unobservable fallback)
+	// └─ synthesis
+	shard1 := &testNode{id: "shard-1", localET: 60, observed: true}
+	retrieval := &testNode{id: "retrieval", localET: 120, observed: true, children: []*testNode{shard1}}
+	shard2 := &testNode{id: "shard-2", observed: false, fallback: 25}
+	planner := &testNode{id: "planner", localET: 30, observed: true, children: []*testNode{retrieval, shard2}}
+	synthesis := &testNode{id: "synthesis", localET: 40, observed: true}
+	root := &testNode{id: "root", localET: 10, observed: true, children: []*testNode{planner, synthesis}}
+
+	var order []string
+	var subtotals []float64
+	running := 0.0
+
+	var walk func(n *testNode)
+	walk = func(n *testNode) {
+		for _, child := range n.children {
+			walk(child)
+		}
+
+		value := n.localET
+		if !n.observed {
+			value = n.fallback
+		}
+
+		running += value
+		order = append(order, n.id)
+		subtotals = append(subtotals, running)
+	}
+
+	walk(root)
+
+	assert.Equal(t,
+		[]string{"shard-1", "retrieval", "shard-2", "planner", "synthesis", "root"},
+		order,
+		"T-ET-032: aggregation order must be stable post-order for deep graphs")
+
+	assert.Equal(t,
+		[]float64{60, 180, 205, 235, 275, 285},
+		subtotals,
+		"T-ET-032: partial subtotals must remain deterministic under partial observability")
+}
+
 // ---------------------------------------------------------------------------
 // Helper: computeBaseWeightedTokens
 // Extracted formula from §4.3 of the ET specification.
