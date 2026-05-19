@@ -640,7 +640,7 @@
                   "enum": ["slash_command"]
                 }
               ],
-              "description": "Synthetic reviewer lifecycle trigger. Set to an empty value (recommended) to enable centralized reviewer lifecycle routing. This includes `pull_request` events (`ready_for_review`, `review_requested`) and `pull_request_review` (`submitted` only; `edited` and `dismissed` are ignored). `slash_command` is accepted for backward compatibility."
+              "description": "Experimental synthetic reviewer lifecycle trigger. Set to an empty value (recommended) to enable centralized reviewer lifecycle routing. This includes `pull_request` events (`ready_for_review`, `review_requested`) and `pull_request_review` (`submitted` only; `edited` and `dismissed` are ignored). `slash_command` is accepted for backward compatibility."
             },
             "push": {
               "description": "Push event trigger that runs the workflow when code is pushed to the repository",
