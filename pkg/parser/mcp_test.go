@@ -645,10 +645,9 @@ func TestParseMCPConfig(t *testing.T) {
 				Allowed: nil,
 			},
 		},
-
 		{
-			name:     "Stdio with network proxy-args (new format)",
-			toolName: "network-proxy-server",
+			name:     "Stdio with deprecated network config ignored",
+			toolName: "network-ignored-server",
 			mcpSection: map[string]any{
 				"type":    "stdio",
 				"command": "docker",
@@ -662,15 +661,12 @@ func TestParseMCPConfig(t *testing.T) {
 			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "docker",
 				Args:    []string{"run", "myserver"},
-
 				Env:     map[string]string{},
-				Headers: map[string]string{}}, Name: "network-proxy-server",
-
-				ProxyArgs: []string{"--network-proxy-arg1", "--network-proxy-arg2"},
-
+				Headers: map[string]string{}}, Name: "network-ignored-server",
 				Allowed: []string{},
 			},
 		},
+
 		{
 			name:     "Local type (alias for stdio)",
 			toolName: "local-server",

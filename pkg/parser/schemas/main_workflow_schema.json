@@ -10725,11 +10725,11 @@
         },
         "network": {
           "type": "object",
-          "$comment": "Per-server network settings for stdio MCP tools. Use 'network.proxy-args' for per-server proxy arguments; 'network.allowed' is deprecated and ignored.",
+          "deprecated": true,
+          "$comment": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead.",
           "properties": {
             "allowed": {
               "type": "array",
-              "deprecated": true,
               "items": {
                 "type": "string",
                 "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
@@ -10737,7 +10737,7 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "DEPRECATED: Per-server allowed domains are ignored. Use top-level workflow 'network.allowed' instead.",
+              "description": "List of allowed domain names for network access",
               "maxItems": 100
             },
             "proxy-args": {
@@ -10749,7 +10749,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Per-server network configuration for stdio MCP tools. Supports 'proxy-args' for container proxy arguments. The 'allowed' field is deprecated and ignored."
+          "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version."
         },
         "allowed": {
           "type": "array",
@@ -10768,7 +10768,7 @@
         }
       },
       "additionalProperties": false,
-      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required. Note: In per-server 'network', only 'proxy-args' is supported; 'network.allowed' is deprecated and ignored.",
+      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required. Note: Per-server 'network' field is deprecated and ignored.",
       "anyOf": [
         {
           "required": ["type"]
