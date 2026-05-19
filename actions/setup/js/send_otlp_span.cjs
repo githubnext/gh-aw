@@ -1103,7 +1103,11 @@ async function sendJobSetupSpan(options = {}) {
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
     buildAttr("gh-aw.workflow.name", workflowName),
+    buildAttr("gh_aw.workflow_name", workflowName),
+    buildAttr("workflow.name", workflowName),
+    buildAttr("github.workflow", workflowName),
     buildAttr("gh-aw.run.id", runId),
+    buildAttr("gh_aw.run_id", runId),
     buildAttr("gh-aw.run.attempt", runAttempt),
     buildAttr("gh-aw.run.actor", actor),
     buildAttr("gh-aw.repository", repository),
@@ -1737,7 +1741,17 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     statusMessage = `agent ${agentConclusion}: ${errorMessages[0]}`.slice(0, 256);
   }
 
-  const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.attempt", runAttempt), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+  const attributes = [
+    buildAttr("gh-aw.workflow.name", workflowName),
+    buildAttr("gh_aw.workflow_name", workflowName),
+    buildAttr("workflow.name", workflowName),
+    buildAttr("github.workflow", workflowName),
+    buildAttr("gh-aw.run.id", runId),
+    buildAttr("gh_aw.run_id", runId),
+    buildAttr("gh-aw.run.attempt", runAttempt),
+    buildAttr("gh-aw.run.actor", actor),
+    buildAttr("gh-aw.repository", repository),
+  ];
   attributes.push(buildAttr("gh-aw.run.status", runStatus));
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));

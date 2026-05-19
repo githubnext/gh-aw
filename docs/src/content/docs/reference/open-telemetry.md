@@ -132,6 +132,9 @@ and is emitted as `SPAN_KIND_CLIENT`.
 | `gen_ai.usage.cache_creation.input_tokens` | Cache-creation tokens written |
 | `gen_ai.response.finish_reasons` | Array containing the agent stop reason |
 
+For setup, conclusion, and agent spans, gh-aw also emits workflow/run identity aliases to improve backend compatibility:
+`gh_aw.workflow_name`, `gh_aw.run_id`, `workflow.name`, and `github.workflow`.
+
 ## Trace files and artifacts
 
 When observability is enabled, trace data is also mirrored

@@ -1279,9 +1279,13 @@ describe("sendJobSetupSpan", () => {
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
     expect(attrs["gh-aw.job.name"]).toBe("agent");
     expect(attrs["gh-aw.workflow.name"]).toBe("my-workflow");
+    expect(attrs["gh_aw.workflow_name"]).toBe("my-workflow");
+    expect(attrs["workflow.name"]).toBe("my-workflow");
+    expect(attrs["github.workflow"]).toBe("my-workflow");
     expect(attrs["gen_ai.system"]).toBe("github_models");
     expect(attrs["gh-aw.engine.id"]).toBe("copilot");
     expect(attrs["gh-aw.run.id"]).toBe("123456789");
+    expect(attrs["gh_aw.run_id"]).toBe("123456789");
     expect(attrs["gh-aw.run.attempt"]).toBe("2");
     expect(attrs["gh-aw.run.actor"]).toBe("octocat");
     expect(attrs["gh-aw.repository"]).toBe("owner/repo");
@@ -3217,6 +3221,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GH_AW_INFO_WORKFLOW_NAME = "env-workflow";
     process.env.GITHUB_WORKFLOW = "github-workflow";
+    process.env.GITHUB_RUN_ID = "777";
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/aw_info.json") {
@@ -3232,6 +3237,11 @@ describe("sendJobConclusionSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
     expect(attrs["gh-aw.workflow.name"]).toBe("aw-info-workflow");
+    expect(attrs["gh_aw.workflow_name"]).toBe("aw-info-workflow");
+    expect(attrs["workflow.name"]).toBe("aw-info-workflow");
+    expect(attrs["github.workflow"]).toBe("aw-info-workflow");
+    expect(attrs["gh-aw.run.id"]).toBe("777");
+    expect(attrs["gh_aw.run_id"]).toBe("777");
   });
 
   it("falls back to GH_AW_INFO_WORKFLOW_NAME when aw_info.json is absent", async () => {
