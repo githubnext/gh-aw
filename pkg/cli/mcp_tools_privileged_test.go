@@ -437,7 +437,7 @@ func TestAuditTool_AcceptsRunIDAlias(t *testing.T) {
 	}
 }
 
-func TestAuditTool_AcceptsNumericRunIDOrURL(t *testing.T) {
+func TestAuditTool_AcceptsNumericRunIDOrURLField(t *testing.T) {
 	const expectedStdout = `{"overview":{"run_id":"1234567890"}}`
 
 	var capturedArgs []string

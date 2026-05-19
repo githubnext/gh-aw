@@ -273,8 +273,6 @@ func normalizeAuditRunInput(input any, fieldName string) (string, bool, error) {
 			return "", false, nil
 		}
 		return v, true, nil
-	case json.Number:
-		return v.String(), true, nil
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64), true, nil
 	case int:
