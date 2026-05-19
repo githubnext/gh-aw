@@ -131,7 +131,14 @@ function resolveTarget(params) {
       numberField = pullRequestNumberField;
     }
 
-    const fieldNames = supportsPR ? "item_number/issue_number/pull_request_number/pr_number/pr/pull_number" : supportsIssue ? "item_number/issue_number" : "pull_request_number/pr_number/pr/pull_number";
+    let fieldNames;
+    if (supportsPR) {
+      fieldNames = "item_number/issue_number/pull_request_number/pr_number/pr/pull_number";
+    } else if (supportsIssue) {
+      fieldNames = "item_number/issue_number";
+    } else {
+      fieldNames = "pull_request_number/pr_number/pr/pull_number";
+    }
 
     if (numberField) {
       itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
