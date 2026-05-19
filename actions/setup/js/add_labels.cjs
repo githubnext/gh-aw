@@ -8,7 +8,14 @@
  */
 
 /**
- * @typedef {{ item_number?: number|string, issue_number?: number|string, pr_number?: number|string, pull_number?: number|string, labels?: string[], repo?: string }} AddLabelsMessage
+ * @typedef {{
+ *   item_number?: number|string,
+ *   issue_number?: number|string,
+ *   pr_number?: number|string,
+ *   pull_number?: number|string,
+ *   labels?: string[],
+ *   repo?: string
+ * }} AddLabelsMessage
  */
 
 /** @type {string} Safe output type handled by this module */
