@@ -370,6 +370,80 @@ describe("Safe Outputs MCP Schema Validation", () => {
         );
       }
     });
+
+    it("should keep parameter alias metadata small, unique, and orthogonal", () => {
+      const aliasIssues = [];
+
+      tools.forEach(tool => {
+        const properties = tool.inputSchema.properties;
+        const propertyNames = new Set(Object.keys(properties));
+
+        Object.entries(properties).forEach(([fieldName, property]) => {
+          if (!Object.prototype.hasOwnProperty.call(property, "alias")) {
+            return;
+          }
+
+          if (!Array.isArray(property.alias)) {
+            aliasIssues.push({
+              tool: tool.name,
+              field: fieldName,
+              issue: "alias must be an array when present",
+            });
+            return;
+          }
+
+          if (property.alias.length > 2) {
+            aliasIssues.push({
+              tool: tool.name,
+              field: fieldName,
+              issue: `alias must have at most 2 entries (got ${property.alias.length})`,
+            });
+          }
+
+          const seenAliases = new Set();
+          property.alias.forEach(alias => {
+            if (typeof alias !== "string" || alias.trim() === "") {
+              aliasIssues.push({
+                tool: tool.name,
+                field: fieldName,
+                issue: "alias entries must be non-empty strings",
+              });
+              return;
+            }
+
+            if (alias === fieldName) {
+              aliasIssues.push({
+                tool: tool.name,
+                field: fieldName,
+                issue: `alias '${alias}' duplicates the canonical field name`,
+              });
+            }
+
+            if (propertyNames.has(alias)) {
+              aliasIssues.push({
+                tool: tool.name,
+                field: fieldName,
+                issue: `alias '${alias}' collides with another parameter on the same tool`,
+              });
+            }
+
+            if (seenAliases.has(alias)) {
+              aliasIssues.push({
+                tool: tool.name,
+                field: fieldName,
+                issue: `alias '${alias}' is duplicated`,
+              });
+            }
+            seenAliases.add(alias);
+          });
+        });
+      });
+
+      if (aliasIssues.length > 0) {
+        const errorMessage = aliasIssues.map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.issue}`).join("\n");
+        throw new Error(`Parameter alias metadata issues found:\n${errorMessage}`);
+      }
+    });
   });
 
   describe("Enum Value Validation", () => {

@@ -25,7 +25,7 @@ describe("generate_safe_outputs_tools", () => {
       inputSchema: {
         type: "object",
         properties: {
-          title: { type: "string", description: "Issue title" },
+          title: { type: "string", description: "Issue title", alias: ["issueTitle", "issue-title"] },
           body: { type: "string", description: "Issue body" },
         },
         required: ["title"],
@@ -143,6 +143,18 @@ describe("generate_safe_outputs_tools", () => {
     expect(createIssueTool).toBeDefined();
     expect(createIssueTool.inputSchema.properties.repo).toBeDefined();
     expect(createIssueTool.inputSchema.properties.repo.type).toBe("string");
+  });
+
+  it("preserves parameter alias metadata from source tools", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 5 } }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const createIssueTool = result.find((/** @type {{name: string, inputSchema: {properties: Record<string, {alias?: string[]}>}}} */ t) => t.name === "create_issue");
+    expect(createIssueTool).toBeDefined();
+    expect(createIssueTool.inputSchema.properties.title.alias).toEqual(["issueTitle", "issue-title"]);
   });
 
   it("appends dynamic tools from tools_meta", () => {
