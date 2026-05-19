@@ -5,7 +5,7 @@ sidebar:
   order: 510
 ---
 
-`on.pull_request_reviewer` is an experimental synthetic trigger for pull request reviewer workflows. It compiles to centralized routing in the generated `agentic_commands.yml` workflow and combines reviewer lifecycle events with slash-command dispatch.
+`on.pull_request_reviewer` is an experimental synthetic trigger (a convenience trigger that expands to multiple native GitHub Actions events) for pull request reviewer workflows. It compiles to centralized routing in the generated `agentic_commands.yml` workflow and combines reviewer lifecycle events with slash-command dispatch.
 
 ## Configure `on.pull_request_reviewer`
 
@@ -69,8 +69,16 @@ If the pull request is already closed when routing starts, centralized routing e
 ## Constraints
 
 - Reviewer slash command names must be unique across all `pull_request_reviewer` workflows (case-insensitive).
-- Built-in reviewer slash-command behavior is always enabled. If `slash_command` is also declared, reviewer-trigger command configuration takes precedence.
+- Built-in reviewer slash-command behavior is always enabled. If `slash_command` is also declared, the `pull_request_reviewer` command name and reviewer event set override slash-command settings for this workflow.
 - `pull_request_review` actions `edited` and `dismissed` are ignored by reviewer lifecycle routing.
+
+For example, in this configuration, `reviewer-bot` is used for reviewer routing (not `fallback`):
+
+```yaml wrap
+on:
+  pull_request_reviewer: reviewer-bot
+  slash_command: fallback
+```
 
 ## Related documentation
 
