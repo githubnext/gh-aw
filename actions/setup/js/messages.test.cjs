@@ -443,9 +443,11 @@ describe("messages.cjs", () => {
         workflowSourceUrl: "https://github.com/owner/repo",
       });
 
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>Add this agentic workflows to your repo</summary>");
+      expect(result).toContain("To install this agentic workflow, run");
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
-      expect(result).toContain("[agentic workflow](https://github.com/owner/repo)");
-      expect(result).not.toContain("View source at");
+      expect(result).toContain("</details>");
     });
 
     it("should use custom install template", async () => {

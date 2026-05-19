@@ -3916,25 +3916,6 @@
                     }
                   ]
                 },
-                "toolset": {
-                  "description": "Deprecated. Use 'toolsets' instead.",
-                  "deprecated": true,
-                  "oneOf": [
-                    {
-                      "$ref": "#/$defs/github_toolset_name",
-                      "description": "A single GitHub MCP server toolset name (shorthand for a one-element array)"
-                    },
-                    {
-                      "type": "array",
-                      "description": "Array of GitHub MCP server toolset names",
-                      "items": {
-                        "$ref": "#/$defs/github_toolset_name"
-                      },
-                      "minItems": 1,
-                      "maxItems": 20
-                    }
-                  ]
-                },
                 "mounts": {
                   "type": "array",
                   "description": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write). Applies to local mode only. Example: '/data:/data:ro'",

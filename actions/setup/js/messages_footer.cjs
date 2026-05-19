@@ -8,7 +8,8 @@
  * for safe-output workflows.
  */
 
-const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
+const path = require("path");
+const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase } = require("./messages_core.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
@@ -131,11 +132,10 @@ function getFooterInstallMessage(ctx) {
   // Create context with both camelCase and snake_case keys, including computed agentic_workflow_url
   const templateContext = toSnakeCase({ ...ctx, agenticWorkflowUrl });
 
-  // Default installation template
-  const defaultInstall = "> To install this [agentic workflow]({workflow_source_url}), run\n> ```\n> gh aw add {workflow_source}\n> ```";
+  const defaultInstallTemplatePath = path.join(__dirname, "../md/workflow_install_note.md");
 
   // Use custom installation message if configured
-  return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
+  return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplateFromFile(defaultInstallTemplatePath, templateContext);
 }
 
 /**

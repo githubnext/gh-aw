@@ -219,7 +219,7 @@ func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflo
 	}
 
 	// Print summary instead of just "Recompiled"
-	printCompilationSummary(stats)
+	printCompilationSummary(stats, false)
 }
 
 // handleFileDeleted handles the deletion of a markdown file by removing its corresponding lock file
