@@ -111,17 +111,17 @@ function summarizeListForLog(values, limit = 10) {
  * @param {Object} githubClient
  * @param {{ owner: string, repo: string }} repoParts
  * @param {string} branchName
- * @param {number} threshold
+ * @param {number} limit
  * @returns {Promise<{count: number, runs: Array<{id: number|string, name?: string, conclusion?: string}>}>}
  */
-async function getFailedWorkflowRunsForBranch(githubClient, repoParts, branchName, threshold = BRANCH_FAILURE_CHECKPOINT_THRESHOLD) {
+async function getFailedWorkflowRunsForBranch(githubClient, repoParts, branchName, limit = BRANCH_FAILURE_CHECKPOINT_THRESHOLD) {
   const listWorkflowRunsForRepo = githubClient?.rest?.actions?.listWorkflowRunsForRepo;
   if (typeof listWorkflowRunsForRepo !== "function") {
     core.warning("Skipping branch failure checkpoint: GitHub Actions workflow run API is unavailable on the current GitHub client");
     return { count: 0, runs: [] };
   }
 
-  const perPage = 100;
+  const perPage = 30;
   /** @type {Array<{id: number|string, name?: string, conclusion?: string}>} */
   const failedRuns = [];
 
@@ -148,7 +148,7 @@ async function getFailedWorkflowRunsForBranch(githubClient, repoParts, branchNam
         name: run.name,
         conclusion: run.conclusion,
       });
-      if (failedRuns.length >= threshold) {
+      if (failedRuns.length >= limit) {
         return { count: failedRuns.length, runs: failedRuns };
       }
     }
@@ -1531,7 +1531,7 @@ async function main(config = {}) {
     try {
       const branchFailures = await getFailedWorkflowRunsForBranch(githubClient, repoParts, branchName);
       if (branchFailures.count >= BRANCH_FAILURE_CHECKPOINT_THRESHOLD) {
-        const failedWorkflows = branchFailures.runs.map(run => `${run.name || "workflow"} (${run.conclusion || "unknown"})`);
+        const failedWorkflows = branchFailures.runs.map(run => `${run.name || "unnamed-workflow"} (${run.conclusion || "unknown-conclusion"})`);
         const error =
           `Human checkpoint required before another push: branch '${branchName}' already has ` +
           `${branchFailures.count} completed failed workflow run(s). ` +
