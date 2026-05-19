@@ -315,6 +315,18 @@ Compile with an optional workflow_call network input.
 	require.GreaterOrEqual(t, workflowCallIdx, 0, "on section should contain workflow_call:")
 	workflowCallBlock := onLockSection[workflowCallIdx:]
 
+	var compiled map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(lockYAML), &compiled), "compiled workflow should remain valid YAML")
+	onMap, ok := compiled["on"].(map[string]any)
+	require.True(t, ok, "compiled workflow should include an on map")
+	workflowCallMap, ok := onMap["workflow_call"].(map[string]any)
+	require.True(t, ok, "compiled workflow should include on.workflow_call")
+	inputsMap, ok := workflowCallMap["inputs"].(map[string]any)
+	require.True(t, ok, "compiled workflow should include on.workflow_call.inputs")
+	networkAllowedMap, ok := inputsMap[NetworkAllowedInputName].(map[string]any)
+	require.True(t, ok, "compiled workflow should include on.workflow_call.inputs.network_allowed")
+	assert.Equal(t, networkAllowedInputDescription, networkAllowedMap["description"], "network_allowed description should round-trip as YAML")
+
 	assert.Contains(t, workflowCallBlock, "network_allowed:", "workflow_call inputs should include network_allowed when opt-in is enabled")
 	assert.Contains(t, workflowCallBlock, "type: string", "network_allowed workflow_call input should be typed as string")
 	assert.Contains(t, lockYAML, "GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED:", "engine step env should expose the workflow_call input at runtime")

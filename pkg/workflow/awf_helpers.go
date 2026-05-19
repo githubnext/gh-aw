@@ -106,7 +106,11 @@ import json
 import os
 from pathlib import Path
 
-config_path = Path(%q)
+runner_temp = os.environ.get("RUNNER_TEMP")
+if not runner_temp:
+    raise SystemExit("RUNNER_TEMP is not set")
+
+config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
 try:
     config = json.loads(config_path.read_text())
 except FileNotFoundError as exc:
@@ -133,7 +137,7 @@ try:
     config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
 except OSError as exc:
     raise SystemExit(f"Failed to write AWF config file at {config_path}: {exc}") from exc
-PY`, awfConfigRuntimePathExpr, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
+PY`, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.

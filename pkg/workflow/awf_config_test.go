@@ -694,6 +694,29 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 	assert.Less(t, configWriteIdx, awfIdx, "config file write must precede AWF invocation")
 }
 
+func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:        "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			On:           "workflow_call",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Allowed:      []string{"defaults"},
+				AllowedInput: true,
+				Firewall:     &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	assert.Contains(t, command, `os.environ.get("RUNNER_TEMP")`, "workflow_call network updater should resolve RUNNER_TEMP inside Python")
+	assert.NotContains(t, command, `Path("${RUNNER_TEMP}/gh-aw/awf-config.json")`, "workflow_call network updater should not embed an unexpanded RUNNER_TEMP literal")
+}
+
 // TestBuildAWFCommand_WritesAgentCLIStartTimestamp verifies that BuildAWFCommand
 // always emits a printf command that writes the epoch-ms timestamp to
 // AgentCLIStartMsPath at the very beginning of the run block, before any

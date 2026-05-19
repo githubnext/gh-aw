@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -148,7 +149,7 @@ func buildAwContextInputLines(wdIndent int) []string {
 	return []string{
 		awIndent + AwContextInputName + ":",
 		propIndent + "default: \"\"",
-		propIndent + "description: " + awContextInputDescription,
+		propIndent + "description: " + strconv.Quote(awContextInputDescription),
 		propIndent + "required: false",
 		propIndent + "type: string",
 	}
@@ -160,7 +161,7 @@ func buildNetworkAllowedInputLines(wdIndent int) []string {
 	return []string{
 		inputIndent + NetworkAllowedInputName + ":",
 		propIndent + "default: \"\"",
-		propIndent + "description: " + networkAllowedInputDescription,
+		propIndent + "description: " + strconv.Quote(networkAllowedInputDescription),
 		propIndent + "required: false",
 		propIndent + "type: string",
 	}

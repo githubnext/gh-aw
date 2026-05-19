@@ -5,6 +5,9 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseFrontmatterConfig(t *testing.T) {
@@ -953,6 +956,21 @@ func TestFrontmatterConfigIntegration(t *testing.T) {
 		if network := reconstructed["network"]; network == nil {
 			t.Error("network should be reconstructed")
 		}
+	})
+
+	t.Run("ToMap preserves network allowed-input with defaults shorthand", func(t *testing.T) {
+		config := &FrontmatterConfig{
+			Network: &NetworkPermissions{
+				Allowed:      []string{"defaults"},
+				AllowedInput: true,
+			},
+		}
+
+		reconstructed := config.ToMap()
+		networkMap, ok := reconstructed["network"].(map[string]any)
+		require.True(t, ok, "network should remain a map when allowed-input is enabled")
+		assert.Equal(t, true, networkMap["allowed-input"], "allowed-input should be preserved")
+		assert.Equal(t, []string{"defaults"}, networkMap["allowed"], "allowed list should be preserved")
 	})
 }
 
