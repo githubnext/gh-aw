@@ -1693,7 +1693,7 @@ on:
   - custom slash command name string (for example `pull_request_reviewer: reviewer-command`)
   The null, empty-string, and legacy compatibility forms MUST all use the default built-in slash command name derived from workflow ID.
 - **PRR2**: Implementations MUST treat `on.pull_request_reviewer` as an experimental feature and MUST emit the warning `Using experimental feature: pull_request_reviewer` during compilation.
-- **PRR3**: Built-in slash command behavior for `on.pull_request_reviewer` MUST always be enabled and MUST NOT be replaced by a separate `on.slash_command` trigger definition.
+- **PRR3**: Built-in slash command behavior for `on.pull_request_reviewer` MUST always be enabled and MUST NOT be replaced by a separate `on.slash_command` trigger definition. If both fields are present, reviewer-trigger command name and reviewer-trigger event set MUST take precedence.
 - **PRR4**: Implementations MUST subscribe reviewer lifecycle routing to:
   - `pull_request` actions `ready_for_review` and `review_requested`
   - `pull_request_review` action `submitted` only

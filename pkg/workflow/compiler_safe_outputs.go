@@ -53,6 +53,23 @@ func extractCustomPullRequestReviewerCommandName(value any) string {
 	return strings.TrimPrefix(normalized, "/")
 }
 
+// resolvePullRequestReviewerCommandName determines the reviewer trigger command
+// name using this precedence:
+//  1. Explicit custom name from on.pull_request_reviewer
+//  2. WorkflowID (preferred default reviewer command identity)
+//  3. Markdown filename stem (legacy fallback when WorkflowID is unavailable)
+//
+// workflowData may be nil; in that case the function falls back to step 3.
+func resolvePullRequestReviewerCommandName(reviewerTriggerValue any, workflowData *WorkflowData, markdownPath string) string {
+	if reviewerCommandName := extractCustomPullRequestReviewerCommandName(reviewerTriggerValue); reviewerCommandName != "" {
+		return reviewerCommandName
+	}
+	if workflowData != nil && workflowData.WorkflowID != "" {
+		return workflowData.WorkflowID
+	}
+	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+}
+
 // parseOnSection handles parsing of the "on" section from frontmatter, extracting command triggers,
 // reactions, and stop-after configurations while detecting conflicts with other event types.
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
@@ -189,16 +206,8 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				hasCommand = true
 				workflowData.PullRequestReviewer = true
 				workflowData.CommandCentralized = true
-				if len(workflowData.Command) == 0 {
-					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Command = []string{baseName}
-					if reviewerCommandName := extractCustomPullRequestReviewerCommandName(reviewerValue); reviewerCommandName != "" {
-						workflowData.Command = []string{reviewerCommandName}
-					}
-				}
-				if len(workflowData.CommandEvents) == 0 {
-					workflowData.CommandEvents = []string{"pull_request_comment", "pull_request_review_comment"}
-				}
+				workflowData.Command = []string{resolvePullRequestReviewerCommandName(reviewerValue, workflowData, markdownPath)}
+				workflowData.CommandEvents = []string{"pull_request_comment", "pull_request_review_comment"}
 				if _, hasConcurrency := frontmatter["concurrency"]; !hasConcurrency && workflowData.Concurrency == "" {
 					workflowData.Concurrency = "concurrency:\n  group: \"gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}-all-reviewers\"\n  queue: max"
 				}
