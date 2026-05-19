@@ -28,64 +28,38 @@ type CreateIssuesConfig struct {
 
 // parseCreateIssuesConfig handles create-issue configuration
 func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
-	// Check if the key exists
-	if _, exists := outputMap["create-issue"]; !exists {
-		return nil
-	}
-
-	// Get the config data to check for special cases before unmarshaling
-	configData, _ := outputMap["create-issue"].(map[string]any)
-
-	// Pre-process the expires field (convert to hours before unmarshaling)
-	expiresDisabled := preprocessExpiresField(configData, createIssueLog)
-
-	// Pre-process templatable bool fields: convert literal booleans to strings so that
-	// GitHub Actions expression strings (e.g. "${{ inputs.close-older-issues }}") are also accepted.
-	for _, field := range []string{"close-older-issues", "group", "footer", "group-by-day"} {
-		if err := preprocessBoolFieldAsString(configData, field, createIssueLog); err != nil {
-			createIssueLog.Printf("Invalid %s value: %v", field, err)
-			return nil
-		}
-	}
-
-	// Pre-process templatable int fields
-	if err := preprocessIntFieldAsString(configData, "max", createIssueLog); err != nil {
-		createIssueLog.Printf("Invalid max value: %v", err)
-		return nil
-	}
-
-	config := parseConfigScaffold(outputMap, "create-issue", createIssueLog, func(err error) *CreateIssuesConfig {
-		createIssueLog.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, handle nil/empty config
-		return &CreateIssuesConfig{}
-	})
-	if config == nil {
-		return nil
-	}
-
-	// Handle single string assignee (YAML unmarshaling won't convert string to []string)
-	if len(config.Assignees) == 0 && configData != nil {
-		if assignees, exists := configData["assignees"]; exists {
-			if assigneeStr, ok := assignees.(string); ok {
-				config.Assignees = []string{assigneeStr}
-				createIssueLog.Printf("Converted single assignee string to array: %v", config.Assignees)
+	return parseCreateEntityConfig(
+		outputMap,
+		"create-issue",
+		CreateParseOptions{
+			BoolFields:    []string{"close-older-issues", "group", "footer", "group-by-day"},
+			IntFields:     []string{"max"},
+			HandleExpires: true,
+		},
+		createIssueLog,
+		func(err error) *CreateIssuesConfig {
+			createIssueLog.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, handle nil/empty config
+			return &CreateIssuesConfig{}
+		},
+		func(configData map[string]any) bool {
+			coerceStringOrArrayFields(configData, []string{"assignees"}, createIssueLog)
+			return true
+		},
+		func(_ map[string]any, config *CreateIssuesConfig, expiresDisabled bool) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
 			}
-		}
-	}
 
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-	}
-
-	// Log expires if configured or explicitly disabled
-	if expiresDisabled {
-		createIssueLog.Print("Issue expiration explicitly disabled")
-	} else if config.Expires > 0 {
-		createIssueLog.Printf("Issue expiration configured: %d hours", config.Expires)
-	}
-
-	return config
+			// Log expires if configured or explicitly disabled
+			if expiresDisabled {
+				createIssueLog.Print("Issue expiration explicitly disabled")
+			} else if config.Expires > 0 {
+				createIssueLog.Printf("Issue expiration configured: %d hours", config.Expires)
+			}
+		},
+	)
 }
 
 // hasCopilotAssignee checks if "copilot" is in the assignees list

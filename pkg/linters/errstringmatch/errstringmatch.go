@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -24,6 +25,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	noLintLinesByFile := buildNoLintLineIndex(pass)
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -32,6 +34,10 @@ func run(pass *analysis.Pass) (any, error) {
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		outer, ok := n.(*ast.CallExpr)
 		if !ok {
+			return
+		}
+		position := pass.Fset.PositionFor(outer.Pos(), false)
+		if strings.HasSuffix(position.Filename, "_test.go") {
 			return
 		}
 
@@ -50,6 +56,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		// Second arg must be a string literal (or at least a string type)
 		if !isStringLiteral(pass, outer.Args[1]) {
+			return
+		}
+		if hasNoLintDirective(position, noLintLinesByFile) {
 			return
 		}
 
@@ -132,4 +141,43 @@ func isStringLiteral(pass *analysis.Pass, expr ast.Expr) bool {
 	}
 	basic, ok := t.Underlying().(*types.Basic)
 	return ok && basic.Kind() == types.String
+}
+
+func hasNoLintDirective(position token.Position, noLintLinesByFile map[string]map[int]struct{}) bool {
+	if position.Filename == "" {
+		return false
+	}
+
+	noLintLines := noLintLinesByFile[position.Filename]
+	if noLintLines == nil {
+		return false
+	}
+
+	_, sameLine := noLintLines[position.Line]
+	_, previousLine := noLintLines[position.Line-1]
+	return sameLine || previousLine
+}
+
+func buildNoLintLineIndex(pass *analysis.Pass) map[string]map[int]struct{} {
+	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
+	for _, file := range pass.Files {
+		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
+		if filename == "" {
+			continue
+		}
+		for _, group := range file.Comments {
+			for _, comment := range group.List {
+				text := strings.TrimPrefix(comment.Text, "//")
+				if !strings.HasPrefix(text, "nolint:errstringmatch") && !strings.HasPrefix(text, "nolint:all") {
+					continue
+				}
+				line := pass.Fset.PositionFor(comment.Slash, false).Line
+				if noLintLinesByFile[filename] == nil {
+					noLintLinesByFile[filename] = make(map[int]struct{})
+				}
+				noLintLinesByFile[filename][line] = struct{}{}
+			}
+		}
+	}
+	return noLintLinesByFile
 }

@@ -255,6 +255,77 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	}
 }
 
+func TestParseIssuesConfigWithSingleStringAssignee(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-issue": map[string]any{
+			"assignees": "single-assignee",
+		},
+	}
+
+	result := compiler.parseCreateIssuesConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.Assignees) != 1 {
+		t.Fatalf("expected 1 assignee, got %d", len(result.Assignees))
+	}
+	if result.Assignees[0] != "single-assignee" {
+		t.Errorf("expected assignee 'single-assignee', got %q", result.Assignees[0])
+	}
+}
+
+func TestParsePullRequestsConfigWithSingleStringReviewerAndTeamReviewer(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"reviewers":      "single-reviewer",
+			"team-reviewers": "single-team",
+		},
+	}
+
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.Reviewers) != 1 {
+		t.Fatalf("expected 1 reviewer, got %d", len(result.Reviewers))
+	}
+	if result.Reviewers[0] != "single-reviewer" {
+		t.Errorf("expected reviewer 'single-reviewer', got %q", result.Reviewers[0])
+	}
+
+	if len(result.TeamReviewers) != 1 {
+		t.Fatalf("expected 1 team reviewer, got %d", len(result.TeamReviewers))
+	}
+	if result.TeamReviewers[0] != "single-team" {
+		t.Errorf("expected team reviewer 'single-team', got %q", result.TeamReviewers[0])
+	}
+}
+
+func TestParsePullRequestsConfigWithSingleStringAssignee(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"assignees": "single-assignee",
+		},
+	}
+
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.Assignees) != 1 {
+		t.Fatalf("expected 1 assignee, got %d", len(result.Assignees))
+	}
+	if result.Assignees[0] != "single-assignee" {
+		t.Errorf("expected assignee 'single-assignee', got %q", result.Assignees[0])
+	}
+}
+
 func TestParsePullRequestsConfigExpires(t *testing.T) {
 	tests := []struct {
 		name          string

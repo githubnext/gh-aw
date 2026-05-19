@@ -153,10 +153,10 @@
       "version": "v1.24.0",
       "sha": "fc68ffb90438ef2936bbb3251622353b3dcb2f93"
     },
-    "github/codeql-action/upload-sarif@v4.35.4": {
+    "github/codeql-action/upload-sarif@v4.35.5": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.35.4",
-      "sha": "68bde559dea0fdcac2102bfdf6230c5f70eb485e"
+      "version": "v4.35.5",
+      "sha": "9e0d7b8d25671d64c341c19c0152d693099fb5ba"
     },
     "github/stale-repos@v9.0.11": {
       "repo": "github/stale-repos",
@@ -173,20 +173,20 @@
       "version": "v2.11.0",
       "sha": "cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553"
     },
-    "microsoft/apm-action@v1.7.3": {
+    "microsoft/apm-action@v1.9.1": {
       "repo": "microsoft/apm-action",
-      "version": "v1.7.3",
-      "sha": "a7806d88ce4e4fd0e86b907570fcd94ad25d0c82"
+      "version": "v1.9.1",
+      "sha": "e5650fb81c4b5965090a17bd1ed1956071e95d17"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.2.0",
       "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
     },
-    "ruby/setup-ruby@v1.307.0": {
+    "ruby/setup-ruby@v1.308.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.307.0",
-      "sha": "6aaa311d81eba98ae12eaffbcb63296ace0efcde"
+      "version": "v1.308.0",
+      "sha": "97ecb7b512899eb71ab1bf2310a624c6f1589ac6"
     },
     "super-linter/super-linter@v8.6.0": {
       "repo": "super-linter/super-linter",

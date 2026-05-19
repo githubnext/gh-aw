@@ -250,6 +250,8 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 // isPermissionErrorStr checks if a string contains any known permission/authentication error marker.
 // This is the canonical union of all auth-error substrings used across the codebase; update here
 // rather than adding new inline strings.Contains checks in callers.
+//
+//nolint:errstringmatch // gh auth and gh api permission failures are intentionally classified from gh CLI text here.
 func isPermissionErrorStr(s string) bool {
 	return strings.Contains(s, "authentication required") ||
 		strings.Contains(s, "exit status 4") ||
@@ -267,15 +269,6 @@ func isPermissionError(err error) bool {
 		return false
 	}
 	return isPermissionErrorStr(err.Error())
-}
-
-// is403Error checks if an error message contains a 403 HTTP status code, indicating
-// insufficient permissions to access a resource.
-func is403Error(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), "403")
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report

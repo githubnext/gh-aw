@@ -343,6 +343,7 @@ touch %s
 		"GITHUB_SERVER_URL": "${{ github.server_url }}",
 		"GITHUB_API_URL":    "${{ github.api_url }}",
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 
 	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
 	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.

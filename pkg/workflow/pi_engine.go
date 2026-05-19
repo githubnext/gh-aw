@@ -381,6 +381,7 @@ touch %s
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	if modelConfigured {
 		env["GH_AW_PI_MODEL"] = workflowData.EngineConfig.Model
 	}

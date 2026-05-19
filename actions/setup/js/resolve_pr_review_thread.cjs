@@ -89,7 +89,7 @@ function isIntegrationAccessError(error) {
   /** @type {string[]} */
   const messages = [getErrorMessage(error)];
 
-  if (error && typeof error === "object" && Array.isArray(error.errors)) {
+  if (error && typeof error === "object" && "errors" in error && Array.isArray(error.errors)) {
     for (const graphQLError of error.errors) {
       if (typeof graphQLError?.message === "string") {
         messages.push(graphQLError.message);

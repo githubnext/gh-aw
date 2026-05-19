@@ -267,7 +267,7 @@ describe("set_issue_type (Handler Factory Architecture)", () => {
 
     const result = await handler(message, {});
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Invalid issue_number");
+    expect(result.error).toContain("Invalid item number");
   });
 
   it("should handle staged mode", async () => {

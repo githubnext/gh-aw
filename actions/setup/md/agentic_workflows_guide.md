@@ -27,5 +27,6 @@ Call all operations as MCP tools with JSON parameters.
 - Logs are saved to `/tmp/gh-aw/aw-mcp/logs/`
 
 #### `audit` — Inspect a specific run
-- `run_id_or_url`: numeric run ID, run URL, job URL, or job URL with step anchor
+- `run_id`: run ID or run/job URL (including step anchors), as string or number (alias for `run_id_or_url`)
+- `run_id_or_url`: run ID or run/job URL (including step anchors), as string or number
 </agentic-workflows-guide>
