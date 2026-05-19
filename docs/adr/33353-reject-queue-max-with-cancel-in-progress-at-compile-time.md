@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-19
 **Status**: Draft
-**Deciders**: Unknown
+**Deciders**: @pelikhan, @copilot
 
 ---
 

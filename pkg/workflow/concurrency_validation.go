@@ -128,8 +128,17 @@ func validateConcurrencyQueueConfiguration(concurrencyYAML string) error {
 		return nil
 	}
 
-	if concurrencyQueueMaxPattern.MatchString(concurrencyYAML) &&
-		concurrencyCancelInProgressTruePattern.MatchString(concurrencyYAML) {
+	hasQueueMax := concurrencyQueueMaxPattern.MatchString(concurrencyYAML)
+	hasCancelInProgressTrue := concurrencyCancelInProgressTruePattern.MatchString(concurrencyYAML)
+	if hasQueueMax || hasCancelInProgressTrue {
+		concurrencyValidationLog.Printf(
+			"Concurrency queue/cancel match state: queue:max=%t cancel-in-progress:true=%t",
+			hasQueueMax,
+			hasCancelInProgressTrue,
+		)
+	}
+
+	if hasQueueMax && hasCancelInProgressTrue {
 		return NewValidationError(
 			"concurrency",
 			"invalid concurrency queue configuration",

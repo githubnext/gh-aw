@@ -788,6 +788,13 @@ func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "queue max without cancel-in-progress is allowed",
+			concurrency: `concurrency:
+  group: "my-group"
+  queue: max`,
+			wantErr: false,
+		},
+		{
 			name: "queue single with cancel true is allowed",
 			concurrency: `concurrency:
   group: "my-group"
@@ -800,17 +807,27 @@ func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
 			concurrency: `concurrency: "my-group-${{ github.ref }}"`,
 			wantErr:     false,
 		},
+		{
+			name:        "empty concurrency string is allowed",
+			concurrency: ``,
+			wantErr:     false,
+		},
+		{
+			name:        "whitespace-only concurrency string is allowed",
+			concurrency: "  \n\t  ",
+			wantErr:     false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateConcurrencyQueueConfiguration(tt.concurrency)
 			if tt.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "queue: max cannot be combined with cancel-in-progress: true")
+				require.Error(t, err, "invalid queue/cancel-in-progress combination should fail validation")
+				assert.Contains(t, err.Error(), "queue: max cannot be combined with cancel-in-progress: true", "error should explain the queue/cancel-in-progress constraint")
 				return
 			}
-			assert.NoError(t, err)
+			assert.NoError(t, err, "valid concurrency configuration should pass queue/cancel-in-progress validation")
 		})
 	}
 }
