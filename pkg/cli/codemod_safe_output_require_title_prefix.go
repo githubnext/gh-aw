@@ -92,7 +92,7 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 	safeOutputsChildIndent := ""
 	activeHandler := ""
 	activeHandlerIndent := ""
-	activeHandlerChildIndent := ""
+	handlerChildIndent := ""
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -104,12 +104,12 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 				safeOutputsChildIndent = ""
 				activeHandler = ""
 				activeHandlerIndent = ""
-				activeHandlerChildIndent = ""
+				handlerChildIndent = ""
 			}
 			if activeHandler != "" && hasExitedBlock(line, activeHandlerIndent) {
 				activeHandler = ""
 				activeHandlerIndent = ""
-				activeHandlerChildIndent = ""
+				handlerChildIndent = ""
 			}
 		}
 
@@ -119,14 +119,14 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 			safeOutputsChildIndent = ""
 			activeHandler = ""
 			activeHandlerIndent = ""
-			activeHandlerChildIndent = ""
+			handlerChildIndent = ""
 			result = append(result, line)
 			continue
 		}
 
 		if inSafeOutputs && isDescendant(indent, safeOutputsIndent) && strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, "#") {
-			if activeHandler != "" && activeHandlerChildIndent == "" && isDescendant(indent, activeHandlerIndent) {
-				activeHandlerChildIndent = indent
+			if activeHandler != "" && handlerChildIndent == "" && isDescendant(indent, activeHandlerIndent) {
+				handlerChildIndent = indent
 			}
 			if safeOutputsChildIndent == "" {
 				safeOutputsChildIndent = indent
@@ -139,21 +139,21 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 			if handlersToRename[key] {
 				activeHandler = key
 				activeHandlerIndent = indent
-				activeHandlerChildIndent = ""
+				handlerChildIndent = ""
 			} else {
 				activeHandler = ""
 				activeHandlerIndent = ""
-				activeHandlerChildIndent = ""
+				handlerChildIndent = ""
 			}
 			result = append(result, line)
 			continue
 		}
 
-		if activeHandler != "" && activeHandlerChildIndent == "" && isDescendant(indent, activeHandlerIndent) && trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "- ") {
-			activeHandlerChildIndent = indent
+		if activeHandler != "" && handlerChildIndent == "" && isDescendant(indent, activeHandlerIndent) && trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "- ") {
+			handlerChildIndent = indent
 		}
 
-		if activeHandler != "" && indent == activeHandlerChildIndent && strings.HasPrefix(trimmed, "title-prefix:") {
+		if activeHandler != "" && indent == handlerChildIndent && strings.HasPrefix(trimmed, "title-prefix:") {
 			newLine, replaced := findAndReplaceInLine(line, "title-prefix", "required-title-prefix")
 			if replaced {
 				result = append(result, newLine)
@@ -162,7 +162,7 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 				continue
 			}
 		}
-		if activeHandler == "push-to-pull-request-branch" && indent == activeHandlerChildIndent && strings.HasPrefix(trimmed, "labels:") {
+		if activeHandler == "push-to-pull-request-branch" && indent == handlerChildIndent && strings.HasPrefix(trimmed, "labels:") {
 			newLine, replaced := findAndReplaceInLine(line, "labels", "required-labels")
 			if replaced {
 				result = append(result, newLine)
