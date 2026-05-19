@@ -26,6 +26,8 @@ const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
+const MAX_REVIEW_BODY_LENGTH = 65000;
+const DEFAULT_FALLBACK_EXCERPT_LENGTH = 500;
 
 /**
  * @typedef {Object} BufferedComment
@@ -545,6 +547,7 @@ function createReviewBuffer() {
         try {
           const bodyOnlyParams = { ...requestParams };
           delete bodyOnlyParams.comments;
+          bodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
           const { data: review } = await github.rest.pulls.createReview(bodyOnlyParams);
           await maybeSupersedeOlderReviews(review.id);
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
@@ -605,3 +608,32 @@ function createReviewBuffer() {
 }
 
 module.exports = { createReviewBuffer };
+/**
+ * Append a fallback section that preserves inline comment content when comments cannot be anchored.
+ * @param {string} reviewBody
+ * @param {BufferedComment[]} comments
+ * @returns {string}
+ */
+function appendUnanchoredCommentsSection(reviewBody, comments) {
+  const baseBody = reviewBody || "";
+  const sectionHeader = "### Comments that could not be inline-anchored";
+  const sectionPrefix = baseBody ? `\n\n${sectionHeader}\n\n` : `${sectionHeader}\n\n`;
+  const detailsOverheads = comments.map(comment => `<details><summary>${comment.path}:${comment.line}</summary>\n\n\n\n</details>`);
+  const overheadLength = detailsOverheads.reduce((sum, part) => sum + part.length, 0);
+  const availableExcerptChars = MAX_REVIEW_BODY_LENGTH - (baseBody.length + sectionPrefix.length + overheadLength);
+  const perCommentExcerptLimit = comments.length > 0 ? Math.max(0, Math.min(DEFAULT_FALLBACK_EXCERPT_LENGTH, Math.floor(availableExcerptChars / comments.length))) : DEFAULT_FALLBACK_EXCERPT_LENGTH;
+
+  const detailsBlocks = comments.map(comment => {
+    const rawBody = (comment.body || "").trim();
+    const excerpt = perCommentExcerptLimit > 0 && rawBody.length > perCommentExcerptLimit ? `${rawBody.substring(0, perCommentExcerptLimit - 1)}…` : rawBody;
+    const safeExcerpt = excerpt || "_(empty comment body)_";
+    return `<details><summary>${comment.path}:${comment.line}</summary>\n\n${safeExcerpt}\n\n</details>`;
+  });
+
+  const mergedBody = `${baseBody}${sectionPrefix}${detailsBlocks.join("\n\n")}`;
+  if (mergedBody.length <= MAX_REVIEW_BODY_LENGTH) {
+    return mergedBody;
+  }
+
+  return `${mergedBody.substring(0, MAX_REVIEW_BODY_LENGTH - 58)}\n\n_(Fallback review body truncated to fit GitHub length limits.)_`;
+}

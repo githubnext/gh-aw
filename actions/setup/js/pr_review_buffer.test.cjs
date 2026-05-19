@@ -770,6 +770,7 @@ describe("pr_review_buffer (factory pattern)", () => {
     it("should retry as body-only review when Line could not be resolved error occurs", async () => {
       buffer.addComment({ path: ".changeset/some-file.md", line: 1, body: "Review comment on line 1" });
       buffer.addComment({ path: ".github/workflows/ace-editor.lock.yml", line: 1, body: "Another review comment" });
+      buffer.addComment({ path: "src/new_file.js", line: 42, body: "A third inline comment that should be preserved in the fallback body" });
       buffer.setReviewMetadata("Reviewed with comments.", "COMMENT");
       buffer.setReviewContext({
         repo: "owner/repo",
@@ -794,6 +795,13 @@ describe("pr_review_buffer (factory pattern)", () => {
       // Second call should have no comments array
       const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
       expect(retryArgs.comments).toBeUndefined();
+      expect(retryArgs.body).toContain("### Comments that could not be inline-anchored");
+      expect(retryArgs.body).toContain("<details><summary>.changeset/some-file.md:1</summary>");
+      expect(retryArgs.body).toContain("Review comment on line 1");
+      expect(retryArgs.body).toContain("<details><summary>.github/workflows/ace-editor.lock.yml:1</summary>");
+      expect(retryArgs.body).toContain("Another review comment");
+      expect(retryArgs.body).toContain("<details><summary>src/new_file.js:42</summary>");
+      expect(retryArgs.body).toContain("A third inline comment that should be preserved in the fallback body");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Line could not be resolved"));
     });
 
