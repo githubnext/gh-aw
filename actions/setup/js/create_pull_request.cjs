@@ -1507,6 +1507,8 @@ async function main(config = {}) {
             baseRef: `origin/${baseBranch}`,
             cwd: process.cwd(),
             signedCommits,
+            resolvedTemporaryIds,
+            currentRepo: itemRepo,
           });
           core.info("Changes pushed to branch (from bundle)");
 
@@ -1537,6 +1539,8 @@ async function main(config = {}) {
                 baseRef: `origin/${baseBranch}`,
                 cwd: process.cwd(),
                 signedCommits,
+                resolvedTemporaryIds,
+                currentRepo: itemRepo,
               });
               core.info("Changes pushed to branch after bundle rewrite retry");
 
@@ -1765,6 +1769,8 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
               baseRef: `origin/${baseBranch}`,
               cwd: process.cwd(),
               signedCommits,
+              resolvedTemporaryIds,
+              currentRepo: itemRepo,
             });
             core.info("Changes pushed to branch");
 
@@ -1911,6 +1917,8 @@ ${patchPreview}`;
               baseRef: `origin/${baseBranch}`,
               cwd: process.cwd(),
               signedCommits,
+              resolvedTemporaryIds,
+              currentRepo: itemRepo,
             });
             core.info("Empty branch pushed successfully");
 

@@ -307,6 +307,38 @@ describe("push_signed_commits integration tests", () => {
       expect(Buffer.from(variables.input.fileChanges.additions[0].contents, "base64").toString()).toBe("Hello World\n");
     });
 
+    it("should resolve temporary ID references in text file contents before GraphQL replay", async () => {
+      execGit(["checkout", "-b", "temp-id-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "quarantine.cs"), '[QuarantinedTest("https://github.com/test-owner/test-repo/issues/#aw_test1")]\n// linked: #aw_test1\n');
+      execGit(["add", "quarantine.cs"], { cwd: workDir });
+      execGit(["commit", "-m", "Add quarantine reference"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "temp-id-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "temp-id-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        resolvedTemporaryIds: {
+          aw_test1: { repo: "test-owner/test-repo", number: 66708 },
+        },
+        currentRepo: "test-owner/test-repo",
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const additions = githubClient.graphql.mock.calls[0][1].input.fileChanges.additions;
+      expect(additions).toHaveLength(1);
+      const resolvedContent = Buffer.from(additions[0].contents, "base64").toString();
+      expect(resolvedContent).toContain("https://github.com/test-owner/test-repo/issues/66708");
+      expect(resolvedContent).toContain("#66708");
+      expect(resolvedContent).not.toContain("#aw_test1");
+    });
+
     it("should call GraphQL once per commit for multiple new commits", async () => {
       execGit(["checkout", "-b", "multi-commit-branch"], { cwd: workDir });
 
