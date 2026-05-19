@@ -30,59 +30,46 @@ type CreateDiscussionsConfig struct {
 
 // parseCreateDiscussionsConfig handles create-discussion configuration
 func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
-	// Check if the key exists
-	if _, exists := outputMap["create-discussion"]; !exists {
-		return nil
-	}
+	config := parseCreateEntityConfig(
+		outputMap,
+		"create-discussion",
+		CreateParseOptions{
+			BoolFields:    []string{"close-older-discussions", "footer"},
+			IntFields:     []string{"max"},
+			HandleExpires: true,
+		},
+		discussionLog,
+		func(err error) *CreateDiscussionsConfig {
+			discussionLog.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, handle nil/empty config
+			return &CreateDiscussionsConfig{}
+		},
+		nil,
+		func(_ map[string]any, config *CreateDiscussionsConfig, expiresDisabled bool) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
+			}
 
-	// Get the config data to check for special cases before unmarshaling
-	configData, _ := outputMap["create-discussion"].(map[string]any)
+			// Set default expires to 7 days (168 hours) if not specified and not explicitly disabled
+			if config.Expires == 0 && !expiresDisabled {
+				config.Expires = 168 // 7 days = 168 hours
+				discussionLog.Print("Using default expiration: 7 days (168 hours)")
+			} else if expiresDisabled {
+				config.Expires = 0
+				discussionLog.Print("Expiration explicitly disabled")
+			}
 
-	// Pre-process the expires field (convert to hours before unmarshaling)
-	expiresDisabled := preprocessExpiresField(configData, discussionLog)
-
-	// Pre-process templatable bool fields
-	for _, field := range []string{"close-older-discussions", "footer"} {
-		if err := preprocessBoolFieldAsString(configData, field, discussionLog); err != nil {
-			discussionLog.Printf("Invalid %s value: %v", field, err)
-			return nil
-		}
-	}
-
-	// Pre-process templatable int fields
-	if err := preprocessIntFieldAsString(configData, "max", discussionLog); err != nil {
-		discussionLog.Printf("Invalid max value: %v", err)
-		return nil
-	}
-
-	config := parseConfigScaffold(outputMap, "create-discussion", discussionLog, func(err error) *CreateDiscussionsConfig {
-		discussionLog.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, handle nil/empty config
-		return &CreateDiscussionsConfig{}
-	})
+			// Set default fallback-to-issue to true if not specified
+			if config.FallbackToIssue == nil {
+				trueVal := true
+				config.FallbackToIssue = &trueVal
+				discussionLog.Print("Using default fallback-to-issue: true")
+			}
+		},
+	)
 	if config == nil {
 		return nil
-	}
-
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-	}
-
-	// Set default expires to 7 days (168 hours) if not specified and not explicitly disabled
-	if config.Expires == 0 && !expiresDisabled {
-		config.Expires = 168 // 7 days = 168 hours
-		discussionLog.Print("Using default expiration: 7 days (168 hours)")
-	} else if expiresDisabled {
-		config.Expires = 0
-		discussionLog.Print("Expiration explicitly disabled")
-	}
-
-	// Set default fallback-to-issue to true if not specified
-	if config.FallbackToIssue == nil {
-		trueVal := true
-		config.FallbackToIssue = &trueVal
-		discussionLog.Print("Using default fallback-to-issue: true")
 	}
 
 	// Normalize and validate category naming convention
