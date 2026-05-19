@@ -42,6 +42,12 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 				}
 			}
 
+			if allowedInput, hasAllowedInput := networkObj["allowed-input"]; hasAllowedInput {
+				if allowedInputBool, ok := allowedInput.(bool); ok {
+					permissions.AllowedInput = allowedInputBool
+				}
+			}
+
 			// Extract blocked domains if present
 			if blocked, hasBlocked := networkObj["blocked"]; hasBlocked {
 				if blockedSlice, ok := blocked.([]any); ok {

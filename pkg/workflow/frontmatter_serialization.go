@@ -147,6 +147,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 			if len(fc.Network.Allowed) > 0 {
 				networkMap["allowed"] = fc.Network.Allowed
 			}
+			if fc.Network.AllowedInput {
+				networkMap["allowed-input"] = true
+			}
 			if len(fc.Network.Blocked) > 0 {
 				networkMap["blocked"] = fc.Network.Blocked
 			}

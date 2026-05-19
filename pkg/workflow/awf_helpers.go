@@ -23,6 +23,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -76,6 +77,51 @@ type AWFCommandConfig struct {
 	// variable is excluded — the agent can never read raw token values via `env`/`printenv`.
 	// Requires AWF v0.25.3+ for --exclude-env support.
 	ExcludeEnvVarNames []string
+}
+
+func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
+	return data != nil &&
+		data.NetworkPermissions != nil &&
+		data.NetworkPermissions.AllowedInput &&
+		hasWorkflowCallTrigger(data.On)
+}
+
+func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
+	ecosystemMap := make(map[string][]string, len(ecosystemDomains)+len(compoundEcosystems))
+	for ecosystem := range ecosystemDomains {
+		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
+	}
+	for ecosystem := range compoundEcosystems {
+		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
+	}
+
+	ecosystemJSON, err := json.Marshal(ecosystemMap)
+	if err != nil {
+		return "", fmt.Errorf("marshal network allowed ecosystem map: %w", err)
+	}
+
+	return fmt.Sprintf(`python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+config_path = Path("${RUNNER_TEMP}/gh-aw/awf-config.json")
+config = json.loads(config_path.read_text())
+network_allowed = os.environ.get(%q, "")
+tokens = [token.strip() for token in network_allowed.split(",") if token.strip()]
+
+if tokens:
+    ecosystem_map = json.loads(r'''%s''')
+    allow_domains = config.setdefault("network", {}).setdefault("allowDomains", [])
+    seen = set(allow_domains)
+    for token in tokens:
+        for domain in ecosystem_map.get(token, [token]):
+            if domain not in seen:
+                allow_domains.append(domain)
+                seen.add(domain)
+
+config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
+PY`, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.
@@ -147,10 +193,18 @@ fi`,
 		// startup) and also copy it to /tmp/gh-aw/awf-config.json so the unified agent artifact
 		// upload can include it alongside the other /tmp/gh-aw/ files.
 		configFileSetup = fmt.Sprintf(
-			"printf '%%s\\n' %s > \"${RUNNER_TEMP}/gh-aw/awf-config.json\" && cp \"${RUNNER_TEMP}/gh-aw/awf-config.json\" %s",
+			"printf '%%s\\n' %s > \"${RUNNER_TEMP}/gh-aw/awf-config.json\"",
 			shellEscapeArg(awfConfigJSON),
-			constants.AWFConfigFilePath,
 		)
+		if shouldUseWorkflowCallNetworkAllowedInput(config.WorkflowData) {
+			updateScript, updateErr := buildWorkflowCallNetworkAllowedUpdateScript()
+			if updateErr != nil {
+				awfHelpersLog.Printf("Warning: failed to build workflow_call network_allowed updater: %v", updateErr)
+			} else {
+				configFileSetup += "\n" + updateScript
+			}
+		}
+		configFileSetup += fmt.Sprintf("\ncp \"${RUNNER_TEMP}/gh-aw/awf-config.json\" %s", constants.AWFConfigFilePath)
 		// Add --config as the first expandable arg so it appears before --container-workdir.
 		expandableArgs = `--config "${RUNNER_TEMP}/gh-aw/awf-config.json" ` + expandableArgs
 		awfHelpersLog.Print("Using AWF config file (--config flag)")
