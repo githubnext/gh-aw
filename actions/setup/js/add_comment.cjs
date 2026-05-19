@@ -463,7 +463,7 @@ async function main(config = {}) {
     // Check if item_number or issue_number was explicitly provided in the message.
     // item_number takes precedence over issue_number when both are present.
     // pr-number is accepted as an alias for item_number for robustness.
-    const itemTargetResult = resolveSafeOutputIssueTarget({ message, tempIdMap: temporaryIdMap, repoParts, handlerType: "add_comment", aliases: ["item_number", "issue_number", "pr-number"] });
+    const itemTargetResult = resolveSafeOutputIssueTarget({ message, tempIdMap: temporaryIdMap, repoParts, handlerType: HANDLER_TYPE, aliases: ["item_number", "issue_number", "pr-number"] });
     if (!itemTargetResult.success) return itemTargetResult;
 
     if (itemTargetResult.number !== null) {

@@ -457,9 +457,8 @@ function resolveRepoIssueTarget(value, temporaryIdMap, defaultOwner, defaultRepo
  *   ["item_number", "issue_number", "pr_number", "pull_number"]
  * @returns {{success: true, number: number|null} | {success: false, deferred?: boolean, error: string}}
  */
-function resolveSafeOutputIssueTarget({ message, resolvedTemporaryIds, tempIdMap, repoParts, handlerType, aliases }) {
-  const DEFAULT_ALIASES = ["item_number", "issue_number", "pr_number", "pull_number"];
-  const fieldNames = aliases ?? DEFAULT_ALIASES;
+function resolveSafeOutputIssueTarget({ message, resolvedTemporaryIds, tempIdMap, repoParts, handlerType, aliases = ["item_number", "issue_number", "pr_number", "pull_number"] }) {
+  const fieldNames = aliases;
 
   // Find the first non-null explicit value across all provided field aliases
   let explicitValue;
