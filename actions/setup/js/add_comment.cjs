@@ -731,7 +731,7 @@ async function main(config = {}) {
         if (commentIdToReuse !== null) {
           return {
             success: false,
-            error: "comment_id and target = status are only supported for issue and pull request comments",
+            error: "comment_id and target=status are only supported for issue and pull request comments",
           };
         }
         // When triggered by a discussion_comment event (without explicit item_number),
