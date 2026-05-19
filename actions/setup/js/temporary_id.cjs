@@ -38,6 +38,12 @@ const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9_]{3,12})\b/gi;
 const TEMPORARY_ID_CANDIDATE_PATTERN = /#aw_([A-Za-z0-9_-]+)/gi;
 
 /**
+ * Regex pattern for quick candidate detection of temporary ID references.
+ * Non-global on purpose so repeated `.test()` calls are state-free.
+ */
+const TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN = /#aw_/i;
+
+/**
  * @typedef {Object} RepoIssuePair
  * @property {string} repo - Repository slug in "owner/repo" format
  * @property {number} number - Issue or discussion number
@@ -673,6 +679,7 @@ function resolveNumberFromTemporaryId(value, resolvedTemporaryIds) {
 module.exports = {
   TEMPORARY_ID_PATTERN,
   TEMPORARY_ID_CANDIDATE_PATTERN,
+  TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN,
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,

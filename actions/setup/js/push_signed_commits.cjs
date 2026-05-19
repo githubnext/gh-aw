@@ -8,8 +8,7 @@
  */
 
 const { ERR_API } = require("./error_codes.cjs");
-const { normalizeTemporaryId, replaceTemporaryIdReferencesInPatch } = require("./temporary_id.cjs");
-const TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN = /#aw_/i;
+const { normalizeTemporaryId, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
