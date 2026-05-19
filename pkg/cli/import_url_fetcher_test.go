@@ -170,6 +170,14 @@ func TestAttachImportAuthHeader_GitHubUserContentWildcard(t *testing.T) {
 	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
 }
 
+func TestAttachImportAuthHeader_GitHubObjects(t *testing.T) {
+	t.Setenv("GH_TOKEN", "gh-token-xyz")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://objects.githubusercontent.com/github-production-release-asset-2e65be/owner/repo/workflow.md", nil)
+	attachImportAuthHeader(req, "https://objects.githubusercontent.com/github-production-release-asset-2e65be/owner/repo/workflow.md")
+	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
+}
+
 func TestAttachImportAuthHeader_FallbackToGITHUB_TOKEN(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "github-token-abc")
@@ -232,6 +240,14 @@ func TestAttachImportAuthHeader_GitHubUserContentSuffixConfusion_NoToken(t *test
 	req, _ := http.NewRequest(http.MethodGet, "https://githubusercontent.com.evil.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://githubusercontent.com.evil.com/workflow.md")
 	assert.Empty(t, req.Header.Get("Authorization"), "githubusercontent.com.evil.com must not match *.githubusercontent.com")
+}
+
+func TestAttachImportAuthHeader_DocsGitHub_NoToken(t *testing.T) {
+	t.Setenv("GH_TOKEN", "super-secret")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://docs.github.com/workflow.md", nil)
+	attachImportAuthHeader(req, "https://docs.github.com/workflow.md")
+	assert.Empty(t, req.Header.Get("Authorization"), "docs.github.com must not receive import auth token")
 }
 
 // ── GHE host tests ────────────────────────────────────────────────────────────
