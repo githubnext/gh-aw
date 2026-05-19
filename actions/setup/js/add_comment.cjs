@@ -689,7 +689,7 @@ async function main(config = {}) {
     if (rawTarget !== undefined && rawTarget !== "status") {
       return {
         success: false,
-        error: `target must be 'status' when provided, got '${String(rawTarget)}'`,
+        error: "target must be exactly 'status' when provided",
       };
     }
     const targetStatusComment = rawTarget === "status";
@@ -731,7 +731,7 @@ async function main(config = {}) {
         if (commentIdToReuse !== null) {
           return {
             success: false,
-            error: "comment_id and target=status are only supported for issue and pull request comments",
+            error: "comment_id and target = status are only supported for issue and pull request comments",
           };
         }
         // When triggered by a discussion_comment event (without explicit item_number),
