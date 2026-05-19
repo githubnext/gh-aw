@@ -823,6 +823,68 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
     });
 
+    it("should escape HTML-sensitive characters in fallback summary and body", async () => {
+      buffer.addComment({
+        path: "src/<unsafe>&\"'.js",
+        line: 9,
+        body: "unsafe </summary><b>tag</b> & \"quote\" 'single'",
+      });
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Line could not be resolved")).mockResolvedValueOnce({
+        data: {
+          id: 801,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-801",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.body).toContain("src/&lt;unsafe&gt;&amp;&quot;&#39;.js:9");
+      expect(retryArgs.body).toContain("&lt;b&gt;tag&lt;/b&gt;");
+      expect(retryArgs.body).toContain("&amp; &quot;quote&quot; &#39;single&#39;");
+      expect(retryArgs.body).not.toContain("</summary><b>tag</b>");
+    });
+
+    it("should avoid appending large inline bodies when fallback has no excerpt budget", async () => {
+      for (let i = 0; i < 8; i++) {
+        buffer.addComment({ path: `src/file-${i}.js`, line: i + 1, body: `comment-${i}-` + "z".repeat(600) });
+      }
+      buffer.setReviewMetadata("x".repeat(64980), "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Line could not be resolved")).mockResolvedValueOnce({
+        data: {
+          id: 802,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-802",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.body.length).toBeLessThanOrEqual(65000);
+      expect(retryArgs.body).not.toContain("comment-0-");
+      expect(
+        retryArgs.body.includes("_(empty comment body)_") ||
+          retryArgs.body.includes("_(Unanchored comment details omitted to fit GitHub length limits.)_") ||
+          retryArgs.body.includes("_(Fallback review body truncated to fit GitHub length limits.)_")
+      ).toBe(true);
+    });
+
     it("should submit multiple comments in a single review", async () => {
       buffer.addComment({ path: "file1.js", line: 5, body: "Comment 1" });
       buffer.addComment({ path: "file2.js", line: 10, body: "Comment 2" });

@@ -639,6 +639,10 @@ function appendUnanchoredCommentsSection(reviewBody, comments) {
 
   const detailsBlocks = comments.map(comment => {
     const rawBody = (comment.body || "").trim();
+    if (perCommentExcerptLimit <= 0) {
+      return renderUnanchoredCommentBlock(comment, FALLBACK_EMPTY_COMMENT_BODY);
+    }
+
     const shouldTruncate = perCommentExcerptLimit > 0 && rawBody.length > perCommentExcerptLimit;
     const truncateLength = perCommentExcerptLimit >= ELLIPSIS.length ? perCommentExcerptLimit - ELLIPSIS.length : 0;
     const truncatedBody = shouldTruncate ? rawBody.substring(0, truncateLength) : rawBody;
@@ -671,5 +675,14 @@ function appendUnanchoredCommentsSection(reviewBody, comments) {
  * @returns {string}
  */
 function renderUnanchoredCommentBlock(comment, bodyText) {
-  return `<details><summary>${comment.path}:${comment.line}</summary>\n\n${bodyText}\n\n</details>`;
+  const summaryText = `${comment.path}:${comment.line}`;
+  return `<details><summary>${escapeHtml(summaryText)}</summary>\n\n${escapeHtml(bodyText)}\n\n</details>`;
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
