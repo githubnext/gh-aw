@@ -15,12 +15,19 @@ type CreateParseOptions struct {
 
 // parseCreateEntityConfig parses create-* config scaffolding shared by issue/discussion/PR handlers.
 //
+// Parameters:
+//   - outputMap: full safe-output map from frontmatter parsing.
+//   - configKey: create-* key to parse (for example "create-issue").
+//   - opts: shared preprocessing configuration for bool/int/expires fields.
+//   - log: logger used for preprocessing and parse diagnostics.
+//   - onError: required error handler invoked on unmarshal failures.
+//
 // Callback lifecycle:
 //   - preUnmarshal is optional (may be nil). When provided, it is invoked first with the raw
 //     config map (which may be nil); if it returns false, parsing is aborted.
 //   - onError is invoked when YAML unmarshaling fails and returns the fallback config behavior.
 //   - postUnmarshal is optional (may be nil). When provided, it is invoked after successful
-//     unmarshaling and receives expiresDisabled, which is true when expires was explicitly set to false.
+//     unmarshaling and receives expiresDisabled (true when expires was explicitly set to false).
 func parseCreateEntityConfig[T any](
 	outputMap map[string]any,
 	configKey string,

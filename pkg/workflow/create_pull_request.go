@@ -6,6 +6,9 @@ import (
 
 var createPRLog = logger.New("workflow:create_pull_request")
 
+var createPRStringOrArrayFields = []string{"reviewers", "team-reviewers", "assignees"}
+var createPRExpressionArrayFields = []string{"labels", "allowed-repos", "allowed-base-branches"}
+
 // getFallbackAsIssue returns the effective fallback-as-issue setting (defaults to true).
 func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 	if config == nil || config.FallbackAsIssue == nil {
@@ -73,7 +76,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 			return &CreatePullRequestsConfig{}
 		},
 		func(configData map[string]any) bool {
-			coerceStringOrArrayFields(configData, []string{"reviewers", "team-reviewers", "assignees"}, createPRLog)
+			coerceStringOrArrayFields(configData, createPRStringOrArrayFields, createPRLog)
 
 			// Pre-process protected-files: supports string enum OR object form {policy, exclude}.
 			// Object form is preprocessed to extract the policy (stored back as string) and
@@ -90,7 +93,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 			// An expression is wrapped in a single-element []string so the []string struct field
 			// can receive it after YAML unmarshaling; the handler config builder later re-emits it
 			// as a JSON string for runtime evaluation.
-			for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches"} {
+			for _, field := range createPRExpressionArrayFields {
 				if err := preprocessStringArrayFieldAsTemplatable(configData, field, createPRLog); err != nil {
 					createPRLog.Printf("Invalid %s value: %v", field, err)
 					return false
