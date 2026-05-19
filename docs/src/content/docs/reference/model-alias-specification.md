@@ -551,9 +551,12 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash-lite` |
 | `large` | `sonnet`, `gpt-5`, `gemini-pro` |
 | `auto` | `large` |
-| `agent` | `sonnet-6x`, `gpt-5.4`, `gpt-5`, `gemini-pro`, `haiku` |
-| `copilot` | `agent`, `gpt-5.4`, `sonnet`, `gpt-5` |
-| `claude` | `agent`, `sonnet-6x`, `haiku` |
+| `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
+| `agent` | `sonnet-6x`, `gpt-5.4`, `gpt-5`, `gemini-pro`, `haiku`, `any` |
+| `copilot` | `agent`, `gpt-5.4`, `sonnet`, `gpt-5`, `any` |
+| `claude` | `agent`, `sonnet-6x`, `haiku`, `any` |
+| `codex` | `agent`, `gpt-5-codex`, `gpt-5`, `any` |
+| `gemini` | `agent`, `gemini-pro`, `gemini-flash`, `any` |
 
 Meta-aliases reference other aliases and are resolved recursively. They allow workflow authors to express capability tiers (`mini`, `large`) without committing to a specific vendor.
 

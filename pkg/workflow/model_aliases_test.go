@@ -19,7 +19,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 		"sonnet", "sonnet-6x", "haiku", "opus",
 		"gpt-4.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning",
 		"gemini-flash", "gemini-flash-lite", "gemini-pro", "deep-research",
-		"mini", "large", "auto", "agent", "copilot", "claude",
+		"mini", "large", "auto", "any", "agent", "copilot", "claude", "codex", "gemini",
 	}
 	for _, family := range expectedFamilies {
 		patterns, ok := aliases[family]
@@ -51,9 +51,12 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
 	assert.Equal(t, []string{"sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should reference sonnet, gpt-5-pro, gpt-5, and gemini-pro")
 	assert.Equal(t, []string{"large"}, aliases["auto"], "auto should fall back to large")
-	assert.Equal(t, []string{"sonnet-6x", "gpt-5.4", "gpt-5", "gemini-pro", "haiku"}, aliases["agent"], "agent should default to <=6x-capable model families")
-	assert.Equal(t, []string{"agent", "gpt-5.4", "sonnet", "gpt-5"}, aliases["copilot"], "copilot should define per-engine default fallback chain")
-	assert.Equal(t, []string{"agent", "sonnet-6x", "haiku"}, aliases["claude"], "claude should define per-engine default fallback chain")
+	assert.Equal(t, []string{"copilot/*", "anthropic/*", "openai/*", "google/*", "gemini/*"}, aliases["any"], "any should provide a provider-wide catch-all fallback chain")
+	assert.Equal(t, []string{"sonnet-6x", "gpt-5.4", "gpt-5", "gemini-pro", "haiku", "any"}, aliases["agent"], "agent should default to <=6x-capable model families before any-model fallback")
+	assert.Equal(t, []string{"agent", "gpt-5.4", "sonnet", "gpt-5", "any"}, aliases["copilot"], "copilot should define per-engine default fallback chain")
+	assert.Equal(t, []string{"agent", "sonnet-6x", "haiku", "any"}, aliases["claude"], "claude should define per-engine default fallback chain")
+	assert.Equal(t, []string{"agent", "gpt-5-codex", "gpt-5", "any"}, aliases["codex"], "codex should define per-engine default fallback chain")
+	assert.Equal(t, []string{"agent", "gemini-pro", "gemini-flash", "any"}, aliases["gemini"], "gemini should define per-engine default fallback chain")
 	assert.NotContains(t, aliases["agent"], "opus", "agent default chain must not include opus")
 
 	// Returns a fresh copy — mutating one call's map must not affect another call.
