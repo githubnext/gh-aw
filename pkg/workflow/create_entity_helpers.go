@@ -24,7 +24,8 @@ type CreateParseOptions struct {
 //
 // Callback lifecycle:
 //   - preUnmarshal is optional (may be nil). When provided, it is invoked first with the raw
-//     config map (which may be nil); if it returns false, parsing is aborted.
+//     config map. The map may be nil when configKey exists but is not a map; if preUnmarshal
+//     returns false, parsing is aborted.
 //   - onError is invoked when YAML unmarshaling fails and returns the fallback config behavior.
 //   - postUnmarshal is optional (may be nil). When provided, it is invoked after successful
 //     unmarshaling and receives expiresDisabled (true when expires was explicitly set to false).
@@ -41,7 +42,11 @@ func parseCreateEntityConfig[T any](
 		return nil
 	}
 
-	configData, _ := outputMap[configKey].(map[string]any)
+	configDataAny := outputMap[configKey]
+	configData, isMap := configDataAny.(map[string]any)
+	if !isMap {
+		configData = nil
+	}
 	if preUnmarshal != nil && !preUnmarshal(configData) {
 		return nil
 	}
