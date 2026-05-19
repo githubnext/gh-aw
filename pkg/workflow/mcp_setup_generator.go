@@ -178,34 +178,23 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 		return
 	}
 
-	if c.actionMode == ActionModeDev {
-		yaml.WriteString("      - name: Build and install gh-aw CLI from source\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          gh extension remove gh-aw || true\n")
-		yaml.WriteString("          make build\n")
-		yaml.WriteString("          gh extension install .\n")
-		yaml.WriteString("          gh aw version\n")
-		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
-	} else {
-		cliVersion := resolveAgenticWorkflowsCLIVersion(c, workflowData)
-
-		actionRepo := GitHubOrgRepo + "/actions/setup-cli"
-		actionRef := fmt.Sprintf("%s@%s", actionRepo, cliVersion)
-		if workflowData != nil {
-			if pinnedRef, err := getActionPinWithData(actionRepo, cliVersion, workflowData); err != nil {
-				mcpSetupGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", actionRepo, cliVersion, err)
-			} else if pinnedRef != "" {
-				actionRef = pinnedRef
-			}
-		}
-
-		effectiveToken := getEffectiveGitHubToken("")
-		yaml.WriteString("      - name: Install gh-aw extension\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", actionRef)
-		yaml.WriteString("        with:\n")
-		fmt.Fprintf(yaml, "          version: '%s'\n", cliVersion)
-		fmt.Fprintf(yaml, "          github-token: %s\n", effectiveToken)
+	cliVersion := resolveAgenticWorkflowsCLIVersion(c, workflowData)
+	effectiveToken := getEffectiveGitHubToken("")
+	installStep, err := generateGhAwSetupStep(ghAwSetupStepConfig{
+		actionMode:           c.actionMode,
+		cliVersion:           cliVersion,
+		actionRepo:           GitHubOrgRepo + "/actions/setup-cli",
+		fallbackActionRefTag: cliVersion,
+		workflowData:         workflowData,
+		withFields: map[string]string{
+			"github-token": effectiveToken,
+		},
+	})
+	if err != nil {
+		mcpSetupGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", GitHubOrgRepo+"/actions/setup-cli", cliVersion, err)
+	}
+	for _, line := range installStep {
+		yaml.WriteString(line + "\n")
 	}
 	yaml.WriteString("      - name: Copy gh-aw binary for MCP server\n")
 	yaml.WriteString("        run: |\n")
