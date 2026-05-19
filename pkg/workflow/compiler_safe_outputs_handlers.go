@@ -438,7 +438,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
-			AddTemplatableStringSlice("labels", c.Labels).
+			AddTemplatableStringSlice("required_labels", c.RequiredLabels).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
 			AddIfTrue("ignore_missing_branch_failure", c.IgnoreMissingBranchFailure).
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).

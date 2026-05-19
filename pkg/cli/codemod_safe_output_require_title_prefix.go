@@ -10,9 +10,9 @@ var safeOutputRequireTitlePrefixCodemodLog = logger.New("cli:codemod_safe_output
 
 func getSafeOutputRequireTitlePrefixCodemod() Codemod {
 	return Codemod{
-		ID:           "safe-output-title-prefix-to-require-title-prefix",
+		ID:           "safe-output-title-prefix-to-required-title-prefix",
 		Name:         "Rename deprecated safe-outputs title-prefix constraints",
-		Description:  "Renames deprecated constraint field 'title-prefix' to 'require-title-prefix' for applicable safe-outputs handlers.",
+		Description:  "Renames deprecated constraint fields to required-title-prefix/required-labels for applicable safe-outputs handlers.",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			handlersToRename := safeOutputsHandlersNeedingTitlePrefixMigration(frontmatter)
@@ -24,7 +24,7 @@ func getSafeOutputRequireTitlePrefixCodemod() Codemod {
 				return renameSafeOutputTitlePrefixConstraints(lines, handlersToRename)
 			})
 			if applied {
-				safeOutputRequireTitlePrefixCodemodLog.Print("Renamed deprecated safe-outputs title-prefix constraint keys to require-title-prefix")
+				safeOutputRequireTitlePrefixCodemodLog.Print("Renamed deprecated safe-outputs constraint keys to required-title-prefix/required-labels")
 			}
 			return newContent, applied, err
 		},
@@ -59,10 +59,10 @@ func safeOutputsHandlersNeedingTitlePrefixMigration(frontmatter map[string]any) 
 		if !ok {
 			continue
 		}
-		if _, hasRequired := handlerMap["require-title-prefix"]; hasRequired {
+		if _, hasRequired := handlerMap["required-title-prefix"]; hasRequired {
 			continue
 		}
-		if _, hasRequiredLegacy := handlerMap["required-title-prefix"]; hasRequiredLegacy {
+		if _, hasRequiredLegacy := handlerMap["require-title-prefix"]; hasRequiredLegacy {
 			continue
 		}
 		if _, hasDeprecated := handlerMap["title-prefix"]; hasDeprecated {
@@ -121,11 +121,20 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 		}
 
 		if activeHandler != "" && isDescendant(indent, activeHandlerIndent) && strings.HasPrefix(trimmed, "title-prefix:") {
-			newLine, replaced := findAndReplaceInLine(line, "title-prefix", "require-title-prefix")
+			newLine, replaced := findAndReplaceInLine(line, "title-prefix", "required-title-prefix")
 			if replaced {
 				result = append(result, newLine)
 				modified = true
 				safeOutputRequireTitlePrefixCodemodLog.Printf("Renamed title-prefix in safe-outputs.%s on line %d", activeHandler, i+1)
+				continue
+			}
+		}
+		if activeHandler == "push-to-pull-request-branch" && isDescendant(indent, activeHandlerIndent) && strings.HasPrefix(trimmed, "labels:") {
+			newLine, replaced := findAndReplaceInLine(line, "labels", "required-labels")
+			if replaced {
+				result = append(result, newLine)
+				modified = true
+				safeOutputRequireTitlePrefixCodemodLog.Printf("Renamed labels in safe-outputs.%s on line %d", activeHandler, i+1)
 				continue
 			}
 		}

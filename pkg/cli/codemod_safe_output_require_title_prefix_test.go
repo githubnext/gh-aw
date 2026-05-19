@@ -20,6 +20,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
+    labels: [automated]
 ---
 `
 		frontmatter := map[string]any{
@@ -30,6 +31,7 @@ safe-outputs:
 				"push-to-pull-request-branch": map[string]any{
 					"target":       "*",
 					"title-prefix": "[bot] ",
+					"labels":       []string{"automated"},
 				},
 			},
 		}
@@ -37,8 +39,10 @@ safe-outputs:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err)
 		assert.True(t, applied)
-		assert.Contains(t, result, "require-title-prefix: \"[bot] \"")
+		assert.Contains(t, result, "required-title-prefix: \"[bot] \"")
+		assert.Contains(t, result, "required-labels:")
 		assert.NotContains(t, result, "\n    title-prefix:")
+		assert.NotContains(t, result, "\n    labels:")
 	})
 
 	t.Run("does not rename create-issue title-prefix", func(t *testing.T) {

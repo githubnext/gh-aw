@@ -37,20 +37,42 @@ func TestValidateSafeOutputsRequiredLabelsWithTitlePrefix(t *testing.T) {
 			},
 		},
 		{
-			name: "push-to-pull-request-branch requires labels when title prefix is set",
+			name: "close-pull-request requires labels when title prefix is set",
+			config: &SafeOutputsConfig{
+				ClosePullRequests: &ClosePullRequestsConfig{
+					SafeOutputFilterConfig: SafeOutputFilterConfig{
+						RequiredTitlePrefix: "[bot] ",
+					},
+				},
+			},
+			wantErr: "safe-outputs.close-pull-request.required-labels",
+		},
+		{
+			name: "close-pull-request passes when labels present",
+			config: &SafeOutputsConfig{
+				ClosePullRequests: &ClosePullRequestsConfig{
+					SafeOutputFilterConfig: SafeOutputFilterConfig{
+						RequiredTitlePrefix: "[bot] ",
+						RequiredLabels:      []string{"automated"},
+					},
+				},
+			},
+		},
+		{
+			name: "push-to-pull-request-branch requires required-labels when title prefix is set",
 			config: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					TitlePrefix: "[bot] ",
 				},
 			},
-			wantErr: "safe-outputs.push-to-pull-request-branch.labels",
+			wantErr: "safe-outputs.push-to-pull-request-branch.required-labels",
 		},
 		{
-			name: "push-to-pull-request-branch passes when labels present",
+			name: "push-to-pull-request-branch passes when required-labels present",
 			config: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					TitlePrefix: "[bot] ",
-					Labels:      []string{"automated"},
+					TitlePrefix:    "[bot] ",
+					RequiredLabels: []string{"automated"},
 				},
 			},
 		},

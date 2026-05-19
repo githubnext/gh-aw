@@ -30,7 +30,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
-    labels: [automated]
+    required-labels: [automated]
 ---
 
 # Test Workflow
@@ -46,7 +46,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
-    labels: [automated]
+    required-labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0
@@ -65,7 +65,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
-    labels: [automated]
+    required-labels: [automated]
 checkout:
   fetch: ["feature/*"]
 ---
@@ -111,7 +111,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
-    labels: [automated]
+    required-labels: [automated]
 checkout:
   fetch: ["main"]
 ---
@@ -164,7 +164,7 @@ checkout:
 }
 
 // TestPushToPullRequestBranchNoConstraintsWarning tests that a warning is emitted
-// when push-to-pull-request-branch has target: "*" without title-prefix or labels.
+// when push-to-pull-request-branch has target: "*" without title-prefix or required-labels.
 func TestPushToPullRequestBranchNoConstraintsWarning(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -188,14 +188,14 @@ checkout:
 			expectWarning: true,
 		},
 		{
-			name: "target=* with require-title-prefix and labels does not emit constraint warning",
+			name: "target=* with required-title-prefix and required-labels does not emit constraint warning",
 			content: `---
 on: push
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"
-    require-title-prefix: "[bot] "
-    labels: [automated]
+    required-title-prefix: "[bot] "
+    required-labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0
@@ -206,13 +206,13 @@ checkout:
 			expectWarning: false,
 		},
 		{
-			name: "target=* with labels does not emit constraint warning",
+			name: "target=* with required-labels does not emit constraint warning",
 			content: `---
 on: push
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"
-    labels: [automated]
+    required-labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0
@@ -223,14 +223,14 @@ checkout:
 			expectWarning: false,
 		},
 		{
-			name: "target=* with both title-prefix and labels does not emit constraint warning",
+			name: "target=* with both title-prefix and required-labels does not emit constraint warning",
 			content: `---
 on: push
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
-    labels: [automated]
+    required-labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0

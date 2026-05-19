@@ -7607,17 +7607,40 @@
                   "type": "string",
                   "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
                 },
-                "require-title-prefix": {
+                "required-title-prefix": {
                   "type": "string",
                   "description": "Required prefix for pull request title. Only pull requests with this prefix will be accepted."
                 },
-                "title-prefix": {
+                "require-title-prefix": {
                   "type": "string",
-                  "description": "Deprecated alias for require-title-prefix",
+                  "description": "Deprecated alias for required-title-prefix",
                   "deprecated": true
                 },
-                "labels": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true
+                },
+                "required-labels": {
                   "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs[\\'required-labels\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of label names",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of label names (e.g. '${{ inputs[\\'required-labels\\'] }}')"
+                    }
+                  ]
+                },
+                "labels": {
+                  "description": "Deprecated alias for required-labels",
+                  "deprecated": true,
                   "oneOf": [
                     {
                       "type": "array",

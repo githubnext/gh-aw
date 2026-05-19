@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -218,9 +219,9 @@ func validateSafeOutputsRequiredLabelsWithTitlePrefix(config *SafeOutputsConfig)
 		}
 	}
 
-	// push-to-pull-request-branch uses labels as the hard constraint field name.
-	if config.PushToPullRequestBranch != nil && config.PushToPullRequestBranch.TitlePrefix != "" && len(config.PushToPullRequestBranch.Labels) == 0 {
-		return fmt.Errorf("safe-outputs.push-to-pull-request-branch.labels: required when require-title-prefix is set")
+	// push-to-pull-request-branch uses required-labels as the hard constraint field name.
+	if config.PushToPullRequestBranch != nil && config.PushToPullRequestBranch.TitlePrefix != "" && len(config.PushToPullRequestBranch.RequiredLabels) == 0 {
+		return errors.New("safe-outputs.push-to-pull-request-branch.required-labels: required when required-title-prefix is set")
 	}
 
 	return nil

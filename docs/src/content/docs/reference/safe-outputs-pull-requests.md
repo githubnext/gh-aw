@@ -268,7 +268,7 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for docume
 
 ## Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Validates via `require-title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
+Pushes changes to a PR's branch. Validates via `required-title-prefix` and `required-labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
 
 :::caution[Fork PRs Not Supported]
 This safe output **cannot push to PRs from forks**. Fork PRs will fail early with a clear error message. This is a security restriction—the workflow does not have write access to fork repositories.
@@ -278,8 +278,8 @@ This safe output **cannot push to PRs from forks**. Fork PRs will fail early wit
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"                 # "triggering" (default), "*", or number
-    require-title-prefix: "[bot] "      # require title prefix
-    labels: [automated]         # require all labels
+    required-title-prefix: "[bot] "      # require title prefix
+    required-labels: [automated]         # require all labels
     max: 3                      # max pushes per run (default: 1)
     if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
     excluded-files:               # files to omit from the patch entirely
@@ -315,7 +315,7 @@ safe-outputs:
   github-token: ${{ secrets.CROSS_REPO_PAT }}
   push-to-pull-request-branch:
     target-repo: "org/target-repo"
-    require-title-prefix: "[bot] "
+    required-title-prefix: "[bot] "
 ```
 
 The `path:` field is required so the agent knows where the target repository is mounted in the workspace. Without a `path`, the checkout action writes to the root of the workspace and overwrites the source repository, which will cause the workflow to fail.
@@ -348,7 +348,7 @@ Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to
 When `target: "*"` is used, `gh aw compile` emits warnings for two common misconfigurations:
 
 - **Missing wildcard fetch** — no `checkout` block with a wildcard `fetch` pattern (e.g., `fetch: ["*"]`). Without this, the agent cannot access arbitrary PR branches at runtime and will fail with permission-like errors.
-- **No constraints** — neither `require-title-prefix` nor `labels` is set, which allows pushing to any PR in the repository with no additional gating.
+- **No constraints** — neither `required-title-prefix` nor `required-labels` is set, which allows pushing to any PR in the repository with no additional gating.
 
 Both warnings are suppressed when the recommended configuration is in place:
 
@@ -356,7 +356,8 @@ Both warnings are suppressed when the recommended configuration is in place:
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"
-    require-title-prefix: "[bot] "
+    required-title-prefix: "[bot] "
+    required-labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0
