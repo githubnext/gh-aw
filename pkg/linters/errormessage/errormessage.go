@@ -5,6 +5,7 @@ package errormessage
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -40,6 +41,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	noLintLinesByFile := buildNoLintLineIndex(pass)
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 	insp.Preorder(nodeFilter, func(n ast.Node) {
@@ -52,11 +54,14 @@ func run(pass *analysis.Pass) (any, error) {
 		if !shouldCheckFile(pos.Filename, changed) || strings.HasSuffix(pos.Filename, "_test.go") {
 			return
 		}
+		if hasNoLintDirective(pos, noLintLinesByFile) {
+			return
+		}
 
-		if msg, ok := extractLiteralErrorMessage(call); ok {
+		if msg, ok := extractLiteralErrorMessage(call); ok && returnsError(pass, call) {
 			checkNegativeLanguage(pass, call, msg)
 			checkGenericWrap(pass, call, msg)
-			checkValidationFmtErrorf(pass, call, pos.Filename, msg)
+			checkValidationFmtErrorf(pass, call, pos.Filename)
 		}
 
 		if !isNewValidationErrorCall(call) {
@@ -130,11 +135,8 @@ func isNewValidationErrorCall(call *ast.CallExpr) bool {
 	}
 }
 
-func checkValidationFmtErrorf(pass *analysis.Pass, call *ast.CallExpr, filename, msg string) {
+func checkValidationFmtErrorf(pass *analysis.Pass, call *ast.CallExpr, filename string) {
 	if !strings.HasSuffix(filename, "_validation.go") || !isFmtErrorf(call) {
-		return
-	}
-	if !containsAnyKeyword(strings.ToLower(msg), "invalid", "cannot", "must", "missing", "required", "failed") {
 		return
 	}
 	pass.Reportf(call.Pos(), "use NewValidationError(...) instead of fmt.Errorf(...) in validation files")
@@ -204,9 +206,99 @@ func looksLikeYAMLExample(s string) bool {
 
 func containsAnyKeyword(s string, keywords ...string) bool {
 	for _, keyword := range keywords {
-		if strings.Contains(s, keyword) {
+		if containsKeyword(s, keyword) {
 			return true
 		}
 	}
 	return false
+}
+
+func containsKeyword(s, keyword string) bool {
+	offset := 0
+	for {
+		i := strings.Index(s[offset:], keyword)
+		if i < 0 {
+			return false
+		}
+		start := offset + i
+		end := start + len(keyword)
+		if isWordBoundary(s, start-1) && isWordBoundary(s, end) {
+			return true
+		}
+		offset = start + 1
+	}
+}
+
+func isWordBoundary(s string, idx int) bool {
+	if idx < 0 || idx >= len(s) {
+		return true
+	}
+	ch := s[idx]
+	return (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_'
+}
+
+func returnsError(pass *analysis.Pass, call *ast.CallExpr) bool {
+	t := pass.TypesInfo.TypeOf(call)
+	if t == nil {
+		return false
+	}
+	return implementsError(t)
+}
+
+func implementsError(t types.Type) bool {
+	obj := types.Universe.Lookup("error")
+	if obj == nil {
+		return false
+	}
+	errIface, ok := obj.Type().Underlying().(*types.Interface)
+	if !ok {
+		return false
+	}
+
+	if types.Implements(t, errIface) {
+		return true
+	}
+	if p, ok := t.(*types.Pointer); ok {
+		return types.Implements(p, errIface)
+	}
+	return types.Implements(types.NewPointer(t), errIface)
+}
+
+func hasNoLintDirective(position token.Position, noLintLinesByFile map[string]map[int]struct{}) bool {
+	if position.Filename == "" {
+		return false
+	}
+
+	noLintLines := noLintLinesByFile[position.Filename]
+	if noLintLines == nil {
+		return false
+	}
+
+	_, sameLine := noLintLines[position.Line]
+	_, previousLine := noLintLines[position.Line-1]
+	return sameLine || previousLine
+}
+
+func buildNoLintLineIndex(pass *analysis.Pass) map[string]map[int]struct{} {
+	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
+	for _, file := range pass.Files {
+		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
+		if filename == "" {
+			continue
+		}
+		for _, group := range file.Comments {
+			for _, comment := range group.List {
+				text := strings.TrimPrefix(comment.Text, "//")
+				if !strings.HasPrefix(text, "nolint:errormessage") && !strings.HasPrefix(text, "nolint:all") {
+					continue
+				}
+				line := pass.Fset.PositionFor(comment.Slash, false).Line
+				if noLintLinesByFile[filename] == nil {
+					noLintLinesByFile[filename] = make(map[int]struct{})
+				}
+				noLintLinesByFile[filename][line] = struct{}{}
+			}
+		}
+	}
+	return noLintLinesByFile
 }

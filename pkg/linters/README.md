@@ -24,6 +24,12 @@ This package currently provides custom Go analyzers in the following subpackages
 | `osexitinlibrary` | Custom `go/analysis` analyzer that flags `os.Exit` usage in library packages |
 | `ssljson` | Custom `go/analysis` analyzer that validates SSL JSON skill artifacts in `.github/skills/` |
 
+### Namespace exports
+
+| Symbol | Description |
+|---|---|
+| `ErrorMessageAnalyzer` | Compatibility alias to `pkg/linters/errormessage.Analyzer` |
+
 ## Usage Examples
 
 ```go
@@ -46,7 +52,7 @@ _ = ssljson.Analyzer
 ## Dependencies
 
 **Internal**:
-- None at the `pkg/linters` namespace level. `pkg/linters/{excessivefuncparams,errormessage,largefunc,osexitinlibrary,ssljson}` are documented above as subpackage APIs, not internal dependencies.
+- `pkg/linters/errormessage` (via namespace compatibility export `ErrorMessageAnalyzer`).
 
 **External**:
 - `golang.org/x/tools/go/analysis` — analyzer framework

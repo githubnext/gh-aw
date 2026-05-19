@@ -1,13 +1,14 @@
 package errormessage
 
 import "fmt"
+import "errors"
 
 func NewValidationError(field, value, reason, suggestion string) error {
-	return fmt.Errorf("%s: %s (%s)", field, reason, suggestion)
+	return errors.New(reason)
 }
 
 func badValidationFormat() error {
-	return fmt.Errorf("invalid input") // want `use NewValidationError\(\.\.\.\) instead of fmt\.Errorf\(\.\.\.\) in validation files`
+	return fmt.Errorf("invalid input") // want `use NewValidationError\(\.\.\.\) instead of fmt\.Errorf\(\.\.\.\) in validation files` `error message uses negative language without constructive guidance; include expected/requires/should/example details`
 }
 
 func badValidationWrap(err error) error {
