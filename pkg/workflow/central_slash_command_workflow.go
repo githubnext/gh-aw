@@ -116,14 +116,6 @@ func centralRoutingCommandNames(wd *WorkflowData) []string {
 	if len(wd.Command) > 0 {
 		return wd.Command
 	}
-	if wd.PullRequestReviewer {
-		inferred := strings.TrimSpace(wd.WorkflowID)
-		if inferred != "" {
-			// Preserve the existing workflow ID shape here; downstream uniqueness
-			// checks normalize case/whitespace before comparison.
-			return []string{inferred}
-		}
-	}
 	return nil
 }
 
@@ -271,6 +263,7 @@ func collectPullRequestReviewerRoutes(workflowDataList []*WorkflowData, mergedEv
 			mergedEvents["pull_request"] = make(map[string]bool)
 		}
 		mergedEvents["pull_request"]["ready_for_review"] = true
+		mergedEvents["pull_request"]["review_requested"] = true
 		if mergedEvents["pull_request_review"] == nil {
 			mergedEvents["pull_request_review"] = make(map[string]bool)
 		}

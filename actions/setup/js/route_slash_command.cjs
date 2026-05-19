@@ -279,7 +279,7 @@ async function main() {
     if (matches.length > 0) {
       let selected = matches;
       if (context.eventName === "pull_request") {
-        if (context.payload?.action !== "ready_for_review") {
+        if (!["ready_for_review", "review_requested"].includes(context.payload?.action ?? "")) {
           selected = [];
         }
       } else if (context.eventName === "pull_request_review") {

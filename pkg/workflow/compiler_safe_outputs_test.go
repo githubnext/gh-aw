@@ -182,7 +182,6 @@ func TestParseOnSection(t *testing.T) {
 			workflowData:                &WorkflowData{},
 			markdownPath:                "/path/to/reviewer.md",
 			expectedError:               false,
-			expectedCommand:             []string{"reviewer"},
 			expectedReaction:            "eyes",
 			expectedCentralized:         true,
 			expectedPullRequestReviewer: true,
@@ -433,6 +432,20 @@ func TestCompilerMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseOnSection_PullRequestReviewerDoesNotInferCommand(t *testing.T) {
+	c := &Compiler{}
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"pull_request_reviewer": "slash_command",
+		},
+	}
+	workflowData := &WorkflowData{}
+
+	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
+	require.NoError(t, err)
+	assert.Empty(t, workflowData.Command)
 }
 
 func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {

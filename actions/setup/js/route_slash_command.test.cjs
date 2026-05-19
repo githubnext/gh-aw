@@ -239,6 +239,20 @@ describe("route_slash_command", () => {
     expect(awContext.reviewer_lifecycle_event).toBe("pull_request");
   });
 
+  it("dispatches reviewer lifecycle routes on pull_request review_requested", async () => {
+    globals.context.eventName = "pull_request";
+    globals.context.payload = { action: "review_requested", pull_request: { number: 12, state: "open" } };
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([{ workflow: "pr-reviewer", events: ["pull_request", "pull_request_review"] }]);
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("pr-reviewer.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("");
+    expect(awContext.reviewer_lifecycle_event).toBe("pull_request");
+  });
+
   it("skips centralized routing when PR is closed at workflow start", async () => {
     globals.context.eventName = "pull_request";
     globals.context.payload = { action: "ready_for_review", pull_request: { number: 12, state: "closed" } };

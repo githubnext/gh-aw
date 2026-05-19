@@ -153,10 +153,6 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				hasCommand = true
 				workflowData.PullRequestReviewer = true
 				workflowData.CommandCentralized = true
-				if len(workflowData.Command) == 0 {
-					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Command = []string{baseName}
-				}
 				if len(workflowData.CommandEvents) == 0 {
 					workflowData.CommandEvents = []string{"pull_request_comment", "pull_request_review_comment"}
 				}
@@ -165,7 +161,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				}
 				// Ensure reviewer lifecycle events are always subscribed.
 				if _, exists := onMap["pull_request"]; !exists {
-					onMap["pull_request"] = map[string]any{"types": []any{"ready_for_review"}}
+					onMap["pull_request"] = map[string]any{"types": []any{"ready_for_review", "review_requested"}}
 				}
 				if _, exists := onMap["pull_request_review"]; !exists {
 					onMap["pull_request_review"] = map[string]any{"types": []any{"submitted", "edited", "dismissed"}}
