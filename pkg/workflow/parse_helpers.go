@@ -30,7 +30,7 @@ import "github.com/github/gh-aw/pkg/logger"
 //
 // When the string form is encountered the field is left unchanged and nil is returned.
 // The log parameter is optional; pass nil to suppress debug output.
-func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger) []string {
+func preprocessProtectedFilesField(configData map[string]any, debugLog *logger.Logger) []string {
 	if configData == nil {
 		return nil
 	}
@@ -46,16 +46,16 @@ func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger
 	// Object form: extract policy and exclude
 	if policy, ok := pfMap["policy"].(string); ok && policy != "" {
 		configData["protected-files"] = policy
-		if log != nil {
-			workflowLog.Printf("protected-files object form: policy=%s", policy)
+		if debugLog != nil {
+			debugLog.Printf("protected-files object form: policy=%s", policy)
 		}
 	} else {
 		delete(configData, "protected-files")
-		if log != nil {
-			workflowLog.Print("protected-files object form: no policy, using default")
+		if debugLog != nil {
+			debugLog.Print("protected-files object form: no policy, using default")
 		}
 	}
-	return parseStringSliceAny(pfMap["exclude"], log)
+	return parseStringSliceAny(pfMap["exclude"], debugLog)
 }
 
 // parseStringSliceAny coerces a raw any value into a []string.
@@ -72,8 +72,8 @@ func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger
 // before calling this function:
 //
 //	if s, ok := raw.(string); ok { return []string{s} }
-//	return parseStringSliceAny(raw, log)
-func parseStringSliceAny(raw any, log *logger.Logger) []string {
+//	return parseStringSliceAny(raw, debugLog)
+func parseStringSliceAny(raw any, debugLog *logger.Logger) []string {
 	if raw == nil {
 		return nil
 	}
@@ -86,14 +86,14 @@ func parseStringSliceAny(raw any, log *logger.Logger) []string {
 		for _, item := range v {
 			if s, ok := item.(string); ok {
 				result = append(result, s)
-			} else if log != nil {
-				workflowLog.Printf("parseStringSliceAny: skipping non-string item: %T", item)
+			} else if debugLog != nil {
+				debugLog.Printf("parseStringSliceAny: skipping non-string item: %T", item)
 			}
 		}
 		return result
 	default:
-		if log != nil {
-			workflowLog.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
+		if debugLog != nil {
+			debugLog.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
 		}
 		return nil
 	}

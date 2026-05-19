@@ -124,7 +124,7 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 }
 
 // Returns normalized category (or original if it's a category ID)
-func normalizeDiscussionCategory(category string, log *logger.Logger, markdownPath string) string {
+func normalizeDiscussionCategory(category string, debugLog *logger.Logger, markdownPath string) string {
 	// Empty category is allowed (GitHub Discussions will use default)
 	if category == "" {
 		return category
@@ -150,13 +150,13 @@ func normalizeDiscussionCategory(category string, log *logger.Logger, markdownPa
 		// Check if we have a known correction
 		if corrected, exists := categoryCorrections[category]; exists {
 			message = fmt.Sprintf("Discussion category %q normalized to lowercase: %q", category, corrected)
-			if log != nil {
-				workflowLog.Printf("Normalized discussion category %q to lowercase: %q", category, corrected)
+			if debugLog != nil {
+				debugLog.Printf("Normalized discussion category %q to lowercase: %q", category, corrected)
 			}
 		} else {
 			message = fmt.Sprintf("Discussion category %q normalized to lowercase: %q", category, normalizedCategory)
-			if log != nil {
-				workflowLog.Printf("Normalized discussion category %q to lowercase: %q", category, normalizedCategory)
+			if debugLog != nil {
+				debugLog.Printf("Normalized discussion category %q to lowercase: %q", category, normalizedCategory)
 			}
 		}
 
@@ -171,8 +171,8 @@ func normalizeDiscussionCategory(category string, log *logger.Logger, markdownPa
 	}
 
 	if plural, isSingular := singularToPlural[normalizedCategory]; isSingular {
-		if log != nil {
-			workflowLog.Printf("⚠ Discussion category %q is singular; consider using plural form %q for consistency", normalizedCategory, plural)
+		if debugLog != nil {
+			debugLog.Printf("⚠ Discussion category %q is singular; consider using plural form %q for consistency", normalizedCategory, plural)
 		}
 	}
 
