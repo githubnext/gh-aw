@@ -63,13 +63,50 @@ network:
     - chrome
 
 imports:
-  - shared/docs-server-lifecycle.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[multi-device-docs] "
       expires: 3d
 
   - shared/otlp.md
+pre-agent-steps:
+  - name: Install docs dependencies
+    run: |
+      cd "${{ github.workspace }}/docs"
+      npm install
+  - name: Start documentation server
+    run: |
+      LOG_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.log"
+      PID_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.pid"
+      cd "${{ github.workspace }}/docs"
+      nohup npm run dev -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
+      PID=$!
+      echo $PID > "$PID_FILE"
+      echo "Server PID: $PID"
+      echo "Server log: $LOG_FILE"
+  - name: Wait for server readiness
+    run: |
+      PID_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.pid"
+      LOG_FILE="/tmp/gh-aw/docs-server-${{ github.run_id }}.log"
+      MAX_WAIT=135  # Maximum 135 seconds wait time
+      WAITED=0
+      until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
+        # Check if the server process has already died
+        if [ -f "$PID_FILE" ] && ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+          echo "::error::Documentation server process died before becoming ready. Server log:"
+          cat "$LOG_FILE"
+          exit 1
+        fi
+        WAITED=$((WAITED + 3))
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "::error::Documentation server did not start after ${MAX_WAIT}s. Server log:"
+          cat "$LOG_FILE"
+          exit 1
+        fi
+        echo "Waiting for server... ($WAITED/${MAX_WAIT}s)"
+        sleep 3
+      done
+      echo "Server ready at http://localhost:4321/gh-aw/!"
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -99,18 +136,14 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 
 Start the documentation development server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
-## Step 1: Install Dependencies and Start Server
+## Step 1: Verify Server Availability
 
-Navigate to the docs folder and install dependencies:
+The workflow pre-agent steps already installed docs dependencies and started the Astro dev server.
+Quickly verify it is reachable before testing:
 
 ```bash
-cd ${{ github.workspace }}/docs
-npm install
+curl -sf http://localhost:4321/gh-aw/ > /dev/null && echo "Docs server is ready"
 ```
-
-Follow the shared **Documentation Server Lifecycle Management** instructions:
-1. Start the dev server (section "Starting the Documentation Preview Server")
-2. Wait for server readiness (section "Waiting for Server Readiness")
 
 ## Step 2: Device Configuration
 
@@ -226,8 +259,8 @@ Label with: `documentation`, `testing`, `automated`
 
 ## Step 6: Cleanup
 
-Follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
-Use the shared PID-file cleanup command (`kill $(cat /tmp/gh-aw/server.pid) ...`) and **do not use `pkill -f`**.
+No manual server cleanup is required in-agent for this workflow.
+The server lifecycle is handled by pre-agent setup and job teardown.
 
 ## Summary
 

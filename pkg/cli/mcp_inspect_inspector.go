@@ -138,6 +138,11 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 					wg.Add(1)
 					go func(serverCmd *exec.Cmd, serverName string) {
 						defer wg.Done()
+						defer func() {
+							if r := recover(); r != nil {
+								mcpInspectorLog.Printf("Panic in MCP server monitor for %s (recovered): %v", serverName, r)
+							}
+						}()
 						if err := serverCmd.Wait(); err != nil && verbose {
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", serverName, err)))
 						}
@@ -199,6 +204,11 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 			// Wait for all background goroutines to finish (with timeout)
 			done := make(chan struct{})
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						mcpInspectorLog.Printf("Panic in MCP server cleanup wait (recovered): %v", r)
+					}
+				}()
 				wg.Wait()
 				close(done)
 			}()
