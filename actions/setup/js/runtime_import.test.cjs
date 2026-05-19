@@ -1269,7 +1269,6 @@ describe("runtime_import", () => {
             expect(result).toBe("default-value");
           });
         });
-
       });
 
       describe("processExpressions", () => {
