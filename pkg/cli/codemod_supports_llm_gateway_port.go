@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -8,6 +9,8 @@ import (
 )
 
 var llmGatewayPortCodemodLog = logger.New("cli:codemod_llm_gateway_port")
+
+const defaultLLMGatewayPort = 8080
 
 // getSupportsLLMGatewayToLLMGatewayPortCodemod migrates supportsLLMGateway: true
 // to llmGatewayPort: 8080.
@@ -64,7 +67,7 @@ func replaceSupportsLLMGatewayTrue(lines []string) ([]string, bool) {
 			}
 
 			if valuePart == "true" {
-				newLine := getIndentation(line) + "llmGatewayPort: 8080"
+				newLine := fmt.Sprintf("%sllmGatewayPort: %d", getIndentation(line), defaultLLMGatewayPort)
 				if comment != "" {
 					newLine += " " + comment
 				}
