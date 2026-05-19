@@ -117,7 +117,7 @@ function resolveTarget(params) {
   let contextType;
 
   if (target === "*") {
-    // Use item_number, issue_number, or pull_request_number from item
+    // Use item_number, issue_number, or pull_request_number (aliases: pr_number, pr, pull_number) from item
     let numberField;
     const pullRequestNumberField = item.pull_request_number || item.pr_number || item.pr || item.pull_number;
     if (supportsPR) {
@@ -134,7 +134,7 @@ function resolveTarget(params) {
     if (numberField) {
       itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
       if (isNaN(itemNumber) || itemNumber <= 0) {
-        const fieldNames = supportsPR ? "item_number/issue_number/pull_request_number" : supportsIssue ? "item_number/issue_number" : "pull_request_number";
+        const fieldNames = supportsPR ? "item_number/issue_number/pull_request_number/pr_number/pr/pull_number" : supportsIssue ? "item_number/issue_number" : "pull_request_number/pr_number/pr/pull_number";
         return {
           success: false,
           error: `Invalid ${fieldNames} specified: ${numberField}`,
@@ -147,7 +147,7 @@ function resolveTarget(params) {
         contextType = "pull request";
       }
     } else {
-      const fieldNames = supportsPR ? "item_number/issue_number" : supportsIssue ? "item_number/issue_number" : "pull_request_number";
+      const fieldNames = supportsPR ? "item_number/issue_number/pull_request_number/pr_number/pr/pull_number" : supportsIssue ? "item_number/issue_number" : "pull_request_number/pr_number/pr/pull_number";
       return {
         success: false,
         error: `Target is "*" but no ${fieldNames} specified in ${itemType} item`,
