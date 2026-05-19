@@ -178,7 +178,7 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 		return
 	}
 
-	if c != nil && c.actionMode == ActionModeDev {
+	if c.actionMode == ActionModeDev {
 		yaml.WriteString("      - name: Build and install gh-aw CLI from source\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          gh extension remove gh-aw || true\n")
@@ -188,23 +188,7 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 	} else {
-		cliVersion := ""
-		if c != nil {
-			cliVersion = c.actionTag
-			if cliVersion == "" && workflowData != nil && workflowData.Features != nil {
-				if actionTagVal, exists := workflowData.Features["action-tag"]; exists {
-					if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
-						cliVersion = actionTagStr
-					}
-				}
-			}
-			if cliVersion == "" {
-				cliVersion = c.version
-			}
-		}
-		if cliVersion == "" || cliVersion == "dev" {
-			cliVersion = getDefaultGhAWRuntimeVersion()
-		}
+		cliVersion := resolveAgenticWorkflowsCLIVersion(c, workflowData)
 
 		actionRepo := GitHubOrgRepo + "/actions/setup-cli"
 		actionRef := fmt.Sprintf("%s@%s", actionRepo, cliVersion)
@@ -241,6 +225,38 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 	yaml.WriteString("            echo \"::error::Failed to find gh-aw binary for MCP server\"\n")
 	yaml.WriteString("            exit 1\n")
 	yaml.WriteString("          fi\n")
+}
+
+func resolveAgenticWorkflowsCLIVersion(c *Compiler, workflowData *WorkflowData) string {
+	cliVersion := c.actionTag
+	if cliVersion == "" {
+		cliVersion = getActionTagFromFeatures(workflowData)
+	}
+	if cliVersion == "" {
+		cliVersion = c.version
+	}
+	// "dev" and empty versions are not valid release pins; fall back to the
+	// current compiler runtime version so setup-cli always receives a concrete
+	// pinned release tag in non-dev modes.
+	if cliVersion == "" || cliVersion == "dev" {
+		cliVersion = getDefaultGhAWRuntimeVersion()
+	}
+	return cliVersion
+}
+
+func getActionTagFromFeatures(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.Features == nil {
+		return ""
+	}
+	actionTagVal, exists := workflowData.Features["action-tag"]
+	if !exists {
+		return ""
+	}
+	actionTagStr, ok := actionTagVal.(string)
+	if !ok || actionTagStr == "" {
+		return ""
+	}
+	return actionTagStr
 }
 
 func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConfig string, workflowData *WorkflowData) {
