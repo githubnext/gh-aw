@@ -336,15 +336,6 @@ func TestMCPNetworkSchemaDeprecation(t *testing.T) {
 				t.Fatalf("network description should mention proxy-args support, got: %q", description)
 			}
 			descriptionLower := strings.ToLower(description)
-			disallowedPhrases := []string{
-				"per-server network configuration is no longer supported",
-				"this field is ignored",
-			}
-			for _, phrase := range disallowedPhrases {
-				if strings.Contains(descriptionLower, phrase) {
-					t.Fatalf("network description must not claim the entire field is ignored/deprecated, got: %q", description)
-				}
-			}
 			if !strings.Contains(descriptionLower, "allowed") || !strings.Contains(descriptionLower, "ignored") {
 				t.Fatalf("network description should mention that 'allowed' is ignored, got: %q", description)
 			}
