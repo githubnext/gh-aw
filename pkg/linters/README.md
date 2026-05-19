@@ -7,6 +7,7 @@ The `linters` package namespace contains custom static analysis linters used by 
 This package currently provides custom Go analyzers in the following subpackages:
 
 - `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
+- `errormessage` — reports non-actionable error-message patterns in changed files.
 - `largefunc` — reports function bodies that exceed a configurable line-count threshold.
 - `osexitinlibrary` — reports `os.Exit` calls in library packages (`pkg/*`) where process termination should be delegated to `cmd/*` entry points.
 - `ssljson` — validates `ssl.json` skill artifacts found in `.github/skills/` against the SSL spec (enum membership, graph integrity, transition targets, entry pointer validity).
@@ -18,15 +19,23 @@ This package currently provides custom Go analyzers in the following subpackages
 | Subpackage | Description |
 |------------|-------------|
 | `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
+| `errormessage` | Custom `go/analysis` analyzer that flags non-actionable error message patterns in changed files |
 | `largefunc` | Custom `go/analysis` analyzer that flags large functions with actionable diagnostics |
 | `osexitinlibrary` | Custom `go/analysis` analyzer that flags `os.Exit` usage in library packages |
 | `ssljson` | Custom `go/analysis` analyzer that validates SSL JSON skill artifacts in `.github/skills/` |
+
+### Namespace exports
+
+| Symbol | Description |
+|---|---|
+| `ErrorMessageAnalyzer` | Compatibility alias to `pkg/linters/errormessage.Analyzer` |
 
 ## Usage Examples
 
 ```go
 import (
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
+	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
@@ -34,6 +43,7 @@ import (
 
 // Use with multichecker, singlechecker, or custom go/analysis driver.
 _ = excessivefuncparams.Analyzer
+_ = errormessage.Analyzer
 _ = largefunc.Analyzer
 _ = osexitinlibrary.Analyzer
 _ = ssljson.Analyzer
@@ -42,7 +52,7 @@ _ = ssljson.Analyzer
 ## Dependencies
 
 **Internal**:
-- None at the `pkg/linters` namespace level. `pkg/linters/{excessivefuncparams,largefunc,osexitinlibrary,ssljson}` are documented above as subpackage APIs, not internal dependencies.
+- `pkg/linters/errormessage` (via namespace compatibility export `ErrorMessageAnalyzer`).
 
 **External**:
 - `golang.org/x/tools/go/analysis` — analyzer framework

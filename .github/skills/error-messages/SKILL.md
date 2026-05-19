@@ -19,6 +19,58 @@ Make each error message answer three questions:
 2. **What's expected?** - Explain the valid format or values
 3. **How to fix it?** - Provide a concrete example of correct usage
 
+## Constructive Language
+
+Avoid standalone negative wording. Pair it with expected behavior and a concrete fix.
+
+| Avoid only-negative wording | Prefer constructive wording |
+|---|---|
+| `invalid` | `expected` + valid format/options |
+| `cannot` | `requires` + precondition |
+| `must` | `should` + example |
+| `failed` | action context + recovery step |
+
+❌ `invalid repo format: %s`  
+✅ `invalid repo format '%s' — expected 'owner/repo' format (for example: 'github/gh-aw')`
+
+❌ `not in a git repository`  
+✅ `not in a git repository — run 'git init' or 'cd' to a git repository`
+
+## When to use `NewValidationError` vs `fmt.Errorf`
+
+- Use `NewValidationError(field, value, reason, suggestion)` in `*_validation.go` logic.
+  - Use `field` for the exact config path
+  - Use `reason` for what failed
+  - Use `suggestion` for an actionable fix with an example
+- Use `fmt.Errorf` for operational/wrapping errors (`%w`) where you are propagating a lower-level failure with context.
+- Avoid generic wrappers like `fmt.Errorf("failed to X: %w", err)` unless you add recovery guidance.
+
+## Suggestion Text Checklist
+
+Every `suggestion` should:
+
+1. Explain what to change
+2. Include a minimal valid YAML/code example
+3. Use ✓/✗ markers when ambiguity is likely
+
+Example:
+
+```text
+Use one supported engine.
+✓ Example:
+engine: copilot
+
+✗ Avoid:
+engine: unknown
+```
+
+## YAML Example Guidelines
+
+- Keep examples minimal and valid YAML
+- Use real frontmatter field names
+- Quote only when YAML requires it
+- Prefer 2-space indentation
+
 ## Good Examples
 
 These examples follow the template and provide actionable guidance:
