@@ -4,7 +4,7 @@ description: Guidelines for creating agentic workflows that generate reports —
 
 # Report Generation
 
-Consult this file when creating an agentic workflow that generates reports — recurring status updates, audits, analysis summaries, or any structured output posted as a GitHub issue, discussion, or comment.
+For agentic workflows that generate reports — status updates, audits, summaries, or any structured output posted as a GitHub issue, discussion, or comment.
 
 ## Choosing the Right Output Type
 
@@ -14,18 +14,18 @@ Consult this file when creating an agentic workflow that generates reports — r
 | Inline update on an existing issue or PR | `add-comment` with `hide-older-comments` |
 | Discussion-based report (only when explicitly requested) | `create-discussion` with `close-older-discussions` |
 
-Use `create-issue` by default for reports — issues are familiar, searchable, and support the full close/expire cleanup mechanism. Only use `create-discussion` when the user explicitly asks for it.
+Default to `create-issue` — issues are searchable and support full close/expire cleanup. Only use `create-discussion` when explicitly requested.
 
 ## Automatic Cleanup
 
-Reports accumulate over time. Always configure automatic cleanup when the workflow runs on a schedule or recurs.
+Always configure cleanup for scheduled or recurring reports.
 
-- **`expires`**: Auto-closes the issue or discussion after a time period (e.g. `7` days, `2w`, `1m`). Use when reports become stale after a fixed window.
-- **`close-older-issues: true`**: Closes previous issues from the same workflow before creating a new one. Requires `title-prefix` or `labels` to identify matching issues.
-- **`close-older-discussions: true`**: Closes older discussions with the same title prefix or labels as "OUTDATED". Requires `title-prefix` or `labels`.
-- **`hide-older-comments: true`**: Minimizes previous comments from the same workflow before posting a new one. Useful for rolling status updates on the same issue or PR.
+- **`expires`**: Auto-closes after a time period (e.g. `7`, `2w`, `1m`). Use when reports go stale after a fixed window.
+- **`close-older-issues: true`**: Closes previous issues from the same workflow. Requires `title-prefix` or `labels`.
+- **`close-older-discussions: true`**: Closes older matching discussions as "OUTDATED". Requires `title-prefix` or `labels`.
+- **`hide-older-comments: true`**: Minimizes previous comments from the same workflow. Useful for rolling status updates.
 
-**Default recommendation for recurring reports:** use `create-issue` with `close-older-issues: true` and a stable `title-prefix` so only the latest report is active.
+**Recommended for recurring reports**: `create-issue` with `close-older-issues: true` and a stable `title-prefix`.
 
 ```yaml
 safe-outputs:
@@ -97,13 +97,11 @@ Keep critical information visible (summary, critical issues, key metrics).
 
 ## Avoiding Mentions and Backlinks
 
-Reports often reference issues, PRs, or users. Without filtering, `@username` sends a notification and `#123` creates a cross-reference backlink on that issue or PR — adding noise every time the report runs.
+Without filtering, `@username` notifies users and `#123` creates cross-reference backlinks on that issue/PR — noise every run.
 
-Use the built-in safe-outputs filtering options to suppress this automatically:
-
-- **`mentions: false`** — escapes all `@mentions` in AI-generated output so no notifications are sent.
-- **`allowed-github-references: []`** — escapes all `#123` / `owner/repo#123` references so no backlinks are created on referenced items.
-- **`max-bot-mentions: 0`** — neutralizes bot-trigger phrases such as `fixes #123` or `closes #456` that would otherwise close referenced issues.
+- **`mentions: false`** — escapes all `@mentions`, no notifications sent.
+- **`allowed-github-references: []`** — escapes all `#123` / `owner/repo#123` references, no backlinks.
+- **`max-bot-mentions: 0`** — neutralizes bot-trigger phrases like `fixes #123` / `closes #456`.
 
 ```yaml
 safe-outputs:
@@ -117,4 +115,4 @@ safe-outputs:
     expires: 30
 ```
 
-These options apply globally to all safe-output types (issues, comments, discussions) and are the recommended way to keep reports from polluting unrelated items.
+Applies globally to all safe-output types (issues, comments, discussions).

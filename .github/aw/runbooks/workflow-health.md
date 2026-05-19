@@ -4,47 +4,23 @@
 
 ### Missing Tool Configurations
 
-**Symptoms**:
-- Error messages containing "missing-tool" or "tool not found"
-- Workflow fails when attempting to access GitHub APIs
-- Agent cannot perform GitHub operations (read issues, create PRs, etc.)
-
-**Common Causes**:
-- GitHub MCP server not configured in workflow frontmatter
-- Missing toolsets specification
-- Incorrect toolset names
+Errors like "missing-tool" or "tool not found"; agent cannot perform GitHub operations. Cause: GitHub MCP server not configured in frontmatter, missing/incorrect `toolsets:`.
 
 ### Authentication and Permission Errors
 
-**Symptoms**:
-- HTTP 403 (Forbidden) errors
-- "Resource not accessible" errors
-- Token scope errors
-
-**Common Causes**:
-- Missing `permissions:` block in workflow frontmatter
-- Insufficient token permissions for requested operations
-- GITHUB_TOKEN not passed to custom actions
+HTTP 403, "Resource not accessible", or token scope errors. Cause: missing or insufficient `permissions:` block; GITHUB_TOKEN not passed to custom actions.
 
 ### Input/Secret Validation Failures
 
-**Symptoms**:
-- MCP Scripts action fails
-- Environment variable not available
-- Template expression evaluation errors
-
-**Common Causes**:
-- MCP Scripts action not configured
-- Missing required secrets
-- Incorrect secret references
+MCP Scripts action fails; env var unavailable; template expression errors. Cause: MCP Scripts not configured, missing required secrets, or incorrect secret references.
 
 ## Investigation Steps
 
 ### Step 1: Analyze Workflow Logs
 
-Use the `gh aw logs` command to download and analyze workflow logs:
+Download and analyze with `gh aw logs`:
 
-> **Note**: The commands below are meant to be run from a local machine or a Copilot coding agent session. If you include `gh aw logs` or `gh aw audit` as steps inside a generated workflow, you must add `actions: read` to `permissions:` and install the extension with the `setup-cli` action before calling these commands — see [Logs and Metrics](../github-agentic-workflows.md#logs-and-metrics) for details.
+> **Note**: Run these commands locally or from a Copilot coding agent session. If you include `gh aw logs` / `gh aw audit` as workflow steps, add `actions: read` to `permissions:` and install the extension with the `setup-cli` action first — see [Logs and Metrics](../github-agentic-workflows.md#logs-and-metrics).
 
 ```bash
 # Download logs from last 24 hours
@@ -57,30 +33,20 @@ gh aw logs --run-id <run-id> -o /tmp/workflow-logs
 gh aw logs --workflow <workflow-name> --start-date -7d
 ```
 
-**What to look for**:
-- Error messages in the "Run AI Agent" step
-- Missing-tool errors
-- HTTP error codes (401, 403, 404, 500)
-- Stack traces or exception details
+Look in the "Run AI Agent" step for missing-tool errors, HTTP codes (401/403/404/500), and stack traces.
 
 ### Step 2: Identify Missing-Tool Errors
 
-Missing-tool errors typically appear in this format:
+Missing-tool errors look like:
 
 ```
 Error: Tool 'github:read_issue' not found
 Error: missing tool configuration for mcpscripts-gh
 ```
 
-To identify which tools are missing:
-
-1. Check the workflow `.md` file for the `tools:` section
-2. Compare with similar working workflows
-3. Verify the tool is properly configured in frontmatter
+Check the workflow's `tools:` section, compare with similar working workflows, and verify the tool is configured in frontmatter.
 
 ### Step 3: Verify MCP Server Configurations
-
-Check if the workflow has proper MCP server configuration:
 
 ```aw
 ---
@@ -90,74 +56,34 @@ tools:
 ---
 ```
 
-Use `gh aw mcp inspect <workflow-name>` to verify MCP server configuration:
+Verify with:
 
 ```bash
-# Inspect MCP servers for a workflow
-gh aw mcp inspect <workflow-name>
-
-# List all workflows with MCP servers
-gh aw mcp list
+gh aw mcp inspect <workflow-name>   # Inspect MCP servers for a workflow
+gh aw mcp list                       # List all workflows with MCP servers
 ```
 
 ### Step 4: Check Permissions Configuration
 
-Verify the workflow has required permissions:
-
 ```aw
 ---
 permissions:
-  contents: read      # For reading repository files
-  issues: write       # For creating/updating issues
-  pull-requests: write # For creating/updating PRs
-  actions: read       # For accessing workflow runs
+  contents: read       # repository files
+  issues: write        # create/update issues
+  pull-requests: write # create/update PRs
+  actions: read        # access workflow runs
 ---
 ```
 
-Common permission requirements:
-- **Reading issues**: `issues: read`
-- **Creating issues**: `issues: write`
-- **Reading PRs**: `pull-requests: read`
-- **Creating PRs**: `pull-requests: write`
-- **Reading workflow runs**: `actions: read`
+Match the permission scope to the operation: read for queries, write for create/update.
 
 ## Resolution Procedures
 
 ### Adding GitHub MCP Server to Workflows
 
-**Problem**: Workflow fails with missing GitHub tool errors.
+Add `tools.github.toolsets` to the workflow frontmatter, then `gh aw compile <workflow-name>.md` and `gh aw mcp inspect <workflow-name>` to verify.
 
-**Solution**: Add GitHub MCP server configuration to the workflow frontmatter.
-
-1. Open the workflow `.md` file
-2. Add or update the `tools:` section:
-
-```aw
----
-tools:
-  github:
-    toolsets: [default]
----
-```
-
-3. Compile the workflow:
-
-```bash
-gh aw compile <workflow-name>.md
-```
-
-4. Verify the configuration:
-
-```bash
-gh aw mcp inspect <workflow-name>
-```
-
-**Available toolsets**:
-- `default`: repositories, issues, pull requests, and common operations
-- `repos`: repository management tools
-- `issues`: issue operations
-- `pull_requests`: PR operations
-- `actions`: GitHub Actions workflow tools
+**Available toolsets**: `default` (repos + issues + pull_requests + common), `repos`, `issues`, `pull_requests`, `actions`.
 
 **Example**: Dev workflow with GitHub MCP server
 
@@ -183,13 +109,7 @@ Analyze repository issues and provide insights.
 
 ### Configuring MCP Scripts and Safe-Outputs
 
-**Problem**: Workflow fails with missing mcpscripts-gh or safe-output errors.
-
-**Solution**: Configure mcp-scripts and safe-outputs in the workflow.
-
-#### Adding MCP Scripts
-
-MCP Scripts securely pass GitHub context to AI agents:
+MCP Scripts pass GitHub context to the agent as env vars:
 
 ```aw
 ---
@@ -201,11 +121,7 @@ mcp-scripts:
 ---
 ```
 
-The mcp-scripts are automatically made available to the agent as environment variables.
-
-#### Adding Safe-Outputs
-
-Safe-outputs enable AI agents to create GitHub resources:
+Safe-outputs let the agent create GitHub resources:
 
 ```aw
 ---
@@ -219,118 +135,27 @@ safe-outputs:
 ---
 ```
 
-**Example**: Complete workflow with mcp-scripts and safe-outputs
-
-```aw
----
-description: Issue triage workflow
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  issues: write
-engine: copilot
-tools:
-  github:
-    toolsets: [default]
-mcp-scripts:
-  issue:
-    title: ${{ github.event.issue.title }}
-    body: ${{ github.event.issue.body }}
-    number: ${{ github.event.issue.number }}
-safe-outputs:
-  create-issue:
-    labels: ["ai-generated", "triage"]
----
-
-# Issue Triage Agent
-
-Analyze the issue and determine appropriate labels and priority.
-```
-
 ### Testing Workflow Fixes
 
-After making changes, test the workflow:
-
-1. **Compile the workflow**:
-
 ```bash
-gh aw compile <workflow-name>.md
+gh aw compile <workflow-name>.md                              # compile
+gh workflow run <workflow-name>.lock.yml                      # trigger (if workflow_dispatch)
+gh run list --workflow=<workflow-name>.lock.yml --limit 1     # get run ID
+gh run watch <run-id>                                         # monitor
+gh aw logs --run-id <run-id>                                  # logs on failure
 ```
 
-2. **Trigger manually** (if `workflow_dispatch` is enabled):
-
-```bash
-gh workflow run <workflow-name>.lock.yml
-```
-
-3. **Monitor the run**:
-
-```bash
-# Get the run ID
-gh run list --workflow=<workflow-name>.lock.yml --limit 1
-
-# Watch the run
-gh run watch <run-id>
-
-# Download logs if it fails
-gh aw logs --run-id <run-id>
-```
-
-4. **Verify success**:
-   - Check that no missing-tool errors occur
-   - Verify the agent completes successfully
-   - Confirm any created resources (issues, PRs, discussions)
+Verify: no missing-tool errors, agent completes, expected resources created.
 
 ## Case Study: DeepReport Incident Response
 
-Three failing workflows were fixed:
+Three failures fixed:
 
-**Weekly Issue Summary** — missing `actions: read` permission. Added and recompiled.
+- **Weekly Issue Summary** — missing `actions: read` permission.
+- **Dev Workflow** — "Tool 'github:read_issue' not found": added `tools.github.toolsets: [default]`.
+- **Daily Copilot PR Merged** — "missing tool configuration for mcpscripts-gh": added `mcp-scripts.pull_request` with `number`/`title` from `github.event.pull_request`.
 
-**Dev Workflow** — "Tool 'github:read_issue' not found" (GitHub MCP server not configured):
-
-```aw
-tools:
-  github:
-    toolsets: [default]
-```
-
-**Daily Copilot PR Merged** — "missing tool configuration for mcpscripts-gh":
-
-```aw
-mcp-scripts:
-  pull_request:
-    number: ${{ github.event.pull_request.number }}
-    title: ${{ github.event.pull_request.title }}
-```
-
-## Quick Reference
-
-### Essential Commands
-
-```bash
-# Download recent workflow logs
-gh aw logs --start-date -1d -o /tmp/logs
-
-# Inspect MCP configuration
-gh aw mcp inspect <workflow-name>
-
-# List all workflows with MCP servers
-gh aw mcp list
-
-# Compile workflow after changes
-gh aw compile <workflow-name>.md
-
-# Trigger workflow manually
-gh workflow run <workflow-name>.lock.yml
-
-# Watch workflow execution
-gh run watch <run-id>
-```
-
-### Common Configuration Patterns
+## Common Configuration Patterns
 
 **Basic GitHub integration**:
 ```aw
