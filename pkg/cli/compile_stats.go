@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
 
@@ -136,13 +137,21 @@ func trackWorkflowFailure(stats *CompilationStats, workflowPath string, errorCou
 }
 
 // printCompilationSummary prints a summary of the compilation results
-func printCompilationSummary(stats *CompilationStats) {
+func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 	if stats.Total == 0 {
 		return
 	}
 
 	summary := fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
 		stats.Total, stats.Errors, stats.Warnings)
+	failedWorkflowCount := len(stats.FailureDetails)
+	if failedWorkflowCount == 0 {
+		failedWorkflowCount = len(stats.FailedWorkflows)
+	}
+	if stats.Errors > 0 && failedWorkflowCount > 0 {
+		summary = fmt.Sprintf("Compiled %d workflow(s): %d error(s) across %d failed workflow(s), %d warning(s)",
+			stats.Total, stats.Errors, failedWorkflowCount, stats.Warnings)
+	}
 
 	// Use different formatting based on whether there were errors
 	if stats.Errors > 0 {
@@ -159,8 +168,43 @@ func printCompilationSummary(stats *CompilationStats) {
 
 			// Display the actual error messages for each failed workflow
 			for _, failure := range stats.FailureDetails {
-				for _, errMsg := range failure.ErrorMessages {
-					fmt.Fprintln(os.Stderr, errMsg)
+				report := workflow.BuildPrioritizedErrorReportFromMessages(failure.ErrorMessages, showAllErrors)
+				if report.TotalCount == 0 {
+					continue
+				}
+
+				fmt.Fprintf(os.Stderr, "%s (%d error(s)", filepath.Base(failure.Path), report.TotalCount)
+				if !showAllErrors && report.HiddenCount > 0 {
+					fmt.Fprintf(os.Stderr, ", showing top %d", len(report.DisplayedErrors))
+				}
+				fmt.Fprintln(os.Stderr, "):")
+
+				lastHeading := ""
+				for i, prioritized := range report.DisplayedErrors {
+					heading := prioritized.Severity.Heading()
+					if heading != lastHeading {
+						fmt.Fprintf(os.Stderr, "  %s %s:\n", prioritized.Severity.Icon(), heading)
+						lastHeading = heading
+					}
+					fmt.Fprintf(os.Stderr, "    %d. %s\n", i+1, prioritized.Message)
+					if prioritized.Suggestion != "" {
+						fmt.Fprintf(os.Stderr, "       → %s\n", prioritized.Suggestion)
+					}
+				}
+
+				if report.RecoveryPlan != nil && len(report.RecoveryPlan.Steps) > 0 {
+					fmt.Fprintln(os.Stderr, "  💡 Recovery plan:")
+					for i, step := range report.RecoveryPlan.Steps {
+						fmt.Fprintf(os.Stderr, "     %d. %s\n", i+1, step)
+					}
+				}
+
+				if report.SuppressedCount > 0 {
+					fmt.Fprintf(os.Stderr, "  ℹ Suppressed %d cascading error(s) until the root cause is fixed.\n", report.SuppressedCount)
+				}
+
+				if !showAllErrors && report.HiddenCount > 0 {
+					fmt.Fprintf(os.Stderr, "  Run 'gh aw compile --show-all' to see all %d prioritized error(s).\n", report.TotalCount)
 				}
 			}
 		} else if len(stats.FailedWorkflows) > 0 {

@@ -3,8 +3,10 @@
 package workflow
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/parser"
@@ -718,4 +720,108 @@ engine: copilot
 	} else {
 		assert.NotNil(t, result)
 	}
+}
+
+// captureStderr redirects os.Stderr to a pipe and returns the captured output
+// after calling fn.  The original os.Stderr is always restored.
+func captureStderr(fn func()) string {
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = oldStderr
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	return buf.String()
+}
+
+// TestWarnDeprecatedFrontmatterFields_ToolsGrep verifies that using tools.grep
+// emits the schema-driven deprecation warning.
+func TestWarnDeprecatedFrontmatterFields_ToolsGrep(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"grep": true,
+		},
+	}
+	stderr := captureStderr(func() {
+		compiler.warnDeprecatedFrontmatterFields(frontmatter)
+	})
+
+	assert.Contains(t, stderr, "grep", "warning should mention grep")
+	assert.Equal(t, 1, compiler.warningCount, "warning count should be incremented")
+}
+
+// TestWarnDeprecatedFrontmatterFields_NoDeprecatedFields verifies that no
+// warning is emitted when no deprecated fields are present.
+func TestWarnDeprecatedFrontmatterFields_NoDeprecatedFields(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"engine": "copilot",
+		"tools":  map[string]any{"bash": true},
+	}
+	stderr := captureStderr(func() {
+		compiler.warnDeprecatedFrontmatterFields(frontmatter)
+	})
+
+	assert.Empty(t, strings.TrimSpace(stderr), "no warning should be emitted for non-deprecated fields")
+	assert.Equal(t, 0, compiler.warningCount)
+}
+
+// TestWarnDeprecatedFrontmatterFields_MessagePriority verifies that
+// x-deprecation-message is preferred over description when both are present,
+// and that description is used as a fallback when x-deprecation-message is empty.
+func TestWarnDeprecatedFrontmatterFields_MessagePriority(t *testing.T) {
+	compiler := NewCompiler()
+
+	// tools.grep has both description and x-deprecation-message in the schema.
+	// The x-deprecation-message should be the one emitted.
+	frontmatter := map[string]any{
+		"tools": map[string]any{"grep": true},
+	}
+	stderr := captureStderr(func() {
+		compiler.warnDeprecatedFrontmatterFields(frontmatter)
+	})
+
+	// x-deprecation-message for tools.grep starts with "grep is always available"
+	assert.Contains(t, stderr, "grep is always available", "x-deprecation-message should be preferred")
+}
+
+// TestWarnDeprecatedFrontmatterFields_ToolsGitHubRepos verifies that using the
+// deprecated tools.github.repos field emits a schema-driven warning.
+func TestWarnDeprecatedFrontmatterFields_ToolsGitHubRepos(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"github": map[string]any{
+				"repos": []any{"owner/repo"},
+			},
+		},
+	}
+	stderr := captureStderr(func() {
+		compiler.warnDeprecatedFrontmatterFields(frontmatter)
+	})
+
+	assert.Contains(t, stderr, "allowed-repos", "warning should mention the replacement field")
+	assert.Equal(t, 1, compiler.warningCount)
+}
+
+// TestWarnDeprecatedFrontmatterFields_MultipleFields verifies that multiple
+// deprecated fields each emit a warning and increment the count correctly.
+func TestWarnDeprecatedFrontmatterFields_MultipleFields(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"grep":   true,
+			"serena": true,
+		},
+	}
+	stderr := captureStderr(func() {
+		compiler.warnDeprecatedFrontmatterFields(frontmatter)
+	})
+
+	assert.Contains(t, stderr, "grep", "warning should mention grep")
+	assert.Contains(t, stderr, "serena", "warning should mention serena")
+	assert.Equal(t, 2, compiler.warningCount, "one warning per deprecated field")
 }

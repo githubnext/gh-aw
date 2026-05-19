@@ -34,6 +34,8 @@ type WorkflowValidationError struct {
 	Value      string
 	Reason     string
 	Suggestion string
+	Severity   ErrorSeverity
+	Category   string
 	Timestamp  time.Time
 }
 
@@ -67,11 +69,14 @@ func NewValidationError(field, value, reason, suggestion string) *WorkflowValida
 	if errorHelpersLog.Enabled() {
 		errorHelpersLog.Printf("Creating validation error: field=%s, reason=%s", field, reason)
 	}
+	severity, category := classifyValidationSeverity(field, reason)
 	return &WorkflowValidationError{
 		Field:      field,
 		Value:      value,
 		Reason:     reason,
 		Suggestion: suggestion,
+		Severity:   severity,
+		Category:   category,
 		Timestamp:  time.Now(),
 	}
 }

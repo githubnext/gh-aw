@@ -69,6 +69,9 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		c.IncrementWarningCount()
 	}
 
+	// Emit schema-driven deprecation warnings for any deprecated frontmatter fields.
+	c.warnDeprecatedFrontmatterFields(result.Frontmatter)
+
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
 
@@ -428,4 +431,29 @@ func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
 
 	orchestratorToolsLog.Printf("No content context detected in trigger events")
 	return false
+}
+
+// warnDeprecatedFrontmatterFields emits a console warning for every deprecated
+// field found in the frontmatter by walking the JSON schema hierarchy.
+// The schema's x-deprecation-message (falling back to description) is used as
+// the warning text so deprecations self-document without per-field plumbing.
+func (c *Compiler) warnDeprecatedFrontmatterFields(frontmatter map[string]any) {
+	deprecatedFields, err := parser.GetMainWorkflowDeprecatedFieldsDeep()
+	if err != nil {
+		orchestratorToolsLog.Printf("Failed to load deprecated fields from schema: %v", err)
+		return
+	}
+
+	found := parser.FindDeprecatedFieldsInFrontmatterDeep(frontmatter, deprecatedFields)
+	for _, f := range found {
+		msg := f.DeprecationMessage
+		if msg == "" {
+			msg = f.Description
+		}
+		if msg == "" {
+			msg = fmt.Sprintf("'%s' is deprecated", f.Path)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+		c.IncrementWarningCount()
+	}
 }

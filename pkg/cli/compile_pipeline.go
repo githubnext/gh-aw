@@ -38,6 +38,8 @@ import (
 
 var compileOrchestrationLog = logger.New("cli:compile_pipeline")
 
+const fallbackCompilationErrorMessage = "compilation failed (no detailed error message available)"
+
 // compileSpecificFiles compiles a specific list of workflow files
 func compileSpecificFiles(
 	ctx context.Context,
@@ -109,14 +111,17 @@ func compileSpecificFiles(
 		)
 
 		if !fileResult.success {
-			errorCount++
-			stats.Errors++
 			// Collect error messages from validation result for display in summary
 			var errMsgs []string
 			for _, verr := range fileResult.validationResult.Errors {
 				errMsgs = append(errMsgs, verr.Message)
 			}
-			trackWorkflowFailure(stats, resolvedFile, 1, errMsgs)
+			if len(errMsgs) == 0 {
+				errMsgs = []string{fallbackCompilationErrorMessage}
+			}
+			errorCount++
+			stats.Errors += len(errMsgs)
+			trackWorkflowFailure(stats, resolvedFile, len(errMsgs), errMsgs)
 		} else {
 			compiledCount++
 			if fileResult.workflowData != nil {
@@ -294,14 +299,17 @@ func compileAllFilesInDirectory(
 		)
 
 		if !fileResult.success {
-			errorCount++
-			stats.Errors++
 			// Collect error messages from validation result
 			var errMsgs []string
 			for _, verr := range fileResult.validationResult.Errors {
 				errMsgs = append(errMsgs, verr.Message)
 			}
-			trackWorkflowFailure(stats, file, 1, errMsgs)
+			if len(errMsgs) == 0 {
+				errMsgs = []string{fallbackCompilationErrorMessage}
+			}
+			errorCount++
+			stats.Errors += len(errMsgs)
+			trackWorkflowFailure(stats, file, len(errMsgs), errMsgs)
 		} else {
 			successCount++
 			if fileResult.workflowData != nil {
@@ -588,7 +596,7 @@ func outputResults(
 		fmt.Println(jsonStr)
 	} else if !config.Stats {
 		// Print summary for text output (skip if stats mode)
-		printCompilationSummary(stats)
+		printCompilationSummary(stats, config.ShowAllErrors)
 	}
 
 	// Display actionlint summary if enabled

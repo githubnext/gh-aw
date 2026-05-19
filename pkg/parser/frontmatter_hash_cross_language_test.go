@@ -200,6 +200,59 @@ Use github context: ${{ github.repository_owner }}
 	assert.Equal(t, hash, hash3, "Non-env/vars github expressions should not affect hash")
 }
 
+// TestFrontmatterHashVectorFH_TV_004 validates the agent-import hash vector in the specification.
+func TestFrontmatterHashVectorFH_TV_004(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowFile := filepath.Join(tempDir, "workflow.md")
+	agentsDir := filepath.Join(tempDir, "agents")
+	require.NoError(t, os.MkdirAll(agentsDir, 0o755), "Should create agents directory")
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(`---
+engine: copilot
+imports:
+  - ./agents/router.agent.md
+  - ./agents/summarizer.agent.md
+---
+
+# Import-based Workflow
+`), 0o644), "Should write workflow file")
+
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "router.agent.md"), []byte(`---
+description: Router agent
+imports:
+  - ./shared.agent.md
+---
+
+# Router
+`), 0o644), "Should write router agent file")
+
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "summarizer.agent.md"), []byte(`---
+description: Summarizer agent
+imports:
+  - ./shared.agent.md
+---
+
+# Summarizer
+`), 0o644), "Should write summarizer agent file")
+
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "shared.agent.md"), []byte(`---
+description: Shared helper
+model: gpt-5
+---
+
+# Shared
+`), 0o644), "Should write shared agent file")
+
+	cache := NewImportCache(tempDir)
+	hash, err := ComputeFrontmatterHashFromFile(workflowFile, cache)
+	require.NoError(t, err, "Should compute hash for import graph")
+	assert.Equal(t,
+		"701dc12776a417c6ce4c82b16d1fcc9de343130efb554fda27a701386b17d134",
+		hash,
+		"FH-TV-004 hash should match specification vector")
+}
+
 // findRepoRoot finds the repository root directory
 func findRepoRoot(t *testing.T) string {
 	// Start from current directory and walk up to find .git
