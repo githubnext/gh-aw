@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 const importURLMaxBytes = 500 * 1024      // 500 KB
@@ -46,9 +48,9 @@ type FetchedResource struct {
 //
 // Authentication is attached only when BOTH of the following hold:
 //   - the request scheme is "https"
-//   - the request host is an exact match for "github.com",
-//     "api.githubcopilot.com", or the hostname extracted from the GH_HOST
-//     environment variable
+//   - the request host matches one of the default GitHub ecosystem domain
+//     patterns (plus api.githubcopilot.com), or is an exact match for the
+//     hostname extracted from the GH_HOST environment variable
 //
 // In that case the value of GH_TOKEN (falling back to GITHUB_TOKEN) is sent as
 // "Authorization: Bearer <token>".  For all other hosts, or for any HTTP (non-TLS)
@@ -168,9 +170,9 @@ func canonicalContentType(raw string) string {
 // attachImportAuthHeader adds "Authorization: Bearer <token>" to req if and only if
 // ALL of the following are true:
 //   - the request scheme is "https" (tokens are never sent over plaintext HTTP)
-//   - the request host is an exact match for one of the allowed GitHub hosts:
-//     "github.com", "api.githubcopilot.com", or the hostname extracted from
-//     the GH_HOST environment variable
+//   - the request host matches one of the default GitHub ecosystem domain
+//     patterns (plus api.githubcopilot.com), or is an exact match for the
+//     hostname extracted from the GH_HOST environment variable
 //
 // The token is read from GH_TOKEN, falling back to GITHUB_TOKEN.  Nothing is
 // added when no matching host is found, no token is set, or the request is
@@ -189,7 +191,7 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	host := strings.ToLower(parsed.Hostname())
 
 	// Authoritative GitHub hosts to which the token may be sent.
-	allowedHosts := []string{"github.com", "api.githubcopilot.com"}
+	allowedHosts := getDefaultImportAuthHostPatterns()
 	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
 		// GH_HOST may carry a scheme prefix; extract just the hostname.
 		if u, parseErr := url.Parse(ghHost); parseErr == nil && u.Host != "" {
@@ -210,7 +212,7 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 		}
 	}
 
-	if !slices.Contains(allowedHosts, host) {
+	if !matchesImportAuthHost(host, allowedHosts) {
 		return
 	}
 
@@ -223,6 +225,31 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
+}
+
+func getDefaultImportAuthHostPatterns() []string {
+	patterns := workflow.GetAllowedDomains(&workflow.NetworkPermissions{
+		Allowed: []string{"github"},
+	})
+	if !slices.Contains(patterns, constants.GitHubCopilotMCPDomain) {
+		patterns = append(patterns, constants.GitHubCopilotMCPDomain)
+	}
+	return patterns
+}
+
+func matchesImportAuthHost(host string, patterns []string) bool {
+	for _, pattern := range patterns {
+		if pattern == host {
+			return true
+		}
+		if strings.HasPrefix(pattern, "*.") {
+			suffix := pattern[2:]
+			if strings.HasSuffix(host, "."+suffix) || host == suffix {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // sanitizeHTTPError strips the request URL from a *url.Error (the error type
