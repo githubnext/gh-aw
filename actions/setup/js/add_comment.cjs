@@ -684,7 +684,7 @@ async function main(config = {}) {
 
     // add_comment uses snake_case fields. camelCase and kebab-case aliases are
     // accepted for compatibility with forwarded/legacy payload variants.
-    const explicitCommentIdRaw = message.comment_id ?? message.commentId;
+    const explicitCommentIdRaw = message.comment_id ?? message.commentId ?? message["comment-id"];
     const rawTarget = message.target;
     const allowedTargets = ["status"];
     if (rawTarget !== undefined && !allowedTargets.includes(rawTarget)) {

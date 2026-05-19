@@ -503,6 +503,22 @@ func TestParseOnSection_PullRequestReviewerOwnsCommandAndEvents(t *testing.T) {
 	assert.True(t, workflowData.CommandCentralized)
 }
 
+func TestParseOnSection_PullRequestReviewerDoesNotInjectLifecycleTriggers(t *testing.T) {
+	c := &Compiler{}
+	onMap := map[string]any{
+		"pull_request_reviewer": nil,
+	}
+	frontmatter := map[string]any{
+		"on": onMap,
+	}
+	workflowData := &WorkflowData{WorkflowID: "reviewer-workflow-id"}
+
+	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
+	require.NoError(t, err)
+	assert.NotContains(t, onMap, "pull_request")
+	assert.NotContains(t, onMap, "pull_request_review")
+}
+
 func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {
 	c := &Compiler{}
 	names, events, centralized := c.extractCommandConfig(map[string]any{

@@ -211,13 +211,6 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				if _, hasConcurrency := frontmatter["concurrency"]; !hasConcurrency && workflowData.Concurrency == "" {
 					workflowData.Concurrency = "concurrency:\n  group: \"gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}-all-reviewers\"\n  queue: max"
 				}
-				// Ensure reviewer lifecycle events are always subscribed.
-				if _, exists := onMap["pull_request"]; !exists {
-					onMap["pull_request"] = map[string]any{"types": []any{"ready_for_review", "review_requested"}}
-				}
-				if _, exists := onMap["pull_request_review"]; !exists {
-					onMap["pull_request_review"] = map[string]any{"types": []any{"submitted"}}
-				}
 				workflowData.On = ""
 			}
 
