@@ -24,7 +24,7 @@ This package contains helpers for:
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
 | `FindGitRoot` | `func() (string, error)` | Returns the absolute path of the root directory of the current Git repository using pure Go filesystem traversal (no `git` subprocess); starts from the current working directory |
 | `FindGitRootFrom` | `func(startDir string) (string, error)` | Like `FindGitRoot` but starts from `startDir`; traverses upward looking for a `.git` directory or worktree marker file |
-| `ReadFileFromHEADWithRoot` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without touching the working tree; rejects paths that escape the repository |
+| `ReadFileFromHEAD` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without touching the working tree; rejects paths that escape the repository |
 
 ## Usage Examples
 
@@ -54,7 +54,7 @@ if err != nil {
 }
 
 // Read a file from the HEAD commit
-content, err := gitutil.ReadFileFromHEADWithRoot("go.mod", root)
+content, err := gitutil.ReadFileFromHEAD("go.mod", root)
 ```
 
 ## Dependencies
