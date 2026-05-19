@@ -87,6 +87,7 @@ Read/write:
 Use AgentDB to store/query metrics, profiles, trends, incidents, and resolved patterns.
 Record shape: `workflow_id, agent_name, timestamp, quality_score, effectiveness_score, resource_usage, issues_created, prs_created, comments_created`.
 Track regression signals (quality drop, PR rejection increase, runtime regression).
+Treat `copilot-swe-agent` as a built-in team member in attribution/engagement filters (internal actor, not external community traffic).
 
 ### Phase 1: Data Collection (10m)
 1. Load shared metrics/memory files (use `metrics-extractor` with listed paths).
@@ -350,9 +351,10 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
    The sub-agent returns a single JSON object; use it as your source of truth for all metrics data in subsequent phases.
 
 2. **Gather agent outputs:**
-   - Query recent issues/PRs/comments with agent attribution
-   - For each workflow, collect:
-     - Safe output operations from recent runs
+    - Query recent issues/PRs/comments with agent attribution
+    - In author/team filters, treat `copilot-swe-agent` as a built-in team member (internal actor)
+    - For each workflow, collect:
+      - Safe output operations from recent runs
      - Created issues, PRs, discussions
      - Comments added to existing items
      - Project board updates
