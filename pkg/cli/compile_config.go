@@ -25,6 +25,7 @@ type CompileConfig struct {
 	Actionlint             bool     // Run actionlint linter on generated .lock.yml files
 	RunnerGuard            bool     // Run runner-guard taint analysis scanner on generated .lock.yml files
 	JSONOutput             bool     // Output validation results as JSON
+	ShowAllErrors          bool     // Display all prioritized errors instead of the default top five
 	ActionMode             string   // Action script inlining mode: inline, dev, or release
 	ActionTag              string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
 	ActionsRepo            string   // Override the external actions repository (default: github/gh-aw-actions)

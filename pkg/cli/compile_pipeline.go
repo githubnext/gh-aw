@@ -80,9 +80,10 @@ func compileSpecificFiles(
 		if err != nil {
 			// Don't print error here - it will be displayed in the compilation summary
 			// The error is stored in ValidationResult for JSON output and returned for main to display
+			errorMessages := []string{err.Error()}
 			errorCount++
-			stats.Errors++
-			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
+			stats.Errors += len(errorMessages)
+			trackWorkflowFailure(stats, markdownFile, len(errorMessages), errorMessages)
 			result.Valid = false
 			result.Errors = append(result.Errors, CompileValidationError{
 				Type:    "resolution_error",
@@ -109,14 +110,17 @@ func compileSpecificFiles(
 		)
 
 		if !fileResult.success {
-			errorCount++
-			stats.Errors++
 			// Collect error messages from validation result for display in summary
 			var errMsgs []string
 			for _, verr := range fileResult.validationResult.Errors {
 				errMsgs = append(errMsgs, verr.Message)
 			}
-			trackWorkflowFailure(stats, resolvedFile, 1, errMsgs)
+			if len(errMsgs) == 0 {
+				errMsgs = []string{"compilation failed"}
+			}
+			errorCount++
+			stats.Errors += len(errMsgs)
+			trackWorkflowFailure(stats, resolvedFile, len(errMsgs), errMsgs)
 		} else {
 			compiledCount++
 			if fileResult.workflowData != nil {
@@ -294,14 +298,17 @@ func compileAllFilesInDirectory(
 		)
 
 		if !fileResult.success {
-			errorCount++
-			stats.Errors++
 			// Collect error messages from validation result
 			var errMsgs []string
 			for _, verr := range fileResult.validationResult.Errors {
 				errMsgs = append(errMsgs, verr.Message)
 			}
-			trackWorkflowFailure(stats, file, 1, errMsgs)
+			if len(errMsgs) == 0 {
+				errMsgs = []string{"compilation failed"}
+			}
+			errorCount++
+			stats.Errors += len(errMsgs)
+			trackWorkflowFailure(stats, file, len(errMsgs), errMsgs)
 		} else {
 			successCount++
 			if fileResult.workflowData != nil {
@@ -588,7 +595,7 @@ func outputResults(
 		fmt.Println(jsonStr)
 	} else if !config.Stats {
 		// Print summary for text output (skip if stats mode)
-		printCompilationSummary(stats)
+		printCompilationSummary(stats, config.ShowAllErrors)
 	}
 
 	// Display actionlint summary if enabled
