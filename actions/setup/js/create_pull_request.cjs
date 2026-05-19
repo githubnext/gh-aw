@@ -117,7 +117,10 @@ function summarizeListForLog(values, limit = 10) {
 async function getFailedWorkflowRunsForBranch(githubClient, repoParts, branchName, limit = BRANCH_FAILURE_CHECKPOINT_THRESHOLD) {
   const listWorkflowRunsForRepo = githubClient?.rest?.actions?.listWorkflowRunsForRepo;
   if (typeof listWorkflowRunsForRepo !== "function") {
-    core.warning("Skipping branch failure checkpoint: GitHub Actions workflow run API is unavailable on the current GitHub client");
+    core.warning(
+      "Skipping branch failure checkpoint: GitHub Actions workflow run API is unavailable on the current GitHub client. " +
+        "Validation will continue without automatic branch retry checks. This can happen when the token lacks Actions read access or on environments that do not expose the Actions workflow-run API."
+    );
     return { count: 0, runs: [] };
   }
 
@@ -1535,7 +1538,7 @@ async function main(config = {}) {
         const error =
           `Human checkpoint required before another push: branch '${branchName}' already has ` +
           `${branchFailures.count} completed failed workflow run(s). ` +
-          `Review the existing failures and use report_incomplete instead of opening or updating a WIP PR until a human reviews the branch.`;
+          `Review the existing failures (for example with 'gh run list --branch ${branchName}') and call report_incomplete with the validation details instead of opening or updating a WIP PR until a human reviews the branch.`;
         core.warning(`${error} Recent failures: ${summarizeListForLog(failedWorkflows, BRANCH_FAILURE_CHECKPOINT_THRESHOLD)}`);
         return { success: false, error };
       }

@@ -9,7 +9,7 @@ To create a pull request:
    - Run `make build && make fmt` and confirm both commands exit successfully with zero errors.
    - If your agent session requires a pre-push validation gate (for example `make agent-report-progress` before `report_progress`), run that gate and confirm it passes before opening or updating the PR.
    - If these validations fail and you cannot fix them, call `report_incomplete` instead of opening a `[WIP]` or draft PR.
-5. If this branch already has three or more failed workflow runs, stop and require a human checkpoint before another push. Use `report_incomplete` to explain the repeated branch failures instead of opening or updating the PR.
+5. The system will automatically block `create_pull_request` if this branch already has three or more completed failed workflow runs. Treat that as a required human checkpoint before another push, and use `report_incomplete` to explain the repeated branch failures instead of opening or updating the PR.
 6. Do not push your changes manually. That will be done by the tool.
 7. Create the pull request with the create_pull_request tool from safeoutputs exactly once, only when the final title/body/branch are ready.
 8. After calling `create_pull_request`, STOP. Do not probe with another PR call, do not test auth with manual `git push`, and do not rewrite git remotes.
