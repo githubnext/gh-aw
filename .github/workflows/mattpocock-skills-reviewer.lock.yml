@@ -58,13 +58,6 @@
 
 name: "Matt Pocock Skills Reviewer"
 on:
-  pull_request:
-    types:
-    - ready_for_review
-    - review_requested
-  pull_request_review:
-    types:
-    - submitted
   workflow_dispatch:
     inputs:
       aw_context:
@@ -92,8 +85,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
-      github.event.pull_request.state != 'closed') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id))
+      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
+      github.event.pull_request.state != 'closed')
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1481,8 +1474,8 @@ jobs:
 
   pre_activation:
     if: >
-      ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.state != 'closed') &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)
+      (github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
+      github.event.pull_request.state != 'closed'
     runs-on: ubuntu-slim
     permissions:
       contents: read
