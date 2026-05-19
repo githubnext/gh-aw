@@ -213,7 +213,7 @@ func TestConvertJSONWorkflowToMarkdown_IntervalTrigger(t *testing.T) {
 	}
 	for _, field := range []string{"prompt", "triggers"} {
 		for _, w := range gen.Warnings {
-			assert.False(t, strings.Contains(w, field), "unexpected warning mentioning %q: %s", field, w)
+			assert.NotContains(t, w, field, "unexpected warning mentioning %q: %s", field, w)
 		}
 	}
 }
@@ -293,6 +293,17 @@ func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
 		}
 		assert.True(t, found, "expected warning for extra field %q", field)
 	}
+}
+
+func TestConvertTriggersToOn_SkipsIncompleteWorkflowRun(t *testing.T) {
+	on, warnings := convertTriggersToOn(&JSONWorkflowTriggers{
+		WorkflowRun: &WorkflowRunTrigger{
+			Workflows: []string{"haiku"},
+		},
+	})
+
+	assert.Nil(t, on)
+	assert.Contains(t, warnings, `triggers.workflow_run requires non-empty workflows and types; skipped`)
 }
 
 func TestGenericURLWorkflowName(t *testing.T) {

@@ -432,14 +432,18 @@ func convertTriggersToOn(t *JSONWorkflowTriggers) (any, []string) {
 	}
 
 	if t.WorkflowRun != nil {
-		wfEntry := map[string]any{
-			"workflows": t.WorkflowRun.Workflows,
-			"types":     t.WorkflowRun.Types,
+		if len(t.WorkflowRun.Workflows) == 0 || len(t.WorkflowRun.Types) == 0 {
+			warnings = append(warnings, `triggers.workflow_run requires non-empty workflows and types; skipped`)
+		} else {
+			wfEntry := map[string]any{
+				"workflows": t.WorkflowRun.Workflows,
+				"types":     t.WorkflowRun.Types,
+			}
+			if len(t.WorkflowRun.Conclusions) > 0 {
+				warnings = append(warnings, `triggers.workflow_run.conclusions has no gh-aw equivalent; review the generated "on:" block`)
+			}
+			parts["workflow_run"] = wfEntry
 		}
-		if len(t.WorkflowRun.Conclusions) > 0 {
-			warnings = append(warnings, `triggers.workflow_run.conclusions has no gh-aw equivalent; review the generated "on:" block`)
-		}
-		parts["workflow_run"] = wfEntry
 	}
 
 	if len(parts) == 0 {
