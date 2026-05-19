@@ -1686,7 +1686,12 @@ on:
 
 **Conformance requirements**:
 
-- **PRR1**: Implementations MUST accept `on.pull_request_reviewer` as either an empty value (default built-in slash command name derived from workflow ID) or a custom slash command name string.
+- **PRR1**: Implementations MUST accept `on.pull_request_reviewer` in all of the following forms:
+  - YAML null form (`pull_request_reviewer:`)
+  - empty string form (`pull_request_reviewer: ""`)
+  - legacy compatibility form (`pull_request_reviewer: slash_command`)
+  - custom slash command name string (for example `pull_request_reviewer: reviewer-command`)
+  The null, empty-string, and legacy compatibility forms MUST all use the default built-in slash command name derived from workflow ID.
 - **PRR2**: Implementations MUST treat `on.pull_request_reviewer` as an experimental feature and MUST emit the warning `Using experimental feature: pull_request_reviewer` during compilation.
 - **PRR3**: Built-in slash command behavior for `on.pull_request_reviewer` MUST always be enabled and MUST NOT be replaced by a separate `on.slash_command` trigger definition.
 - **PRR4**: Implementations MUST subscribe reviewer lifecycle routing to:
@@ -1694,6 +1699,7 @@ on:
   - `pull_request_review` action `submitted` only
 - **PRR5**: Implementations MUST ignore `pull_request_review` actions other than `submitted` (including `edited` and `dismissed`) for reviewer lifecycle routing.
 - **PRR6**: When multiple `pull_request_reviewer` workflows are configured, slash command names MUST be unique case-insensitively.
+- **PRR7**: Duplicate reviewer slash command names MUST fail compilation with an explicit validation error.
 
 ---
 
@@ -2153,7 +2159,7 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
-- `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field is distinct from the per-message `target: "status"` extension above.
+- `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
 - `hide-older-comments`: Hide previous workflow comments
 - `discussions`: Control `discussions:write` permission (default: true)
 - `target-repo`: Cross-repository target
