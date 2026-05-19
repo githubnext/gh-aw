@@ -514,6 +514,15 @@ An implementation SHOULD recognize common timezone abbreviations:
 
 Implementations MAY issue warnings for ambiguous abbreviations (e.g., "PT" could be PST or PDT).
 
+DST transition behavior:
+
+- Abbreviation-based schedules MUST resolve to their explicit UTC offset at parse time (`PST=-08:00`,
+  `PDT=-07:00`, etc.) and MUST NOT infer locale-specific daylight-saving transitions dynamically.
+- During DST spring-forward and fall-back transitions, schedule scattering MUST remain stable for the
+  same canonical UTC offset input and workflow identifier.
+- Implementations SHOULD emit an informational warning when ambiguous abbreviations are used near DST
+  transition dates so operators can switch to explicit `utc±HH[:MM]` notation.
+
 ---
 
 ## 6. Scattering Algorithm
@@ -546,6 +555,11 @@ An implementation MUST use a hash function that satisfies the following requirem
 2. **Distribution**: The hash function SHOULD produce uniformly distributed outputs across the hash space
 3. **Stability**: The hash function MUST NOT change behavior across different versions of the implementation
 4. **Integer output**: The hash function MUST produce an integer output suitable for modulo operations
+
+**R-HASH-001**: For a fixed `workflow_identifier` and canonical fuzzy schedule expression,
+implementations MUST preserve hash-derived scatter output across minor version upgrades. Any planned
+change that would alter hash output for existing identifiers MUST be treated as a breaking change
+and documented with migration guidance.
 
 An implementation SHOULD use the FNV-1a (Fowler-Noll-Vo) 32-bit hash algorithm as a reference implementation:
 
@@ -937,7 +951,20 @@ The following edge-case norms are mandatory in addition to §§9.1–9.4:
    `and` in `between`, dangling modifiers, extra tokens after a valid production) **MUST**
    fail parsing and **MUST NOT** be auto-corrected.
 4. **Error code stability**: For the same malformed input class, implementations **MUST**
-   return a stable error code category across runs to support deterministic compliance tests.
+    return a stable error code category across runs to support deterministic compliance tests.
+
+### 9.6 Retry and Backoff Norms for Collision/Contention Paths
+
+When compilation or scheduling pipelines detect contention that is attributable to repeated hash
+collisions (for example, repeated retries to acquire shared scheduler state for the same minute
+bucket), implementations MUST apply bounded retry behavior:
+
+1. **R-ERR-050**: Retry loops for collision/contention handling MUST be bounded to a maximum of 3
+   attempts total (initial attempt + up to 2 retries).
+2. **R-ERR-051**: Retry delays SHOULD use exponential backoff with jitter (initial delay at least
+   100 ms, 2x multiplier, maximum delay 2 s).
+3. **R-ERR-052**: When retry budget is exhausted, implementations MUST fail deterministically with a
+   stable error code and MUST NOT silently fall back to non-deterministic scheduling.
 
 ---
 
@@ -1299,6 +1326,8 @@ content MUST preserve the same row/column structure.
 - **Renumbered**: Section 6.4 (Algorithm Requirements) → Section 6.5
 - **Added**: Compliance tests T-SCATTER-011 through T-SCATTER-016 covering weighted pool behavior and peak avoidance
 - **Updated**: Compliance checklist (Section 9.3) with new required rows for weighted pool and peak avoidance
+- **Added**: R-HASH-001 minor-version hash-stability requirement and DST transition behavior guidance in Section 5.3
+- **Added**: Section 9.6 retry/backoff norms for collision/contention error handling
 
 ### Version 1.1.0 (Draft)
 

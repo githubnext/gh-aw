@@ -3916,6 +3916,7 @@
                     }
                   ]
                 },
+
                 "mounts": {
                   "type": "array",
                   "description": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write). Applies to local mode only. Example: '/data:/data:ro'",
@@ -3948,6 +3949,7 @@
                 "repos": {
                   "description": "Deprecated. Use 'allowed-repos' instead.",
                   "deprecated": true,
+                  "x-deprecation-message": "'tools.github.repos' is deprecated. Use 'tools.github.allowed-repos' instead. Run 'gh aw fix' to automatically migrate.",
                   "oneOf": [
                     {
                       "type": "string",
@@ -4476,6 +4478,7 @@
         "serena": {
           "description": "REMOVED: Built-in support for Serena has been removed. Use the shared/mcp/serena.md workflow instead.",
           "deprecated": true,
+          "x-deprecation-message": "Built-in support for Serena has been removed. Import shared/mcp/serena.md instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]",
           "x-removed": true,
           "x-removal-message": "tools.serena built-in support has been removed. Import shared/mcp/serena.md instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]"
         },

@@ -759,7 +759,7 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 			// Since we can't easily capture stderr in this test context,
 			// we'll just verify the function doesn't panic
 			// The manual testing will verify the actual output format
-			printCompilationSummary(tt.stats)
+			printCompilationSummary(tt.stats, false)
 
 			// Verify that failed workflows are tracked correctly
 			if tt.stats.Errors > 0 && len(tt.stats.FailedWorkflows) != tt.stats.Errors {
