@@ -45,6 +45,9 @@ type commandsHeaderMetadata struct {
 // When no centralized slash-command workflows are found, any existing generated file is deleted.
 func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string) error {
 	centralSlashCommandWorkflowLog.Printf("Generating centralized slash-command workflow from %d workflow(s)", len(workflowDataList))
+	if err := validateUniqueReviewerSlashCommands(workflowDataList); err != nil {
+		return err
+	}
 	slashRoutesByCommand, labelRoutesByCommand, reviewerRoutes, mergedEvents := collectCentralCommandRoutes(workflowDataList)
 
 	triggerFile := filepath.Join(workflowDir, centralSlashCommandWorkflowFilename)
@@ -75,6 +78,31 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 		return err
 	}
 	centralSlashCommandWorkflowLog.Printf("Wrote centralized slash-command workflow: %s", triggerFile)
+	return nil
+}
+
+func validateUniqueReviewerSlashCommands(workflowDataList []*WorkflowData) error {
+	reviewerCommandOwners := make(map[string]string)
+	for _, wd := range workflowDataList {
+		if wd == nil || !wd.PullRequestReviewer {
+			continue
+		}
+		for _, commandName := range wd.Command {
+			normalizedCommand := strings.ToLower(strings.TrimSpace(commandName))
+			if normalizedCommand == "" {
+				continue
+			}
+			if existingOwner, exists := reviewerCommandOwners[normalizedCommand]; exists {
+				return fmt.Errorf(
+					"pull_request_reviewer workflows require unique slash command names: '/%s' is used by '%s' and '%s'",
+					normalizedCommand,
+					existingOwner,
+					wd.WorkflowID,
+				)
+			}
+			reviewerCommandOwners[normalizedCommand] = wd.WorkflowID
+		}
+	}
 	return nil
 }
 

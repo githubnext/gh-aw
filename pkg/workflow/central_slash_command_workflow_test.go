@@ -176,6 +176,32 @@ func TestGenerateCentralSlashCommandWorkflow_IncludesPullRequestReviewerRoutes(t
 	require.Contains(t, text, "#     pr-reviewer [pull_request,pull_request_review]")
 }
 
+func TestGenerateCentralSlashCommandWorkflow_ErrorsOnDuplicateReviewerCommandName(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-reviewer-duplicate-command-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:          "pr-reviewer-a",
+			Command:             []string{"review"},
+			CommandEvents:       []string{"pull_request_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+		{
+			WorkflowID:          "pr-reviewer-b",
+			Command:             []string{"Review"},
+			CommandEvents:       []string{"pull_request_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+	}
+
+	err := GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "pull_request_reviewer workflows require unique slash command names")
+	require.Contains(t, err.Error(), "'pr-reviewer-a'")
+	require.Contains(t, err.Error(), "'pr-reviewer-b'")
+}
+
 func TestCollectCentralLabelCommandRoutes_IncludesSlashCentralizedLabelCommands(t *testing.T) {
 	data := []*WorkflowData{
 		{
