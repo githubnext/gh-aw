@@ -125,11 +125,8 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
-			// Parse required-title-prefix (preferred) with fallback to deprecated aliases.
+			// Parse required-title-prefix (preferred) with fallback to deprecated title-prefix alias.
 			pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "required-title-prefix", pushToPullRequestBranchLog)
-			if pushToBranchConfig.TitlePrefix == "" {
-				pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "require-title-prefix", pushToPullRequestBranchLog)
-			}
 			if pushToBranchConfig.TitlePrefix == "" {
 				pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
 			}

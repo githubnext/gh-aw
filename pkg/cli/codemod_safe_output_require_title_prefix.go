@@ -62,9 +62,6 @@ func safeOutputsHandlersNeedingTitlePrefixMigration(frontmatter map[string]any) 
 		if _, hasRequired := handlerMap["required-title-prefix"]; hasRequired {
 			continue
 		}
-		if _, hasRequiredLegacy := handlerMap["require-title-prefix"]; hasRequiredLegacy {
-			continue
-		}
 		if _, hasDeprecated := handlerMap["title-prefix"]; hasDeprecated {
 			result[handler] = true
 		}
