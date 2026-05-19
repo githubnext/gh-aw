@@ -1,8 +1,9 @@
 package cli
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractWorkflowDependencies(t *testing.T) {
@@ -24,13 +25,9 @@ func TestExtractWorkflowDependencies(t *testing.T) {
 		"shared/base.md",
 	}
 
-	if len(got) != len(want) {
-		t.Fatalf("extractWorkflowDependencies() len = %d, want %d (%v)", len(got), len(want), got)
-	}
+	assert.Len(t, got, len(want), "dependency count should match expected unique set")
 	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("extractWorkflowDependencies()[%d] = %q, want %q", i, got[i], want[i])
-		}
+		assert.Equal(t, want[i], got[i], "dependency should match normalized and sorted value")
 	}
 }
 
@@ -45,15 +42,11 @@ func TestRenderWorkflowDependencyTree(t *testing.T) {
 	result := renderWorkflowDependencyTree(statuses)
 	expected := []string{"Workflow Dependencies", "main-workflow", "shared/base.md", "local/helpers.md"}
 	for _, part := range expected {
-		if !strings.Contains(result, part) {
-			t.Fatalf("expected dependency tree to contain %q, got:\n%s", part, result)
-		}
+		assert.Contains(t, result, part, "dependency tree should include expected node")
 	}
 }
 
 func TestRenderWorkflowDependencyTree_Empty(t *testing.T) {
 	statuses := []WorkflowStatus{{Workflow: "standalone"}}
-	if result := renderWorkflowDependencyTree(statuses); result != "" {
-		t.Fatalf("expected empty dependency tree output, got %q", result)
-	}
+	assert.Empty(t, renderWorkflowDependencyTree(statuses), "dependency tree should be empty when no dependencies exist")
 }

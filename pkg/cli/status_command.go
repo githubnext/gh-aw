@@ -277,7 +277,6 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 	if verbose {
 		if dependenciesTree := renderWorkflowDependencyTree(statuses); dependenciesTree != "" {
 			fmt.Fprintln(os.Stderr)
-			fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Workflow Dependencies"))
 			fmt.Fprintln(os.Stderr, dependenciesTree)
 		}
 	}

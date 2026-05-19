@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRenderMCPInspectionTree(t *testing.T) {
@@ -31,9 +31,7 @@ func TestRenderMCPInspectionTree(t *testing.T) {
 		"playwright (http)",
 	}
 	for _, part := range expected {
-		if !strings.Contains(result, part) {
-			t.Fatalf("expected tree output to contain %q, got:\n%s", part, result)
-		}
+		assert.Contains(t, result, part, "tree output should include expected hierarchy node")
 	}
 }
 
@@ -72,9 +70,7 @@ func TestResolveWorkflowEngineID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := resolveWorkflowEngineID(tt.workflowData); got != tt.want {
-				t.Fatalf("resolveWorkflowEngineID() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, resolveWorkflowEngineID(tt.workflowData))
 		})
 	}
 }
