@@ -71,6 +71,12 @@ const HANDLER_TYPE = "create_pull_request";
 /** @type {string} Label always added to fallback issues so the triage system can find them */
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
 
+/** @type {number} Failed workflow runs on a branch before a human checkpoint is required */
+const BRANCH_FAILURE_CHECKPOINT_THRESHOLD = 3;
+
+/** @type {Set<string>} Completed workflow conclusions treated as branch failures for retry blocking */
+const RETRY_BLOCKED_WORKFLOW_CONCLUSIONS = new Set(["failure", "timed_out", "startup_failure", "stale"]);
+
 /**
  * Creates a temporary refs/bundles ref for applying create_pull_request bundles.
  * Branch names are sanitized for ref compatibility, and a short crypto-random
@@ -96,6 +102,63 @@ function summarizeListForLog(values, limit = 10) {
   }
   const preview = values.slice(0, limit).join(", ");
   return values.length > limit ? `${preview} ... and ${values.length - limit} more` : preview;
+}
+
+/**
+ * Count completed failed workflow runs for a branch. This is used to stop repeated
+ * push/retry loops after the branch has already accumulated multiple failing runs.
+ *
+ * @param {Object} githubClient
+ * @param {{ owner: string, repo: string }} repoParts
+ * @param {string} branchName
+ * @param {number} threshold
+ * @returns {Promise<{count: number, runs: Array<{id: number|string, name?: string, conclusion?: string}>}>}
+ */
+async function getFailedWorkflowRunsForBranch(githubClient, repoParts, branchName, threshold = BRANCH_FAILURE_CHECKPOINT_THRESHOLD) {
+  const listWorkflowRunsForRepo = githubClient?.rest?.actions?.listWorkflowRunsForRepo;
+  if (typeof listWorkflowRunsForRepo !== "function") {
+    core.warning("Skipping branch failure checkpoint: GitHub Actions workflow run API is unavailable on the current GitHub client");
+    return { count: 0, runs: [] };
+  }
+
+  const perPage = 100;
+  /** @type {Array<{id: number|string, name?: string, conclusion?: string}>} */
+  const failedRuns = [];
+
+  for (let page = 1; ; page++) {
+    const response = await listWorkflowRunsForRepo({
+      owner: repoParts.owner,
+      repo: repoParts.repo,
+      branch: branchName,
+      status: "completed",
+      per_page: perPage,
+      page,
+    });
+    const runs = Array.isArray(response?.data?.workflow_runs) ? response.data.workflow_runs : [];
+    if (runs.length === 0) {
+      break;
+    }
+
+    for (const run of runs) {
+      if (!RETRY_BLOCKED_WORKFLOW_CONCLUSIONS.has(run?.conclusion)) {
+        continue;
+      }
+      failedRuns.push({
+        id: run.id,
+        name: run.name,
+        conclusion: run.conclusion,
+      });
+      if (failedRuns.length >= threshold) {
+        return { count: failedRuns.length, runs: failedRuns };
+      }
+    }
+
+    if (runs.length < perPage) {
+      break;
+    }
+  }
+
+  return { count: failedRuns.length, runs: failedRuns };
 }
 
 /**
@@ -1464,6 +1527,21 @@ async function main(config = {}) {
 
     core.info(`Generated branch name: ${branchName}`);
     core.info(`Base branch: ${baseBranch}`);
+
+    try {
+      const branchFailures = await getFailedWorkflowRunsForBranch(githubClient, repoParts, branchName);
+      if (branchFailures.count >= BRANCH_FAILURE_CHECKPOINT_THRESHOLD) {
+        const failedWorkflows = branchFailures.runs.map(run => `${run.name || "workflow"} (${run.conclusion || "unknown"})`);
+        const error =
+          `Human checkpoint required before another push: branch '${branchName}' already has ` +
+          `${branchFailures.count} completed failed workflow run(s). ` +
+          `Review the existing failures and use report_incomplete instead of opening or updating a WIP PR until a human reviews the branch.`;
+        core.warning(`${error} Recent failures: ${summarizeListForLog(failedWorkflows, BRANCH_FAILURE_CHECKPOINT_THRESHOLD)}`);
+        return { success: false, error };
+      }
+    } catch (error) {
+      core.warning(`Failed to evaluate branch failure checkpoint for '${branchName}': ${getErrorMessage(error)}. Continuing with pull request creation.`);
+    }
 
     // Create a new branch using git CLI, ensuring it's based on the correct base branch
 

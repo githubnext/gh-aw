@@ -133,6 +133,116 @@ describe("create_pull_request - draft policy enforcement", () => {
   });
 });
 
+describe("create_pull_request - branch failure checkpoint", () => {
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        actions: {
+          listWorkflowRunsForRepo: vi.fn().mockResolvedValue({ data: { workflow_runs: [] } }),
+        },
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 7, html_url: "https://github.com/test-owner/test-repo/pull/7" } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should block pull request creation when the branch already has three failed workflow runs", async () => {
+    global.github.rest.actions.listWorkflowRunsForRepo.mockResolvedValue({
+      data: {
+        workflow_runs: [
+          { id: 1, name: "CI", conclusion: "failure" },
+          { id: 2, name: "Lint", conclusion: "timed_out" },
+          { id: 3, name: "Unit Tests", conclusion: "failure" },
+        ],
+      },
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "retry-branch" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Human checkpoint required before another push");
+    expect(result.error).toContain("retry-branch");
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
+  it("should allow pull request creation when the branch has fewer than three failed workflow runs", async () => {
+    global.github.rest.actions.listWorkflowRunsForRepo.mockResolvedValue({
+      data: {
+        workflow_runs: [
+          { id: 1, name: "CI", conclusion: "failure" },
+          { id: 2, name: "Lint", conclusion: "timed_out" },
+        ],
+      },
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "retry-branch" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalled();
+  });
+});
+
 describe("create_pull_request - bundle transport shallow checkout", () => {
   let tempDir;
   let originalEnv;

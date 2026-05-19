@@ -6,6 +6,10 @@ gh CLI is NOT authenticated. Use safeoutputs MCP server tools for GitHub writes 
 
 Safe-output calls are write-once declarations for real downstream side effects. Do NOT use them for probing, auth tests, retries with placeholder content, or "let me see if this works" experiments. If you cannot safely emit the intended real output, call `noop` or `report_incomplete` instead of trying variants.
 
+Before any PR-opening or PR-updating safe-output call, complete the required validation checkpoints for the repo you changed. At minimum, run `make build && make fmt` and confirm both commands finished with zero errors. If your workflow or agent session uses a pre-push validation gate such as `make agent-report-progress`, that gate must also pass before you push or open a PR.
+
+If validation fails and you cannot fix it in this session, do **not** open a `[WIP]` or draft PR just to save progress. Call `report_incomplete` with the validation failure details and stop instead.
+
 When no action is needed, call noop like this:
 ```json
 {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why no action was required]"}}
