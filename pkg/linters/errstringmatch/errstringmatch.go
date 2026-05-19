@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -34,6 +35,9 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
+		if strings.HasSuffix(pass.Fset.PositionFor(outer.Pos(), false).Filename, "_test.go") {
+			return
+		}
 
 		// Match strings.Contains(X, Y)
 		if !isStringsContains(outer) {
@@ -50,6 +54,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		// Second arg must be a string literal (or at least a string type)
 		if !isStringLiteral(pass, outer.Args[1]) {
+			return
+		}
+		if hasNoLintDirective(pass, outer.Pos()) {
 			return
 		}
 
@@ -132,4 +139,34 @@ func isStringLiteral(pass *analysis.Pass, expr ast.Expr) bool {
 	}
 	basic, ok := t.Underlying().(*types.Basic)
 	return ok && basic.Kind() == types.String
+}
+
+func hasNoLintDirective(pass *analysis.Pass, pos token.Pos) bool {
+	position := pass.Fset.PositionFor(pos, false)
+	if position.Filename == "" {
+		return false
+	}
+
+	for _, file := range pass.Files {
+		filePos := pass.Fset.PositionFor(file.Pos(), false)
+		if filePos.Filename != position.Filename {
+			continue
+		}
+
+		for _, group := range file.Comments {
+			for _, comment := range group.List {
+				commentPos := pass.Fset.PositionFor(comment.Slash, false)
+				if commentPos.Line != position.Line && commentPos.Line != position.Line-1 {
+					continue
+				}
+
+				text := strings.TrimPrefix(comment.Text, "//")
+				if strings.HasPrefix(text, "nolint:errstringmatch") || strings.HasPrefix(text, "nolint:all") {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }

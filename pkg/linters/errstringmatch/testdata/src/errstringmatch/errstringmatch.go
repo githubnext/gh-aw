@@ -26,3 +26,12 @@ func checkErrorSafe(err error) bool {
 func checkString(s string) bool {
 	return strings.Contains(s, "prefix")
 }
+
+func checkIgnoredPreviousLine(err error) bool {
+	//nolint:errstringmatch // gh CLI behavior is only available as text.
+	return strings.Contains(err.Error(), "INSUFFICIENT_SCOPES")
+}
+
+func checkIgnoredSameLine(err error) bool {
+	return strings.Contains(err.Error(), "already merged") //nolint:errstringmatch // gh CLI merge status is only available as text.
+}

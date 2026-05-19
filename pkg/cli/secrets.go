@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -110,7 +111,7 @@ func checkSecretsAvailability(secrets []SecretInfo, useActionsSecrets bool) []Se
 			exists, err := checkSecretExists(secrets[i].Name)
 			if err != nil {
 				// If we get a 403 error, skip silently (no permission to check)
-				if is403Error(err) {
+				if errorutil.IsForbiddenError(err) {
 					continue
 				}
 			}
