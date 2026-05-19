@@ -107,9 +107,7 @@ function summarizeListForLog(values, limit = 10) {
 async function tryRecoverGitAmAddAddConflict(execApi) {
   try {
     const unresolvedFilesResult = await execApi.getExecOutput("git", ["diff", "--name-only", "--diff-filter=U", "-z"]);
-    const unresolvedFiles = unresolvedFilesResult.stdout
-      .split("\0")
-      .filter(line => line.length > 0);
+    const unresolvedFiles = unresolvedFilesResult.stdout.split("\0").filter(line => line.length > 0);
     core.debug(`Add/add recovery probe unresolved files (${unresolvedFiles.length}): ${summarizeListForLog(unresolvedFiles)}`);
 
     if (unresolvedFiles.length === 0) {
@@ -166,9 +164,7 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
 
         const oursSize = await getBlobSize(oursBlobSha);
         const theirsSize = await getBlobSize(theirsBlobSha);
-        core.warning(
-          `Resolving add/add conflict for ${file}: ours ${oursBlobSha || "unknown"} (${oursSize} bytes), theirs ${theirsBlobSha || "unknown"} (${theirsSize} bytes); preferring patch version (--theirs)`
-        );
+        core.warning(`Resolving add/add conflict for ${file}: ours ${oursBlobSha || "unknown"} (${oursSize} bytes), theirs ${theirsBlobSha || "unknown"} (${theirsSize} bytes); preferring patch version (--theirs)`);
       } catch (metadataError) {
         core.warning(`Resolving add/add conflict for ${file}; failed to read conflict blob metadata: ${getErrorMessage(metadataError)}. Preferring patch version (--theirs)`);
       }
