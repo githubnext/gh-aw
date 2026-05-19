@@ -77,7 +77,7 @@ func TestActionResolverCache_NilContext(t *testing.T) {
 	// Manually add an entry to the cache
 	cache.Set("actions/checkout", "v5", "test-sha-123")
 
-	//nolint:staticcheck // Intentionally validating legacy nil context handling behavior.
+	//nolint:staticcheck // Legacy callers may pass nil; verify cached resolution still uses the default fallback context.
 	sha, err := resolver.ResolveSHA(nil, "actions/checkout", "v5")
 	if err != nil {
 		t.Errorf("Expected no error for cached entry with nil context, got: %v", err)
