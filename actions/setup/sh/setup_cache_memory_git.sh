@@ -132,6 +132,7 @@ else
     IS_CACHE_HIT=false
     initialize_cache_memory_git_repo
   fi
+  rm -f /tmp/gh-aw-git-fsck-out /tmp/gh-aw-git-fsck-err 2>/dev/null || true
 fi
 
 # --- Checkout current integrity branch ---
@@ -151,6 +152,7 @@ if ! git checkout -q "$INTEGRITY" 2>/tmp/gh-aw-checkout-err; then
     exit "$checkout_exit"
   fi
 fi
+rm -f /tmp/gh-aw-checkout-err 2>/dev/null || true
 
 # --- Merge down from higher-integrity branches ---
 # Read semantics: lower-integrity runs see higher-integrity data via merge,
