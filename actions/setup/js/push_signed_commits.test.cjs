@@ -737,6 +737,10 @@ describe("push_signed_commits integration tests", () => {
         GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
         GIT_CONFIG_VALUE_0: "Authorization: basic test-token",
       };
+      const sentinelKey = "PUSH_SIGNED_COMMITS_ENV_SENTINEL_1";
+      const sentinelValue = "sentinel-1";
+      const previousSentinel = process.env[sentinelKey];
+      process.env[sentinelKey] = sentinelValue;
 
       const getExecOutput = vi.fn(async (_program, args) => {
         if (args[0] === "rev-list") {
@@ -781,22 +785,33 @@ describe("push_signed_commits integration tests", () => {
 
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "auth-check-branch",
-        baseRef: "origin/main",
-        cwd: workDir,
-        gitAuthEnv,
-      });
+      try {
+        await pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "auth-check-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          gitAuthEnv,
+        });
+      } finally {
+        if (previousSentinel === undefined) {
+          delete process.env[sentinelKey];
+        } else {
+          process.env[sentinelKey] = previousSentinel;
+        }
+      }
 
       const lsRemoteCall = getExecOutput.mock.calls.find(call => call[1][0] === "ls-remote");
       expect(lsRemoteCall).toBeDefined();
       expect(lsRemoteCall[2]).toEqual(
         expect.objectContaining({
           cwd: workDir,
-          env: expect.objectContaining(gitAuthEnv),
+          env: expect.objectContaining({
+            ...gitAuthEnv,
+            [sentinelKey]: sentinelValue,
+          }),
         })
       );
     });
@@ -807,6 +822,10 @@ describe("push_signed_commits integration tests", () => {
         GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
         GIT_CONFIG_VALUE_0: "Authorization: basic test-token",
       };
+      const sentinelKey = "PUSH_SIGNED_COMMITS_ENV_SENTINEL_2";
+      const sentinelValue = "sentinel-2";
+      const previousSentinel = process.env[sentinelKey];
+      process.env[sentinelKey] = sentinelValue;
 
       const getExecOutput = vi.fn(async (_program, args) => {
         if (args[0] === "rev-list") {
@@ -849,20 +868,35 @@ describe("push_signed_commits integration tests", () => {
 
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "auth-check-branch",
-        baseRef: "origin/main",
-        cwd: workDir,
-        gitAuthEnv,
-      });
+      try {
+        await pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "auth-check-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          gitAuthEnv,
+        });
+      } finally {
+        if (previousSentinel === undefined) {
+          delete process.env[sentinelKey];
+        } else {
+          process.env[sentinelKey] = previousSentinel;
+        }
+      }
 
       const networkGitCalls = getExecOutput.mock.calls.filter(call => call[1][0] === "ls-remote");
       expect(networkGitCalls).toHaveLength(1);
       for (const call of networkGitCalls) {
-        expect(call[2]).toEqual(expect.objectContaining({ env: expect.objectContaining(gitAuthEnv) }));
+        expect(call[2]).toEqual(
+          expect.objectContaining({
+            env: expect.objectContaining({
+              ...gitAuthEnv,
+              [sentinelKey]: sentinelValue,
+            }),
+          })
+        );
       }
     });
   });
