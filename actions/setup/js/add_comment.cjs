@@ -685,14 +685,14 @@ async function main(config = {}) {
     // add_comment uses snake_case fields. camelCase and kebab-case aliases are
     // accepted for compatibility with forwarded/legacy payload variants.
     const explicitCommentIdRaw = message.comment_id ?? message.commentId;
-    const normalizedTarget = typeof message.target === "string" ? message.target.trim().toLowerCase() : "";
-    const targetStatusComment = normalizedTarget === "status";
-    if (normalizedTarget && !targetStatusComment) {
+    const rawTarget = message.target;
+    if (rawTarget !== undefined && rawTarget !== "status") {
       return {
         success: false,
-        error: "target must be 'status' when provided",
+        error: `target must be 'status' when provided, got '${String(rawTarget)}'`,
       };
     }
+    const targetStatusComment = rawTarget === "status";
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
     let commentIdToReuse = null;
     if (explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "") {
