@@ -7,11 +7,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2/tree"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -155,6 +159,13 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) to inspect", len(mcpConfigs))))
 	}
+	if toolFilter == "" {
+		if hierarchy := renderMCPInspectionTree(workflowPath, workflowData, mcpConfigs); hierarchy != "" {
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Server Hierarchy"))
+			fmt.Fprintln(os.Stderr, hierarchy)
+		}
+	}
 	fmt.Fprintln(os.Stderr)
 
 	for i, config := range mcpConfigs {
@@ -170,6 +181,54 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	}
 
 	return nil
+}
+
+func renderMCPInspectionTree(workflowPath string, workflowData *workflow.WorkflowData, mcpConfigs []parser.RegistryMCPServerConfig) string {
+	if len(mcpConfigs) == 0 {
+		return ""
+	}
+
+	workflowLabel := workflowPath
+	if workflowData != nil && workflowData.WorkflowID != "" {
+		workflowLabel = workflowData.WorkflowID
+	} else if workflowPath != "" {
+		workflowLabel = filepath.Base(workflowPath)
+	}
+
+	serversTree := tree.Root("MCP Servers")
+	sortedConfigs := append([]parser.RegistryMCPServerConfig(nil), mcpConfigs...)
+	slices.SortFunc(sortedConfigs, func(a, b parser.RegistryMCPServerConfig) int {
+		if nameCmp := strings.Compare(a.Name, b.Name); nameCmp != 0 {
+			return nameCmp
+		}
+		return strings.Compare(a.Type, b.Type)
+	})
+
+	for _, config := range sortedConfigs {
+		serversTree.Child(fmt.Sprintf("%s (%s)", config.Name, config.Type))
+	}
+
+	return tree.
+		Root("Workflow: " + workflowLabel).
+		Child("Engine: " + resolveWorkflowEngineID(workflowData)).
+		Child(serversTree).
+		Enumerator(tree.RoundedEnumerator).
+		EnumeratorStyle(styles.TreeEnumerator).
+		ItemStyle(styles.TreeNode).
+		String()
+}
+
+func resolveWorkflowEngineID(workflowData *workflow.WorkflowData) string {
+	if workflowData == nil {
+		return "unknown"
+	}
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+		return workflowData.EngineConfig.ID
+	}
+	if workflowData.AI != "" {
+		return workflowData.AI
+	}
+	return "unknown"
 }
 
 // NewMCPInspectSubcommand creates the mcp inspect subcommand

@@ -1470,6 +1470,7 @@ function getErrorMessage(errorEntry) {
  * @property {number | undefined} turns
  * @property {number | undefined} estimatedCostUsd
  * @property {string | undefined} stopReason
+ * @property {string | undefined} resolvedModel
  * @property {number} warningCount
  */
 
@@ -1480,11 +1481,40 @@ function getErrorMessage(errorEntry) {
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, warningCount: 0 };
+  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, resolvedModel: undefined, warningCount: 0 };
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
     const lines = content.split("\n");
+
+    const applyRuntimeEntry = parsed => {
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return;
+      }
+
+      // Engine logs normalize init events to either:
+      // - { type: "system", subtype: "init", ... } (Claude/Copilot-style entries)
+      // - { type: "init", ... } (some normalized parsers/custom engines)
+      if ((parsed.type === "system" && parsed.subtype === "init") || parsed.type === "init") {
+        if (typeof parsed.model === "string" && parsed.model.trim()) {
+          metrics.resolvedModel = parsed.model.trim();
+        }
+      }
+
+      if (parsed.type !== "result") {
+        return;
+      }
+
+      if (typeof parsed.num_turns === "number" && parsed.num_turns >= 0) {
+        metrics.turns = parsed.num_turns;
+      }
+      if (typeof parsed.total_cost_usd === "number" && Number.isFinite(parsed.total_cost_usd) && parsed.total_cost_usd >= 0) {
+        metrics.estimatedCostUsd = parsed.total_cost_usd;
+      }
+      if (typeof parsed.stop_reason === "string" && parsed.stop_reason) {
+        metrics.stopReason = parsed.stop_reason;
+      }
+    };
 
     for (const rawLine of lines) {
       const line = rawLine.trim();
@@ -1496,26 +1526,29 @@ function readAgentRuntimeMetrics() {
         metrics.warningCount += 1;
       }
 
-      const jsonStart = line.indexOf("{");
+      const jsonObjectStart = line.indexOf("{");
+      const jsonArrayStart = line.indexOf("[{");
+      let jsonStart = -1;
+      if (jsonObjectStart >= 0 && jsonArrayStart >= 0) {
+        jsonStart = Math.min(jsonObjectStart, jsonArrayStart);
+      } else if (jsonObjectStart >= 0) {
+        jsonStart = jsonObjectStart;
+      } else {
+        jsonStart = jsonArrayStart;
+      }
       if (jsonStart < 0) {
         continue;
       }
 
       try {
         const parsed = JSON.parse(line.slice(jsonStart));
-        if (!parsed || parsed.type !== "result") {
+        if (Array.isArray(parsed)) {
+          for (const entry of parsed) {
+            applyRuntimeEntry(entry);
+          }
           continue;
         }
-
-        if (typeof parsed.num_turns === "number" && parsed.num_turns >= 0) {
-          metrics.turns = parsed.num_turns;
-        }
-        if (typeof parsed.total_cost_usd === "number" && Number.isFinite(parsed.total_cost_usd) && parsed.total_cost_usd >= 0) {
-          metrics.estimatedCostUsd = parsed.total_cost_usd;
-        }
-        if (typeof parsed.stop_reason === "string" && parsed.stop_reason) {
-          metrics.stopReason = parsed.stop_reason;
-        }
+        applyRuntimeEntry(parsed);
       } catch {
         // Ignore non-JSON and truncated log lines.
       }
@@ -1752,6 +1785,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     // dedicated agent sub-span is missing, so LLM activity remains discoverable.
     attributes.push(buildAttr("gen_ai.operation.name", "chat"));
     if (workflowName) attributes.push(buildAttr("gen_ai.workflow.name", workflowName));
+    if (runtimeMetrics.resolvedModel) attributes.push(buildAttr("gen_ai.response.model", runtimeMetrics.resolvedModel));
     if (runtimeMetrics.stopReason) {
       attributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [runtimeMetrics.stopReason]));
     }

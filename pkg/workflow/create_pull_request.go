@@ -6,6 +6,9 @@ import (
 
 var createPRLog = logger.New("workflow:create_pull_request")
 
+var createPRStringOrArrayFields = []string{"reviewers", "team-reviewers", "assignees"}
+var createPRExpressionArrayFields = []string{"labels", "allowed-repos", "allowed-base-branches"}
+
 // getFallbackAsIssue returns the effective fallback-as-issue setting (defaults to true).
 func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 	if config == nil || config.FallbackAsIssue == nil {
@@ -57,113 +60,72 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 		return nil
 	}
 
-	// Get the config data to check for special cases before unmarshaling
-	configData, _ := outputMap["create-pull-request"].(map[string]any)
-
-	// Pre-process the reviewers field to convert single string to array BEFORE unmarshaling
-	// This prevents YAML unmarshal errors when reviewers is a string instead of []string
-	if configData != nil {
-		if reviewers, exists := configData["reviewers"]; exists {
-			if reviewerStr, ok := reviewers.(string); ok {
-				// Convert single string to array
-				configData["reviewers"] = []string{reviewerStr}
-				createPRLog.Printf("Converted single reviewer string to array before unmarshaling")
-			}
-		}
-		if teamReviewers, exists := configData["team-reviewers"]; exists {
-			if teamReviewerStr, ok := teamReviewers.(string); ok {
-				// Convert single string to array
-				configData["team-reviewers"] = []string{teamReviewerStr}
-				createPRLog.Printf("Converted single team-reviewer string to array before unmarshaling")
-			}
-		}
-		// Pre-process the assignees field to convert single string to array BEFORE unmarshaling
-		if assignees, exists := configData["assignees"]; exists {
-			if assigneeStr, ok := assignees.(string); ok {
-				// Convert single string to array
-				configData["assignees"] = []string{assigneeStr}
-				createPRLog.Printf("Converted single assignee string to array before unmarshaling")
-			}
-		}
-	}
-
-	// Pre-process the expires field (convert to hours before unmarshaling)
-	// Use preprocessExpiresField to handle all types: integers (days), strings (time specs), and boolean false
-	// This is consistent with how parseCreateIssuesConfig and parseCreateDiscussionsConfig handle expires
-	expiresDisabled := preprocessExpiresField(configData, createPRLog)
-	if expiresDisabled {
-		createPRLog.Print("Pull request expiration disabled")
-	}
-
-	// Pre-process templatable bool fields: convert literal booleans to strings so that
-	// GitHub Actions expression strings (e.g. "${{ inputs.draft-prs }}") are also accepted.
-	for _, field := range []string{"draft", "allow-empty", "auto-merge", "footer", "auto-close-issue"} {
-		if err := preprocessBoolFieldAsString(configData, field, createPRLog); err != nil {
-			createPRLog.Printf("Invalid %s value: %v", field, err)
-			return nil
-		}
-	}
-
-	// Pre-process protected-files: supports string enum OR object form {policy, exclude}.
-	// Object form is preprocessed to extract the policy (stored back as string) and
-	// the exclude list (stored in a local variable and assigned to the config after unmarshaling).
 	var protectedFilesExclude []string
-	if configData != nil {
-		protectedFilesExclude = preprocessProtectedFilesField(configData, createPRLog)
-	}
+	config := parseCreateEntityConfig(
+		outputMap,
+		"create-pull-request",
+		CreateParseOptions{
+			BoolFields:    []string{"draft", "allow-empty", "auto-merge", "footer", "auto-close-issue"},
+			IntFields:     []string{"max"},
+			HandleExpires: true,
+		},
+		createPRLog,
+		func(err error) *CreatePullRequestsConfig {
+			createPRLog.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, handle nil/empty config
+			return &CreatePullRequestsConfig{}
+		},
+		func(configData map[string]any) bool {
+			coerceStringOrArrayFields(configData, createPRStringOrArrayFields, createPRLog)
 
-	// Validate protected-files string enum after object-form preprocessing.
-	manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
-	if configData != nil {
-		validateStringEnumField(configData, "protected-files", manifestFilesEnums, createPRLog)
-	}
+			// Pre-process protected-files: supports string enum OR object form {policy, exclude}.
+			// Object form is preprocessed to extract the policy (stored back as string) and
+			// the exclude list (stored in a local variable and assigned to the config after unmarshaling).
+			protectedFilesExclude = preprocessProtectedFilesField(configData, createPRLog)
 
-	// Pre-process patch-format: valid values are "bundle" (default) and "am".
-	patchFormatEnums := []string{"am", "bundle"}
-	if configData != nil {
-		validateStringEnumField(configData, "patch-format", patchFormatEnums, createPRLog)
-	}
+			// Validate protected-files string enum after object-form preprocessing.
+			validateStringEnumField(configData, "protected-files", []string{"blocked", "allowed", "fallback-to-issue"}, createPRLog)
 
-	// Pre-process templatable int fields
-	if err := preprocessIntFieldAsString(configData, "max", createPRLog); err != nil {
-		createPRLog.Printf("Invalid max value: %v", err)
-		return nil
-	}
+			// Pre-process patch-format: valid values are "bundle" (default) and "am".
+			validateStringEnumField(configData, "patch-format", []string{"am", "bundle"}, createPRLog)
 
-	// Pre-process list fields that also accept a GitHub Actions expression string.
-	// An expression is wrapped in a single-element []string so the []string struct field
-	// can receive it after YAML unmarshaling; the handler config builder later re-emits it
-	// as a JSON string for runtime evaluation.
-	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches"} {
-		if err := preprocessStringArrayFieldAsTemplatable(configData, field, createPRLog); err != nil {
-			createPRLog.Printf("Invalid %s value: %v", field, err)
-			return nil
-		}
-	}
+			// Pre-process list fields that also accept a GitHub Actions expression string.
+			// An expression is wrapped in a single-element []string so the []string struct field
+			// can receive it after YAML unmarshaling; the handler config builder later re-emits it
+			// as a JSON string for runtime evaluation.
+			for _, field := range createPRExpressionArrayFields {
+				if err := preprocessStringArrayFieldAsTemplatable(configData, field, createPRLog); err != nil {
+					createPRLog.Printf("Invalid %s value: %v", field, err)
+					return false
+				}
+			}
 
-	config := parseConfigScaffold(outputMap, "create-pull-request", createPRLog, func(err error) *CreatePullRequestsConfig {
-		createPRLog.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, handle nil/empty config
-		return &CreatePullRequestsConfig{}
-	})
+			return true
+		},
+		func(_ map[string]any, config *CreatePullRequestsConfig, expiresDisabled bool) {
+			if expiresDisabled {
+				createPRLog.Print("Pull request expiration disabled")
+			}
+
+			// Log expires if configured
+			if config.Expires > 0 {
+				createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
+			}
+
+			// Apply the exclude list extracted from the object-form protected-files field.
+			config.ProtectedFilesExclude = protectedFilesExclude
+
+			// Set default max if not explicitly configured (default is 1)
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
+				createPRLog.Print("Using default max count: 1")
+			} else {
+				createPRLog.Printf("Pull request max count configured: %s", *config.Max)
+			}
+		},
+	)
 	if config == nil {
 		return nil
-	}
-
-	// Log expires if configured
-	if config.Expires > 0 {
-		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
-	}
-
-	// Apply the exclude list extracted from the object-form protected-files field.
-	config.ProtectedFilesExclude = protectedFilesExclude
-
-	// Set default max if not explicitly configured (default is 1)
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-		createPRLog.Print("Using default max count: 1")
-	} else {
-		createPRLog.Printf("Pull request max count configured: %s", *config.Max)
 	}
 
 	return config

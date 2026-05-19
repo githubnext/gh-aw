@@ -269,6 +269,21 @@ For both tool authentication and safe outputs, you can scope the GitHub App toke
 - `repositories: ["*"]` - Org-wide access (all repos in the installation)
 - `repositories: ["repo1", "repo2"]` - Specific repositories only
 
+### Gracefully Skip Minting When Keys Are Missing (`ignore-if-missing:`)
+
+By default, jobs fail when `client-id` or `private-key` resolve to empty strings at runtime — for example, on fork pull requests where App secrets are unavailable. Set `ignore-if-missing: true` to skip the token mint step instead and fall back to the standard non-App token chain (`secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN`):
+
+```yaml wrap
+safe-outputs:
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    ignore-if-missing: true
+  create-issue:
+```
+
+The same field is accepted under `tools.github.github-app:` and applies consistently to all token mint paths (safe outputs, activation, pre-activation, and checkout). Default behavior (fail when keys are empty) is unchanged when the field is omitted or `false`.
+
 ---
 
 ## Related Documentation

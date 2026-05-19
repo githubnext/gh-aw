@@ -1012,17 +1012,17 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 	// If checkout was explicitly disabled via checkout: false, skip it
 	if data.CheckoutDisabled {
-		log.Print("Skipping checkout step: checkout disabled via checkout: false")
+		workflowLog.Print("Skipping checkout step: checkout disabled via checkout: false")
 		return false
 	}
 
 	// If custom steps already contain checkout, don't add another one
 	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
-		log.Print("Skipping checkout step: custom steps already contain checkout")
+		workflowLog.Print("Skipping checkout step: custom steps already contain checkout")
 		return false
 	}
 
 	// Always add checkout to ensure agent has repository access
-	log.Print("Adding checkout step: agent job requires repository access")
+	workflowLog.Print("Adding checkout step: agent job requires repository access")
 	return true
 }

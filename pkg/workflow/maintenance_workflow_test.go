@@ -1008,6 +1008,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		if !strings.Contains(jobSection, "github.workflow }}-compile-workflows-${{ github.repository") {
 			t.Errorf("Job compile-workflows should have a scoped concurrency group, but got:\n%s", jobSection)
 		}
+		if !strings.Contains(yaml, "compile --validate --no-emit --verbose") {
+			t.Errorf("Workflow should run pre-compile validation with --no-emit, but did not. Generated YAML:\n%s", yaml)
+		}
 	})
 }
 

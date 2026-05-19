@@ -7,14 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2/tree"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -28,6 +31,7 @@ type WorkflowStatus struct {
 	Status        string   `json:"status" console:"header:Status"`
 	TimeRemaining string   `json:"time_remaining" console:"header:Time Remaining"`
 	Labels        []string `json:"labels,omitempty" console:"header:Labels,omitempty"`
+	Dependencies  []string `json:"dependencies,omitempty" console:"-"`
 	On            any      `json:"on,omitempty" console:"-"`
 	RunStatus     string   `json:"run_status,omitempty" console:"header:Run Status,omitempty"`
 	RunConclusion string   `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
@@ -128,10 +132,13 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 		// Extract "on" field and labels from frontmatter
 		var onField any
 		var labels []string
+		var dependencies []string
 		if content, err := os.ReadFile(file); err == nil {
-			if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
+			contentStr := string(content)
+			if result, err := parser.ExtractFrontmatterFromContent(contentStr); err == nil {
 				if result.Frontmatter != nil {
 					onField = result.Frontmatter["on"]
+					dependencies = extractWorkflowDependencies(contentStr, result.Frontmatter)
 					// Extract labels field if present
 					if labelsField, ok := result.Frontmatter["labels"]; ok {
 						if labelsArray, ok := labelsField.([]any); ok {
@@ -177,6 +184,7 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 			Status:        status,
 			TimeRemaining: timeRemaining,
 			Labels:        labels,
+			Dependencies:  dependencies,
 			On:            onField,
 			RunStatus:     runStatus,
 			RunConclusion: runConclusion,
@@ -266,6 +274,12 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 
 	// Render the table using struct-based rendering
 	fmt.Print(console.RenderStruct(statuses))
+	if verbose {
+		if dependenciesTree := renderWorkflowDependencyTree(statuses); dependenciesTree != "" {
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, dependenciesTree)
+		}
+	}
 
 	return nil
 }
@@ -315,6 +329,117 @@ func calculateTimeRemaining(stopTimeStr string) string {
 // using hash-based comparison. Falls back to "Yes" when no hash is available (legacy lock files).
 func isCompiledUpToDate(workflowPath, lockFilePath string) string {
 	return isCompiledUpToDateWithCache(workflowPath, lockFilePath, parser.NewImportCache(""))
+}
+
+func extractWorkflowDependencies(content string, frontmatter map[string]any) []string {
+	unique := make(map[string]struct{})
+	addDependency := func(dependency string) {
+		normalized := normalizeWorkflowDependency(dependency)
+		if normalized != "" {
+			unique[normalized] = struct{}{}
+		}
+	}
+
+	if frontmatter != nil {
+		addDependenciesFromImports(frontmatter["imports"], addDependency)
+	}
+
+	includes, err := findIncludesInContent(content)
+	if err == nil {
+		for _, include := range includes {
+			addDependency(include)
+		}
+	}
+
+	if len(unique) == 0 {
+		return nil
+	}
+
+	dependencies := make([]string, 0, len(unique))
+	for dependency := range unique {
+		dependencies = append(dependencies, dependency)
+	}
+	slices.Sort(dependencies)
+	return dependencies
+}
+
+// addDependenciesFromImports collects dependency paths from supported imports formats:
+// string, []string, []any (string or object with "path"/"uses"), and object form
+// map[string]any with nested "aw" entries. The recursive call handles imports.aw
+// structures that mirror the parser's object-form import syntax.
+func addDependenciesFromImports(imports any, addDependency func(string)) {
+	switch value := imports.(type) {
+	case string:
+		addDependency(value)
+	case []string:
+		for _, item := range value {
+			addDependency(item)
+		}
+	case []any:
+		for _, item := range value {
+			switch importItem := item.(type) {
+			case string:
+				addDependency(importItem)
+			case map[string]any:
+				if uses, ok := importItem["uses"].(string); ok {
+					addDependency(uses)
+				} else if path, ok := importItem["path"].(string); ok {
+					addDependency(path)
+				}
+			}
+		}
+	case map[string]any:
+		// Object form: imports: { aw: [...] }
+		if aw, ok := value["aw"]; ok {
+			addDependenciesFromImports(aw, addDependency)
+			return
+		}
+		// Allow direct single-object form for resilience.
+		if uses, ok := value["uses"].(string); ok {
+			addDependency(uses)
+		} else if path, ok := value["path"].(string); ok {
+			addDependency(path)
+		}
+	}
+}
+
+func normalizeWorkflowDependency(dependency string) string {
+	dependency = strings.TrimSpace(dependency)
+	if dependency == "" {
+		return ""
+	}
+	if path, _, ok := strings.Cut(dependency, "#"); ok {
+		return strings.TrimSpace(path)
+	}
+	return dependency
+}
+
+func renderWorkflowDependencyTree(statuses []WorkflowStatus) string {
+	root := tree.Root("Workflow Dependencies")
+	hasDependencies := false
+
+	for _, status := range statuses {
+		if len(status.Dependencies) == 0 {
+			continue
+		}
+		hasDependencies = true
+
+		workflowNode := tree.Root(status.Workflow)
+		for _, dependency := range status.Dependencies {
+			workflowNode.Child(dependency)
+		}
+		root.Child(workflowNode)
+	}
+
+	if !hasDependencies {
+		return ""
+	}
+
+	return root.
+		Enumerator(tree.RoundedEnumerator).
+		EnumeratorStyle(styles.TreeEnumerator).
+		ItemStyle(styles.TreeNode).
+		String()
 }
 
 // isCompiledUpToDateWithCache is the same as isCompiledUpToDate but accepts a shared

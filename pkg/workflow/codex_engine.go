@@ -338,6 +338,7 @@ mkdir -p "$CODEX_HOME/logs"
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
 		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
 	if workflowData.IsDetectionRun {

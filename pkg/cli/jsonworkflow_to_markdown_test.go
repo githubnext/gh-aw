@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -160,6 +161,149 @@ func TestToKebabCase(t *testing.T) {
 			assert.Equal(t, tc.want, toKebabCase(tc.input))
 		})
 	}
+}
+
+// TestConvertJSONWorkflowToMarkdown_IntervalTrigger tests the importer against
+// a real-world payload from the JSON workflow API with an interval trigger.
+// prompt → body, triggers.interval → "on: hourly" shorthand.
+func TestConvertJSONWorkflowToMarkdown_IntervalTrigger(t *testing.T) {
+	// Anonymised payload – login replaced with the octocat placeholder.
+	raw := `{
+		"id": "b5a3f76a-3d8f-4790-b7e2-f2886f784345",
+		"name": "haiku",
+		"description": "Format and linter",
+		"prompt": "Write a haiku",
+		"disabled_state": null,
+		"triggers": {"interval": {"types": ["hourly"]}},
+		"created_at": "2026-05-19T02:56:23.763410743Z",
+		"updated_at": "2026-05-19T02:56:23.763410743Z",
+		"created_by": {"id": 1, "login": "octocat", "node_id": "MDQ6VXNlcjE=", "url": "https://github.com/octocat"}
+	}`
+
+	var wf JSONWorkflow
+	require.NoError(t, json.Unmarshal([]byte(raw), &wf), "unmarshal must succeed")
+
+	gen, err := ConvertJSONWorkflowToMarkdown(&wf, ConvertOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, "b5a3f76a-3d8f-4790-b7e2-f2886f784345", gen.Filename, "filename from id")
+	assert.Contains(t, gen.Markdown, "description: Format and linter", "description in frontmatter")
+	assert.Contains(t, gen.Markdown, "# haiku", "heading from name")
+
+	// interval → string shorthand
+	assert.Contains(t, gen.Markdown, "on: hourly", "interval trigger → shorthand")
+
+	// prompt → body text
+	assert.Contains(t, gen.Markdown, "Write a haiku", "prompt in body")
+	assert.NotContains(t, gen.Markdown, "# prompt:", "prompt must NOT appear as comment")
+
+	// triggers is a known field now – no comment or warning for it
+	assert.NotContains(t, gen.Markdown, "# triggers:", "triggers must NOT appear as comment")
+
+	// Warnings only for the genuinely unknown fields
+	for _, field := range []string{"created_at", "updated_at", "created_by"} {
+		found := false
+		for _, w := range gen.Warnings {
+			if strings.Contains(w, field) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "expected warning for field %q", field)
+	}
+	for _, field := range []string{"prompt", "triggers"} {
+		for _, w := range gen.Warnings {
+			assert.NotContains(t, w, field, "unexpected warning mentioning %q: %s", field, w)
+		}
+	}
+}
+
+// TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools tests a richer payload:
+// multi-trigger (issues + workflow_run), tools migration, permissions, and
+// disabled/metadata fields going to Extra.
+func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
+	// Anonymised payload – login replaced with octocat.
+	raw := `{
+		"id": "0be2cc4b-de12-43fe-ada7-55ef6dc8f3ba",
+		"name": "issue triage",
+		"description": "test",
+		"prompt": "Summarize issue.",
+		"disabled": true,
+		"disabled_state": {"disabled_at": "2026-05-19T17:37:05.839761776Z", "reason": "disabled_by_user"},
+		"triggers": {
+			"issues": {"query": "label:bug", "types": ["opened"]},
+			"workflow_run": {"conclusions": ["failure"], "types": ["completed"], "workflows": ["haiku"]}
+		},
+		"tools": ["github/update_issue_body"],
+		"permissions": {"issues": "write"},
+		"created_at": "2026-05-19T17:37:00.145883739Z",
+		"updated_at": "2026-05-19T17:37:05.839761776Z",
+		"created_by": {"id": 1, "login": "octocat", "node_id": "MDQ6VXNlcjE=", "url": "https://github.com/octocat"}
+	}`
+
+	var wf JSONWorkflow
+	require.NoError(t, json.Unmarshal([]byte(raw), &wf), "unmarshal must succeed")
+
+	gen, err := ConvertJSONWorkflowToMarkdown(&wf, ConvertOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, "0be2cc4b-de12-43fe-ada7-55ef6dc8f3ba", gen.Filename, "filename from id")
+	assert.Contains(t, gen.Markdown, "# issue triage", "heading from name")
+
+	// Multi-trigger → map form (not string shorthand)
+	assert.Contains(t, gen.Markdown, "on:", "on: block present")
+	assert.Contains(t, gen.Markdown, `"issues"`, "issues trigger present")
+	assert.Contains(t, gen.Markdown, `"workflow_run"`, "workflow_run trigger present")
+	assert.Contains(t, gen.Markdown, `"haiku"`, "workflow name present")
+	assert.NotContains(t, gen.Markdown, "on: hourly", "must not use shorthand for multi-trigger")
+
+	// tools → gh-aw toolsets
+	assert.Contains(t, gen.Markdown, "tools:", "tools block present")
+	assert.Contains(t, gen.Markdown, `"issues"`, "issues toolset from update_issue_body")
+
+	// permissions → frontmatter
+	assert.Contains(t, gen.Markdown, "permissions:", "permissions block present")
+	assert.Contains(t, gen.Markdown, `"write"`, "issues:write permission")
+
+	// prompt → body
+	assert.Contains(t, gen.Markdown, "Summarize issue.", "prompt in body")
+
+	// Warnings for query and conclusions (no gh-aw equivalent)
+	hasQueryWarn, hasConclusionsWarn := false, false
+	for _, w := range gen.Warnings {
+		if strings.Contains(w, "query") {
+			hasQueryWarn = true
+		}
+		if strings.Contains(w, "conclusions") {
+			hasConclusionsWarn = true
+		}
+	}
+	assert.True(t, hasQueryWarn, "expected warning about issues.query")
+	assert.True(t, hasConclusionsWarn, "expected warning about workflow_run.conclusions")
+
+	// disabled, disabled_state, created_at, updated_at, created_by → Extra comments
+	assert.Contains(t, gen.Markdown, "# Unsupported fields preserved from source JSON:", "extra comment header")
+	for _, field := range []string{"disabled", "created_at", "updated_at", "created_by"} {
+		found := false
+		for _, w := range gen.Warnings {
+			if strings.Contains(w, field) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "expected warning for extra field %q", field)
+	}
+}
+
+func TestConvertTriggersToOn_SkipsIncompleteWorkflowRun(t *testing.T) {
+	on, warnings := convertTriggersToOn(&JSONWorkflowTriggers{
+		WorkflowRun: &WorkflowRunTrigger{
+			Workflows: []string{"haiku"},
+		},
+	})
+
+	assert.Nil(t, on)
+	assert.Contains(t, warnings, `triggers.workflow_run requires non-empty workflows and types; skipped`)
 }
 
 func TestGenericURLWorkflowName(t *testing.T) {

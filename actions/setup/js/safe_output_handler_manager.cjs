@@ -605,22 +605,6 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       }
     }
 
-    // Fail-fast: if a previous code-push operation failed, cancel non-code-push messages.
-    // Exception: add_comment messages are allowed through so the status comment still reaches
-    // the user — they will be annotated with a failure note (see effectiveMessage logic below).
-    if (codePushFailures.length > 0 && !CODE_PUSH_TYPES.has(messageType) && messageType !== "add_comment") {
-      const cancelReason = `Cancelled: code push operation failed (${codePushFailures[0].type}: ${codePushFailures[0].error})`;
-      core.info(`⏭ Message ${i + 1} (${messageType}) cancelled — ${cancelReason}`);
-      results.push({
-        type: messageType,
-        messageIndex: i,
-        success: false,
-        cancelled: true,
-        reason: cancelReason,
-      });
-      continue;
-    }
-
     const messageHandler = messageHandlers.get(messageType);
 
     if (!messageHandler) {
@@ -761,7 +745,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         // Track code-push failures for fail-fast behaviour
         if (CODE_PUSH_TYPES.has(messageType)) {
           codePushFailures.push({ type: messageType, error: errorMsg });
-          core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+          core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs (add_comment messages will include a failure note)`);
         }
         continue;
       }
@@ -907,7 +891,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Track code-push failures for fail-fast behaviour
       if (CODE_PUSH_TYPES.has(messageType)) {
         codePushFailures.push({ type: messageType, error: getErrorMessage(error) });
-        core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+        core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs (add_comment messages will include a failure note)`);
       }
     }
   }

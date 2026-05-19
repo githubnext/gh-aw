@@ -1,5 +1,5 @@
 ---
-title: aw.yml repository package manifest specification
+title: Package Management (Spec)
 description: Normative specification for the aw.yml repository package manifest format.
 sidebar:
   order: 321
