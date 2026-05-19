@@ -60,12 +60,9 @@ imports:
       labels: [automation, dependencies, dependabot]
       reviewers: [copilot]
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
   edit:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash:
     - "make dependabot && make build"
     - "make build"

@@ -19,8 +19,8 @@ engine:
 imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     min-integrity: approved
@@ -34,7 +34,6 @@ safe-outputs:
     target: "triggering"  # Auto-resolves from github.event.issue.number
     allowed: [copilot]    # Only allow copilot agent
 timeout-minutes: 5
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

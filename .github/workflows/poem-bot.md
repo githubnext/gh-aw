@@ -38,14 +38,11 @@ imports:
 
 # Deny all network access
   - shared/otlp.md
+  - shared/github-proxy-default.md
 network: {}
 
 # Tools configuration
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "echo"
@@ -151,8 +148,6 @@ safe-outputs:
 # Global timeout
 timeout-minutes: 10
 strict: true
-
-
 ---
 
 # Poem Bot - A Creative Agentic Workflow

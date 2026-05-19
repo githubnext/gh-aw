@@ -24,10 +24,6 @@ network:
     - python
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash:
     - "jq *"
     - "find /tmp -type f"
@@ -52,9 +48,8 @@ imports:
   - shared/session-analysis-strategies.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 timeout-minutes: 45
-
-
 ---
 # Copilot coding agent Session Analysis
 

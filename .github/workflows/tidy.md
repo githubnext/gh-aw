@@ -35,11 +35,8 @@ network:
 
 imports:
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash: ["make:*", "git restore:*", "git status"]
 
@@ -67,7 +64,6 @@ steps:
   - name: Install development dependencies
     run: make deps-dev
 strict: true
-
 ---
 
 # Code Tidying Agent

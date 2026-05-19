@@ -11,10 +11,6 @@ permissions:
   issues: read
 strict: true
 tools:
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-  cli-proxy: true
   bash:
     - "git diff*"
     - "git log*"
@@ -64,6 +60,9 @@ safe-outputs:
     max: 1
   noop:
 timeout-minutes: 15
+
+imports:
+  - shared/github-proxy-default.md
 ---
 
 # PR Description Updater

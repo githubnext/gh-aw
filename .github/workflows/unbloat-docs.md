@@ -46,6 +46,7 @@ imports:
 
 # Network access for documentation best practices research
   - shared/otlp.md
+  - shared/github-proxy-default.md
 network:
   allowed:
     - defaults
@@ -57,11 +58,7 @@ sandbox:
 
 # Tools configuration
 tools:
-  cli-proxy: true
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find docs/src/content/docs *"
@@ -180,7 +177,6 @@ steps:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: npm run build
-
 ---
 
 # Documentation Unbloat Workflow

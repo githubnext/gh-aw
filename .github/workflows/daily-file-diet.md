@@ -30,11 +30,8 @@ imports:
   - shared/safe-output-app.md
   - shared/otlp.md
 
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"

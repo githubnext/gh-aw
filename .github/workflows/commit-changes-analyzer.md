@@ -17,10 +17,6 @@ engine:
   id: claude
   max-turns: 100
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash:
     - "*"
   edit:
@@ -35,6 +31,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 ---
 
 # Commit Changes Analyzer

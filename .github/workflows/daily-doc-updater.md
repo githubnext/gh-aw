@@ -34,7 +34,6 @@ safe-outputs:
   noop:
 
 tools:
-  cli-proxy: true
   cache-memory: true
   github:
     mode: gh-proxy
@@ -55,7 +54,7 @@ timeout-minutes: 45
 imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
-
+  - shared/github-proxy-default.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

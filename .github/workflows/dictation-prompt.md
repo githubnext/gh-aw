@@ -20,15 +20,11 @@ imports:
   - shared/reporting.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-
 safe-outputs:
   create-pull-request:
     expires: 2d
@@ -40,7 +36,6 @@ safe-outputs:
 timeout-minutes: 10
 features:
   copilot-requests: true
-
 ---
 
 # Dictation Prompt Generator

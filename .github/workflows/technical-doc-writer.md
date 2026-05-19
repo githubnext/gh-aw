@@ -29,6 +29,7 @@ imports:
   - ../agents/technical-doc-writer.agent.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 safe-outputs:
   add-comment:
     max: 1
@@ -65,20 +66,14 @@ steps:
     run: npm run build
 
 tools:
-  cli-proxy: true
   cache-memory: true
   repo-memory:
     wiki: true
     description: "Technical documentation library"
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash: true
 
 timeout-minutes: 10
-
-
 ---
 
 ## Your Task

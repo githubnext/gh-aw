@@ -35,11 +35,7 @@ safe-outputs:
   noop:
 
 tools:
-  cli-proxy: true
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find docs -name '*.md' -o -name '*.mdx'"
@@ -59,6 +55,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

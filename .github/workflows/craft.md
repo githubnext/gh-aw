@@ -13,14 +13,11 @@ permissions:
 engine: copilot
 imports:
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
-  github:
-    mode: gh-proxy
-    toolsets: [default]
 steps:
   - name: Install gh-aw extension
     run: |
@@ -38,7 +35,6 @@ safe-outputs:
     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
 features:
   copilot-requests: true
-
 ---
 
 # Workflow Craft Agent

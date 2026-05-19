@@ -32,12 +32,9 @@ imports:
   - shared/go-source-analysis.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "cat go.mod"
@@ -50,7 +47,6 @@ tools:
 
 timeout-minutes: 30
 strict: true
-
 ---
 # Go Fan 🐹 - Daily Go Module Reviewer
 

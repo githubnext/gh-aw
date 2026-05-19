@@ -24,10 +24,6 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash: ["*"]
   edit:
 sandbox:
@@ -120,6 +116,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 ---
 
 # CI Cleaner

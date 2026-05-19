@@ -27,6 +27,7 @@ imports:
   - shared/reporting.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 network:
   allowed:
     - defaults
@@ -34,10 +35,6 @@ network:
     - go
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   cache-memory: true
   edit:
   bash:
@@ -69,7 +66,6 @@ safe-outputs:
     draft: false
 
 timeout-minutes: 30
-
 ---
 
 # Package Specification Enforcer

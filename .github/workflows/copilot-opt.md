@@ -18,10 +18,6 @@ network:
     - defaults
     - github
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash:
     - "jq *"
     - "find *"
@@ -44,8 +40,8 @@ imports:
   - shared/copilot-pr-data-fetch.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/github-proxy-default.md
 timeout-minutes: 30
-
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

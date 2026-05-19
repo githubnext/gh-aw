@@ -14,10 +14,6 @@ engine: copilot
 strict: true
 timeout-minutes: 30
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash:
     - "cat *"
     - "ls *"
@@ -105,6 +101,7 @@ imports:
       expires: 3d
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -22,11 +22,8 @@ imports:
   - shared/mcp/serena-go.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f"
@@ -40,7 +37,6 @@ tools:
 
 timeout-minutes: 20
 strict: true
-
 ---
 # Typist - Go Type Consistency Analysis
 

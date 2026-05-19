@@ -34,11 +34,7 @@ safe-outputs:
   noop:
 
 tools:
-  cli-proxy: true
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "*"
@@ -47,6 +43,7 @@ timeout-minutes: 30
 
 imports:
   - shared/otlp.md
+  - shared/github-proxy-default.md
 ---
 
 # Daily Caveman Optimizer 🪨

@@ -43,11 +43,8 @@ safe-outputs:
 
 imports:
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find .github/workflows -name '*.lock.yml'"
@@ -59,8 +56,6 @@ tools:
     - "cat scratchpad/layout.md"
 
 timeout-minutes: 20
-
-
 ---
 
 # Layout Specification Maintainer

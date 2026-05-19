@@ -31,11 +31,7 @@ network:
     - go
 imports:
   - shared/otlp.md
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
+  - shared/github-proxy-default.md
 safe-outputs:
   allowed-domains: [default-safe-outputs]
   call-workflow:

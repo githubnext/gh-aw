@@ -32,10 +32,6 @@ safe-outputs:
     protected-files: allowed
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash: true
 
 timeout-minutes: 15
@@ -44,6 +40,7 @@ features:
   copilot-requests: true
 imports:
   - shared/otlp.md
+  - shared/github-proxy-default.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -31,12 +31,9 @@ safe-outputs:
 
 imports:
   - shared/otlp.md
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "cat .github/aw/*.md"
@@ -45,7 +42,6 @@ tools:
     - "ls .github/aw/"
 
 timeout-minutes: 20
-
 ---
 
 # Instructions Janitor

@@ -26,6 +26,7 @@ imports:
       languages: ["go", "typescript"]
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -36,11 +37,7 @@ safe-outputs:
     max: 3
 
 tools:
-  cli-proxy: true
   cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "cat pkg/workflow/js/safe_outputs_tools.json"
@@ -57,7 +54,6 @@ timeout-minutes: 45
 strict: true
 features:
   copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

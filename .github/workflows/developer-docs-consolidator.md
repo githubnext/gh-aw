@@ -30,15 +30,11 @@ safe-outputs:
     draft: false
 
 tools:
-  cli-proxy: true
   cache-memory:
     key: developer-docs-cache
   repo-memory:
     wiki: true
     description: "Consolidated developer documentation and instructions"
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find specs -name '*.md'"
@@ -57,6 +53,7 @@ imports:
   - shared/mcp/serena-go.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 ---
 # Developer Documentation Consolidator
 

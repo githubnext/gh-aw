@@ -27,16 +27,13 @@ imports:
   - shared/safe-output-app.md
   - shared/otlp.md
 
+  - shared/github-proxy-default.md
 tools:
-  cli-proxy: true
   repo-memory:
     branch-name: memory/testify-expert
     description: "Tracks processed test files to avoid duplicates"
     file-glob: ["*.json", "*.txt"]
     max-file-size: 51200  # 50KB
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash:
     - "find . -name '*_test.go' -type f"
     - "cat **/*_test.go"

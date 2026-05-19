@@ -33,13 +33,8 @@ sandbox:
   agent: awf
 
 tools:
-  cli-proxy: true
   bash:
     - "*"
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-
 safe-outputs:
   create-discussion:
     expires: 3d
@@ -52,9 +47,9 @@ imports:
   - shared/hippo-memory.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/github-proxy-default.md
 features:
   copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

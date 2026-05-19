@@ -16,10 +16,6 @@ engine: copilot
 strict: true
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   bash:
     - "find pkg/cli/workflows -name 'test-*.md' -type f"
     - "ls pkg/cli/workflows/"
@@ -52,9 +48,9 @@ imports:
       expires: 3d
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 features:
   copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

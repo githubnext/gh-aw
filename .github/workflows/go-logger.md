@@ -37,10 +37,6 @@ steps:
     working-directory: ./actions/setup/js
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find pkg -name '*.go' -type f ! -name '*_test.go'"
@@ -58,9 +54,8 @@ imports:
   - shared/go-make.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 timeout-minutes: 15
-
-
 ---
 
 # Go Logger Enhancement

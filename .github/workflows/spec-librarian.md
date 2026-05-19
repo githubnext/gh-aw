@@ -28,16 +28,13 @@ imports:
   - shared/go-source-analysis.md
 
   - shared/otlp.md
+  - shared/github-proxy-default.md
 network:
   allowed:
     - defaults
     - github
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
   edit:
   bash:
     - "find pkg -name 'README.md' -type f"
@@ -74,7 +71,6 @@ safe-outputs:
 timeout-minutes: 25
 features:
   copilot-requests: true
-
 ---
 
 # Package Specification Librarian
