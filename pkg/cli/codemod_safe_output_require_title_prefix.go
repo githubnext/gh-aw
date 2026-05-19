@@ -59,10 +59,23 @@ func safeOutputsHandlersNeedingTitlePrefixMigration(frontmatter map[string]any) 
 		if !ok {
 			continue
 		}
-		if _, hasRequired := handlerMap["required-title-prefix"]; hasRequired {
-			continue
+		needsTitlePrefixRename := false
+		if _, hasRequired := handlerMap["required-title-prefix"]; !hasRequired {
+			if _, hasDeprecated := handlerMap["title-prefix"]; hasDeprecated {
+				needsTitlePrefixRename = true
+			}
 		}
-		if _, hasDeprecated := handlerMap["title-prefix"]; hasDeprecated {
+
+		needsRequiredLabelsRename := false
+		if handler == "push-to-pull-request-branch" {
+			if _, hasRequired := handlerMap["required-labels"]; !hasRequired {
+				if _, hasDeprecated := handlerMap["labels"]; hasDeprecated {
+					needsRequiredLabelsRename = true
+				}
+			}
+		}
+
+		if needsTitlePrefixRename || needsRequiredLabelsRename {
 			result[handler] = true
 		}
 	}
@@ -76,6 +89,7 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 
 	inSafeOutputs := false
 	safeOutputsIndent := ""
+	safeOutputsChildIndent := ""
 	activeHandler := ""
 	activeHandlerIndent := ""
 
@@ -86,6 +100,7 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 		if !strings.HasPrefix(trimmed, "#") {
 			if inSafeOutputs && hasExitedBlock(line, safeOutputsIndent) {
 				inSafeOutputs = false
+				safeOutputsChildIndent = ""
 				activeHandler = ""
 				activeHandlerIndent = ""
 			}
@@ -98,6 +113,7 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 		if strings.HasPrefix(trimmed, "safe-outputs:") {
 			inSafeOutputs = true
 			safeOutputsIndent = indent
+			safeOutputsChildIndent = ""
 			activeHandler = ""
 			activeHandlerIndent = ""
 			result = append(result, line)
@@ -105,6 +121,13 @@ func renameSafeOutputTitlePrefixConstraints(lines []string, handlersToRename map
 		}
 
 		if inSafeOutputs && isDescendant(indent, safeOutputsIndent) && strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, "#") {
+			if safeOutputsChildIndent == "" {
+				safeOutputsChildIndent = indent
+			}
+			if indent != safeOutputsChildIndent {
+				result = append(result, line)
+				continue
+			}
 			key := strings.TrimSuffix(trimmed, ":")
 			if handlersToRename[key] {
 				activeHandler = key

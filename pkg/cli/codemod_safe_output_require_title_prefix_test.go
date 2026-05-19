@@ -86,4 +86,63 @@ safe-outputs:
 		assert.False(t, applied)
 		assert.Equal(t, content, result)
 	})
+
+	t.Run("renames push labels when required-title-prefix already present", func(t *testing.T) {
+		content := `---
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "*"
+    required-title-prefix: "[bot] "
+    labels: [automated]
+---
+`
+		frontmatter := map[string]any{
+			"safe-outputs": map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					"target":                "*",
+					"required-title-prefix": "[bot] ",
+					"labels":                []string{"automated"},
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "required-labels:")
+		assert.NotContains(t, result, "\n    labels:")
+		assert.Contains(t, result, "required-title-prefix:")
+		assert.NotContains(t, result, "\n    title-prefix:")
+	})
+
+	t.Run("renames nested push keys without losing active handler", func(t *testing.T) {
+		content := `---
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "*"
+    protected-files:
+      - "README.md"
+    title-prefix: "[bot] "
+    labels: [automated]
+---
+`
+		frontmatter := map[string]any{
+			"safe-outputs": map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					"target":          "*",
+					"title-prefix":    "[bot] ",
+					"labels":          []string{"automated"},
+					"protected-files": []string{"README.md"},
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "required-title-prefix:")
+		assert.Contains(t, result, "required-labels:")
+		assert.NotContains(t, result, "\n    title-prefix:")
+		assert.NotContains(t, result, "\n    labels:")
+	})
 }
