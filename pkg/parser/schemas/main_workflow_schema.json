@@ -340,7 +340,7 @@
       ],
       "examples": [
         ["shared/jqschema.md", "shared/reporting.md"],
-        ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
+        ["shared/mcp/tavily.md", "shared/jqschema.md", "shared/reporting.md"],
         ["../instructions/documentation.instructions.md"],
         [".github/agents/my-agent.md"],
         [
