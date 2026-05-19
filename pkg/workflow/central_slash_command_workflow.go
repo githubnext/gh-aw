@@ -119,6 +119,8 @@ func centralRoutingCommandNames(wd *WorkflowData) []string {
 	if wd.PullRequestReviewer {
 		inferred := strings.TrimSpace(wd.WorkflowID)
 		if inferred != "" {
+			// Preserve the existing workflow ID shape here; downstream uniqueness
+			// checks normalize case/whitespace before comparison.
 			return []string{inferred}
 		}
 	}
