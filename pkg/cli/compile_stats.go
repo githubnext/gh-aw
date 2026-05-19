@@ -144,6 +144,14 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 
 	summary := fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
 		stats.Total, stats.Errors, stats.Warnings)
+	failedWorkflowCount := len(stats.FailureDetails)
+	if failedWorkflowCount == 0 {
+		failedWorkflowCount = len(stats.FailedWorkflows)
+	}
+	if stats.Errors > 0 && failedWorkflowCount > 0 {
+		summary = fmt.Sprintf("Compiled %d workflow(s): %d error(s) across %d failed workflow(s), %d warning(s)",
+			stats.Total, stats.Errors, failedWorkflowCount, stats.Warnings)
+	}
 
 	// Use different formatting based on whether there were errors
 	if stats.Errors > 0 {
