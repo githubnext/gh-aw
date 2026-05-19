@@ -611,7 +611,7 @@ describe("add_comment", () => {
       );
     });
 
-    it("should update existing status comment when reuse_status_comment is enabled", async () => {
+    it("should update existing status comment when target=status is requested", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
       process.env.GH_AW_COMMENT_ID = "55555";
 
@@ -637,7 +637,7 @@ describe("add_comment", () => {
       };
 
       const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
-      const result = await handler({ type: "add_comment", body: "Final output", reuse_status_comment: true }, {});
+      const result = await handler({ type: "add_comment", body: "Final output", target: "status" }, {});
 
       expect(result.success).toBe(true);
       expect(capturedUpdateParams).toEqual(

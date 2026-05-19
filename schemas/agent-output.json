@@ -123,9 +123,10 @@
           "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Optional existing issue/PR comment ID to update in place."
         },
-        "reuse_status_comment": {
-          "type": "boolean",
-          "description": "When true, update the activation status comment for this run (if available) instead of creating a new comment."
+        "target": {
+          "type": "string",
+          "enum": ["status"],
+          "description": "When set to 'status', update the activation status comment for this run (if available) instead of creating a new comment."
         }
       },
       "required": ["type", "body"],

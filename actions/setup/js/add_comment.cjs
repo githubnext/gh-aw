@@ -685,7 +685,14 @@ async function main(config = {}) {
     // add_comment uses snake_case fields. camelCase and kebab-case aliases are
     // accepted for compatibility with forwarded/legacy payload variants.
     const explicitCommentIdRaw = message.comment_id ?? message.commentId;
-    const reuseStatusComment = message.reuse_status_comment === true || message["reuse-status-comment"] === true;
+    const normalizedTarget = typeof message.target === "string" ? message.target.trim().toLowerCase() : "";
+    const targetStatusComment = normalizedTarget === "status";
+    if (normalizedTarget && !targetStatusComment) {
+      return {
+        success: false,
+        error: "target must be 'status' when provided",
+      };
+    }
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
     let commentIdToReuse = null;
     if (explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "") {
@@ -696,12 +703,12 @@ async function main(config = {}) {
           error: "comment_id must be a positive integer",
         };
       }
-    } else if (reuseStatusComment) {
+    } else if (targetStatusComment) {
       const parsedStatusCommentId = Number(statusCommentIdRaw);
       if (Number.isInteger(parsedStatusCommentId) && parsedStatusCommentId > 0) {
         commentIdToReuse = parsedStatusCommentId;
       } else {
-        core.info("reuse_status_comment was requested but no reusable status comment id was available; creating a new comment");
+        core.info("target=status was requested but no reusable status comment id was available; creating a new comment");
       }
     }
 
@@ -724,7 +731,7 @@ async function main(config = {}) {
         if (commentIdToReuse !== null) {
           return {
             success: false,
-            error: "comment_id/reuse_status_comment is only supported for issue and pull request comments",
+            error: "comment_id/target=status is only supported for issue and pull request comments",
           };
         }
         // When triggered by a discussion_comment event (without explicit item_number),

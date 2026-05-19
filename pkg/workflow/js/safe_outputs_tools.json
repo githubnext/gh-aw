@@ -328,9 +328,12 @@
           ],
           "description": "Existing issue or pull request comment ID to update instead of creating a new comment."
         },
-        "reuse_status_comment": {
-          "type": "boolean",
-          "description": "When true, updates the activation status comment for this run (if available) instead of creating a new comment."
+        "target": {
+          "type": "string",
+          "enum": [
+            "status"
+          ],
+          "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
         "secrecy": {
           "type": "string",
