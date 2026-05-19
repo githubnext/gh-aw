@@ -27,7 +27,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { resolveRepoIssueTarget, loadTemporaryIdMapFromResolved } = require("./temporary_id.cjs");
+const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
@@ -71,35 +71,9 @@ const main = createCountGatedHandler({
 
       // Determine target issue/PR number
       // Accept common aliases: issue_number, pr_number, and pull_number are normalised to item_number
-      const explicitItemNumber = message.item_number ?? message.issue_number ?? message.pr_number ?? message.pull_number;
-      let itemNumber;
-
-      if (explicitItemNumber !== undefined) {
-        // Resolve temporary IDs if present
-        const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
-        const resolvedTarget = resolveRepoIssueTarget(explicitItemNumber, tempIdMap, repoParts.owner, repoParts.repo);
-
-        // Check if this is an unresolved temporary ID
-        if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
-          core.info(`Deferring add_labels: unresolved temporary ID (${explicitItemNumber})`);
-          return {
-            success: false,
-            deferred: true,
-            error: resolvedTarget.errorMessage ?? `Unresolved temporary ID: ${explicitItemNumber}`,
-          };
-        }
-
-        // Check for other resolution errors
-        if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-          const error = `Invalid item number: ${explicitItemNumber}`;
-          core.warning(error);
-          return { success: false, error };
-        }
-
-        itemNumber = resolvedTarget.resolved.number;
-      } else {
-        itemNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
-      }
+      const targetResult = resolveSafeOutputIssueTarget({ message, resolvedTemporaryIds, repoParts, handlerType: HANDLER_TYPE });
+      if (!targetResult.success) return targetResult;
+      const itemNumber = targetResult.number ?? context.payload?.issue?.number ?? context.payload?.pull_request?.number;
 
       if (!itemNumber || Number.isNaN(Number(itemNumber))) {
         const error = "No issue/PR number available";

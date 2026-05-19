@@ -1924,7 +1924,7 @@ describe("add_comment", () => {
       const result = await handler(message, resolvedTemporaryIds);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Invalid explicit target number specified");
+      expect(result.error).toContain("Invalid item number");
     });
 
     it("should replace temporary IDs in comment body", async () => {
