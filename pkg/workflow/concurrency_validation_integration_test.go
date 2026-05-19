@@ -131,6 +131,23 @@ tools:
 			errorSubstr: "unclosed parentheses",
 			description: "Unbalanced parentheses in workflow-level concurrency should fail",
 		},
+		{
+			name: "invalid workflow-level concurrency - queue max with cancel true",
+			frontmatter: `---
+on: push
+concurrency:
+  group: workflow-${{ github.ref }}
+  cancel-in-progress: true
+  queue: max
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			content:     "Test workflow with invalid queue/cancel combination.",
+			expectError: true,
+			errorSubstr: "queue: max cannot be combined with cancel-in-progress: true",
+			description: "queue max with cancel true in workflow-level concurrency should fail",
+		},
 
 		// Invalid engine-level concurrency
 		{
@@ -165,6 +182,25 @@ tools:
 			expectError: true,
 			errorSubstr: "invalid expression syntax",
 			description: "Malformed operators in engine-level concurrency should fail",
+		},
+		{
+			name: "invalid engine-level concurrency - queue max with cancel true",
+			frontmatter: `---
+on: push
+engine:
+  id: copilot
+  concurrency:
+    group: copilot-${{ github.workflow }}
+    cancel-in-progress: true
+    queue: max
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			content:     "Test engine concurrency with invalid queue/cancel combination.",
+			expectError: true,
+			errorSubstr: "queue: max cannot be combined with cancel-in-progress: true",
+			description: "queue max with cancel true in engine-level concurrency should fail",
 		},
 
 		// Both levels with mixed validity

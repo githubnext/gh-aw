@@ -41,6 +41,12 @@ describe("add_comment", () => {
               html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345",
             },
           }),
+          updateComment: async () => ({
+            data: {
+              id: 12345,
+              html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345",
+            },
+          }),
           listComments: async () => ({ data: [] }),
         },
         pulls: {
@@ -94,6 +100,7 @@ describe("add_comment", () => {
     global.core = originalGlobals.core;
     global.github = originalGlobals.github;
     global.context = originalGlobals.context;
+    delete process.env.GH_AW_COMMENT_ID;
   });
 
   describe("target configuration", () => {
@@ -602,6 +609,84 @@ describe("add_comment", () => {
           comment_id: 777,
         })
       );
+    });
+
+    it("should update existing status comment when target=status is requested", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      process.env.GH_AW_COMMENT_ID = "55555";
+
+      let capturedUpdateParams = null;
+      let createCommentCalled = false;
+      mockGithub.rest.issues.updateComment = async params => {
+        capturedUpdateParams = params;
+        return {
+          data: {
+            id: params.comment_id,
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/8535#issuecomment-${params.comment_id}`,
+          },
+        };
+      };
+      mockGithub.rest.issues.createComment = async () => {
+        createCommentCalled = true;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+      const result = await handler({ type: "add_comment", body: "Final output", target: "status" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedUpdateParams).toEqual(
+        expect.objectContaining({
+          owner: "owner",
+          repo: "repo",
+          comment_id: 55555,
+        })
+      );
+      expect(createCommentCalled).toBe(false);
+      delete process.env.GH_AW_COMMENT_ID;
+    });
+
+    it("should update existing comment when comment-id alias is provided", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedUpdateParams = null;
+      let createCommentCalled = false;
+      mockGithub.rest.issues.updateComment = async params => {
+        capturedUpdateParams = params;
+        return {
+          data: {
+            id: params.comment_id,
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/8535#issuecomment-${params.comment_id}`,
+          },
+        };
+      };
+      mockGithub.rest.issues.createComment = async () => {
+        createCommentCalled = true;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/8535#issuecomment-12345",
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+      const result = await handler({ type: "add_comment", body: "Updated output", "comment-id": 55555 }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedUpdateParams).toEqual(
+        expect.objectContaining({
+          owner: "owner",
+          repo: "repo",
+          comment_id: 55555,
+        })
+      );
+      expect(createCommentCalled).toBe(false);
     });
   });
 

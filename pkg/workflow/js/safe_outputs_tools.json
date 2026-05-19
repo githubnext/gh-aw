@@ -321,6 +321,20 @@
           "type": "string",
           "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments \u2014 ignored for issue and pull request comments."
         },
+        "comment_id": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "Existing issue or pull request comment ID to update instead of creating a new comment."
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "status"
+          ],
+          "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."

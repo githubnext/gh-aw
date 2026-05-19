@@ -27,6 +27,11 @@ type slashCommandRoute struct {
 	AIReaction string   `json:"ai_reaction,omitempty"`
 }
 
+type reviewerLifecycleRoute struct {
+	Workflow string   `json:"workflow"`
+	Events   []string `json:"events"`
+}
+
 type commandsHeaderMetadata struct {
 	PayloadVersion string   `json:"payload_version"`
 	SchemaVersion  string   `json:"schema_version"`
@@ -40,11 +45,14 @@ type commandsHeaderMetadata struct {
 // When no centralized slash-command workflows are found, any existing generated file is deleted.
 func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string) error {
 	centralSlashCommandWorkflowLog.Printf("Generating centralized slash-command workflow from %d workflow(s)", len(workflowDataList))
-	slashRoutesByCommand, labelRoutesByCommand, mergedEvents := collectCentralCommandRoutes(workflowDataList)
+	if err := validateUniqueReviewerSlashCommands(workflowDataList); err != nil {
+		return err
+	}
+	slashRoutesByCommand, labelRoutesByCommand, reviewerRoutes, mergedEvents := collectCentralCommandRoutes(workflowDataList)
 
 	triggerFile := filepath.Join(workflowDir, centralSlashCommandWorkflowFilename)
 	legacyTriggerFile := filepath.Join(workflowDir, legacyCentralSlashCommandWorkflowFilename)
-	if (len(slashRoutesByCommand) == 0 && len(labelRoutesByCommand) == 0) || len(mergedEvents) == 0 {
+	if (len(slashRoutesByCommand) == 0 && len(labelRoutesByCommand) == 0 && len(reviewerRoutes) == 0) || len(mergedEvents) == 0 {
 		centralSlashCommandWorkflowLog.Print("No centralized slash-command participants found")
 		if err := removeIfExists(triggerFile); err != nil {
 			return fmt.Errorf("failed to delete centralized slash-command workflow: %w", err)
@@ -58,7 +66,7 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 	actionMode := DetectActionMode(GetVersion())
 	setupActionRef := ResolveSetupActionReference(ctx, actionMode, GetVersion(), "", nil)
 
-	content, err := buildCentralSlashCommandWorkflowYAML(slashRoutesByCommand, labelRoutesByCommand, mergedEvents, resolveCentralSlashRunsOn(workflowDataList), setupActionRef)
+	content, err := buildCentralSlashCommandWorkflowYAML(slashRoutesByCommand, labelRoutesByCommand, reviewerRoutes, mergedEvents, resolveCentralSlashRunsOn(workflowDataList), setupActionRef)
 	if err != nil {
 		return err
 	}
@@ -73,10 +81,52 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 	return nil
 }
 
-func collectCentralCommandRoutes(workflowDataList []*WorkflowData) (map[string][]slashCommandRoute, map[string][]slashCommandRoute, map[string]map[string]bool) {
+// validateUniqueReviewerSlashCommands ensures pull_request_reviewer workflows
+// do not share slash-command names (case-insensitive), returning an error when
+// duplicates are detected.
+func validateUniqueReviewerSlashCommands(workflowDataList []*WorkflowData) error {
+	reviewerCommandOwners := make(map[string]string)
+	for _, wd := range workflowDataList {
+		if wd == nil || !wd.PullRequestReviewer {
+			continue
+		}
+		for _, commandName := range centralRoutingCommandNames(wd) {
+			normalizedCommand := strings.ToLower(strings.TrimSpace(commandName))
+			if normalizedCommand == "" {
+				continue
+			}
+			if existingOwner, exists := reviewerCommandOwners[normalizedCommand]; exists {
+				return fmt.Errorf(
+					"pull_request_reviewer workflows require unique slash command names: '/%s' is used by '%s' and '%s'",
+					normalizedCommand,
+					existingOwner,
+					wd.WorkflowID,
+				)
+			}
+			reviewerCommandOwners[normalizedCommand] = wd.WorkflowID
+		}
+	}
+	return nil
+}
+
+func centralRoutingCommandNames(wd *WorkflowData) []string {
+	if wd == nil {
+		return nil
+	}
+	if len(wd.Command) > 0 {
+		return wd.Command
+	}
+	if wd.PullRequestReviewer && wd.WorkflowID != "" {
+		return []string{wd.WorkflowID}
+	}
+	return nil
+}
+
+func collectCentralCommandRoutes(workflowDataList []*WorkflowData) (map[string][]slashCommandRoute, map[string][]slashCommandRoute, []reviewerLifecycleRoute, map[string]map[string]bool) {
 	slashRoutesByCommand, mergedEvents := collectCentralSlashCommandRoutes(workflowDataList)
 	labelRoutesByCommand := collectCentralLabelCommandRoutes(workflowDataList, mergedEvents)
-	return slashRoutesByCommand, labelRoutesByCommand, mergedEvents
+	reviewerRoutes := collectPullRequestReviewerRoutes(workflowDataList, mergedEvents)
+	return slashRoutesByCommand, labelRoutesByCommand, reviewerRoutes, mergedEvents
 }
 
 func cleanupLegacyCentralSlashCommandWorkflow(path string) error {
@@ -100,7 +150,8 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 	mergedEvents := make(map[string]map[string]bool)
 
 	for _, wd := range workflowDataList {
-		if wd == nil || !wd.CommandCentralized || len(wd.Command) == 0 {
+		commandNames := centralRoutingCommandNames(wd)
+		if wd == nil || !wd.CommandCentralized || len(commandNames) == 0 {
 			continue
 		}
 
@@ -125,7 +176,7 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 			}
 		}
 
-		for _, commandName := range wd.Command {
+		for _, commandName := range commandNames {
 			routesByCommand[commandName] = append(routesByCommand[commandName], buildCentralizedRoutes(wd, routeEvents)...)
 		}
 	}
@@ -201,6 +252,32 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 	return routesByLabel
 }
 
+func collectPullRequestReviewerRoutes(workflowDataList []*WorkflowData, mergedEvents map[string]map[string]bool) []reviewerLifecycleRoute {
+	var routes []reviewerLifecycleRoute
+	for _, wd := range workflowDataList {
+		if wd == nil || !wd.PullRequestReviewer {
+			continue
+		}
+		routes = append(routes, reviewerLifecycleRoute{
+			Workflow: wd.WorkflowID,
+			Events:   []string{"pull_request", "pull_request_review"},
+		})
+		if mergedEvents["pull_request"] == nil {
+			mergedEvents["pull_request"] = make(map[string]bool)
+		}
+		mergedEvents["pull_request"]["ready_for_review"] = true
+		mergedEvents["pull_request"]["review_requested"] = true
+		if mergedEvents["pull_request_review"] == nil {
+			mergedEvents["pull_request_review"] = make(map[string]bool)
+		}
+		mergedEvents["pull_request_review"]["submitted"] = true
+	}
+	sort.Slice(routes, func(i, j int) bool {
+		return routes[i].Workflow < routes[j].Workflow
+	})
+	return routes
+}
+
 func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string) []slashCommandRoute {
 	if wd == nil {
 		return nil
@@ -248,7 +325,7 @@ func resolveCentralizedEventReaction(wd *WorkflowData, eventName string) string 
 	return ""
 }
 
-func buildCentralSlashCommandWorkflowYAML(slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute, mergedEvents map[string]map[string]bool, runsOn string, setupActionRef string) (string, error) {
+func buildCentralSlashCommandWorkflowYAML(slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute, reviewerRoutes []reviewerLifecycleRoute, mergedEvents map[string]map[string]bool, runsOn string, setupActionRef string) (string, error) {
 	slashRoutesJSON, err := json.Marshal(slashRoutesByCommand)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal centralized slash-command routes: %w", err)
@@ -257,8 +334,12 @@ func buildCentralSlashCommandWorkflowYAML(slashRoutesByCommand map[string][]slas
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal decentralized label-command routes: %w", err)
 	}
+	reviewerRoutesJSON, err := json.Marshal(reviewerRoutes)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal pull-request-reviewer routes: %w", err)
+	}
 
-	commandsMetadata, err := json.Marshal(buildCommandsHeaderMetadata(slashRoutesByCommand, labelRoutesByCommand))
+	commandsMetadata, err := json.Marshal(buildCommandsHeaderMetadata(slashRoutesByCommand, labelRoutesByCommand, reviewerRoutes))
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal centralized slash-command metadata: %w", err)
 	}
@@ -269,7 +350,7 @@ func buildCentralSlashCommandWorkflowYAML(slashRoutesByCommand map[string][]slas
 	b.WriteString("# gh-aw-commands: ")
 	b.Write(commandsMetadata)
 	b.WriteString("\n")
-	writeCentralRouteSummaryComments(&b, slashRoutesByCommand, labelRoutesByCommand)
+	writeCentralRouteSummaryComments(&b, slashRoutesByCommand, labelRoutesByCommand, reviewerRoutes)
 	b.WriteString(header)
 	b.WriteString(`name: "Agentic Commands"
 
@@ -299,6 +380,7 @@ jobs:
         env:
           GH_AW_SLASH_ROUTING: '` + escapeSingleQuotedYAMLString(string(slashRoutesJSON)) + `'
           GH_AW_LABEL_ROUTING: '` + escapeSingleQuotedYAMLString(string(labelRoutesJSON)) + `'
+          GH_AW_REVIEWER_ROUTING: '` + escapeSingleQuotedYAMLString(string(reviewerRoutesJSON)) + `'
         with:
           script: |
             const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
@@ -309,12 +391,24 @@ jobs:
 	return b.String(), nil
 }
 
-func writeCentralRouteSummaryComments(b *strings.Builder, slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute) {
+func writeCentralRouteSummaryComments(b *strings.Builder, slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute, reviewerRoutes []reviewerLifecycleRoute) {
 	b.WriteString("# Routing summary (sorted):\n")
 	b.WriteString("#   slash commands:\n")
 	writeCentralRouteTypeSummary(b, slashRoutesByCommand, "/")
 	b.WriteString("#   labels:\n")
 	writeCentralRouteTypeSummary(b, labelRoutesByCommand, "")
+	b.WriteString("#   pull-request reviewers:\n")
+	if len(reviewerRoutes) == 0 {
+		b.WriteString("#     (none)\n")
+		return
+	}
+	for _, route := range reviewerRoutes {
+		b.WriteString("#     ")
+		b.WriteString(route.Workflow)
+		b.WriteString(" [")
+		b.WriteString(strings.Join(route.Events, ","))
+		b.WriteString("]\n")
+	}
 }
 
 func writeCentralRouteTypeSummary(b *strings.Builder, routesByTrigger map[string][]slashCommandRoute, prefix string) {
@@ -370,7 +464,7 @@ func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[stri
 	if mergedEvents["issues"] != nil || mergedEvents["issue_comment"] != nil || mergedEvents["pull_request"] != nil {
 		b.WriteString("      issues: write\n")
 	}
-	if mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil {
+	if mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil || mergedEvents["pull_request_review"] != nil {
 		b.WriteString("      pull-requests: write\n")
 	}
 	if mergedEvents["discussion"] != nil || mergedEvents["discussion_comment"] != nil {
@@ -378,7 +472,7 @@ func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[stri
 	}
 }
 
-func buildCommandsHeaderMetadata(slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute) commandsHeaderMetadata {
+func buildCommandsHeaderMetadata(slashRoutesByCommand map[string][]slashCommandRoute, labelRoutesByCommand map[string][]slashCommandRoute, reviewerRoutes []reviewerLifecycleRoute) commandsHeaderMetadata {
 	commands := make([]string, 0, len(slashRoutesByCommand))
 	workflowSet := make(map[string]bool)
 	for command, routes := range slashRoutesByCommand {
@@ -394,6 +488,11 @@ func buildCommandsHeaderMetadata(slashRoutesByCommand map[string][]slashCommandR
 			if route.Workflow != "" {
 				workflowSet[route.Workflow] = true
 			}
+		}
+	}
+	for _, route := range reviewerRoutes {
+		if route.Workflow != "" {
+			workflowSet[route.Workflow] = true
 		}
 	}
 	sort.Strings(commands)
@@ -451,6 +550,7 @@ func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map
 		"issues",
 		"issue_comment",
 		"pull_request",
+		"pull_request_review",
 		"pull_request_review_comment",
 		"discussion",
 		"discussion_comment",

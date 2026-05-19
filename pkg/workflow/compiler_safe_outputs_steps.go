@@ -222,6 +222,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	// Environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}\n")
 
 	// Add allowed domains configuration for URL sanitization in safe output handlers.
 	// Without this, sanitizeContent() in safe_output_handler_manager.cjs only allows

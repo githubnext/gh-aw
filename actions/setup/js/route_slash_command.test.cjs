@@ -54,6 +54,7 @@ describe("route_slash_command", () => {
       archie: [{ workflow: "archie", events: ["issue_comment", "pull_request_comment"], ai_reaction: "eyes" }],
     });
     process.env.GH_AW_LABEL_ROUTING = JSON.stringify({});
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([]);
     process.env.GITHUB_WORKSPACE = `${process.cwd()}`;
   });
 
@@ -66,6 +67,7 @@ describe("route_slash_command", () => {
     globals.getOctokit = savedGlobals.getOctokit;
     delete process.env.GH_AW_SLASH_ROUTING;
     delete process.env.GH_AW_LABEL_ROUTING;
+    delete process.env.GH_AW_REVIEWER_ROUTING;
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_REF;
     delete process.env.GITHUB_HEAD_REF;
@@ -221,5 +223,79 @@ describe("route_slash_command", () => {
     expect(dispatchCalls).toHaveLength(2);
     expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot.lock.yml");
     expect(dispatchCalls[1].workflow_id).toBe("ci-doctor.lock.yml");
+  });
+
+  it("dispatches reviewer lifecycle routes on pull_request ready_for_review", async () => {
+    globals.context.eventName = "pull_request";
+    globals.context.payload = { action: "ready_for_review", pull_request: { number: 12, state: "open" } };
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([{ workflow: "pr-reviewer", events: ["pull_request", "pull_request_review"] }]);
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("pr-reviewer.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("");
+    expect(awContext.reviewer_lifecycle_event).toBe("pull_request");
+  });
+
+  it("dispatches reviewer lifecycle routes on pull_request review_requested", async () => {
+    globals.context.eventName = "pull_request";
+    globals.context.payload = { action: "review_requested", pull_request: { number: 12, state: "open" } };
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([{ workflow: "pr-reviewer", events: ["pull_request", "pull_request_review"] }]);
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("pr-reviewer.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("");
+    expect(awContext.reviewer_lifecycle_event).toBe("pull_request");
+  });
+
+  it("skips centralized routing when PR is closed at workflow start", async () => {
+    globals.context.eventName = "pull_request";
+    globals.context.payload = { action: "ready_for_review", pull_request: { number: 12, state: "closed" } };
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([{ workflow: "pr-reviewer", events: ["pull_request"] }]);
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(0);
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Pull request is closed at workflow start"));
+  });
+
+  it("routes pull_request_review using workflow marker in review body", async () => {
+    globals.context.eventName = "pull_request_review";
+    globals.context.payload = {
+      action: "submitted",
+      pull_request: { number: 9, state: "open" },
+      review: { body: "Looks good\n<!-- gh-aw-workflow-id: pr-reviewer -->" },
+    };
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([
+      { workflow: "pr-reviewer", events: ["pull_request_review"] },
+      { workflow: "other-reviewer", events: ["pull_request_review"] },
+    ]);
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(1);
+    expect(dispatchCalls[0].workflow_id).toBe("pr-reviewer.lock.yml");
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.reviewer_lifecycle_event).toBe("pull_request_review");
+  });
+
+  it("ignores pull_request_review edited and dismissed actions", async () => {
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([{ workflow: "pr-reviewer", events: ["pull_request_review"] }]);
+    for (const action of ["edited", "dismissed"]) {
+      dispatchCalls.length = 0;
+      globals.context.eventName = "pull_request_review";
+      globals.context.payload = {
+        action,
+        pull_request: { number: 9, state: "open" },
+        review: { body: "Looks good\n<!-- gh-aw-workflow-id: pr-reviewer -->" },
+      };
+      await main();
+      expect(dispatchCalls).toHaveLength(0);
+    }
   });
 });

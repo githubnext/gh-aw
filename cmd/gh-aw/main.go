@@ -283,6 +283,7 @@ Examples:
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
 		runnerGuard, _ := cmd.Flags().GetBool("runner-guard")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
+		showAllErrors, _ := cmd.Flags().GetBool("show-all")
 		fix, _ := cmd.Flags().GetBool("fix")
 		stats, _ := cmd.Flags().GetBool("stats")
 		failFast, _ := cmd.Flags().GetBool("fail-fast")
@@ -345,6 +346,7 @@ Examples:
 			Actionlint:             actionlint,
 			RunnerGuard:            runnerGuard,
 			JSONOutput:             jsonOutput,
+			ShowAllErrors:          showAllErrors,
 			Stats:                  stats,
 			FailFast:               failFast,
 			ScheduleSeed:           scheduleSeed,
@@ -701,6 +703,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("runner-guard", false, "Run runner-guard taint analysis scanner on generated .lock.yml files (uses Docker image "+cli.RunnerGuardImage+")")
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
+	compileCmd.Flags().Bool("show-all", false, "Display all prioritized compilation errors instead of the default top five")
 	compileCmd.Flags().Bool("stats", false, "Display statistics table sorted by workflow file size (shows jobs, steps, scripts, and shells)")
 	compileCmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")

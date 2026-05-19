@@ -98,3 +98,21 @@ func TestGetCopilotAllowedDomainsWithMCPScripts(t *testing.T) {
 		}
 	})
 }
+
+// TestMCPScripts_T_MCP_050_GoSandboxNetworkIsolation validates that domain configuration
+// does not grant unrestricted outbound access by default.
+func TestMCPScripts_T_MCP_050_GoSandboxNetworkIsolation(t *testing.T) {
+	network := &NetworkPermissions{
+		Allowed: []string{"api.github.com"},
+	}
+
+	result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
+
+	if strings.Contains(result, "*") || strings.Contains(result, "0.0.0.0/0") {
+		t.Fatalf("T-MCP-050: expected restricted domains, got unrestricted allow-list: %s", result)
+	}
+
+	if !strings.Contains(result, "api.github.com") {
+		t.Fatalf("T-MCP-050: expected explicit allowed domain to be present, got: %s", result)
+	}
+}

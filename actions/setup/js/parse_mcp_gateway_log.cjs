@@ -4,7 +4,7 @@
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
-const { ERR_PARSE } = require("./error_codes.cjs");
+const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./effective_tokens.cjs");
 
 /**
@@ -711,6 +711,10 @@ async function main() {
     } else if (fs.existsSync(rpcMessagesPath)) {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
       core.info(`Found rpc-messages.jsonl (${rpcMessagesContent.length} bytes)`);
+      if (rpcMessagesContent.length === 0) {
+        core.setFailed(`${ERR_SYSTEM}: rpc-messages.jsonl is present but zero bytes — MCP telemetry capture failed (server may not have started or crashed before any RPC)`);
+        return;
+      }
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
       effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([rpcMessagesContent]);

@@ -16,6 +16,60 @@ import (
 
 var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 
+// isValidPullRequestReviewerValue validates on.pull_request_reviewer trigger syntax.
+// Accepted values are:
+//   - Go nil (YAML `pull_request_reviewer:` with no value, uses default slash command name)
+//   - empty Go string ("", from YAML `pull_request_reviewer: ""`)
+//   - legacy string "slash_command"
+//   - custom slash command name string
+func isValidPullRequestReviewerValue(value any) bool {
+	if value == nil {
+		return true
+	}
+	reviewerMode, ok := value.(string)
+	if !ok {
+		return false
+	}
+	normalized := strings.TrimSpace(reviewerMode)
+	if normalized == "" || strings.EqualFold(normalized, "slash_command") {
+		return true
+	}
+	commandName := strings.TrimPrefix(normalized, "/")
+	if commandName == "" {
+		return false
+	}
+	return !strings.ContainsAny(commandName, " \t\r\n")
+}
+
+func extractCustomPullRequestReviewerCommandName(value any) string {
+	reviewerMode, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	normalized := strings.TrimSpace(reviewerMode)
+	if normalized == "" || strings.EqualFold(normalized, "slash_command") {
+		return ""
+	}
+	return strings.TrimPrefix(normalized, "/")
+}
+
+// resolvePullRequestReviewerCommandName determines the reviewer trigger command
+// name using this precedence:
+//  1. Explicit custom name from on.pull_request_reviewer
+//  2. WorkflowID (preferred default reviewer command identity)
+//  3. Markdown filename stem (legacy fallback when WorkflowID is unavailable)
+//
+// workflowData may be nil; in that case the function falls back to step 3.
+func resolvePullRequestReviewerCommandName(reviewerTriggerValue any, workflowData *WorkflowData, markdownPath string) string {
+	if reviewerCommandName := extractCustomPullRequestReviewerCommandName(reviewerTriggerValue); reviewerCommandName != "" {
+		return reviewerCommandName
+	}
+	if workflowData != nil && workflowData.WorkflowID != "" {
+		return workflowData.WorkflowID
+	}
+	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+}
+
 // parseOnSection handles parsing of the "on" section from frontmatter, extracting command triggers,
 // reactions, and stop-after configurations while detecting conflicts with other event types.
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
@@ -27,6 +81,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	var hasReaction bool
 	var hasStopAfter bool
 	var hasStatusComment bool
+	var hasPullRequestReviewer bool
 	var otherEvents map[string]any
 
 	// Use cached On field from ParsedFrontmatter if available, otherwise fall back to map access
@@ -143,6 +198,31 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			}
 
 			// Check for slash_command (preferred) or command (deprecated)
+			if reviewerValue, hasReviewerTrigger := onMap["pull_request_reviewer"]; hasReviewerTrigger {
+				if !isValidPullRequestReviewerValue(reviewerValue) {
+					return errors.New("on.pull_request_reviewer must be empty (pull_request_reviewer:) or a slash command name")
+				}
+				hasPullRequestReviewer = true
+				hasCommand = true
+				workflowData.PullRequestReviewer = true
+				workflowData.CommandCentralized = true
+				workflowData.Command = []string{resolvePullRequestReviewerCommandName(reviewerValue, workflowData, markdownPath)}
+				workflowData.CommandEvents = []string{"pull_request_comment", "pull_request_review_comment"}
+				// Populate CommandOtherEvents with reviewer lifecycle events
+				workflowData.CommandOtherEvents = map[string]any{
+					"pull_request": map[string]any{
+						"types": []string{"ready_for_review", "review_requested"},
+					},
+					"pull_request_review": map[string]any{
+						"types": []string{"submitted"},
+					},
+				}
+				if _, hasConcurrency := frontmatter["concurrency"]; !hasConcurrency && workflowData.Concurrency == "" {
+					workflowData.Concurrency = "concurrency:\n  group: \"gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}-all-reviewers\"\n  queue: max"
+				}
+				workflowData.On = ""
+			}
+
 			if _, hasSlashCommandKey := onMap["slash_command"]; hasSlashCommandKey {
 				hasCommand = true
 				// Set default command to filename if not specified in the command section
@@ -223,7 +303,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			}
 
 			// Extract other (non-conflicting) events excluding slash_command, command, label_command, reaction, status-comment, and stop-after
-			otherEvents = excludeMapKeys(onMap, "slash_command", "command", "label_command", "reaction", "status-comment", "stop-after", "github-token", "github-app", "needs")
+			otherEvents = excludeMapKeys(onMap, "slash_command", "command", "label_command", "pull_request_reviewer", "reaction", "status-comment", "stop-after", "github-token", "github-app", "needs")
 		}
 	}
 
@@ -237,6 +317,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		workflowData.LabelCommand = nil
 		workflowData.LabelCommandEvents = nil
 		workflowData.LabelCommandDecentralized = false
+	}
+	if !hasPullRequestReviewer {
+		workflowData.PullRequestReviewer = false
 	}
 
 	// Auto-enable "eyes" reaction for slash_command/label_command (and deprecated command) triggers if no explicit reaction was specified

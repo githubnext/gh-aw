@@ -24,17 +24,67 @@ type JSONWorkflow struct {
 	Name string `json:"name"`
 	// Human-readable description → frontmatter description:
 	Description string `json:"description"`
-	// Main body / prompt text → markdown body after frontmatter
+	// Main body / prompt text → markdown body after frontmatter.
+	// Instructions takes precedence when both are set.
 	Instructions string `json:"instructions"`
+	// Prompt maps to the markdown body like Instructions does.
+	// Instructions takes precedence when both are set.
+	Prompt string `json:"prompt"`
 	// Preferred AI engine → frontmatter engine:
 	Engine string `json:"engine"`
-	// Trigger configuration → frontmatter on: (passed through as-is)
+	// On is a generic trigger configuration → frontmatter on: (passed through
+	// as-is).  Takes precedence over Triggers when both are set.
 	On any `json:"on"`
+	// Triggers is a structured trigger block that is converted to the gh-aw
+	// "on:" frontmatter field via convertTriggersToOn.
+	// The On field takes precedence when both are set.
+	Triggers *JSONWorkflowTriggers `json:"triggers"`
+	// Tools lists tool IDs → frontmatter tools: (converted via convertToolsToConfig).
+	Tools []string `json:"tools"`
+	// Permissions maps GitHub Actions permission scopes to access levels
+	// (e.g. {"issues": "write"}) → frontmatter permissions:
+	Permissions map[string]string `json:"permissions"`
 	// Tags → frontmatter tags:
 	Tags []string `json:"tags"`
 	// Extra holds any top-level keys not listed above so they can be preserved
 	// as a comment block.
 	Extra map[string]any `json:"-"`
+}
+
+// JSONWorkflowTriggers is the structured trigger block for a JSON workflow.
+//
+// Supported trigger kinds and their gh-aw "on:" mapping:
+//
+//	interval  hourly/daily/weekly  →  "hourly" / "daily" / "weekly" (string shorthand)
+//	                                   or schedule: [{cron: "..."}] when combined with others
+//	issues    opened               →  on: issues: types: [opened]
+//	issues    opened + query       →  same + warning (query has no gh-aw equivalent)
+//	workflow_run                   →  on: workflow_run: workflows: [...] types: [completed]
+type JSONWorkflowTriggers struct {
+	Interval    *IntervalTrigger    `json:"interval,omitempty"`
+	Issues      *IssueTrigger       `json:"issues,omitempty"`
+	WorkflowRun *WorkflowRunTrigger `json:"workflow_run,omitempty"`
+}
+
+// IntervalTrigger schedules the workflow.  Types is one or more of
+// "hourly", "daily", "weekly".
+type IntervalTrigger struct {
+	Types []string `json:"types"`
+}
+
+// IssueTrigger fires when a GitHub issue is opened.  Types must contain
+// "opened".  Query is an optional issue-search filter with no gh-aw equivalent.
+type IssueTrigger struct {
+	Types []string `json:"types"`
+	Query string   `json:"query,omitempty"`
+}
+
+// WorkflowRunTrigger fires when a workflow run completes.  Workflows lists the
+// workflow names to watch; Conclusions filters by result (e.g. "failure").
+type WorkflowRunTrigger struct {
+	Types       []string `json:"types"`
+	Workflows   []string `json:"workflows"`
+	Conclusions []string `json:"conclusions"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler so that unknown keys are captured in Extra.
@@ -55,7 +105,8 @@ func (w *JSONWorkflow) UnmarshalJSON(data []byte) error {
 
 	knownKeys := map[string]bool{
 		"id": true, "name": true, "description": true,
-		"instructions": true, "engine": true, "on": true, "tags": true,
+		"instructions": true, "prompt": true, "engine": true,
+		"on": true, "triggers": true, "tools": true, "permissions": true, "tags": true,
 	}
 	for k, v := range raw {
 		if !knownKeys[k] {
@@ -125,11 +176,59 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 		fm.WriteString("\n")
 	}
 
-	if a.On != nil {
-		onYAML, err := marshalFrontmatterValue(a.On)
+	// "on:" is resolved from On (explicit, takes precedence) or converted from Triggers.
+	onVal, triggerWarnings := resolveOnValue(a)
+	warnings = append(warnings, triggerWarnings...)
+	if onVal != nil {
+		if s, ok := onVal.(string); ok {
+			// Scalar shorthand e.g. "on: hourly"
+			fm.WriteString("on: ")
+			fm.WriteString(s)
+			fm.WriteString("\n")
+		} else {
+			onYAML, err := marshalFrontmatterValue(onVal)
+			if err == nil {
+				fm.WriteString("on:\n")
+				for line := range strings.SplitSeq(onYAML, "\n") {
+					if line == "" {
+						continue
+					}
+					fm.WriteString("  ")
+					fm.WriteString(line)
+					fm.WriteString("\n")
+				}
+			} else {
+				warnings = append(warnings, fmt.Sprintf("could not serialize 'on' field: %v", err))
+			}
+		}
+	}
+
+	if len(a.Tools) > 0 {
+		toolsConfig, toolWarnings := convertToolsToConfig(a.Tools)
+		warnings = append(warnings, toolWarnings...)
+		if len(toolsConfig) > 0 {
+			toolsYAML, err := marshalFrontmatterValue(toolsConfig)
+			if err == nil {
+				fm.WriteString("tools:\n")
+				for line := range strings.SplitSeq(toolsYAML, "\n") {
+					if line == "" {
+						continue
+					}
+					fm.WriteString("  ")
+					fm.WriteString(line)
+					fm.WriteString("\n")
+				}
+			} else {
+				warnings = append(warnings, fmt.Sprintf("could not serialize 'tools' field: %v", err))
+			}
+		}
+	}
+
+	if len(a.Permissions) > 0 {
+		permYAML, err := marshalFrontmatterValue(a.Permissions)
 		if err == nil {
-			fm.WriteString("on:\n")
-			for line := range strings.SplitSeq(onYAML, "\n") {
+			fm.WriteString("permissions:\n")
+			for line := range strings.SplitSeq(permYAML, "\n") {
 				if line == "" {
 					continue
 				}
@@ -138,7 +237,7 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 				fm.WriteString("\n")
 			}
 		} else {
-			warnings = append(warnings, fmt.Sprintf("could not serialize 'on' field: %v", err))
+			warnings = append(warnings, fmt.Sprintf("could not serialize 'permissions' field: %v", err))
 		}
 	}
 
@@ -197,6 +296,10 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 
 	if a.Instructions != "" {
 		body.WriteString(strings.TrimRight(a.Instructions, "\n"))
+		body.WriteString("\n")
+	} else if a.Prompt != "" {
+		// Prompt is the fallback body text when no Instructions field is present.
+		body.WriteString(strings.TrimRight(a.Prompt, "\n"))
 		body.WriteString("\n")
 	}
 
@@ -271,4 +374,206 @@ func marshalFrontmatterValue(v any) (string, error) {
 	// Convert JSON representation to simple YAML.
 	// For objects and arrays the JSON encoding is already valid YAML.
 	return string(raw), nil
+}
+
+// resolveOnValue returns the value to use for the "on:" frontmatter key.
+// a.On takes precedence; a.Triggers is used as a fallback.
+func resolveOnValue(a *JSONWorkflow) (any, []string) {
+	if a.On != nil {
+		return a.On, nil
+	}
+	if a.Triggers != nil {
+		return convertTriggersToOn(a.Triggers)
+	}
+	return nil, nil
+}
+
+// convertTriggersToOn maps a JSONWorkflowTriggers block to a value suitable for
+// the gh-aw "on:" frontmatter field, plus any conversion warnings.
+//
+// Mapping rules (from GET /agents/automations/triggers):
+//
+//	interval  single type          →  string shorthand ("hourly" / "daily" / "weekly")
+//	interval  single type + other  →  schedule: [{cron: "<expr>"}] inside a map
+//	issues    opened               →  issues: {types: [opened]}
+//	issues    query present        →  warning (query has no gh-aw equivalent)
+//	workflow_run                   →  workflow_run: {workflows: [...], types: [completed]}
+//	workflow_run  conclusions      →  warning (conclusions has no gh-aw equivalent)
+func convertTriggersToOn(t *JSONWorkflowTriggers) (any, []string) {
+	if t == nil {
+		return nil, nil
+	}
+
+	var warnings []string
+	// parts accumulates the trigger map entries.
+	parts := map[string]any{}
+
+	if t.Interval != nil && len(t.Interval.Types) > 0 {
+		intervalType := t.Interval.Types[0]
+		if len(t.Interval.Types) > 1 {
+			warnings = append(warnings, fmt.Sprintf(
+				"triggers.interval has multiple types %v; only the first (%q) will be used",
+				t.Interval.Types, intervalType))
+		}
+		switch intervalType {
+		case "hourly", "daily", "weekly":
+			parts["_interval"] = intervalType
+		default:
+			warnings = append(warnings, fmt.Sprintf("triggers.interval type %q is not supported; skipped", intervalType))
+		}
+	}
+
+	if t.Issues != nil && len(t.Issues.Types) > 0 {
+		issueEntry := map[string]any{"types": t.Issues.Types}
+		if t.Issues.Query != "" {
+			warnings = append(warnings, `triggers.issues.query has no gh-aw equivalent; add a skip-if-match block manually if needed`)
+		}
+		parts["issues"] = issueEntry
+	}
+
+	if t.WorkflowRun != nil {
+		if len(t.WorkflowRun.Workflows) == 0 || len(t.WorkflowRun.Types) == 0 {
+			warnings = append(warnings, `triggers.workflow_run requires non-empty workflows and types; skipped`)
+		} else {
+			wfEntry := map[string]any{
+				"workflows": t.WorkflowRun.Workflows,
+				"types":     t.WorkflowRun.Types,
+			}
+			if len(t.WorkflowRun.Conclusions) > 0 {
+				warnings = append(warnings, `triggers.workflow_run.conclusions has no gh-aw equivalent; review the generated "on:" block`)
+			}
+			parts["workflow_run"] = wfEntry
+		}
+	}
+
+	if len(parts) == 0 {
+		return nil, warnings
+	}
+
+	// Single interval trigger → use the string shorthand directly.
+	intervalType, hasInterval := parts["_interval"]
+	if hasInterval && len(parts) == 1 {
+		return intervalType.(string), warnings
+	}
+
+	// Multiple triggers or non-interval: build a map.
+	// Convert interval shorthand to a schedule cron entry.
+	if hasInterval {
+		delete(parts, "_interval")
+		parts["schedule"] = []any{map[string]any{"cron": intervalToFuzzySchedule(intervalType.(string))}}
+	}
+
+	return parts, warnings
+}
+
+// intervalToFuzzySchedule returns a gh-aw fuzzy schedule expression for a
+// JSON interval type.  These expressions are understood by gh-aw's schedule
+// parser (pkg/parser/schedule_parser.go) and compiled to randomised cron
+// entries at workflow compilation time — they must NOT be raw cron strings.
+func intervalToFuzzySchedule(interval string) string {
+	switch interval {
+	case "hourly":
+		return "every 1h"
+	case "daily":
+		return "daily"
+	case "weekly":
+		return "weekly"
+	default:
+		return "daily"
+	}
+}
+
+// jsonToolToToolset maps a bare tool ID (without "github/" prefix) to the gh-aw
+// GitHub MCP toolset name.  The toolset names match the group IDs returned by
+// GET /agents/automations/tools.
+var jsonToolToToolset = map[string]string{
+	// Issues
+	"issue_read": "issues", "list_issues": "issues", "search_issues": "issues",
+	"create_issue": "issues", "update_issue_title": "issues", "update_issue_body": "issues",
+	"update_issue_assignees": "issues", "update_issue_labels": "issues",
+	"update_issue_milestone": "issues", "update_issue_type": "issues",
+	"update_issue_state": "issues", "add_sub_issue": "issues",
+	"remove_sub_issue": "issues", "reprioritize_sub_issue": "issues",
+	"set_issue_fields": "issues", "add_issue_comment": "issues",
+	// Pull Requests
+	"pull_request_read": "pull-requests", "list_pull_requests": "pull-requests",
+	"search_pull_requests": "pull-requests", "create_pull_request": "pull-requests",
+	"update_pull_request_title": "pull-requests", "update_pull_request_body": "pull-requests",
+	"update_pull_request_state": "pull-requests", "update_pull_request_draft_state": "pull-requests",
+	"merge_pull_request": "pull-requests", "update_pull_request_branch": "pull-requests",
+	"request_pull_request_reviewers": "pull-requests", "create_pull_request_review": "pull-requests",
+	"submit_pending_pull_request_review": "pull-requests", "delete_pending_pull_request_review": "pull-requests",
+	"add_pull_request_review_comment": "pull-requests", "resolve_review_thread": "pull-requests",
+	"unresolve_review_thread": "pull-requests", "add_reply_to_pull_request_comment": "pull-requests",
+	// Repos
+	"get_file_contents": "repos", "search_code": "repos", "search_repositories": "repos",
+	"list_branches": "repos", "list_commits": "repos", "get_commit": "repos",
+	"list_tags": "repos", "get_tag": "repos", "create_branch": "repos",
+	"create_or_update_file": "repos", "push_files": "repos", "delete_file": "repos",
+	// Actions
+	"actions_list": "actions", "actions_get": "actions", "get_job_logs": "actions",
+	// Code Security
+	"list_code_scanning_alerts": "code-security", "get_code_scanning_alert": "code-security",
+	"list_secret_scanning_alerts": "code-security", "get_secret_scanning_alert": "code-security",
+}
+
+// jsonGeneralTools are built-in agent capabilities that need no explicit gh-aw
+// configuration and produce no warning when encountered.
+var jsonGeneralTools = map[string]bool{
+	"read": true, "edit": true, "search": true,
+}
+
+// convertToolsToConfig maps a list of JSON tool IDs to a gh-aw tools config map
+// (the value under the "tools:" frontmatter key) and any conversion warnings.
+//
+// Tool ID format: bare ("issue_read") or prefixed ("github/issue_read").
+// Mapping:
+//
+//	github/*         →  tools: github: toolsets: [<toolset>]
+//	execute          →  tools: bash: "*"  (+ warning)
+//	web_search       →  tools: web-search: (direct mapping, hyphen-normalised)
+//	read/edit/search →  (built-in capability, no config needed, no warning)
+func convertToolsToConfig(tools []string) (map[string]any, []string) {
+	if len(tools) == 0 {
+		return nil, nil
+	}
+
+	var warnings []string
+	toolsets := map[string]bool{}
+	config := map[string]any{}
+	needsBash := false
+
+	for _, id := range tools {
+		bare := strings.TrimPrefix(id, "github/")
+		if jsonGeneralTools[bare] {
+			continue
+		}
+		switch bare {
+		case "execute":
+			needsBash = true
+		case "web_search":
+			// JSON uses underscore; gh-aw frontmatter uses hyphen.
+			config["web-search"] = nil
+		default:
+			if ts := jsonToolToToolset[bare]; ts != "" {
+				toolsets[ts] = true
+			} else {
+				warnings = append(warnings, fmt.Sprintf("tool %q has no known gh-aw mapping and was skipped", id))
+			}
+		}
+	}
+
+	if len(toolsets) > 0 {
+		sorted := make([]string, 0, len(toolsets))
+		for ts := range toolsets {
+			sorted = append(sorted, ts)
+		}
+		sort.Strings(sorted)
+		config["github"] = map[string]any{"toolsets": sorted}
+	}
+	if needsBash {
+		config["bash"] = "*"
+		warnings = append(warnings, `tool "execute" was mapped to bash: "*"; review the bash permissions`)
+	}
+	return config, warnings
 }

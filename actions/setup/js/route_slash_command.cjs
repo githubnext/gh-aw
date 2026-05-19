@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
+const { extractWorkflowId } = require("./generate_footer.cjs");
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
@@ -19,10 +20,23 @@ function resolveBodyText() {
     pull_request: context.payload?.pull_request?.body ?? "",
     issue_comment: context.payload?.comment?.body ?? "",
     pull_request_review_comment: context.payload?.comment?.body ?? "",
+    pull_request_review: context.payload?.review?.body ?? "",
     discussion: context.payload?.discussion?.body ?? "",
     discussion_comment: context.payload?.comment?.body ?? "",
   };
   return bodyByEvent[context.eventName] ?? "";
+}
+
+function isPRClosedAtStart() {
+  const pullRequestState = context.payload?.pull_request?.state;
+  if (pullRequestState === "closed") {
+    return true;
+  }
+  const issueState = context.payload?.issue?.state;
+  if (context.payload?.issue?.pull_request && issueState === "closed") {
+    return true;
+  }
+  return false;
 }
 
 function resolveDispatchRef() {
@@ -211,12 +225,18 @@ async function main() {
 
   const slashRouteMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");
   const labelRouteMap = JSON.parse(process.env.GH_AW_LABEL_ROUTING || "{}");
+  const reviewerRoutes = JSON.parse(process.env.GH_AW_REVIEWER_ROUTING || "[]");
   core.info(`Configured centralized slash commands: ${Object.keys(slashRouteMap).length}.`);
   core.info(`Configured decentralized label commands: ${Object.keys(labelRouteMap).length}.`);
+  core.info(`Configured pull-request reviewer workflows: ${Array.isArray(reviewerRoutes) ? reviewerRoutes.length : 0}.`);
 
   const identifier = eventIdentifier();
   const { buildAwContext } = require("./aw_context.cjs");
   const ref = resolveDispatchRef();
+  if (isPRClosedAtStart()) {
+    core.info("Pull request is closed at workflow start; skipping centralized routing.");
+    return;
+  }
 
   if (context.payload?.action === "labeled") {
     const labelName = context.payload?.label?.name ?? "";
@@ -252,6 +272,46 @@ async function main() {
     }
     core.info(`Completed decentralized label routing for '${labelName}'.`);
     return;
+  }
+
+  if ((context.eventName === "pull_request" || context.eventName === "pull_request_review") && Array.isArray(reviewerRoutes) && reviewerRoutes.length > 0) {
+    const matches = reviewerRoutes.filter(route => Array.isArray(route.events) && route.events.includes(context.eventName));
+    if (matches.length > 0) {
+      let selected = matches;
+      if (context.eventName === "pull_request") {
+        if (!["ready_for_review", "review_requested"].includes(context.payload?.action ?? "")) {
+          selected = [];
+        }
+      } else if (context.eventName === "pull_request_review") {
+        const action = context.payload?.action ?? "";
+        if (action !== "submitted") {
+          selected = [];
+        } else {
+          const workflowId = extractWorkflowId(context.payload?.review?.body ?? "");
+          if (workflowId) {
+            selected = selected.filter(route => route.workflow === workflowId);
+          } else {
+            selected = [];
+            core.info("No workflow marker found in pull request review body; skipping reviewer dispatch.");
+          }
+        }
+      }
+      if (selected.length > 0) {
+        core.info(`Matched reviewer routes on '${context.eventName}': ${selected.map(route => route.workflow).join(", ")}.`);
+        for (const route of selected) {
+          const awContext = {
+            ...buildAwContext(),
+            command_name: "",
+            reviewer_lifecycle_event: context.eventName,
+          };
+          core.info(`Dispatching reviewer workflow '${route.workflow}.lock.yml'.`);
+          await dispatchWorkflow(`${route.workflow}.lock.yml`, ref, {
+            aw_context: JSON.stringify(awContext),
+          });
+        }
+        core.info("Completed reviewer lifecycle routing.");
+      }
+    }
   }
 
   const text = resolveBodyText();

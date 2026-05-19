@@ -152,6 +152,76 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesForDecentralizedLabelsOnly
 	require.Contains(t, text, "#     ci-doctor -> ci-doctor [pull_request]")
 }
 
+func TestGenerateCentralSlashCommandWorkflow_IncludesPullRequestReviewerRoutes(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-reviewer-workflow-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:          "pr-reviewer",
+			Command:             []string{"review"},
+			CommandEvents:       []string{"pull_request_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	text := string(content)
+	require.Contains(t, text, "GH_AW_REVIEWER_ROUTING")
+	require.Contains(t, text, `"workflow":"pr-reviewer","events":["pull_request","pull_request_review"]`)
+	require.Contains(t, text, "pull_request_review:")
+	require.Contains(t, text, "types: [submitted]")
+	require.Contains(t, text, "ready_for_review")
+	require.Contains(t, text, "review_requested")
+	require.Contains(t, text, "#   pull-request reviewers:")
+	require.Contains(t, text, "#     pr-reviewer [pull_request,pull_request_review]")
+}
+
+func TestGenerateCentralSlashCommandWorkflow_InfersReviewerCommandFromWorkflowIDWhenMissing(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-reviewer-infer-command-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:          "pr-reviewer",
+			CommandEvents:       []string{"pull_request_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	text := string(content)
+	require.Contains(t, text, `"pr-reviewer":[{"workflow":"pr-reviewer","events":["pull_request_comment"]}]`)
+}
+
+func TestGenerateCentralSlashCommandWorkflow_ErrorsOnDuplicateReviewerCommandName(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-reviewer-duplicate-command-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:          "pr-reviewer-a",
+			Command:             []string{"pr-reviewer"},
+			CommandEvents:       []string{"pull_request_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+		{
+			WorkflowID:          "pr-reviewer-b",
+			Command:             []string{"PR-REVIEWER"},
+			CommandEvents:       []string{"pull_request_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+	}
+
+	err := GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "pull_request_reviewer workflows require unique slash command names")
+	require.Contains(t, err.Error(), "'pr-reviewer-a'")
+	require.Contains(t, err.Error(), "'pr-reviewer-b'")
+}
+
 func TestCollectCentralLabelCommandRoutes_IncludesSlashCentralizedLabelCommands(t *testing.T) {
 	data := []*WorkflowData{
 		{
@@ -165,7 +235,7 @@ func TestCollectCentralLabelCommandRoutes_IncludesSlashCentralizedLabelCommands(
 		},
 	}
 
-	_, labelRoutesByCommand, mergedEvents := collectCentralCommandRoutes(data)
+	_, labelRoutesByCommand, _, mergedEvents := collectCentralCommandRoutes(data)
 	require.Equal(t, []slashCommandRoute{
 		{Workflow: "triage", Events: []string{"issues"}, AIReaction: "eyes"},
 	}, labelRoutesByCommand["triage"])
@@ -323,12 +393,12 @@ func TestBuildCommandsHeaderMetadata_UsesReleaseVersionOnlyForReleaseBuilds(t *t
 
 	SetVersion("abc1234")
 	SetIsRelease(false)
-	metadata := buildCommandsHeaderMetadata(routesByCommand, nil)
+	metadata := buildCommandsHeaderMetadata(routesByCommand, nil, nil)
 	require.Equal(t, "dev", metadata.Compiler)
 
 	SetVersion("v1.2.3")
 	SetIsRelease(true)
-	metadata = buildCommandsHeaderMetadata(routesByCommand, nil)
+	metadata = buildCommandsHeaderMetadata(routesByCommand, nil, nil)
 	require.Equal(t, "v1.2.3", metadata.Compiler)
 }
 

@@ -339,6 +339,45 @@ describe("git patch integration tests", () => {
       const applyResult = execGit(["am", patchPath], { cwd: repoDir });
       expect(applyResult.status).toBe(0);
     });
+
+    it("should recover add/add conflicts with checkout --theirs and git am --continue", () => {
+      const baseCommit = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+
+      execGit(["checkout", "-b", "feature-add-add"], { cwd: repoDir });
+      fs.mkdirSync(path.join(repoDir, "docs"), { recursive: true });
+      fs.writeFileSync(path.join(repoDir, "docs", "conflict.md"), "Patch branch content\n");
+      execGit(["add", "docs/conflict.md"], { cwd: repoDir });
+      execGit(["commit", "-m", "Patch adds conflict file"], { cwd: repoDir });
+
+      const patchPath = path.join(patchDir, "add-add.patch");
+      const patchResult = execGit(["format-patch", `${baseCommit}..feature-add-add`, "--stdout"], { cwd: repoDir });
+      fs.writeFileSync(patchPath, patchResult.stdout);
+
+      execGit(["checkout", "main"], { cwd: repoDir });
+      fs.mkdirSync(path.join(repoDir, "docs"), { recursive: true });
+      fs.writeFileSync(path.join(repoDir, "docs", "conflict.md"), "Main branch content\n");
+      execGit(["add", "docs/conflict.md"], { cwd: repoDir });
+      execGit(["commit", "-m", "Main adds same file differently"], { cwd: repoDir });
+
+      execGit(["checkout", "-b", "apply-add-add"], { cwd: repoDir });
+      const amResult = execGit(["am", "--3way", patchPath], { cwd: repoDir, allowFailure: true });
+      expect(amResult.status).not.toBe(0);
+
+      const unresolved = execGit(["diff", "--name-only", "--diff-filter=U", "-z"], { cwd: repoDir }).stdout.split("\0").filter(Boolean);
+      expect(unresolved).toContain("docs/conflict.md");
+
+      const statusPorcelain = execGit(["status", "--porcelain", "-z"], { cwd: repoDir }).stdout.split("\0").filter(Boolean);
+      expect(statusPorcelain).toContain("AA docs/conflict.md");
+
+      execGit(["checkout", "--theirs", "--", "docs/conflict.md"], { cwd: repoDir });
+      execGit(["add", "--", "docs/conflict.md"], { cwd: repoDir });
+      execGit(["am", "--continue"], { cwd: repoDir });
+
+      const content = fs.readFileSync(path.join(repoDir, "docs", "conflict.md"), "utf8");
+      expect(content).toBe("Patch branch content\n");
+      const subject = execGit(["log", "-1", "--format=%s"], { cwd: repoDir }).stdout.trim();
+      expect(subject).toBe("Patch adds conflict file");
+    });
   });
 
   // ──────────────────────────────────────────────────────

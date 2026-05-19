@@ -236,3 +236,34 @@ custom_timeout_minutes: 60
 	assert.True(t, foundTimeoutMinutes, "Should replace timeout_minutes")
 	assert.True(t, foundCustomTimeoutMinutes, "Should not replace custom_timeout_minutes")
 }
+
+func TestTimeoutMinutesCodemod_MultipleOccurrences(t *testing.T) {
+	codemod := getTimeoutMinutesCodemod()
+
+	content := `---
+on: workflow_dispatch
+timeout_minutes: 30
+jobs:
+  setup:
+    timeout_minutes: 45
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on":              "workflow_dispatch",
+		"timeout_minutes": 30,
+		"jobs": map[string]any{
+			"setup": map[string]any{
+				"timeout_minutes": 45,
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err, "Apply should not return an error")
+	assert.True(t, applied, "Codemod should report changes")
+	assert.Equal(t, 2, strings.Count(result, "timeout-minutes:"), "Codemod should replace all timeout_minutes occurrences in frontmatter")
+	assert.NotContains(t, result, "timeout_minutes:", "Result should not contain old field name")
+}

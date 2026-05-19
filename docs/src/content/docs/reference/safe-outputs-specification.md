@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.20.0  
+**Version**: 1.21.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-05-15  
+**Publication Date**: 2026-05-19  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -1668,6 +1668,39 @@ group: ${{ inputs.group-issues }}
 - When a GitHub Actions expression is supplied, implementations MUST evaluate it at runtime and treat the result as a boolean.
 - A non-boolean runtime value for a templatable boolean field MUST be treated as `false`.
 
+### 5.6 Synthetic Reviewer Trigger Integration
+
+The `on.pull_request_reviewer` trigger is a synthetic trigger that integrates reviewer lifecycle routing with safe-output pipelines.
+
+**Syntax**:
+
+```yaml
+on:
+  pull_request_reviewer:
+```
+
+```yaml
+on:
+  pull_request_reviewer: reviewer-command
+```
+
+**Conformance requirements**:
+
+- **PRR1**: Implementations MUST accept `on.pull_request_reviewer` in all of the following forms:
+  - YAML null form (`pull_request_reviewer:`)
+  - empty string form (`pull_request_reviewer: ""`)
+  - legacy compatibility form (`pull_request_reviewer: slash_command`)
+  - custom slash command name string (for example `pull_request_reviewer: reviewer-command`)
+  The null, empty-string, and legacy compatibility forms MUST all use the default built-in slash command name derived from workflow ID.
+- **PRR2**: Implementations MUST treat `on.pull_request_reviewer` as an experimental feature and MUST emit the warning `Using experimental feature: pull_request_reviewer` during compilation.
+- **PRR3**: Built-in slash command behavior for `on.pull_request_reviewer` MUST always be enabled and MUST NOT be replaced by a separate `on.slash_command` trigger definition. If both fields are present, reviewer-trigger command name and reviewer-trigger event set MUST take precedence.
+- **PRR4**: Implementations MUST subscribe reviewer lifecycle routing to:
+  - `pull_request` actions `ready_for_review` and `review_requested`
+  - `pull_request_review` action `submitted` only
+- **PRR5**: Implementations MUST ignore `pull_request_review` actions other than `submitted` (including `edited` and `dismissed`) for reviewer lifecycle routing.
+- **PRR6**: When multiple `pull_request_reviewer` workflows are configured, slash command names MUST be unique case-insensitively.
+- **PRR7**: Duplicate reviewer slash command names MUST fail compilation with an explicit validation error.
+
 ---
 
 ## 6. Universal Feature Interpretation
@@ -2104,6 +2137,15 @@ This section provides complete normative definitions for all safe output types. 
 4. **Footer Injection**: Appends footer according to configuration (typically 200-500 characters).
 5. **Cross-Repository**: Supports `target-repo` configuration.
 
+**Status Comment Reuse Extension (`target: "status"`)**:
+
+This extension applies to safe-output processor messages for `add_comment` (including system-generated status updates). It is distinct from the MCP input schema in this section.
+
+1. When `target: "status"` is set and a reusable status comment ID is available, implementations MUST update the existing issue/PR comment instead of creating a new comment.
+2. When `target: "status"` is set but no reusable status comment ID is available, implementations MUST create a new comment.
+3. `target: "status"` and `comment_id` MUST be rejected for discussion comments; they are valid only for issue and pull request comments.
+4. When updating an existing comment through status-comment reuse, implementations SHOULD skip hide-older-comments behavior for that operation.
+
 **Enforced Constraints**:
 
 | Constraint | Limit | Error Code | Example Error Message |
@@ -2117,7 +2159,7 @@ This section provides complete normative definitions for all safe output types. 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
-- `target`: Filter by type ("issue", "pull_request", "discussion", "*")
+- `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
 - `hide-older-comments`: Hide previous workflow comments
 - `discussions`: Control `discussions:write` permission (default: true)
 - `target-repo`: Cross-repository target
@@ -4988,6 +5030,23 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+### Changelog Alignment (Reviewer and Status-Comment Updates)
+
+This specification revision aligns with directly relevant `CHANGELOG.md` entries and with the current reviewer/status-comment PR updates:
+
+- **v0.40.1**: `add_comment` discussion handling was updated to auto-detect discussion context without requiring a `discussion` flag.
+- **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
+- **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
+- **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+- **Current PR updates (pending release-note consolidation)**: `on.pull_request_reviewer` synthetic lifecycle routing and `add_comment` `target: "status"` reuse semantics are now normatively specified in Sections 5.6 and 7.1.
+
+**Version 1.21.0** (2026-05-19):
+
+- **Added**: Section 5.6 defining normative behavior for `on.pull_request_reviewer`, including syntax options, experimental warning requirements, lifecycle event routing scope, and uniqueness constraints.
+- **Added**: `add_comment` status-comment reuse extension semantics in Section 7.1 for `target: "status"` behavior and issue/PR-only restrictions.
+- **Added**: Changelog alignment subsection mapping safe-output/reviewer changelog items to this specification revision.
+- **Updated**: Publication metadata to 1.21.0.
 
 **Version 1.20.0** (2026-05-15):
 

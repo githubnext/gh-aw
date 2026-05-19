@@ -194,6 +194,10 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate workflow-level concurrency group expression
 	workflowLog.Printf("Validating workflow-level concurrency configuration")
 	if workflowData.Concurrency != "" {
+		if err := validateConcurrencyQueueConfiguration(workflowData.Concurrency); err != nil {
+			return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
+		}
+
 		// Use the cached validation result from applyDefaults to avoid re-running the
 		// expensive ExpressionParser (regex + tokenize + parse) on every validateWorkflowData call.
 		if workflowData.CachedConcurrencyGroupExprSet {
@@ -223,6 +227,10 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate engine-level concurrency group expression
 	workflowLog.Printf("Validating engine-level concurrency configuration")
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {
+		if err := validateConcurrencyQueueConfiguration(workflowData.EngineConfig.Concurrency); err != nil {
+			return formatCompilerError(markdownPath, "error", "engine.concurrency validation failed: "+err.Error(), err)
+		}
+
 		// Extract the group expression from the engine concurrency YAML
 		groupExpr := extractConcurrencyGroupFromYAML(workflowData.EngineConfig.Concurrency)
 		if groupExpr != "" {
@@ -284,6 +292,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 				"The Copilot assignment API requires a fine-grained PAT. "+
 				"The token fallback chain (GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN) will be used automatically. "+
 				"Add github-token: to your assign-to-agent config to specify a different token."))
+		c.IncrementWarningCount()
+	}
+
+	// Emit experimental warning for pull_request_reviewer synthetic trigger
+	if workflowData.PullRequestReviewer {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: pull_request_reviewer"))
 		c.IncrementWarningCount()
 	}
 

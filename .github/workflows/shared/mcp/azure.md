@@ -11,7 +11,15 @@ mcp-servers:
       AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
       AZURE_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
       AZURE_CLIENT_SECRET: "${{ secrets.AZURE_CLIENT_SECRET }}"
-    allowed: ["*"]
+    # Security decision (2026-05-19): restrict Azure MCP to read-only discovery tools.
+    # This replaces wildcard access to reduce blast radius if a future tool is added upstream.
+    allowed:
+      - "subscription_list"
+      - "subscription_get"
+      - "group_list"
+      - "group_get"
+      - "resource_list"
+      - "resource_get"
 ---
 
 <!--

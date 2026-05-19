@@ -36,6 +36,16 @@ import (
 
 var compileWorkflowProcessorLog = logger.New("cli:compile_workflow_processor")
 
+func appendValidationErrors(dst []CompileValidationError, errorType string, err error) []CompileValidationError {
+	for _, message := range workflow.ExpandErrorMessages(err) {
+		dst = append(dst, CompileValidationError{
+			Type:    errorType,
+			Message: message,
+		})
+	}
+	return dst
+}
+
 // compileWorkflowFileResult represents the result of compiling a single workflow file
 type compileWorkflowFileResult struct {
 	workflowData     *workflow.WorkflowData
@@ -143,10 +153,7 @@ func compileWorkflowFile(
 		// Don't print error here - it will be displayed in the compilation summary
 		// The error is stored in ValidationResult for JSON output and summary display
 		result.validationResult.Valid = false
-		result.validationResult.Errors = append(result.validationResult.Errors, CompileValidationError{
-			Type:    "parse_error",
-			Message: err.Error(),
-		})
+		result.validationResult.Errors = appendValidationErrors(result.validationResult.Errors, "parse_error", err)
 		return result
 	}
 	result.workflowData = workflowData
@@ -165,10 +172,7 @@ func compileWorkflowFile(
 		// Don't print error here - it will be displayed in the compilation summary
 		// The error is stored in ValidationResult for JSON output and summary display
 		result.validationResult.Valid = false
-		result.validationResult.Errors = append(result.validationResult.Errors, CompileValidationError{
-			Type:    "compilation_error",
-			Message: err.Error(),
-		})
+		result.validationResult.Errors = appendValidationErrors(result.validationResult.Errors, "compilation_error", err)
 		return result
 	}
 

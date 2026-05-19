@@ -631,6 +631,19 @@ Issue Monster runs frequently (every 30 minutes), so keeping each run lean is cr
 - ✅ **Skip integrity-blocked issues**: If `issue_read` is blocked by integrity policy, skip that issue and continue — never call `missing_data` for integrity errors
 - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
 
+## Formatting Requirements
+
+- **Header Levels**: Use h3 (`###`) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (`#`) or h2 (`##`) headers.
+- **Progressive Disclosure**: Wrap long sections or verbose details in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Keep critical information visible (summary, key outcomes, and recommendations) and use collapsible sections for secondary details.
+
+### Recommended Report Structure
+
+1. **Overview**: 1-2 paragraphs summarizing key findings (always visible)
+2. **Critical Information**: Key metrics, status, critical issues (always visible)
+3. **Details**: Use `<details><summary>Section Name</summary>` for expanded content
+4. **Recommendations**: Actionable next steps (always visible)
+
 ## Success Criteria
 
 A successful run means:
