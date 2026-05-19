@@ -35,9 +35,9 @@ import (
 var concurrencyValidationLog = newValidationLogger("concurrency")
 
 var (
-	concurrencyGroupPattern          = regexp.MustCompile(`(?m)^\s*group:\s*["']?([^"'\n]+?)["']?\s*$`)
-	concurrencyQueueMaxPattern       = regexp.MustCompile(`(?m)^\s*queue:\s*["']?max["']?\s*$`)
-	concurrencyCancelInProgressTrue  = regexp.MustCompile(`(?m)^\s*cancel-in-progress:\s*true\s*$`)
+	concurrencyGroupPattern                 = regexp.MustCompile(`(?m)^\s*group:\s*["']?([^"'\n]+?)["']?\s*$`)
+	concurrencyQueueMaxPattern              = regexp.MustCompile(`(?m)^\s*queue:\s*["']?max["']?\s*$`)
+	concurrencyCancelInProgressTruePattern  = regexp.MustCompile(`(?m)^\s*cancel-in-progress:\s*true\s*$`)
 )
 
 // validateConcurrencyGroupExpression validates the syntax of a custom concurrency group expression.
@@ -129,7 +129,7 @@ func validateConcurrencyQueueConfiguration(concurrencyYAML string) error {
 	}
 
 	if concurrencyQueueMaxPattern.MatchString(concurrencyYAML) &&
-		concurrencyCancelInProgressTrue.MatchString(concurrencyYAML) {
+		concurrencyCancelInProgressTruePattern.MatchString(concurrencyYAML) {
 		return NewValidationError(
 			"concurrency",
 			"invalid concurrency queue configuration",

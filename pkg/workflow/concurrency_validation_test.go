@@ -807,7 +807,7 @@ func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
 			err := validateConcurrencyQueueConfiguration(tt.concurrency)
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "queue: max")
+				assert.Contains(t, err.Error(), "queue: max cannot be combined with cancel-in-progress: true")
 				return
 			}
 			assert.NoError(t, err)
