@@ -329,6 +329,8 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	return nil
 }
 
+// hasNonEmptyWorkflowRunWorkflows returns true when workflow_run.workflows
+// is present with at least one non-empty workflow name.
 func hasNonEmptyWorkflowRunWorkflows(v any) bool {
 	switch workflows := v.(type) {
 	case string:
