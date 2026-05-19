@@ -264,7 +264,7 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 	}
 }
 
-func TestMCPNetworkSchemaDeprecation(t *testing.T) {
+func TestMCPNetworkSchemaAllowedDeprecationOnly(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -344,6 +344,7 @@ func TestMCPNetworkSchemaDeprecation(t *testing.T) {
 			if !ok {
 				t.Fatal("network properties not found")
 			}
+
 			allowedField, ok := properties["allowed"].(map[string]any)
 			if !ok {
 				t.Fatal("network.allowed schema not found")
@@ -351,6 +352,17 @@ func TestMCPNetworkSchemaDeprecation(t *testing.T) {
 			deprecatedAllowed, ok := allowedField["deprecated"].(bool)
 			if !ok || !deprecatedAllowed {
 				t.Fatalf("network.allowed should be marked deprecated; got: %v", allowedField["deprecated"])
+			}
+
+			proxyArgsField, ok := properties["proxy-args"].(map[string]any)
+			if !ok {
+				t.Fatal("network.proxy-args schema not found")
+			}
+			if deprecatedValue, hasDeprecated := proxyArgsField["deprecated"]; hasDeprecated {
+				deprecatedBool, ok := deprecatedValue.(bool)
+				if !ok || deprecatedBool {
+					t.Fatalf("network.proxy-args should not be deprecated; got: %v", deprecatedValue)
+				}
 			}
 		})
 	}
