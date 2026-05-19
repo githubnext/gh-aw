@@ -42,7 +42,7 @@ func IsDailyCron(cron string) bool {
 
 	result := fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 	if result {
-		log.Printf("Cron expression classified as daily: %q (minute=%s, hour=%s)", cron, minute, hour)
+		parserLog.Printf("Cron expression classified as daily: %q (minute=%s, hour=%s)", cron, minute, hour)
 	}
 	return result
 }
@@ -76,7 +76,7 @@ func IsHourlyCron(cron string) bool {
 	// Check remaining fields are wildcards
 	result := fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 	if result {
-		log.Printf("Cron expression classified as hourly: %q (minute=%s, hour=%s)", cron, minute, hour)
+		parserLog.Printf("Cron expression classified as hourly: %q (minute=%s, hour=%s)", cron, minute, hour)
 	}
 	return result
 }
@@ -122,7 +122,7 @@ func IsWeeklyCron(cron string) bool {
 		}
 	}
 
-	log.Printf("Cron expression classified as weekly: %q (minute=%s, hour=%s, dow=%s)", cron, minute, hour, dow)
+	parserLog.Printf("Cron expression classified as weekly: %q (minute=%s, hour=%s, dow=%s)", cron, minute, hour, dow)
 	return true
 }
 
@@ -137,18 +137,18 @@ func IsCronExpression(input string) bool {
 	// A cron expression has exactly 5 fields
 	fields := strings.Fields(input)
 	if len(fields) != 5 {
-		log.Printf("Input is not a cron expression (expected 5 fields, got %d): %q", len(fields), input)
+		parserLog.Printf("Input is not a cron expression (expected 5 fields, got %d): %q", len(fields), input)
 		return false
 	}
 
 	// Each field should match cron syntax (numbers, *, /, -, ,)
 	for _, field := range fields {
 		if !cronFieldPattern.MatchString(field) {
-			log.Printf("Cron field %q contains invalid characters in expression: %q", field, input)
+			parserLog.Printf("Cron field %q contains invalid characters in expression: %q", field, input)
 			return false
 		}
 	}
 
-	log.Printf("Input recognized as valid cron expression: %q", input)
+	parserLog.Printf("Input recognized as valid cron expression: %q", input)
 	return true
 }

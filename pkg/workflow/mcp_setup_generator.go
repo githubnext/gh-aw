@@ -119,8 +119,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	hasAgenticWorkflows := slices.Contains(mcpTools, "agentic-workflows")
-	hasGhAwImport := hasGhAwSharedImport(workflowData)
-	generateAgenticWorkflowsInstallStep(yaml, hasAgenticWorkflows, hasGhAwImport)
+	generateAgenticWorkflowsInstallStep(c, yaml, hasAgenticWorkflows, workflowData)
 
 	generateSafeOutputsSetup(c, yaml, safeOutputConfig, workflowData)
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
@@ -174,36 +173,32 @@ func generateSafeOutputsConfigIfEnabled(workflowData *WorkflowData) (string, err
 	return safeOutputConfig, nil
 }
 
-func hasGhAwSharedImport(workflowData *WorkflowData) bool {
-	for _, importPath := range workflowData.ImportedFiles {
-		if strings.Contains(importPath, "shared/mcp/gh-aw.md") {
-			return true
-		}
-	}
-	return false
-}
-
-func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkflows bool, hasGhAwImport bool) {
+func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, hasAgenticWorkflows bool, workflowData *WorkflowData) {
 	if !hasAgenticWorkflows {
 		return
 	}
-	if hasGhAwImport {
-		mcpSetupGeneratorLog.Print("Skipping gh-aw extension installation step (provided by shared/mcp/gh-aw.md import)")
-		return
-	}
+
+	cliVersion := resolveAgenticWorkflowsCLIVersion(c, workflowData)
 	effectiveToken := getEffectiveGitHubToken("")
-	yaml.WriteString("      - name: Install gh-aw extension\n")
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
+	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
+	installStep, err := generateGhAwSetupStep(ghAwSetupStepConfig{
+		actionMode:           c.actionMode,
+		cliVersion:           cliVersion,
+		actionRepo:           actionRepo,
+		fallbackActionRefTag: cliVersion,
+		workflowData:         workflowData,
+		withFields: map[string]string{
+			"github-token": effectiveToken,
+		},
+	})
+	if err != nil {
+		mcpSetupGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", actionRepo, cliVersion, err)
+	}
+	for _, line := range installStep {
+		yaml.WriteString(line + "\n")
+	}
+	yaml.WriteString("      - name: Copy gh-aw binary for MCP server\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Check if gh-aw extension is already installed\n")
-	yaml.WriteString("          if gh extension list | grep -qE '(^|[[:space:]]|/)gh-aw($|[[:space:]]|$)'; then\n")
-	yaml.WriteString("            echo \"gh-aw extension already installed, upgrading...\"\n")
-	yaml.WriteString("            gh extension upgrade gh-aw || true\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"Installing gh-aw extension...\"\n")
-	yaml.WriteString("            gh extension install github/gh-aw\n")
-	yaml.WriteString("          fi\n")
 	yaml.WriteString("          gh aw --version\n")
 	yaml.WriteString("          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
@@ -220,6 +215,38 @@ func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkfl
 	yaml.WriteString("            echo \"::error::Failed to find gh-aw binary for MCP server\"\n")
 	yaml.WriteString("            exit 1\n")
 	yaml.WriteString("          fi\n")
+}
+
+func resolveAgenticWorkflowsCLIVersion(c *Compiler, workflowData *WorkflowData) string {
+	cliVersion := c.actionTag
+	if cliVersion == "" {
+		cliVersion = getActionTagFromFeatures(workflowData)
+	}
+	if cliVersion == "" {
+		cliVersion = c.version
+	}
+	// "dev" and empty versions are not valid release pins; fall back to the
+	// current compiler runtime version so setup-cli always receives a concrete
+	// pinned release tag in non-dev modes.
+	if cliVersion == "" || cliVersion == "dev" {
+		cliVersion = getDefaultGhAWRuntimeVersion()
+	}
+	return cliVersion
+}
+
+func getActionTagFromFeatures(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.Features == nil {
+		return ""
+	}
+	actionTagVal, exists := workflowData.Features["action-tag"]
+	if !exists {
+		return ""
+	}
+	actionTagStr, ok := actionTagVal.(string)
+	if !ok || actionTagStr == "" {
+		return ""
+	}
+	return actionTagStr
 }
 
 func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConfig string, workflowData *WorkflowData) {

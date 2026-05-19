@@ -267,16 +267,16 @@ func parseUpdateEntityBoolField(configMap map[string]any, fieldName string, mode
 // parseUpdateEntityStringBoolField parses a FieldParsingTemplatableBool field from a config map.
 // It pre-processes the value to normalise literal booleans to strings, then returns the value
 // as *string.  Returns nil when the field is absent.
-func parseUpdateEntityStringBoolField(configMap map[string]any, fieldName string, log *logger.Logger) *string {
+func parseUpdateEntityStringBoolField(configMap map[string]any, fieldName string, debugLog *logger.Logger) *string {
 	if configMap == nil {
 		return nil
 	}
 	if _, exists := configMap[fieldName]; !exists {
 		return nil
 	}
-	if err := preprocessBoolFieldAsString(configMap, fieldName, log); err != nil {
-		if log != nil {
-			log.Printf("Invalid %s value: %v", fieldName, err)
+	if err := preprocessBoolFieldAsString(configMap, fieldName, debugLog); err != nil {
+		if debugLog != nil {
+			debugLog.Printf("Invalid %s value: %v", fieldName, err)
 		}
 		return nil
 	}

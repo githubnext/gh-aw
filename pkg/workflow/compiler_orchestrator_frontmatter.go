@@ -36,7 +36,7 @@ type frontmatterParseResult struct {
 // isRedirectOnly is set to true with the redirect target in redirectTarget.
 func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterParseResult, error) {
 	orchestratorFrontmatterLog.Printf("Starting frontmatter parsing: %s", markdownPath)
-	log.Printf("Reading file: %s", markdownPath)
+	workflowLog.Printf("Reading file: %s", markdownPath)
 
 	// Clean the path to prevent path traversal issues (gosec G304)
 	// filepath.Clean removes ".." and other problematic path elements
@@ -51,7 +51,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	}
 	contentString := string(content)
 
-	log.Printf("File size: %d bytes", len(content))
+	workflowLog.Printf("File size: %d bytes", len(content))
 
 	// Parse frontmatter and markdown
 	orchestratorFrontmatterLog.Printf("Parsing frontmatter from file: %s", cleanPath)
@@ -181,7 +181,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		c.IncrementWarningCount()
 	}
 
-	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
+	workflowLog.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 
 	return &frontmatterParseResult{
 		cleanPath:                cleanPath,

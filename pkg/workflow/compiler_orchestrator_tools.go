@@ -50,7 +50,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	agenticEngine CodingAgentEngine, engineSetting string, importsResult *parser.ImportsResult) (*toolsProcessingResult, error) {
 
 	orchestratorToolsLog.Printf("Processing tools and markdown")
-	log.Print("Processing tools and includes...")
+	workflowLog.Print("Processing tools and includes...")
 
 	// Extract inline sub-agents from the markdown body before any other processing.
 	// This strips sub-agent sections from the effective markdown so they do not affect
@@ -278,7 +278,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Print("No imported markdown with inputs")
 	}
 
-	log.Print("Expanded includes in markdown content")
+	workflowLog.Print("Expanded includes in markdown content")
 
 	// Combine all included files (from tools and markdown)
 	// Use a map to deduplicate files
@@ -317,7 +317,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Extract emoji from frontmatter for use in footers and UI
 	frontmatterEmoji := extractStringFromMap(result.Frontmatter, "emoji", nil)
 
-	log.Printf("Extracted workflow name: '%s'", workflowName)
+	workflowLog.Printf("Extracted workflow name: '%s'", workflowName)
 
 	// Check if the markdown content uses the text output OR if the workflow is triggered by
 	// events that have content (issues, discussions, PRs, comments). The sanitized step should

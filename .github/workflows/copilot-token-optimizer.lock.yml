@@ -415,7 +415,7 @@ jobs:
           persist-credentials: false
       - name: Build and install gh-aw CLI from source
         run: |
-          gh extension remove gh-aw || true
+          gh extension remove aw --force || true
           make build
           gh extension install .
           gh aw version
