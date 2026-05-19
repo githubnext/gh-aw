@@ -274,6 +274,7 @@ on:
 
 Workflows with `workflow_run` triggers include automatic security protections:
 
+- **`workflows` is required:** `workflow_run` must include at least one non-empty entry in `workflows`. Missing, empty (`workflows: []`), or whitespace-only entries are rejected at compile time, since GitHub Actions silently disables `on.workflow_run` triggers that do not reference any workflows.
 - **Repository/fork validation:** The compiler injects repository ID and fork checks, rejecting cross-repository or fork-triggered runs.
 - **Branch restrictions required:** Include `branches` to limit triggering branches; without them the compiler warns (or errors in strict mode).
 

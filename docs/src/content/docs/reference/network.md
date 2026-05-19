@@ -292,6 +292,33 @@ network:
 
 When the firewall is disabled, network permissions still apply for content sanitization but the agent can make unrestricted network requests. Only disable during development or when AWF is incompatible with your workflow; keep it enabled in production.
 
+## Caller-Extensible Allowlist (`network.allowed-input`)
+
+Reusable workflows compiled to `.lock.yml` bake their `network.allowed` list into the lock file. By default a consumer repository cannot extend the allowlist without forking and recompiling the source. Set `network.allowed-input: true` to opt into a `workflow_call` input named `network_allowed` that callers can use to add domains or ecosystems at runtime.
+
+The source workflow's compiled `network.allowed` is preserved as the baseline, and the caller's value is unioned in before AWF starts. Ecosystem shorthands (for example `rust`) are expanded to their concrete domain sets before merging, and the result is deduplicated.
+
+```yaml wrap
+# source workflow (compiled to a reusable .lock.yml)
+on:
+  workflow_call:
+network:
+  allowed:
+    - defaults
+  allowed-input: true
+```
+
+```yaml wrap
+# consumer workflow
+jobs:
+  run:
+    uses: owner/repo/.github/workflows/worker.lock.yml@v1
+    with:
+      network_allowed: rust,github.com
+```
+
+The `network_allowed` input is a string accepting comma-separated ecosystem identifiers and/or domains. The behavior of the source workflow is unchanged when `allowed-input` is omitted or `false`.
+
 ## Wildcard Domain Patterns
 
 Use wildcard patterns (`*.example.com`) to match any subdomain of a domain. Wildcards provide explicit control when you need to allow a family of subdomains.
