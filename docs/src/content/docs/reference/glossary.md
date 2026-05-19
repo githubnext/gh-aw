@@ -436,6 +436,17 @@ See [Engines Reference](/gh-aw/reference/engines/).
 
 Controls over external domains and services a workflow can access. Configured via `network:` section with options: `defaults` (common infrastructure), custom allow-lists, or `{}` (no access).
 
+### Network Allowed Input (`network.allowed-input`)
+
+An opt-in frontmatter flag for `workflow_call` workflows that exposes a `network_allowed` input parameter, allowing callers to extend the compiled workflow's network allowlist at runtime. When enabled with `network.allowed-input: true`, the compiler injects a `network_allowed: string` input into the `workflow_call` interface. Callers provide a comma-separated list of ecosystem identifiers and/or domains that are unioned with the static `network.allowed` baseline before the agent starts. The compiled workflow's static allowlist acts as an immutable floor — callers can only add domains, never remove them. Useful for reusable workflows that serve consumers with varying network requirements without requiring per-consumer forks or recompilation. See ADR-33200 for implementation details.
+
+```aw wrap
+on: workflow_call
+network:
+  allowed: [defaults]
+  allowed-input: true  # Caller can extend with network_allowed: "python,rust"
+```
+
 ### Observability (`observability.otlp`)
 
 A frontmatter field that enables OpenTelemetry trace
