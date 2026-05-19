@@ -101,7 +101,7 @@ function summarizeListForLog(values, limit = 10) {
 /**
  * Attempt automatic recovery for git am add/add conflicts by preferring the patch version.
  *
- * @param {{ exec: Function, getExecOutput: Function }} execApi
+ * @param {{ exec: Function, getExecOutput: Function }} execApi - Exec API with git command helpers
  * @returns {Promise<boolean>} true when recovery succeeded and git am was continued
  */
 async function tryRecoverGitAmAddAddConflict(execApi) {

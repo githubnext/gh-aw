@@ -745,7 +745,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         // Track code-push failures for fail-fast behaviour
         if (CODE_PUSH_TYPES.has(messageType)) {
           codePushFailures.push({ type: messageType, error: errorMsg });
-          core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs`);
+          core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs (add_comment messages will include a failure note)`);
         }
         continue;
       }
@@ -891,7 +891,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Track code-push failures for fail-fast behaviour
       if (CODE_PUSH_TYPES.has(messageType)) {
         codePushFailures.push({ type: messageType, error: getErrorMessage(error) });
-        core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs`);
+        core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs (add_comment messages will include a failure note)`);
       }
     }
   }
