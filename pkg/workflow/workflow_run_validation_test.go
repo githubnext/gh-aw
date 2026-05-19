@@ -157,6 +157,27 @@ Test workflow content.`,
 			warningCount:  0,
 		},
 		{
+			name: "workflow_run with whitespace workflows - non-strict mode - should error",
+			frontmatter: `---
+strict: false
+on:
+  workflow_run:
+    workflows: [" ", ""]
+    types: [completed]
+tools:
+  github: false
+---
+
+# Workflow Run Whitespace Workflows
+Test workflow content.`,
+			filename:      "workflow-run-whitespace-workflows.md",
+			strictMode:    false,
+			expectError:   true,
+			expectWarning: false,
+			errorContains: "workflow_run trigger must include a non-empty workflows field",
+			warningCount:  0,
+		},
+		{
 			name: "no workflow_run - should pass",
 			frontmatter: `---
 strict: false
