@@ -284,7 +284,7 @@ async function main() {
         }
       } else if (context.eventName === "pull_request_review") {
         const action = context.payload?.action ?? "";
-        if (!["submitted", "edited", "dismissed"].includes(action)) {
+        if (action !== "submitted") {
           selected = [];
         } else {
           const workflowId = extractWorkflowId(context.payload?.review?.body ?? "");

@@ -268,8 +268,6 @@ func collectPullRequestReviewerRoutes(workflowDataList []*WorkflowData, mergedEv
 			mergedEvents["pull_request_review"] = make(map[string]bool)
 		}
 		mergedEvents["pull_request_review"]["submitted"] = true
-		mergedEvents["pull_request_review"]["edited"] = true
-		mergedEvents["pull_request_review"]["dismissed"] = true
 	}
 	sort.Slice(routes, func(i, j int) bool {
 		return routes[i].Workflow < routes[j].Workflow

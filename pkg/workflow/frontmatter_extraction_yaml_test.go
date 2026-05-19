@@ -14,6 +14,16 @@ func TestIsGitHubAppNestedField(t *testing.T) {
 
 func TestExtractPullRequestReviewerConfig(t *testing.T) {
 	c := &Compiler{}
+	t.Run("returns true for empty value", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"pull_request_reviewer": nil,
+			},
+		}
+		if !c.extractPullRequestReviewerConfig(frontmatter) {
+			t.Fatal("expected empty pull_request_reviewer to be detected")
+		}
+	})
 	t.Run("returns true for slash_command", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"on": map[string]any{

@@ -1140,7 +1140,12 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 }
 
 // extractPullRequestReviewerConfig extracts the synthetic on.pull_request_reviewer configuration.
-// Currently supported value:
+// Supported values:
+//
+//	on:
+//	  pull_request_reviewer:
+//
+// or legacy:
 //
 //	on:
 //	  pull_request_reviewer: slash_command
@@ -1157,11 +1162,15 @@ func (c *Compiler) extractPullRequestReviewerConfig(frontmatter map[string]any) 
 	if !hasReviewer {
 		return false
 	}
-	value, ok := rawValue.(string)
-	if !ok {
-		return false
+
+	if rawValue == nil {
+		return true
 	}
-	return strings.EqualFold(strings.TrimSpace(value), "slash_command")
+	if value, ok := rawValue.(string); ok {
+		trimmed := strings.TrimSpace(value)
+		return trimmed == "" || strings.EqualFold(trimmed, "slash_command")
+	}
+	return false
 }
 
 // isGitHubAppNestedField returns true if the trimmed YAML line represents a known

@@ -145,9 +145,11 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 
 			// Check for slash_command (preferred) or command (deprecated)
 			if reviewerValue, hasReviewerTrigger := onMap["pull_request_reviewer"]; hasReviewerTrigger {
-				reviewerMode, ok := reviewerValue.(string)
-				if !ok || !strings.EqualFold(strings.TrimSpace(reviewerMode), "slash_command") {
-					return errors.New("on.pull_request_reviewer must be set to 'slash_command'")
+				if reviewerValue != nil {
+					reviewerMode, ok := reviewerValue.(string)
+					if !ok || (!strings.EqualFold(strings.TrimSpace(reviewerMode), "slash_command") && strings.TrimSpace(reviewerMode) != "") {
+						return errors.New("on.pull_request_reviewer must be empty (recommended) or set to 'slash_command'")
+					}
 				}
 				hasPullRequestReviewer = true
 				hasCommand = true
@@ -164,7 +166,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					onMap["pull_request"] = map[string]any{"types": []any{"ready_for_review", "review_requested"}}
 				}
 				if _, exists := onMap["pull_request_review"]; !exists {
-					onMap["pull_request_review"] = map[string]any{"types": []any{"submitted", "edited", "dismissed"}}
+					onMap["pull_request_review"] = map[string]any{"types": []any{"submitted"}}
 				}
 				workflowData.On = ""
 			}

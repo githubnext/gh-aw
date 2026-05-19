@@ -176,7 +176,7 @@ func TestParseOnSection(t *testing.T) {
 			name: "pull_request_reviewer synthetic trigger enables centralized reviewer lifecycle",
 			frontmatter: map[string]any{
 				"on": map[string]any{
-					"pull_request_reviewer": "slash_command",
+					"pull_request_reviewer": nil,
 				},
 			},
 			workflowData:                &WorkflowData{},
@@ -438,7 +438,7 @@ func TestParseOnSection_PullRequestReviewerDoesNotInferCommand(t *testing.T) {
 	c := &Compiler{}
 	frontmatter := map[string]any{
 		"on": map[string]any{
-			"pull_request_reviewer": "slash_command",
+			"pull_request_reviewer": nil,
 		},
 	}
 	workflowData := &WorkflowData{}

@@ -283,4 +283,19 @@ describe("route_slash_command", () => {
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.reviewer_lifecycle_event).toBe("pull_request_review");
   });
+
+  it("ignores pull_request_review edited and dismissed actions", async () => {
+    process.env.GH_AW_REVIEWER_ROUTING = JSON.stringify([{ workflow: "pr-reviewer", events: ["pull_request_review"] }]);
+    for (const action of ["edited", "dismissed"]) {
+      dispatchCalls.length = 0;
+      globals.context.eventName = "pull_request_review";
+      globals.context.payload = {
+        action,
+        pull_request: { number: 9, state: "open" },
+        review: { body: "Looks good\n<!-- gh-aw-workflow-id: pr-reviewer -->" },
+      };
+      await main();
+      expect(dispatchCalls).toHaveLength(0);
+    }
+  });
 });
