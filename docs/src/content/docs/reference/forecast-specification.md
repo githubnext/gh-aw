@@ -655,7 +655,7 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `sampled_episodes` | integer | MUST | Distinct episode count. Lower-bound estimate when artifact linkage is unavailable. |
-| `episode_count_is_lower_bound` | boolean | MUST | `true` when episode linkage data is incomplete (for example, remote mode without artifacts); otherwise `false`. |
+| `episode_count_is_lower_bound` | boolean | SHOULD | `true` when episode linkage data is incomplete (for example, remote mode without artifacts); otherwise `false`. |
 | `runs_per_episode` | number | MUST | Mean runs per episode. |
 | `avg_effective_tokens_per_episode` | number | MUST | Mean ET per episode. |
 | `observed_episodes_per_period` | number | MUST | Extrapolated episode rate for the projection period. |
@@ -734,13 +734,13 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
 
 ### 9.3 Output Ordering
 
-- **R-OUT-010**: JSON output MUST disclose episode lower-bound semantics by including
-  `episode_analysis.episode_count_is_lower_bound` for every workflow. Console output SHOULD include
-  a note when this field is `true`.
-- **R-OUT-011**: In both console and JSON output, workflows MUST be ordered by
+- **R-OUT-010**: In both console and JSON output, workflows MUST be ordered by
   `projected_effective_tokens` (P50 value) in descending order.
-- **R-OUT-012**: Workflows with zero projected tokens MUST appear after all workflows with non-zero projections.
-- **R-OUT-013**: Among workflows with equal projected tokens, the ordering SHOULD be deterministic (e.g., alphabetical by workflow ID).
+- **R-OUT-011**: Workflows with zero projected tokens MUST appear after all workflows with non-zero projections.
+- **R-OUT-012**: Among workflows with equal projected tokens, the ordering SHOULD be deterministic (e.g., alphabetical by workflow ID).
+- **R-OUT-013**: JSON output SHOULD disclose episode lower-bound semantics by including
+  `episode_analysis.episode_count_is_lower_bound` for each workflow. Console output SHOULD include
+  a note when this field is `true`.
 
 ---
 
@@ -1079,7 +1079,7 @@ visibility and access-governance controls.
 ### Version 0.1.0 (Experimental Draft)
 
 - Updated remote discovery requirements with workflow-race mitigation guidance (R-DISC-014)
-- Added JSON lower-bound disclosure field `episode_count_is_lower_bound` and normative requirement R-OUT-010
+- Added optional JSON lower-bound disclosure field `episode_count_is_lower_bound` and recommendation R-OUT-013 (without reassigning existing R-OUT-010..012 semantics)
 - Added Appendix F safeguards format (threat model, mitigations, residual risk)
 - Initial specification for `gh aw forecast` command
 - Defined command interface: flags `--days`, `--period`, `--sample`, `--repo`, `--json`, `--verbose`

@@ -19,6 +19,7 @@ package cli
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -251,62 +252,74 @@ func TestETCompliance_T_ET_031_SummaryConsistentWithInvocations(t *testing.T) {
 		"T-ET-031: summary.effective_tokens must equal sum of per-invocation effective_tokens")
 }
 
-// T-ET-032: Deep (3+ level) execution graphs aggregate ET in deterministic post-order.
-// Spec §6.3: deepest observed descendants are accumulated first, then fallback estimates,
-// then parent local invocation ET.
+// T-ET-032: Deep (3+ level) execution graph inputs are aggregated deterministically.
+// This compliance check exercises the production ET aggregation path
+// (populateEffectiveTokensWithCustomWeights) using a deep-graph fixture flattened into
+// invocation-like entries.
 func TestETCompliance_T_ET_032_DeepGraphPostOrderAggregation(t *testing.T) {
-	type testNode struct {
-		id       string
-		localET  float64
-		observed bool
-		children []*testNode
-		fallback float64
+	fixtureUsage := map[string]*ModelTokenUsage{
+		"root":             {InputTokens: 10},
+		"planner":          {InputTokens: 30},
+		"retrieval":        {InputTokens: 120},
+		"shard-1":          {InputTokens: 60},
+		"shard-2-fallback": {InputTokens: 25},
+		"synthesis":        {InputTokens: 40},
+		"unobservable":     {InputTokens: 0}, // explicit zero-value node remains valid in aggregation
 	}
 
-	// root
-	// ├─ planner
-	// │  ├─ retrieval
-	// │  │  └─ shard-1
-	// │  └─ shard-2 (unobservable fallback)
-	// └─ synthesis
-	shard1 := &testNode{id: "shard-1", localET: 60, observed: true}
-	retrieval := &testNode{id: "retrieval", localET: 120, observed: true, children: []*testNode{shard1}}
-	shard2 := &testNode{id: "shard-2", observed: false, fallback: 25}
-	planner := &testNode{id: "planner", localET: 30, observed: true, children: []*testNode{retrieval, shard2}}
-	synthesis := &testNode{id: "synthesis", localET: 40, observed: true}
-	root := &testNode{id: "root", localET: 10, observed: true, children: []*testNode{planner, synthesis}}
-
-	var order []string
-	var subtotals []float64
-	running := 0.0
-
-	var walk func(n *testNode)
-	walk = func(n *testNode) {
-		for _, child := range n.children {
-			walk(child)
+	buildSummary := func(order []string) *TokenUsageSummary {
+		byModel := make(map[string]*ModelTokenUsage, len(order))
+		for _, model := range order {
+			usage := fixtureUsage[model]
+			byModel[model] = &ModelTokenUsage{
+				InputTokens:      usage.InputTokens,
+				OutputTokens:     usage.OutputTokens,
+				CacheReadTokens:  usage.CacheReadTokens,
+				CacheWriteTokens: usage.CacheWriteTokens,
+			}
 		}
-
-		value := n.localET
-		if !n.observed {
-			value = n.fallback
-		}
-
-		running += value
-		order = append(order, n.id)
-		subtotals = append(subtotals, running)
+		return &TokenUsageSummary{ByModel: byModel}
 	}
 
-	walk(root)
+	ordered := buildSummary([]string{
+		"shard-1", "retrieval", "shard-2-fallback", "planner", "synthesis", "root", "unobservable",
+	})
+	reordered := buildSummary([]string{
+		"root", "planner", "retrieval", "shard-1", "unobservable", "shard-2-fallback", "synthesis",
+	})
 
-	assert.Equal(t,
-		[]string{"shard-1", "retrieval", "shard-2", "planner", "synthesis", "root"},
-		order,
-		"T-ET-032: aggregation order must be stable post-order for deep graphs")
+	custom := &types.TokenWeights{
+		Multipliers: map[string]float64{
+			"root":             1.0,
+			"planner":          1.0,
+			"retrieval":        1.0,
+			"shard-1":          1.0,
+			"shard-2-fallback": 1.0,
+			"synthesis":        1.0,
+			"unobservable":     1.0,
+		},
+	}
 
-	assert.Equal(t,
-		[]float64{60, 180, 205, 235, 275, 285},
-		subtotals,
-		"T-ET-032: partial subtotals must remain deterministic under partial observability")
+	populateEffectiveTokensWithCustomWeights(ordered, custom)
+	populateEffectiveTokensWithCustomWeights(reordered, custom)
+
+	assert.Equal(t, 285, ordered.TotalEffectiveTokens, "T-ET-032: expected deep-graph fixture total")
+	assert.Equal(t, 285, reordered.TotalEffectiveTokens, "T-ET-032: total must be deterministic across map orders")
+
+	for model, expected := range map[string]int{
+		"root":             10,
+		"planner":          30,
+		"retrieval":        120,
+		"shard-1":          60,
+		"shard-2-fallback": 25,
+		"synthesis":        40,
+		"unobservable":     0,
+	} {
+		require.Contains(t, ordered.ByModel, model)
+		require.Contains(t, reordered.ByModel, model)
+		assert.Equal(t, expected, ordered.ByModel[model].EffectiveTokens, "T-ET-032: ordered summary mismatch for %s", model)
+		assert.Equal(t, expected, reordered.ByModel[model].EffectiveTokens, "T-ET-032: reordered summary mismatch for %s", model)
+	}
 }
 
 // ---------------------------------------------------------------------------
