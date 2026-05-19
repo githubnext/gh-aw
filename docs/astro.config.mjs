@@ -167,12 +167,14 @@ export default defineConfig({
 		'/guides/memoryops/': '/gh-aw/guides/memory-ops/',
 		'/guides/serena/': '/gh-aw/reference/serena/',
 		'/guides/experiments/': '/gh-aw/practices/experiments/',
+		'/guides/opentelemetry/': '/gh-aw/experimental/opentelemetry/',
 		'/reference/experiments-specification/': '/gh-aw/practices/experiments-specification/',
 
 		'/reference/awf-reflect/': '/gh-aw/experimental/awf-reflect/',
 
 		// Patterns → Experimental
 		'/patterns/correction-ops/': '/gh-aw/experimental/correction-ops/',
+		'/patterns/opentelemetry/': '/gh-aw/experimental/opentelemetry/',
 		'/patterns/trial-ops/': '/gh-aw/experimental/trial-ops/',
 		'/patterns/monitoring/': '/gh-aw/experimental/monitoring-with-projects/',
 	},
@@ -429,6 +431,7 @@ export default defineConfig({
 						{ label: 'AWF Reflect Route', link: '/experimental/awf-reflect/' },
 						{ label: 'CorrectionOps', link: '/experimental/correction-ops/' },
 						{ label: 'Monitoring with Projects', link: '/experimental/monitoring-with-projects/' },
+						{ label: 'OpenTelemetry', link: '/experimental/opentelemetry/' },
 						{ label: 'TrialOps', link: '/experimental/trial-ops/' },
 						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
 
