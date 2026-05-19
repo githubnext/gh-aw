@@ -184,7 +184,7 @@ Some content here.
 
 			for idx, expectedFields := range tt.expectedContains {
 				for _, expectedField := range expectedFields {
-					assert.Contains(t, engines[idx], expectedField, "Engine %d should include field %q for test case %q", idx, expectedField, tt.name)
+					assert.Containsf(t, engines[idx], expectedField, "Engine %d should include field %q for test case %q", idx, expectedField, tt.name)
 				}
 			}
 		})
