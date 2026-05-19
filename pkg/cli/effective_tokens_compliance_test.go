@@ -289,6 +289,8 @@ func TestETCompliance_T_ET_032_DeepGraphPostOrderAggregation(t *testing.T) {
 	})
 
 	custom := &types.TokenWeights{
+		// Keep all multipliers at 1.0 so this test isolates deterministic aggregation
+		// behavior independent of multiplier scaling.
 		Multipliers: map[string]float64{
 			"root":             1.0,
 			"planner":          1.0,
