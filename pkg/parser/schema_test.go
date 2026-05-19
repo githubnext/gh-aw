@@ -324,17 +324,7 @@ func TestMCPNetworkSchemaProxyArgsSupportAndAllowedDeprecation(t *testing.T) {
 				t.Fatal("network schema not found")
 			}
 
-			deprecatedValue, hasDeprecated := network["deprecated"]
-			if hasDeprecated {
-				deprecatedBool, ok := deprecatedValue.(bool)
-				if !ok {
-					t.Fatalf("network.deprecated should be a boolean when present; got %T", deprecatedValue)
-				}
-				if deprecatedBool {
-					t.Fatalf("network field should not be deprecated; got deprecated=%v", deprecatedValue)
-				}
-			}
-			if hasDeprecated {
+			if deprecatedValue, hasDeprecated := network["deprecated"]; hasDeprecated {
 				t.Fatalf("network.deprecated should be absent from schema, got: %v", deprecatedValue)
 			}
 
