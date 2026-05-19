@@ -67,6 +67,11 @@ steps:
     run: |
       set -euo pipefail
 
+      if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${PR_NUMBER:-}" ]; then
+        echo "::error::workflow_dispatch requires inputs.pr_number"
+        exit 1
+      fi
+
       mkdir -p /tmp/gh-aw/agent
 
       gh pr view "$PR_NUMBER" \
