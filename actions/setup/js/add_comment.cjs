@@ -682,6 +682,8 @@ async function main(config = {}) {
       core.warning("Ignoring empty discussion reply_to_id after normalization");
     }
 
+    // add_comment uses snake_case fields. camelCase and kebab-case aliases are
+    // accepted for compatibility with forwarded/legacy payload variants.
     const explicitCommentIdRaw = message.comment_id ?? message.commentId;
     const reuseStatusComment = message.reuse_status_comment === true || message["reuse-status-comment"] === true;
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
@@ -706,12 +708,14 @@ async function main(config = {}) {
     try {
       // Hide older comments if enabled AND append-only-comments is not enabled
       // When append-only-comments is true, we want to keep all comments visible
-      if (hideOlderCommentsEnabled && commentIdToReuse !== null) {
-        core.info("Skipping hide-older-comments because an existing comment is being updated");
-      } else if (hideOlderCommentsEnabled && !appendOnlyComments && workflowId) {
-        await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
-      } else if (hideOlderCommentsEnabled && appendOnlyComments) {
-        core.info("Skipping hide-older-comments because append-only-comments is enabled");
+      if (hideOlderCommentsEnabled) {
+        if (commentIdToReuse !== null) {
+          core.info("Skipping hide-older-comments because an existing comment is being updated");
+        } else if (appendOnlyComments) {
+          core.info("Skipping hide-older-comments because append-only-comments is enabled");
+        } else if (workflowId) {
+          await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
+        }
       }
 
       /** @type {{ id: string | number, html_url: string }} */

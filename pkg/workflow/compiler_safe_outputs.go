@@ -41,7 +41,7 @@ func isValidPullRequestReviewerValue(value any) bool {
 	return !strings.ContainsAny(commandName, " \t\r\n")
 }
 
-func extractPullRequestReviewerCommandName(value any) string {
+func extractCustomPullRequestReviewerCommandName(value any) string {
 	reviewerMode, ok := value.(string)
 	if !ok {
 		return ""
@@ -192,7 +192,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				if len(workflowData.Command) == 0 {
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 					workflowData.Command = []string{baseName}
-					if reviewerCommandName := extractPullRequestReviewerCommandName(reviewerValue); reviewerCommandName != "" {
+					if reviewerCommandName := extractCustomPullRequestReviewerCommandName(reviewerValue); reviewerCommandName != "" {
 						workflowData.Command = []string{reviewerCommandName}
 					}
 				}
