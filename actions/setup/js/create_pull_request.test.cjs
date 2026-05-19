@@ -2378,6 +2378,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--continue"]);
+    expect(global.core.debug).toHaveBeenCalledWith(expect.stringContaining("Add/add recovery probe unresolved files"));
   });
 
   it("should log recovery failure details when add/add recovery throws", async () => {

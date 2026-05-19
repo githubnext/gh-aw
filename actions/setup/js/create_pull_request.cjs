@@ -110,6 +110,7 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
     const unresolvedFiles = unresolvedFilesResult.stdout
       .split("\0")
       .filter(line => line.length > 0);
+    core.debug(`Add/add recovery probe unresolved files (${unresolvedFiles.length}): ${summarizeListForLog(unresolvedFiles)}`);
 
     if (unresolvedFiles.length === 0) {
       return { recovered: false, attempted: false };
@@ -123,8 +124,10 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
         .filter(line => line.startsWith("AA "))
         .map(line => line.substring(3))
     );
+    core.debug(`Add/add recovery probe AA files (${addAddFiles.size}): ${summarizeListForLog(Array.from(addAddFiles))}`);
     const allConflictsAreAddAdd = unresolvedFiles.every(file => addAddFiles.has(file));
     if (!allConflictsAreAddAdd) {
+      core.debug("Add/add recovery skipped because unresolved conflicts include non-AA entries");
       return { recovered: false, attempted: false };
     }
 
@@ -170,6 +173,7 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
         core.warning(`Resolving add/add conflict for ${file}; failed to read conflict blob metadata: ${getErrorMessage(metadataError)}. Preferring patch version (--theirs)`);
       }
 
+      core.debug(`Checking out patch version for add/add conflict file: ${file}`);
       await execApi.exec("git", ["checkout", "--theirs", "--", file]);
       await execApi.exec("git", ["add", "--", file]);
     }
@@ -177,6 +181,7 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
     core.info("Patch applied successfully after resolving add/add conflict(s)");
     return { recovered: true, attempted: true };
   } catch (recoveryError) {
+    core.debug(`Add/add recovery threw: ${getErrorMessage(recoveryError)}`);
     return { recovered: false, attempted: true, errorMessage: getErrorMessage(recoveryError) };
   }
 }
