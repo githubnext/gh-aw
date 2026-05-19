@@ -7,11 +7,9 @@ description: Improve agentic workflows from trusted human corrections without re
 CorrectionOps is an experimental pattern. The guidance and workflow shape on this page may change as the pattern is tested in more real-world workflows.
 :::
 
-CorrectionOps is a workflow pattern that compares predictions with later human corrections.
+CorrectionOps is a workflow pattern that improves the workflow *around* the model rather than retraining it. It stores predictions at decision time, compares them with later trusted human truth, and uses that evidence to update instructions, routing, thresholds, and rollout decisions.
 
-Instead of retraining the model, CorrectionOps improves the workflow around the model. It stores predictions at decision time, compares them with later trusted human truth, and uses that evidence to update instructions, routing, thresholds, and rollout decisions.
-
-The basic loop is simple:
+The basic loop:
 
 1. Save what the workflow predicted
 2. Collect what humans later decided
@@ -19,28 +17,17 @@ The basic loop is simple:
 
 ## When to Use CorrectionOps
 
-Use CorrectionOps when you want to turn a human decision process into an agentic workflow iteratively rather than all at once.
+Use CorrectionOps when humans still make or correct the real decision and you want the workflow to improve iteratively — by updating instructions, routing, thresholds, or rollout state — rather than all at once. Typical fits include labeling and classification, routing and prioritization, moderation and approvals, and summaries or recommendations that humans later correct.
 
-It is a good fit when humans still make or correct the real decision, but you want the workflow to improve over time by updating instructions, routing, thresholds, or rollout state.
-
-Typical fits include labeling and classification, routing and prioritization, moderation and approvals, and summaries or recommendations that humans later correct.
-
-It is especially useful when the rollout path is gradual:
-
-- Start with `staged: true`
-- Keep evaluation and reporting in Ops
-- Use later corrections to improve the workflow
-- Promote to direct writes only when the evidence is strong enough
+It is especially useful when the rollout path is gradual: start with `staged: true`, keep evaluation and reporting in Ops, use corrections to improve the workflow, and promote to direct writes only when the evidence is strong enough.
 
 ## How It Works
 
-A clean CorrectionOps setup has two long-lived surfaces. Production stays authoritative. Ops is the long-lived home for prediction, correction intake, reporting, instruction updates, and rollout control.
-
-That means the workflows usually stay in Ops. Early on they report, compare, and adapt from Ops without writing back to production. After promotion they can write directly to production.
+A clean CorrectionOps setup has two long-lived surfaces. Production stays authoritative. Ops hosts prediction, correction intake, reporting, instruction updates, and rollout control — early on without writing back to production, later with direct writes once promoted.
 
 Most implementations reduce to three workflow classes: a thin relay that forwards stable facts into ops, a prediction workflow that persists snapshots and writes safely, and a compare/report/decide workflow that checks later human truth and updates the system when the evidence is strong enough.
 
-The important rule is to keep relays, snapshot resolution, diffing, and grouping deterministic. Use the agent for semantic judgment, not for reconstructing event history or inferring provenance after the fact.
+Keep relays, snapshot resolution, diffing, and grouping deterministic. Use the agent for semantic judgment, not for reconstructing event history or inferring provenance after the fact.
 
 ## Example: Issue Labeling
 
@@ -70,7 +57,7 @@ flowchart TB
   H -.->|improves next run| A
 ```
 
-In this shape, production stays authoritative. Ops records the original prediction, collects later human corrections, builds the diff, and decides whether the workflow should stay staged, update its instructions, or graduate to direct writes.
+A single CorrectionOps worker can carry the pattern when permissions and triggers fit cleanly together:
 
 ```aw wrap
 ---
@@ -92,19 +79,15 @@ safe-outputs:
 Read persisted predictions and later trusted truth, compare them deterministically, then either publish a health report or open a draft PR updating instructions.
 ```
 
-CorrectionOps solves a different problem than model training. Reinforcement Learning from Human Feedback (RLHF) updates model weights from human feedback. CorrectionOps updates the workflow system *around* the model. In practice that usually means changing instruction files, routing rules, deterministic checks, thresholds, or rollout decisions rather than trying to retrain the engine.
-
-In a healthy CorrectionOps loop, production truth stays authoritative, predictions are saved explicitly, corrections include provenance, and diffs are built deterministically before the agent is asked to reason about them.
-
-CorrectionOps does not require a separate evaluation repository. The normal progression is to start with `staged: true`, then use ops-managed adaptation and gated review, then enable direct production writes once the evidence is strong enough.
+Unlike Reinforcement Learning from Human Feedback (RLHF), which updates model weights, CorrectionOps changes instruction files, routing rules, deterministic checks, thresholds, or rollout decisions — no separate evaluation repository required.
 
 ### Full Workflow Pieces
 
-If you want the explicit workflow split, the same example usually breaks into four pieces.
+The example above breaks into four pieces:
 
 #### 1. Relay In The Source Repo
 
-The relay only forwards stable facts and provenance into ops. It should not compute diffs, infer human intent, or decide whether the workflow was correct.
+Forwards stable facts and provenance into ops only — no diffs, no human-intent inference, no correctness decisions.
 
 ```yaml title="prod-repo/.github/workflows/relay-correction-signals.yml"
 name: Relay Correction Signals
@@ -145,7 +128,7 @@ jobs:
 
 #### 2. Prediction Workflow In Ops
 
-The prediction workflow consumes normalized inputs, applies the current instructions, and persists a durable snapshot that can be compared later.
+Consumes normalized inputs, applies the current instructions, and persists a durable snapshot for later comparison.
 
 ```aw wrap title="ops-repo/.github/workflows/predict-items.md"
 ---
@@ -173,7 +156,7 @@ Read prepared items from `/tmp/gh-aw/agent/item-scan`, apply the current instruc
 
 #### 3. Compare, Report, And Decide In Ops
 
-The review workflow reads persisted predictions and later human truth, builds deterministic diffs first, and only then asks the agent to summarize patterns or propose instruction updates.
+Reads predictions and later human truth, builds deterministic diffs first, then asks the agent to summarize patterns or propose instruction updates.
 
 ```aw wrap title="ops-repo/.github/workflows/review-corrections.md"
 ---
@@ -202,7 +185,7 @@ Read `correction-diffs.json` from `/tmp/gh-aw/agent/correction-review`. In `repo
 
 #### 4. Optional Deterministic Collector
 
-Add a separate collector only when the later-truth boundary deserves its own trigger, permissions, or serialized write path.
+Add a separate collector when the later-truth boundary needs its own trigger, permissions, or serialized write path.
 
 ```yaml title="ops-repo/.github/workflows/collect-corrections.yml"
 name: Collect Corrections
@@ -228,7 +211,7 @@ Before adding rollout logic or adaptation prompts, define four small determinist
 3. correction review input: the deterministic diff artifact used by reporting and adaptation
 4. rollout gate contract: what evidence or approvals are required before direct production writes are enabled
 
-Discussion labeling, routing, moderation, prioritization, approvals, and summaries can all reuse this shape. The production object changes, but the CorrectionOps setup does not.
+The production object changes across use cases, but the CorrectionOps shape does not.
 
 ## Related Documentation
 

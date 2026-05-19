@@ -99,6 +99,94 @@ function summarizeListForLog(values, limit = 10) {
 }
 
 /**
+ * Attempt automatic recovery for git am add/add conflicts by preferring the patch version.
+ *
+ * @param {{ exec: Function, getExecOutput: Function }} execApi - Exec API with git command helpers
+ * @returns {Promise<{ recovered: boolean, attempted: boolean, errorMessage?: string }>}
+ */
+async function tryRecoverGitAmAddAddConflict(execApi) {
+  try {
+    const unresolvedFilesResult = await execApi.getExecOutput("git", ["diff", "--name-only", "--diff-filter=U", "-z"]);
+    const unresolvedFiles = unresolvedFilesResult.stdout
+      .split("\0")
+      .filter(line => line.length > 0);
+    core.debug(`Add/add recovery probe unresolved files (${unresolvedFiles.length}): ${summarizeListForLog(unresolvedFiles)}`);
+
+    if (unresolvedFiles.length === 0) {
+      return { recovered: false, attempted: false };
+    }
+
+    const statusPorcelainResult = await execApi.getExecOutput("git", ["status", "--porcelain", "-z"]);
+    const addAddFiles = new Set(
+      statusPorcelainResult.stdout
+        .split("\0")
+        .filter(line => line.length > 0)
+        .filter(line => line.startsWith("AA "))
+        .map(line => line.substring(3))
+    );
+    core.debug(`Add/add recovery probe AA files (${addAddFiles.size}): ${summarizeListForLog(Array.from(addAddFiles))}`);
+    const allConflictsAreAddAdd = unresolvedFiles.every(file => addAddFiles.has(file));
+    if (!allConflictsAreAddAdd) {
+      core.debug("Add/add recovery skipped because unresolved conflicts include non-AA entries");
+      return { recovered: false, attempted: false };
+    }
+
+    core.warning(`Detected add/add conflict(s) for ${unresolvedFiles.join(", ")}; preferring patch version and continuing`);
+    for (const file of unresolvedFiles) {
+      try {
+        const { stdout: unresolvedIndexOutput } = await execApi.getExecOutput("git", ["ls-files", "-u", "--", file]);
+        let oursBlobSha = "";
+        let theirsBlobSha = "";
+        for (const line of unresolvedIndexOutput.split("\n")) {
+          if (!line.trim()) {
+            continue;
+          }
+          const fields = line.trim().split(/\s+/);
+          if (fields.length < 3) {
+            continue;
+          }
+          if (fields[2] === "2") {
+            oursBlobSha = fields[1];
+          } else if (fields[2] === "3") {
+            theirsBlobSha = fields[1];
+          }
+        }
+
+        const getBlobSize = async blobSha => {
+          if (!blobSha) {
+            return "unknown";
+          }
+          try {
+            const { stdout } = await execApi.getExecOutput("git", ["cat-file", "-s", blobSha]);
+            return stdout.trim() || "unknown";
+          } catch {
+            return "unknown";
+          }
+        };
+
+        const oursSize = await getBlobSize(oursBlobSha);
+        const theirsSize = await getBlobSize(theirsBlobSha);
+        core.warning(
+          `Resolving add/add conflict for ${file}: ours ${oursBlobSha || "unknown"} (${oursSize} bytes), theirs ${theirsBlobSha || "unknown"} (${theirsSize} bytes); preferring patch version (--theirs)`
+        );
+      } catch (metadataError) {
+        core.warning(`Resolving add/add conflict for ${file}; failed to read conflict blob metadata: ${getErrorMessage(metadataError)}. Preferring patch version (--theirs)`);
+      }
+
+      core.debug(`Checking out patch version for add/add conflict file: ${file}`);
+      await execApi.exec("git", ["checkout", "--theirs", "--", file]);
+      await execApi.exec("git", ["add", "--", file]);
+    }
+    await execApi.exec("git", ["am", "--continue"]);
+    core.info("Patch applied successfully after resolving add/add conflict(s)");
+    return { recovered: true, attempted: true };
+  } catch (recoveryError) {
+    core.debug(`Add/add recovery threw: ${getErrorMessage(recoveryError)}`);
+    return { recovered: false, attempted: true, errorMessage: getErrorMessage(recoveryError) };
+  }
+}
+
+/**
  * Apply a git bundle to a local branch without fetching directly into the branch ref.
  * Fetching directly into refs/heads/<branch> fails when that branch is currently checked out.
  *
@@ -1674,78 +1762,104 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
         } catch (patchError) {
           core.error(`Failed to apply patch with --3way: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
 
-          // Investigate why the patch failed by logging git status and the failed patch
-          try {
-            core.info("Investigating patch failure...");
-
-            // Log git status to see the current state
-            const statusResult = await exec.getExecOutput("git", ["status"]);
-            core.info("Git status output:");
-            core.info(statusResult.stdout);
-
-            // Log the failed patch diff
-            const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-            core.info("Failed patch content:");
-            core.info(patchResult.stdout);
-          } catch (investigateError) {
-            core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
-          }
-
-          // Abort the failed git am before attempting any fallback
-          try {
-            await exec.exec("git am --abort");
-            core.info("Aborted failed git am");
-          } catch (abortError) {
-            core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
-          }
-
-          // Fallback (Option 1): create the PR branch at the original base commit so the PR
-          // can still be created. GitHub will show the merge conflicts, allowing manual resolution.
-          // This handles the case where the target branch received intervening commits after
-          // the patch was generated, making --3way unable to resolve the conflicts automatically.
-          core.info("Attempting fallback: create PR branch at original base commit...");
-          try {
-            // Use the base commit recorded at patch generation time.
-            // The From <sha> header in format-patch output contains the agent's new commit SHA
-            // which does not exist in this checkout, so we cannot derive the base from it.
-            const originalBaseCommit = pullRequestItem.base_commit;
-            if (!originalBaseCommit) {
-              core.warning("No base_commit recorded in safe output entry - fallback not possible");
-            } else {
-              core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
-
-              // In shallow clones (fetch-depth: 1) the base commit may not be locally available.
-              // Attempt to fetch it explicitly before checking whether it exists.
-              try {
-                await exec.exec("git", ["fetch", "origin", originalBaseCommit, "--depth=1"]);
-              } catch (fetchError) {
-                // Non-fatal: the commit may already be available, or the server may not support
-                // fetching individual SHAs (e.g. some GHE configurations). Log for troubleshooting.
-                core.info(`Note: could not fetch base commit ${originalBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
-              }
-
-              // Verify the base commit is available in this repo (may not exist cross-repo)
-              await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
-              core.info("Original base commit exists locally - proceeding with fallback");
-
-              // Re-create the PR branch at the original base commit
-              await exec.exec(`git checkout ${baseBranch}`);
-              try {
-                await exec.exec(`git branch -D ${branchName}`);
-              } catch {
-                // Branch may not exist yet, ignore
-              }
-              await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
-              core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
-
-              // Apply the patch without --3way; we are on the correct base so it should apply cleanly
-              await exec.exec(`git am ${patchFilePath}`);
-              core.info("Patch applied successfully at original base commit");
-              core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. The pull request will show merge conflicts that require manual resolution.`);
-              patchApplied = true;
+          const recoveredFromAddAddConflict = await tryRecoverGitAmAddAddConflict(exec);
+          if (recoveredFromAddAddConflict.recovered) {
+            patchApplied = true;
+          } else {
+            if (recoveredFromAddAddConflict.errorMessage) {
+              core.warning(`Automatic add/add conflict recovery attempt failed: ${recoveredFromAddAddConflict.errorMessage}`);
             }
-          } catch (fallbackError) {
-            core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+            // Investigate why the patch failed by logging git status and the failed patch
+            try {
+              core.info("Investigating patch failure...");
+
+              // Log git status to see the current state
+              const statusResult = await exec.getExecOutput("git", ["status"]);
+              core.info("Git status output:");
+              core.info(statusResult.stdout);
+
+              // Log the failed patch diff
+              const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+              core.info("Failed patch content:");
+              core.info(patchResult.stdout);
+            } catch (investigateError) {
+              core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
+            }
+
+            // Abort the failed git am before attempting any fallback
+            try {
+              await exec.exec("git am --abort");
+              core.info("Aborted failed git am");
+            } catch (abortError) {
+              core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
+            }
+
+            // Fallback (Option 1): create the PR branch at the original base commit so the PR
+            // can still be created. GitHub will show the merge conflicts, allowing manual resolution.
+            // This handles the case where the target branch received intervening commits after
+            // the patch was generated, making --3way unable to resolve the conflicts automatically.
+            core.info("Attempting fallback: create PR branch at original base commit...");
+            try {
+              // Use the base commit recorded at patch generation time.
+              // The From <sha> header in format-patch output contains the agent's new commit SHA
+              // which does not exist in this checkout, so we cannot derive the base from it.
+              const originalBaseCommit = pullRequestItem.base_commit;
+              if (!originalBaseCommit) {
+                core.warning("No base_commit recorded in safe output entry - fallback not possible");
+              } else {
+                core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
+
+                // In shallow clones (fetch-depth: 1) the base commit may not be locally available.
+                // Attempt to fetch it explicitly before checking whether it exists.
+                try {
+                  await exec.exec("git", ["fetch", "origin", originalBaseCommit, "--depth=1"]);
+                } catch (fetchError) {
+                  // Non-fatal: the commit may already be available, or the server may not support
+                  // fetching individual SHAs (e.g. some GHE configurations). Log for troubleshooting.
+                  core.info(`Note: could not fetch base commit ${originalBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
+                }
+
+                // Verify the base commit is available in this repo (may not exist cross-repo)
+                await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
+                core.info("Original base commit exists locally - proceeding with fallback");
+
+                // Re-create the PR branch at the original base commit
+                await exec.exec(`git checkout ${baseBranch}`);
+                try {
+                  await exec.exec(`git branch -D ${branchName}`);
+                } catch {
+                  // Branch may not exist yet, ignore
+                }
+                await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
+                core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
+
+                // Try --3way first to maximize repair opportunities even on fallback branches.
+                // If that still fails with add/add conflicts, recover and continue git am.
+                try {
+                  await exec.exec("git", ["am", "--3way", patchFilePath]);
+                } catch (fallbackPatchError) {
+                  core.warning(`Fallback git am --3way failed: ${getErrorMessage(fallbackPatchError)}`);
+                  const recoveredFallback = await tryRecoverGitAmAddAddConflict(exec);
+                  if (!recoveredFallback.recovered) {
+                    if (recoveredFallback.errorMessage) {
+                      core.warning(`Automatic add/add conflict recovery attempt failed during fallback: ${recoveredFallback.errorMessage}`);
+                    }
+                    try {
+                      await exec.exec("git am --abort");
+                    } catch (abortFallbackError) {
+                      core.warning(`Failed to abort fallback git am: ${getErrorMessage(abortFallbackError)}`);
+                    }
+                    throw fallbackPatchError;
+                  }
+                }
+
+                core.info("Patch applied successfully at original base commit");
+                core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. The pull request will show merge conflicts that require manual resolution.`);
+                patchApplied = true;
+              }
+            } catch (fallbackError) {
+              core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+            }
           }
 
           if (!patchApplied) {
