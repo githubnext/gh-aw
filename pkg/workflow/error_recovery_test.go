@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const bundledSchemaFailureMessage = `/tmp/workflow.md:9:5: error: Multiple schema validation failures:
+- 'tools/github' (line 9, col 5): Unknown property: foo
+- 'on' (line 11, col 3): Unknown property: pull-request
+ 9 | foo: bar`
+
 func TestExpandErrorMessages_UnwrapsJoinedErrors(t *testing.T) {
 	err := errors.Join(
 		NewValidationError("engine", "", "cannot be empty", "Add engine"),
@@ -46,9 +51,7 @@ func TestBuildPrioritizedErrorReportFromMessages_DefaultLimit(t *testing.T) {
 }
 
 func TestExpandErrorMessages_SplitsBundledSchemaFailures(t *testing.T) {
-	message := "/tmp/workflow.md:9:5: error: Multiple schema validation failures:\n- 'tools/github' (line 9, col 5): Unknown property: foo\n- 'on' (line 11, col 3): Unknown property: pull-request\n 9 | foo: bar"
-
-	messages := ExpandErrorMessages(errors.New(message))
+	messages := ExpandErrorMessages(errors.New(bundledSchemaFailureMessage))
 
 	require.Len(t, messages, 2, "Bundled schema failures should be split into separate display messages")
 	assert.Contains(t, messages[0], "tools/github", "The tool schema failure should be preserved")

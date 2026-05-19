@@ -80,10 +80,9 @@ func compileSpecificFiles(
 		if err != nil {
 			// Don't print error here - it will be displayed in the compilation summary
 			// The error is stored in ValidationResult for JSON output and returned for main to display
-			errorMessages := []string{err.Error()}
 			errorCount++
-			stats.Errors += len(errorMessages)
-			trackWorkflowFailure(stats, markdownFile, len(errorMessages), errorMessages)
+			stats.Errors++
+			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
 			result.Valid = false
 			result.Errors = append(result.Errors, CompileValidationError{
 				Type:    "resolution_error",
