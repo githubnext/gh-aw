@@ -358,7 +358,7 @@ func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
 		// (i.e. paths containing .. after resolution)."
 		outsidePath := filepath.Join(root, "..", "outside.txt")
 		_, err := ReadFileFromHEAD(outsidePath, root)
-		assert.Error(t, err, "ReadFileFromHEAD should reject path-traversal attempts")
+		require.Error(t, err, "ReadFileFromHEAD should reject path-traversal attempts")
 		assert.Contains(t, err.Error(), "outside the git repository root")
 	})
 
