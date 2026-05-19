@@ -368,7 +368,7 @@ func expandDisplayMessage(message string) []string {
 
 	var expanded []string
 	prefix = strings.TrimRight(prefix, " ")
-	if prefix != "" && !strings.HasSuffix(prefix, " ") {
+	if prefix != "" {
 		prefix += " "
 	}
 	for line := range strings.SplitSeq(remainder, "\n") {

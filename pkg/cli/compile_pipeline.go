@@ -38,6 +38,8 @@ import (
 
 var compileOrchestrationLog = logger.New("cli:compile_pipeline")
 
+const emptyCompilationErrorMessage = "compilation failed (no detailed error message available)"
+
 // compileSpecificFiles compiles a specific list of workflow files
 func compileSpecificFiles(
 	ctx context.Context,
@@ -115,7 +117,7 @@ func compileSpecificFiles(
 				errMsgs = append(errMsgs, verr.Message)
 			}
 			if len(errMsgs) == 0 {
-				errMsgs = []string{"compilation failed (no detailed error message available)"}
+				errMsgs = []string{emptyCompilationErrorMessage}
 			}
 			errorCount++
 			stats.Errors += len(errMsgs)
@@ -303,7 +305,7 @@ func compileAllFilesInDirectory(
 				errMsgs = append(errMsgs, verr.Message)
 			}
 			if len(errMsgs) == 0 {
-				errMsgs = []string{"compilation failed (no detailed error message available)"}
+				errMsgs = []string{emptyCompilationErrorMessage}
 			}
 			errorCount++
 			stats.Errors += len(errMsgs)
