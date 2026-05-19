@@ -697,10 +697,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          # Check if gh-aw extension is already installed
-          if gh extension list | grep -qE '(^|[[:space:]]|/)gh-aw($|[[:space:]]|$)'; then
-            echo "gh-aw extension already installed, upgrading..."
-            gh extension upgrade gh-aw || true
+          # Check if gh-aw command is already available (extension or standalone binary)
+          if gh aw --version >/dev/null 2>&1; then
+            echo "gh-aw command already available, using existing install"
+            # If installed as a managed extension, attempt best-effort upgrade
+            if gh extension list | grep -qE '(^|[[:space:]]|/)gh-aw($|[[:space:]])'; then
+              gh extension upgrade gh-aw || true
+            fi
           else
             echo "Installing gh-aw extension..."
             gh extension install github/gh-aw
