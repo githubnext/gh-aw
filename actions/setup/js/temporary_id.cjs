@@ -263,7 +263,7 @@ function loadTemporaryIdMap() {
  *
  * @param {any} resolvedTemporaryIds - Object or Map of temporary IDs to resolved values
  * @param {object} [options]
- * @param {string} [options.defaultRepo] - Fallback repo to use for legacy number-only values
+ * @param {string} [options.defaultRepo] - Fallback repo for legacy number-only values; if omitted, uses GitHub Action context repo when available, else ""
  * @param {boolean} [options.validatePositiveIntegers] - When true, ignore non-positive-integer numbers
  * @param {(normalizedKey: string, rawValue: unknown) => void} [options.onInvalidNumber] - Callback for invalid numbers when validation is enabled
  * @returns {Map<string, RepoIssuePair>} Map of normalized temporary_id to {repo, number}
@@ -285,6 +285,12 @@ function loadTemporaryIdMapFromResolved(resolvedTemporaryIds, options = {}) {
    */
   const toNumber = (normalizedKey, rawValue) => {
     const number = Number(rawValue);
+    if (!Number.isFinite(number)) {
+      if (options.validatePositiveIntegers && typeof options.onInvalidNumber === "function") {
+        options.onInvalidNumber(normalizedKey, rawValue);
+      }
+      return null;
+    }
     if (!options.validatePositiveIntegers) {
       return number;
     }
