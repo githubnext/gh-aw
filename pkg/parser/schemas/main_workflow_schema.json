@@ -5660,6 +5660,11 @@
                   "type": "string",
                   "description": "Only close discussions with this title prefix"
                 },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true
+                },
                 "required-category": {
                   "type": "string",
                   "description": "Only close discussions in this category"
@@ -5800,6 +5805,11 @@
                   "type": "string",
                   "description": "Only close issues with this title prefix"
                 },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true
+                },
                 "target": {
                   "type": "string",
                   "description": "Target for closing: 'triggering' (default, current issue), or '*' (any issue with issue_number field)"
@@ -5877,6 +5887,11 @@
                   "type": "string",
                   "description": "Only close pull requests with this title prefix"
                 },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true
+                },
                 "target": {
                   "type": "string",
                   "description": "Target for closing: 'triggering' (default, current PR), or '*' (any PR with pull_request_number field)"
@@ -5944,6 +5959,11 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "Only mark pull requests with this title prefix"
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true
                 },
                 "target": {
                   "type": "string",
@@ -7587,9 +7607,14 @@
                   "type": "string",
                   "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
                 },
-                "title-prefix": {
+                "require-title-prefix": {
                   "type": "string",
                   "description": "Required prefix for pull request title. Only pull requests with this prefix will be accepted."
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for require-title-prefix",
+                  "deprecated": true
                 },
                 "labels": {
                   "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs[\\'required-labels\\'] }}').",

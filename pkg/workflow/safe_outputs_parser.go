@@ -17,6 +17,7 @@ type SafeOutputTargetConfig struct {
 type SafeOutputFilterConfig struct {
 	RequiredLabels      []string `yaml:"required-labels,omitempty"`       // Required labels for the operation
 	RequiredTitlePrefix string   `yaml:"required-title-prefix,omitempty"` // Required title prefix for the operation
+	TitlePrefix         string   `yaml:"title-prefix,omitempty"`          // Deprecated alias for required-title-prefix
 }
 
 // SafeOutputDiscussionFilterConfig extends SafeOutputFilterConfig with discussion-specific fields.
@@ -73,8 +74,11 @@ func ParseFilterConfig(configMap map[string]any) SafeOutputFilterConfig {
 		safeOutputParserLog.Printf("Parsed %d required labels", len(config.RequiredLabels))
 	}
 
-	// Parse required-title-prefix
+	// Parse required-title-prefix (preferred) with fallback to deprecated title-prefix
 	config.RequiredTitlePrefix = extractStringFromMap(configMap, "required-title-prefix", safeOutputParserLog)
+	if config.RequiredTitlePrefix == "" {
+		config.RequiredTitlePrefix = extractStringFromMap(configMap, "title-prefix", safeOutputParserLog)
+	}
 
 	return config
 }

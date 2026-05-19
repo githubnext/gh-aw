@@ -53,6 +53,7 @@ func GetAllCodemods() []Codemod {
 		getExpiresIntegerToDayStringCodemod(),         // Convert expires integer (days) to string with 'd' suffix
 		getGitHubAppCodemod(),                         // Rename deprecated 'app' to 'github-app'
 		getGitHubAppClientIDCodemod(),                 // Rename deprecated github-app.app-id to github-app.client-id
+		getSafeOutputRequireTitlePrefixCodemod(),      // Rename deprecated safe-outputs title-prefix constraint fields
 		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
 		getRateLimitToUserRateLimitCodemod(),          // Rename rate-limit to user-rate-limit with max key migration
 		getSerenaToSharedImportCodemod(),              // Migrate removed tools.serena to shared/mcp/serena.md import

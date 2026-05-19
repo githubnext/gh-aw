@@ -753,7 +753,7 @@ func TestPushToPullRequestBranchWithTitlePrefix(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create a test markdown file with title-prefix configuration
+	// Create a test markdown file with require-title-prefix configuration
 	testMarkdown := `---
 on:
   pull_request:
@@ -761,7 +761,8 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
-    title-prefix: "[bot] "
+    require-title-prefix: "[bot] "
+    labels: ["automated"]
 ---
 
 # Test Push to Branch with Title Prefix
@@ -849,7 +850,7 @@ func TestPushToPullRequestBranchWithTitlePrefixAndLabels(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create a test markdown file with both title-prefix and labels configuration
+	// Create a test markdown file with both require-title-prefix and labels configuration
 	testMarkdown := `---
 on:
   pull_request:
@@ -857,7 +858,7 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
-    title-prefix: "[automated] "
+    require-title-prefix: "[automated] "
     labels: ["bot", "feature", "enhancement"]
 ---
 

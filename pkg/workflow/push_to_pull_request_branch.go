@@ -124,8 +124,11 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
-			// Parse title-prefix using shared helper
-			pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
+			// Parse require-title-prefix (preferred) with fallback to deprecated title-prefix.
+			pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "require-title-prefix", pushToPullRequestBranchLog)
+			if pushToBranchConfig.TitlePrefix == "" {
+				pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
+			}
 
 			// Parse labels using expression-aware shared helper
 			pushToBranchConfig.Labels = ParseStringArrayOrExprFromConfig(configMap, "labels", pushToPullRequestBranchLog)

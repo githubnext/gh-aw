@@ -30,6 +30,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
+    labels: [automated]
 ---
 
 # Test Workflow
@@ -45,6 +46,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
+    labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0
@@ -63,6 +65,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
+    labels: [automated]
 checkout:
   fetch: ["feature/*"]
 ---
@@ -108,6 +111,7 @@ safe-outputs:
   push-to-pull-request-branch:
     target: "*"
     title-prefix: "[bot] "
+    labels: [automated]
 checkout:
   fetch: ["main"]
 ---
@@ -184,13 +188,14 @@ checkout:
 			expectWarning: true,
 		},
 		{
-			name: "target=* with title-prefix does not emit constraint warning",
+			name: "target=* with require-title-prefix and labels does not emit constraint warning",
 			content: `---
 on: push
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"
-    title-prefix: "[bot] "
+    require-title-prefix: "[bot] "
+    labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0

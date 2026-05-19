@@ -24,6 +24,7 @@ network:
 
 safe-outputs:
   close-issue:
+    required-labels: [dependencies]
     required-title-prefix: "[deps]"
     target: "*"
     max: 20

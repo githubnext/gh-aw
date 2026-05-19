@@ -905,7 +905,7 @@ See the full reference: [Safe Outputs (Pull Requests) — push-to-pull-request-b
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"                 # "triggering" (default), "*", or number
-    title-prefix: "[bot] "      # require title prefix
+    require-title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
     signed-commits: false  # optional: use git push directly when signed commits are not required
     protected-files: fallback-to-issue  # create review issue if protected files modified

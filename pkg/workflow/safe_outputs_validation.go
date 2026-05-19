@@ -183,6 +183,49 @@ var safeOutputsAllowWorkflowsValidationLog = newValidationLogger("safe_outputs_a
 
 var safeOutputsMergePullRequestValidationLog = newValidationLogger("safe_outputs_merge_pull_request")
 
+// validateSafeOutputsRequiredLabelsWithTitlePrefix validates that title-prefix
+// constraints are always paired with label constraints.
+func validateSafeOutputsRequiredLabelsWithTitlePrefix(config *SafeOutputsConfig) error {
+	if config == nil {
+		return nil
+	}
+
+	checkFilter := func(outputName, requiredTitlePrefix string, requiredLabels []string) error {
+		if requiredTitlePrefix != "" && len(requiredLabels) == 0 {
+			return fmt.Errorf("safe-outputs.%s.required-labels: required when required-title-prefix is set", outputName)
+		}
+		return nil
+	}
+
+	if config.CloseIssues != nil {
+		if err := checkFilter("close-issue", config.CloseIssues.RequiredTitlePrefix, config.CloseIssues.RequiredLabels); err != nil {
+			return err
+		}
+	}
+	if config.CloseDiscussions != nil {
+		if err := checkFilter("close-discussion", config.CloseDiscussions.RequiredTitlePrefix, config.CloseDiscussions.RequiredLabels); err != nil {
+			return err
+		}
+	}
+	if config.ClosePullRequests != nil {
+		if err := checkFilter("close-pull-request", config.ClosePullRequests.RequiredTitlePrefix, config.ClosePullRequests.RequiredLabels); err != nil {
+			return err
+		}
+	}
+	if config.MarkPullRequestAsReadyForReview != nil {
+		if err := checkFilter("mark-pull-request-as-ready-for-review", config.MarkPullRequestAsReadyForReview.RequiredTitlePrefix, config.MarkPullRequestAsReadyForReview.RequiredLabels); err != nil {
+			return err
+		}
+	}
+
+	// push-to-pull-request-branch uses labels as the hard constraint field name.
+	if config.PushToPullRequestBranch != nil && config.PushToPullRequestBranch.TitlePrefix != "" && len(config.PushToPullRequestBranch.Labels) == 0 {
+		return fmt.Errorf("safe-outputs.push-to-pull-request-branch.labels: required when require-title-prefix is set")
+	}
+
+	return nil
+}
+
 // validateSafeOutputsMergePullRequest validates merge-pull-request policy configuration.
 func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 	if config == nil || config.MergePullRequest == nil {
