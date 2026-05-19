@@ -601,7 +601,7 @@ func TestIsWorkflowSpec(t *testing.T) {
 		},
 		{
 			name: "shared path with 3 parts (mcp subdirectory)",
-			path: "shared/mcp/gh-aw.md",
+			path: "shared/mcp/tavily.md",
 			want: false,
 		},
 		{

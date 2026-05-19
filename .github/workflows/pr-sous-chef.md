@@ -234,6 +234,19 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - branch_update_attempts
 - formatter_pushes (number of PRs that had formatting fixes committed and pushed)
 
+## Formatting Requirements
+
+- **Header Levels**: Use h3 (`###`) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (`#`) or h2 (`##`) headers.
+- **Progressive Disclosure**: Wrap long sections or verbose details in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Keep critical information visible (summary, key outcomes, and recommendations) and use collapsible sections for secondary details.
+
+### Recommended Report Structure
+
+1. **Overview**: 1-2 paragraphs summarizing key findings (always visible)
+2. **Critical Information**: Key metrics, status, critical issues (always visible)
+3. **Details**: Use `<details><summary>Section Name</summary>` for expanded content
+4. **Recommendations**: Actionable next steps (always visible)
+
 ## agent: `pr-processor`
 ---
 description: Processes one PR with minimal API calls and returns skip/nudge decisions
