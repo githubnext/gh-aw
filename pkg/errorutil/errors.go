@@ -31,6 +31,9 @@ func IsGoneError(err error) bool {
 	return containsErrorSubstring(err, "410", "gone")
 }
 
+// containsErrorSubstring reports whether err contains any of the provided
+// substrings after lowercasing the full error message for case-insensitive
+// matching.
 func containsErrorSubstring(err error, substrings ...string) bool {
 	if err == nil {
 		return false

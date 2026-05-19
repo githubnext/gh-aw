@@ -35,7 +35,8 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return
 		}
-		if strings.HasSuffix(pass.Fset.PositionFor(outer.Pos(), false).Filename, "_test.go") {
+		position := pass.Fset.PositionFor(outer.Pos(), false)
+		if strings.HasSuffix(position.Filename, "_test.go") {
 			return
 		}
 
@@ -56,7 +57,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isStringLiteral(pass, outer.Args[1]) {
 			return
 		}
-		if hasNoLintDirective(pass, outer.Pos()) {
+		if hasNoLintDirective(pass, position) {
 			return
 		}
 
@@ -141,8 +142,7 @@ func isStringLiteral(pass *analysis.Pass, expr ast.Expr) bool {
 	return ok && basic.Kind() == types.String
 }
 
-func hasNoLintDirective(pass *analysis.Pass, pos token.Pos) bool {
-	position := pass.Fset.PositionFor(pos, false)
+func hasNoLintDirective(pass *analysis.Pass, position token.Position) bool {
 	if position.Filename == "" {
 		return false
 	}
