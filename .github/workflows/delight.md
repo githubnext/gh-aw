@@ -1,84 +1,78 @@
 ---
-emoji: "✨"
-name: Delight
-description: Targeted scan of user-facing aspects to improve clarity, usability, and professionalism in enterprise software context
 on:
   schedule:
-    - cron: daily
-  workflow_dispatch:
-
+  - cron: daily
+  workflow_dispatch: null
 permissions:
   contents: read
   discussions: read
   issues: read
   pull-requests: read
-
-tracker-id: delight-daily
-engine: copilot
-strict: true
-
 network:
   allowed:
-    - defaults
-    - github
-
+  - defaults
+  - github
+imports:
+- uses: shared/daily-audit-base.md
+  with:
+    title-prefix: "[delight] "
+- uses: shared/repo-memory-standard.md
+  with:
+    branch-name: memory/delight
+    description: Track delight findings and historical patterns
+- shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 2d
-    labels: [delight, cookie]
-    max: 2
     group: true
+    labels:
+    - delight
+    - cookie
+    max: 2
   messages:
     footer: "> 📊 *User experience analysis by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
-    run-started: "📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities..."
-    run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience."
-    run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
-
+    run-failure: ⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...
+    run-started: 📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...
+    run-success: ✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.
+description: Targeted scan of user-facing aspects to improve clarity, usability, and professionalism in enterprise software context
+emoji: ✨
+engine: copilot
+features:
+  copilot-requests: true
+name: Delight
+pre-agent-steps:
+- name: Sample files and load memory
+  run: |
+    mkdir -p /tmp/gh-aw/agent
+    # Sample documentation files (eliminates agent exploratory find turns)
+    find docs/src/content/docs \( -name '*.md' -o -name '*.mdx' \) | shuf -n 2 > /tmp/gh-aw/agent/doc-samples.txt
+    # Sample workflows with messages (pre-compute instead of agent grep)
+    grep -rl "messages:" .github/workflows/ --include="*.md" | shuf -n 2 > /tmp/gh-aw/agent/workflow-samples.txt
+    # Sample validation files
+    find pkg -name '*validation*.go' | shuf -n 1 > /tmp/gh-aw/agent/validation-sample.txt || echo "No validation files found" > /tmp/gh-aw/agent/validation-sample.txt
+    # Load historical memory (eliminates agent memory-read turns)
+    cat memory/delight/previous-findings.json 2>/dev/null > /tmp/gh-aw/agent/previous-findings.json || echo "[]" > /tmp/gh-aw/agent/previous-findings.json
+    cat memory/delight/improvement-themes.json 2>/dev/null > /tmp/gh-aw/agent/improvement-themes.json || echo "[]" > /tmp/gh-aw/agent/improvement-themes.json
+strict: true
+timeout-minutes: 30
 tools:
+  bash:
+  - find docs/src/content/docs -name "*.md" -o -name "*.mdx"
+  - find .github/workflows -name "*.md"
+  - ./gh-aw --help
+  - ./gh-aw * --help
+  - cat /tmp/gh-aw/agent/*
+  - cat docs/src/content/docs/*.md
+  - cat docs/src/content/docs/*.mdx
+  - cat .github/workflows/*.md
+  - cat pkg/*/*.go
   cli-proxy: true
   github:
     mode: gh-proxy
-    toolsets: [default, discussions]
-  bash:
-    - "find docs/src/content/docs -name '*.md' -o -name '*.mdx'"
-    - "find .github/workflows -name '*.md'"
-    - "./gh-aw --help"
-    - "./gh-aw * --help"
-    - "cat /tmp/gh-aw/agent/*"
-    - "cat docs/src/content/docs/*.md"
-    - "cat docs/src/content/docs/*.mdx"
-    - "cat .github/workflows/*.md"
-    - "cat pkg/*/*.go"
-
-timeout-minutes: 30
-
-imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[delight] "
-  - uses: shared/repo-memory-standard.md
-    with:
-      branch-name: "memory/delight"
-      description: "Track delight findings and historical patterns"
-
-  - shared/otlp.md
-pre-agent-steps:
-  - name: Sample files and load memory
-    run: |
-      mkdir -p /tmp/gh-aw/agent
-      # Sample documentation files (eliminates agent exploratory find turns)
-      find docs/src/content/docs \( -name '*.md' -o -name '*.mdx' \) | shuf -n 2 > /tmp/gh-aw/agent/doc-samples.txt
-      # Sample workflows with messages (pre-compute instead of agent grep)
-      grep -rl "messages:" .github/workflows/ --include="*.md" | shuf -n 2 > /tmp/gh-aw/agent/workflow-samples.txt
-      # Sample validation files
-      find pkg -name '*validation*.go' | shuf -n 1 > /tmp/gh-aw/agent/validation-sample.txt || echo "No validation files found" > /tmp/gh-aw/agent/validation-sample.txt
-      # Load historical memory (eliminates agent memory-read turns)
-      cat memory/delight/previous-findings.json 2>/dev/null > /tmp/gh-aw/agent/previous-findings.json || echo "[]" > /tmp/gh-aw/agent/previous-findings.json
-      cat memory/delight/improvement-themes.json 2>/dev/null > /tmp/gh-aw/agent/improvement-themes.json || echo "[]" > /tmp/gh-aw/agent/improvement-themes.json
-
-features:
-  copilot-requests: true
-
+    toolsets:
+    - default
+    - discussions
+tracker-id: delight-daily
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -1,73 +1,66 @@
 ---
-emoji: "📋"
-name: Step Name Alignment
-description: Scans step names in .lock.yml files and aligns them with step intent and project glossary
 on:
   schedule:
-    # Daily at a distributed time to reduce load
-    - cron: "daily"
-  workflow_dispatch:
-
+  - cron: daily
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-engine:
-  id: claude
-  max-turns: 30
-
 network:
   allowed:
-    - defaults
-    - github
-
+  - defaults
+  - github
+imports:
+- shared/otlp.md
 safe-outputs:
   create-issue:
     expires: 2d
+    labels:
+    - maintenance
+    - step-naming
+    - cookie
     title-prefix: "[step-names] "
-    labels: [maintenance, step-naming, cookie]
-
-imports:
-  - shared/otlp.md
+steps:
+- name: Build step alignment manifest
+  run: |
+    set -euo pipefail
+    mkdir -p /tmp/gh-aw/agent
+    
+    MANIFEST_JSONL="/tmp/gh-aw/agent/step-alignment-input.jsonl"
+    MANIFEST_JSON="/tmp/gh-aw/agent/step-alignment-input.json"
+    : > "$MANIFEST_JSONL"
+    
+    while IFS= read -r workflow_file; do
+      yq -o=json \
+        '.jobs | to_entries[] | .value.steps[]? | {"workflow_file": "'"$workflow_file"'", "step_name": (.name // ""), "action_uses": (.uses // "")}' \
+        "$workflow_file" >> "$MANIFEST_JSONL"
+    done < <(find .github/workflows -name "*.lock.yml" -type f | sort)
+    
+    jq -s '.' "$MANIFEST_JSONL" > "$MANIFEST_JSON"
+    rm -f "$MANIFEST_JSONL"
+    
+    echo "Wrote $(jq 'length' "$MANIFEST_JSON") step records to $MANIFEST_JSON"
+description: Scans step names in .lock.yml files and aligns them with step intent and project glossary
+emoji: 📋
+engine:
+  id: claude
+  max-turns: 30
+name: Step Name Alignment
+timeout-minutes: 30
 tools:
-  cli-proxy: true
+  bash:
+  - yq*
+  - find .github/workflows -name "*.lock.yml" -type f
+  - cat docs/src/content/docs/reference/glossary.md
+  - "git log --since=\"24 hours ago\" --oneline --name-only -- \".github/workflows/*.lock.yml\""
   cache-memory: true
+  cli-proxy: true
   github:
     mode: gh-proxy
-    toolsets: [default]
-  bash:
-    - "yq*"
-    - "find .github/workflows -name '*.lock.yml' -type f"
-    - "cat docs/src/content/docs/reference/glossary.md"
-    - "git log --since='24 hours ago' --oneline --name-only -- '.github/workflows/*.lock.yml'"
-
-steps:
-  - name: Build step alignment manifest
-    run: |
-      set -euo pipefail
-      mkdir -p /tmp/gh-aw/agent
-
-      MANIFEST_JSONL="/tmp/gh-aw/agent/step-alignment-input.jsonl"
-      MANIFEST_JSON="/tmp/gh-aw/agent/step-alignment-input.json"
-      : > "$MANIFEST_JSONL"
-
-      while IFS= read -r workflow_file; do
-        yq -o=json \
-          '.jobs | to_entries[] | .value.steps[]? | {"workflow_file": "'"$workflow_file"'", "step_name": (.name // ""), "action_uses": (.uses // "")}' \
-          "$workflow_file" >> "$MANIFEST_JSONL"
-      done < <(find .github/workflows -name "*.lock.yml" -type f | sort)
-
-      jq -s '.' "$MANIFEST_JSONL" > "$MANIFEST_JSON"
-      rm -f "$MANIFEST_JSONL"
-
-      echo "Wrote $(jq 'length' "$MANIFEST_JSON") step records to $MANIFEST_JSON"
-
-timeout-minutes: 30
-
-
+    toolsets:
+    - default
 ---
-
 # Step Name Alignment Agent
 
 You are an AI agent that ensures consistency and accuracy in step names across all GitHub Actions workflow lock files (`.lock.yml`).

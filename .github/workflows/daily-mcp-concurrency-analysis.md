@@ -1,65 +1,65 @@
 ---
-emoji: "📊"
-name: Daily MCP Tool Concurrency Analysis
-description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 on:
   schedule:
-    - cron: "daily around 9:00 on weekdays"  # ~Weekdays at 9 AM UTC (scattered)
-  workflow_dispatch:
-
+  - cron: daily around 9:00 on weekdays
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-tracker-id: mcp-concurrency-analysis
-engine: copilot
-
 imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[mcp-concurrency] "
-      expires: 3d
-  - shared/safe-output-app.md
-  - uses: shared/mcp/serena.md
-    with:
-      languages: ["go", "typescript"]
-
-  - shared/otlp.md
+- uses: shared/daily-audit-base.md
+  with:
+    expires: 3d
+    title-prefix: "[mcp-concurrency] "
+- shared/safe-output-app.md
+- uses: shared/mcp/serena.md
+  with:
+    languages:
+    - go
+    - typescript
+- shared/otlp.md
 safe-outputs:
-  create-issue:
-    expires: 7d
-    title-prefix: "[concurrency] "
-    labels: [bug, concurrency, thread-safety, automated-analysis, cookie]
-    max: 5
   create-agent-session:
     max: 3
-
-tools:
-  cli-proxy: true
-  cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-  edit:
-  bash:
-    - "cat pkg/workflow/js/safe_outputs_tools.json"
-    - "jq -r '.[].name' pkg/workflow/js/safe_outputs_tools.json"
-    - "find actions/setup/js -name '*.cjs' ! -name '*.test.cjs' -type f"
-    - "cat actions/setup/js/*.cjs"
-    - "grep -r 'let \\|var \\|const ' actions/setup/js --include='*.cjs'"
-    - "grep -r 'module.exports' actions/setup/js --include='*.cjs'"
-    - "head -n * actions/setup/js/*.cjs"
-    - "git log -1 --format='%ai' -- actions/setup/js/*.cjs"
-    - "git log -3 --format='%ai %s' -- actions/setup/js/*.cjs"
-
-timeout-minutes: 45
-strict: true
+  create-issue:
+    expires: 7d
+    labels:
+    - bug
+    - concurrency
+    - thread-safety
+    - automated-analysis
+    - cookie
+    max: 5
+    title-prefix: "[concurrency] "
+description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
+emoji: 📊
+engine: copilot
 features:
   copilot-requests: true
-
+name: Daily MCP Tool Concurrency Analysis
+strict: true
+timeout-minutes: 45
+tools:
+  bash:
+  - cat pkg/workflow/js/safe_outputs_tools.json
+  - jq -r ".[].name" pkg/workflow/js/safe_outputs_tools.json
+  - find actions/setup/js -name "*.cjs" ! -name "*.test.cjs" -type f
+  - cat actions/setup/js/*.cjs
+  - "grep -r \"let \\\\|var \\\\|const \" actions/setup/js --include=\"*.cjs\""
+  - grep -r "module.exports" actions/setup/js --include="*.cjs"
+  - head -n * actions/setup/js/*.cjs
+  - "git log -1 --format=\"%ai\" -- actions/setup/js/*.cjs"
+  - "git log -3 --format=\"%ai %s\" -- actions/setup/js/*.cjs"
+  cache-memory: true
+  cli-proxy: true
+  edit: null
+  github:
+    mode: gh-proxy
+    toolsets:
+    - default
+tracker-id: mcp-concurrency-analysis
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily MCP Tool Concurrency Analysis Agent 🔒

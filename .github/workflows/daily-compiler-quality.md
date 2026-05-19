@@ -1,77 +1,86 @@
 ---
-emoji: "📊"
-name: Daily Compiler Quality Check
-description: Analyzes compiler code daily to assess if it meets human-written quality standards, creates discussion reports, and uses cache memory to avoid re-analyzing unchanged files
 on:
   schedule: daily
-  workflow_dispatch:
+  workflow_dispatch: null
 permissions:
   contents: read
   discussions: read
   issues: read
   pull-requests: read
-tracker-id: daily-compiler-quality
-engine: copilot
 imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[daily-compiler-quality] "
-      expires: 1d
-  - shared/go-source-analysis.md
-  - shared/otlp.md
+- uses: shared/daily-audit-base.md
+  with:
+    expires: 1d
+    title-prefix: "[daily-compiler-quality] "
+- shared/go-source-analysis.md
+- shared/otlp.md
+safe-outputs:
+  create-discussion:
+    category: audits
+    close-older-discussions: true
+    expires: 1d
+    fallback-to-issue: true
+    max: 1
+    min-body-length: 200
+    title-prefix: "[daily-compiler-quality] "
+description: Analyzes compiler code daily to assess if it meets human-written quality standards, creates discussion reports, and uses cache memory to avoid re-analyzing unchanged files
+emoji: 📊
+engine: copilot
+experiments:
+  output_format:
+    analysis_type: mann_whitney
+    description: Tests whether a concise executive-summary report outperforms the current exhaustive per-file report on discussion engagement and token efficiency
+    guardrail_metrics:
+    - name: run_success_rate
+      threshold: ">=0.85"
+    - name: empty_output_rate
+      threshold: <=0.05
+    hypothesis: "H0: no change in discussion engagement. H1: concise variant achieves equal engagement with ≥30% fewer output tokens"
+    issue: 32390
+    metric: discussion_engagement_score
+    min_samples: 20
+    secondary_metrics:
+    - output_token_count
+    - run_duration_ms
+    - run_success_rate
+    start_date: "2026-05-16"
+    tags:
+    - output-quality
+    - token-efficiency
+    - daily-workflows
+    variants:
+    - detailed
+    - concise
+    weight:
+    - 50
+    - 50
+features:
+  copilot-requests: true
+name: Daily Compiler Quality Check
+strict: true
+timeout-minutes: 30
 tools:
+  bash:
+  - find pkg/workflow -name "compiler*.go" ! -name "*_test.go" -type f
+  - wc -l pkg/workflow/compiler*.go
+  - wc -l < pkg/workflow/
+  - "git log --since=\"7 days ago\" --format=\"%h %s\" -- pkg/workflow/compiler*.go"
+  - "git log --since=\"7 days ago\" --oneline --name-only -- pkg/workflow/compiler*.go"
+  - git log -1 --format=%H --
+  - mkdir -p /tmp/gh-aw/cache-memory/compiler-quality
+  - cat /tmp/gh-aw/cache-memory/
+  - cat > /tmp/gh-aw/cache-memory/
+  - jq
+  - mv /tmp/gh-aw/cache-memory/
+  - echo
+  - bc
+  cache-memory: true
   cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:
-      - discussions
-  cache-memory: true
-  bash:
-    - "find pkg/workflow -name 'compiler*.go' ! -name '*_test.go' -type f"
-    - "wc -l pkg/workflow/compiler*.go"
-    - "wc -l < pkg/workflow/"
-    - "git log --since='7 days ago' --format='%h %s' -- pkg/workflow/compiler*.go"
-    - "git log --since='7 days ago' --oneline --name-only -- pkg/workflow/compiler*.go"
-    - "git log -1 --format=%H --"
-    - "mkdir -p /tmp/gh-aw/cache-memory/compiler-quality"
-    - "cat /tmp/gh-aw/cache-memory/"
-    - "cat > /tmp/gh-aw/cache-memory/"
-    - "jq"
-    - "mv /tmp/gh-aw/cache-memory/"
-    - "echo"
-    - "bc"
-safe-outputs:
-  create-discussion:
-    category: "audits"
-    title-prefix: "[daily-compiler-quality] "
-    expires: 1d
-    close-older-discussions: true
-    fallback-to-issue: true
-    max: 1
-    min-body-length: 200
-timeout-minutes: 30
-strict: true
-features:
-  copilot-requests: true
-experiments:
-  output_format:
-    variants: [detailed, concise]
-    description: "Tests whether a concise executive-summary report outperforms the current exhaustive per-file report on discussion engagement and token efficiency"
-    hypothesis: "H0: no change in discussion engagement. H1: concise variant achieves equal engagement with ≥30% fewer output tokens"
-    metric: discussion_engagement_score
-    secondary_metrics: [output_token_count, run_duration_ms, run_success_rate]
-    guardrail_metrics:
-      - name: run_success_rate
-        threshold: ">=0.85"
-      - name: empty_output_rate
-        threshold: "<=0.05"
-    min_samples: 20
-    weight: [50, 50]
-    start_date: "2026-05-16"
-    analysis_type: mann_whitney
-    tags: [output-quality, token-efficiency, daily-workflows]
-    issue: 32390
-
+    - discussions
+tracker-id: daily-compiler-quality
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -1,61 +1,59 @@
 ---
-emoji: "🤖"
-name: Sergo - Serena Go Expert
-description: Daily Go code quality analysis using Serena MCP language service protocol expert
 on:
   schedule: daily
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
   contents: read
   discussions: read
   issues: read
   pull-requests: read
-
-tracker-id: sergo-daily
-
-engine: claude
-
 network:
   allowed:
-    - defaults
-    - github
-    - go
-
+  - defaults
+  - github
+  - go
 imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[sergo] "
-      expires: 1d
-  - shared/mcp/serena-go.md
-
-  - shared/otlp.md
-tools:
-  cli-proxy: true
-  repo-memory:
-    branch-name: memory/sergo
-    description: "Historical Sergo Go analysis results, strategies, and tool snapshots"
-    file-glob: ["*.json", "*.jsonl"]
-  github:
-    mode: gh-proxy
-    toolsets: [default, issues]
-  edit:
-  bash:
-    - "cat go.mod"
-    - "cat go.sum"
-    - "go list -m all"
-    - "find . -name '*.go' -type f"
-    - "grep -r 'func ' --include='*.go'"
-    - "wc -l"
-
-timeout-minutes: 45
-strict: true
+- uses: shared/daily-audit-base.md
+  with:
+    expires: 1d
+    title-prefix: "[sergo] "
+- shared/mcp/serena-go.md
+- shared/otlp.md
 safe-outputs:
   create-issue:
-    max: 3
-    labels: [sergo, cookie]
     expires: 7d
-
+    labels:
+    - sergo
+    - cookie
+    max: 3
+description: Daily Go code quality analysis using Serena MCP language service protocol expert
+emoji: 🤖
+engine: claude
+name: "Sergo - Serena Go Expert"
+strict: true
+timeout-minutes: 45
+tools:
+  bash:
+  - cat go.mod
+  - cat go.sum
+  - go list -m all
+  - find . -name "*.go" -type f
+  - grep -r "func " --include="*.go"
+  - wc -l
+  cli-proxy: true
+  edit: null
+  github:
+    mode: gh-proxy
+    toolsets:
+    - default
+    - issues
+  repo-memory:
+    branch-name: memory/sergo
+    description: Historical Sergo Go analysis results, strategies, and tool snapshots
+    file-glob:
+    - "*.json"
+    - "*.jsonl"
+tracker-id: sergo-daily
 ---
 # Sergo 🔬 - The Serena Go Expert
 
