@@ -1,5 +1,5 @@
 ---
-title: aw.yml package manifest
+title: Package Manifest (aw.yml)
 description: Reference for the aw.yml package manifest used by gh aw add and gh aw compile.
 sidebar:
   order: 320
@@ -10,7 +10,7 @@ Use `aw.yml` to describe an installable agentic workflow package.
 `gh aw compile` validates repository-root manifests before compilation.
 
 For the normative file-format definition, see the
-[aw.yml repository package manifest specification](/gh-aw/reference/repository-package-manifest-specification/).
+[Package Management (Spec)](/gh-aw/reference/repository-package-manifest-specification/).
 
 ## Package reference formats
 

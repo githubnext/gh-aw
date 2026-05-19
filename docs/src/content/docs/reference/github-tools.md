@@ -65,13 +65,24 @@ The setting `tools.github.allowed-repos` specifies which repositories the agent 
 
 - `"all"` — All repositories accessible by the configured token
 - `"public"` — Public repositories only
-- `"${{ github.repository }}"` — The repository where the workflow is running
+- `"current"` — The repository where the workflow is running (normalized to `${{ github.repository }}` in the emitted guard policy)
+- `"${{ github.repository }}"` — Equivalent to `"current"`, kept for backward compatibility
 - Array of patterns — Specific repositories and wildcards:
   - `"owner/repo"` — Exact repository match
   - `"owner/*"` — All repositories under an owner
   - `"owner/prefix*"` — Repositories with a name prefix under an owner
 
 This defaults to `"all"` when omitted. Patterns must be lowercase. Wildcards are only permitted at the end of the repository name component.
+
+Use `current` in reusable or generated workflows that need to express "this repository only" without hard-coding `owner/repo`:
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [issues, pull_requests]
+    allowed-repos: current
+    min-integrity: approved
+```
 
 For example:
 

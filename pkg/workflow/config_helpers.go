@@ -47,18 +47,18 @@ var configHelpersLog = logger.New("workflow:config_helpers")
 // ParseStringArrayFromConfig is a generic helper that extracts and validates a string array from a map
 // Returns a slice of strings, or nil if not present or invalid
 // If log is provided, it will log the extracted values for debugging
-func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger) []string {
+func ParseStringArrayFromConfig(m map[string]any, key string, debugLog *logger.Logger) []string {
 	if value, exists := m[key]; exists {
-		if log != nil {
-			log.Printf("Parsing %s from config", key)
+		if debugLog != nil {
+			debugLog.Printf("Parsing %s from config", key)
 		}
-		if strings := parseStringSliceAny(value, log); strings != nil {
+		if strings := parseStringSliceAny(value, debugLog); strings != nil {
 			// Return the slice even if empty (to distinguish from not provided)
-			if len(strings) == 0 && log != nil {
-				log.Printf("No valid %s strings found, returning empty array", key)
+			if len(strings) == 0 && debugLog != nil {
+				debugLog.Printf("No valid %s strings found, returning empty array", key)
 			}
-			if log != nil {
-				log.Printf("Parsed %d %s from config", len(strings), key)
+			if debugLog != nil {
+				debugLog.Printf("Parsed %d %s from config", len(strings), key)
 			}
 			return strings
 		}
@@ -73,32 +73,32 @@ func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger
 // a JSON array.
 //
 // Non-expression bare strings are treated as invalid and nil is returned.
-func ParseStringArrayOrExprFromConfig(m map[string]any, key string, log *logger.Logger) []string {
+func ParseStringArrayOrExprFromConfig(m map[string]any, key string, debugLog *logger.Logger) []string {
 	if value, exists := m[key]; exists {
-		if log != nil {
-			log.Printf("Parsing %s from config", key)
+		if debugLog != nil {
+			debugLog.Printf("Parsing %s from config", key)
 		}
 		// Accept a GitHub Actions expression string: wrap it in a single-element slice.
 		if s, ok := value.(string); ok {
 			if isExpression(s) {
-				if log != nil {
-					log.Printf("Field %s is a GitHub Actions expression, wrapping in single-element array", key)
+				if debugLog != nil {
+					debugLog.Printf("Field %s is a GitHub Actions expression, wrapping in single-element array", key)
 				}
 				return []string{s}
 			}
 			// Non-expression string is invalid for an array field.
-			if log != nil {
-				log.Printf("Field %q must be an array or a GitHub Actions expression, ignoring non-expression string: %q", key, s)
+			if debugLog != nil {
+				debugLog.Printf("Field %q must be an array or a GitHub Actions expression, ignoring non-expression string: %q", key, s)
 			}
 			return nil
 		}
 		// Handle arrays (existing logic).
-		if strings := parseStringSliceAny(value, log); strings != nil {
-			if len(strings) == 0 && log != nil {
-				log.Printf("No valid %s strings found, returning empty array", key)
+		if strings := parseStringSliceAny(value, debugLog); strings != nil {
+			if len(strings) == 0 && debugLog != nil {
+				debugLog.Printf("No valid %s strings found, returning empty array", key)
 			}
-			if log != nil {
-				log.Printf("Parsed %d %s from config", len(strings), key)
+			if debugLog != nil {
+				debugLog.Printf("Parsed %d %s from config", len(strings), key)
 			}
 			return strings
 		}
@@ -109,11 +109,11 @@ func ParseStringArrayOrExprFromConfig(m map[string]any, key string, log *logger.
 // extractStringFromMap is a generic helper that extracts and validates a string value from a map
 // Returns the string value, or empty string if not present or invalid
 // If log is provided, it will log the extracted value for debugging
-func extractStringFromMap(m map[string]any, key string, log *logger.Logger) string {
+func extractStringFromMap(m map[string]any, key string, debugLog *logger.Logger) string {
 	if value, exists := m[key]; exists {
 		if valueStr, ok := value.(string); ok {
-			if log != nil {
-				log.Printf("Parsed %s from config: %s", key, valueStr)
+			if debugLog != nil {
+				debugLog.Printf("Parsed %s from config: %s", key, valueStr)
 			}
 			return valueStr
 		}
@@ -148,7 +148,7 @@ func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
 //
 // Returns true if expires was explicitly disabled with false, false otherwise.
 // This helper consolidates duplicate preprocessing logic used in parseCreateIssuesConfig and parseCreateDiscussionsConfig.
-func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool {
+func preprocessExpiresField(configData map[string]any, debugLog *logger.Logger) bool {
 	expiresDisabled := false
 	if configData != nil {
 		if expires, exists := configData["expires"]; exists {
@@ -165,8 +165,8 @@ func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool 
 				// Invalid or missing - set to 0
 				configData["expires"] = 0
 			}
-			if log != nil {
-				log.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
+			if debugLog != nil {
+				debugLog.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
 			}
 		}
 	}
@@ -176,13 +176,13 @@ func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool 
 // ParseBoolFromConfig is a generic helper that extracts and validates a boolean value from a map.
 // Returns the boolean value, or false if not present or invalid.
 // If log is provided, it will log the extracted value for debugging.
-func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool {
-	if log != nil {
-		log.Printf("Parsing %s from config", key)
+func ParseBoolFromConfig(m map[string]any, key string, debugLog *logger.Logger) bool {
+	if debugLog != nil {
+		debugLog.Printf("Parsing %s from config", key)
 	}
 	result := typeutil.ParseBool(m, key)
-	if log != nil {
-		log.Printf("Parsed %s from config: %t", key, result)
+	if debugLog != nil {
+		debugLog.Printf("Parsed %s from config: %t", key, result)
 	}
 	return result
 }
@@ -194,7 +194,7 @@ func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool 
 // Example usage:
 //
 //	var config CreateIssuesConfig
-//	if err := unmarshalConfig(outputMap, "create-issue", &config, log); err != nil {
+//	if err := unmarshalConfig(outputMap, "create-issue", &config, debugLog); err != nil {
 //	    return nil, err
 //	}
 //
@@ -203,7 +203,7 @@ func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool 
 // 2. Marshals it to YAML bytes (preserving structure)
 // 3. Unmarshals the YAML into the typed struct (using struct tags for field mapping)
 // 4. Validates that all fields are properly typed
-func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logger) error {
+func unmarshalConfig(m map[string]any, key string, target any, debugLog *logger.Logger) error {
 	configData, exists := m[key]
 	if !exists {
 		return fmt.Errorf("config key %q not found", key)
@@ -214,8 +214,8 @@ func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logge
 		configData = map[string]any{}
 	}
 
-	if log != nil {
-		log.Printf("Unmarshaling config for key %q into typed struct", key)
+	if debugLog != nil {
+		debugLog.Printf("Unmarshaling config for key %q into typed struct", key)
 	}
 
 	// Marshal the config data back to YAML bytes
@@ -229,8 +229,8 @@ func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logge
 		return fmt.Errorf("failed to unmarshal config for %q: %w", key, err)
 	}
 
-	if log != nil {
-		log.Printf("Successfully unmarshaled config for key %q", key)
+	if debugLog != nil {
+		debugLog.Printf("Successfully unmarshaled config for key %q", key)
 	}
 
 	return nil
@@ -267,15 +267,15 @@ func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logge
 func parseConfigScaffold[T any](
 	outputMap map[string]any,
 	key string,
-	log *logger.Logger,
+	debugLog *logger.Logger,
 	onError func(err error) *T,
 ) *T {
 	if _, exists := outputMap[key]; !exists {
 		return nil
 	}
-	log.Printf("Parsing %s configuration", key)
+	debugLog.Printf("Parsing %s configuration", key)
 	var config T
-	if err := unmarshalConfig(outputMap, key, &config, log); err != nil {
+	if err := unmarshalConfig(outputMap, key, &config, debugLog); err != nil {
 		return onError(err)
 	}
 	return &config

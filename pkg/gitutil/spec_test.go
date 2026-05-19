@@ -277,13 +277,8 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 // FindGitRoot as described in the package README.md.
 //
 // Specification: Returns the absolute path of the root directory of the current
-// Git repository by running `git rev-parse --show-toplevel`.
-//
-// SPEC_MISMATCH: The README states FindGitRoot runs `git rev-parse --show-toplevel`,
-// but the implementation actually uses pure Go filesystem traversal (looking for a
-// `.git` entry walking up from the current directory). The observable contract
-// (returns the absolute repository root, errors when not in a repo) is unchanged,
-// so the assertions below remain valid for either mechanism.
+// Git repository using pure Go filesystem traversal (no `git` subprocess);
+// starts from the current working directory.
 func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 	t.Run("returns non-empty absolute path when in git repository", func(t *testing.T) {
 		root, err := FindGitRoot()
@@ -294,12 +289,53 @@ func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 	})
 }
 
+// TestSpec_PublicAPI_FindGitRootFrom validates the documented behavior of
+// FindGitRootFrom as described in the package README.md.
+//
+// Specification: Like FindGitRoot but starts from startDir; traverses upward
+// looking for a .git directory or worktree marker file (a `.git` file starting
+// with `gitdir:`).
+func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
+	t.Run("returns absolute repository root when startDir is inside a repo", func(t *testing.T) {
+		// The current working directory of this test is inside the gh-aw
+		// repository, so any subdirectory inside it should resolve to the
+		// repository root.
+		repoRoot, err := FindGitRoot()
+		require.NoError(t, err, "FindGitRoot should succeed inside the gh-aw repository")
+
+		root, err := FindGitRootFrom(repoRoot)
+		require.NoError(t, err, "FindGitRootFrom should succeed when startDir is inside a repository")
+		assert.NotEmpty(t, root, "FindGitRootFrom should return a non-empty path")
+		assert.True(t, filepath.IsAbs(root),
+			"FindGitRootFrom should return an absolute path, got %q", root)
+	})
+
+	t.Run("traverses upward from a subdirectory to locate the repository root", func(t *testing.T) {
+		repoRoot, err := FindGitRoot()
+		require.NoError(t, err, "FindGitRoot should succeed inside the gh-aw repository")
+
+		// Start from a subdirectory of the repo; FindGitRootFrom should walk
+		// upward and land on the same root.
+		fromSub, err := FindGitRootFrom(filepath.Join(repoRoot, "pkg", "gitutil"))
+		require.NoError(t, err, "FindGitRootFrom should succeed from a subdirectory")
+		assert.Equal(t, repoRoot, fromSub,
+			"FindGitRootFrom from a subdirectory should return the same root as FindGitRoot")
+	})
+
+	t.Run("returns error when startDir is not inside a git repository", func(t *testing.T) {
+		// A directory created outside any git repository should produce an error.
+		isolated := t.TempDir()
+		_, err := FindGitRootFrom(isolated)
+		assert.Error(t, err,
+			"FindGitRootFrom should return an error when startDir is not inside a git repository")
+	})
+}
+
 // TestSpec_PublicAPI_ReadFileFromHEADWithRoot validates the documented behavior of
 // ReadFileFromHEADWithRoot as described in the package README.md.
 //
 // Specification: Reads a file's content from the HEAD commit without touching
-// the working tree. Uses `git show HEAD:<relpath>` internally and resolves
-// paths with filepath.Rel to prevent path-traversal attacks.
+// the working tree; rejects paths that escape the repository.
 func TestSpec_PublicAPI_ReadFileFromHEADWithRoot(t *testing.T) {
 	root, err := FindGitRoot()
 	if err != nil {

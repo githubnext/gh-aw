@@ -153,7 +153,7 @@ func parseMountEntry(mount string) (mountParts, mountValidationKind) {
 // GitHub Actions expression strings (e.g. "${{ inputs.policy }}") are accepted
 // without enum validation and passed through unchanged; the resolved value is
 // validated at runtime by the safe-output handler.
-func validateStringEnumField(configData map[string]any, fieldName string, allowed []string, log *logger.Logger) {
+func validateStringEnumField(configData map[string]any, fieldName string, allowed []string, debugLog *logger.Logger) {
 	if configData == nil {
 		return
 	}
@@ -163,22 +163,22 @@ func validateStringEnumField(configData map[string]any, fieldName string, allowe
 	}
 	strVal, ok := val.(string)
 	if !ok {
-		if log != nil {
-			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
+		if debugLog != nil {
+			debugLog.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
 		}
 		delete(configData, fieldName)
 		return
 	}
 	// GitHub Actions expressions are validated at runtime by the handler.
 	if containsExpression(strVal) {
-		if log != nil {
-			log.Printf("%s value is a GitHub Actions expression, skipping compile-time enum validation", fieldName)
+		if debugLog != nil {
+			debugLog.Printf("%s value is a GitHub Actions expression, skipping compile-time enum validation", fieldName)
 		}
 		return
 	}
 	if !slices.Contains(allowed, strVal) {
-		if log != nil {
-			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
+		if debugLog != nil {
+			debugLog.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
 		}
 		delete(configData, fieldName)
 	}
