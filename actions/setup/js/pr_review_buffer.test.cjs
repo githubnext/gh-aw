@@ -770,6 +770,7 @@ describe("pr_review_buffer (factory pattern)", () => {
     it("should retry as body-only review when Line could not be resolved error occurs", async () => {
       buffer.addComment({ path: ".changeset/some-file.md", line: 1, body: "Review comment on line 1" });
       buffer.addComment({ path: ".github/workflows/ace-editor.lock.yml", line: 1, body: "Another review comment" });
+      buffer.addComment({ path: "src/new_file.js", line: 42, body: "A third inline comment that should be preserved in the fallback body" });
       buffer.setReviewMetadata("Reviewed with comments.", "COMMENT");
       buffer.setReviewContext({
         repo: "owner/repo",
@@ -794,6 +795,13 @@ describe("pr_review_buffer (factory pattern)", () => {
       // Second call should have no comments array
       const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
       expect(retryArgs.comments).toBeUndefined();
+      expect(retryArgs.body).toContain("### Comments that could not be inline-anchored");
+      expect(retryArgs.body).toContain("<details><summary>.changeset/some-file.md:1</summary>");
+      expect(retryArgs.body).toContain("Review comment on line 1");
+      expect(retryArgs.body).toContain("<details><summary>.github/workflows/ace-editor.lock.yml:1</summary>");
+      expect(retryArgs.body).toContain("Another review comment");
+      expect(retryArgs.body).toContain("<details><summary>src/new_file.js:42</summary>");
+      expect(retryArgs.body).toContain("A third inline comment that should be preserved in the fallback body");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Line could not be resolved"));
     });
 
@@ -813,6 +821,68 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("Some other error on retry");
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+    });
+
+    it("should escape HTML-sensitive characters in fallback summary and body", async () => {
+      buffer.addComment({
+        path: "src/<unsafe>&\"'.js",
+        line: 9,
+        body: "unsafe </summary><b>tag</b> & \"quote\" 'single'",
+      });
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Line could not be resolved")).mockResolvedValueOnce({
+        data: {
+          id: 801,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-801",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.body).toContain("src/&lt;unsafe&gt;&amp;&quot;&#39;.js:9");
+      expect(retryArgs.body).toContain("&lt;b&gt;tag&lt;/b&gt;");
+      expect(retryArgs.body).toContain("&amp; &quot;quote&quot; &#39;single&#39;");
+      expect(retryArgs.body).not.toContain("</summary><b>tag</b>");
+    });
+
+    it("should avoid appending large inline bodies when fallback has no excerpt budget", async () => {
+      for (let i = 0; i < 8; i++) {
+        buffer.addComment({ path: `src/file-${i}.js`, line: i + 1, body: `comment-${i}-` + "z".repeat(600) });
+      }
+      buffer.setReviewMetadata("x".repeat(64980), "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Line could not be resolved")).mockResolvedValueOnce({
+        data: {
+          id: 802,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-802",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.body.length).toBeLessThanOrEqual(65000);
+      expect(retryArgs.body).not.toContain("comment-0-");
+      expect(
+        retryArgs.body.includes("_(empty comment body)_") ||
+          retryArgs.body.includes("_(Unanchored comment details omitted to fit GitHub length limits.)_") ||
+          retryArgs.body.includes("_(Fallback review body truncated to fit GitHub length limits.)_")
+      ).toBe(true);
     });
 
     it("should submit multiple comments in a single review", async () => {

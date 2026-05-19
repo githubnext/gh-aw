@@ -26,6 +26,13 @@ const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
+const MAX_REVIEW_BODY_LENGTH = 65000;
+const DEFAULT_FALLBACK_EXCERPT_LENGTH = 500;
+const FALLBACK_SECTION_HEADER = "### Comments that could not be inline-anchored";
+const FALLBACK_EMPTY_COMMENT_BODY = "_(empty comment body)_";
+const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit GitHub length limits.)_";
+const FALLBACK_OMISSION_NOTE = "_(Unanchored comment details omitted to fit GitHub length limits.)_";
+const ELLIPSIS = "…";
 
 /**
  * @typedef {Object} BufferedComment
@@ -545,6 +552,7 @@ function createReviewBuffer() {
         try {
           const bodyOnlyParams = { ...requestParams };
           delete bodyOnlyParams.comments;
+          bodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
           const { data: review } = await github.rest.pulls.createReview(bodyOnlyParams);
           await maybeSupersedeOlderReviews(review.id);
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
@@ -605,3 +613,91 @@ function createReviewBuffer() {
 }
 
 module.exports = { createReviewBuffer };
+/**
+ * Append a fallback section that preserves inline comment content when comments cannot be anchored.
+ * @param {string} reviewBody
+ * @param {BufferedComment[]} comments
+ * @returns {string}
+ */
+function appendUnanchoredCommentsSection(reviewBody, comments) {
+  const baseBody = reviewBody || "";
+  const sectionPrefix = baseBody ? `\n\n${FALLBACK_SECTION_HEADER}\n\n` : `${FALLBACK_SECTION_HEADER}\n\n`;
+  const overheadLength = comments.reduce((sum, comment, index) => {
+    const separatorLength = index > 0 ? 2 : 0; // \n\n separator used by join("\n\n")
+    return sum + separatorLength + renderUnanchoredCommentBlock(comment, "").length;
+  }, 0);
+  const availableExcerptChars = MAX_REVIEW_BODY_LENGTH - (baseBody.length + sectionPrefix.length + overheadLength);
+
+  let perCommentExcerptLimit = DEFAULT_FALLBACK_EXCERPT_LENGTH;
+  if (comments.length > 0) {
+    if (availableExcerptChars <= 0) {
+      perCommentExcerptLimit = 0;
+    } else {
+      perCommentExcerptLimit = Math.min(DEFAULT_FALLBACK_EXCERPT_LENGTH, Math.floor(availableExcerptChars / comments.length));
+    }
+  }
+
+  const detailsBlocks = comments.map(comment => {
+    const rawBody = (comment.body || "").trim();
+    if (perCommentExcerptLimit <= 0) {
+      return renderUnanchoredCommentBlock(comment, FALLBACK_EMPTY_COMMENT_BODY);
+    }
+
+    const shouldTruncate = perCommentExcerptLimit > 0 && rawBody.length > perCommentExcerptLimit;
+    const truncateLength = perCommentExcerptLimit >= ELLIPSIS.length ? perCommentExcerptLimit - ELLIPSIS.length : 0;
+    const truncatedBody = shouldTruncate ? rawBody.substring(0, truncateLength) : rawBody;
+    const excerpt = shouldTruncate ? `${truncatedBody}${ELLIPSIS}` : rawBody;
+    const safeExcerpt = excerpt || FALLBACK_EMPTY_COMMENT_BODY;
+    return renderUnanchoredCommentBlock(comment, safeExcerpt);
+  });
+
+  const mergedBody = `${baseBody}${sectionPrefix}${detailsBlocks.join("\n\n")}`;
+  if (mergedBody.length <= MAX_REVIEW_BODY_LENGTH) {
+    return mergedBody;
+  }
+
+  const maxBodyLength = Math.max(0, MAX_REVIEW_BODY_LENGTH - FALLBACK_TRUNCATION_SUFFIX.length);
+  if (baseBody.length > maxBodyLength) {
+    return `${baseBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
+  }
+
+  const omissionBody = `${baseBody}${sectionPrefix}${FALLBACK_OMISSION_NOTE}`;
+  if (omissionBody.length <= MAX_REVIEW_BODY_LENGTH) {
+    return omissionBody;
+  }
+
+  return `${baseBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
+}
+
+/**
+ * @param {BufferedComment} comment
+ * @param {string} bodyText
+ * @returns {string}
+ */
+function renderUnanchoredCommentBlock(comment, bodyText) {
+  const summaryText = `${comment.path}:${comment.line}`;
+  return `<details><summary>${escapeHtml(summaryText)}</summary>\n\n${escapeHtml(bodyText)}\n\n</details>`;
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, character => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return character;
+    }
+  });
+}
