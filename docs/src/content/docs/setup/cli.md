@@ -417,13 +417,13 @@ gh aw logs "CI Failure Doctor"             # Display name
 gh aw logs "ci failure doctor"             # Case-insensitive display name
 ```
 
-**`--after` flag (cache cleanup):** Deletes cached run folders in the output directory whose run creation date is older than the specified cutoff. Accepts the same date/time delta formats as `--start-date` and `--end-date` (e.g. `-1d`, `-1w`, `-1mo`) as well as absolute dates (`YYYY-MM-DD`). Cleanup runs before the download step to free disk space first; failures are non-fatal and logged as warnings.
+**`--cache-before` flag (cache cleanup):** Deletes cached run folders in the output directory whose run creation date is older than the specified cutoff. Accepts the same date/time delta formats as `--start-date` and `--end-date` (e.g. `-1d`, `-1w`, `-1mo`) as well as absolute dates (`YYYY-MM-DD`). Cleanup runs before the download step to free disk space first; failures are non-fatal and logged as warnings.
 
 ```bash wrap
-gh aw logs --after -1w                        # Clean folders older than 1 week, then download latest runs
-gh aw logs --after -30d                       # Clean folders older than 30 days
-gh aw logs --after 2024-01-01                 # Clean folders from before a specific date
-gh aw logs my-workflow --after -1mo -c 20     # Clean up, then download 20 runs of a specific workflow
+gh aw logs --cache-before -1w                        # Clean folders older than 1 week, then download latest runs
+gh aw logs --cache-before -30d                       # Clean folders older than 30 days
+gh aw logs --cache-before 2024-01-01                 # Clean folders from before a specific date
+gh aw logs my-workflow --cache-before -1mo -c 20     # Clean up, then download 20 runs of a specific workflow
 ```
 
 Only directories matching the `run-{ID}` naming pattern inside the output directory are considered. The run's creation timestamp is read from `run_summary.json` inside each folder; if that file is absent (e.g., incomplete download), the directory's modification time is used as a fallback.
@@ -443,7 +443,7 @@ echo "1234567890" | gh aw logs --stdin --engine claude
 cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare numeric IDs
 ```
 
-**Options:** `--after`, `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
+**Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--cache-before`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
 #### `audit`
 
@@ -552,6 +552,28 @@ gh aw health issue-monster --days 90  # 90-day metrics for workflow
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
+#### `forecast`
+
+Forecast effective token usage and costs for agentic workflows using historical run data. [EXPERIMENTAL]
+
+The forecaster samples recent completed workflow runs and projects token usage forward on a weekly or monthly basis using a Monte Carlo simulation. When runs have been previously processed by `gh aw logs`, cached token-usage data is used automatically.
+
+```bash wrap
+gh aw forecast                        # Forecast all workflows (monthly)
+gh aw forecast ci-doctor              # Forecast a specific workflow
+gh aw forecast ci-doctor daily-plan   # Compare two workflows side-by-side
+gh aw forecast --period week          # Weekly projections
+gh aw forecast --days 7               # Use 7-day history window
+gh aw forecast --sample 50            # Sample up to 50 runs per workflow
+gh aw forecast --json                 # Machine-readable JSON output
+gh aw forecast --repo owner/repo      # Forecast in another repository
+gh aw forecast --eval                 # Backtest: evaluate forecast quality against past data
+```
+
+The `--eval` flag enables backtesting mode: the training window is shifted back by one projection period and forecast quality is evaluated against actual runs observed in that period (P50 error and whether actuals fell inside the P10–P90 confidence interval).
+
+**Options:** `--days`, `--eval`, `--json/-j`, `--period`, `--repo/-r`, `--sample`
+
 #### `checks`
 
 Classify CI check state for a pull request and emit a normalized result.
@@ -570,7 +592,7 @@ Maps PR check rollups to one of the following normalized states: `success`, `fai
 
 #### `enable`
 
-Enable one or more workflows by ID, or all workflows if no IDs provided.
+Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
 ```bash wrap
 gh aw enable                                # Enable all workflows

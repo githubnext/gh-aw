@@ -47,6 +47,9 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` lint --shellcheck --pyflakes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflowDir, _ := cmd.Flags().GetString("dir")
+			if workflowDir == "" {
+				workflowDir = constants.GetWorkflowDir()
+			}
 			includeShellcheck, _ := cmd.Flags().GetBool("shellcheck")
 			includePyflakes, _ := cmd.Flags().GetBool("pyflakes")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -74,7 +77,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("dir", "d", constants.GetWorkflowDir(), "Directory to scan for *.lock.yml files when no arguments are provided")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("shellcheck", false, "Enable shellcheck integration in actionlint")
 	cmd.Flags().Bool("pyflakes", false, "Enable pyflakes integration in actionlint")
 
