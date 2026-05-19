@@ -10749,7 +10749,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Per-server network configuration for stdio MCP tools. Supports 'proxy-args' for container proxy arguments."
+          "description": "Per-server network configuration for stdio MCP tools. Supports 'proxy-args' for container proxy arguments. The 'allowed' field is deprecated and ignored."
         },
         "allowed": {
           "type": "array",

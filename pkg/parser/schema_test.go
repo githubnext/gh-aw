@@ -264,7 +264,7 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 	}
 }
 
-func TestMCPNetworkSchemaProxyArgsContract(t *testing.T) {
+func TestMCPNetworkSchemaProxyArgsSupportAndAllowedDeprecation(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -343,6 +343,10 @@ func TestMCPNetworkSchemaProxyArgsContract(t *testing.T) {
 			}
 			if strings.Contains(strings.ToLower(description), "field is ignored") {
 				t.Fatalf("network description must not claim the entire field is ignored, got: %q", description)
+			}
+			descriptionLower := strings.ToLower(description)
+			if !strings.Contains(descriptionLower, "allowed") || !strings.Contains(descriptionLower, "ignored") {
+				t.Fatalf("network description should mention that 'allowed' is ignored, got: %q", description)
 			}
 
 			properties, ok := network["properties"].(map[string]any)
