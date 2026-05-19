@@ -149,10 +149,10 @@
     },
     "network": {
       "type": "object",
-      "deprecated": true,
       "properties": {
         "allowed": {
           "type": "array",
+          "deprecated": true,
           "items": {
             "type": "string",
             "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
@@ -160,7 +160,7 @@
           },
           "minItems": 1,
           "uniqueItems": true,
-          "description": "List of allowed domain names for network access",
+          "description": "DEPRECATED: Per-server allowed domains are ignored. Use top-level workflow 'network.allowed' instead.",
           "examples": [
             ["github.com", "api.github.com"],
             ["example.com", "api.example.com", "cdn.example.com"]
@@ -179,7 +179,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version.",
+      "description": "Per-server network configuration for stdio MCP tools. Supports 'proxy-args' for container proxy arguments.",
       "examples": [
         {
           "allowed": ["github.com", "api.github.com"]

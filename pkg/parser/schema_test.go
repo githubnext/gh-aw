@@ -264,6 +264,104 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 	}
 }
 
+func TestMCPNetworkSchemaProxyArgsContract(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		schemaPath    string
+		networkGetter func(map[string]any) map[string]any
+	}{
+		{
+			name:       "main workflow schema stdio_mcp_tool.network",
+			schemaPath: "schemas/main_workflow_schema.json",
+			networkGetter: func(schema map[string]any) map[string]any {
+				defs, ok := schema["$defs"].(map[string]any)
+				if !ok {
+					return nil
+				}
+				stdioTool, ok := defs["stdio_mcp_tool"].(map[string]any)
+				if !ok {
+					return nil
+				}
+				props, ok := stdioTool["properties"].(map[string]any)
+				if !ok {
+					return nil
+				}
+				network, ok := props["network"].(map[string]any)
+				if !ok {
+					return nil
+				}
+				return network
+			},
+		},
+		{
+			name:       "mcp config schema network",
+			schemaPath: "schemas/mcp_config_schema.json",
+			networkGetter: func(schema map[string]any) map[string]any {
+				props, ok := schema["properties"].(map[string]any)
+				if !ok {
+					return nil
+				}
+				network, ok := props["network"].(map[string]any)
+				if !ok {
+					return nil
+				}
+				return network
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schemaContent, err := os.ReadFile(tt.schemaPath)
+			if err != nil {
+				t.Fatalf("failed to read schema: %v", err)
+			}
+
+			var schema map[string]any
+			if err := json.Unmarshal(schemaContent, &schema); err != nil {
+				t.Fatalf("failed to parse schema json: %v", err)
+			}
+
+			network := tt.networkGetter(schema)
+			if network == nil {
+				t.Fatal("network schema not found")
+			}
+
+			if deprecatedValue, hasDeprecated := network["deprecated"]; hasDeprecated {
+				if deprecatedBool, ok := deprecatedValue.(bool); !ok || deprecatedBool {
+					t.Fatalf("network field should not be deprecated; got deprecated=%v", deprecatedValue)
+				}
+			}
+
+			description, ok := network["description"].(string)
+			if !ok {
+				t.Fatal("network description not found")
+			}
+			if !strings.Contains(description, "proxy-args") {
+				t.Fatalf("network description should mention proxy-args support, got: %q", description)
+			}
+			if strings.Contains(strings.ToLower(description), "field is ignored") {
+				t.Fatalf("network description must not claim the entire field is ignored, got: %q", description)
+			}
+
+			properties, ok := network["properties"].(map[string]any)
+			if !ok {
+				t.Fatal("network properties not found")
+			}
+			allowedField, ok := properties["allowed"].(map[string]any)
+			if !ok {
+				t.Fatal("network.allowed schema not found")
+			}
+			deprecatedAllowed, ok := allowedField["deprecated"].(bool)
+			if !ok || !deprecatedAllowed {
+				t.Fatalf("network.allowed should be marked deprecated; got: %v", allowedField["deprecated"])
+			}
+		})
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowDispatchNumberInputType(t *testing.T) {
 	t.Parallel()
 
