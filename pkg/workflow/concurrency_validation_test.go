@@ -756,3 +756,61 @@ func TestExtractConcurrencyGroupFromYAML(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
+	tests := []struct {
+		name        string
+		concurrency string
+		wantErr     bool
+	}{
+		{
+			name: "queue max with cancel true is rejected",
+			concurrency: `concurrency:
+  group: "my-group"
+  cancel-in-progress: true
+  queue: max`,
+			wantErr: true,
+		},
+		{
+			name: "quoted queue max with cancel true is rejected",
+			concurrency: `concurrency:
+  group: "my-group"
+  queue: "max"
+  cancel-in-progress: true`,
+			wantErr: true,
+		},
+		{
+			name: "queue max with cancel false is allowed",
+			concurrency: `concurrency:
+  group: "my-group"
+  cancel-in-progress: false
+  queue: max`,
+			wantErr: false,
+		},
+		{
+			name: "queue single with cancel true is allowed",
+			concurrency: `concurrency:
+  group: "my-group"
+  cancel-in-progress: true
+  queue: single`,
+			wantErr: false,
+		},
+		{
+			name: "string concurrency is allowed",
+			concurrency: `concurrency: "my-group-${{ github.ref }}"`,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConcurrencyQueueConfiguration(tt.concurrency)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "queue: max")
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}

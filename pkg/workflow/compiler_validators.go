@@ -194,6 +194,10 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate workflow-level concurrency group expression
 	workflowLog.Printf("Validating workflow-level concurrency configuration")
 	if workflowData.Concurrency != "" {
+		if err := validateConcurrencyQueueConfiguration(workflowData.Concurrency); err != nil {
+			return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
+		}
+
 		// Use the cached validation result from applyDefaults to avoid re-running the
 		// expensive ExpressionParser (regex + tokenize + parse) on every validateWorkflowData call.
 		if workflowData.CachedConcurrencyGroupExprSet {
@@ -223,6 +227,10 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate engine-level concurrency group expression
 	workflowLog.Printf("Validating engine-level concurrency configuration")
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {
+		if err := validateConcurrencyQueueConfiguration(workflowData.EngineConfig.Concurrency); err != nil {
+			return formatCompilerError(markdownPath, "error", "engine.concurrency validation failed: "+err.Error(), err)
+		}
+
 		// Extract the group expression from the engine concurrency YAML
 		groupExpr := extractConcurrencyGroupFromYAML(workflowData.EngineConfig.Concurrency)
 		if groupExpr != "" {

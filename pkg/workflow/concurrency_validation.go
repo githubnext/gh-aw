@@ -35,7 +35,9 @@ import (
 var concurrencyValidationLog = newValidationLogger("concurrency")
 
 var (
-	concurrencyGroupPattern = regexp.MustCompile(`(?m)^\s*group:\s*["']?([^"'\n]+?)["']?\s*$`)
+	concurrencyGroupPattern          = regexp.MustCompile(`(?m)^\s*group:\s*["']?([^"'\n]+?)["']?\s*$`)
+	concurrencyQueueMaxPattern       = regexp.MustCompile(`(?m)^\s*queue:\s*["']?max["']?\s*$`)
+	concurrencyCancelInProgressTrue  = regexp.MustCompile(`(?m)^\s*cancel-in-progress:\s*true\s*$`)
 )
 
 // validateConcurrencyGroupExpression validates the syntax of a custom concurrency group expression.
@@ -117,4 +119,24 @@ func extractConcurrencyGroupFromYAML(concurrencyYAML string) string {
 
 	concurrencyValidationLog.Print("No concurrency group found in YAML")
 	return ""
+}
+
+// validateConcurrencyQueueConfiguration validates queue/cancel-in-progress compatibility.
+// GitHub Actions rejects queue: max when cancel-in-progress: true is also set.
+func validateConcurrencyQueueConfiguration(concurrencyYAML string) error {
+	if strings.TrimSpace(concurrencyYAML) == "" {
+		return nil
+	}
+
+	if concurrencyQueueMaxPattern.MatchString(concurrencyYAML) &&
+		concurrencyCancelInProgressTrue.MatchString(concurrencyYAML) {
+		return NewValidationError(
+			"concurrency",
+			"invalid concurrency queue configuration",
+			"queue: max cannot be combined with cancel-in-progress: true",
+			"Set queue to single (or omit queue) when cancel-in-progress is true, or set cancel-in-progress to false when using queue: max.",
+		)
+	}
+
+	return nil
 }
