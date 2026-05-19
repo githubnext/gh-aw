@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -35,7 +36,7 @@ func checkSecretExists(secretName string) (bool, error) {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
 			if strings.Contains(string(exitError.Stderr), "403") {
-				return false, errors.New("403 access denied")
+				return false, errors.New("HTTP 403: access denied")
 			}
 		}
 		return false, fmt.Errorf("failed to list secrets: %w", err)
@@ -110,7 +111,7 @@ func checkSecretsAvailability(secrets []SecretInfo, useActionsSecrets bool) []Se
 			exists, err := checkSecretExists(secrets[i].Name)
 			if err != nil {
 				// If we get a 403 error, skip silently (no permission to check)
-				if is403Error(err) {
+				if errorutil.IsForbiddenError(err) {
 					continue
 				}
 			}

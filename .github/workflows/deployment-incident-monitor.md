@@ -11,6 +11,7 @@ permissions:
   deployments: read
 engine: copilot
 imports:
+  - shared/reporting.md
   - shared/otlp.md
 tools:
   cli-proxy: true

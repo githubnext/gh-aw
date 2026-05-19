@@ -28,6 +28,7 @@ network:
     - api.github.com
 
 imports:
+  - shared/reporting.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-pr-merged-report] "

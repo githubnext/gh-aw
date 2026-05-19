@@ -10,6 +10,7 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
+  - shared/reporting.md
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved

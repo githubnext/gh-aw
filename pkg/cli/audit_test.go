@@ -127,49 +127,6 @@ func TestIsPermissionErrorStr(t *testing.T) {
 	}
 }
 
-func TestIs403Error(t *testing.T) {
-	tests := []struct {
-		name     string
-		err      error
-		expected bool
-	}{
-		{
-			name:     "Nil error",
-			err:      nil,
-			expected: false,
-		},
-		{
-			name:     "403 access denied",
-			err:      errors.New("403 access denied"),
-			expected: true,
-		},
-		{
-			name:     "HTTP 403 response",
-			err:      errors.New("HTTP 403: Forbidden"),
-			expected: true,
-		},
-		{
-			name:     "404 not found",
-			err:      errors.New("404 not found"),
-			expected: false,
-		},
-		{
-			name:     "Other error",
-			err:      errors.New("some other error"),
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := is403Error(tt.err)
-			if result != tt.expected {
-				t.Errorf("Expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
-
 func TestBuildAuditData(t *testing.T) {
 	// Create test data
 	run := WorkflowRun{

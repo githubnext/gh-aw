@@ -245,6 +245,16 @@ Before creating new issues:
 3. **Check for patterns** - If you've established a naming pattern, apply it consistently
 4. **Update your cache** with new findings
 
+When checking existing issues with the GitHub CLI, use valid state values:
+
+```bash
+# valid for search: open or closed
+gh search issues "repo:${GITHUB_REPOSITORY} is:issue gh-aw-workflow-id: step-name-alignment" --state open
+
+# include both states by using issue list instead
+gh issue list --repo "${GITHUB_REPOSITORY}" --state all --search "gh-aw-workflow-id: step-name-alignment"
+```
+
 ### 7. Create Issues for Problems Found
 
 When you identify problems worth addressing, create issues using safe-outputs.
