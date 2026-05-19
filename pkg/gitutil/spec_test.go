@@ -356,8 +356,10 @@ func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
 	t.Run("rejects path with .. traversal", func(t *testing.T) {
 		// Specification: "The function rejects paths that escape the repository
 		// (i.e. paths containing .. after resolution)."
-		_, err := ReadFileFromHEAD("../outside/file.txt", root)
+		outsidePath := filepath.Join(root, "..", "outside.txt")
+		_, err := ReadFileFromHEAD(outsidePath, root)
 		assert.Error(t, err, "ReadFileFromHEAD should reject path-traversal attempts")
+		assert.Contains(t, err.Error(), "outside the git repository root")
 	})
 
 	t.Run("returns error when gitRoot is empty", func(t *testing.T) {
