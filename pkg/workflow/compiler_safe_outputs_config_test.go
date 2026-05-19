@@ -451,6 +451,27 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"dispatch_workflow"},
 		},
 		{
+			name: "dispatch_repository config",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchRepository: &DispatchRepositoryConfig{
+					Tools: map[string]*DispatchRepositoryToolConfig{
+						"example_tool": {
+							Description: "Test dispatch",
+							Workflow:    "test-workflow",
+							EventType:   "test_event",
+							Repository:  "github/example",
+							Max:         strPtr("1"),
+						},
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"dispatch_repository"},
+		},
+		{
 			name: "update_discussion config",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateDiscussions: &UpdateDiscussionsConfig{
