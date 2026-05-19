@@ -81,7 +81,7 @@ Once configured, GitHub Agentic Workflows exports built-in workflow spans such a
 
 ## Read telemetry through MCP
 
-This is configured with [`mcp-servers`](/gh-aw/reference/frontmatter/#mcp-servers) in workflow frontmatter. Use the read path when the agent needs to inspect telemetry that already exists in a backend such as Datadog, Grafana, Sentry, Tempo, or another OpenTelemetry-compatible system.
+This is configured with [`mcp-servers`](/gh-aw/reference/frontmatter-full/) in workflow frontmatter. Use the read path when the agent needs to inspect telemetry that already exists in a backend such as Datadog, Grafana, Sentry, Tempo, or another OpenTelemetry-compatible system.
 
 <Tabs syncKey="otel-backend">
   <TabItem label="Datadog">
@@ -148,7 +148,7 @@ This is configured with [`mcp-servers`](/gh-aw/reference/frontmatter/#mcp-server
 
 In this model, the workflow does not emit new spans by itself. It gives the agent a tool that can query existing traces and spans from an external backend.
 
-> Keep both write-side OTLP configuration and read-side MCP configuration in [shared workflow files](/gh-aw/reference/imports/) and import them where needed. In this repository, that usually means [shared/otlp.md](/gh-aw/.github/workflows/shared/otlp.md) for the combined Sentry and Grafana OTLP pattern, [shared/mcp/grafana.md](/gh-aw/.github/workflows/shared/mcp/grafana.md) or [shared/mcp/datadog.md](/gh-aw/.github/workflows/shared/mcp/datadog.md) for read access, and [shared/otel-queries.md](/gh-aw/.github/workflows/shared/otel-queries.md) for the query playbook.
+> Keep both write-side OTLP configuration and read-side MCP configuration in [shared workflow files](/gh-aw/reference/imports/) and import them where needed. In this repository, that usually means [shared/otlp.md](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/otlp.md) for the combined Sentry and Grafana OTLP pattern, [shared/mcp/grafana.md](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/grafana.md) or [shared/mcp/datadog.md](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/datadog.md) for read access, and [shared/otel-queries.md](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/otel-queries.md) for the query playbook.
 
 ## Setup
 
@@ -180,7 +180,7 @@ Choose your backend here and follow the matching setup path. When many workflows
       Keep `GH_AW_OTEL_DATADOG_ENDPOINT`, `DD_API_KEY`, `DD_APPLICATION_KEY`, and `DD_SITE` aligned to the same Datadog account and site.
 
     5. **Run one workflow to write and one workflow to read.**
-      Trigger a workflow that exports spans through OTLP, then run a Datadog-backed investigation workflow that imports [shared/mcp/datadog.md](/gh-aw/.github/workflows/shared/mcp/datadog.md).
+      Trigger a workflow that exports spans through OTLP, then run a Datadog-backed investigation workflow that imports [shared/mcp/datadog.md](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/datadog.md).
       If write-side OTLP and read-side MCP point at different Datadog sites, export may succeed while the investigation workflow reads the wrong account or environment.
     </Steps>
 
@@ -215,7 +215,7 @@ Choose your backend here and follow the matching setup path. When many workflows
 
     #### Import a starter dashboard template
 
-    If you want a dashboard people can upload instead of building from scratch, start with [gh-aw-observability-starter.json](/gh-aw/grafana/gh-aw-observability-starter.json).
+    If you want a dashboard people can upload instead of building from scratch, start with [gh-aw-observability-starter.json](https://github.com/github/gh-aw/blob/main/grafana/gh-aw-observability-starter.json).
 
     Import it in Grafana with `Dashboards`, then `New`, then `Import dashboard`, upload the JSON file, and select your Tempo datasource when Grafana prompts for it.
 
