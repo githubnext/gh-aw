@@ -409,7 +409,7 @@ jobs:
           git -c "http.extraheader=Authorization: Basic ${header}" fetch origin '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
       - name: Build and install gh-aw CLI from source
         run: |
-          gh extension remove aw --force || true
+          gh extension remove aw || true
           make build
           gh extension install .
           gh aw version
