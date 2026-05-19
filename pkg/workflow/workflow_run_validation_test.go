@@ -116,7 +116,7 @@ Test workflow content.`,
 			warningCount:  0,
 		},
 		{
-			name: "workflow_run without workflows - non-strict mode - should error",
+			name: "workflow_run without workflows - should error",
 			frontmatter: `---
 strict: false
 on:

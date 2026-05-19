@@ -281,14 +281,16 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	// workflow_run requires workflows to be present and non-empty.
 	workflowsVal, hasWorkflows := workflowRunMap["workflows"]
 	if !hasWorkflows || !hasNonEmptyWorkflowRunWorkflows(workflowsVal) {
-		message := "workflow_run trigger must include a non-empty workflows field.\n\n" +
-			"GitHub Actions requires on.workflow_run.workflows to reference at least one workflow.\n" +
-			"Without it, the compiled workflow is invalid and will be rejected.\n\n" +
-			"Suggested fix:\n" +
-			"on:\n" +
-			"  workflow_run:\n" +
-			"    workflows: [\"your-workflow\"]\n" +
-			"    types: [completed]"
+		message := `workflow_run trigger must include a non-empty workflows field.
+
+GitHub Actions requires on.workflow_run.workflows to reference at least one workflow.
+Without it, the compiled workflow is invalid and will be rejected.
+
+Suggested fix:
+on:
+  workflow_run:
+    workflows: ["your-workflow"]
+    types: [completed]`
 		return formatCompilerError(markdownPath, "error", message, nil)
 	}
 
