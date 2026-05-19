@@ -1492,6 +1492,9 @@ function readAgentRuntimeMetrics() {
         return;
       }
 
+      // Engine logs normalize init events to either:
+      // - { type: "system", subtype: "init", ... } (Claude/Copilot-style entries)
+      // - { type: "init", ... } (some normalized parsers/custom engines)
       if ((parsed.type === "system" && parsed.subtype === "init") || parsed.type === "init") {
         if (typeof parsed.model === "string" && parsed.model.trim()) {
           metrics.resolvedModel = parsed.model.trim();
