@@ -651,7 +651,7 @@ func TestExtractTerminalSubExpressions(t *testing.T) {
 			want:    []string{"steps.foo.outputs.bar"},
 		},
 		{
-			name:    "simple expression (no operators) — single qualifying token is returned",
+			name: "simple expression (no operators) — single qualifying token is returned",
 			// Note: ExtractExpressions guards the call with !simpleIdentifierRegex,
 			// so this case never arises in production; but the function is correct regardless.
 			content: "steps.sanitized.outputs.text",
