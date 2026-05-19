@@ -62,25 +62,27 @@ const main = createCountGatedHandler({
       core.info(`Target repository: ${itemRepo}`);
 
       // Determine target issue/PR number
+      // Accept common aliases: issue_number, pr_number, and pull_number are normalised to item_number
+      const explicitItemNumber = message.item_number ?? message.issue_number ?? message.pr_number ?? message.pull_number;
       let itemNumber;
-      if (message.item_number !== undefined) {
+      if (explicitItemNumber !== undefined) {
         // Resolve temporary IDs if present
         const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
-        const resolvedTarget = resolveRepoIssueTarget(message.item_number, tempIdMap, repoParts.owner, repoParts.repo);
+        const resolvedTarget = resolveRepoIssueTarget(explicitItemNumber, tempIdMap, repoParts.owner, repoParts.repo);
 
         // Check if this is an unresolved temporary ID
         if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
-          core.info(`Deferring remove_labels: unresolved temporary ID (${message.item_number})`);
+          core.info(`Deferring remove_labels: unresolved temporary ID (${explicitItemNumber})`);
           return {
             success: false,
             deferred: true,
-            error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${message.item_number}`,
+            error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${explicitItemNumber}`,
           };
         }
 
         // Check for other resolution errors
         if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-          const error = `Invalid item number: ${message.item_number}`;
+          const error = `Invalid item number: ${explicitItemNumber}`;
           core.warning(error);
           return { success: false, error };
         }

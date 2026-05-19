@@ -346,6 +346,17 @@ describe("safe_output_helpers", () => {
         expect(result.contextType).toBe("pull request");
       });
 
+      it("should resolve wildcard with pull_number alias", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "*",
+          item: { pull_number: 792 },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(792);
+        expect(result.contextType).toBe("pull request");
+      });
+
       it("should fail wildcard without pull_request_number", () => {
         const result = helpers.resolveTarget({
           ...baseParams,

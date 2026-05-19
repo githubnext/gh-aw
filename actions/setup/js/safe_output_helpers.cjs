@@ -119,7 +119,7 @@ function resolveTarget(params) {
   if (target === "*") {
     // Use item_number, issue_number, or pull_request_number from item
     let numberField;
-    const pullRequestNumberField = item.pull_request_number || item.pr_number || item.pr;
+    const pullRequestNumberField = item.pull_request_number || item.pr_number || item.pr || item.pull_number;
     if (supportsPR) {
       // Supports both issues and PRs: check all fields
       numberField = item.item_number || item.issue_number || pullRequestNumberField;
