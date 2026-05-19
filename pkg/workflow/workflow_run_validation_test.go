@@ -116,6 +116,47 @@ Test workflow content.`,
 			warningCount:  0,
 		},
 		{
+			name: "workflow_run without workflows - normal mode - should error",
+			frontmatter: `---
+strict: false
+on:
+  workflow_run:
+    types: [completed]
+tools:
+  github: false
+---
+
+# Workflow Run Without Workflows
+Test workflow content.`,
+			filename:      "workflow-run-no-workflows.md",
+			strictMode:    false,
+			expectError:   true,
+			expectWarning: false,
+			errorContains: "workflow_run trigger must include a non-empty workflows field",
+			warningCount:  0,
+		},
+		{
+			name: "workflow_run with empty workflows - strict mode - should error",
+			frontmatter: `---
+on:
+  workflow_run:
+    workflows: []
+    types: [completed]
+tools:
+  github:
+    toolsets: [repos]
+---
+
+# Workflow Run Empty Workflows
+Test workflow content.`,
+			filename:      "workflow-run-empty-workflows.md",
+			strictMode:    true,
+			expectError:   true,
+			expectWarning: false,
+			errorContains: "workflow_run trigger must include a non-empty workflows field",
+			warningCount:  0,
+		},
+		{
 			name: "no workflow_run - should pass",
 			frontmatter: `---
 strict: false
