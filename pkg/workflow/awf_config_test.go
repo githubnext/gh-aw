@@ -694,6 +694,29 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 	assert.Less(t, configWriteIdx, awfIdx, "config file write must precede AWF invocation")
 }
 
+func TestBuildAWFCommand_AddsConditionalNodeToolcacheMounts(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:        "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	assert.Contains(t, command, `if [ -d /opt/hostedtoolcache/node ]; then`, "expected conditional mount check for hosted runner node toolcache")
+	assert.Contains(t, command, `--mount /opt/hostedtoolcache/node:/host/opt/hostedtoolcache/node:ro`, "expected hosted runner node toolcache mount")
+	assert.Contains(t, command, `if [ -d /home/runner/work/_tool/node ]; then`, "expected conditional mount check for self-hosted runner node toolcache")
+	assert.Contains(t, command, `--mount /home/runner/work/_tool/node:/host/home/runner/work/_tool/node:ro`, "expected self-hosted runner node toolcache mount")
+	assert.Contains(t, command, `${GH_AW_NODE_MOUNT_ARGS}`, "expected AWF invocation to include computed node mount args")
+}
+
 // TestBuildAWFCommand_WritesAgentCLIStartTimestamp verifies that BuildAWFCommand
 // always emits a printf command that writes the epoch-ms timestamp to
 // AgentCLIStartMsPath at the very beginning of the run block, before any

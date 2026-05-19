@@ -35,6 +35,7 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	awfNodeMountArgsVarName     = "GH_AW_NODE_MOUNT_ARGS"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
@@ -116,6 +117,21 @@ fi`,
 			awfArcDindHostPathPrefixFlag)
 		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 	}
+
+	// Bind-mount setup-node toolcache Node directories into /host when present so
+	// AWF chroot can resolve Node.js runtimes inside the sandboxed container.
+	nodeMountProbe := fmt.Sprintf(`%s=""
+if [ -d /opt/hostedtoolcache/node ]; then
+  %s="%s --mount /opt/hostedtoolcache/node:/host/opt/hostedtoolcache/node:ro"
+fi
+if [ -d /home/runner/work/_tool/node ]; then
+  %s="%s --mount /home/runner/work/_tool/node:/host/home/runner/work/_tool/node:ro"
+fi`,
+		awfNodeMountArgsVarName,
+		awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
+		awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
+	)
+	nodeMountArgsRef := fmt.Sprintf("${%s}", awfNodeMountArgsVarName)
 
 	// Build the expandable args string for args that need shell variable expansion.
 	// These MUST be appended as raw (unescaped) strings because single-quoting would
@@ -202,16 +218,19 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
 			arcDindPrefixProbe,
+			nodeMountProbe,
 			awfCommand,
 			expandableArgs,
+			nodeMountArgsRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -223,15 +242,18 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			arcDindPrefixProbe,
+			nodeMountProbe,
 			awfCommand,
 			expandableArgs,
+			nodeMountArgsRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -242,15 +264,18 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
 			arcDindPrefixProbe,
+			nodeMountProbe,
 			awfCommand,
 			expandableArgs,
+			nodeMountArgsRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -260,14 +285,17 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			arcDindPrefixProbe,
+			nodeMountProbe,
 			awfCommand,
 			expandableArgs,
+			nodeMountArgsRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
