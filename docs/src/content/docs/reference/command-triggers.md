@@ -86,6 +86,14 @@ on:
 
 **Exception for Label-Only Events**: You CAN combine `slash_command` with `issues` or `pull_request` if those events are configured for label-only triggers (`labeled` or `unlabeled` types only). This allows workflows to respond to slash commands while also reacting to label changes.
 
+### Pull-request reviewer integration
+
+The synthetic `on.pull_request_reviewer` trigger reuses centralized slash-command routing and automatically enables command matching for `pull_request_comment` and `pull_request_review_comment`.
+
+Reviewer workflows also receive lifecycle routing for `pull_request` actions (`ready_for_review`, `review_requested`) and `pull_request_review` submissions, all through the same generated `agentic_commands.yml` router.
+
+For full syntax and lifecycle behavior, see [Pull Request Reviewer Trigger](/gh-aw/reference/pull-request-reviewer-trigger/).
+
 ### Combining `slash_command` with `bots:`
 
 :::caution[Concurrency clash]
@@ -199,6 +207,7 @@ See [Slash Commands in SideRepoOps](/gh-aw/patterns/side-repo-ops/#slash-command
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
+- [Pull Request Reviewer Trigger](/gh-aw/reference/pull-request-reviewer-trigger/) - Synthetic reviewer lifecycle trigger
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
 - [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Running workflows from a separate repository

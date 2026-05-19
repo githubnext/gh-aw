@@ -456,6 +456,19 @@ on:
 
 See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation including event filtering, context text, reactions, and examples.
 
+### Pull Request Reviewer Trigger (`pull_request_reviewer:`)
+
+Use `pull_request_reviewer` for reviewer workflows that need centralized slash-command routing plus pull request reviewer lifecycle events:
+
+```yaml wrap
+on:
+  pull_request_reviewer: reviewer
+```
+
+The trigger automatically includes `pull_request` actions `ready_for_review` and `review_requested`, plus `pull_request_review` action `submitted`. It also applies PR-scoped queued concurrency by default.
+
+See [Pull Request Reviewer Trigger](/gh-aw/reference/pull-request-reviewer-trigger/) for complete behavior, routing details, and constraints.
+
 ### Label Command Trigger (`label_command:`)
 
 The `label_command:` trigger activates a workflow when a specific label is applied to an issue, pull request, or discussion, and **automatically removes that label** so it can be re-applied to re-trigger. This treats a label as a one-shot command rather than a persistent state marker.
@@ -904,6 +917,7 @@ on: "deployment failed or error"    # deployment_status with state == 'failure' 
 
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
+- [Pull Request Reviewer Trigger](/gh-aw/reference/pull-request-reviewer-trigger/) - Synthetic reviewer lifecycle trigger and centralized routing
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [LabelOps](/gh-aw/patterns/label-ops/) - Label-based automation workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
