@@ -827,6 +827,12 @@ jobs:
           if [ -z "$GH_AW_BIN" ]; then
             GH_AW_BIN=$(find "${HOME}/.local/share/gh/extensions/gh-aw" -name 'gh-aw' -type f 2>/dev/null | head -1) || true
           fi
+          if [ -z "$GH_AW_BIN" ] && [ -n "${GH_CONFIG_DIR:-}" ]; then
+            GH_AW_BIN=$(find "${GH_CONFIG_DIR}/extensions/gh-aw" -name 'gh-aw' -type f 2>/dev/null | head -1) || true
+          fi
+          if [ -z "$GH_AW_BIN" ] && [ -f "${GITHUB_WORKSPACE}/gh-aw" ]; then
+            GH_AW_BIN="${GITHUB_WORKSPACE}/gh-aw"
+          fi
           if [ -n "$GH_AW_BIN" ] && [ -f "$GH_AW_BIN" ]; then
             cp "$GH_AW_BIN" "${RUNNER_TEMP}/gh-aw/gh-aw"
             chmod +x "${RUNNER_TEMP}/gh-aw/gh-aw"
