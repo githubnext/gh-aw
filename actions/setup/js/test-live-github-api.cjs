@@ -78,7 +78,7 @@ async function testLiveGitHubAPI() {
     // Summary
     console.log(`\n📊 Summary:`);
     console.log(`   - Successfully fetched workflow from live GitHub API`);
-    console.log(`   - Processed workflow with imports (shared/mcp/gh-aw.md, etc.)`);
+    console.log(`   - Processed workflow with imports (shared/mcp/tavily.md, etc.)`);
     console.log(`   - Computed deterministic SHA-256 hash`);
     console.log(`   - Verified hash consistency across multiple API calls`);
     console.log(`\n✨ All tests passed! The JavaScript implementation works correctly with GitHub API.`);

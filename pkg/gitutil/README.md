@@ -24,7 +24,7 @@ This package contains helpers for:
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
 | `FindGitRoot` | `func() (string, error)` | Returns the absolute path of the root directory of the current Git repository using pure Go filesystem traversal (no `git` subprocess); starts from the current working directory |
 | `FindGitRootFrom` | `func(startDir string) (string, error)` | Like `FindGitRoot` but starts from `startDir`; traverses upward looking for a `.git` directory or worktree marker file |
-| `ReadFileFromHEADWithRoot` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without touching the working tree; rejects paths that escape the repository |
+| `ReadFileFromHEAD` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without touching the working tree; rejects paths that escape the repository. `filePath` is resolved from the current working directory, so prefer an absolute path under `gitRoot` |
 
 ## Usage Examples
 
@@ -53,8 +53,8 @@ if err != nil {
     return fmt.Errorf("not in a git repository: %w", err)
 }
 
-// Read a file from the HEAD commit
-content, err := gitutil.ReadFileFromHEADWithRoot("go.mod", root)
+// Read a file from the HEAD commit (prefer absolute paths under root)
+content, err := gitutil.ReadFileFromHEAD(filepath.Join(root, "go.mod"), root)
 ```
 
 ## Dependencies
