@@ -9,6 +9,7 @@
 
 const { ERR_API } = require("./error_codes.cjs");
 const { normalizeTemporaryId, replaceTemporaryIdReferencesInPatch } = require("./temporary_id.cjs");
+const TEMPORARY_ID_REFERENCE_PATTERN = /#aw_[A-Za-z0-9_]{3,12}\b/i;
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
@@ -135,7 +136,7 @@ async function readBlobAsBase64(blobHash, cwd) {
 function buildTemporaryIdMap(resolvedTemporaryIds, currentRepo) {
   /** @type {Map<string, {repo: string, number: number}>} */
   const map = new Map();
-  if (!resolvedTemporaryIds || typeof resolvedTemporaryIds !== "object") {
+  if (!resolvedTemporaryIds || typeof resolvedTemporaryIds !== "object" || Array.isArray(resolvedTemporaryIds)) {
     return map;
   }
   for (const [key, value] of Object.entries(resolvedTemporaryIds)) {
@@ -156,7 +157,10 @@ function buildTemporaryIdMap(resolvedTemporaryIds, currentRepo) {
 
 /**
  * Replace temporary ID references in base64-encoded UTF-8 text content.
- * Leaves content unchanged for binary blobs, non-text blobs, or when there are no matches.
+ * Returns original content unchanged for:
+ * - binary / non-UTF8 blobs
+ * - UTF-8 text with no temporary ID matches
+ * Returns rewritten base64 content when UTF-8 text contains resolvable temporary IDs.
  *
  * @param {string} base64Content
  * @param {Map<string, {repo: string, number: number}>} temporaryIdMap
@@ -177,7 +181,7 @@ function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, 
     return base64Content;
   }
 
-  if (!/#aw_[A-Za-z0-9_]{3,12}\b/i.test(utf8Text)) {
+  if (!TEMPORARY_ID_REFERENCE_PATTERN.test(utf8Text)) {
     return base64Content;
   }
 
