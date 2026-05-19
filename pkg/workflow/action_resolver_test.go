@@ -68,6 +68,25 @@ func TestActionResolverCache(t *testing.T) {
 	}
 }
 
+func TestActionResolverCache_NilContext(t *testing.T) {
+	// Create a cache and resolver
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+	resolver := NewActionResolver(cache)
+
+	// Manually add an entry to the cache
+	cache.Set("actions/checkout", "v5", "test-sha-123")
+
+	//nolint:staticcheck // Intentionally validating legacy nil context handling behavior.
+	sha, err := resolver.ResolveSHA(nil, "actions/checkout", "v5")
+	if err != nil {
+		t.Errorf("Expected no error for cached entry with nil context, got: %v", err)
+	}
+	if sha != "test-sha-123" {
+		t.Errorf("Expected SHA 'test-sha-123', got '%s'", sha)
+	}
+}
+
 func TestActionResolverFailedResolutionCache(t *testing.T) {
 	// Create a cache and resolver
 	tmpDir := testutil.TempDir(t, "test-*")

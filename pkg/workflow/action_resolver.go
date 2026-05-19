@@ -11,6 +11,7 @@ import (
 )
 
 var resolverLog = logger.New("workflow:action_resolver")
+var defaultActionResolverContext = context.Background()
 
 // ActionResolver handles resolving action SHAs using GitHub CLI
 type ActionResolver struct {
@@ -30,7 +31,7 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 // Returns the SHA and an error if resolution fails
 func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
 	if ctx == nil {
-		ctx = context.Background()
+		ctx = defaultActionResolverContext
 	}
 	resolverLog.Printf("Resolving SHA for action: %s@%s", repo, version)
 

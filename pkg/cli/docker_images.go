@@ -13,6 +13,7 @@ import (
 )
 
 var dockerImagesLog = logger.New("cli:docker_images")
+var defaultDockerContext = context.Background()
 
 // DockerUnavailableError is returned when the Docker daemon is not accessible.
 // This is distinct from transient errors (e.g., images being downloaded) and signals
@@ -52,7 +53,7 @@ var pullState = &dockerPullState{
 
 func normalizeDockerContext(ctx context.Context) context.Context {
 	if ctx == nil {
-		return context.Background()
+		return defaultDockerContext
 	}
 
 	return ctx
