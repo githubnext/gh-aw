@@ -121,6 +121,7 @@ and is emitted as `SPAN_KIND_CLIENT`.
 | Attribute | Description |
 | --- | --- |
 | `gen_ai.request.model` | Model name used for inference |
+| `gen_ai.response.model` | Resolved runtime model reported by the agent engine |
 | `gen_ai.operation.name` | Always `"chat"` |
 | `gen_ai.system` | Standardized OTel system name (for example, `github_models`, `anthropic`, `openai`, `google_vertex_ai`) |
 | `gh-aw.engine` | Raw gh-aw engine identifier (for example, `copilot`, `claude`, `codex`, `gemini`) |
