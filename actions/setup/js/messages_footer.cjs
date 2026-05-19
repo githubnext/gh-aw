@@ -132,7 +132,14 @@ function getFooterInstallMessage(ctx) {
   const templateContext = toSnakeCase({ ...ctx, agenticWorkflowUrl });
 
   // Default installation template
-  const defaultInstall = "> To install this [agentic workflow]({workflow_source_url}), run\n> ```\n> gh aw add {workflow_source}\n> ```";
+  const defaultInstall =
+    "<details>\n" +
+    "<summary>Add this agentic workflows to your repo</summary>\n\n" +
+    "To install this agentic workflow, run\n\n" +
+    "```\n" +
+    "gh aw add {workflow_source}\n" +
+    "```\n" +
+    "</details>";
 
   // Use custom installation message if configured
   return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
