@@ -25,7 +25,7 @@ func TestExpandErrorMessages_UnwrapsJoinedErrors(t *testing.T) {
 func TestBuildPrioritizedErrorReportFromMessages_DefaultLimit(t *testing.T) {
 	messages := []string{
 		"workflow.md:4:1: error: deprecated field",
-		"workflow.md:3:1: error: permission scope invalid",
+		"workflow.md:3:1: error: network.allowed requires strict mode",
 		"workflow.md:2:1: error: invalid engine value 'copiliot'",
 		"workflow.md:6:1: error: runtime version conflict",
 		"workflow.md:5:1: error: event filter is invalid",
@@ -38,6 +38,8 @@ func TestBuildPrioritizedErrorReportFromMessages_DefaultLimit(t *testing.T) {
 	require.Len(t, report.DisplayedErrors, 5, "Default report should limit output to five errors")
 	assert.Equal(t, SeverityCritical, report.DisplayedErrors[0].Severity, "Critical errors should be first")
 	assert.Contains(t, report.DisplayedErrors[0].Message, "invalid engine", "Highest-priority error should be the invalid engine")
+	assert.Equal(t, SeverityHigh, report.DisplayedErrors[1].Severity, "High-priority errors should immediately follow critical errors")
+	assert.Contains(t, report.DisplayedErrors[1].Message, "network.allowed", "The next prioritized error should be the high-priority network error")
 	assert.Equal(t, 1, report.HiddenCount, "One error should be hidden when limiting output")
 	require.NotNil(t, report.RecoveryPlan, "Multi-error reports should include a recovery plan")
 	assert.NotEmpty(t, report.RecoveryPlan.Steps, "Recovery plan should contain steps")

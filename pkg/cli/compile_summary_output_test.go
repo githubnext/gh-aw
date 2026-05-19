@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -178,6 +179,26 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 					t.Errorf("Expected output to NOT contain %q, but it did.\nFull output:\n%s", notExpected, output)
 				}
 			}
+
+			if tt.name == "multiple failed workflows with FailureDetails" {
+				assertHeadingContainsMessage(t, output, "🔴 CRITICAL \\(fix first\\)", "invalid engine value 'copiliot'")
+				assertHeadingContainsMessage(t, output, "🟠 HIGH PRIORITY", "network.allowed requires strict mode")
+				assertHeadingContainsMessage(t, output, "🟡 MEDIUM PRIORITY", "event filter is invalid")
+				assertHeadingContainsMessage(t, output, "🔵 LOW PRIORITY", "deprecated field usage")
+			}
 		})
+	}
+}
+
+func assertHeadingContainsMessage(t *testing.T, output string, heading string, message string) {
+	t.Helper()
+
+	pattern := heading + `:[\s\S]*?` + regexp.QuoteMeta(message)
+	matched, err := regexp.MatchString(pattern, output)
+	if err != nil {
+		t.Fatalf("Failed to compile regex pattern %q: %v", pattern, err)
+	}
+	if !matched {
+		t.Fatalf("Expected heading %q to contain message %q.\nFull output:\n%s", heading, message, output)
 	}
 }

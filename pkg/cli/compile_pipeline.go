@@ -116,7 +116,7 @@ func compileSpecificFiles(
 				errMsgs = append(errMsgs, verr.Message)
 			}
 			if len(errMsgs) == 0 {
-				errMsgs = []string{"compilation failed"}
+				errMsgs = []string{"compilation failed (no detailed error message available)"}
 			}
 			errorCount++
 			stats.Errors += len(errMsgs)
@@ -304,7 +304,7 @@ func compileAllFilesInDirectory(
 				errMsgs = append(errMsgs, verr.Message)
 			}
 			if len(errMsgs) == 0 {
-				errMsgs = []string{"compilation failed"}
+				errMsgs = []string{"compilation failed (no detailed error message available)"}
 			}
 			errorCount++
 			stats.Errors += len(errMsgs)
