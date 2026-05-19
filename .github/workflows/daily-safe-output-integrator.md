@@ -1,57 +1,62 @@
 ---
+emoji: "🔧"
+name: Daily Safe Output Integrator
+description: Daily workflow that inspects test workflows in pkg/cli/workflows for safe-output coverage, detects missing safe-output types, creates test workflows and Go compilation tests for any missing types, then creates a PR or reports NOOP
 on:
   schedule: daily
-  workflow_dispatch: null
+  workflow_dispatch:
+
 permissions:
   contents: read
   issues: read
   pull-requests: read
-imports:
-- uses: shared/daily-audit-base.md
-  with:
-    expires: 3d
-    title-prefix: "[safe-output-integrator] "
-- shared/otlp.md
-safe-outputs:
-  create-pull-request:
-    draft: false
-    expires: 3d
-    labels:
-    - safe-outputs
-    - testing
-    - automation
-    title-prefix: "[safe-output-integrator] "
-  noop: null
-description: Daily workflow that inspects test workflows in pkg/cli/workflows for safe-output coverage, detects missing safe-output types, creates test workflows and Go compilation tests for any missing types, then creates a PR or reports NOOP
-emoji: 🔧
+
+tracker-id: daily-safe-output-integrator
 engine: copilot
-features:
-  copilot-requests: true
-name: Daily Safe Output Integrator
 strict: true
-timeout-minutes: 20
+
 tools:
-  bash:
-  - find pkg/cli/workflows -name "test-*.md" -type f
-  - ls pkg/cli/workflows/
-  - grep -rn "safe-outputs:" pkg/cli/workflows/*.md
-  - grep -n "yaml:.*" pkg/workflow/compiler_types.go
-  - cat pkg/workflow/compiler_types.go
-  - cat pkg/workflow/safe_outputs_validation_config.go
-  - cat pkg/workflow/js/safe_outputs_tools.json
-  - cat pkg/parser/schemas/main_workflow_schema.json
-  - cat pkg/cli/workflows/*.md
-  - git status
-  - git diff --name-only
-  - python3 *
   cli-proxy: true
-  edit: null
   github:
     mode: gh-proxy
-    toolsets:
-    - default
-tracker-id: daily-safe-output-integrator
+    toolsets: [default]
+  bash:
+    - "find pkg/cli/workflows -name 'test-*.md' -type f"
+    - "ls pkg/cli/workflows/"
+    - "grep -rn 'safe-outputs:' pkg/cli/workflows/*.md"
+    - "grep -n 'yaml:.*' pkg/workflow/compiler_types.go"
+    - "cat pkg/workflow/compiler_types.go"
+    - "cat pkg/workflow/safe_outputs_validation_config.go"
+    - "cat pkg/workflow/js/safe_outputs_tools.json"
+    - "cat pkg/parser/schemas/main_workflow_schema.json"
+    - "cat pkg/cli/workflows/*.md"
+    - "git status"
+    - "git diff --name-only"
+    - "python3 *"
+  edit:
+
+safe-outputs:
+  create-pull-request:
+    expires: 3d
+    title-prefix: "[safe-output-integrator] "
+    labels: [safe-outputs, testing, automation]
+    draft: false
+  noop:
+
+timeout-minutes: 20
+
+imports:
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[safe-output-integrator] "
+      expires: 3d
+
+  - shared/otlp.md
+features:
+  copilot-requests: true
+
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Safe Output Integrator

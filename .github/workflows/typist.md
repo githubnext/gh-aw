@@ -1,41 +1,46 @@
 ---
+emoji: "✍️"
+name: Typist - Go Type Analysis
+description: Analyzes Go type usage patterns and identifies opportunities for better type safety and code improvements
 on:
+  workflow_dispatch:
   schedule:
-  - cron: daily around 11:00 on weekdays
-  workflow_dispatch: null
+    - cron: "daily around 11:00 on weekdays"  # ~11 AM UTC, weekdays only
+
 permissions:
   contents: read
   issues: read
   pull-requests: read
-imports:
-- uses: shared/daily-audit-base.md
-  with:
-    expires: 1d
-    title-prefix: "[typist] "
-- shared/mcp/serena-go.md
-- shared/otlp.md
-description: Analyzes Go type usage patterns and identifies opportunities for better type safety and code improvements
-emoji: ✍️
+
 engine: claude
-name: "Typist - Go Type Analysis"
-strict: true
-timeout-minutes: 20
+
+imports:
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[typist] "
+      expires: 1d
+  - shared/mcp/serena-go.md
+
+  - shared/otlp.md
 tools:
-  bash:
-  - find pkg -name "*.go" ! -name "*_test.go" -type f
-  - find pkg -type f -name "*.go" ! -name "*_test.go"
-  - find pkg/ -maxdepth 1 -ls
-  - wc -l pkg/**/*.go
-  - grep -r "type " pkg --include="*.go"
-  - grep -r "interface{}" pkg --include="*.go"
-  - "grep -r \"\\\\bany\\\\b\" pkg --include=\"*.go\""
-  - cat pkg/**/*.go
   cli-proxy: true
-  edit: null
   github:
     mode: gh-proxy
-    toolsets:
-    - default
+    toolsets: [default]
+  edit:
+  bash:
+    - "find pkg -name '*.go' ! -name '*_test.go' -type f"
+    - "find pkg -type f -name '*.go' ! -name '*_test.go'"
+    - "find pkg/ -maxdepth 1 -ls"
+    - "wc -l pkg/**/*.go"
+    - "grep -r 'type ' pkg --include='*.go'"
+    - "grep -r 'interface{}' pkg --include='*.go'"
+    - "grep -r '\\bany\\b' pkg --include='*.go'"
+    - "cat pkg/**/*.go"
+
+timeout-minutes: 20
+strict: true
+
 ---
 # Typist - Go Type Consistency Analysis
 

@@ -1,49 +1,53 @@
 ---
+emoji: "🧹"
+name: Instructions Janitor
+description: Reviews and cleans up instruction files to ensure clarity, consistency, adherence to best practices, and optimal file sizes for agentic consumption
 on:
   schedule: daily
-  workflow_dispatch: null
+  workflow_dispatch:
+
 permissions:
   contents: read
   issues: read
   pull-requests: read
+
+engine: claude
+strict: true
+
 network:
   allowed:
-  - defaults
-  - github
-imports:
-- shared/otlp.md
+    - defaults
+    - github
+
 safe-outputs:
   create-pull-request:
-    allowed-files:
-    - .github/aw/**
-    draft: false
     expires: 2d
-    labels:
-    - documentation
-    - automation
-    - instructions
-    protected-files: allowed
     title-prefix: "[instructions] "
-description: Reviews and cleans up instruction files to ensure clarity, consistency, adherence to best practices, and optimal file sizes for agentic consumption
-emoji: 🧹
-engine: claude
-name: Instructions Janitor
-strict: true
-timeout-minutes: 20
+    labels: [documentation, automation, instructions]
+    draft: false
+    allowed-files:
+      - .github/aw/**
+    protected-files: allowed
+
+imports:
+  - shared/otlp.md
 tools:
-  bash:
-  - cat .github/aw/*.md
-  - wc -l .github/aw/*.md
-  - "git log --since=\"*\" --pretty=format:\"%h %s\" -- docs/ .github/aw/"
-  - ls .github/aw/
-  cache-memory: true
   cli-proxy: true
-  edit: null
+  cache-memory: true
   github:
     mode: gh-proxy
-    toolsets:
-    - default
+    toolsets: [default]
+  edit:
+  bash:
+    - "cat .github/aw/*.md"
+    - "wc -l .github/aw/*.md"
+    - "git log --since='*' --pretty=format:'%h %s' -- docs/ .github/aw/"
+    - "ls .github/aw/"
+
+timeout-minutes: 20
+
 ---
+
 # Instructions Janitor
 
 You are an AI agent specialized in maintaining instruction files for other AI agents. Your mission is to keep all instruction files in `.github/aw/` synchronized with documentation changes, current safe-outputs behavior in code, and optimized for agentic consumption (concise, non-redundant, appropriately sized).

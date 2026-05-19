@@ -1,55 +1,68 @@
 ---
+emoji: "📐"
+name: Layout Specification Maintainer
+description: Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 on:
   schedule:
-  - cron: weekly on monday around 7:00
-  workflow_dispatch: null
+    # ~7 AM UTC on Mondays (scattered to avoid thundering herd)
+    - cron: "weekly on monday around 7:00"
+  workflow_dispatch:
+
+# Minimal permissions: only what's needed for the workflow
+# - contents: read - to read repository files and analyze workflows
+# - issues: read - required by GitHub toolsets (default includes issues)
+# - pull-requests: read - required by GitHub toolsets (default includes pull_requests)
+# Note: PR creation handled by safe-outputs job with its own write permissions
 permissions:
   contents: read
   issues: read
   pull-requests: read
+
+tracker-id: layout-spec-maintainer
+engine: copilot
+strict: true
+
+cache:
+  - key: layout-spec-cache-${{ github.run_id }}
+    name: Cache layout spec data
+    path: /tmp/gh-aw/layout-cache
+    restore-keys: |
+      layout-spec-cache-
+
 network:
   allowed:
-  - defaults
-  - github
-imports:
-- shared/otlp.md
+    - defaults
+    - github
+
 safe-outputs:
   create-pull-request:
-    draft: false
     expires: 2d
-    labels:
-    - documentation
-    - automation
     title-prefix: "[specs] "
-cache:
-- key: layout-spec-cache-${{ github.run_id }}
-  name: Cache layout spec data
-  path: /tmp/gh-aw/layout-cache
-  restore-keys: |
-    layout-spec-cache-
-description: Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
-emoji: 📐
-engine: copilot
-name: Layout Specification Maintainer
-strict: true
-timeout-minutes: 20
+    labels: [documentation, automation]
+    draft: false
+
+imports:
+  - shared/otlp.md
 tools:
-  bash:
-  - find .github/workflows -name "*.lock.yml"
-  - yq ".*" .github/workflows/*.lock.yml
-  - grep -r ".*" pkg/workflow/js/
-  - grep -r ".*" pkg/workflow/*.go
-  - git status
-  - git diff scratchpad/layout.md
-  - cat scratchpad/layout.md
   cli-proxy: true
-  edit: null
   github:
     mode: gh-proxy
-    toolsets:
-    - default
-tracker-id: layout-spec-maintainer
+    toolsets: [default]
+  edit:
+  bash:
+    - "find .github/workflows -name '*.lock.yml'"
+    - "yq '.*' .github/workflows/*.lock.yml"
+    - "grep -r '.*' pkg/workflow/js/"
+    - "grep -r '.*' pkg/workflow/*.go"
+    - "git status"
+    - "git diff scratchpad/layout.md"
+    - "cat scratchpad/layout.md"
+
+timeout-minutes: 20
+
+
 ---
+
 # Layout Specification Maintainer
 
 You are an AI agent that maintains a comprehensive specification file documenting all patterns of file paths, folder names, and artifact names used in the compiled lock.yml files in this repository.

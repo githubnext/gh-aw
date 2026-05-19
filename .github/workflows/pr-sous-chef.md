@@ -58,7 +58,6 @@ steps:
   - name: Fetch open non-draft PR queue
     env:
       GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       mkdir -p /tmp/gh-aw/agent
       candidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json
@@ -67,7 +66,7 @@ steps:
       filtered_checks_pending=0
       filtered_last_comment_from_sous_chef=0
 
-      gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
+      gh pr list --repo "${{ github.repository }}" \
         --state open \
         --search "is:pr is:open -is:draft sort:updated-desc" \
         --limit 30 \
@@ -84,7 +83,7 @@ steps:
 
         checks_state="$(
           {
-            gh aw checks "$pr_number" --repo "$EXPR_GITHUB_REPOSITORY" --json \
+            gh aw checks "$pr_number" --repo "${{ github.repository }}" --json \
               | jq -r '.required_state // .state // "unknown"'
           } 2>/dev/null || echo "unknown"
         )"
@@ -94,7 +93,7 @@ steps:
         fi
 
         last_comment_is_sous_chef="$(
-          gh api "repos/$EXPR_GITHUB_REPOSITORY/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" \
+          gh api "repos/${{ github.repository }}/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" \
             --jq '
               if length == 0 then false
               else (

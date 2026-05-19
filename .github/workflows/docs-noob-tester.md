@@ -41,16 +41,12 @@ imports:
   - shared/otlp.md
 pre-agent-steps:
   - name: Install docs dependencies
-    env:
-      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
+      cd "${{ github.workspace }}/docs"
       npm install
   - name: Start documentation server
-    env:
-      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
+      cd "${{ github.workspace }}/docs"
       nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
       PID=$!
       echo $PID > /tmp/server.pid

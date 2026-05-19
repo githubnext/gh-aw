@@ -145,4 +145,37 @@ safe-outputs:
 		assert.NotContains(t, result, "\n    title-prefix:")
 		assert.NotContains(t, result, "\n    labels:")
 	})
+
+	t.Run("only renames direct handler keys", func(t *testing.T) {
+		content := `---
+safe-outputs:
+  push-to-pull-request-branch:
+    metadata:
+      labels: [nested]
+      title-prefix: "[nested] "
+    title-prefix: "[bot] "
+    labels: [automated]
+---
+`
+		frontmatter := map[string]any{
+			"safe-outputs": map[string]any{
+				"push-to-pull-request-branch": map[string]any{
+					"title-prefix": "[bot] ",
+					"labels":       []string{"automated"},
+					"metadata": map[string]any{
+						"labels":       []string{"nested"},
+						"title-prefix": "[nested] ",
+					},
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "\n    required-title-prefix:")
+		assert.Contains(t, result, "\n    required-labels:")
+		assert.Contains(t, result, "\n      labels: [nested]")
+		assert.Contains(t, result, "\n      title-prefix: \"[nested] \"")
+	})
 }

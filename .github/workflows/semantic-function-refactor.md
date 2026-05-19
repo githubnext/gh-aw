@@ -19,7 +19,6 @@ imports:
   - shared/otlp.md
 safe-outputs:
   close-issue:
-    required-labels: [refactoring]
     required-title-prefix: "[refactor] "
     target: "*"
     max: 10
