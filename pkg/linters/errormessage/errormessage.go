@@ -134,7 +134,7 @@ func checkValidationFmtErrorf(pass *analysis.Pass, call *ast.CallExpr, filename,
 	if !strings.HasSuffix(filename, "_validation.go") || !isFmtErrorf(call) {
 		return
 	}
-	if !containsAny(strings.ToLower(msg), "invalid", "cannot", "must", "missing", "required", "failed") {
+	if !containsAnyKeyword(strings.ToLower(msg), "invalid", "cannot", "must", "missing", "required", "failed") {
 		return
 	}
 	pass.Reportf(call.Pos(), "use NewValidationError(...) instead of fmt.Errorf(...) in validation files")
@@ -142,10 +142,10 @@ func checkValidationFmtErrorf(pass *analysis.Pass, call *ast.CallExpr, filename,
 
 func checkNegativeLanguage(pass *analysis.Pass, call *ast.CallExpr, msg string) {
 	lower := strings.ToLower(msg)
-	if !containsAny(lower, "invalid", "cannot", "must", "failed") {
+	if !containsAnyKeyword(lower, "invalid", "cannot", "must", "failed") {
 		return
 	}
-	if containsAny(lower, "expected", "requires", "should", "example", "valid") {
+	if containsAnyKeyword(lower, "expected", "requires", "should", "example", "valid") {
 		return
 	}
 	pass.Reportf(call.Pos(), "error message uses negative language without constructive guidance; include expected/requires/should/example details")
@@ -202,7 +202,7 @@ func looksLikeYAMLExample(s string) bool {
 	return strings.Contains(trimmed, ":") && strings.Contains(trimmed, " ")
 }
 
-func containsAny(s string, keywords ...string) bool {
+func containsAnyKeyword(s string, keywords ...string) bool {
 	for _, keyword := range keywords {
 		if strings.Contains(s, keyword) {
 			return true
