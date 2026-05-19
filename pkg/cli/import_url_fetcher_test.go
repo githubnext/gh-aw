@@ -146,6 +146,14 @@ func TestAttachImportAuthHeader_GitHub(t *testing.T) {
 	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
 }
 
+func TestAttachImportAuthHeader_GitHubCopilot(t *testing.T) {
+	t.Setenv("GH_TOKEN", "gh-token-xyz")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/workflow.md", nil)
+	attachImportAuthHeader(req, "https://api.githubcopilot.com/workflow.md")
+	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
+}
+
 func TestAttachImportAuthHeader_FallbackToGITHUB_TOKEN(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "github-token-abc")

@@ -46,8 +46,9 @@ type FetchedResource struct {
 //
 // Authentication is attached only when BOTH of the following hold:
 //   - the request scheme is "https"
-//   - the request host is an exact match for "github.com" or the hostname
-//     extracted from the GH_HOST environment variable
+//   - the request host is an exact match for "github.com",
+//     "api.githubcopilot.com", or the hostname extracted from the GH_HOST
+//     environment variable
 //
 // In that case the value of GH_TOKEN (falling back to GITHUB_TOKEN) is sent as
 // "Authorization: Bearer <token>".  For all other hosts, or for any HTTP (non-TLS)
@@ -168,7 +169,8 @@ func canonicalContentType(raw string) string {
 // ALL of the following are true:
 //   - the request scheme is "https" (tokens are never sent over plaintext HTTP)
 //   - the request host is an exact match for one of the allowed GitHub hosts:
-//     "github.com" or the hostname extracted from the GH_HOST environment variable
+//     "github.com", "api.githubcopilot.com", or the hostname extracted from
+//     the GH_HOST environment variable
 //
 // The token is read from GH_TOKEN, falling back to GITHUB_TOKEN.  Nothing is
 // added when no matching host is found, no token is set, or the request is
@@ -187,7 +189,7 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	host := strings.ToLower(parsed.Hostname())
 
 	// Authoritative GitHub hosts to which the token may be sent.
-	allowedHosts := []string{"github.com"}
+	allowedHosts := []string{"github.com", "api.githubcopilot.com"}
 	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
 		// GH_HOST may carry a scheme prefix; extract just the hostname.
 		if u, parseErr := url.Parse(ghHost); parseErr == nil && u.Host != "" {
