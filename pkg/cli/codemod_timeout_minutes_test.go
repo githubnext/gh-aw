@@ -253,6 +253,11 @@ jobs:
 	frontmatter := map[string]any{
 		"on":              "workflow_dispatch",
 		"timeout_minutes": 30,
+		"jobs": map[string]any{
+			"setup": map[string]any{
+				"timeout_minutes": 45,
+			},
+		},
 	}
 
 	result, applied, err := codemod.Apply(content, frontmatter)
