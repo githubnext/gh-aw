@@ -81,6 +81,9 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 	return nil
 }
 
+// validateUniqueReviewerSlashCommands ensures pull_request_reviewer workflows
+// do not share slash-command names (case-insensitive), returning an error when
+// duplicates are detected.
 func validateUniqueReviewerSlashCommands(workflowDataList []*WorkflowData) error {
 	reviewerCommandOwners := make(map[string]string)
 	for _, wd := range workflowDataList {
