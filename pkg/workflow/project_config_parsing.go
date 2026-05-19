@@ -64,9 +64,9 @@ func parseProjectViews(configMap map[string]any, log *logger.Logger) []ProjectVi
 		// Only add view if it has required fields
 		if view.Name != "" && view.Layout != "" {
 			views = append(views, view)
-			log.Printf("Parsed view %d: %s (%s)", i+1, view.Name, view.Layout)
+			workflowLog.Printf("Parsed view %d: %s (%s)", i+1, view.Name, view.Layout)
 		} else {
-			log.Printf("Skipping invalid view %d: missing required fields", i+1)
+			workflowLog.Printf("Skipping invalid view %d: missing required fields", i+1)
 		}
 	}
 	return views
@@ -123,7 +123,7 @@ func parseProjectFieldDefinitions(configMap map[string]any, log *logger.Logger) 
 
 		if field.Name != "" && field.DataType != "" {
 			fields = append(fields, field)
-			log.Printf("Parsed field definition %d: %s (%s)", i+1, field.Name, field.DataType)
+			workflowLog.Printf("Parsed field definition %d: %s (%s)", i+1, field.Name, field.DataType)
 		}
 	}
 	return fields

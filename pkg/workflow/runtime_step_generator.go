@@ -161,7 +161,7 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	sort.Strings(allKeys)
 	for _, key := range allKeys {
 		step = append(step, fmt.Sprintf("          %s: %s", key, allExtraFields[key]))
-		log.Printf("  Added extra field to runtime setup: %s = %s", key, allExtraFields[key])
+		workflowLog.Printf("  Added extra field to runtime setup: %s = %s", key, allExtraFields[key])
 	}
 
 	return step

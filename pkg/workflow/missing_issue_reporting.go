@@ -62,7 +62,7 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 
 	// Explicitly disabled: missing-data: false
 	if configBool, ok := configData.(bool); ok && !configBool {
-		log.Printf("%s configuration explicitly disabled", yamlKey)
+		workflowLog.Printf("%s configuration explicitly disabled", yamlKey)
 		return nil
 	}
 
@@ -70,7 +70,7 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 
 	// Enabled with no value: missing-data: (nil)
 	if configData == nil {
-		log.Printf("%s configuration enabled with defaults", yamlKey)
+		workflowLog.Printf("%s configuration enabled with defaults", yamlKey)
 		createIssueStr := strconv.FormatBool(defaultCreateIssue)
 		cfg.CreateIssue = &createIssueStr
 		if parseReportAsFailure {
@@ -83,19 +83,19 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 	}
 
 	if configMap, ok := configData.(map[string]any); ok {
-		log.Printf("Parsing %s configuration from map", yamlKey)
+		workflowLog.Printf("Parsing %s configuration from map", yamlKey)
 		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 0)
 
 		// Pre-process create-issue to support literal booleans and GitHub Actions expressions.
 		if err := preprocessBoolFieldAsString(configMap, "create-issue", log); err != nil {
-			log.Printf("Invalid create-issue value for %s: %v", yamlKey, err)
+			workflowLog.Printf("Invalid create-issue value for %s: %v", yamlKey, err)
 			return nil
 		}
 
 		if createIssueVal, exists := configMap["create-issue"]; exists {
 			if createIssueStr, ok := createIssueVal.(string); ok {
 				cfg.CreateIssue = &createIssueStr
-				log.Printf("create-issue: %s", createIssueStr)
+				workflowLog.Printf("create-issue: %s", createIssueStr)
 			}
 		} else {
 			createIssueStr := strconv.FormatBool(defaultCreateIssue)
@@ -105,13 +105,13 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 		// Parse report-as-failure field (only for missing-tool and missing-data, not report-incomplete)
 		if parseReportAsFailure {
 			if err := preprocessBoolFieldAsString(configMap, "report-as-failure", log); err != nil {
-				log.Printf("Invalid report-as-failure value for %s: %v", yamlKey, err)
+				workflowLog.Printf("Invalid report-as-failure value for %s: %v", yamlKey, err)
 				return nil
 			}
 			if reportAsFailureVal, exists := configMap["report-as-failure"]; exists {
 				if reportAsFailureStr, ok := reportAsFailureVal.(string); ok {
 					cfg.ReportAsFailure = &reportAsFailureStr
-					log.Printf("report-as-failure: %s", reportAsFailureStr)
+					workflowLog.Printf("report-as-failure: %s", reportAsFailureStr)
 				}
 			} else {
 				trueVal := "true"
@@ -122,7 +122,7 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 		if titlePrefix, exists := configMap["title-prefix"]; exists {
 			if titlePrefixStr, ok := titlePrefix.(string); ok {
 				cfg.TitlePrefix = titlePrefixStr
-				log.Printf("title-prefix: %s", titlePrefixStr)
+				workflowLog.Printf("title-prefix: %s", titlePrefixStr)
 			}
 		} else {
 			cfg.TitlePrefix = defaultTitle
@@ -130,7 +130,7 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 
 		if _, exists := configMap["labels"]; exists {
 			cfg.Labels = ParseStringArrayFromConfig(configMap, "labels", log)
-			log.Printf("labels: %v", cfg.Labels)
+			workflowLog.Printf("labels: %v", cfg.Labels)
 		} else {
 			cfg.Labels = []string{}
 		}

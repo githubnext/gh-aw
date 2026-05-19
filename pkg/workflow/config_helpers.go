@@ -50,15 +50,15 @@ var configHelpersLog = logger.New("workflow:config_helpers")
 func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger) []string {
 	if value, exists := m[key]; exists {
 		if log != nil {
-			log.Printf("Parsing %s from config", key)
+			workflowLog.Printf("Parsing %s from config", key)
 		}
 		if strings := parseStringSliceAny(value, log); strings != nil {
 			// Return the slice even if empty (to distinguish from not provided)
 			if len(strings) == 0 && log != nil {
-				log.Printf("No valid %s strings found, returning empty array", key)
+				workflowLog.Printf("No valid %s strings found, returning empty array", key)
 			}
 			if log != nil {
-				log.Printf("Parsed %d %s from config", len(strings), key)
+				workflowLog.Printf("Parsed %d %s from config", len(strings), key)
 			}
 			return strings
 		}
@@ -76,29 +76,29 @@ func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger
 func ParseStringArrayOrExprFromConfig(m map[string]any, key string, log *logger.Logger) []string {
 	if value, exists := m[key]; exists {
 		if log != nil {
-			log.Printf("Parsing %s from config", key)
+			workflowLog.Printf("Parsing %s from config", key)
 		}
 		// Accept a GitHub Actions expression string: wrap it in a single-element slice.
 		if s, ok := value.(string); ok {
 			if isExpression(s) {
 				if log != nil {
-					log.Printf("Field %s is a GitHub Actions expression, wrapping in single-element array", key)
+					workflowLog.Printf("Field %s is a GitHub Actions expression, wrapping in single-element array", key)
 				}
 				return []string{s}
 			}
 			// Non-expression string is invalid for an array field.
 			if log != nil {
-				log.Printf("Field %q must be an array or a GitHub Actions expression, ignoring non-expression string: %q", key, s)
+				workflowLog.Printf("Field %q must be an array or a GitHub Actions expression, ignoring non-expression string: %q", key, s)
 			}
 			return nil
 		}
 		// Handle arrays (existing logic).
 		if strings := parseStringSliceAny(value, log); strings != nil {
 			if len(strings) == 0 && log != nil {
-				log.Printf("No valid %s strings found, returning empty array", key)
+				workflowLog.Printf("No valid %s strings found, returning empty array", key)
 			}
 			if log != nil {
-				log.Printf("Parsed %d %s from config", len(strings), key)
+				workflowLog.Printf("Parsed %d %s from config", len(strings), key)
 			}
 			return strings
 		}
@@ -113,7 +113,7 @@ func extractStringFromMap(m map[string]any, key string, log *logger.Logger) stri
 	if value, exists := m[key]; exists {
 		if valueStr, ok := value.(string); ok {
 			if log != nil {
-				log.Printf("Parsed %s from config: %s", key, valueStr)
+				workflowLog.Printf("Parsed %s from config: %s", key, valueStr)
 			}
 			return valueStr
 		}
@@ -166,7 +166,7 @@ func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool 
 				configData["expires"] = 0
 			}
 			if log != nil {
-				log.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
+				workflowLog.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
 			}
 		}
 	}
@@ -178,11 +178,11 @@ func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool 
 // If log is provided, it will log the extracted value for debugging.
 func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool {
 	if log != nil {
-		log.Printf("Parsing %s from config", key)
+		workflowLog.Printf("Parsing %s from config", key)
 	}
 	result := typeutil.ParseBool(m, key)
 	if log != nil {
-		log.Printf("Parsed %s from config: %t", key, result)
+		workflowLog.Printf("Parsed %s from config: %t", key, result)
 	}
 	return result
 }
@@ -215,7 +215,7 @@ func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logge
 	}
 
 	if log != nil {
-		log.Printf("Unmarshaling config for key %q into typed struct", key)
+		workflowLog.Printf("Unmarshaling config for key %q into typed struct", key)
 	}
 
 	// Marshal the config data back to YAML bytes
@@ -230,7 +230,7 @@ func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logge
 	}
 
 	if log != nil {
-		log.Printf("Successfully unmarshaled config for key %q", key)
+		workflowLog.Printf("Successfully unmarshaled config for key %q", key)
 	}
 
 	return nil
@@ -273,7 +273,7 @@ func parseConfigScaffold[T any](
 	if _, exists := outputMap[key]; !exists {
 		return nil
 	}
-	log.Printf("Parsing %s configuration", key)
+	workflowLog.Printf("Parsing %s configuration", key)
 	var config T
 	if err := unmarshalConfig(outputMap, key, &config, log); err != nil {
 		return onError(err)

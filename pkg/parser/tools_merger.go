@@ -13,7 +13,7 @@ var toolsMergerLog = logger.New("parser:tools_merger")
 
 // mergeToolsFromJSON merges multiple JSON tool objects from content
 func mergeToolsFromJSON(content string) (string, error) {
-	log.Printf("Merging tools from JSON: content_size=%d bytes", len(content))
+	parserLog.Printf("Merging tools from JSON: content_size=%d bytes", len(content))
 	// Clean up the content first
 	content = strings.TrimSpace(content)
 
@@ -53,11 +53,11 @@ func mergeToolsFromJSON(content string) (string, error) {
 
 	// If no valid objects found, return empty
 	if len(jsonObjects) == 0 {
-		log.Print("No valid JSON objects found in content, returning empty object")
+		parserLog.Print("No valid JSON objects found in content, returning empty object")
 		return "{}", nil
 	}
 
-	log.Printf("Found %d JSON objects to merge", len(jsonObjects))
+	parserLog.Printf("Found %d JSON objects to merge", len(jsonObjects))
 	// Merge all objects
 	merged := make(map[string]any)
 	for _, obj := range jsonObjects {
@@ -81,7 +81,7 @@ func mergeToolsFromJSON(content string) (string, error) {
 // Only supports merging arrays and maps for neutral tools (bash, web-fetch, web-search, edit, mcp-*).
 // Removes all legacy Claude tool merging logic.
 func MergeTools(base, additional map[string]any) (map[string]any, error) {
-	log.Printf("Merging tools: base_keys=%d, additional_keys=%d", len(base), len(additional))
+	parserLog.Printf("Merging tools: base_keys=%d, additional_keys=%d", len(base), len(additional))
 	result := make(map[string]any)
 
 	// Copy base

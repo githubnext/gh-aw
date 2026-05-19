@@ -164,7 +164,7 @@ func validateStringEnumField(configData map[string]any, fieldName string, allowe
 	strVal, ok := val.(string)
 	if !ok {
 		if log != nil {
-			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
+			workflowLog.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
 		}
 		delete(configData, fieldName)
 		return
@@ -172,13 +172,13 @@ func validateStringEnumField(configData map[string]any, fieldName string, allowe
 	// GitHub Actions expressions are validated at runtime by the handler.
 	if containsExpression(strVal) {
 		if log != nil {
-			log.Printf("%s value is a GitHub Actions expression, skipping compile-time enum validation", fieldName)
+			workflowLog.Printf("%s value is a GitHub Actions expression, skipping compile-time enum validation", fieldName)
 		}
 		return
 	}
 	if !slices.Contains(allowed, strVal) {
 		if log != nil {
-			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
+			workflowLog.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
 		}
 		delete(configData, fieldName)
 	}

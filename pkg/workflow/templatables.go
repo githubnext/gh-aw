@@ -157,7 +157,7 @@ func preprocessBoolFieldAsString(configData map[string]any, fieldName string, lo
 				configData[fieldName] = "false"
 			}
 			if log != nil {
-				log.Printf("Converted %s bool to string before unmarshaling", fieldName)
+				workflowLog.Printf("Converted %s bool to string before unmarshaling", fieldName)
 			}
 		case string:
 			if !isExpression(v) {
@@ -227,22 +227,22 @@ func preprocessIntFieldAsString(configData map[string]any, fieldName string, log
 		case int:
 			configData[fieldName] = strconv.Itoa(v)
 			if log != nil {
-				log.Printf("Converted %s int to string before unmarshaling", fieldName)
+				workflowLog.Printf("Converted %s int to string before unmarshaling", fieldName)
 			}
 		case int64:
 			configData[fieldName] = strconv.FormatInt(v, 10)
 			if log != nil {
-				log.Printf("Converted %s int64 to string before unmarshaling", fieldName)
+				workflowLog.Printf("Converted %s int64 to string before unmarshaling", fieldName)
 			}
 		case float64:
 			configData[fieldName] = strconv.Itoa(int(v))
 			if log != nil {
-				log.Printf("Converted %s float64 to string before unmarshaling", fieldName)
+				workflowLog.Printf("Converted %s float64 to string before unmarshaling", fieldName)
 			}
 		case uint64:
 			configData[fieldName] = strconv.FormatUint(v, 10)
 			if log != nil {
-				log.Printf("Converted %s uint64 to string before unmarshaling", fieldName)
+				workflowLog.Printf("Converted %s uint64 to string before unmarshaling", fieldName)
 			}
 		case string:
 			if !isExpression(v) {
@@ -287,7 +287,7 @@ func preprocessStringArrayFieldAsTemplatable(configData map[string]any, fieldNam
 			// can receive it after YAML marshaling/unmarshaling.
 			configData[fieldName] = []string{s}
 			if log != nil {
-				log.Printf("Wrapped %s expression string in single-element array before unmarshaling", fieldName)
+				workflowLog.Printf("Wrapped %s expression string in single-element array before unmarshaling", fieldName)
 			}
 		}
 		// Arrays ([]string, []any) are left unchanged for YAML unmarshal to handle.

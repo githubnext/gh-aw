@@ -25,7 +25,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		return &ImportsResult{}, nil
 	}
 
-	log.Print("Processing imports from frontmatter with recursive BFS")
+	parserLog.Print("Processing imports from frontmatter with recursive BFS")
 
 	// Parse imports field - can be array of strings or objects with path and inputs,
 	// or an object with an 'aw' (agentic workflow paths) subfield.
@@ -68,7 +68,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		return &ImportsResult{}, nil
 	}
 
-	log.Printf("Found %d direct imports to process", len(importSpecs))
+	parserLog.Printf("Found %d direct imports to process", len(importSpecs))
 
 	// Initialize BFS queue and visited set for cycle detection
 	var queue []importQueueItem
@@ -87,7 +87,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 		// Check if this is a repository-only import (owner/repo@ref without file path)
 		if isRepositoryImport(importPath) {
-			log.Printf("Detected repository import: %s", importPath)
+			parserLog.Printf("Detected repository import: %s", importPath)
 			acc.repositoryImports = append(acc.repositoryImports, importPath)
 			// Repository imports don't need further processing - they're handled at runtime
 			continue
@@ -160,13 +160,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				inputs:       importSpec.Inputs,
 				remoteOrigin: origin,
 			})
-			log.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
+			parserLog.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		} else {
 			// Same file imported again - verify the 'with' values are identical
 			if err := checkImportInputsConsistency(importPath, visitedInputs[fullPath], importSpec.Inputs); err != nil {
 				return nil, err
 			}
-			log.Printf("Skipping duplicate import: %s (already visited)", importPath)
+			parserLog.Printf("Skipping duplicate import: %s (already visited)", importPath)
 		}
 	}
 
@@ -176,7 +176,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		item := queue[0]
 		queue = queue[1:]
 
-		log.Printf("Processing import from queue: %s", item.fullPath)
+		parserLog.Printf("Processing import from queue: %s", item.fullPath)
 
 		// Merge inputs from this import into the aggregated inputs map
 		maps.Copy(acc.importInputs, item.inputs)
@@ -191,7 +191,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if isAgentFile {
 			if acc.agentFile != "" {
 				// Multiple agent files found - error
-				log.Printf("Multiple agent files found: %s and %s", acc.agentFile, item.importPath)
+				parserLog.Printf("Multiple agent files found: %s and %s", acc.agentFile, item.importPath)
 				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", acc.agentFile, item.importPath)
 			}
 			// Extract relative path from repository root (from .github/ onwards)
@@ -204,22 +204,22 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				acc.agentFile = fullPathSlash
 				importRelPath = fullPathSlash
 			}
-			log.Printf("Found agent file: %s (resolved to: %s)", item.fullPath, acc.agentFile)
+			parserLog.Printf("Found agent file: %s (resolved to: %s)", item.fullPath, acc.agentFile)
 
 			// Store the original import specification for remote agents
 			// This allows runtime detection and .github folder merging
 			acc.agentImportSpec = item.importPath
-			log.Printf("Agent import specification: %s", acc.agentImportSpec)
+			parserLog.Printf("Agent import specification: %s", acc.agentImportSpec)
 
 			// Track import path for runtime-import macro generation (only if no inputs)
 			// Imports with inputs must be inlined for compile-time substitution
 			if len(item.inputs) == 0 {
 				// No inputs - use runtime-import macro
 				acc.importPaths = append(acc.importPaths, importRelPath)
-				log.Printf("Added agent import path for runtime-import: %s", importRelPath)
+				parserLog.Printf("Added agent import path for runtime-import: %s", importRelPath)
 			} else {
 				// Has inputs - must inline for compile-time substitution
-				log.Printf("Agent file has inputs - will be inlined instead of runtime-imported")
+				parserLog.Printf("Agent file has inputs - will be inlined instead of runtime-imported")
 
 				// For agent files, extract markdown content (only when inputs are present)
 				markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)
@@ -245,7 +245,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 		// Check if this is a YAML workflow file (not .lock.yml)
 		if isYAMLWorkflowFile(item.fullPath) {
-			log.Printf("Detected YAML workflow file: %s", item.fullPath)
+			parserLog.Printf("Detected YAML workflow file: %s", item.fullPath)
 
 			// Process YAML workflow import to extract jobs/steps and services
 			// Special case: copilot-setup-steps.yml returns steps YAML instead of jobs JSON
@@ -260,13 +260,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				// Add to CopilotSetupSteps instead of MergedSteps (inserted at start of workflow)
 				if jobsOrStepsData != "" {
 					acc.copilotSetupStepsBuilder.WriteString(jobsOrStepsData + "\n")
-					log.Printf("Added copilot-setup steps (will be inserted at start): %s", item.importPath)
+					parserLog.Printf("Added copilot-setup steps (will be inserted at start): %s", item.importPath)
 				}
 			} else {
 				// For regular YAML workflows, jobsOrStepsData contains jobs in JSON format
 				if jobsOrStepsData != "" && jobsOrStepsData != "{}" {
 					acc.jobsBuilder.WriteString(jobsOrStepsData + "\n")
-					log.Printf("Added jobs from YAML workflow: %s", item.importPath)
+					parserLog.Printf("Added jobs from YAML workflow: %s", item.importPath)
 				}
 			}
 
@@ -280,7 +280,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					servicesYAML, err := yaml.Marshal(servicesWrapper)
 					if err == nil {
 						acc.servicesBuilder.WriteString(string(servicesYAML) + "\n")
-						log.Printf("Added services from YAML workflow: %s", item.importPath)
+						parserLog.Printf("Added services from YAML workflow: %s", item.importPath)
 					}
 				}
 			}
@@ -327,7 +327,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 		if err != nil {
 			// If frontmatter extraction fails, continue with other processing
-			log.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, err)
+			parserLog.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, err)
 		} else if result.Frontmatter != nil {
 			// Check for nested imports field
 			type nestedImportEntry struct {
@@ -483,13 +483,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 						inputs:       nestedEntry.inputs,
 						remoteOrigin: nestedRemoteOrigin,
 					})
-					log.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
+					parserLog.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
 				} else {
 					// Same file re-imported from a different path - verify inputs match
 					if err := checkImportInputsConsistency(nestedImportPath, visitedInputs[nestedFullPath], nestedEntry.inputs); err != nil {
 						return nil, err
 					}
-					log.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
+					parserLog.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
 				}
 			}
 		}
@@ -500,7 +500,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 	}
 
-	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
+	parserLog.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
 
 	// Sort imports in topological order (roots first, dependencies before dependents)
 	// Returns an error if a circular import is detected
@@ -508,7 +508,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Sorted imports in topological order: %v", topologicalOrder)
+	parserLog.Printf("Sorted imports in topological order: %v", topologicalOrder)
 
 	return acc.toImportsResult(topologicalOrder), nil
 }

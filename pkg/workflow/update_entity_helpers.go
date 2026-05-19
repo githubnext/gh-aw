@@ -276,7 +276,7 @@ func parseUpdateEntityStringBoolField(configMap map[string]any, fieldName string
 	}
 	if err := preprocessBoolFieldAsString(configMap, fieldName, log); err != nil {
 		if log != nil {
-			log.Printf("Invalid %s value: %v", fieldName, err)
+			workflowLog.Printf("Invalid %s value: %v", fieldName, err)
 		}
 		return nil
 	}

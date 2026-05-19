@@ -24,7 +24,7 @@ func isBuiltinJobName(jobName string) bool {
 // buildMainJob creates the main agent job that runs the AI agent with the configured engine and tools.
 // This job depends on the activation job if it exists, and handles the main workflow logic.
 func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
-	log.Printf("Building main job for workflow: %s", data.Name)
+	workflowLog.Printf("Building main job for workflow: %s", data.Name)
 	var steps []string
 
 	// Add setup action steps at the beginning of the job

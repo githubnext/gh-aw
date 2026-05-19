@@ -151,12 +151,12 @@ func normalizeDiscussionCategory(category string, log *logger.Logger, markdownPa
 		if corrected, exists := categoryCorrections[category]; exists {
 			message = fmt.Sprintf("Discussion category %q normalized to lowercase: %q", category, corrected)
 			if log != nil {
-				log.Printf("Normalized discussion category %q to lowercase: %q", category, corrected)
+				workflowLog.Printf("Normalized discussion category %q to lowercase: %q", category, corrected)
 			}
 		} else {
 			message = fmt.Sprintf("Discussion category %q normalized to lowercase: %q", category, normalizedCategory)
 			if log != nil {
-				log.Printf("Normalized discussion category %q to lowercase: %q", category, normalizedCategory)
+				workflowLog.Printf("Normalized discussion category %q to lowercase: %q", category, normalizedCategory)
 			}
 		}
 
@@ -172,7 +172,7 @@ func normalizeDiscussionCategory(category string, log *logger.Logger, markdownPa
 
 	if plural, isSingular := singularToPlural[normalizedCategory]; isSingular {
 		if log != nil {
-			log.Printf("⚠ Discussion category %q is singular; consider using plural form %q for consistency", normalizedCategory, plural)
+			workflowLog.Printf("⚠ Discussion category %q is singular; consider using plural form %q for consistency", normalizedCategory, plural)
 		}
 	}
 

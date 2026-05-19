@@ -18,7 +18,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-var log = logger.New("workflow:compiler")
+var workflowLog = logger.New("workflow:compiler")
 
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (500KB)
@@ -62,7 +62,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	c.markdownPath = markdownPath
 
 	// Parse the markdown file
-	log.Printf("Parsing workflow file")
+	workflowLog.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
 	if err != nil {
 		// ParseWorkflowFile already returns formatted compiler errors; pass them through.
@@ -128,7 +128,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 
 	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
 	// that cannot be bypassed, so we validate it unconditionally
-	log.Print("Validating expression sizes")
+	workflowLog.Print("Validating expression sizes")
 	if err := c.validateExpressionSizes(yamlContent); err != nil {
 		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err), err)
@@ -156,7 +156,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	if needsSchemaCheck {
 		// Schema validation requires parsed YAML; parse once and share with the
 		// template injection validator below.
-		log.Print("Parsing compiled YAML for validation")
+		workflowLog.Print("Parsing compiled YAML for validation")
 		if parseErr := yaml.Unmarshal([]byte(yamlContent), &parsedWorkflow); parseErr != nil {
 			// If parsing fails here the subsequent validators would also fail; keep going
 			// so we surface the root error from the right validator.
@@ -177,7 +177,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 
 	// Validate against GitHub Actions schema (unless skipped)
 	if needsSchemaCheck {
-		log.Print("Validating workflow against GitHub Actions schema")
+		workflowLog.Print("Validating workflow against GitHub Actions schema")
 		var schemaErr error
 		if parsedWorkflow != nil {
 			schemaErr = c.validateGitHubActionsSchemaFromParsed(parsedWorkflow)
@@ -208,7 +208,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		}
 
 		// Validate container images used in MCP configurations
-		log.Print("Validating container images")
+		workflowLog.Print("Validating container images")
 		if err := c.validateContainerImages(workflowData); err != nil {
 			// Treat container image validation failures as warnings, not errors
 			// This is because validation may fail due to auth issues locally (e.g., private registries)
@@ -217,19 +217,19 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		}
 
 		// Validate runtime packages (npx, uv)
-		log.Print("Validating runtime packages")
+		workflowLog.Print("Validating runtime packages")
 		if err := c.validateRuntimePackages(workflowData); err != nil {
 			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
 		}
 
 		// Validate firewall configuration (log-level enum)
-		log.Print("Validating firewall configuration")
+		workflowLog.Print("Validating firewall configuration")
 		if err := c.validateFirewallConfig(workflowData); err != nil {
 			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
 		}
 
 		// Validate repository features (discussions, issues)
-		log.Print("Validating repository features")
+		workflowLog.Print("Validating repository features")
 		if err := c.validateRepositoryFeatures(workflowData); err != nil {
 			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
 		}
@@ -246,9 +246,9 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPath string) error {
 	// Write to lock file (unless noEmit is enabled)
 	if c.noEmit {
-		log.Print("Validation completed - no lock file generated (--no-emit enabled)")
+		workflowLog.Print("Validation completed - no lock file generated (--no-emit enabled)")
 	} else {
-		log.Printf("Writing output to: %s", lockFile)
+		workflowLog.Printf("Writing output to: %s", lockFile)
 
 		// Check if content has actually changed
 		contentUnchanged := false
@@ -256,7 +256,7 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 			if normalizeHeredocDelimiters(string(existingContent)) == normalizeHeredocDelimiters(yamlContent) {
 				// Content is identical (modulo random heredoc tokens) - skip write to preserve timestamp
 				contentUnchanged = true
-				log.Print("Lock file content unchanged - skipping write to preserve timestamp")
+				workflowLog.Print("Lock file content unchanged - skipping write to preserve timestamp")
 			}
 		}
 
@@ -265,7 +265,7 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 			if err := os.WriteFile(lockFile, []byte(yamlContent), constants.FilePermPublic); err != nil {
 				return formatCompilerError(lockFile, "error", fmt.Sprintf("failed to write lock file: %v", err), err)
 			}
-			log.Print("Lock file written successfully")
+			workflowLog.Print("Lock file written successfully")
 		}
 
 		// Validate file size after writing
@@ -316,7 +316,7 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		// Path A: YAML was already parsed for schema validation; reuse it.
 		// Walking the pre-parsed tree (run: block values only) is faster than
 		// scanning the full YAML string.
-		log.Print("Validating for template injection vulnerabilities")
+		workflowLog.Print("Validating for template injection vulnerabilities")
 		templateErr = validateNoTemplateInjectionFromParsed(parsedWorkflow)
 		if templateErr == nil {
 			templateErr = validateNoGitHubExpressionsInRunScriptsFromParsed(parsedWorkflow)
@@ -327,7 +327,7 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		// unsafe) appear inside a run: block before paying the cost of a full
 		// yaml.Unmarshal for layered security + regression validation.
 		if hasAnyExpressionInRunContent(yamlContent) {
-			log.Print("Validating for template injection vulnerabilities")
+			workflowLog.Print("Validating for template injection vulnerabilities")
 			var reparsed map[string]any
 			if err := yaml.Unmarshal([]byte(yamlContent), &reparsed); err != nil {
 				// Malformed YAML: skip validation (compilation would have surfaced this elsewhere).
@@ -386,7 +386,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Track compilation time for performance monitoring
 	startTime := time.Now()
 	defer func() {
-		log.Printf("Compilation completed in %v", time.Since(startTime))
+		workflowLog.Printf("Compilation completed in %v", time.Since(startTime))
 	}()
 
 	// Reset the step order tracker for this compilation
@@ -421,7 +421,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Sanitize the lock file path to prevent path traversal attacks
 	lockFile = filepath.Clean(lockFile)
 
-	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
+	workflowLog.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
 	// Read the existing lock file to extract the previous gh-aw-manifest for safe update
 	// enforcement.
@@ -439,32 +439,32 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		if cached != nil {
 			secretCount = len(cached.Secrets)
 		}
-		log.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
+		workflowLog.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
 	} else if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
 		if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
 			oldManifest = m
 			if oldManifest != nil {
-				log.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
+				workflowLog.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
 			}
 		} else {
-			log.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+			workflowLog.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 		}
 	} else {
-		log.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
+		workflowLog.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
 		if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
 			if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
 				oldManifest = m
 				if oldManifest != nil {
-					log.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(oldManifest.Secrets))
+					workflowLog.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(oldManifest.Secrets))
 				}
 			} else {
-				log.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
+				workflowLog.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
 			}
 		} else {
 			// No lock file anywhere — this is a brand-new workflow.  Use an empty
 			// (non-nil) manifest so EnforceSafeUpdate applies enforcement and flags
 			// any newly introduced secrets or actions for review.
-			log.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
+			workflowLog.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
 			oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
 		}
 	}
@@ -491,7 +491,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
-	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
+	workflowLog.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
 
 	// Note: compute-text functionality is now inlined directly in the task job
 	// instead of using a shared action file

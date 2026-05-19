@@ -47,12 +47,12 @@ func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger
 	if policy, ok := pfMap["policy"].(string); ok && policy != "" {
 		configData["protected-files"] = policy
 		if log != nil {
-			log.Printf("protected-files object form: policy=%s", policy)
+			workflowLog.Printf("protected-files object form: policy=%s", policy)
 		}
 	} else {
 		delete(configData, "protected-files")
 		if log != nil {
-			log.Print("protected-files object form: no policy, using default")
+			workflowLog.Print("protected-files object form: no policy, using default")
 		}
 	}
 	return parseStringSliceAny(pfMap["exclude"], log)
@@ -87,13 +87,13 @@ func parseStringSliceAny(raw any, log *logger.Logger) []string {
 			if s, ok := item.(string); ok {
 				result = append(result, s)
 			} else if log != nil {
-				log.Printf("parseStringSliceAny: skipping non-string item: %T", item)
+				workflowLog.Printf("parseStringSliceAny: skipping non-string item: %T", item)
 			}
 		}
 		return result
 	default:
 		if log != nil {
-			log.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
+			workflowLog.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
 		}
 		return nil
 	}
