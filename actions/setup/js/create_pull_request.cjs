@@ -102,44 +102,82 @@ function summarizeListForLog(values, limit = 10) {
  * Attempt automatic recovery for git am add/add conflicts by preferring the patch version.
  *
  * @param {{ exec: Function, getExecOutput: Function }} execApi - Exec API with git command helpers
- * @returns {Promise<boolean>} true when recovery succeeded and git am was continued
+ * @returns {Promise<{ recovered: boolean, attempted: boolean, errorMessage?: string }>}
  */
 async function tryRecoverGitAmAddAddConflict(execApi) {
   try {
-    const unresolvedFilesResult = await execApi.getExecOutput("git", ["diff", "--name-only", "--diff-filter=U"]);
+    const unresolvedFilesResult = await execApi.getExecOutput("git", ["diff", "--name-only", "--diff-filter=U", "-z"]);
     const unresolvedFiles = unresolvedFilesResult.stdout
-      .split("\n")
-      .map(line => line.trim())
-      .filter(Boolean);
+      .split("\0")
+      .filter(line => line.length > 0);
 
     if (unresolvedFiles.length === 0) {
-      return false;
+      return { recovered: false, attempted: false };
     }
 
-    const statusPorcelainResult = await execApi.getExecOutput("git", ["status", "--porcelain"]);
+    const statusPorcelainResult = await execApi.getExecOutput("git", ["status", "--porcelain", "-z"]);
     const addAddFiles = new Set(
       statusPorcelainResult.stdout
-        .split("\n")
-        .map(line => line.trim())
+        .split("\0")
+        .filter(line => line.length > 0)
         .filter(line => line.startsWith("AA "))
-        .map(line => line.substring(3).trim())
+        .map(line => line.substring(3))
     );
     const allConflictsAreAddAdd = unresolvedFiles.every(file => addAddFiles.has(file));
     if (!allConflictsAreAddAdd) {
-      return false;
+      return { recovered: false, attempted: false };
     }
 
     core.warning(`Detected add/add conflict(s) for ${unresolvedFiles.join(", ")}; preferring patch version and continuing`);
     for (const file of unresolvedFiles) {
+      try {
+        const { stdout: unresolvedIndexOutput } = await execApi.getExecOutput("git", ["ls-files", "-u", "--", file]);
+        let oursBlobSha = "";
+        let theirsBlobSha = "";
+        for (const line of unresolvedIndexOutput.split("\n")) {
+          if (!line.trim()) {
+            continue;
+          }
+          const fields = line.trim().split(/\s+/);
+          if (fields.length < 3) {
+            continue;
+          }
+          if (fields[2] === "2") {
+            oursBlobSha = fields[1];
+          } else if (fields[2] === "3") {
+            theirsBlobSha = fields[1];
+          }
+        }
+
+        const getBlobSize = async blobSha => {
+          if (!blobSha) {
+            return "unknown";
+          }
+          try {
+            const { stdout } = await execApi.getExecOutput("git", ["cat-file", "-s", blobSha]);
+            return stdout.trim() || "unknown";
+          } catch {
+            return "unknown";
+          }
+        };
+
+        const oursSize = await getBlobSize(oursBlobSha);
+        const theirsSize = await getBlobSize(theirsBlobSha);
+        core.warning(
+          `Resolving add/add conflict for ${file}: ours ${oursBlobSha || "unknown"} (${oursSize} bytes), theirs ${theirsBlobSha || "unknown"} (${theirsSize} bytes); preferring patch version (--theirs)`
+        );
+      } catch (metadataError) {
+        core.warning(`Resolving add/add conflict for ${file}; failed to read conflict blob metadata: ${getErrorMessage(metadataError)}. Preferring patch version (--theirs)`);
+      }
+
       await execApi.exec("git", ["checkout", "--theirs", "--", file]);
       await execApi.exec("git", ["add", "--", file]);
     }
     await execApi.exec("git", ["am", "--continue"]);
     core.info("Patch applied successfully after resolving add/add conflict(s)");
-    return true;
+    return { recovered: true, attempted: true };
   } catch (recoveryError) {
-    core.warning(`Automatic add/add conflict recovery failed: ${getErrorMessage(recoveryError)}`);
-    return false;
+    return { recovered: false, attempted: true, errorMessage: getErrorMessage(recoveryError) };
   }
 }
 
@@ -1720,9 +1758,12 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
           core.error(`Failed to apply patch with --3way: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
 
           const recoveredFromAddAddConflict = await tryRecoverGitAmAddAddConflict(exec);
-          if (recoveredFromAddAddConflict) {
+          if (recoveredFromAddAddConflict.recovered) {
             patchApplied = true;
           } else {
+            if (recoveredFromAddAddConflict.errorMessage) {
+              core.warning(`Automatic add/add conflict recovery attempt failed: ${recoveredFromAddAddConflict.errorMessage}`);
+            }
             // Investigate why the patch failed by logging git status and the failed patch
             try {
               core.info("Investigating patch failure...");
@@ -1794,7 +1835,10 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
                 } catch (fallbackPatchError) {
                   core.warning(`Fallback git am --3way failed: ${getErrorMessage(fallbackPatchError)}`);
                   const recoveredFallback = await tryRecoverGitAmAddAddConflict(exec);
-                  if (!recoveredFallback) {
+                  if (!recoveredFallback.recovered) {
+                    if (recoveredFallback.errorMessage) {
+                      core.warning(`Automatic add/add conflict recovery attempt failed during fallback: ${recoveredFallback.errorMessage}`);
+                    }
                     try {
                       await exec.exec("git am --abort");
                     } catch (abortFallbackError) {

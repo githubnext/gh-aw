@@ -2344,6 +2344,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   it("should recover add/add conflicts during fallback git am --3way and continue", async () => {
     let am3WayAttempts = 0;
     let unresolvedChecks = 0;
+    const conflictedPath = " docs/file.md ";
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
         if (isGitAm3Way(cmd, args)) {
@@ -2360,10 +2361,10 @@ describe("create_pull_request - patch apply fallback to original base commit", (
           if (unresolvedChecks === 1) {
             return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "docs/file.md\n", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: `${conflictedPath}\0`, stderr: "" });
         }
         if (cmd === "git" && Array.isArray(args) && args[0] === "status" && args[1] === "--porcelain") {
-          return Promise.resolve({ exitCode: 0, stdout: "AA docs/file.md\n", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: `AA ${conflictedPath}\0`, stderr: "" });
         }
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }),
@@ -2375,7 +2376,38 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--continue"]);
+  });
+
+  it("should log recovery failure details when add/add recovery throws", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args)) {
+          throw new Error("CONFLICT (add/add): Merge conflict in docs/file.md");
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "--theirs") {
+          throw new Error("failed to checkout theirs");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args.includes("--diff-filter=U")) {
+          return Promise.resolve({ exitCode: 0, stdout: "docs/file.md\0", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "status" && args[1] === "--porcelain") {
+          return Promise.resolve({ exitCode: 0, stdout: "AA docs/file.md\0", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Automatic add/add conflict recovery attempt failed"));
   });
 
   it("should return error when original base commit is not available (cross-repo scenario)", async () => {
