@@ -293,7 +293,6 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	}
 
 	// Check if workflow_run has branches field
-
 	_, hasBranches := workflowRunMap["branches"]
 	if hasBranches {
 		// Has branch restrictions, validation passed
