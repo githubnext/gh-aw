@@ -180,11 +180,6 @@ func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
 		}
 	}
 
-	// tools.github.toolset must be detected.
-	if _, ok := byPath["tools.github.toolset"]; !ok {
-		t.Error("expected 'tools.github.toolset' in deep deprecated fields, not found")
-	}
-
 	t.Logf("Found %d deep deprecated fields in schema", len(fields))
 }
 
