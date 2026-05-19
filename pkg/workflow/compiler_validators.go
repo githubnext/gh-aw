@@ -103,11 +103,6 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
-	workflowLog.Printf("Validating safe-outputs label constraints")
-	if err := validateSafeOutputsRequiredLabelsWithTitlePrefix(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
-	}
-
 	// Validate safe-outputs max configuration
 	workflowLog.Printf("Validating safe-outputs max fields")
 	if err := validateSafeOutputsMax(workflowData.SafeOutputs); err != nil {
