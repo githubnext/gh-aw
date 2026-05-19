@@ -686,10 +686,11 @@ async function main(config = {}) {
     // accepted for compatibility with forwarded/legacy payload variants.
     const explicitCommentIdRaw = message.comment_id ?? message.commentId;
     const rawTarget = message.target;
-    if (rawTarget !== undefined && rawTarget !== "status") {
+    const allowedTargets = ["status"];
+    if (rawTarget !== undefined && !allowedTargets.includes(rawTarget)) {
       return {
         success: false,
-        error: "target must be one of: [status]",
+        error: `target must be one of: [${allowedTargets.join(", ")}]`,
       };
     }
     const isStatusCommentTarget = rawTarget === "status";
