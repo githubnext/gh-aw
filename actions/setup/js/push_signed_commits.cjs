@@ -360,7 +360,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         core.info(`pushSignedCommits: using chained OID from previous mutation: ${expectedHeadOid}`);
       } else {
         // First commit: check whether the branch already exists on the remote.
-        const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd });
+        const { stdout: oidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
         expectedHeadOid = oidOut.trim().split(/\s+/)[0];
         if (!expectedHeadOid) {
           // Branch does not exist on the remote yet.

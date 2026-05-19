@@ -730,6 +730,143 @@ describe("push_signed_commits integration tests", () => {
     });
   });
 
+  describe("gitAuthEnv propagation", () => {
+    it("should pass gitAuthEnv to ls-remote in the signed-commit path", async () => {
+      const gitAuthEnv = {
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+        GIT_CONFIG_VALUE_0: "Authorization: basic test-token",
+      };
+
+      const getExecOutput = vi.fn(async (_program, args) => {
+        if (args[0] === "rev-list") {
+          return {
+            exitCode: 0,
+            stdout: "1111111111111111111111111111111111111111 0000000000000000000000000000000000000000\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "diff-tree") {
+          return {
+            exitCode: 0,
+            stdout: ":100644 100644 0000000000000000000000000000000000000000 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa M\tmemory.json\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "ls-remote") {
+          return {
+            exitCode: 0,
+            stdout: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\trefs/heads/auth-check-branch\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "log") {
+          return { exitCode: 0, stdout: "Auth check commit\n", stderr: "" };
+        }
+        throw new Error(`Unexpected git command: ${args.join(" ")}`);
+      });
+
+      const execProgram = vi.fn(async (_program, args, opts = {}) => {
+        if (args[0] === "cat-file" && args[1] === "blob") {
+          opts.listeners?.stdout?.(Buffer.from("memory data\n"));
+          return 0;
+        }
+        throw new Error(`Unexpected exec command: ${args.join(" ")}`);
+      });
+
+      global.exec = {
+        getExecOutput,
+        exec: execProgram,
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "auth-check-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        gitAuthEnv,
+      });
+
+      const lsRemoteCall = getExecOutput.mock.calls.find(call => call[1][0] === "ls-remote");
+      expect(lsRemoteCall).toBeDefined();
+      expect(lsRemoteCall[2]).toEqual(
+        expect.objectContaining({
+          cwd: workDir,
+          env: expect.objectContaining(gitAuthEnv),
+        })
+      );
+    });
+
+    it("should include auth env on every network getExecOutput git call", async () => {
+      const gitAuthEnv = {
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+        GIT_CONFIG_VALUE_0: "Authorization: basic test-token",
+      };
+
+      const getExecOutput = vi.fn(async (_program, args) => {
+        if (args[0] === "rev-list") {
+          return {
+            exitCode: 0,
+            stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "diff-tree") {
+          return {
+            exitCode: 0,
+            stdout: ":100644 100644 0000000000000000000000000000000000000000 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb M\tmemory.json\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "ls-remote") {
+          return {
+            exitCode: 0,
+            stdout: "cafebabecafebabecafebabecafebabecafebabe\trefs/heads/auth-check-branch\n",
+            stderr: "",
+          };
+        }
+        if (args[0] === "log") {
+          return { exitCode: 0, stdout: "Auth guard commit\n", stderr: "" };
+        }
+        throw new Error(`Unexpected git command: ${args.join(" ")}`);
+      });
+
+      global.exec = {
+        getExecOutput,
+        exec: async (_program, args, opts = {}) => {
+          if (args[0] === "cat-file" && args[1] === "blob") {
+            opts.listeners?.stdout?.(Buffer.from("memory data\n"));
+            return 0;
+          }
+          throw new Error(`Unexpected exec command: ${args.join(" ")}`);
+        },
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "auth-check-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        gitAuthEnv,
+      });
+
+      const networkGitCalls = getExecOutput.mock.calls.filter(call => call[1][0] === "ls-remote");
+      expect(networkGitCalls).toHaveLength(1);
+      for (const call of networkGitCalls) {
+        expect(call[2]).toEqual(expect.objectContaining({ env: expect.objectContaining(gitAuthEnv) }));
+      }
+    });
+  });
+
   // ──────────────────────────────────────────────────────
   // Commit message – multi-line body
   // ──────────────────────────────────────────────────────
