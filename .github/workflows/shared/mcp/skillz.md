@@ -56,5 +56,7 @@ mcp-servers:
     env:
       GH_TOKEN: "${{ github.token }}"
       GITHUB_TOKEN: "${{ github.token }}"
+    # Security decision (2026-05-19): keep wildcard because tools are dynamic per repository skill set.
+    # Restricting to static names would break legitimate skill tool discovery.
     allowed: ["*"]
 ---

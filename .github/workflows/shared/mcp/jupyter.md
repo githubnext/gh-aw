@@ -32,7 +32,13 @@ mcp-servers:
   jupyter:
     type: http
     url: "http://jupyter-mcp:3000"
-    allowed: ["*"]
+    # Security decision (2026-05-19): restrict to notebook creation/execution/read tools only.
+    allowed:
+      - execute_cell
+      - get_cell_output
+      - create_notebook
+      - list_notebooks
+      - get_notebook_content
 ---
 
 <!--
