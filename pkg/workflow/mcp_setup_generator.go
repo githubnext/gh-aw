@@ -209,7 +209,9 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 		actionRepo := GitHubOrgRepo + "/actions/setup-cli"
 		actionRef := fmt.Sprintf("%s@%s", actionRepo, cliVersion)
 		if workflowData != nil {
-			if pinnedRef, err := getActionPinWithData(actionRepo, cliVersion, workflowData); err == nil && pinnedRef != "" {
+			if pinnedRef, err := getActionPinWithData(actionRepo, cliVersion, workflowData); err != nil {
+				mcpSetupGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", actionRepo, cliVersion, err)
+			} else if pinnedRef != "" {
 				actionRef = pinnedRef
 			}
 		}
