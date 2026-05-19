@@ -6,6 +6,10 @@ import { execSync } from "child_process";
 
 const scriptPath = path.join(__dirname, "generate_safe_outputs_tools.cjs");
 
+/**
+ * @typedef {{name: string, inputSchema: {properties: Record<string, {alias?: string[]}>}}} ToolWithAliases
+ */
+
 describe("generate_safe_outputs_tools", () => {
   /** @type {string} */
   let testDir;
@@ -152,9 +156,12 @@ describe("generate_safe_outputs_tools", () => {
     runScript();
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    const createIssueTool = result.find((/** @type {{name: string, inputSchema: {properties: Record<string, {alias?: string[]}>}}} */ t) => t.name === "create_issue");
+    const createIssueTool = result.find((/** @type {ToolWithAliases} */ t) => t.name === "create_issue");
     expect(createIssueTool).toBeDefined();
     expect(createIssueTool.inputSchema.properties.title.alias).toEqual(["issueTitle", "issue-title"]);
+    expect(createIssueTool.inputSchema.properties.title.alias).toHaveLength(2);
+    // Set size matching array length confirms the generated alias list has no duplicates.
+    expect(new Set(createIssueTool.inputSchema.properties.title.alias).size).toBe(createIssueTool.inputSchema.properties.title.alias.length);
   });
 
   it("appends dynamic tools from tools_meta", () => {

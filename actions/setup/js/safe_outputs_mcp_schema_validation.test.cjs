@@ -371,7 +371,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       }
     });
 
-    it("should keep parameter alias metadata small, unique, and orthogonal", () => {
+    it("should keep parameter alias metadata capped at two entries, unique, and non-colliding", () => {
       const aliasIssues = [];
 
       tools.forEach(tool => {
@@ -406,7 +406,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
               aliasIssues.push({
                 tool: tool.name,
                 field: fieldName,
-                issue: "alias entries must be non-empty strings",
+                issue: "alias entries must be non-empty, non-whitespace strings",
               });
               return;
             }
