@@ -48,7 +48,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Contains(t, aliases["deep-research"], "gemini/deep-research*", "deep-research should support direct gemini/ provider models")
 
 	// Meta-aliases reference other alias names (resolved recursively by AWF).
-	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
+	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite", "copilot/raptor*mini*"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite, and copilot/raptor*mini*")
 	assert.Equal(t, []string{"sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should reference sonnet, gpt-5-pro, gpt-5, and gemini-pro")
 	assert.Equal(t, []string{"large"}, aliases["auto"], "auto should fall back to large")
 

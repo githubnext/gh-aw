@@ -67,7 +67,7 @@ type builtinModelAliasesFile struct {
 //   - "deep-research"  → Google Gemini deep-research family (specialized research agents)
 //
 // Meta-aliases (reference other aliases; resolved recursively by AWF):
-//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite
+//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite, copilot/raptor*mini*
 //   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
 //   - "auto"  → large (convenience alias for the default capable tier)
 func BuiltinModelAliases() map[string][]string {
