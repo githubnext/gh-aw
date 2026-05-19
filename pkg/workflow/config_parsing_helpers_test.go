@@ -305,6 +305,27 @@ func TestParsePullRequestsConfigWithSingleStringReviewerAndTeamReviewer(t *testi
 	}
 }
 
+func TestParsePullRequestsConfigWithSingleStringAssignee(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"assignees": "single-assignee",
+		},
+	}
+
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.Assignees) != 1 {
+		t.Fatalf("expected 1 assignee, got %d", len(result.Assignees))
+	}
+	if result.Assignees[0] != "single-assignee" {
+		t.Errorf("expected assignee 'single-assignee', got %q", result.Assignees[0])
+	}
+}
+
 func TestParsePullRequestsConfigExpires(t *testing.T) {
 	tests := []struct {
 		name          string
