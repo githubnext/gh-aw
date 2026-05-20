@@ -100,7 +100,6 @@ const main = createCountGatedHandler({
           return { success: false, skipped: true, error: `Item title does not start with required prefix` };
         }
       }
-      core.info(`Requested labels to remove: ${JSON.stringify(requestedLabels)}`);
 
       // If no labels provided, return a helpful message with allowed labels if configured
       if (!requestedLabels || requestedLabels.length === 0) {

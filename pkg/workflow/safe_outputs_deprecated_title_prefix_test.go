@@ -34,3 +34,20 @@ safe-outputs:
 	require.NotNil(t, workflowData.SafeOutputs.CloseIssues)
 	require.Equal(t, "[bot] ", workflowData.SafeOutputs.CloseIssues.RequiredTitlePrefix)
 }
+
+func TestParseFilterConfigTitlePrefixPrecedence(t *testing.T) {
+	t.Run("required-title-prefix takes precedence when both are present", func(t *testing.T) {
+		config := ParseFilterConfig(map[string]any{
+			"required-title-prefix": "[new] ",
+			"title-prefix":          "[old] ",
+		})
+		require.Equal(t, "[new] ", config.RequiredTitlePrefix, "required-title-prefix should win over title-prefix")
+	})
+
+	t.Run("title-prefix is used as fallback when required-title-prefix is absent", func(t *testing.T) {
+		config := ParseFilterConfig(map[string]any{
+			"title-prefix": "[fallback] ",
+		})
+		require.Equal(t, "[fallback] ", config.RequiredTitlePrefix, "title-prefix should be used when required-title-prefix is missing")
+	})
+}

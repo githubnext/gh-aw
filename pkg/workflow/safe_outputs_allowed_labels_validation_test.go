@@ -58,12 +58,12 @@ strict: false
 			expectError: true,
 		},
 		{
-			name: "merge-pull-request with bare * triggers error",
+			name: "merge-pull-request required-labels bare * is literal label name, not CTR-015",
 			safeOutputs: `safe-outputs:
   merge-pull-request:
-    allowed-labels: ["*"]
+    required-labels: ["*"]
 `,
-			expectError: true,
+			expectError: false,
 		},
 		{
 			name: "update-discussion with bare * triggers error",
