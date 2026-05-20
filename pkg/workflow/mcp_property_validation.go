@@ -18,7 +18,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var mcpPropertyValidationLog = logger.New("workflow:mcp_property_validation")
