@@ -1173,7 +1173,7 @@ async function sendJobSetupSpan(options = {}) {
     startMs,
     endMs,
     serviceName,
-    scopeVersion: process.env.GH_AW_INFO_VERSION || "unknown",
+    scopeVersion: process.env.GH_AW_INFO_VERSION || process.env.GH_AW_INFO_CLI_VERSION || "unknown",
     attributes,
     resourceAttributes,
   });
@@ -1627,7 +1627,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const effectiveTokens = rawET ? parseInt(rawET, 10) : NaN;
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
-  const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
+  const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || awInfo.cli_version || process.env.GH_AW_INFO_CLI_VERSION || "unknown";
 
   // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
   // all spans in the same job share one trace.  Fall back to aw_context.otel_trace_id
@@ -1720,7 +1720,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const rawRunStatus = agentConclusion || workflowRunConclusion;
   if (rawRunStatus === "cancelled") {
     runStatus = "cancelled";
-  } else if (rawRunStatus === "failure" || rawRunStatus === "timed_out") {
+  } else if (rawRunStatus === "timed_out") {
+    // Keep timeout distinguishable from generic failure so it can be queried separately.
+    // OTLP status.code remains ERROR (2) — timeouts are still failures in the OTLP sense.
+    runStatus = "timeout";
+  } else if (rawRunStatus === "failure") {
     runStatus = "failure";
   }
 
@@ -1786,8 +1790,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(buildAttr("gen_ai.operation.name", "chat"));
     if (workflowName) attributes.push(buildAttr("gen_ai.workflow.name", workflowName));
     if (runtimeMetrics.resolvedModel) attributes.push(buildAttr("gen_ai.response.model", runtimeMetrics.resolvedModel));
-    if (runtimeMetrics.stopReason) {
-      attributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [runtimeMetrics.stopReason]));
+    // Use the engine-reported stop_reason when available; fall back to "timeout" when
+    // the agent was killed before it could write a result entry to agent-stdio.log.
+    const effectiveStopReason = runtimeMetrics.stopReason || (isAgentTimedOut ? "timeout" : undefined);
+    if (effectiveStopReason) {
+      attributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [effectiveStopReason]));
     }
   }
 
@@ -1967,6 +1974,14 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
     usageAttrs.push(buildAttr("gen_ai.usage.cache_creation.input_tokens", agentUsage.cache_write_tokens));
+  }
+  // Emit gen_ai.usage.total_tokens as the sum of input and output so OTel GenAI
+  // semantic-convention aggregations (e.g. sum(gen_ai.usage.total_tokens)) work
+  // without per-backend normalization. Cache tokens are excluded from the total
+  // to match the OpenTelemetry GenAI spec definition of "total tokens consumed".
+  const totalTokens = (typeof agentUsage.input_tokens === "number" ? agentUsage.input_tokens : 0) + (typeof agentUsage.output_tokens === "number" ? agentUsage.output_tokens : 0);
+  if (totalTokens > 0) {
+    usageAttrs.push(buildAttr("gen_ai.usage.total_tokens", totalTokens));
   }
 
   const endpoints = parseOTLPEndpoints();
