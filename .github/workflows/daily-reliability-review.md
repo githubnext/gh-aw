@@ -114,7 +114,7 @@ Use progressive disclosure. Keep `Executive Summary`, `Top Reliability Findings`
 
 ### Representative Traces
 <details>
-<summary>Representative Traces</summary>
+<summary>View representative traces</summary>
 
 - Include one trace or issue link for each major problem class when available.
 
@@ -125,7 +125,7 @@ Use progressive disclosure. Keep `Executive Summary`, `Top Reliability Findings`
 
 ### Notes
 <details>
-<summary>Notes</summary>
+<summary>View notes</summary>
 
 - Call out missing telemetry, ambiguous fields, or inconclusive results.
 
