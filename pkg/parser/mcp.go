@@ -39,10 +39,9 @@ type RegistryMCPServerConfig struct {
 	types.BaseMCPServerConfig
 
 	// Parser-specific fields
-	Name      string   `json:"name"`       // Server name/identifier
-	Registry  string   `json:"registry"`   // URI to installation location from registry
-	ProxyArgs []string `json:"proxy-args"` // custom proxy arguments for container-based tools
-	Allowed   []string `json:"allowed"`    // allowed tools
+	Name     string   `json:"name"`    // Server name/identifier
+	Registry string   `json:"registry"` // URI to installation location from registry
+	Allowed  []string `json:"allowed"` // allowed tools
 }
 
 // MCPServerInfo contains the inspection results for an MCP server

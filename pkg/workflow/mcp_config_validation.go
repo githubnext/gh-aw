@@ -106,7 +106,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 
 		// Run JSON schema validation as a catch-all after custom validation. Build a
 		// schema-compatible view of the config by extracting only the properties defined
-		// in mcp_config_schema.json. Tool-specific fields (e.g. auth, proxy-args) are
+		// in mcp_config_schema.json. Tool-specific fields (e.g. auth) are
 		// excluded because the schema uses additionalProperties: false.
 		if err := parser.ValidateMCPConfigWithSchema(buildSchemaMCPConfig(config)); err != nil {
 			mcpValidationLog.Printf("JSON schema validation failed for tool %s: %v", toolName, err)
@@ -168,7 +168,6 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"entrypoint":      true,
 		"entrypointArgs":  true,
 		"mounts":          true,
-		"proxy-args":      true,
 		"registry":        true,
 		"allowed":         true,
 		"mode":            true, // for github tool: prompt/runtime mode (cli) or legacy MCP transport (local/remote)

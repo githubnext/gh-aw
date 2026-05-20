@@ -770,52 +770,6 @@ func TestGetMCPConfigWithRegistry(t *testing.T) {
 	}
 }
 
-// TestGetMCPConfigWithProxyArgs tests proxy-args field handling
-func TestGetMCPConfigWithProxyArgs(t *testing.T) {
-	tests := []struct {
-		name              string
-		toolConfig        map[string]any
-		expectedProxyArgs []string
-	}{
-		{
-			name: "stdio config with proxy-args",
-			toolConfig: map[string]any{
-				"command":    "docker",
-				"args":       []any{"run", "test"},
-				"proxy-args": []any{"--proxy", "http://proxy.example.com:8080"},
-			},
-			expectedProxyArgs: []string{"--proxy", "http://proxy.example.com:8080"},
-		},
-		{
-			name: "config without proxy-args",
-			toolConfig: map[string]any{
-				"command": "npx",
-				"args":    []any{"-y", "@test/tool"},
-			},
-			expectedProxyArgs: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := getMCPConfig(tt.toolConfig, "test-tool")
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if len(result.ProxyArgs) != len(tt.expectedProxyArgs) {
-				t.Errorf("getMCPConfig() ProxyArgs count = %d, want %d", len(result.ProxyArgs), len(tt.expectedProxyArgs))
-			}
-
-			for i, expected := range tt.expectedProxyArgs {
-				if i < len(result.ProxyArgs) && result.ProxyArgs[i] != expected {
-					t.Errorf("getMCPConfig() ProxyArgs[%d] = %q, want %q", i, result.ProxyArgs[i], expected)
-				}
-			}
-		})
-	}
-}
-
 // TestGetMCPConfigWithAllowedTools tests allowed tools field handling
 func TestGetMCPConfigWithAllowedTools(t *testing.T) {
 	tests := []struct {

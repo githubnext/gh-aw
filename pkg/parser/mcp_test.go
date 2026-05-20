@@ -844,18 +844,6 @@ func TestParseMCPConfig(t *testing.T) {
 			if !reflect.DeepEqual(actualAllowed, expectedAllowed) {
 				t.Errorf("Expected allowed %v, got %v", expectedAllowed, actualAllowed)
 			}
-			// Compare proxy args, handling nil vs empty slice equivalence
-			actualProxyArgs := result.ProxyArgs
-			if actualProxyArgs == nil {
-				actualProxyArgs = []string{}
-			}
-			expectedProxyArgs := tt.expected.ProxyArgs
-			if expectedProxyArgs == nil {
-				expectedProxyArgs = []string{}
-			}
-			if !reflect.DeepEqual(actualProxyArgs, expectedProxyArgs) {
-				t.Errorf("Expected proxy-args %v, got %v", expectedProxyArgs, actualProxyArgs)
-			}
 		})
 	}
 }
@@ -869,8 +857,6 @@ func TestMCPConfigTypes(t *testing.T) {
 
 		Env:     map[string]string{"KEY": "value"},
 		Headers: map[string]string{"Content-Type": "application/json"}}, Name: "test-server",
-
-		ProxyArgs: []string{"--proxy-test"},
 
 		Allowed: []string{"tool1", "tool2"},
 	}

@@ -94,12 +94,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	switch mcpType {
 	case "stdio":
 		if renderer.Format == "toml" {
-			propertyOrder = []string{"container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "env", "proxy-args", "registry"}
+			propertyOrder = []string{"container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "env", "registry"}
 		} else {
 			// JSON format - use MCP Gateway schema format (container-based) OR legacy command-based
 			// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio servers SHOULD be containerized
 			// But we also support legacy command-based tools for backwards compatibility
-			propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry"}
+			propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "registry"}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -177,10 +177,6 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 		case "http_headers":
 			if len(mcpConfig.Headers) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "proxy-args":
-			if len(mcpConfig.ProxyArgs) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "registry":
@@ -508,28 +504,6 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s  \"type\": \"%s\"\n", renderer.IndentLevel, mcpConfig.Auth.Type)
 			}
 			fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
-		case "proxy-args":
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%sproxy_args = [\n", renderer.IndentLevel)
-				for _, arg := range mcpConfig.ProxyArgs {
-					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
-				}
-				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"proxy-args\": [\n", renderer.IndentLevel)
-				for argIndex, arg := range mcpConfig.ProxyArgs {
-					argComma := ","
-					if argIndex == len(mcpConfig.ProxyArgs)-1 {
-						argComma = ""
-					}
-					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
-				}
-				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-			}
 		case "registry":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%sregistry = \"%s\"\n", renderer.IndentLevel, mcpConfig.Registry)
@@ -601,7 +575,6 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 		"entrypointArgs": true,
 		"mounts":         true,
 		"env":            true,
-		"proxy-args":     true,
 		"url":            true,
 		"headers":        true,
 		"auth":           true,
@@ -698,9 +671,6 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 		}
 		if env, hasEnv := config.GetStringMap("env"); hasEnv {
 			result.Env = env
-		}
-		if proxyArgs, hasProxyArgs := config.GetStringArray("proxy-args"); hasProxyArgs {
-			result.ProxyArgs = proxyArgs
 		}
 	case "http":
 		if url, hasURL := config.GetString("url"); hasURL {

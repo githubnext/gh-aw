@@ -286,8 +286,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 					"type":      "stdio",
 					"container": "mcp/network-server:latest",
 					"network": map[string]any{
-						"allowed":    []any{"example.com", "api.example.com"},
-						"proxy-args": []any{"--proxy-test"},
+						"allowed": []any{"example.com", "api.example.com"},
 					},
 					"allowed": []any{"fetch", "post"},
 				},
