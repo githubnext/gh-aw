@@ -422,7 +422,7 @@ The implementation MUST use:
 - **R-FC-060**: Implementations MUST use `λ = 15` as the crossover threshold: Knuth's exact algorithm for `λ ≤ 15`, and Normal approximation only for `λ > 15`. Implementations MUST NOT raise this threshold above 15 without a specification revision, because the documented error and comparability assumptions are calibrated to this crossover.
 - **R-MC-002**: `λ` MUST be derived from `observed_runs_per_period` using the formula in §3.7 and
   MUST be reused unchanged for every trial of the same workflow forecast. Implementations MUST NOT
-  recompute or drift `λ` within a single forecast run.
+  recalculate or modify `λ` within a single forecast run.
 - **R-MC-003**: `λ` MUST be treated as a real-valued rate parameter. Implementations MUST NOT round,
   floor, or ceil `λ` before selecting the Poisson branch or before drawing the projected run count.
 - **R-MC-004**: If the computed `λ` is negative, `NaN`, or otherwise non-finite, implementations
