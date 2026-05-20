@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { mkdirSync, writeFileSync } from "fs";
+import { join } from "path";
 
 const mockCore = {
   debug: vi.fn(),
@@ -14,6 +16,14 @@ const mockGithub = {
     issues: {
       create: vi.fn(),
       createComment: vi.fn(),
+    },
+    search: {
+      issuesAndPullRequests: vi.fn().mockResolvedValue({
+        data: {
+          total_count: 0,
+          items: [],
+        },
+      }),
     },
   },
   graphql: vi.fn(),
@@ -189,5 +199,49 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
     expect(result.success).toBe(false);
     // The error could be about format or allowed repos depending on validation order
     expect(result.error).toMatch(/Invalid repository format|not in the allowed-repos list/);
+  });
+
+  it("should avoid duplicate parent creation for concurrent grouped issues", async () => {
+    process.env.RUNNER_TEMP = process.env.RUNNER_TEMP || "/tmp";
+    const promptsDir = join(process.env.RUNNER_TEMP, "gh-aw", "prompts");
+    mkdirSync(promptsDir, { recursive: true });
+    writeFileSync(join(promptsDir, "issue_group_parent.md"), "Group {{group_id}}");
+
+    const { main } = require("./create_issue.cjs");
+    const groupedHandler = await main({ group: true, max: 10 });
+
+    let nextIssueNumber = 200;
+    let parentCreateCount = 0;
+
+    mockGithub.rest.search.issuesAndPullRequests.mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 15));
+      return { data: { total_count: 0, items: [] } };
+    });
+
+    mockGithub.rest.issues.create.mockImplementation(async ({ title }) => {
+      await new Promise(resolve => setTimeout(resolve, 15));
+
+      if (String(title).includes("Issue Group")) {
+        parentCreateCount += 1;
+        return { data: { number: 999, html_url: "https://github.com/testowner/testrepo/issues/999", node_id: "I_999" } };
+      }
+
+      nextIssueNumber += 1;
+      return {
+        data: {
+          number: nextIssueNumber,
+          html_url: `https://github.com/testowner/testrepo/issues/${nextIssueNumber}`,
+          node_id: `I_${nextIssueNumber}`,
+        },
+      };
+    });
+
+    mockGithub.graphql.mockRejectedValue(new Error("GraphQL not required for this test"));
+
+    const [first, second] = await Promise.all([groupedHandler({ type: "create_issue", title: "Concurrent A", body: "A" }, {}), groupedHandler({ type: "create_issue", title: "Concurrent B", body: "B" }, {})]);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    expect(parentCreateCount).toBe(1);
   });
 });

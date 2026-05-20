@@ -512,6 +512,26 @@ async function shouldSkipRepoTitleDedupSearch(githubClient, owner, repo) {
 }
 
 /**
+ * Serialize calls to an async handler to prevent concurrent mutation of shared state.
+ * @template {(...args: any[]) => Promise<any>} T
+ * @param {T} handler
+ * @returns {T}
+ */
+function serializeAsyncHandler(handler) {
+  let queue = Promise.resolve();
+
+  return /** @type {T} */ async (...args) => {
+    const run = () => handler(...args);
+    const resultPromise = queue.then(run, run);
+    queue = resultPromise.then(
+      () => undefined,
+      () => undefined
+    );
+    return resultPromise;
+  };
+}
+
+/**
  * Main handler factory for create_issue
  * Returns a message handler function that processes individual create_issue messages
  * @type {HandlerFactoryFunction}
@@ -646,7 +666,7 @@ async function main(config = {}) {
    * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
    * @returns {Promise<Object>} Result with success/error status and issue details
    */
-  return async function handleCreateIssue(message, resolvedTemporaryIds) {
+  async function handleCreateIssue(message, resolvedTemporaryIds) {
     // Merge external resolved temp IDs with our local map
     if (resolvedTemporaryIds) {
       for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
@@ -1256,7 +1276,9 @@ async function main(config = {}) {
         error: errorMessage,
       };
     }
-  };
+  }
+
+  return serializeAsyncHandler(handleCreateIssue);
 }
 
 module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount };
