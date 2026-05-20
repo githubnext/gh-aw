@@ -213,7 +213,7 @@ const main = createUpdateHandlerFactory({
   formatSuccessResult: formatIssueSuccessResult,
   itemFilter: async (githubClient, repoParts, issueNumber, config) => {
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
-    const requiredTitlePrefix = config.required_title_prefix || config.title_prefix || "";
+    const requiredTitlePrefix = config.required_title_prefix || "";
     return checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, "update_issue");
   },
 });
