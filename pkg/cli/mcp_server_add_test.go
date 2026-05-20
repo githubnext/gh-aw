@@ -46,12 +46,11 @@ func setupMCPServerSession(t *testing.T, binaryPath, workingDir string, timeout 
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	t.Cleanup(cancel)
-
 	session, err := client.Connect(ctx, transport, nil)
 	require.NoError(t, err, "Expected MCP client to connect to subprocess server")
 	t.Cleanup(func() {
 		session.Close()
+		cancel()
 	})
 
 	return ctx, session
@@ -123,8 +122,8 @@ func TestMCPServer_AddTool_Success(t *testing.T) {
 	addedWorkflowPath := filepath.Join(workflowsDir, "daily-team-status-test.md")
 	assert.FileExists(t, addedWorkflowPath, "Expected add tool to write workflow file in .github/workflows")
 
-	addedWorkflowContent, readErr := os.ReadFile(addedWorkflowPath)
-	require.NoError(t, readErr, "Expected to read workflow file added by MCP add tool")
+	addedWorkflowContent, err := os.ReadFile(addedWorkflowPath)
+	require.NoError(t, err, "Expected to read workflow file added by MCP add tool")
 	assert.Contains(t, string(addedWorkflowContent), "source:", "Expected added workflow frontmatter to include source metadata")
 }
 
