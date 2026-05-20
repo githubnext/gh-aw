@@ -8,8 +8,8 @@ var mergePullRequestLog = logger.New("workflow:merge_pull_request")
 type MergePullRequestConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	RequiredLabels       []string `yaml:"required-labels,omitempty"`  // Labels that must ALL be present on the PR
-	RequiredBranch       []string `yaml:"required-branch,omitempty"`  // Glob patterns: source branch must match one
-	AllowedBranches      []string `yaml:"allowed-branches,omitempty"` // Deprecated: use required-branch
+	AllowedBranches      []string `yaml:"allowed-branches,omitempty"` // Glob patterns for source branch names; PR branch must match one
+	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`   // Deprecated: use required-labels
 }
 
 // parseMergePullRequestConfig handles merge-pull-request configuration.
@@ -27,13 +27,9 @@ func (c *Compiler) parseMergePullRequestConfig(outputMap map[string]any) *MergeP
 			// Deprecated: allowed-labels is migrated to required-labels by the codemod
 			cfg.RequiredLabels = ParseStringArrayFromConfig(configMap, "allowed-labels", mergePullRequestLog)
 		}
-		// Parse required-branch (preferred) with fallback to deprecated allowed-branches
-		cfg.RequiredBranch = ParseStringArrayFromConfig(configMap, "required-branch", mergePullRequestLog)
-		if len(cfg.RequiredBranch) == 0 {
-			cfg.RequiredBranch = ParseStringArrayFromConfig(configMap, "allowed-branches", mergePullRequestLog)
-		}
+		cfg.AllowedBranches = ParseStringArrayFromConfig(configMap, "allowed-branches", mergePullRequestLog)
 		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 1)
-		mergePullRequestLog.Printf("Parsed merge-pull-request config: requiredLabels=%v, requiredBranch=%v", cfg.RequiredLabels, cfg.RequiredBranch)
+		mergePullRequestLog.Printf("Parsed merge-pull-request config: requiredLabels=%v, allowedBranches=%v", cfg.RequiredLabels, cfg.AllowedBranches)
 		return cfg
 	}
 

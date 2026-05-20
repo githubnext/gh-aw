@@ -268,7 +268,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   safe-outputs:
     merge-pull-request:
       required-labels: [ready-to-merge]   # Optional: ALL listed labels must be present on the PR
-      required-branch: ["feature/*"]      # Optional: glob patterns for source branch names (use required-branch, not allowed-branches)
+      allowed-branches: ["feature/*"]    # Optional: glob patterns for allowed source branch names
       max: 1                              # Optional: max merges (default: 1)
   ```
 

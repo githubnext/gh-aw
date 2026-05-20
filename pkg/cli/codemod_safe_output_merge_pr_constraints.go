@@ -14,7 +14,7 @@ func getSafeOutputMergePRConstraintsCodemod() Codemod {
 	return Codemod{
 		ID:           "safe-output-merge-pr-constraints",
 		Name:         "Rename deprecated merge-pull-request constraint fields",
-		Description:  "Renames allowed-labels to required-labels and allowed-branches to required-branch in safe-outputs.merge-pull-request.",
+		Description:  "Renames allowed-labels to required-labels in safe-outputs.merge-pull-request.",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !mergePRConstraintsNeedsMigration(frontmatter) {
@@ -25,7 +25,7 @@ func getSafeOutputMergePRConstraintsCodemod() Codemod {
 				return renameMergePRConstraints(lines)
 			})
 			if applied {
-				safeOutputMergePRConstraintsCodemodLog.Print("Renamed deprecated merge-pull-request constraint keys to required-label/required-branch")
+				safeOutputMergePRConstraintsCodemodLog.Print("Renamed deprecated merge-pull-request constraint keys to required-labels")
 			}
 			return newContent, applied, err
 		},
@@ -52,11 +52,6 @@ func mergePRConstraintsNeedsMigration(frontmatter map[string]any) bool {
 
 	if _, hasNew := handlerMap["required-labels"]; !hasNew {
 		if _, hasOld := handlerMap["allowed-labels"]; hasOld {
-			return true
-		}
-	}
-	if _, hasNew := handlerMap["required-branch"]; !hasNew {
-		if _, hasOld := handlerMap["allowed-branches"]; hasOld {
 			return true
 		}
 	}
@@ -134,16 +129,6 @@ func renameMergePRConstraints(lines []string) ([]string, bool) {
 				result = append(result, newLine)
 				modified = true
 				safeOutputMergePRConstraintsCodemodLog.Printf("Renamed allowed-labels to required-labels in safe-outputs.merge-pull-request on line %d", i+1)
-				continue
-			}
-		}
-
-		if inMergePR && indent == mergePRChildIndent && strings.HasPrefix(trimmed, "allowed-branches:") {
-			newLine, replaced := findAndReplaceInLine(line, "allowed-branches", "required-branch")
-			if replaced {
-				result = append(result, newLine)
-				modified = true
-				safeOutputMergePRConstraintsCodemodLog.Printf("Renamed allowed-branches to required-branch in safe-outputs.merge-pull-request on line %d", i+1)
 				continue
 			}
 		}

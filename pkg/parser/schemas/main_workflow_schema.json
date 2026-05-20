@@ -7612,20 +7612,12 @@
                   "description": "Deprecated alias for required-labels",
                   "deprecated": true
                 },
-                "required-branch": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "Glob patterns for allowed source branch names (pull request head ref). The PR's branch must match at least one pattern."
-                },
                 "allowed-branches": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Deprecated alias for required-branch",
-                  "deprecated": true
+                  "description": "Glob patterns for allowed source branch names (pull request head ref). The PR's branch must match at least one pattern."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",

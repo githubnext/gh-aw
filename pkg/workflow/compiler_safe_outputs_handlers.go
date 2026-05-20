@@ -493,7 +493,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("required_labels", c.RequiredLabels).
-			AddStringSlice("allowed_branches", c.RequiredBranch).
+			AddStringSlice("allowed_branches", c.AllowedBranches).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
 			Build()

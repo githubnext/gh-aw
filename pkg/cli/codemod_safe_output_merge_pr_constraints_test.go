@@ -12,11 +12,10 @@ import (
 func TestSafeOutputMergePRConstraintsCodemod(t *testing.T) {
 	codemod := getSafeOutputMergePRConstraintsCodemod()
 
-	t.Run("renames allowed-labels and allowed-branches to required-labels and required-branch", func(t *testing.T) {
+	t.Run("renames allowed-labels to required-labels, leaves allowed-branches unchanged", func(t *testing.T) {
 		content := `---
 safe-outputs:
   merge-pull-request:
-    required-labels: [safe-to-merge]
     allowed-labels: [release, automerge]
     allowed-branches: [release/*, main]
 ---
@@ -24,7 +23,6 @@ safe-outputs:
 		frontmatter := map[string]any{
 			"safe-outputs": map[string]any{
 				"merge-pull-request": map[string]any{
-					"required-labels":  []string{"safe-to-merge"},
 					"allowed-labels":   []string{"release", "automerge"},
 					"allowed-branches": []string{"release/*", "main"},
 				},
@@ -35,12 +33,12 @@ safe-outputs:
 		require.NoError(t, err)
 		assert.True(t, applied)
 		assert.Contains(t, result, "required-labels:")
-		assert.Contains(t, result, "required-branch:")
 		assert.NotContains(t, result, "allowed-labels:")
-		assert.NotContains(t, result, "allowed-branches:")
+		// allowed-branches is NOT renamed by the codemod
+		assert.Contains(t, result, "allowed-branches:")
 	})
 
-	t.Run("renames only allowed-branches when allowed-labels absent", func(t *testing.T) {
+	t.Run("no-op when only allowed-branches present (no allowed-labels to migrate)", func(t *testing.T) {
 		content := `---
 safe-outputs:
   merge-pull-request:
@@ -57,9 +55,8 @@ safe-outputs:
 
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err)
-		assert.True(t, applied)
-		assert.Contains(t, result, "required-branch:")
-		assert.NotContains(t, result, "allowed-branches:")
+		assert.False(t, applied, "no migration needed when only allowed-branches is present")
+		assert.Equal(t, content, result)
 	})
 
 	t.Run("does not modify when new fields already present", func(t *testing.T) {
@@ -67,14 +64,14 @@ safe-outputs:
 safe-outputs:
   merge-pull-request:
     required-labels: [release]
-    required-branch: [main]
+    allowed-branches: [main]
 ---
 `
 		frontmatter := map[string]any{
 			"safe-outputs": map[string]any{
 				"merge-pull-request": map[string]any{
-					"required-labels": []string{"release"},
-					"required-branch": []string{"main"},
+					"required-labels":  []string{"release"},
+					"allowed-branches": []string{"main"},
 				},
 			},
 		}
