@@ -1164,6 +1164,7 @@ describe("sendJobSetupSpan", () => {
     "RUNNER_ENVIRONMENT",
     "GITHUB_WORKFLOW_REF",
     "GH_AW_INFO_VERSION",
+    "GH_AW_INFO_CLI_VERSION",
     "GH_AW_INFO_STAGED",
   ];
   let mkdirSpy, appendSpy;
@@ -1809,21 +1810,16 @@ describe("sendJobSetupSpan", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    // GH_AW_INFO_VERSION deliberately absent (custom engine with no default version)
+    process.env.GH_AW_INFO_CLI_VERSION = "v2.5.0";
 
-    try {
-      // GH_AW_INFO_VERSION deliberately absent (custom engine with no default version)
-      process.env.GH_AW_INFO_CLI_VERSION = "v2.5.0";
+    await sendJobSetupSpan();
 
-      await sendJobSetupSpan();
-
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      const resourceAttrs = body.resourceSpans[0].resource.attributes;
-      expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v2.5.0" } });
-      // scope.version also uses the CLI fallback
-      expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.5.0");
-    } finally {
-      delete process.env.GH_AW_INFO_CLI_VERSION;
-    }
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v2.5.0" } });
+    // scope.version also uses the CLI fallback
+    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.5.0");
   });
 
   it("includes gh-aw.awf.version and gh-aw.awmg.version resource attributes from aw_info.json", async () => {
@@ -2426,6 +2422,7 @@ describe("sendJobConclusionSpan", () => {
     "OTEL_SERVICE_NAME",
     "GH_AW_EFFECTIVE_TOKENS",
     "GH_AW_INFO_VERSION",
+    "GH_AW_INFO_CLI_VERSION",
     "GITHUB_AW_OTEL_TRACE_ID",
     "GITHUB_AW_OTEL_PARENT_SPAN_ID",
     "GITHUB_RUN_ID",
@@ -3576,8 +3573,6 @@ describe("sendJobConclusionSpan", () => {
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 
-    delete process.env.GH_AW_INFO_CLI_VERSION;
-
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v3.1.0");
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3601,7 +3596,6 @@ describe("sendJobConclusionSpan", () => {
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 
     readFileSpy.mockRestore();
-    delete process.env.GH_AW_INFO_CLI_VERSION;
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("2.1.142");
