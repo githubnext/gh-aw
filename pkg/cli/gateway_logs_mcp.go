@@ -78,6 +78,9 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to read rpc-messages.jsonl: %w", err)
 		}
+		// Correlate tool calls with effective-token deltas from token-usage.jsonl
+		tokenUsageFile := findTokenUsageFile(logDir)
+		toolCalls = correlateToolCallsWithTokenDelta(toolCalls, tokenUsageFile)
 		mcpData.ToolCalls = toolCalls
 		gatewayLogsLog.Printf("Loaded %d tool calls from rpc-messages.jsonl", len(toolCalls))
 	} else {
@@ -85,6 +88,9 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		if err := extractToolCallsFromGatewayLog(gatewayLogPath, mcpData); err != nil {
 			return nil, err
 		}
+		// Correlate tool calls with effective-token deltas from token-usage.jsonl
+		tokenUsageFile := findTokenUsageFile(logDir)
+		mcpData.ToolCalls = correlateToolCallsWithTokenDelta(mcpData.ToolCalls, tokenUsageFile)
 		gatewayLogsLog.Printf("Loaded %d tool calls from gateway.jsonl", len(mcpData.ToolCalls))
 	}
 

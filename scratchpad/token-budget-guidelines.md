@@ -372,16 +372,73 @@ Explicit instructions in workflow prompts to reduce token consumption:
 
 ## Alert Thresholds (Updated)
 
-| Workflow | Target Tokens | Alert Threshold | Critical Threshold |
-|----------|--------------|-----------------|-------------------|
-| Agent Persona Explorer | 120K-180K | >200K | >250K |
-| CI Cleaner | 68K-90K | >120K | >150K |
-| Issue Monster | 50K-150K | >300K | >500K |
-| CI Optimization Coach | 300K-600K | >1M | >1.5M |
-| Step Name Alignment | 300K-500K | >800K | >1.2M |
-| Daily Syntax Error Quality Check | 150K-1.5M | >2M | >4M |
-| Dead Code Remover | 4M-5M | >7M | >9M |
-| Daily Community Attribution Updater | 200K-600K | >1.5M | >3M |
+### Agent Performance Analyzer
+
+**Engine**: Copilot — max-turns not available
+
+**Configuration (2026-05-20):**
+- `timeout-minutes: 30`
+- `max-effective-tokens: 40000000` (40M — raised above default; meta-orchestrator doing deep cross-agent analysis)
+- `file-glob` narrowed from `"**"` to `["*.json", "*.md"]` — reduces repo-memory context load
+- Added `## Token Budget Guidelines` section in both caveman and verbose prompt variants:
+  - Analyze top 20 agents by output volume; skip zero-output agents
+  - Use pre-loaded metrics JSON; avoid redundant API calls
+  - Cap sampled outputs to 3 per agent for quality scoring
+  - Create at most 3 improvement issues per run
+  - Stop immediately after `create_discussion` + issues are filed
+- Prompt compression experiment active (`caveman` — stripped minimal prompt vs `verbose` — full structured prompt; measures `effective_tokens`; see `experiments.prompt_compression` in workflow frontmatter)
+
+**Budget Target:**
+- **Target tokens/run**: 5M–15M (verbose variant); 3M–9M (caveman variant — ≥20% reduction goal)
+- **Alert threshold**: >25M tokens
+- **Cost estimate**: varies by model
+
+### Workflow Health Manager
+
+**Engine**: Copilot — max-turns not available
+
+**Configuration (2026-05-20):**
+- `timeout-minutes: 30`
+- `max-effective-tokens: 30000000` (30M — raised above default; monitors all workflows daily)
+- `file-glob` narrowed from `"**"` to `["*.json", "*.md"]` — reduces repo-memory context load
+- Added `## Token Budget Guidelines` section in prompt:
+  - Use pre-computed `failing-workflows.json` from pre-agent step
+  - Prioritize P0/P1 issues; skip detailed P3 analysis
+  - Create at most 5 issues per run
+  - Stop after issues created and shared memory updated
+
+**Budget Target:**
+- **Target tokens/run**: 3M–10M
+- **Alert threshold**: >20M tokens
+
+### PR Triage Agent
+
+**Engine**: Copilot — max-turns not available
+
+**Configuration (2026-05-20):**
+- `timeout-minutes: 30`
+- `max-effective-tokens: 10000000` (10M — firm ceiling for 6-hourly classification workflow)
+- `file-glob` narrowed from `"**"` to `["*.json", "*.md"]` — reduces repo-memory context load
+
+**Budget Target:**
+- **Target tokens/run**: 500K–2M
+- **Alert threshold**: >5M tokens
+
+
+| Workflow | Target Tokens | Alert Threshold | Critical Threshold | `max-effective-tokens` |
+|----------|--------------|-----------------|-------------------|------------------------|
+| Agent Persona Explorer | 120K-180K | >200K | >250K | (default) |
+| CI Cleaner | 68K-90K | >120K | >150K | (default) |
+| Issue Monster | 50K-150K | >300K | >500K | (default) |
+| CI Optimization Coach | 300K-600K | >1M | >1.5M | (default) |
+| Step Name Alignment | 300K-500K | >800K | >1.2M | (default) |
+| Daily Syntax Error Quality Check | 150K-1.5M | >2M | >4M | (default) |
+| Dead Code Remover | 4M-5M | >7M | >9M | (default) |
+| Daily Community Attribution Updater | 200K-600K | >1.5M | >3M | (default) |
+| Agent Performance Analyzer | 5M-15M | >25M | >35M | 40000000 |
+| Workflow Health Manager | 3M-10M | >20M | >25M | 30000000 |
+| PR Triage Agent (6-hourly) | 500K-2M | >5M | >8M | 10000000 |
+| Daily Observability Report | 10M-40M | >60M | >70M | 80000000 |
 
 ## Optimization Strategies
 
