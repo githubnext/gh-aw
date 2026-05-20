@@ -97,7 +97,6 @@ func generateMaintenanceWorkflowWrapper(
 		Version:          compiler.GetVersion(),
 		ActionMode:       compiler.GetActionMode(),
 		ActionTag:        compiler.GetActionTag(),
-		Verbose:          verbose,
 		RepoConfig:       repoConfig,
 		RepoSlug:         compiler.GetRepositorySlug(),
 	}); err != nil {

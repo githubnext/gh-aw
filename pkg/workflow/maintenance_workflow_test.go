@@ -159,10 +159,9 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 				Version:          "v1.0.0",
 				ActionMode:       ActionModeDev,
 				ActionTag:        "",
-				Verbose:          false,
 				RepoConfig:       nil,
 				RepoSlug:         "",
-				})
+			})
 
 			// Check error expectation
 			if tt.expectError && err == nil {
@@ -257,10 +256,9 @@ func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
 				Version:          "v1.0.0",
 				ActionMode:       ActionModeDev,
 				ActionTag:        "",
-				Verbose:          false,
 				RepoConfig:       nil,
 				RepoSlug:         "",
-				})
+			})
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
@@ -298,10 +296,9 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		Version:          "v1.0.0",
 		ActionMode:       ActionModeDev,
 		ActionTag:        "",
-		Verbose:          false,
 		RepoConfig:       nil,
 		RepoSlug:         "",
-		})
+	})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -647,10 +644,9 @@ func TestGenerateMaintenanceWorkflow_DisableAgenticWorkflowJob(t *testing.T) {
 		Version:          "v1.0.0",
 		ActionMode:       ActionModeDev,
 		ActionTag:        "",
-		Verbose:          false,
 		RepoConfig:       cfg,
 		RepoSlug:         "",
-		})
+	})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -803,10 +799,9 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_Disabled(t *testing.T) {
 		Version:          "v1.0.0",
 		ActionMode:       ActionModeDev,
 		ActionTag:        "",
-		Verbose:          false,
 		RepoConfig:       cfg,
 		RepoSlug:         "",
-		})
+	})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -855,10 +850,9 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_Default(t *testing.T) {
 		Version:          "v1.0.0",
 		ActionMode:       ActionModeDev,
 		ActionTag:        "",
-		Verbose:          false,
 		RepoConfig:       nil,
 		RepoSlug:         "",
-		})
+	})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -905,10 +899,9 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_ExplicitTrue(t *testing.T) {
 		Version:          "v1.0.0",
 		ActionMode:       ActionModeDev,
 		ActionTag:        "",
-		Verbose:          false,
 		RepoConfig:       cfg,
 		RepoSlug:         "",
-		})
+	})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -974,10 +967,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1026,10 +1018,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeRelease,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1052,10 +1043,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1088,10 +1078,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1141,10 +1130,9 @@ func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeRelease,
 			ActionTag:        "v0.47.4",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1186,10 +1174,9 @@ func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeRelease,
 			ActionTag:        "v0.47.4",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1214,10 +1201,9 @@ func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "v0.47.4",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1336,10 +1322,9 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1364,10 +1349,9 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeRelease,
 			ActionTag:        "v1.0.0",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1395,10 +1379,9 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1454,10 +1437,9 @@ func TestGenerateMaintenanceWorkflow_SetupCLISHAPinning(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeRelease,
 			ActionTag:        "v1.0.0",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1502,10 +1484,9 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       cfg,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1534,10 +1515,9 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       cfg,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1565,10 +1545,9 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       cfg,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1586,10 +1565,9 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       cfg,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1617,10 +1595,9 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       cfg,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Expected no error when maintenance is disabled with expires, got: %v", err)
 		}
@@ -1906,10 +1883,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -1969,10 +1945,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -2007,10 +1982,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -2061,10 +2035,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -2099,10 +2072,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -2153,10 +2125,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 			Version:          "v1.0.0",
 			ActionMode:       ActionModeDev,
 			ActionTag:        "",
-			Verbose:          false,
 			RepoConfig:       nil,
 			RepoSlug:         "",
-			})
+		})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

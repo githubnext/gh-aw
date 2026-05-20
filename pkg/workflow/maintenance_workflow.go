@@ -118,14 +118,13 @@ type GenerateMaintenanceWorkflowOptions struct {
 	Version          string
 	ActionMode       ActionMode
 	ActionTag        string
-	Verbose          bool
 	RepoConfig       *RepoConfig
 	RepoSlug         string
 }
 
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
 // if any workflows use the expires field for discussions or issues.
-// When opts.RepoConfig is non-nil and RepoConfig.MaintenanceDisabled is true the
+// When opts.RepoConfig is non-nil and opts.RepoConfig.MaintenanceDisabled is true the
 // maintenance workflow is deleted and the function returns immediately.
 // opts.RepoSlug is the owner/repo slug used to determine the default branch for the push
 // trigger; pass an empty string to fall back to "main".

@@ -262,7 +262,6 @@ func ensureMaintenanceWorkflow(ctx context.Context, verbose bool) error {
 		Version:          GetVersion(),
 		ActionMode:       compiler.GetActionMode(),
 		ActionTag:        compiler.GetActionTag(),
-		Verbose:          verbose,
 		RepoConfig:       repoConfig,
 		RepoSlug:         compiler.GetRepositorySlug(),
 	}); err != nil {
