@@ -344,7 +344,7 @@ function neutralizeCommands(s) {
     try {
       const parsed = JSON.parse(commandsJSON);
       if (Array.isArray(parsed)) {
-        commandNames = parsed.filter((c) => typeof c === "string" && c.length > 0);
+        commandNames = parsed.filter(c => typeof c === "string" && c.length > 0);
       }
     } catch {
       // invalid JSON, no commands to neutralize
