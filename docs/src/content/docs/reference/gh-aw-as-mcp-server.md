@@ -147,12 +147,24 @@ Returns JSON with workflow run data and metrics, or continuation parameters if t
 
 ### `audit`
 
-Investigate a workflow run, job, or specific step and generate a detailed report.
+Investigate one or more workflow runs and generate a detailed report. With a single run, returns a full audit. With two or more runs, the first is the base and the rest are compared against it (diff mode).
 
-- `run_id_or_url` (required): Numeric run ID, run URL, job URL, or step URL
-- `jq` (optional): Apply jq filter to JSON output
+At least one of the following run-identifier fields must be supplied:
 
-Returns JSON with `overview`, `metrics`, `jobs`, `downloaded_files`, `missing_tools`, `mcp_failures`, `errors`, `warnings`, `tool_usage`, and `firewall_analysis`.
+- `run_ids_or_urls` (array of strings, preferred): One or more run IDs or URLs. Single item produces a detailed audit; multiple items produce a diff against the first.
+- `run_id` (string or number): Alias for a single run identifier. Use this when only one run is being audited.
+- `run_id_or_url` (string or number, deprecated): Original single-run field. Accepted for backward compatibility — prefer `run_ids_or_urls` or `run_id`.
+
+Each identifier accepts a numeric run ID, run URL, job URL, or job URL with a step anchor (for example `https://github.com/owner/repo/actions/runs/123/job/456#step:7:1`).
+
+Optional parameters:
+
+- `artifacts` (array of strings): Artifact sets to download. Valid values: `all`, `activation`, `agent`, `detection`, `firewall`, `github-api`, `mcp`. Defaults to all sets.
+- `experiment` (string): Filter to runs assigned to this experiment name.
+- `variant` (string): Filter to runs assigned this variant. Requires `experiment`.
+- `jq` (optional): Apply jq filter to JSON output.
+
+Single-run returns JSON with `overview`, `metrics`, `jobs`, `downloaded_files`, `missing_tools`, `mcp_failures`, `errors`, `warnings`, `tool_usage`, `firewall_analysis`, and (when present) `experiments`. Multi-run diff returns JSON describing the changes between the base run and each comparison run.
 
 ### `checks`
 
