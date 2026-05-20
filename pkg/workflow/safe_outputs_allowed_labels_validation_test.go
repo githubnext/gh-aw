@@ -123,3 +123,63 @@ strict: false
 		})
 	}
 }
+
+// TestRequiredLabelScalarShorthand verifies that required-label accepts a bare scalar string
+// (e.g. `required-label: approved`) as a shorthand for a single-element list.
+func TestRequiredLabelScalarShorthand(t *testing.T) {
+	basePermissions := `
+permissions:
+  contents: read
+  issues: read
+
+on:
+  issues:
+    types: [opened]
+
+engine: copilot
+strict: false
+`
+	tests := []struct {
+		name        string
+		safeOutputs string
+		wantInJSON  string
+	}{
+		{
+			name: "add-labels required-label as scalar",
+			safeOutputs: `safe-outputs:
+  add-labels:
+    allowed: [bug]
+    required-label: approved
+`,
+			wantInJSON: `"required_label":["approved"]`,
+		},
+		{
+			name: "add-comment required-label as scalar",
+			safeOutputs: `safe-outputs:
+  add-comment:
+    required-label: approved
+`,
+			wantInJSON: `"required_label":["approved"]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "scalar-rl-test")
+			content := "---\n" + basePermissions + tt.safeOutputs + "---\n\n# Test\n\nBody.\n"
+			wfPath := filepath.Join(tmpDir, "test.md")
+			err := os.WriteFile(wfPath, []byte(content), 0o600)
+			require.NoError(t, err)
+
+			compiler := NewCompiler()
+			compileErr := compiler.CompileWorkflow(wfPath)
+			require.NoError(t, compileErr, "scalar required-label should compile without error")
+
+			lockPath := wfPath[:len(wfPath)-3] + ".lock.yml"
+			lockBytes, err := os.ReadFile(lockPath)
+			require.NoError(t, err, "lock file should exist")
+			assert.Contains(t, string(lockBytes), tt.wantInJSON,
+				"compiled JSON should contain required_label as single-element array")
+		})
+	}
+}

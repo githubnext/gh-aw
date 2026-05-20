@@ -25,10 +25,10 @@ func (c *Compiler) parseMergePullRequestConfig(outputMap map[string]any) *MergeP
 	cfg := &MergePullRequestConfig{}
 	if configMap, ok := configData.(map[string]any); ok {
 		cfg.RequiredLabels = ParseStringArrayFromConfig(configMap, "required-labels", mergePullRequestLog)
-		// Parse required-label (preferred) with fallback to deprecated allowed-labels
-		cfg.RequiredLabel = ParseStringArrayFromConfig(configMap, "required-label", mergePullRequestLog)
+		// Parse required-label (preferred) with fallback to deprecated allowed-labels — also accepts bare string scalar
+		cfg.RequiredLabel = ParseStringOrSliceFromConfig(configMap, "required-label", mergePullRequestLog)
 		if len(cfg.RequiredLabel) == 0 {
-			cfg.RequiredLabel = ParseStringArrayFromConfig(configMap, "allowed-labels", mergePullRequestLog)
+			cfg.RequiredLabel = ParseStringOrSliceFromConfig(configMap, "allowed-labels", mergePullRequestLog)
 		}
 		// Parse required-branch (preferred) with fallback to deprecated allowed-branches
 		cfg.RequiredBranch = ParseStringArrayFromConfig(configMap, "required-branch", mergePullRequestLog)

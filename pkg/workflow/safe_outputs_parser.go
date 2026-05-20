@@ -75,8 +75,8 @@ func ParseFilterConfig(configMap map[string]any) SafeOutputFilterConfig {
 		safeOutputParserLog.Printf("Parsed %d required labels", len(config.RequiredLabels))
 	}
 
-	// Parse required-label (disjunctive: at least one must match)
-	config.RequiredLabel = ParseStringArrayFromConfig(configMap, "required-label", safeOutputParserLog)
+	// Parse required-label (disjunctive: at least one must match) — also accepts bare string scalar
+	config.RequiredLabel = ParseStringOrSliceFromConfig(configMap, "required-label", safeOutputParserLog)
 	if len(config.RequiredLabel) > 0 {
 		safeOutputParserLog.Printf("Parsed %d required-label values (disjunctive)", len(config.RequiredLabel))
 	}

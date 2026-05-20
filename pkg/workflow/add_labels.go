@@ -17,6 +17,8 @@ type AddLabelsConfig struct {
 
 // parseAddLabelsConfig handles add-labels configuration
 func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConfig {
+	// Allow scalar shorthand: `required-label: approved` → `required-label: [approved]`
+	normalizeScalarArrayFields(outputMap["add-labels"], "required-label")
 	config := parseConfigScaffold(outputMap, "add-labels", addLabelsLog, func(err error) *AddLabelsConfig {
 		addLabelsLog.Printf("Failed to unmarshal config: %v", err)
 		// Handle null case: create empty config (allows any labels)
