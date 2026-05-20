@@ -888,6 +888,12 @@ func TestParseSchedule(t *testing.T) {
 			expectedOrig: "every day at 6pm",
 		},
 		{
+			name:         "every day at 9am on weekdays",
+			input:        "every day at 9am on weekdays",
+			expectedCron: "0 9 * * 1-5",
+			expectedOrig: "every day at 9am on weekdays",
+		},
+		{
 			name:           "every day with unrecognised extra token",
 			input:          "every day around 9am",
 			shouldError:    true,
@@ -922,6 +928,12 @@ func TestParseSchedule(t *testing.T) {
 			input:          "monthly on 0",
 			shouldError:    true,
 			errorSubstring: "invalid day of month",
+		},
+		{
+			name:           "unsupported schedule type mentions hourly",
+			input:          "yearly",
+			shouldError:    true,
+			errorSubstring: "use 'daily', 'hourly', 'weekly', 'bi-weekly', 'tri-weekly', or 'monthly'",
 		},
 		{
 			name:           "negative interval",
