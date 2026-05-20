@@ -176,6 +176,21 @@ Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw
 
 `add` and `add-wizard` also accept arbitrary `http(s)://` URLs. The fetched response is dispatched by `Content-Type`: `text/markdown` (and `text/x-markdown`) is installed as a raw gh-aw workflow, and `application/json` (or any `*+json` suffix) is converted to a workflow markdown file before installation. Unknown content types produce an actionable error listing the detected type. For non-GitHub hosts, no include/dispatch-workflow dependency resolution is performed, and no GitHub authentication token is sent to the remote server.
 
+##### JSON Workflow Field Mapping
+
+When importing a JSON workflow definition (for example, a payload from the Copilot automation API), the importer translates JSON fields into gh-aw frontmatter and workflow body:
+
+| JSON field | Mapped to | Notes |
+|------------|-----------|-------|
+| `triggers.interval` | `on:` (fuzzy schedule) | `hourly` → `every 1h`, `daily` → `daily`, `weekly` → `weekly`. A single interval trigger emits the inline shorthand (`on: daily`); the compiler randomizes cron at compile time. |
+| `triggers.issues` | `on.issues.types` | A `query` filter has no gh-aw equivalent and emits a per-field warning. |
+| `triggers.workflow_run` | `on.workflow_run` (`workflows`, `types`) | A `conclusions` filter emits a per-field warning. |
+| `tools` | `tools:` | A 40-entry lookup maps GitHub tool IDs to gh-aw toolsets (`issues`, `pull-requests`, `repos`, etc.). `execute` maps to `bash: "*"` (with a review warning); `web_search` maps to `web-search:`. Built-in read/edit/search tools are silently skipped. Unrecognized tools emit a per-tool warning. |
+| `permissions` | `permissions:` | Passed through unchanged. |
+| `prompt` | Workflow body | Used when an `instructions` field is absent. |
+
+Unrecognized fields are preserved as commented hints in the generated workflow.
+
 #### `new`
 
 Create a workflow template in `.github/workflows/`. Opens for editing automatically.

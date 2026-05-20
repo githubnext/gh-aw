@@ -182,6 +182,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-3.1-flash-lite-preview` | 0.1 |
 | `gemini-3.1-flash-image-preview` | 0.33 |
 | `gemini-3.1-flash-tts-preview` | 0.1 |
+| `gemini-3.5-flash` | 14 |
 | `gemini-2.5-computer-use-preview` | 0.2 |
 | `gemini-2.5-computer-use-preview-10-2025` | 0.2 |
 | `gemini-robotics-er-1.5-preview` | 0.2 |
