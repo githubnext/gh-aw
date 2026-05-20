@@ -2,7 +2,6 @@
 /// <reference types="@actions/github-script" />
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
-const { extractWorkflowId } = require("./generate_footer.cjs");
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
@@ -272,27 +271,12 @@ async function main() {
     return;
   }
 
-  if ((context.eventName === "pull_request" || context.eventName === "pull_request_review") && Array.isArray(reviewerRoutes) && reviewerRoutes.length > 0) {
+  if (context.eventName === "pull_request" && Array.isArray(reviewerRoutes) && reviewerRoutes.length > 0) {
     const matches = reviewerRoutes.filter(route => Array.isArray(route.events) && route.events.includes(context.eventName));
     if (matches.length > 0) {
       let selected = matches;
-      if (context.eventName === "pull_request") {
-        if (!["ready_for_review", "review_requested"].includes(context.payload?.action ?? "")) {
-          selected = [];
-        }
-      } else if (context.eventName === "pull_request_review") {
-        const action = context.payload?.action ?? "";
-        if (action !== "submitted") {
-          selected = [];
-        } else {
-          const workflowId = extractWorkflowId(context.payload?.review?.body ?? "");
-          if (workflowId) {
-            selected = selected.filter(route => route.workflow === workflowId);
-          } else {
-            selected = [];
-            core.info("No workflow marker found in pull request review body; skipping reviewer dispatch.");
-          }
-        }
+      if (!["ready_for_review", "review_requested"].includes(context.payload?.action ?? "")) {
+        selected = [];
       }
       if (selected.length > 0) {
         core.info(`Matched reviewer routes on '${context.eventName}': ${selected.map(route => route.workflow).join(", ")}.`);
