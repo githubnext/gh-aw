@@ -1,62 +1,56 @@
 ---
-emoji: "📝"
-name: Developer Documentation Consolidator
-description: Consolidates and organizes developer documentation from multiple sources into a unified, searchable knowledge base
 on:
   schedule:
-    # Run daily at 3:17 AM UTC (random time to distribute load)
-    - cron: daily
-  workflow_dispatch:
-
+  - cron: daily
+  workflow_dispatch: null
 permissions:
-  contents: read
   actions: read
+  contents: read
   issues: read
   pull-requests: read
-
-engine: claude
-strict: true
-
 network:
   allowed:
-    - defaults
-    - github
-
+  - defaults
+  - github
+imports:
+- uses: shared/daily-audit-base.md
+  with:
+    title-prefix: "[developer-docs] "
+- shared/mcp/serena-go.md
+- shared/otlp.md
 safe-outputs:
   create-pull-request:
-    expires: 2d
-    title-prefix: "[docs] "
-    labels: [documentation, automation]
     draft: false
-
+    expires: 2d
+    labels:
+    - documentation
+    - automation
+    title-prefix: "[docs] "
+description: Consolidates and organizes developer documentation from multiple sources into a unified, searchable knowledge base
+emoji: 📝
+engine: claude
+name: Developer Documentation Consolidator
+strict: true
+timeout-minutes: 30
 tools:
-  cli-proxy: true
+  bash:
+  - find specs -name "*.md"
+  - cat scratchpad/*.md
+  - find specs -maxdepth 1 -ls
+  - grep -r "*" specs
+  - wc -l scratchpad/*.md
+  - git
   cache-memory:
     key: developer-docs-cache
-  repo-memory:
-    wiki: true
-    description: "Consolidated developer documentation and instructions"
+  cli-proxy: true
+  edit: null
   github:
     mode: gh-proxy
-    toolsets: [default]
-  edit:
-  bash:
-    - "find specs -name '*.md'"
-    - "cat scratchpad/*.md"
-    - "find specs -maxdepth 1 -ls"
-    - "grep -r '*' specs"
-    - "wc -l scratchpad/*.md"
-    - "git"
-
-timeout-minutes: 30
-
-imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[developer-docs] "
-  - shared/mcp/serena-go.md
-
-  - shared/otlp.md
+    toolsets:
+    - default
+  repo-memory:
+    description: Consolidated developer documentation and instructions
+    wiki: true
 ---
 # Developer Documentation Consolidator
 

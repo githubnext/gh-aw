@@ -1,77 +1,72 @@
 ---
-emoji: "📋"
-name: Package Specification Enforcer
-description: Generates and maintains specification-driven test suites for each Go package, relying on README.md specifications rather than source code
 on:
   schedule: daily
   workflow_dispatch:
     inputs:
       enforce_all:
-        description: "Process all eligible packages in a single run instead of the normal 2-3 per run batch"
-        required: false
         default: false
+        description: Process all eligible packages in a single run instead of the normal 2-3 per run batch
+        required: false
         type: boolean
-
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-tracker-id: spec-enforcer
+network:
+  allowed:
+  - defaults
+  - github
+  - go
+imports:
+- shared/reporting.md
+- shared/otlp.md
+safe-outputs:
+  create-pull-request:
+    draft: false
+    expires: 3d
+    labels:
+    - pkg-specifications
+    - testing
+    - automation
+    title-prefix: "[spec-enforcer] "
+description: Generates and maintains specification-driven test suites for each Go package, relying on README.md specifications rather than source code
+emoji: 📋
 engine:
   id: claude
   max-turns: 100
+name: Package Specification Enforcer
 strict: true
-
-imports:
-  - shared/reporting.md
-
-  - shared/otlp.md
-network:
-  allowed:
-    - defaults
-    - github
-    - go
-
+timeout-minutes: 30
 tools:
+  bash:
+  - cat pkg/*/README.md
+  - find pkg -maxdepth 1 -type d
+  - find pkg/* -maxdepth 0 -type d
+  - find pkg -name "*_test.go" -type f
+  - find pkg -name "README.md" -type f
+  - ls pkg/*/
+  - head -n * pkg/*/*.go
+  - cat pkg/*/*.go
+  - wc -l pkg/*/*.go
+  - grep -rn "func Test" pkg --include="*_test.go"
+  - grep -rn "func [A-Z]" pkg --include="*.go"
+  - grep -rn "type [A-Z]" pkg --include="*.go"
+  - grep -rn "package " pkg --include="*.go"
+  - "git log --oneline --since=\"7 days ago\" -- pkg/*/README.md"
+  - "git diff HEAD -- pkg/*"
+  - git status
+  - go test -v -run "TestSpec" ./pkg/...
+  - go test -v -list "TestSpec" ./pkg/...
+  - go build ./pkg/...
+  cache-memory: true
   cli-proxy: true
+  edit: null
   github:
     mode: gh-proxy
-    toolsets: [default]
-  cache-memory: true
-  edit:
-  bash:
-    - "cat pkg/*/README.md"
-    - "find pkg -maxdepth 1 -type d"
-    - "find pkg/* -maxdepth 0 -type d"
-    - "find pkg -name '*_test.go' -type f"
-    - "find pkg -name 'README.md' -type f"
-    - "ls pkg/*/"
-    - "head -n * pkg/*/*.go"
-    - "cat pkg/*/*.go"
-    - "wc -l pkg/*/*.go"
-    - "grep -rn 'func Test' pkg --include='*_test.go'"
-    - "grep -rn 'func [A-Z]' pkg --include='*.go'"
-    - "grep -rn 'type [A-Z]' pkg --include='*.go'"
-    - "grep -rn 'package ' pkg --include='*.go'"
-    - "git log --oneline --since='7 days ago' -- pkg/*/README.md"
-    - "git diff HEAD -- pkg/*"
-    - "git status"
-    - "go test -v -run 'TestSpec' ./pkg/..."
-    - "go test -v -list 'TestSpec' ./pkg/..."
-    - "go build ./pkg/..."
-
-safe-outputs:
-  create-pull-request:
-    expires: 3d
-    title-prefix: "[spec-enforcer] "
-    labels: [pkg-specifications, testing, automation]
-    draft: false
-
-timeout-minutes: 30
-
+    toolsets:
+    - default
+tracker-id: spec-enforcer
 ---
-
 # Package Specification Enforcer
 
 You are the Package Specification Enforcer — a test engineering agent that generates and maintains specification-driven test suites. You enforce package contracts by writing tests derived from README.md specifications, **not** from reading implementation source code.

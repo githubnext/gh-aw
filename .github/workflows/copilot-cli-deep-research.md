@@ -1,60 +1,57 @@
 ---
-emoji: "🔬"
-description: Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
 on:
   schedule:
-    - cron: daily
+  - cron: daily
 permissions:
+  actions: read
   contents: read
+  discussions: read
   issues: read
   pull-requests: read
-  actions: read
-  discussions: read
-
-engine: copilot
-
 network:
   allowed:
-    - defaults
-    - github
-
+  - defaults
+  - github
+imports:
+- shared/reporting.md
+- shared/otlp.md
+safe-outputs:
+  create-discussion:
+    category: research
+    close-older-discussions: true
+    expires: 1d
+    max: 1
+    title-prefix: "[copilot-cli-research] "
+description: Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
+emoji: 🔬
+engine: copilot
+features:
+  copilot-requests: true
+strict: true
+timeout-minutes: 20
 tools:
+  bash:
+  - find .github -name "*.md"
+  - find .github -type f -exec cat {} +
+  - find pkg -name "copilot*.go"
+  - cat pkg/workflow/copilot*.go
+  - grep -r *
+  - git log --oneline
+  - git diff
   cli-proxy: true
   github:
     mode: gh-proxy
-    toolsets: [default, actions]
+    toolsets:
+    - default
+    - actions
   repo-memory:
     branch-name: memory/copilot-cli-research
-    description: "Copilot CLI research notes and analysis history"
-    file-glob: ["*.json", "*.md"]
-    max-file-size: 204800  # 200KB
-  bash:
-    - "find .github -name '*.md'"
-    - "find .github -type f -exec cat {} +"
-    - "find pkg -name 'copilot*.go'"
-    - "cat pkg/workflow/copilot*.go"
-    - "grep -r *"
-    - "git log --oneline"
-    - "git diff"
-
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[copilot-cli-research] "
-    category: "research"
-    max: 1
-    close-older-discussions: true
-
-timeout-minutes: 20
-strict: true
-imports:
-  - shared/reporting.md
-  - shared/otlp.md
-features:
-  copilot-requests: true
-
+    description: Copilot CLI research notes and analysis history
+    file-glob:
+    - "*.json"
+    - "*.md"
+    max-file-size: 204800
 ---
-
 # Copilot CLI Deep Research Agent
 
 You are a research agent tasked with performing a comprehensive analysis of GitHub Copilot CLI (the agentic coding agent) usage in this repository. Your goal is to identify missed opportunities, unused features, and potential optimizations.

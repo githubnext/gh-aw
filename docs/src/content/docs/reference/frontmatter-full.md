@@ -293,6 +293,21 @@ on:
     # (optional)
     strategy: "inline"
 
+  # Experimental synthetic reviewer lifecycle trigger. Built-in slash command
+  # support is always enabled. Set to an empty value to use the default slash
+  # command name (workflow id), or set a string to provide a custom slash command
+  # name. This includes `pull_request` events (`ready_for_review`,
+  # `review_requested`) and `pull_request_review` (`submitted` only; `edited` and
+  # `dismissed` are ignored).
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: null
+  pull_request_reviewer: null
+
+  # Format 2: string
+  pull_request_reviewer: "example-value"
+
   # Push event trigger that runs the workflow when code is pushed to the repository
   # (optional)
   push:
@@ -1100,6 +1115,11 @@ on:
     # (optional)
     private-key: "example-value"
 
+    # If true, skip token minting when client-id/private-key resolve to empty strings
+    # at runtime. Defaults to false.
+    # (optional)
+    ignore-if-missing: true
+
     # Optional owner of the GitHub App installation (defaults to current repository
     # owner if not specified)
     # (optional)
@@ -1629,8 +1649,9 @@ features:
 # Each value is an ordered list of vendor/modelid glob patterns or other alias
 # names to try in sequence. Entries defined here are merged on top of the builtin
 # aliases; the main workflow file always wins over imported aliases. Builtin
-# aliases include: sonnet, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex,
-# gemini-flash, gemini-pro, small, mini, large, auto.
+# aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex,
+# gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude,
+# codex, gemini.
 # (optional)
 models:
   {}
@@ -1778,6 +1799,13 @@ network:
     # (Docker/GHCR), 'github' (GitHub domains), 'terraform' (HashiCorp),
     # 'linux-distros' (apt/yum), 'playwright' (browser testing), 'defaults' (basic
     # infrastructure).
+
+  # When true and the workflow uses workflow_call, expose a network_allowed string
+  # input on the compiled lock file. The caller-supplied value is unioned with
+  # network.allowed at runtime, supporting ecosystem identifiers (for example
+  # 'rust') or comma-separated domains.
+  # (optional)
+  allowed-input: true
 
   # List of blocked domains or ecosystem identifiers (e.g., 'python', 'node',
   # 'tracker.example.com'). Blocked domains take precedence over allowed domains.
@@ -2573,13 +2601,13 @@ tools:
 
     # Guard policy: repository access configuration. Restricts which repositories the
     # agent can access. Use 'all' to allow all repos, 'public' for public repositories
-    # only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*',
-    # 'owner/prefix*').
+    # only, '${{ github.repository }}' for the current repository, or an array of
+    # repository patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*').
     # (optional)
     # Accepted formats:
 
-    # Format 1: Allow access to all repositories ('all') or only public repositories
-    # ('public')
+    # Format 1: Allow access to all repositories ('all'), only public repositories
+    # ('public'), or the current repository ('${{ github.repository }}')
     allowed-repos: "all"
 
     # Format 2: Allow access to specific repositories using patterns (e.g.,
@@ -2698,6 +2726,11 @@ tools:
       # mint a GitHub App token.
       # (optional)
       private-key: "example-value"
+
+      # If true, skip token minting when client-id/private-key resolve to empty strings
+      # at runtime. Defaults to false.
+      # (optional)
+      ignore-if-missing: true
 
       # Optional owner of the GitHub App installation (defaults to current repository
       # owner if not specified)
@@ -6435,6 +6468,11 @@ safe-outputs:
     # (optional)
     private-key: "example-value"
 
+    # If true, skip token minting when client-id/private-key resolve to empty strings
+    # at runtime. Defaults to false.
+    # (optional)
+    ignore-if-missing: true
+
     # Optional owner of the GitHub App installation (defaults to current repository
     # owner if not specified)
     # (optional)
@@ -7307,6 +7345,11 @@ checkout:
     # (optional)
     private-key: "example-value"
 
+    # If true, skip token minting when client-id/private-key resolve to empty strings
+    # at runtime. Defaults to false.
+    # (optional)
+    ignore-if-missing: true
+
     # Optional owner of the GitHub App installation (defaults to current repository
     # owner if not specified)
     # (optional)
@@ -7537,6 +7580,11 @@ github-app:
   # mint a GitHub App token.
   # (optional)
   private-key: "example-value"
+
+  # If true, skip token minting when client-id/private-key resolve to empty strings
+  # at runtime. Defaults to false.
+  # (optional)
+  ignore-if-missing: true
 
   # Optional owner of the GitHub App installation (defaults to current repository
   # owner if not specified)

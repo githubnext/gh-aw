@@ -1,82 +1,81 @@
 ---
-emoji: "📚"
-name: Package Specification Librarian
-description: Daily review of all package README.md specifications to detect inconsistencies, staleness, and cross-package conflicts
 on:
   schedule: daily
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-tracker-id: spec-librarian
-engine: copilot
-strict: true
-
-imports:
-  - uses: shared/skip-if-issue-open.md
-    with:
-      title-prefix: "[spec-librarian]"
-  - uses: shared/daily-issue-base.md
-    with:
-      title-prefix: "[spec-librarian] "
-      expires: "3d"
-      labels: [pkg-specifications, review, automation]
-      assignees: [copilot]
-  - shared/go-source-analysis.md
-
-  - shared/otlp.md
 network:
   allowed:
-    - defaults
-    - github
-
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-  edit:
-  bash:
-    - "find pkg -name 'README.md' -type f"
-    - "find pkg -maxdepth 1 -type d"
-    - "find pkg/* -maxdepth 0 -type d"
-    - "cat pkg/*/README.md"
-    - "wc -l pkg/*/README.md"
-    - "head -n * pkg/*/*.go"
-    - "cat pkg/*/*.go"
-    - "wc -l pkg/*/*.go"
-    - "grep -rn 'func [A-Z]' pkg --include='*.go'"
-    - "grep -rn 'type [A-Z]' pkg --include='*.go'"
-    - "grep -rn 'const [A-Z]' pkg --include='*.go'"
-    - "grep -rn 'import ' pkg --include='*.go'"
-    - "grep -rn 'package ' pkg --include='*.go'"
-    - "git log --oneline --since='30 days ago' -- pkg/*"
-    - "git log --oneline --since='7 days ago' -- pkg/*/README.md"
-    - "git log -1 --format=%H -- pkg/*"
-
+  - defaults
+  - github
+imports:
+- uses: shared/skip-if-issue-open.md
+  with:
+    title-prefix: "[spec-librarian]"
+- uses: shared/daily-issue-base.md
+  with:
+    assignees:
+    - copilot
+    expires: 3d
+    labels:
+    - pkg-specifications
+    - review
+    - automation
+    title-prefix: "[spec-librarian] "
+- shared/go-source-analysis.md
+- shared/otlp.md
 safe-outputs:
   create-issue:
-    expires: 3d
-    title-prefix: "[spec-librarian] "
-    labels: [pkg-specifications, review, automation]
     assignees: copilot
-    max: 1
     close-older-issues: true
+    expires: 3d
+    labels:
+    - pkg-specifications
+    - review
+    - automation
+    max: 1
+    title-prefix: "[spec-librarian] "
   messages:
     footer: "> 📚 *Specification review by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
-    run-started: "📚 Specification Librarian online! [{workflow_name}]({run_url}) is reviewing all package specifications..."
-    run-success: "✅ Specification review complete! [{workflow_name}]({run_url}) has audited all package specs. Report delivered! 📋"
-    run-failure: "📚 Specification review failed! [{workflow_name}]({run_url}) {status}."
-
-timeout-minutes: 25
+    run-failure: 📚 Specification review failed! [{workflow_name}]({run_url}) {status}.
+    run-started: 📚 Specification Librarian online! [{workflow_name}]({run_url}) is reviewing all package specifications...
+    run-success: ✅ Specification review complete! [{workflow_name}]({run_url}) has audited all package specs. Report delivered! 📋
+description: Daily review of all package README.md specifications to detect inconsistencies, staleness, and cross-package conflicts
+emoji: 📚
+engine: copilot
 features:
   copilot-requests: true
-
+name: Package Specification Librarian
+strict: true
+timeout-minutes: 25
+tools:
+  bash:
+  - find pkg -name "README.md" -type f
+  - find pkg -maxdepth 1 -type d
+  - find pkg/* -maxdepth 0 -type d
+  - cat pkg/*/README.md
+  - wc -l pkg/*/README.md
+  - head -n * pkg/*/*.go
+  - cat pkg/*/*.go
+  - wc -l pkg/*/*.go
+  - grep -rn "func [A-Z]" pkg --include="*.go"
+  - grep -rn "type [A-Z]" pkg --include="*.go"
+  - grep -rn "const [A-Z]" pkg --include="*.go"
+  - grep -rn "import " pkg --include="*.go"
+  - grep -rn "package " pkg --include="*.go"
+  - "git log --oneline --since=\"30 days ago\" -- pkg/*"
+  - "git log --oneline --since=\"7 days ago\" -- pkg/*/README.md"
+  - "git log -1 --format=%H -- pkg/*"
+  cli-proxy: true
+  edit: null
+  github:
+    mode: gh-proxy
+    toolsets:
+    - default
+tracker-id: spec-librarian
 ---
-
 # Package Specification Librarian
 
 You are the Package Specification Librarian — a meticulous documentation auditor that reviews all package README.md specifications daily to detect inconsistencies, staleness, missing specifications, and cross-package conflicts.

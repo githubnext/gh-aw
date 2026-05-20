@@ -92,8 +92,8 @@ func TestSpec_PublicAPI_OnceLoader_Get(t *testing.T) {
 
 		require.Error(t, err1, "first Get should return loader error")
 		require.Error(t, err2, "second Get should return cached error")
-		assert.True(t, errors.Is(err1, boom), "first Get error should match loader error")
-		assert.True(t, errors.Is(err2, boom), "subsequent Get error should match cached loader error")
+		require.ErrorIs(t, err1, boom, "first Get error should match loader error")
+		require.ErrorIs(t, err2, boom, "subsequent Get error should match cached loader error")
 		assert.Empty(t, v1, "documented: zero value of T is returned alongside error")
 		assert.Empty(t, v2, "documented: zero value of T is returned alongside cached error")
 		assert.Equal(t, int32(1), calls.Load(), "loader must not be re-invoked after error")
@@ -112,8 +112,8 @@ func TestSpec_PublicAPI_OnceLoader_Get(t *testing.T) {
 		v1, err1 := loader.Get(load)
 		v2, err2 := loader.Get(load)
 
-		assert.True(t, errors.Is(err1, boom), "first Get error should match loader error")
-		assert.True(t, errors.Is(err2, boom), "subsequent Get error should match cached error")
+		require.ErrorIs(t, err1, boom, "first Get error should match loader error")
+		require.ErrorIs(t, err2, boom, "subsequent Get error should match cached error")
 		assert.Equal(t, 0, v1, "documented: zero value of int (0) returned with error")
 		assert.Equal(t, 0, v2, "documented: zero value of int (0) cached with error")
 		assert.Equal(t, int32(1), calls.Load(), "loader must not be re-invoked after error")

@@ -1,63 +1,57 @@
 ---
-emoji: "📝"
-name: Daily Documentation Updater
-description: Automatically reviews and updates documentation to ensure accuracy and completeness
 on:
   schedule:
-    # Every day around 2am PST (10:00 UTC)
-    - cron: daily around 10:00
-  workflow_dispatch:
-
+  - cron: daily around 10:00
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-tracker-id: daily-doc-updater
-engine: claude
-strict: true
-
 network:
   allowed:
-    - defaults
-    - github
-
+  - defaults
+  - github
+imports:
+- shared/github-guard-policy.md
+- shared/otlp.md
 safe-outputs:
   create-pull-request:
-    expires: 1d
-    title-prefix: "[docs] "
-    labels: [documentation, automation]
-    reviewers: [copilot]
-    draft: false
     auto-merge: true
+    draft: false
+    expires: 1d
+    labels:
+    - documentation
+    - automation
     protected-files: fallback-to-issue
-  noop:
-
-tools:
-  cli-proxy: true
-  cache-memory: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-    min-integrity: approved
-  edit:
-  bash:
-    - "find docs -name '*.md' -o -name '*.mdx'"
-    - "find docs -maxdepth 1 -ls"
-    - "find docs -name '*.md' -exec cat {} +"
-    - "grep -r '*' docs"
-    - "git"
-    - "find pkg/parser/schemas -name '*.json'"
-    - "cat pkg/parser/schemas/*.json"
-
+    reviewers:
+    - copilot
+    title-prefix: "[docs] "
+  noop: null
+description: Automatically reviews and updates documentation to ensure accuracy and completeness
+emoji: 📝
+engine: claude
+name: Daily Documentation Updater
+strict: true
 timeout-minutes: 45
-
-imports:
-  - shared/github-guard-policy.md
-  - shared/otlp.md
-
+tools:
+  bash:
+  - find docs -name "*.md" -o -name "*.mdx"
+  - find docs -maxdepth 1 -ls
+  - find docs -name "*.md" -exec cat {} +
+  - grep -r "*" docs
+  - git
+  - find pkg/parser/schemas -name "*.json"
+  - cat pkg/parser/schemas/*.json
+  cache-memory: true
+  cli-proxy: true
+  edit: null
+  github:
+    min-integrity: approved
+    mode: gh-proxy
+    toolsets:
+    - default
+tracker-id: daily-doc-updater
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Documentation Updater
