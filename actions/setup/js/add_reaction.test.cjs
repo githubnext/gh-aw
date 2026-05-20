@@ -248,6 +248,22 @@ describe("add_reaction", () => {
     });
   });
 
+  describe("pull_request_review events", () => {
+    it("should silently skip pull_request_review events", async () => {
+      global.context = {
+        eventName: "pull_request_review",
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: { pull_request: { number: 999 }, review: { id: 321 } },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
   describe("discussion events", () => {
     beforeEach(() => {
       mockGithub.graphql.mockImplementation(query => {
@@ -718,6 +734,13 @@ describe("add_reaction", () => {
       global.context = { eventName: "pull_request_review_comment", repo: { owner: "o", repo: "r" }, payload: { comment: { id: 55 } } };
       const { resolveRestEndpoint } = await importHelpers();
       expect(resolveRestEndpoint("pull_request_review_comment", "o", "r", global.context.payload)).toBe("/repos/o/r/pulls/comments/55/reactions");
+    });
+
+    it("should return null without failure for pull_request_review events", async () => {
+      global.context = { eventName: "pull_request_review", repo: { owner: "o", repo: "r" }, payload: { pull_request: { number: 7 }, review: { id: 88 } } };
+      const { resolveRestEndpoint } = await importHelpers();
+      expect(resolveRestEndpoint("pull_request_review", "o", "r", global.context.payload)).toBeNull();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should return null for discussion events (handled via GraphQL)", async () => {
