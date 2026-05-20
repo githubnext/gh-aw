@@ -721,8 +721,7 @@ async function main() {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
       core.info(`Found rpc-messages.jsonl (${rpcMessagesContent.length} bytes)`);
       if (rpcMessagesContent.length === 0) {
-        core.setFailed(`${ERR_SYSTEM}: rpc-messages.jsonl is present but zero bytes — MCP telemetry capture failed (server may not have started or crashed before any RPC)`);
-        return;
+        core.warning("rpc-messages.jsonl is present but zero bytes; continuing without RPC summary");
       }
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);

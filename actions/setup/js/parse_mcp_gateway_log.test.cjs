@@ -562,7 +562,7 @@ Some content here.`;
       }
     });
 
-    test("fails with ERR_SYSTEM when rpc-messages.jsonl is zero bytes", async () => {
+    test("warns and continues when rpc-messages.jsonl is zero bytes", async () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
       const originalExistsSync = fs.existsSync;
@@ -608,8 +608,9 @@ Some content here.`;
         const { main } = require("./parse_mcp_gateway_log.cjs");
         await main();
 
-        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/ERR_SYSTEM.*rpc-messages\.jsonl.*zero bytes/));
-        expect(mockCore.summary.write).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalledWith("rpc-messages.jsonl is present but zero bytes; continuing without RPC summary");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.summary.write).toHaveBeenCalled();
       } finally {
         fs.existsSync = originalExistsSync;
         fs.readFileSync = originalReadFileSync;
