@@ -53,6 +53,7 @@ Preferred query loop:
    - use `get_trace_details` when available
    - otherwise use `list_events` filtered by `trace:<id>` to confirm continuity
 5. Every priority finding must cite exact evidence (query scope + metric/count + trace or run link).
+6. If expected fields are missing, cross-check emit-side semantics in `actions/setup/js/send_otlp_span.cjs` before proposing fixes (notably `gh-aw.workflow.name`, OTLP `status.code`, `gh-aw.run.status`, `gen_ai.response.finish_reasons`, and resource `service.version`).
 
 Grounding rules:
 
