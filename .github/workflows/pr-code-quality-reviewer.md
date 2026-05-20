@@ -125,6 +125,13 @@ Save your review summary to `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.n
 
 ## Guidelines
 
+### Review Formatting
+
+- Use h3 (###) or lower for all headers in your review output to maintain proper document hierarchy.
+- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Structure: Brief summary (always visible) → Key findings (always visible) → Detailed analysis (in `<details>`) → Recommendations (always visible)
+
+### Review Focus
 - **Focus on changed lines only** — do not review the entire codebase
 - **Quality over quantity** — fewer precise, actionable comments beat many vague ones
 - **Be constructive** — critique the code, not the author; explain the rationale
