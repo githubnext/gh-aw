@@ -171,7 +171,7 @@ func TestBuildReactionConditionForTargetsExcludesPullRequestReview(t *testing.T)
 	}
 }
 
-func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
+func TestBuildStatusCommentConditionExcludesPullRequestReviewWhenPullRequestsDisabled(t *testing.T) {
 	result := BuildStatusCommentCondition(true, true, true, false)
 	rendered := result.Render()
 
