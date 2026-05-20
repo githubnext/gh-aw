@@ -130,7 +130,8 @@ func TestFetchImportURL_HeadFallbackToGET(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_NonGitHub(t *testing.T) {
-	t.Setenv("GH_TOKEN", "my-secret-token")
+	t.Setenv("GITHUB_TOKEN", "my-secret-token")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://example.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://example.com/workflow.md")
@@ -139,7 +140,8 @@ func TestAttachImportAuthHeader_NonGitHub(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_GitHub(t *testing.T) {
-	t.Setenv("GH_TOKEN", "gh-token-xyz")
+	t.Setenv("GITHUB_TOKEN", "gh-token-xyz")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://github.com/owner/repo/raw/main/wf.md", nil)
 	attachImportAuthHeader(req, "https://github.com/owner/repo/raw/main/wf.md")
@@ -147,7 +149,8 @@ func TestAttachImportAuthHeader_GitHub(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_GitHubCopilot(t *testing.T) {
-	t.Setenv("GH_TOKEN", "gh-token-xyz")
+	t.Setenv("GITHUB_TOKEN", "gh-token-xyz")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://api.githubcopilot.com/workflow.md")
@@ -155,7 +158,8 @@ func TestAttachImportAuthHeader_GitHubCopilot(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_RawGitHubContent(t *testing.T) {
-	t.Setenv("GH_TOKEN", "gh-token-xyz")
+	t.Setenv("GITHUB_TOKEN", "gh-token-xyz")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://raw.githubusercontent.com/owner/repo/main/workflow.md", nil)
 	attachImportAuthHeader(req, "https://raw.githubusercontent.com/owner/repo/main/workflow.md")
@@ -163,7 +167,8 @@ func TestAttachImportAuthHeader_RawGitHubContent(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_GitHubUserContentWildcard(t *testing.T) {
-	t.Setenv("GH_TOKEN", "gh-token-xyz")
+	t.Setenv("GITHUB_TOKEN", "gh-token-xyz")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://media.githubusercontent.com/media/owner/repo/main/workflow.md", nil)
 	attachImportAuthHeader(req, "https://media.githubusercontent.com/media/owner/repo/main/workflow.md")
@@ -171,7 +176,8 @@ func TestAttachImportAuthHeader_GitHubUserContentWildcard(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_GitHubObjects(t *testing.T) {
-	t.Setenv("GH_TOKEN", "gh-token-xyz")
+	t.Setenv("GITHUB_TOKEN", "gh-token-xyz")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://objects.githubusercontent.com/github-production-release-asset-2e65be/owner/repo/workflow.md", nil)
 	attachImportAuthHeader(req, "https://objects.githubusercontent.com/github-production-release-asset-2e65be/owner/repo/workflow.md")
@@ -179,28 +185,31 @@ func TestAttachImportAuthHeader_GitHubObjects(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_FallbackToGITHUB_TOKEN(t *testing.T) {
-	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "github-token-abc")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://github.com/owner/repo/raw/main/wf.md", nil)
 	attachImportAuthHeader(req, "https://github.com/owner/repo/raw/main/wf.md")
 	assert.Equal(t, "Bearer github-token-abc", req.Header.Get("Authorization"))
 }
 
-func TestAttachImportAuthHeader_NoToken(t *testing.T) {
-	t.Setenv("GH_TOKEN", "")
+// TestAttachImportAuthHeader_GHTokenPreferredOverGHAuthToken verifies that an
+// explicit GH_TOKEN env var wins over the gh auth token CLI fallback.
+func TestAttachImportAuthHeader_GHTokenPreferredOverGHAuthToken(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "explicit-gh-token")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://github.com/owner/repo/raw/main/wf.md", nil)
 	attachImportAuthHeader(req, "https://github.com/owner/repo/raw/main/wf.md")
-	assert.Empty(t, req.Header.Get("Authorization"))
+	assert.Equal(t, "Bearer explicit-gh-token", req.Header.Get("Authorization"))
 }
 
 // ── Security boundary tests ───────────────────────────────────────────────────
 
 // Token must NEVER be sent over plain HTTP even to github.com.
 func TestAttachImportAuthHeader_HTTP_GitHub_NoToken(t *testing.T) {
-	t.Setenv("GH_TOKEN", "super-secret")
+	t.Setenv("GITHUB_TOKEN", "super-secret")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "http://github.com/owner/repo/raw/main/wf.md", nil)
 	attachImportAuthHeader(req, "http://github.com/owner/repo/raw/main/wf.md")
@@ -209,7 +218,8 @@ func TestAttachImportAuthHeader_HTTP_GitHub_NoToken(t *testing.T) {
 
 // Subdomains of github.com must not receive the token.
 func TestAttachImportAuthHeader_GitHubSubdomain_NoToken(t *testing.T) {
-	t.Setenv("GH_TOKEN", "super-secret")
+	t.Setenv("GITHUB_TOKEN", "super-secret")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://evil.github.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://evil.github.com/workflow.md")
@@ -218,7 +228,8 @@ func TestAttachImportAuthHeader_GitHubSubdomain_NoToken(t *testing.T) {
 
 // A hostname that ends with "github.com" but is a different domain must not match.
 func TestAttachImportAuthHeader_SuffixConfusion_NoToken(t *testing.T) {
-	t.Setenv("GH_TOKEN", "super-secret")
+	t.Setenv("GITHUB_TOKEN", "super-secret")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://notgithub.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://notgithub.com/workflow.md")
@@ -227,7 +238,8 @@ func TestAttachImportAuthHeader_SuffixConfusion_NoToken(t *testing.T) {
 
 // A hostname like "github.com.evil.com" must not match.
 func TestAttachImportAuthHeader_DotAppended_NoToken(t *testing.T) {
-	t.Setenv("GH_TOKEN", "super-secret")
+	t.Setenv("GITHUB_TOKEN", "super-secret")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://github.com.evil.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://github.com.evil.com/workflow.md")
@@ -235,7 +247,8 @@ func TestAttachImportAuthHeader_DotAppended_NoToken(t *testing.T) {
 }
 
 func TestAttachImportAuthHeader_GitHubUserContentSuffixConfusion_NoToken(t *testing.T) {
-	t.Setenv("GH_TOKEN", "super-secret")
+	t.Setenv("GITHUB_TOKEN", "super-secret")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://githubusercontent.com.evil.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://githubusercontent.com.evil.com/workflow.md")
@@ -243,7 +256,8 @@ func TestAttachImportAuthHeader_GitHubUserContentSuffixConfusion_NoToken(t *test
 }
 
 func TestAttachImportAuthHeader_DocsGitHub_NoToken(t *testing.T) {
-	t.Setenv("GH_TOKEN", "super-secret")
+	t.Setenv("GITHUB_TOKEN", "super-secret")
+	t.Setenv("GH_TOKEN", "")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://docs.github.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://docs.github.com/workflow.md")
@@ -254,7 +268,8 @@ func TestAttachImportAuthHeader_DocsGitHub_NoToken(t *testing.T) {
 
 // GH_HOST set as a bare hostname (no scheme).
 func TestAttachImportAuthHeader_GHE_BareHostname(t *testing.T) {
-	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GITHUB_TOKEN", "ghe-token")
+	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GH_HOST", "ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://ghe.example.com/owner/repo/raw/main/wf.md", nil)
@@ -264,7 +279,8 @@ func TestAttachImportAuthHeader_GHE_BareHostname(t *testing.T) {
 
 // GH_HOST set with https:// scheme prefix.
 func TestAttachImportAuthHeader_GHE_HTTPSScheme(t *testing.T) {
-	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GITHUB_TOKEN", "ghe-token")
+	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GH_HOST", "https://ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://ghe.example.com/owner/repo/raw/main/wf.md", nil)
@@ -274,7 +290,8 @@ func TestAttachImportAuthHeader_GHE_HTTPSScheme(t *testing.T) {
 
 // GH_HOST set with http:// scheme prefix — token must still only be sent over HTTPS requests.
 func TestAttachImportAuthHeader_GHE_HTTPSchemePrefix(t *testing.T) {
-	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GITHUB_TOKEN", "ghe-token")
+	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GH_HOST", "http://ghe.example.com")
 
 	// HTTPS request → token sent.
@@ -290,7 +307,8 @@ func TestAttachImportAuthHeader_GHE_HTTPSchemePrefix(t *testing.T) {
 
 // GH_HOST is set but the request targets a different host — no token.
 func TestAttachImportAuthHeader_GHE_DifferentHost(t *testing.T) {
-	t.Setenv("GH_TOKEN", "ghe-token")
+	t.Setenv("GITHUB_TOKEN", "ghe-token")
+	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GH_HOST", "ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://other.example.com/workflow.md", nil)
@@ -300,10 +318,42 @@ func TestAttachImportAuthHeader_GHE_DifferentHost(t *testing.T) {
 
 // github.com still works alongside a configured GH_HOST.
 func TestAttachImportAuthHeader_GitHubAlongsideGHE(t *testing.T) {
-	t.Setenv("GH_TOKEN", "dual-token")
+	t.Setenv("GITHUB_TOKEN", "dual-token")
+	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GH_HOST", "ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://github.com/owner/repo/raw/main/wf.md", nil)
 	attachImportAuthHeader(req, "https://github.com/owner/repo/raw/main/wf.md")
 	assert.Equal(t, "Bearer dual-token", req.Header.Get("Authorization"), "github.com must still be allowed when GH_HOST is also set")
+}
+
+// TestBuildRequestLogString_RedactsAuthorization verifies that the request formatter
+// never exposes the raw token and shows the correct redacted form.
+func TestBuildRequestLogString_RedactsAuthorization(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001", nil)
+	req.Header.Set("Authorization", "Bearer super-secret-token")
+
+	output := buildRequestLogString(req)
+
+	assert.Contains(t, output, "Bearer supe***", "Authorization must show first 4 chars then ***")
+	assert.NotContains(t, output, "super-secret-token", "raw token must never appear in log output")
+	assert.Contains(t, output, "Host: api.githubcopilot.com", "Host header must be logged")
+	assert.Contains(t, output, "/agents/repos/octocat/hello-world/automations/", "request path must be logged")
+}
+
+// TestFetchImportURL_400ReturnsError verifies that a 400 response is returned as
+// an error with the status code, and that the body is consumed (not leaked).
+func TestFetchImportURL_400ReturnsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"missing_integration_id"}`))
+	}))
+	defer srv.Close()
+
+	_, err := FetchImportURL(context.Background(), srv.URL+"/automation", FetchOptions{
+		HTTPClient: srv.Client(),
+	})
+
+	require.Error(t, err, "400 must be returned as an error")
+	assert.Contains(t, err.Error(), "400", "error must mention the status code")
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -265,18 +266,18 @@ func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
 
 	// Multi-trigger → map form (not string shorthand)
 	assert.Contains(t, gen.Markdown, "on:", "on: block present")
-	assert.Contains(t, gen.Markdown, `"issues"`, "issues trigger present")
-	assert.Contains(t, gen.Markdown, `"workflow_run"`, "workflow_run trigger present")
-	assert.Contains(t, gen.Markdown, `"haiku"`, "workflow name present")
+	assert.Contains(t, gen.Markdown, "issues:", "issues trigger present")
+	assert.Contains(t, gen.Markdown, "workflow_run:", "workflow_run trigger present")
+	assert.Contains(t, gen.Markdown, "haiku", "workflow name present")
 	assert.NotContains(t, gen.Markdown, "on: hourly", "must not use shorthand for multi-trigger")
 
 	// tools → gh-aw toolsets
 	assert.Contains(t, gen.Markdown, "tools:", "tools block present")
-	assert.Contains(t, gen.Markdown, `"issues"`, "issues toolset from update_issue_body")
+	assert.Contains(t, gen.Markdown, "issues", "issues toolset from update_issue_body")
 
 	// permissions → frontmatter
 	assert.Contains(t, gen.Markdown, "permissions:", "permissions block present")
-	assert.Contains(t, gen.Markdown, `"write"`, "issues:write permission")
+	assert.Contains(t, gen.Markdown, "write", "issues:write permission")
 
 	// prompt → body
 	assert.Contains(t, gen.Markdown, "Summarize issue.", "prompt in body")
@@ -378,4 +379,67 @@ func TestParseWorkflowSpec_AutomationsURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "https://api.githubcopilot.com/agents/repos/dmgardiner25/urban-spork/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768", spec.RawURL)
 	assert.Equal(t, "1a352b54-80f0-41ed-bf50-9e90e6b9d768", spec.WorkflowName, "workflow name is GUID (will be overridden from JSON name field at fetch time)")
+}
+
+// TestConvertJSONWorkflowToMarkdown_CompilerRoundTrip verifies that a real-world
+// automation payload (anonymised) converts to markdown that the gh-aw compiler
+// accepts without errors and produces valid GitHub Actions YAML.
+//
+// Payload mirrors the automation fetched from the Copilot agents API:
+//
+//	tools:      ["github/list_code_scanning_alerts"]
+//	triggers:   workflow_run on "bar" (completed), conclusions: ["failure"]
+//	permissions: security-events: read
+func TestConvertJSONWorkflowToMarkdown_CompilerRoundTrip(t *testing.T) {
+	// Anonymised real-world payload – sensitive fields replaced with placeholders.
+	raw := `{
+		"id":          "4a803d2b-ef80-44ed-9a01-4617a2984ed2",
+		"name":        "test",
+		"description": "foo",
+		"prompt":      "do something",
+		"disabled":    true,
+		"disabled_state": {"disabled_at": "2026-05-20T15:14:55.440451459Z", "reason": "disabled_by_user"},
+		"permissions": {"security-events": "read"},
+		"tools":       ["github/list_code_scanning_alerts"],
+		"triggers":    {"workflow_run": {"conclusions": ["failure"], "types": ["completed"], "workflows": ["bar"]}},
+		"created_at":  "2026-05-20T15:14:50.047316109Z",
+		"updated_at":  "2026-05-20T15:14:55.440451459Z",
+		"created_by":  {"id": 1, "login": "octocat", "node_id": "MDQ6VXNlcjE=", "url": "https://github.com/octocat"}
+	}`
+
+	var wf JSONWorkflow
+	require.NoError(t, json.Unmarshal([]byte(raw), &wf), "unmarshal must succeed")
+
+	gen, err := ConvertJSONWorkflowToMarkdown(&wf, ConvertOptions{})
+	require.NoError(t, err, "conversion must succeed")
+	assert.Equal(t, "test", gen.Filename)
+
+	// Validate the markdown is proper YAML frontmatter (no JSON-style braces).
+	assert.NotContains(t, gen.Markdown, `"workflow_run": {`, "must not contain JSON-style map syntax")
+	assert.NotContains(t, gen.Markdown, `"toolsets": [`, "must not contain JSON-style array syntax")
+
+	// Check key frontmatter fields are present in clean YAML form.
+	assert.Contains(t, gen.Markdown, "description: foo")
+	assert.Contains(t, gen.Markdown, "workflow_run:")
+	assert.Contains(t, gen.Markdown, "- bar")
+	assert.Contains(t, gen.Markdown, "toolsets:")
+	assert.Contains(t, gen.Markdown, "- code_security")
+	assert.Contains(t, gen.Markdown, "security-events: read")
+
+	// ── Compiler round-trip ───────────────────────────────────────────────────
+	// The converted markdown must compile to valid GitHub Actions YAML without
+	// any errors.
+	compiler := workflow.NewCompiler()
+	compiler.SetSkipValidation(false)
+	compiler.SetRepositorySlug("octocat/test-repo")
+
+	workflowData, err := compiler.ParseWorkflowString(gen.Markdown, "test.md")
+	require.NoError(t, err, "compiler must parse the converted markdown without errors")
+
+	yamlOutput, err := compiler.CompileToYAML(workflowData, "test.md")
+	require.NoError(t, err, "compiler must produce valid YAML from the converted markdown")
+
+	// Spot-check the compiled YAML output.
+	assert.Contains(t, yamlOutput, "workflow_run:", "compiled YAML must contain workflow_run trigger")
+	assert.Contains(t, yamlOutput, "do something", "compiled YAML must contain the prompt body")
 }
