@@ -623,6 +623,13 @@ async function handleRequest(server, request, defaultHandler) {
 
       const missing = validateRequiredFields(args, tool.inputSchema);
       if (missing.length) {
+        const hasRequiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) && tool.inputSchema.required.length > 0;
+        if (hasRequiredFields && Object.keys(args).length === 0) {
+          throw {
+            code: -32602,
+            message: `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.`,
+          };
+        }
         throw {
           code: -32602,
           message: generateEnhancedErrorMessage(missing, name, tool.inputSchema),
@@ -751,6 +758,15 @@ async function handleMessage(server, req, defaultHandler) {
 
       const missing = validateRequiredFields(args, tool.inputSchema);
       if (missing.length) {
+        const hasRequiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) && tool.inputSchema.required.length > 0;
+        if (hasRequiredFields && Object.keys(args).length === 0) {
+          server.replyError(
+            id,
+            -32602,
+            `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.`
+          );
+          return;
+        }
         server.replyError(id, -32602, generateEnhancedErrorMessage(missing, name, tool.inputSchema));
         return;
       }

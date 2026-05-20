@@ -118,7 +118,7 @@ function resolveRestEndpoint(eventName, owner, repo, payload) {
  * @returns {boolean}
  */
 function isRestReactionEvent(eventName) {
-  return ["issues", "issue_comment", "pull_request", "pull_request_review_comment"].includes(eventName);
+  return ["issues", "issue_comment", "pull_request", "pull_request_review", "pull_request_review_comment"].includes(eventName);
 }
 
 /**
