@@ -169,6 +169,15 @@ func TestBuildReactionConditionExcludesPullRequestReview(t *testing.T) {
 	if strings.Contains(rendered, "github.event_name == 'pull_request_review'") {
 		t.Errorf("Expected pull_request_review to be excluded from reaction condition, got: %s", rendered)
 	}
+	if !strings.Contains(rendered, "github.event_name == 'issues'") {
+		t.Errorf("Expected issues event to remain in reaction condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id") {
+		t.Errorf("Expected pull_request with fork guard to remain in reaction condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'discussion'") {
+		t.Errorf("Expected discussion event to remain in reaction condition, got: %s", rendered)
+	}
 }
 
 func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
@@ -177,6 +186,15 @@ func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
 
 	if strings.Contains(rendered, "github.event_name == 'pull_request_review'") {
 		t.Errorf("Expected pull_request_review to be excluded from status comment condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'issues'") {
+		t.Errorf("Expected issues event to remain in status comment condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id") {
+		t.Errorf("Expected pull_request with fork guard to remain in status comment condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'discussion'") {
+		t.Errorf("Expected discussion event to remain in status comment condition, got: %s", rendered)
 	}
 }
 
