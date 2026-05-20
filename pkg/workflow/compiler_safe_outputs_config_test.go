@@ -1688,10 +1688,13 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 		name                             string
 		baseBranch                       string
 		allowedBaseBranches              []string
+		allowedBranches                  []string
 		expectedBaseBranch               string
 		shouldHaveBaseBranchKey          bool
 		expectedAllowedBaseBranches      []string
 		shouldHaveAllowedBaseBranchesKey bool
+		expectedAllowedBranches          []string
+		shouldHaveAllowedBranchesKey     bool
 	}{
 		{
 			name:                    "custom base branch",
@@ -1715,10 +1718,13 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 			name:                             "allowed base branches list",
 			baseBranch:                       "main",
 			allowedBaseBranches:              []string{"release/*", "main"},
+			allowedBranches:                  []string{"feature/*", "fix/*"},
 			expectedBaseBranch:               "main",
 			shouldHaveBaseBranchKey:          true,
 			expectedAllowedBaseBranches:      []string{"release/*", "main"},
 			shouldHaveAllowedBaseBranchesKey: true,
+			expectedAllowedBranches:          []string{"feature/*", "fix/*"},
+			shouldHaveAllowedBranchesKey:     true,
 		},
 	}
 
@@ -1735,6 +1741,7 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 						},
 						BaseBranch:          tt.baseBranch,
 						AllowedBaseBranches: tt.allowedBaseBranches,
+						AllowedBranches:     tt.allowedBranches,
 					},
 				},
 			}
@@ -1779,6 +1786,19 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 							}
 						} else {
 							require.False(t, ok, "allowed_base_branches should NOT be in config when no values set")
+						}
+
+						allowedBranches, ok := prConfig["allowed_branches"]
+						if tt.shouldHaveAllowedBranchesKey {
+							require.True(t, ok, "allowed_branches should be in config")
+							allowedSlice, ok := allowedBranches.([]any)
+							require.True(t, ok, "allowed_branches should be an array")
+							require.Len(t, allowedSlice, len(tt.expectedAllowedBranches), "allowed_branches length should match")
+							for i, expected := range tt.expectedAllowedBranches {
+								assert.Equal(t, expected, allowedSlice[i], "allowed_branches element should match")
+							}
+						} else {
+							require.False(t, ok, "allowed_branches should NOT be in config when no values set")
 						}
 					}
 				}
