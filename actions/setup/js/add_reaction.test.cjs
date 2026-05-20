@@ -249,7 +249,7 @@ describe("add_reaction", () => {
   });
 
   describe("pull_request_review events", () => {
-    it("should silently skip pull request reviews", async () => {
+    it("should silently skip pull_request_review events", async () => {
       global.context = {
         eventName: "pull_request_review",
         repo: { owner: "testowner", repo: "testrepo" },
