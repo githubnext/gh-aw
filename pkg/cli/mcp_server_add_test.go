@@ -132,7 +132,8 @@ func TestMCPServer_AddTool_Success(t *testing.T) {
 
 // TestMCPServer_AddToolInvocation tests calling the add tool
 func TestMCPServer_AddToolInvocation(t *testing.T) {
-	tmpDir, _ := setupMCPServerAddRepo(t)
+	tmpDir, workflowsDir := setupMCPServerAddRepo(t)
+	require.DirExists(t, workflowsDir, "Expected setup helper to create workflows directory")
 	ctx, session := setupMCPServerSession(t, "../../gh-aw", tmpDir, testMCPServerAddToolTimeout)
 
 	tests := []struct {
