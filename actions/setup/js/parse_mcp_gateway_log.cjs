@@ -62,6 +62,8 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalDurationMs: 0,
     totalEffectiveTokens: 0,
     byModel: {},
+    /** @type {{ model: string, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, durationMs: number, deltaET: number }[]} */
+    entries: [],
   };
 
   const lines = jsonlContent.split("\n");
@@ -76,13 +78,14 @@ function parseTokenUsageJsonl(jsonlContent) {
       const outputTokens = entry.output_tokens || 0;
       const cacheReadTokens = entry.cache_read_tokens || 0;
       const cacheWriteTokens = entry.cache_write_tokens || 0;
+      const durationMs = entry.duration_ms || 0;
 
       summary.totalInputTokens += inputTokens;
       summary.totalOutputTokens += outputTokens;
       summary.totalCacheReadTokens += cacheReadTokens;
       summary.totalCacheWriteTokens += cacheWriteTokens;
       summary.totalRequests++;
-      summary.totalDurationMs += entry.duration_ms || 0;
+      summary.totalDurationMs += durationMs;
 
       const model = entry.model || "unknown";
       summary.byModel[model] ??= {
@@ -101,7 +104,9 @@ function parseTokenUsageJsonl(jsonlContent) {
       m.cacheReadTokens += cacheReadTokens;
       m.cacheWriteTokens += cacheWriteTokens;
       m.requests++;
-      m.durationMs += entry.duration_ms || 0;
+      m.durationMs += durationMs;
+
+      summary.entries.push({ model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, durationMs, deltaET: 0 });
     } catch {
       // skip malformed lines
     }
@@ -118,39 +123,43 @@ function parseTokenUsageJsonl(jsonlContent) {
   }
   summary.totalEffectiveTokens = totalEffectiveTokens;
 
+  // Compute per-turn delta ET
+  for (const entry of summary.entries) {
+    entry.deltaET = computeEffectiveTokens(entry.model, entry.inputTokens, entry.outputTokens, entry.cacheReadTokens, entry.cacheWriteTokens);
+  }
+
   return summary;
 }
 
 /**
  * Generates a markdown summary section for token usage data.
- * Includes an Effective Tokens (ET) column per model and a ● ET summary line.
- * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object} | null} summary
+ * Renders one row per turn in chronological order with per-turn delta ET (ΔET)
+ * and a running compounded ET total (ET), followed by an aggregate totals row
+ * and a ● ET footer line.
+ * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object, entries: Array} | null} summary
  * @returns {string} Markdown section, or empty string if no data
  */
 function generateTokenUsageSummary(summary) {
   if (!summary || summary.totalRequests === 0) return "";
 
   const lines = [];
-  lines.push("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
-  lines.push("|-------|------:|-------:|-----------:|------------:|---:|---------:|---------:|");
+  lines.push("| # | Model | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
+  lines.push("|--:|-------|------:|-------:|-----------:|------------:|----:|---:|---------:|");
 
-  // Sort models by total tokens descending
-  const models = Object.entries(summary.byModel).sort(([, a], [, b]) => {
-    const aTotal = a.inputTokens + a.outputTokens + a.cacheReadTokens + a.cacheWriteTokens;
-    const bTotal = b.inputTokens + b.outputTokens + b.cacheReadTokens + b.cacheWriteTokens;
-    return bTotal - aTotal;
-  });
-
-  for (const [model, usage] of models) {
-    const et = formatET(Math.round(usage.effectiveTokens || 0));
+  const entries = summary.entries || [];
+  let compoundedET = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const deltaET = Math.round(entry.deltaET || 0);
+    compoundedET += deltaET;
     lines.push(
-      `| ${model} | ${usage.inputTokens.toLocaleString()} | ${usage.outputTokens.toLocaleString()} | ${usage.cacheReadTokens.toLocaleString()} | ${usage.cacheWriteTokens.toLocaleString()} | ${et} | ${usage.requests} | ${formatDurationMs(usage.durationMs)} |`
+      `| ${i + 1} | ${entry.model} | ${entry.inputTokens.toLocaleString()} | ${entry.outputTokens.toLocaleString()} | ${entry.cacheReadTokens.toLocaleString()} | ${entry.cacheWriteTokens.toLocaleString()} | ${formatET(deltaET)} | ${formatET(compoundedET)} | ${formatDurationMs(entry.durationMs)} |`
     );
   }
 
   const totalET = formatET(Math.round(summary.totalEffectiveTokens || 0));
   lines.push(
-    `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${totalET}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
+    `| **Total** | | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | | **${totalET}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
 
   // Footer line with ET summary using ● symbol

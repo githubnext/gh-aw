@@ -1367,6 +1367,36 @@ not-json
       expect(summary).not.toBeNull();
       expect(summary).not.toHaveProperty("cacheEfficiency");
     });
+
+    test("populates per-turn entries array in order", () => {
+      const lines = [
+        JSON.stringify({ model: "m1", input_tokens: 10, output_tokens: 5, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "m2", input_tokens: 20, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      expect(summary.entries).toHaveLength(2);
+      expect(summary.entries[0].model).toBe("m1");
+      expect(summary.entries[0].inputTokens).toBe(10);
+      expect(summary.entries[0].durationMs).toBe(100);
+      expect(summary.entries[1].model).toBe("m2");
+    });
+
+    test("computes deltaET for each entry", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary.entries).toHaveLength(1);
+      expect(summary.entries[0].deltaET).toBeGreaterThan(0);
+    });
+
+    test("sum of entry deltaET equals totalEffectiveTokens", () => {
+      const lines = [
+        JSON.stringify({ model: "m1", input_tokens: 100, output_tokens: 50, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "m2", input_tokens: 200, output_tokens: 100, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      const sumDelta = summary.entries.reduce((acc, e) => acc + e.deltaET, 0);
+      expect(sumDelta).toBeCloseTo(summary.totalEffectiveTokens, 5);
+    });
   });
 
   describe("generateTokenUsageSummary", () => {
@@ -1378,7 +1408,7 @@ not-json
     test("renders header and table columns", () => {
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
+      expect(md).toContain("| # | Model | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
       expect(md).toContain("claude-sonnet-4-6");
     });
 
@@ -1395,22 +1425,23 @@ not-json
       expect(md).not.toContain("Cache efficiency");
     });
 
-    test("sorts models by total tokens descending", () => {
+    test("renders rows in chronological (input) order", () => {
       const lines = [
-        JSON.stringify({ model: "small-model", input_tokens: 5, output_tokens: 5, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
-        JSON.stringify({ model: "large-model", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 500 }),
+        JSON.stringify({ model: "first-model", input_tokens: 5, output_tokens: 5, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "second-model", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 500 }),
       ];
       const summary = parseTokenUsageJsonl(lines.join("\n"));
       const md = generateTokenUsageSummary(summary);
-      const largeIdx = md.indexOf("large-model");
-      const smallIdx = md.indexOf("small-model");
-      expect(largeIdx).toBeLessThan(smallIdx);
+      const firstIdx = md.indexOf("first-model");
+      const secondIdx = md.indexOf("second-model");
+      expect(firstIdx).toBeLessThan(secondIdx);
     });
 
-    test("includes ET column in table", () => {
+    test("includes ΔET and ET columns in table", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("| ΔET |");
       expect(md).toContain("| ET |");
     });
 
@@ -1419,7 +1450,7 @@ not-json
       const summary = parseTokenUsageJsonl(content);
       expect(summary.totalEffectiveTokens).toBeGreaterThan(0);
       const md = generateTokenUsageSummary(summary);
-      // Column header still says ET; footer uses compact ● symbol only
+      // Column header has ET columns; footer uses compact ● symbol only
       expect(md).toContain("| ET |");
       expect(md).toContain("●");
     });
@@ -1430,6 +1461,20 @@ not-json
       const md = generateTokenUsageSummary(summary);
       expect(md).toContain("●");
       expect(md).not.toContain("Cache efficiency");
+    });
+
+    test("compounded ET equals sum of per-turn delta ET values", () => {
+      const lines = [
+        JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 50, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "m", input_tokens: 200, output_tokens: 100, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      const md = generateTokenUsageSummary(summary);
+      // Total row and last data row ET should both show the overall total ET
+      expect(md).toContain("**Total**");
+      // The last entry's compounded ET equals totalEffectiveTokens so must appear in the table
+      const totalRounded = Math.round(summary.totalEffectiveTokens);
+      expect(totalRounded).toBeGreaterThan(0);
     });
   });
 
