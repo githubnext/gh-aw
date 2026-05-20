@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 )
 
 var jsonWorkflowLog = logger.New("cli:jsonworkflow_to_markdown")
@@ -359,17 +360,12 @@ func yamlQuoteString(s string) string {
 }
 
 // marshalFrontmatterValue serializes v as indented YAML (without the leading "---").
-// It uses encoding/json as an intermediate form to avoid importing a YAML library.
 func marshalFrontmatterValue(v any) (string, error) {
-	// Re-encode to JSON then convert to a minimal YAML representation.
-	// This produces valid YAML for the subset of JSON types we care about.
-	raw, err := json.MarshalIndent(v, "", "  ")
+	raw, err := yaml.MarshalWithOptions(v, yaml.Indent(2), yaml.IndentSequence(true))
 	if err != nil {
 		return "", err
 	}
-	// Convert JSON representation to simple YAML.
-	// For objects and arrays the JSON encoding is already valid YAML.
-	return string(raw), nil
+	return strings.TrimRight(string(raw), "\n"), nil
 }
 
 // resolveOnValue returns the value to use for the "on:" frontmatter key.
@@ -509,8 +505,8 @@ var jsonToolToToolset = map[string]string{
 	// Actions
 	"actions_list": "actions", "actions_get": "actions", "get_job_logs": "actions",
 	// Code Security
-	"list_code_scanning_alerts": "code-security", "get_code_scanning_alert": "code-security",
-	"list_secret_scanning_alerts": "code-security", "get_secret_scanning_alert": "code-security",
+	"list_code_scanning_alerts": "code_security", "get_code_scanning_alert": "code_security",
+	"list_secret_scanning_alerts": "code_security", "get_secret_scanning_alert": "code_security",
 }
 
 // jsonGeneralTools are built-in agent capabilities that need no explicit gh-aw

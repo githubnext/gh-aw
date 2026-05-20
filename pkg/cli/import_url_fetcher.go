@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 const importURLMaxBytes = 500 * 1024      // 500 KB
@@ -51,7 +52,7 @@ type FetchedResource struct {
 //     api.githubcopilot.com), or for the hostname extracted from the GH_HOST
 //     environment variable
 //
-// In that case the value of GH_TOKEN (falling back to GITHUB_TOKEN) is sent as
+// In that case the value of GITHUB_TOKEN (falling back to GH_TOKEN, then gh auth token) is sent as
 // "Authorization: Bearer <token>".  For all other hosts, or for any HTTP (non-TLS)
 // request, no authentication header is added.  TLS verification is always enabled.
 //
@@ -66,6 +67,7 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 
 	// Attempt HEAD first to get Content-Type without downloading the body.
 	ct, headOK := tryHead(ctx, client, rawURL)
+	importURLFetcherLog.Printf("HEAD result: content_type=%q ok=%v", ct, headOK)
 
 	// Always perform the GET to retrieve the body.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
@@ -74,11 +76,16 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 	}
 	attachImportAuthHeader(req, rawURL)
 
+	logRequestVerbose(req)
+
+	importURLFetcherLog.Printf("Sending GET request to %s", req.URL.Host)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch URL: %w", sanitizeHTTPError(err))
 	}
 	defer resp.Body.Close()
+
+	importURLFetcherLog.Printf("GET response: status=%d content-type=%q", resp.StatusCode, resp.Header.Get("Content-Type"))
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
@@ -89,6 +96,7 @@ func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*Fet
 		return nil, errors.New(console.FormatErrorMessage("URL not found (HTTP 404)"))
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		logResponseBodyVerbose(resp)
 		return nil, errors.New(console.FormatErrorMessage(
 			fmt.Sprintf("unexpected HTTP %d response from server", resp.StatusCode),
 		))
@@ -130,6 +138,7 @@ func tryHead(ctx context.Context, client *http.Client, rawURL string) (string, b
 	}
 	attachImportAuthHeader(req, rawURL)
 
+	importURLFetcherLog.Printf("Sending HEAD request to %s", req.URL.Host)
 	resp, err := client.Do(req)
 	if err != nil {
 		importURLFetcherLog.Printf("HEAD request failed (will fallback to GET): %v", sanitizeHTTPError(err))
@@ -137,15 +146,20 @@ func tryHead(ctx context.Context, client *http.Client, rawURL string) (string, b
 	}
 	defer resp.Body.Close()
 
+	importURLFetcherLog.Printf("HEAD response: status=%d content-type=%q", resp.StatusCode, resp.Header.Get("Content-Type"))
+
 	// 405 Method Not Allowed / 501 Not Implemented → server doesn't support HEAD.
 	if resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode == http.StatusNotImplemented {
+		importURLFetcherLog.Print("HEAD not supported by server, falling back to GET")
 		return "", false
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		importURLFetcherLog.Printf("HEAD returned non-2xx status %d, falling back to GET", resp.StatusCode)
 		return "", false
 	}
 
 	ct := canonicalContentType(resp.Header.Get("Content-Type"))
+	importURLFetcherLog.Printf("HEAD content-type resolved: %q", ct)
 	return ct, ct != ""
 }
 
@@ -166,7 +180,7 @@ func canonicalContentType(raw string) string {
 	return strings.ToLower(mt)
 }
 
-// attachImportAuthHeader adds "Authorization: Bearer <token>" to req if and only if
+// attachImportAuthHeader adds authentication headers to req when
 // ALL of the following are true:
 //   - the request scheme is "https" (tokens are never sent over plaintext HTTP)
 //   - the request host is an exact match for one of the default GitHub import
@@ -193,6 +207,7 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 
 	// Never send credentials over plaintext HTTP — HTTPS is required.
 	if strings.ToLower(parsed.Scheme) != "https" {
+		importURLFetcherLog.Printf("Skipping auth header for non-HTTPS URL: scheme=%s", parsed.Scheme)
 		return
 	}
 
@@ -200,18 +215,63 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 
 	// Authoritative GitHub hosts to which the token may be sent.
 	if _, ok := defaultImportAuthHosts[host]; !ok && host != importAuthGHHost() {
+		importURLFetcherLog.Printf("Skipping auth header for non-GitHub host: %s", host)
 		return
 	}
 
-	token := os.Getenv("GH_TOKEN")
-	if token == "" {
-		token = os.Getenv("GITHUB_TOKEN")
-	}
-	if token == "" {
+	token, err := parser.GetGitHubToken()
+	if err != nil {
+		importURLFetcherLog.Printf("No GitHub token available: %v", err)
 		return
 	}
 
+	importURLFetcherLog.Printf("Attaching auth header for host: %s", host)
 	req.Header.Set("Authorization", "Bearer "+token)
+}
+
+// buildRequestLogString formats req in HTTP/1.1 wire format with the Authorization
+// header partially redacted. Bearer tokens show the first 4 characters followed by
+// "***"; all other schemes are replaced with "***".
+func buildRequestLogString(req *http.Request) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s %s HTTP/1.1\r\n", req.Method, req.URL.RequestURI()))
+	sb.WriteString(fmt.Sprintf("Host: %s\r\n", req.URL.Host))
+	for key, vals := range req.Header {
+		val := strings.Join(vals, ", ")
+		if strings.EqualFold(key, "Authorization") {
+			if parts := strings.SplitN(val, " ", 2); len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+				credential := parts[1]
+				prefix := credential
+				if len(prefix) > 4 {
+					prefix = prefix[:4]
+				}
+				val = "Bearer " + prefix + "***"
+			} else {
+				val = "***"
+			}
+		}
+		sb.WriteString(fmt.Sprintf("%s: %s\r\n", key, val))
+	}
+	return sb.String()
+}
+
+// logRequestVerbose writes the outgoing request in HTTP/1.1 wire format
+// to the debug logger with the Authorization value partially redacted.
+func logRequestVerbose(req *http.Request) {
+	if !importURLFetcherLog.Enabled() {
+		return
+	}
+	importURLFetcherLog.Print(buildRequestLogString(req))
+}
+
+// logResponseBodyVerbose reads and logs the first 512 bytes of a non-2xx response
+// body via the debug logger to help diagnose server-side errors.
+func logResponseBodyVerbose(resp *http.Response) {
+	snippet, err := io.ReadAll(io.LimitReader(resp.Body, 512))
+	if err != nil || len(snippet) == 0 {
+		return
+	}
+	importURLFetcherLog.Printf("Response body (first %d bytes):\n%s", len(snippet), string(snippet))
 }
 
 func importAuthGHHost() string {

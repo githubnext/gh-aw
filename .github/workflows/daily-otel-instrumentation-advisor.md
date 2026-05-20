@@ -11,11 +11,6 @@ permissions:
   pull-requests: read
 tracker-id: daily-otel-instrumentation-advisor
 engine: claude
-mcp-servers:
-  sentry:
-    url: "https://mcp.sentry.dev/mcp/gh-aw-test.sentry.io/gh-aw/"
-    headers:
-      Authorization: "Bearer ${{ secrets.SENTRY_API_KEY }}"
 tools:
   cli-proxy: true
   bash: true
@@ -37,6 +32,8 @@ imports:
       title-prefix: "[otel-advisor] "
       expires: 3d
 
+  - shared/mcp/sentry.md
+  - shared/mcp/grafana.md
   - shared/otel-queries.md
   - shared/otlp.md
 ---
@@ -105,19 +102,19 @@ grep -n "traceId\|spanId\|parentSpanId\|GITHUB_AW_OTEL" \
 grep -n "otel_trace_id\|workflow_call_id\|context" actions/setup/js/aw_context.cjs | head -40
 ```
 
-### Step 2: Query Live OTel Data from Sentry
+### Step 2: Query Live OTel Data from Sentry and Grafana
 
-Before evaluating the code statically, ground your analysis in real telemetry from Sentry.
+Before evaluating the code statically, ground your analysis in real telemetry from both Sentry and Grafana.
 
-1. **Discover the org and project** — call `find_organizations` to get the organization slug, then `find_projects` to find the project slug for this repository.
+1. **Query Sentry spans first** — call `find_organizations` to identify the org, then `find_projects` to find the project for this repository. Use `search_events` with `dataset: spans` over the last 24 hours. If the spans dataset returns no results, fall back to `dataset: transactions`.
 
-2. **Sample recent spans** — call `search_events` with `dataset: spans` and a time window of the last 24 hours to retrieve a representative sample of recent span payloads. If the spans dataset returns no results, fall back to `dataset: transactions`. Capture at least one full span payload for inspection.
+2. **Inspect one Sentry trace** — take a `trace_id` from sampled Sentry data and call `get_trace_details` to verify end-to-end trace continuity.
 
-3. **Inspect a full trace end-to-end** — take the `trace_id` from one of the sampled spans and call `get_trace_details` to see all spans in that trace. Note which jobs produced spans and whether parent–child relationships are intact.
+3. **Query Grafana traces** — use Grafana MCP tools (`list_datasources`, `tempo_traceql-search`, `tempo_get-trace`) to retrieve recent `gh-aw` telemetry from the last 24 hours and inspect one full trace using a trace ID.
 
-4. **Check for OTel errors** — call `search_issues` filtered to errors or issues with titles containing "OTLP", "otel", or "span" to see if any instrumentation errors are being reported.
+4. **Cross-check Sentry and Grafana evidence** — compare attribute presence and trace continuity between both backends. If one backend has no data, explicitly note whether that appears to be ingestion delay, auth/config issues, or query limitations.
 
-5. **Document real vs. expected attributes** — for each of the following attributes, record whether it is actually present in the live span payload (not just whether the code sets it):
+5. **Document real vs. expected attributes** — for each backend, record whether each attribute is actually present in live span payloads (not just whether the code sets it):
    - `service.version`
    - `github.repository`
    - `github.event_name`
@@ -128,7 +125,7 @@ Record your findings in memory for use in the evaluation step below.
 
 ### Step 3: Evaluate Against DevOps Best Practices
 
-Using your expertise in OTel and DevOps observability, evaluate the instrumentation across these dimensions — and cross-reference each point against the **live Sentry data** collected in Step 2:
+Using your expertise in OTel and DevOps observability, evaluate the instrumentation across these dimensions — and cross-reference each point against the **live Sentry and Grafana OTel data** collected in Step 2:
 
 1. **Span coverage** — Are all meaningful job phases instrumented (setup, agent execution, safe-outputs, conclusion)?
 2. **Attribute richness** — Do spans carry enough attributes to answer operational questions (engine type, workflow name, run ID, trigger event, conclusion status)?
@@ -140,7 +137,7 @@ Using your expertise in OTel and DevOps observability, evaluate the instrumentat
 
 ### Step 4: Select the Single Best Improvement
 
-Apply DevOps judgment to pick the **one improvement with the highest signal-to-effort ratio**. Prioritize improvements that are **confirmed by the live Sentry data** collected in Step 2 — gaps present only in static code but already working in real spans should be deprioritized. Prioritize improvements that:
+Apply DevOps judgment to pick the **one improvement with the highest signal-to-effort ratio**. Prioritize improvements that are **confirmed by the live Sentry/Grafana OTel data** collected in Step 2 — gaps present only in static code but already working in real spans should be deprioritized. Prioritize improvements that:
 
 - Help engineers answer "why did this workflow fail?" faster
 - Improve alerting and dashboarding in OTel backends (Grafana, Honeycomb, Datadog)
@@ -233,11 +230,11 @@ After this change:
 </details>
 
 <details>
-<summary><b>Evidence from Live Sentry Data</b></summary>
+<summary><b>Evidence from Live OTel Data (Sentry/Grafana)</b></summary>
 
-<Paste the key fields from the sampled span payload that support this recommendation. Include
-the `trace_id`, the span `name`, and the attributes (or their absence) that confirm the gap.
-If you found a Sentry issue related to this problem, include the issue URL.>
+<Paste the key fields from sampled Sentry and Grafana span payloads that support this recommendation. Include
+the `trace_id`, the span `name`, and the attributes (or their absence) that confirm the gap. If only one backend had
+usable data, state why and include the strongest available evidence.>
 
 </details>
 
