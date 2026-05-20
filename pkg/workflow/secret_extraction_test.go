@@ -333,6 +333,71 @@ func TestSharedReplaceSecretsWithEnvVars(t *testing.T) {
 	}
 }
 
+// TestReplaceSecretsWithEnvVars_FallbackExpressionDeterminism verifies that when a single
+// GitHub Actions expression references two secrets (e.g. a fallback pattern like
+// "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}"), the replacement is
+// deterministic across repeated calls. Previously, Go map iteration produced either
+// "\${DD_APP_KEY}" or "\${DD_APPLICATION_KEY}" non-deterministically, causing
+// smoke-otel-backends.lock.yml to differ between compiler runs.
+func TestReplaceSecretsWithEnvVars_FallbackExpressionDeterminism(t *testing.T) {
+	// Both secrets map to the same expression — this is what ExtractSecretsFromMap
+	// produces for "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}".
+	sharedExpr := "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}"
+	secrets := map[string]string{
+		"DD_APPLICATION_KEY": sharedExpr,
+		"DD_APP_KEY":         sharedExpr,
+	}
+
+	// Run many times to surface any non-determinism from Go map iteration.
+	const runs = 50
+	var first string
+	for i := range runs {
+		got := ReplaceSecretsWithEnvVars(sharedExpr, secrets)
+		if i == 0 {
+			first = got
+			continue
+		}
+		if got != first {
+			t.Errorf("non-deterministic output: run 0 produced %q, run %d produced %q", first, i, got)
+		}
+	}
+
+	// The alphabetically first key ("DD_APPLICATION_KEY") should win because it is processed
+	// first in sorted order and performs the replacement; the second key finds nothing
+	// to replace. Note: '_' (ASCII 95) > 'L' (ASCII 76), so "DD_APPLICATION_KEY" sorts
+	// before "DD_APP_KEY" (comparison diverges at position 6: 'L' < '_').
+	want := "\\${DD_APPLICATION_KEY}"
+	if first != want {
+		t.Errorf("ReplaceSecretsWithEnvVars(%q, secrets) = %q, want %q", sharedExpr, first, want)
+	}
+}
+
+// TestReplaceSecretsWithBashVars_FallbackExpressionDeterminism verifies that
+// ReplaceSecretsWithBashVars produces deterministic output for fallback expressions
+// with two secret references. Mirrors TestReplaceSecretsWithEnvVars_FallbackExpressionDeterminism.
+func TestReplaceSecretsWithBashVars_FallbackExpressionDeterminism(t *testing.T) {
+	value := "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}"
+
+	const runs = 50
+	var first string
+	for i := range runs {
+		got := ReplaceSecretsWithBashVars(value)
+		if i == 0 {
+			first = got
+			continue
+		}
+		if got != first {
+			t.Errorf("non-deterministic output: run 0 produced %q, run %d produced %q", first, i, got)
+		}
+	}
+
+	// "DD_APPLICATION_KEY" sorts before "DD_APP_KEY" ('L' < '_'), so it wins.
+	want := "${DD_APPLICATION_KEY}"
+	if first != want {
+		t.Errorf("ReplaceSecretsWithBashVars(%q) = %q, want %q", value, first, want)
+	}
+}
+
 // TestSharedExtractSecretsFromValueEdgeCases tests edge cases for the shared ExtractSecretsFromValue utility function
 func TestSharedExtractSecretsFromValueEdgeCases(t *testing.T) {
 	tests := []struct {
