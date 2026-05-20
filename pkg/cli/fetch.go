@@ -32,10 +32,12 @@ var transientHTTP5xxPattern = regexp.MustCompile(`http 5\d{2}`)
 // FetchedWorkflow contains content and metadata from a directly fetched workflow file.
 // This is the unified type that combines content with source information.
 type FetchedWorkflow struct {
-	Content    []byte // The raw content of the workflow file
-	CommitSHA  string // The resolved commit SHA at the time of fetch (empty for local)
-	IsLocal    bool   // true if this is a local workflow (from filesystem)
-	SourcePath string // The original source path (local path or remote path)
+	Content                []byte   // The raw content of the workflow file
+	CommitSHA              string   // The resolved commit SHA at the time of fetch (empty for local)
+	IsLocal                bool     // true if this is a local workflow (from filesystem)
+	SourcePath             string   // The original source path (local path or remote path)
+	ConvertedFromJSON      bool     // true when the fetched source was JSON converted to markdown
+	JSONConversionWarnings []string // best-effort conversion warnings produced during JSON import
 }
 
 // FetchWorkflowFromSourceWithContext fetches a workflow file from local disk or GitHub.
@@ -300,10 +302,12 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 		}
 
 		return &FetchedWorkflow{
-			Content:    []byte(generated.Markdown),
-			CommitSHA:  "",
-			IsLocal:    false,
-			SourcePath: spec.RawURL,
+			Content:                []byte(generated.Markdown),
+			CommitSHA:              "",
+			IsLocal:                false,
+			SourcePath:             spec.RawURL,
+			ConvertedFromJSON:      true,
+			JSONConversionWarnings: generated.Warnings,
 		}, nil
 
 	default:

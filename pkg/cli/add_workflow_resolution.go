@@ -172,6 +172,11 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			hasWorkflowDispatch = true
 		}
 
+		if fetched.ConvertedFromJSON {
+			resolutionWarnings = append(resolutionWarnings,
+				fmt.Sprintf("JSON workflow import for %q was best-effort; run an agentic prompt to refine .github/workflows/%s.md", resolvedSpec.WorkflowName, resolvedSpec.WorkflowName))
+		}
+
 		resolutionLog.Printf("Resolved workflow: spec=%s, engine=%s, has_dispatch=%t, content_size=%d bytes",
 			spec.String(), engine, workflowHasDispatch, len(fetched.Content))
 

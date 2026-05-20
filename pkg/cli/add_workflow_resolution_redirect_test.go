@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,5 +108,29 @@ func TestResolveAddWorkflowSpecAndContent(t *testing.T) {
 		require.Len(t, resolved.Workflows, 1, "one workflow should resolve")
 		assert.Equal(t, "workflows/new.md", resolved.Workflows[0].Spec.WorkflowPath, "resolved spec should point to redirect destination")
 		assert.Equal(t, "original", resolved.Workflows[0].Spec.WorkflowName, "resolved workflow name should be preserved from the original request")
+	})
+
+	t.Run("ResolveWorkflows adds JSON import refinement suggestion", func(t *testing.T) {
+		fetchWorkflowFromSourceWithContextFn = func(_ context.Context, _ *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+			return &FetchedWorkflow{
+				Content:           []byte("---\ndescription: Imported workflow\non: push\n---\n"),
+				IsLocal:           true,
+				SourcePath:        "https://example.com/workflow.json",
+				ConvertedFromJSON: true,
+			}, nil
+		}
+
+		resolved, err := ResolveWorkflows(context.Background(), []string{"https://example.com/workflow.json"}, false)
+		require.NoError(t, err, "ResolveWorkflows should accept converted JSON workflow payloads")
+		require.NotNil(t, resolved, "resolved workflows should be returned")
+		require.NotEmpty(t, resolved.Warnings, "JSON conversion should surface follow-up suggestion")
+		hasSuggestion := false
+		for _, warning := range resolved.Warnings {
+			if strings.Contains(warning, "run an agentic prompt") {
+				hasSuggestion = true
+				break
+			}
+		}
+		assert.True(t, hasSuggestion, "should suggest agentic refinement after JSON import")
 	})
 }
