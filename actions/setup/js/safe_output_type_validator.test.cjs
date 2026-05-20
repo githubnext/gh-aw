@@ -105,6 +105,14 @@ const SAMPLE_VALIDATION_CONFIG = {
       alternatives: { type: "string", sanitize: true, maxLength: 512 },
     },
   },
+  create_discussion: {
+    defaultMax: 1,
+    fields: {
+      title: { required: true, type: "string", sanitize: true, maxLength: 128 },
+      body: { required: true, type: "string", sanitize: true, maxLength: 65000, minLength: 64 },
+      category: { type: "string", sanitize: true, maxLength: 128 },
+    },
+  },
   create_code_scanning_alert: {
     defaultMax: 40,
     fields: {
@@ -533,6 +541,45 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must contain only alphanumeric characters, hyphens, and underscores");
+    });
+  });
+
+  describe("minLength validation", () => {
+    it("should reject body shorter than minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_discussion", title: "Test Discussion", body: "PLACEHOLDER" }, "create_discussion", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+      expect(result.error).toContain("64");
+    });
+
+    it("should reject single-word placeholder body", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_discussion", title: "Test Discussion", body: "TODO" }, "create_discussion", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
+    });
+
+    it("should accept body that meets minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const longEnoughBody = "No safe output job failures detected in the last 24 hours of analysis.";
+      const result = validateItem({ type: "create_discussion", title: "Test Discussion", body: longEnoughBody }, "create_discussion", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should reject body that is only whitespace below minLength", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_discussion", title: "Test Discussion", body: "   short   " }, "create_discussion", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too short");
     });
   });
 
