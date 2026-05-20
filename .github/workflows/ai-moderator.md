@@ -210,4 +210,10 @@ If no spam was detected, you may still update the log to remove stale entries, b
 - Provide clear reasoning for each detection in your analysis
 - Only take action if you have high confidence in the detection
 
+## Report Formatting
+
+- Use h3 (###) or lower for all headers in your analysis output to maintain proper document hierarchy.
+- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Structure: Brief summary (always visible) → Key findings (always visible) → Detailed analysis (in `<details>`) → Actions taken (always visible)
+
 {{#runtime-import shared/noop-reminder.md}}

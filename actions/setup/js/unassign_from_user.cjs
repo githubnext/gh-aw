@@ -8,7 +8,7 @@
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
+const { resolveIssueNumber, extractAssignees, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
@@ -31,6 +31,10 @@ const main = createCountGatedHandler({
     // Resolve target repository configuration
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
+    const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+    const requiredTitlePrefix = config.required_title_prefix || "";
+    if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+    if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
     core.info(`Unassign from user configuration: max=${maxCount}`);
     if (allowedAssignees.length > 0) {
@@ -95,6 +99,9 @@ const main = createCountGatedHandler({
 
       const repoParts = repoResult.repoParts;
       const targetRepo = repoResult.repo;
+
+      const filterResult = await checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, HANDLER_TYPE);
+      if (filterResult) return filterResult;
 
       core.info(`Unassigning ${uniqueAssignees.length} users from issue #${issueNumber} in ${targetRepo}: ${JSON.stringify(uniqueAssignees)}`);
 

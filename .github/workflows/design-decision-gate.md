@@ -379,7 +379,9 @@ All ADRs are stored in `docs/adr/` as Markdown files numbered by PR number (e.g.
 
 ### Report Formatting
 
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
+- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Structure: Brief summary (always visible) → Key findings (always visible) → Detailed analysis (in `<details>`) → Recommendations (always visible)
 
 ## Step 4b: If ADR Found — Verify Implementation Matches
 

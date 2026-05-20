@@ -58,12 +58,12 @@ strict: false
 			expectError: true,
 		},
 		{
-			name: "merge-pull-request with bare * triggers error",
+			name: "merge-pull-request required-labels bare * is literal label name, not CTR-015",
 			safeOutputs: `safe-outputs:
   merge-pull-request:
-    allowed-labels: ["*"]
+    required-labels: ["*"]
 `,
-			expectError: true,
+			expectError: false,
 		},
 		{
 			name: "update-discussion with bare * triggers error",
@@ -120,6 +120,66 @@ strict: false
 				assert.NoError(t, compileErr,
 					"CTR-015: did not expect error for valid allowed-labels")
 			}
+		})
+	}
+}
+
+// TestRequiredLabelsConjunctive verifies that required-labels requires ALL labels to match
+// (conjunctive semantics) for add-labels, remove-labels, and add-comment operations.
+func TestRequiredLabelsConjunctive(t *testing.T) {
+	basePermissions := `
+permissions:
+  contents: read
+  issues: read
+
+on:
+  issues:
+    types: [opened]
+
+engine: copilot
+strict: false
+`
+	tests := []struct {
+		name        string
+		safeOutputs string
+		wantInJSON  string
+	}{
+		{
+			name: "add-labels required-labels as array",
+			safeOutputs: `safe-outputs:
+  add-labels:
+    allowed: [bug]
+    required-labels: [approved, ready]
+`,
+			wantInJSON: `"required_labels":["approved","ready"]`,
+		},
+		{
+			name: "add-comment required-labels as array",
+			safeOutputs: `safe-outputs:
+  add-comment:
+    required-labels: [approved]
+`,
+			wantInJSON: `"required_labels":["approved"]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "conjunctive-rl-test")
+			content := "---\n" + basePermissions + tt.safeOutputs + "---\n\n# Test\n\nBody.\n"
+			wfPath := filepath.Join(tmpDir, "test.md")
+			err := os.WriteFile(wfPath, []byte(content), 0o600)
+			require.NoError(t, err)
+
+			compiler := NewCompiler()
+			compileErr := compiler.CompileWorkflow(wfPath)
+			require.NoError(t, compileErr, "required-labels array should compile without error")
+
+			lockPath := wfPath[:len(wfPath)-3] + ".lock.yml"
+			lockBytes, err := os.ReadFile(lockPath)
+			require.NoError(t, err, "lock file should exist")
+			assert.Contains(t, string(lockBytes), tt.wantInJSON,
+				"compiled JSON should contain required_labels as array")
 		})
 	}
 }

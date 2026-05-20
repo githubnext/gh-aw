@@ -8,6 +8,7 @@ var setIssueFieldLog = logger.New("workflow:set_issue_field")
 type SetIssueFieldConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 	AllowedFields          []string `yaml:"allowed-fields,omitempty"` // Optional list of allowed issue field names. If omitted or empty, any field is allowed. Use ["*"] to explicitly allow all.
 }
 
