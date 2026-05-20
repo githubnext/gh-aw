@@ -42,7 +42,13 @@ func extractTopLevelFieldLines(yamlContent string, frontmatterStart int) map[str
 			colonIdx := strings.Index(trimmed, ":")
 			if colonIdx > 0 {
 				key := strings.TrimSpace(trimmed[:colonIdx])
-				if key != "" && !strings.ContainsAny(key, " \t{}[]") {
+				// Accept simple unquoted keys only. Bracket characters in the key position
+				// ({, }, [, ]) indicate inline YAML maps/sequences rather than plain string keys
+				// (e.g. `[anchor]: value` or `{implicit_key}: value`). These forms are not used
+				// in workflow frontmatter, so we skip them to avoid false positives.
+				// Quoted YAML keys such as `"key[0]"` are also not used in workflow frontmatter
+				// and are excluded by this check (the extracted substring will contain the quote).
+				if key != "" && !strings.ContainsAny(key, " \t{}[]\"'") {
 					if _, alreadySeen := fieldLines[key]; !alreadySeen {
 						// absoluteLine = relLine + frontmatterStart - 1
 						fieldLines[key] = relLine + frontmatterStart - 1
