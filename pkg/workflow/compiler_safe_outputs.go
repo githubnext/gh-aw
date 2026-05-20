@@ -65,7 +65,7 @@ func resolvePullRequestReviewerCommandNames(reviewerTriggerValue any, workflowDa
 		return []string{reviewerCommandName}
 	}
 	// Default: centralized "review" command plus the workflow's own individual command
-	individual := ""
+	var individual string
 	if workflowData != nil && workflowData.WorkflowID != "" {
 		individual = workflowData.WorkflowID
 	} else {
