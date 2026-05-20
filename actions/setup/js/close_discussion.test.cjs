@@ -528,5 +528,140 @@ describe("close_discussion", () => {
         expect(result.error).toContain("aw_disc1");
       });
     });
+
+    describe("body-allowed: false", () => {
+      it("should close without comment when body-allowed is false and body is empty", async () => {
+        const handler = await main({ max: 10, body_allowed: false });
+        let commentCalled = false;
+        let closeCalled = false;
+
+        mockGithub.graphql = async (/** @type {string} */ query) => {
+          if (query.includes("addDiscussionComment")) {
+            commentCalled = true;
+            return { addDiscussionComment: { comment: { id: "DC_1", url: "url" } } };
+          }
+          if (query.includes("closeDiscussion")) {
+            closeCalled = true;
+            return { closeDiscussion: { discussion: { id: "D_1", url: "https://github.com/owner/repo/discussions/42" } } };
+          }
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest123",
+                title: "Test Discussion",
+                closed: false,
+                category: { name: "General" },
+                url: "https://github.com/owner/repo/discussions/42",
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+              },
+            },
+          };
+        };
+
+        const result = await handler({ body: "" }, {});
+
+        expect(result.success).toBe(true);
+        expect(commentCalled).toBe(false);
+        expect(closeCalled).toBe(true);
+        expect(mockCore.infos.some(msg => msg.includes("body-allowed is false"))).toBe(true);
+      });
+
+      it("should close without comment and warn when body-allowed is false and agent provides non-empty body", async () => {
+        const handler = await main({ max: 10, body_allowed: false });
+        let commentCalled = false;
+
+        mockGithub.graphql = async (/** @type {string} */ query) => {
+          if (query.includes("addDiscussionComment")) {
+            commentCalled = true;
+            return { addDiscussionComment: { comment: { id: "DC_1", url: "url" } } };
+          }
+          if (query.includes("closeDiscussion")) {
+            return { closeDiscussion: { discussion: { id: "D_1", url: "https://github.com/owner/repo/discussions/42" } } };
+          }
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest123",
+                title: "Test Discussion",
+                closed: false,
+                category: { name: "General" },
+                url: "https://github.com/owner/repo/discussions/42",
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+              },
+            },
+          };
+        };
+
+        const result = await handler({ body: "This summary should be dropped" }, {});
+
+        expect(result.success).toBe(true);
+        expect(commentCalled).toBe(false);
+        expect(mockCore.warnings.some(msg => msg.includes("body-allowed is false") && msg.includes("dropping"))).toBe(true);
+      });
+
+      it("should still add comment when body-allowed is not set (default behavior)", async () => {
+        const handler = await main({ max: 10 });
+        let commentCalled = false;
+
+        mockGithub.graphql = async (/** @type {string} */ query) => {
+          if (query.includes("addDiscussionComment")) {
+            commentCalled = true;
+            return { addDiscussionComment: { comment: { id: "DC_1", url: "url" } } };
+          }
+          if (query.includes("closeDiscussion")) {
+            return { closeDiscussion: { discussion: { id: "D_1", url: "https://github.com/owner/repo/discussions/42" } } };
+          }
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest123",
+                title: "Test Discussion",
+                closed: false,
+                category: { name: "General" },
+                url: "https://github.com/owner/repo/discussions/42",
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+              },
+            },
+          };
+        };
+
+        const result = await handler({ body: "Closing summary" }, {});
+
+        expect(result.success).toBe(true);
+        expect(commentCalled).toBe(true);
+      });
+
+      it("should still add comment when body-allowed is explicitly true", async () => {
+        const handler = await main({ max: 10, body_allowed: true });
+        let commentCalled = false;
+
+        mockGithub.graphql = async (/** @type {string} */ query) => {
+          if (query.includes("addDiscussionComment")) {
+            commentCalled = true;
+            return { addDiscussionComment: { comment: { id: "DC_1", url: "url" } } };
+          }
+          if (query.includes("closeDiscussion")) {
+            return { closeDiscussion: { discussion: { id: "D_1", url: "https://github.com/owner/repo/discussions/42" } } };
+          }
+          return {
+            repository: {
+              discussion: {
+                id: "D_kwDOTest123",
+                title: "Test Discussion",
+                closed: false,
+                category: { name: "General" },
+                url: "https://github.com/owner/repo/discussions/42",
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+              },
+            },
+          };
+        };
+
+        const result = await handler({ body: "Closing summary" }, {});
+
+        expect(result.success).toBe(true);
+        expect(commentCalled).toBe(true);
+      });
+    });
   });
 });

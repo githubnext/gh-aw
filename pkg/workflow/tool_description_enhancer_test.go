@@ -60,3 +60,55 @@ func TestEnhanceToolDescriptionSetIssueFieldAllowedFieldsList(t *testing.T) {
 		t.Fatalf("expected restrictive fields message in description, got: %s", description)
 	}
 }
+
+func TestEnhanceToolDescriptionCloseDiscussionBodyAllowedFalse(t *testing.T) {
+	f := false
+	description := enhanceToolDescription("close_discussion", "Close a discussion.", &SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{
+			BodyAllowed: &f,
+		},
+	})
+
+	if !strings.Contains(description, "Closing comments are disabled: do not include a body field.") {
+		t.Fatalf("expected body-not-allowed constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseDiscussionBodyAllowedTrue(t *testing.T) {
+	tr := true
+	description := enhanceToolDescription("close_discussion", "Close a discussion.", &SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{
+			BodyAllowed: &tr,
+		},
+	})
+
+	if strings.Contains(description, "Closing comments are disabled") {
+		t.Fatalf("did not expect body-not-allowed constraint when body-allowed is true, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseIssueBodyAllowedFalse(t *testing.T) {
+	f := false
+	description := enhanceToolDescription("close_issue", "Close an issue.", &SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			BodyAllowed: &f,
+		},
+	})
+
+	if !strings.Contains(description, "Closing comments are disabled: do not include a body field.") {
+		t.Fatalf("expected body-not-allowed constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseIssueBodyAllowedTrue(t *testing.T) {
+	tr := true
+	description := enhanceToolDescription("close_issue", "Close an issue.", &SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			BodyAllowed: &tr,
+		},
+	})
+
+	if strings.Contains(description, "Closing comments are disabled") {
+		t.Fatalf("did not expect body-not-allowed constraint when body-allowed is true, got: %s", description)
+	}
+}

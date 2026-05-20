@@ -791,4 +791,77 @@ describe("close_issue", () => {
       expect(result.error).toContain("aw_pending");
     });
   });
+
+  describe("body-allowed: false", () => {
+    it("should close without comment when body-allowed is false and body is empty", async () => {
+      const handler = await main({ max: 10, body_allowed: false });
+      const commentCalls = [];
+
+      mockGithub.rest.issues.createComment = async params => {
+        commentCalls.push(params);
+        return { data: { id: 1, html_url: "url" } };
+      };
+
+      const result = await handler({ issue_number: 100, body: "" }, {});
+
+      expect(result.success).toBe(true);
+      expect(commentCalls.length).toBe(0);
+      expect(mockCore.infos.some(msg => msg.includes("body-allowed is false"))).toBe(true);
+    });
+
+    it("should close without comment and warn when body-allowed is false and agent provides non-empty body", async () => {
+      const handler = await main({ max: 10, body_allowed: false });
+      const commentCalls = [];
+
+      mockGithub.rest.issues.createComment = async params => {
+        commentCalls.push(params);
+        return { data: { id: 1, html_url: "url" } };
+      };
+
+      const result = await handler({ issue_number: 100, body: "This summary should be dropped" }, {});
+
+      expect(result.success).toBe(true);
+      expect(commentCalls.length).toBe(0);
+      expect(mockCore.warnings.some(msg => msg.includes("body-allowed is false") && msg.includes("dropping"))).toBe(true);
+    });
+
+    it("should close without comment when body-allowed is false and no body is provided", async () => {
+      const handler = await main({ max: 10, body_allowed: false });
+      const commentCalls = [];
+
+      mockGithub.rest.issues.createComment = async params => {
+        commentCalls.push(params);
+        return { data: { id: 1, html_url: "url" } };
+      };
+
+      const result = await handler({ issue_number: 100 }, {});
+
+      expect(result.success).toBe(true);
+      expect(commentCalls.length).toBe(0);
+    });
+
+    it("should still require body when body-allowed is not set (default behavior)", async () => {
+      const handler = await main({ max: 10 });
+
+      const result = await handler({ issue_number: 100 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("No comment body provided");
+    });
+
+    it("should still add comment when body-allowed is explicitly true", async () => {
+      const handler = await main({ max: 10, body_allowed: true });
+      const commentCalls = [];
+
+      mockGithub.rest.issues.createComment = async params => {
+        commentCalls.push(params);
+        return { data: { id: 1, html_url: "url" } };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Closing summary" }, {});
+
+      expect(result.success).toBe(true);
+      expect(commentCalls.length).toBe(1);
+    });
+  });
 });

@@ -164,6 +164,7 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const bodyAllowed = config.body_allowed !== false; // default true; false only when explicitly set to false
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -174,7 +175,7 @@ async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
-  core.info(`Close discussion configuration: max=${maxCount}`);
+  core.info(`Close discussion configuration: max=${maxCount}, body_allowed=${bodyAllowed}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -278,9 +279,18 @@ async function main(config = {}) {
         };
       }
 
-      // Add comment if body is provided
+      // Add comment if body is provided and body-allowed is not false
       let commentUrl;
-      if (item.body) {
+      if (!bodyAllowed) {
+        // body-allowed: false — drop any body the agent provided and close without a comment
+        if (item.body) {
+          core.warning(
+            `close_discussion: body-allowed is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
+          );
+        } else {
+          core.info("close_discussion: body-allowed is false — closing without a comment");
+        }
+      } else if (item.body) {
         const sanitizedBody = sanitizeContent(item.body, { allowedAliases: allowedMentionAliases });
         const comment = await addDiscussionComment(githubClient, discussion.id, sanitizedBody);
         core.info(`Added comment to discussion #${discussionNumber}: ${comment.url}`);

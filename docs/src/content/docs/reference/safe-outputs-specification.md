@@ -2566,6 +2566,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `allowed-repos`: Cross-repo allowlist
 - `footer`: Footer override
 - `staged`: Staged mode override
+- `body-allowed`: When `false`, any `body` field the agent emits is dropped (with a warning logged) and the issue is closed without posting a closing comment. The `body` field is also removed from the MCP tool's `required` array and a constraint is appended to the tool description.
 
 **Security Requirements**:
 
@@ -2849,6 +2850,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `allowed-repos`: Cross-repo allowlist
 - `footer`: Footer override
 - `staged`: Staged mode override
+- `body-allowed`: When `false`, any `body` field the agent emits is dropped (with a warning logged) and the discussion is closed without posting a closing comment. The `body` field is also removed from the MCP tool's `required` array and a constraint is appended to the tool description.
 
 **Security Requirements**:
 
