@@ -38,8 +38,8 @@ func (c *Compiler) validateSafeOutputsAllowedLabelsGlobScope(config *SafeOutputs
 	if config.CreatePullRequests != nil && len(config.CreatePullRequests.AllowedLabels) > 0 {
 		configs = append(configs, labelledConfig{"safe-outputs.create-pull-request.allowed-labels", config.CreatePullRequests.AllowedLabels})
 	}
-	if config.MergePullRequest != nil && len(config.MergePullRequest.AllowedLabels) > 0 {
-		configs = append(configs, labelledConfig{"safe-outputs.merge-pull-request.allowed-labels", config.MergePullRequest.AllowedLabels})
+	if config.MergePullRequest != nil && len(config.MergePullRequest.RequiredLabel) > 0 {
+		configs = append(configs, labelledConfig{"safe-outputs.merge-pull-request.required-label", config.MergePullRequest.RequiredLabel})
 	}
 
 	for _, lc := range configs {
