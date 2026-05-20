@@ -24,6 +24,7 @@ describe("sanitize_content.cjs", () => {
     delete process.env.GH_AW_ALLOWED_DOMAINS;
     delete process.env.GH_AW_ALLOWED_GITHUB_REFS;
     delete process.env.GH_AW_COMMAND;
+    delete process.env.GH_AW_COMMANDS;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_API_URL;
     delete process.env.GITHUB_REPOSITORY;
@@ -81,6 +82,27 @@ describe("sanitize_content.cjs", () => {
       delete process.env.GH_AW_COMMAND;
       const result = sanitizeContent("/bot do something");
       expect(result).toBe("/bot do something");
+    });
+
+    it("should neutralize secondary command name from GH_AW_COMMANDS", () => {
+      process.env.GH_AW_COMMANDS = JSON.stringify(["review", "design-decision-gate"]);
+      delete process.env.GH_AW_COMMAND;
+      const result = sanitizeContent("/design-decision-gate check");
+      expect(result).toBe("`/design-decision-gate` check");
+    });
+
+    it("should neutralize primary command name from GH_AW_COMMANDS", () => {
+      process.env.GH_AW_COMMANDS = JSON.stringify(["review", "design-decision-gate"]);
+      delete process.env.GH_AW_COMMAND;
+      const result = sanitizeContent("/review check");
+      expect(result).toBe("`/review` check");
+    });
+
+    it("should prefer GH_AW_COMMANDS over GH_AW_COMMAND when both are set", () => {
+      process.env.GH_AW_COMMANDS = JSON.stringify(["review", "design-decision-gate"]);
+      // GH_AW_COMMAND stays as "bot" from beforeEach
+      const result = sanitizeContent("/design-decision-gate check");
+      expect(result).toBe("`/design-decision-gate` check");
     });
   });
 

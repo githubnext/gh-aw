@@ -931,8 +931,12 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	// Add command name for command trigger prevention in safe outputs
 	if len(data.Command) > 0 {
-		// Pass first command for backward compatibility
+		// Pass first command for backward compatibility with GH_AW_COMMAND consumers
 		fmt.Fprintf(yaml, "          GH_AW_COMMAND: %s\n", data.Command[0])
+		// Pass all commands as JSON array so neutralizeCommands can cover all of them
+		if commandsJSON, err := json.Marshal(data.Command); err == nil {
+			fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
+		}
 	}
 
 	yaml.WriteString("        with:\n")
