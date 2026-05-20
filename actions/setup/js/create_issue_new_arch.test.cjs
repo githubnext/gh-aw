@@ -238,7 +238,9 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
 
     mockGithub.graphql.mockRejectedValue(new Error("GraphQL not required for this test"));
 
-    const [first, second] = await Promise.all([groupedHandler({ type: "create_issue", title: "Concurrent A", body: "A" }, {}), groupedHandler({ type: "create_issue", title: "Concurrent B", body: "B" }, {})]);
+    const firstMessage = { type: "create_issue", title: "Concurrent A", body: "A" };
+    const secondMessage = { type: "create_issue", title: "Concurrent B", body: "B" };
+    const [first, second] = await Promise.all([groupedHandler(firstMessage, {}), groupedHandler(secondMessage, {})]);
 
     expect(first.success).toBe(true);
     expect(second.success).toBe(true);
