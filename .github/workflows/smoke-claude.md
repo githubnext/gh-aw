@@ -94,7 +94,7 @@ safe-outputs:
     push-to-pull-request-branch:
       staged: true
       target: "*"
-      labels: [smoke-claude]
+      required-labels: [smoke-claude]
       if-no-changes: "warn"
       allowed-files:
         - "smoke-test-files/smoke-claude-push-test.md"

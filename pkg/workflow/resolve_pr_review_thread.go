@@ -12,6 +12,7 @@ var resolvePRReviewThreadLog = logger.New("workflow:resolve_pr_review_thread")
 type ResolvePullRequestReviewThreadConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 }
 
 // parseResolvePullRequestReviewThreadConfig handles resolve-pull-request-review-thread configuration

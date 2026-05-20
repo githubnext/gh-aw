@@ -433,7 +433,9 @@ After posting the comment, submit a pull request review based on the verdict:
 ## Guidelines
 
 ### Report Formatting
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
+- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Structure: Brief summary (always visible) → Key metrics/score (always visible) → Detailed test classification (in `<details>` for tables with >10 rows) → Verdict and recommendations (always visible)
 
 ### Analysis Scope
 - **Focus only on new and changed tests** — do not analyze unchanged test files

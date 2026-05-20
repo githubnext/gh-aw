@@ -10,6 +10,7 @@ var removeLabelsLog = logger.New("workflow:remove_labels")
 type RemoveLabelsConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed label patterns to remove (supports glob patterns like "team-*", "area/*"). If omitted, any labels can be removed.
 	Blocked                []string `yaml:"blocked,omitempty"` // Optional list of blocked label patterns (supports glob patterns like "~*", "*[bot]"). Labels matching these patterns will be rejected.
 }

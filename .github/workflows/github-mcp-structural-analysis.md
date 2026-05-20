@@ -348,10 +348,12 @@ Apply consistent ratings:
 - **1**: Minimal value, better alternatives exist
 
 ### Report Quality
-- Start with brief overview
-- Use collapsible details for full report
+- Use h3 (###) or lower for all headers in the discussion report to maintain proper document hierarchy.
+- Start with brief overview (always visible)
+- Use collapsible `<details><summary>Section Name</summary>` blocks for the full report and any verbose sections
 - Include star ratings (⭐) for visual clarity
-- Provide actionable recommendations
+- Provide actionable recommendations (always visible)
+- Structure: Brief summary (always visible) → Key metrics (always visible) → Detailed analysis (in `<details>`) → Recommendations (always visible)
 
 ## Success Criteria
 

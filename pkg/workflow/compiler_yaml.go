@@ -929,10 +929,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	yaml.WriteString("          GITHUB_API_URL: ${{ github.api_url }}\n")
 
-	// Add command name for command trigger prevention in safe outputs
+	// Add command names for command trigger prevention in safe outputs
 	if len(data.Command) > 0 {
-		// Pass first command for backward compatibility
-		fmt.Fprintf(yaml, "          GH_AW_COMMAND: %s\n", data.Command[0])
+		if commandsJSON, err := json.Marshal(data.Command); err == nil {
+			fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
+		}
 	}
 
 	yaml.WriteString("        with:\n")

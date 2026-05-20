@@ -8,7 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, validateTargetRepo } = require("./repo_helpers.cjs");
 
@@ -126,6 +126,11 @@ async function main(config = {}) {
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
+
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
   core.info(`Resolve PR review thread configuration: max=${maxCount}, target=${resolveTarget}, triggeringPR=${triggeringPRNumber || "none"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
@@ -270,6 +275,12 @@ async function main(config = {}) {
       }
 
       core.info(`Resolving review thread: ${threadId} (PR #${threadPRNumber}${threadRepo ? " in " + threadRepo : ""})`);
+
+      // Apply required-labels/required-title-prefix filter
+      const [threadOwner, threadRepoName] = (threadRepo || `${context.repo.owner}/${context.repo.repo}`).split("/");
+      const repoParts = { owner: threadOwner, repo: threadRepoName };
+      const filterResult = await checkRequiredFilter(githubClient, repoParts, threadPRNumber, requiredLabels, requiredTitlePrefix, "resolve_pull_request_review_thread");
+      if (filterResult) return filterResult;
 
       // If in staged mode, preview without executing
       if (isStaged) {

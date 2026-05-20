@@ -419,6 +419,44 @@ function isStagedMode(config) {
   return process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || (config != null && config.staged === true);
 }
 
+/**
+ * Checks required-labels and required-title-prefix precondition filters.
+ * Returns a skip result if the item does not pass, or null if it passes.
+ * Fetches the issue/PR from GitHub to check its labels and title.
+ *
+ * @param {Object} githubClient - Authenticated GitHub client (Octokit)
+ * @param {{owner: string, repo: string}} repoParts - Repository owner and name
+ * @param {number} itemNumber - Issue or PR number to check
+ * @param {string[]} requiredLabels - Labels that must ALL be present on the item
+ * @param {string} requiredTitlePrefix - Title prefix the item must start with
+ * @param {string} handlerType - Handler type name used in log messages
+ * @returns {Promise<{success: false, skipped: true, error: string}|null>}
+ */
+async function checkRequiredFilter(githubClient, repoParts, itemNumber, requiredLabels, requiredTitlePrefix, handlerType) {
+  if (!requiredLabels.length && !requiredTitlePrefix) return null;
+
+  const { data: item } = await githubClient.rest.issues.get({
+    owner: repoParts.owner,
+    repo: repoParts.repo,
+    issue_number: itemNumber,
+  });
+
+  if (requiredLabels.length > 0) {
+    const itemLabels = (item.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || ""));
+    if (!requiredLabels.every(r => itemLabels.includes(r))) {
+      core.info(`Skipping ${handlerType} for #${itemNumber}: does not match required-labels filter (${requiredLabels.join(", ")})`);
+      return { success: false, skipped: true, error: `Item does not match required-labels filter` };
+    }
+  }
+
+  if (requiredTitlePrefix && !item.title?.startsWith(requiredTitlePrefix)) {
+    core.info(`Skipping ${handlerType} for #${itemNumber}: title does not start with required prefix "${requiredTitlePrefix}"`);
+    return { success: false, skipped: true, error: `Item title does not start with required prefix` };
+  }
+
+  return null;
+}
+
 module.exports = {
   parseAllowedItems,
   parseMaxCount,
@@ -432,4 +470,5 @@ module.exports = {
   isUsernameBlocked,
   isStagedMode,
   logStagedPreviewInfo,
+  checkRequiredFilter,
 };

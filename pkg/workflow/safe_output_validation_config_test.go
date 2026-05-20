@@ -236,6 +236,47 @@ func TestValidationConfigConsistency(t *testing.T) {
 	}
 }
 
+func TestCreateDiscussionBodyMinLength(t *testing.T) {
+	config, ok := ValidationConfig["create_discussion"]
+	if !ok {
+		t.Fatal("create_discussion not found in ValidationConfig")
+	}
+
+	bodyField, ok := config.Fields["body"]
+	if !ok {
+		t.Fatal("body field not found in create_discussion validation config")
+	}
+
+	if bodyField.MinLength != MinDiscussionBodyLength {
+		t.Errorf("create_discussion body MinLength = %d, want %d", bodyField.MinLength, MinDiscussionBodyLength)
+	}
+}
+
+func TestFieldValidationMinLengthMarshaling(t *testing.T) {
+	field := FieldValidation{
+		Required:  true,
+		Type:      "string",
+		MaxLength: 65000,
+		MinLength: 64,
+		Sanitize:  true,
+	}
+
+	data, err := json.Marshal(field)
+	if err != nil {
+		t.Fatalf("Failed to marshal FieldValidation with MinLength: %v", err)
+	}
+
+	var parsed FieldValidation
+	err = json.Unmarshal(data, &parsed)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal FieldValidation with MinLength: %v", err)
+	}
+
+	if parsed.MinLength != field.MinLength {
+		t.Errorf("MinLength mismatch: got %v, want %v", parsed.MinLength, field.MinLength)
+	}
+}
+
 func TestCreatePullRequestBaseValidationMaxLength(t *testing.T) {
 	config, ok := ValidationConfig["create_pull_request"]
 	if !ok {

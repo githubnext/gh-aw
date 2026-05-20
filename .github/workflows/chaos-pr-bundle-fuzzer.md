@@ -85,4 +85,12 @@ For each selected persona:
 - If no safe PR can be produced, call `noop` with a concise reason.
 - Keep logs concise and action-oriented.
 
+## Report Formatting
+
+When writing PR bodies and run summaries:
+
+- Use h3 (###) or lower for all headers to maintain proper document hierarchy.
+- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Structure: Brief summary (always visible) → Key metrics (always visible) → Detailed results (in `<details>`) → Recommendations (always visible)
+
 {{#runtime-import shared/noop-reminder.md}}

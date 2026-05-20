@@ -18,7 +18,7 @@ var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 
 // isValidPullRequestReviewerValue validates on.pull_request_reviewer trigger syntax.
 // Accepted values are:
-//   - Go nil (YAML `pull_request_reviewer:` with no value, uses default slash command name)
+//   - Go nil (YAML `pull_request_reviewer:` with no value, uses default slash command name "review")
 //   - empty Go string ("", from YAML `pull_request_reviewer: ""`)
 //   - legacy string "slash_command"
 //   - custom slash command name string
@@ -53,21 +53,28 @@ func extractCustomPullRequestReviewerCommandName(value any) string {
 	return strings.TrimPrefix(normalized, "/")
 }
 
-// resolvePullRequestReviewerCommandName determines the reviewer trigger command
-// name using this precedence:
-//  1. Explicit custom name from on.pull_request_reviewer
-//  2. WorkflowID (preferred default reviewer command identity)
-//  3. Markdown filename stem (legacy fallback when WorkflowID is unavailable)
-//
-// workflowData may be nil; in that case the function falls back to step 3.
-func resolvePullRequestReviewerCommandName(reviewerTriggerValue any, workflowData *WorkflowData, markdownPath string) string {
+// resolvePullRequestReviewerCommandNames determines the reviewer trigger command
+// names using this precedence:
+//  1. Explicit custom name from on.pull_request_reviewer → [custom-name]
+//  2. No custom name → ["review", workflowID] so the workflow responds to both
+//     the centralized /review command and its own individual slash command.
+//     Falls back to the markdown filename stem when workflowID is unavailable.
+//     Deduplicates if the derived individual name is already "review".
+func resolvePullRequestReviewerCommandNames(reviewerTriggerValue any, workflowData *WorkflowData, markdownPath string) []string {
 	if reviewerCommandName := extractCustomPullRequestReviewerCommandName(reviewerTriggerValue); reviewerCommandName != "" {
-		return reviewerCommandName
+		return []string{reviewerCommandName}
 	}
+	// Default: centralized "review" command plus the workflow's own individual command
+	var individual string
 	if workflowData != nil && workflowData.WorkflowID != "" {
-		return workflowData.WorkflowID
+		individual = workflowData.WorkflowID
+	} else {
+		individual = strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 	}
-	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+	if individual == "review" {
+		return []string{"review"}
+	}
+	return []string{"review", individual}
 }
 
 func mergeCommandOtherEvents(existing map[string]any, incoming map[string]any) map[string]any {
@@ -275,7 +282,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				hasCommand = true
 				workflowData.PullRequestReviewer = true
 				workflowData.CommandCentralized = true
-				workflowData.Command = []string{resolvePullRequestReviewerCommandName(reviewerValue, workflowData, markdownPath)}
+				workflowData.Command = resolvePullRequestReviewerCommandNames(reviewerValue, workflowData, markdownPath)
 				workflowData.CommandEvents = []string{"pull_request_comment", "pull_request_review_comment"}
 				// Populate CommandOtherEvents with reviewer lifecycle events
 				workflowData.CommandOtherEvents = map[string]any{

@@ -64,7 +64,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   safe-outputs:
     close-issue:
       target: "triggering"              # Optional: "triggering" (default), "*", or number
-      required-labels: [automated]      # Optional: only close with any of these labels
+      required-labels: [automated]      # Optional: only close if ALL these labels are present
       required-title-prefix: "[bot]"    # Optional: only close matching prefix
       max: 20                           # Optional: max closures (default: 1)
       state-reason: "not_planned"       # Optional: "completed" (default), "not_planned", "duplicate"
@@ -102,7 +102,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     close-discussion:
       target: "triggering"              # Optional: "triggering" (default), "*", or number
       required-category: "Ideas"        # Optional: only close in category
-      required-labels: [resolved]       # Optional: only close with labels
+      required-labels: [resolved]       # Optional: only close if ALL these labels are present
       required-title-prefix: "[ai]"     # Optional: only close matching prefix
       max: 1                            # Optional: max closures (default: 1)
       target-repo: "owner/repo"         # Optional: cross-repository
@@ -116,6 +116,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     add-comment:
       max: 3                          # Optional: maximum number of comments (default: 1)
       target: "*"                     # Optional: target for comments (default: "triggering")
+      required-labels: [approved]     # Optional: ALL of these labels must be present on the issue/PR for the comment to be posted
+      required-title-prefix: "[bot]" # Optional: issue/PR title must start with this prefix
       hide-older-comments: true       # Optional: minimize previous comments from same workflow
       allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
       discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
@@ -265,9 +267,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```yaml
   safe-outputs:
     merge-pull-request:
-      required-labels: [approved]         # Optional: all listed labels must be present
-      allowed-labels: [ready-to-merge]    # Optional: at least one PR label must match
-      allowed-branches: ["feature/*"]     # Optional: glob patterns for source branch names
+      required-labels: [ready-to-merge]   # Optional: ALL listed labels must be present on the PR
+      allowed-branches: ["feature/*"]    # Optional: glob patterns for allowed source branch names
       max: 1                              # Optional: max merges (default: 1)
   ```
 
@@ -305,6 +306,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     add-labels:
       allowed: [bug, enhancement, documentation]  # Optional: restrict to specific labels
       blocked: ["~*", "*[bot]"]                   # Optional: blocked label patterns (glob; takes precedence over allowed)
+      required-labels: [approved]                 # Optional: ALL of these labels must be present on the issue/PR for the operation to run
+      required-title-prefix: "[bot]"              # Optional: issue/PR title must start with this prefix
       max: 3                                      # Optional: maximum number of labels (default: 3)
       target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
       target-repo: "owner/repo"                   # Optional: cross-repository
@@ -317,6 +320,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     remove-labels:
       allowed: [automated, stale]  # Optional: restrict to specific labels
       blocked: ["~*", "*[bot]"]    # Optional: blocked label patterns (glob; takes precedence over allowed)
+      required-labels: [approved]  # Optional: ALL of these labels must be present on the issue/PR for the operation to run
+      required-title-prefix: "[bot]"  # Optional: issue/PR title must start with this prefix
       max: 3                       # Optional: maximum number of operations (default: 3)
       target: "*"                  # Optional: "triggering" (default), "*" (any issue/PR), or number
       target-repo: "owner/repo"    # Optional: cross-repository

@@ -11,12 +11,13 @@ var updatePullRequestLog = logger.New("workflow:update_pull_request")
 
 // UpdatePullRequestsConfig holds configuration for updating GitHub pull requests from agent output
 type UpdatePullRequestsConfig struct {
-	UpdateEntityConfig `yaml:",inline"`
-	Title              *bool   `yaml:"title,omitempty"`         // Allow updating PR title - defaults to true, set to false to disable
-	Body               *bool   `yaml:"body,omitempty"`          // Allow updating PR body - defaults to true, set to false to disable
-	UpdateBranch       *bool   `yaml:"update-branch,omitempty"` // When true, update PR branch with latest base branch changes before applying other updates. Defaults to false.
-	Operation          *string `yaml:"operation,omitempty"`     // Default operation for body updates: "append", "prepend", or "replace" (defaults to "replace")
-	Footer             *string `yaml:"footer,omitempty"`        // Controls whether AI-generated footer is added. When false, visible footer is omitted.
+	UpdateEntityConfig     `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
+	Title                  *bool   `yaml:"title,omitempty"`         // Allow updating PR title - defaults to true, set to false to disable
+	Body                   *bool   `yaml:"body,omitempty"`          // Allow updating PR body - defaults to true, set to false to disable
+	UpdateBranch           *bool   `yaml:"update-branch,omitempty"` // When true, update PR branch with latest base branch changes before applying other updates. Defaults to false.
+	Operation              *string `yaml:"operation,omitempty"`     // Default operation for body updates: "append", "prepend", or "replace" (defaults to "replace")
+	Footer                 *string `yaml:"footer,omitempty"`        // Controls whether AI-generated footer is added. When false, visible footer is omitted.
 }
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration

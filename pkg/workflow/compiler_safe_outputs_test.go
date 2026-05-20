@@ -466,7 +466,7 @@ func TestParseOnSection_PullRequestReviewerInfersDefaultCommand(t *testing.T) {
 
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"reviewer"}, workflowData.Command)
+	assert.Equal(t, []string{"review", "reviewer"}, workflowData.Command)
 }
 
 func TestParseOnSection_PullRequestReviewerUsesCustomCommand(t *testing.T) {
@@ -483,7 +483,7 @@ func TestParseOnSection_PullRequestReviewerUsesCustomCommand(t *testing.T) {
 	assert.Equal(t, []string{"custom-review"}, workflowData.Command)
 }
 
-func TestParseOnSection_PullRequestReviewerUsesWorkflowID(t *testing.T) {
+func TestParseOnSection_PullRequestReviewerDefaultsToReviewAndWorkflowID(t *testing.T) {
 	c := &Compiler{}
 	frontmatter := map[string]any{
 		"on": map[string]any{
@@ -494,7 +494,7 @@ func TestParseOnSection_PullRequestReviewerUsesWorkflowID(t *testing.T) {
 
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"reviewer-workflow-id"}, workflowData.Command)
+	assert.Equal(t, []string{"review", "reviewer-workflow-id"}, workflowData.Command)
 	assert.Equal(t, []string{"pull_request_comment", "pull_request_review_comment"}, workflowData.CommandEvents)
 	assert.True(t, workflowData.CommandCentralized)
 }
@@ -519,7 +519,7 @@ func TestParseOnSection_PullRequestReviewerOwnsCommandAndEvents(t *testing.T) {
 
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"reviewer-workflow-id"}, workflowData.Command)
+	assert.Equal(t, []string{"review", "reviewer-workflow-id"}, workflowData.Command)
 	assert.Equal(t, []string{"pull_request_comment", "pull_request_review_comment"}, workflowData.CommandEvents)
 	assert.True(t, workflowData.CommandCentralized)
 }

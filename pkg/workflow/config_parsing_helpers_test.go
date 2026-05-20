@@ -1278,7 +1278,7 @@ func TestParseAddCommentConfigExpressionFields(t *testing.T) {
 
 // TestParsePushToPullRequestBranchExpressionFields verifies that
 // push-to-pull-request-branch accepts GitHub Actions expression strings for
-// labels and allowed-repos.
+// required-labels and allowed-repos.
 func TestParsePushToPullRequestBranchExpressionFields(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1287,10 +1287,10 @@ func TestParsePushToPullRequestBranchExpressionFields(t *testing.T) {
 		getField func(*PushToPullRequestBranchConfig) []string
 	}{
 		{
-			name:     "labels as expression",
-			field:    "labels",
+			name:     "required-labels as expression",
+			field:    "required-labels",
 			expr:     "${{ inputs['required-labels'] }}",
-			getField: func(c *PushToPullRequestBranchConfig) []string { return c.Labels },
+			getField: func(c *PushToPullRequestBranchConfig) []string { return c.RequiredLabels },
 		},
 		{
 			name:     "allowed-repos as expression",
@@ -1393,14 +1393,14 @@ func TestHandlerConfigExpressionFields(t *testing.T) {
 			wantValue: "${{ inputs['allowed-repos'] }}",
 		},
 		{
-			name: "push_to_pull_request_branch labels expression stored as string",
+			name: "push_to_pull_request_branch required_labels expression stored as string",
 			safeOuts: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					Labels: []string{"${{ inputs['required-labels'] }}"},
+					RequiredLabels: []string{"${{ inputs['required-labels'] }}"},
 				},
 			},
 			handler:   "push_to_pull_request_branch",
-			configKey: "labels",
+			configKey: "required_labels",
 			wantValue: "${{ inputs['required-labels'] }}",
 		},
 		{

@@ -14,6 +14,7 @@ type FieldValidation struct {
 	Type                     string   `json:"type,omitempty"`
 	Sanitize                 bool     `json:"sanitize,omitempty"`
 	MaxLength                int      `json:"maxLength,omitempty"`
+	MinLength                int      `json:"minLength,omitempty"`
 	PositiveInteger          bool     `json:"positiveInteger,omitempty"`
 	OptionalPositiveInteger  bool     `json:"optionalPositiveInteger,omitempty"`
 	IssueOrPRNumber          bool     `json:"issueOrPRNumber,omitempty"`
@@ -39,6 +40,7 @@ const (
 	MaxBodyLength           = 65000
 	MaxGitHubUsernameLength = 39
 	MaxGitHubTeamSlugLength = 100
+	MinDiscussionBodyLength = 64 // Minimum body length for create_discussion to prevent placeholder-only submissions
 )
 
 // ValidationConfig contains all safe output type validation rules
@@ -243,7 +245,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"title":    {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":     {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body":     {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinDiscussionBodyLength},
 			"category": {Type: "string", Sanitize: true, MaxLength: 128},
 			"repo":     {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

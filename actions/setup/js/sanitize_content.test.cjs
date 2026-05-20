@@ -23,7 +23,7 @@ describe("sanitize_content.cjs", () => {
     delete global.core;
     delete process.env.GH_AW_ALLOWED_DOMAINS;
     delete process.env.GH_AW_ALLOWED_GITHUB_REFS;
-    delete process.env.GH_AW_COMMAND;
+    delete process.env.GH_AW_COMMANDS;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_API_URL;
     delete process.env.GITHUB_REPOSITORY;
@@ -53,7 +53,7 @@ describe("sanitize_content.cjs", () => {
 
   describe("command neutralization", () => {
     beforeEach(() => {
-      process.env.GH_AW_COMMAND = "bot";
+      process.env.GH_AW_COMMANDS = JSON.stringify(["bot"]);
     });
 
     it("should neutralize command at start of text", () => {
@@ -72,15 +72,27 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should handle special regex characters in command name", () => {
-      process.env.GH_AW_COMMAND = "my-bot+test";
+      process.env.GH_AW_COMMANDS = JSON.stringify(["my-bot+test"]);
       const result = sanitizeContent("/my-bot+test action");
       expect(result).toBe("`/my-bot+test` action");
     });
 
     it("should not neutralize when no command is set", () => {
-      delete process.env.GH_AW_COMMAND;
+      delete process.env.GH_AW_COMMANDS;
       const result = sanitizeContent("/bot do something");
       expect(result).toBe("/bot do something");
+    });
+
+    it("should neutralize secondary command name from GH_AW_COMMANDS", () => {
+      process.env.GH_AW_COMMANDS = JSON.stringify(["review", "design-decision-gate"]);
+      const result = sanitizeContent("/design-decision-gate check");
+      expect(result).toBe("`/design-decision-gate` check");
+    });
+
+    it("should neutralize primary command name from GH_AW_COMMANDS", () => {
+      process.env.GH_AW_COMMANDS = JSON.stringify(["review", "design-decision-gate"]);
+      const result = sanitizeContent("/review check");
+      expect(result).toBe("`/review` check");
     });
   });
 

@@ -8,7 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 
@@ -103,6 +103,10 @@ async function main(config = {}) {
   const isStaged = isStagedMode(config);
 
   core.info(`Set issue type configuration: max=${maxCount}`);
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
   if (allowedTypes.length > 0) {
     core.info(`Allowed issue types: ${allowedTypes.join(", ")}`);
   }
@@ -164,6 +168,9 @@ async function main(config = {}) {
       }
       issueNumber = contextIssueNumber;
     }
+
+    const filterResult = await checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, HANDLER_TYPE);
+    if (filterResult) return filterResult;
 
     const issueTypeName = item.issue_type ?? "";
     const isClear = issueTypeName === "";

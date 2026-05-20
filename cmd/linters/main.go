@@ -23,6 +23,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
+	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 )
 
@@ -35,6 +36,7 @@ func main() {
 		largefunc.Analyzer,
 		osexitinlibrary.Analyzer,
 		rawloginlib.Analyzer,
+		regexpcompileinfunction.Analyzer,
 		ssljson.Analyzer,
 	)
 }

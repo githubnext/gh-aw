@@ -100,14 +100,19 @@ describe("merge_pull_request branch validation", () => {
     expect(githubClient.rest.repos.getBranch).not.toHaveBeenCalled();
   });
 
-  it("matches allowed labels by exact value (no glob matching)", async () => {
+  it("findMissingRequiredLabels returns labels not present on the item (conjunctive check)", async () => {
     const { __testables } = await import("./merge_pull_request.cjs");
 
-    expect(__testables.findAllowedLabelMatches(["release/v1", "automerge/pr-1"], ["release/*", "automerge/*"])).toEqual([]);
-    expect(__testables.findAllowedLabelMatches(["automerge", "release"], ["automerge", "deploy"])).toEqual(["automerge"]);
-    expect(__testables.findAllowedLabelMatches(["release/*", "automerge/*"], ["release/*", "automerge/*"])).toEqual(["release/*", "automerge/*"]);
-    expect(__testables.findAllowedLabelMatches([], ["automerge"])).toEqual([]);
-    expect(__testables.findAllowedLabelMatches(["AutoMerge"], ["automerge"])).toEqual([]);
+    // all required labels present → none missing
+    expect(__testables.findMissingRequiredLabels(["automerge", "safe-to-merge"], ["automerge", "safe-to-merge"])).toEqual([]);
+    // one required label missing
+    expect(__testables.findMissingRequiredLabels(["automerge"], ["automerge", "safe-to-merge"])).toEqual(["safe-to-merge"]);
+    // no required labels → none missing
+    expect(__testables.findMissingRequiredLabels(["automerge"], [])).toEqual([]);
+    // all required labels missing
+    expect(__testables.findMissingRequiredLabels([], ["automerge", "safe-to-merge"])).toEqual(["automerge", "safe-to-merge"]);
+    // case-sensitive: wrong case counts as missing
+    expect(__testables.findMissingRequiredLabels(["AutoMerge"], ["automerge"])).toEqual(["automerge"]);
   });
 
   it("resolves temporary ID for pull_request_number", async () => {

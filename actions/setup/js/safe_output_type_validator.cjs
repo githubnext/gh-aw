@@ -35,6 +35,7 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
  * @property {string} [type] - Expected type: 'string', 'number', 'boolean', 'array'
  * @property {boolean} [sanitize] - Whether to sanitize string content
  * @property {number} [maxLength] - Maximum length for strings
+ * @property {number} [minLength] - Minimum length for strings
  * @property {boolean} [positiveInteger] - Must be a positive integer
  * @property {boolean} [optionalPositiveInteger] - Optional but if present must be positive integer
  * @property {boolean} [issueOrPRNumber] - Can be issue/PR number or undefined
@@ -349,18 +350,25 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
     }
 
     // Handle sanitization
+    let finalValue = value;
     if (validation.sanitize) {
       // Apply unfencing to remove accidental outer markdown fences before sanitization
-      let processedValue = unfenceMarkdown(value);
-      const sanitized = sanitizeContent(processedValue, {
+      finalValue = sanitizeContent(unfenceMarkdown(value), {
         maxLength: validation.maxLength || MAX_BODY_LENGTH,
         allowedAliases: options?.allowedAliases || [],
         maxBotMentions: options?.maxBotMentions,
       });
-      return { isValid: true, normalizedValue: sanitized };
     }
 
-    return { isValid: true, normalizedValue: value };
+    // Check minimum length after any sanitization (trim before checking to reject whitespace-padded placeholders)
+    if (validation.minLength && finalValue.trim().length < validation.minLength) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} '${fieldName}' is too short (minimum ${validation.minLength} characters)`,
+      };
+    }
+
+    return { isValid: true, normalizedValue: finalValue };
   }
 
   if (validation.type === "array") {
