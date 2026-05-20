@@ -19,6 +19,8 @@ tools:
     mode: gh-proxy
     toolsets: [default, issues]
 safe-outputs:
+  mentions: false
+  allowed-github-references: []
   create-issue:
     expires: 2d
     title-prefix: "[reliability] "
@@ -27,11 +29,11 @@ safe-outputs:
     close-older-issues: true
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[reliability] "
       expires: 2d
-  - shared/reporting.md
+      labels: [observability, automated-analysis]
   - shared/sentry.md
   - shared/mcp/sentry.md
 ---
@@ -39,6 +41,7 @@ imports:
 # Daily Reliability Review
 
 You are a reliability engineer reviewing gh-aw workflow health using Sentry.
+This workflow focuses on reliability signals (failures, timeouts, regressions) derived from observability telemetry.
 
 ## Mission
 
@@ -52,19 +55,20 @@ Find the highest-signal reliability problems from the last 24 hours and publish 
 
 ## Steps
 
-1. Discover the Sentry organization and project for `${{ github.repository }}`.
-2. Query recent spans and issues for:
+1. Verify Sentry MCP tools are available and authenticated before running queries. If Sentry tools are unavailable, call `noop` with a short explanation.
+2. Discover the Sentry organization and project for `${{ github.repository }}`.
+3. Query recent spans and issues for:
    - failed runs
    - timed out runs
    - cancelled runs
    - OTLP export failures
    - traces with `gen_ai.response.finish_reasons:length`
-3. Validate one representative full trace for each important problem class.
-4. Separate findings into:
+4. Validate one representative full trace for each important problem class.
+5. Separate findings into:
    - current operational failures
    - instrumentation or export failures
    - regressions versus normal behavior
-5. Publish a single issue containing:
+6. Publish a single issue containing:
    - executive summary
    - top failing workflows
    - one representative trace per major problem
@@ -117,7 +121,7 @@ Body structure:
 
 ## Guardrails
 
-- Do not create more than one issue.
+- If no reliability issues are found, call `noop` with a concise summary of what was checked.
 - Do not invent failure counts, trace links, or missing attributes.
 - Be explicit when a finding is inconclusive.
 - Prefer high-signal recurring problems over one-off outliers.
