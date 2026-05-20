@@ -397,9 +397,15 @@ var handlerRegistry = map[string]handlerBuilder{
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
 		}
+		if c.MaxPatchSize > 0 {
+			maxPatchSize = c.MaxPatchSize
+		}
 		maxPatchFiles := 100 // default 100 unique files
 		if cfg.MaximumPatchFiles > 0 {
 			maxPatchFiles = cfg.MaximumPatchFiles
+		}
+		if c.MaxPatchFiles > 0 {
+			maxPatchFiles = c.MaxPatchFiles
 		}
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).

@@ -1569,6 +1569,57 @@ func TestParseSafeOutputsMaxPatchFiles(t *testing.T) {
 	}
 }
 
+func TestHandlerConfigCreatePullRequestPatchLimitsOverrideGlobals(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			MaximumPatchSize: 4096,
+			MaximumPatchFiles: 800,
+			CreatePullRequests: &CreatePullRequestsConfig{
+				MaxPatchSize:  2048,
+				MaxPatchFiles: 300,
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	found := false
+	for _, step := range steps {
+		if !strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			continue
+		}
+		parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+		if len(parts) != 2 {
+			continue
+		}
+		jsonStr := strings.TrimSpace(parts[1])
+		jsonStr = strings.Trim(jsonStr, "\"")
+		jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+		var config map[string]map[string]any
+		err := json.Unmarshal([]byte(jsonStr), &config)
+		require.NoError(t, err)
+
+		prConfig, ok := config["create_pull_request"]
+		require.True(t, ok, "create_pull_request handler config should exist")
+
+		maxSize, ok := prConfig["max_patch_size"]
+		require.True(t, ok, "max_patch_size should be present in handler config")
+		assert.InDelta(t, float64(2048), maxSize, 0.0001, "create-pull-request max_patch_size should use per-handler override")
+
+		maxFiles, ok := prConfig["max_patch_files"]
+		require.True(t, ok, "max_patch_files should be present in handler config")
+		assert.InDelta(t, float64(300), maxFiles, 0.0001, "create-pull-request max_patch_files should use per-handler override")
+		found = true
+	}
+
+	assert.True(t, found, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG step should be present")
+}
+
 // testBoolPtr is a helper function for bool pointers in config tests
 func testBoolPtr(b bool) *bool {
 	return &b

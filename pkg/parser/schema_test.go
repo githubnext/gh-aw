@@ -591,6 +591,13 @@ func TestMainWorkflowSchema_CreatePullRequestAllowedBaseBranches(t *testing.T) {
 	if gotItemType, _ := items["type"].(string); gotItemType != "string" {
 		t.Fatalf("'allowed-base-branches.items' should be type string, got: %v", items["type"])
 	}
+
+	if _, ok := createPullRequestProperties["max-patch-size"].(map[string]any); !ok {
+		t.Fatal("'max-patch-size' not found under safe-outputs.create-pull-request")
+	}
+	if _, ok := createPullRequestProperties["max-patch-files"].(map[string]any); !ok {
+		t.Fatal("'max-patch-files' not found under safe-outputs.create-pull-request")
+	}
 }
 
 func TestGetSafeOutputTypeKeys(t *testing.T) {
