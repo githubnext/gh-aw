@@ -403,7 +403,7 @@ func TestValidateStrictMCPNetwork_ContainerWithEmptyTopLevelNetwork(t *testing.T
 		"mcp-servers": map[string]any{
 			"my-server": map[string]any{
 				"container": "my-image",
-				},
+			},
 		},
 	}
 

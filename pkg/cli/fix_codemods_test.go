@@ -153,7 +153,6 @@ func expectedCodemodOrder() []string {
 		"steps-run-secrets-to-env",
 		"engine-env-secrets-to-engine-config",
 		"assign-to-agent-default-agent-to-name",
-		"playwright-allowed-domains-migration",
 		"expires-integer-to-string",
 		"app-to-github-app",
 		"github-app-app-id-to-client-id",
