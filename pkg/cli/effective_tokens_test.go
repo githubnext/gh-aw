@@ -109,6 +109,14 @@ func TestModelMultipliersInventoryUpdate20260519(t *testing.T) {
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-5-chat-latest"], 1e-9, "gpt-5-chat-latest should be present")
 }
 
+func TestModelMultipliersInventoryUpdate20260520(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 14.0, loadedMultipliers["gemini-3.5-flash"], 1e-9, "gemini-3.5-flash should use the documented premium multiplier")
+}
+
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
 	loadedMultipliers = nil
 

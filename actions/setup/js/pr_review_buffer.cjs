@@ -235,8 +235,12 @@ function createReviewBuffer() {
     }
 
     if (!reviewContext) {
-      core.warning("No review context set - cannot submit review");
-      return { success: false, error: "No review context available" };
+      core.info("No review context set - skipping PR review submission");
+      return {
+        success: true,
+        skipped: true,
+        reason: "No review context available",
+      };
     }
 
     const { repo, repoParts, pullRequestNumber, pullRequest } = reviewContext;
