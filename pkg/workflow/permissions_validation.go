@@ -403,11 +403,14 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 	permissionsValidationLog.Print("Validating permission scope names")
 
 	// Collect all valid scope names for fuzzy matching
-	allScopes := make([]string, 0)
-	for _, scope := range GetAllPermissionScopes() {
+	ghTokenScopes := GetAllPermissionScopes()
+	appOnlyScopes := GetAllGitHubAppOnlyScopes()
+	// +1 for copilot-requests which is not in GetAllPermissionScopes
+	allScopes := make([]string, 0, len(ghTokenScopes)+len(appOnlyScopes)+1)
+	for _, scope := range ghTokenScopes {
 		allScopes = append(allScopes, string(scope))
 	}
-	for _, scope := range GetAllGitHubAppOnlyScopes() {
+	for _, scope := range appOnlyScopes {
 		allScopes = append(allScopes, string(scope))
 	}
 	// copilot-requests is valid even though not in GetAllPermissionScopes
