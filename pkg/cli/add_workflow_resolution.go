@@ -222,6 +222,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *WorkflowSpec, verbose bool) (*WorkflowSpec, *FetchedWorkflow, error) {
 	currentSpec := *initialSpec
 	visited := make(map[string]struct{})
+	followedRedirect := false
 
 	for range maxRedirectDepth {
 		// Fetch workflow content - handles both local and remote.
@@ -250,12 +251,14 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 			return nil, nil, err
 		}
 		if redirect == "" {
-			// Preserve the original WorkflowName from the user's request so that
-			// the local file is always named after what was requested, even when
-			// one or more redirects were followed to reach the final content.
-			// (WorkflowPath reflects the redirect target and is used for fetching
-			// imports and writing the source frontmatter field.)
-			currentSpec.WorkflowName = initialSpec.WorkflowName
+			// Preserve the original WorkflowName from the user's request only when
+			// one or more redirects were followed, so the final local file keeps
+			// the requested name.
+			// Without redirects, keep any name derived during fetch, such as JSON
+			// imports where conversion picks a better filename from `name`.
+			if followedRedirect {
+				currentSpec.WorkflowName = initialSpec.WorkflowName
+			}
 			return &currentSpec, fetched, nil
 		}
 
@@ -277,6 +280,7 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow redirect: %s -> %s", locationKey, nextSpec.String())))
 		}
+		followedRedirect = true
 		currentSpec = *nextSpec
 	}
 

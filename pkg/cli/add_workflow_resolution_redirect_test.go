@@ -111,26 +111,33 @@ func TestResolveAddWorkflowSpecAndContent(t *testing.T) {
 	})
 
 	t.Run("ResolveWorkflows adds JSON import refinement suggestion", func(t *testing.T) {
-		fetchWorkflowFromSourceWithContextFn = func(_ context.Context, _ *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+		fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+			// Simulate JSON conversion selecting a better local filename from
+			// the source payload's "name" field.
+			spec.WorkflowName = "haiku"
 			return &FetchedWorkflow{
 				Content:           []byte("---\ndescription: Imported workflow\non: push\n---\n"),
 				IsLocal:           true,
-				SourcePath:        "https://example.com/workflow.json",
+				SourcePath:        "https://example.com/b5a3f76a-3d8f-4790-b7e2-f2886f784345.json",
 				ConvertedFromJSON: true,
 			}, nil
 		}
 
-		resolved, err := ResolveWorkflows(context.Background(), []string{"https://example.com/workflow.json"}, false)
+		resolved, err := ResolveWorkflows(context.Background(), []string{"https://example.com/b5a3f76a-3d8f-4790-b7e2-f2886f784345.json"}, false)
 		require.NoError(t, err, "ResolveWorkflows should accept converted JSON workflow payloads")
 		require.NotNil(t, resolved, "resolved workflows should be returned")
+		require.Len(t, resolved.Workflows, 1, "one workflow should resolve")
+		assert.Equal(t, "haiku", resolved.Workflows[0].Spec.WorkflowName, "resolved workflow name should come from JSON name")
 		require.NotEmpty(t, resolved.Warnings, "JSON conversion should surface follow-up suggestion")
-		hasSuggestion := false
-		for _, warning := range resolved.Warnings {
-			if strings.Contains(warning, "run an agentic prompt") {
-				hasSuggestion = true
-				break
+		assert.Condition(t, func() bool {
+			for _, warning := range resolved.Warnings {
+				if strings.Contains(warning, `JSON workflow import for "haiku" was best-effort`) &&
+					strings.Contains(warning, "run an agentic prompt") &&
+					strings.Contains(warning, ".github/workflows/haiku.md") {
+					return true
+				}
 			}
-		}
-		assert.True(t, hasSuggestion, "should suggest agentic refinement after JSON import")
+			return false
+		}, "should suggest agentic refinement after JSON import using workflow name")
 	})
 }
