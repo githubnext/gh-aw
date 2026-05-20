@@ -170,8 +170,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed", c.AllowedReviewers).
 			AddStringSlice("allowed_team_reviewers", c.AllowedTeamReviewers).
-			AddIfNotEmpty("target", c.Target).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddIfNotEmpty("target", c.Target).AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
@@ -185,8 +185,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
-			AddIfNotEmpty("target", c.Target).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddIfNotEmpty("target", c.Target).AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
@@ -245,7 +245,9 @@ var handlerRegistry = map[string]handlerBuilder{
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
-			AddIfNotEmpty("title_prefix", c.TitlePrefix)
+			AddIfNotEmpty("title_prefix", c.TitlePrefix).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix)
 		// Boolean pointer fields indicate which fields can be updated
 		if c.Status != nil {
 			builder.AddDefault("allow_status", true)
@@ -328,6 +330,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("side", c.Side).
 			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
@@ -345,8 +349,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddStringSlice("allowed_events", c.AllowedEvents).
-			AddIfTrue("supersede_older_reviews", c.SupersedeOlderReviews).
-			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("supersede_older_reviews", c.SupersedeOlderReviews).AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("github-token", c.GitHubToken).
 			AddStringPtr("footer", getEffectiveFooterString(c.Footer, cfg.Footer)).
 			AddIfTrue("staged", c.Staged).
 			Build()
@@ -359,6 +363,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
@@ -374,6 +380,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
@@ -478,8 +486,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
 			AddBoolPtrOrDefault("update_branch", c.UpdateBranch, false).
 			AddStringPtr("default_operation", c.Operation).
-			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
@@ -492,8 +500,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.MergePullRequest
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddStringSlice("required_labels", c.RequiredLabels).
-			AddStringSlice("allowed_branches", c.AllowedBranches).
+			AddStringSlice("required_labels", c.RequiredLabels).AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddStringSlice("allowed_branches", c.AllowedBranches).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
 			Build()
@@ -521,8 +528,9 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.HideComment
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddStringSlice("allowed_reasons", c.AllowedReasons).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_reasons", c.AllowedReasons).AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
@@ -790,8 +798,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
 			AddStringSlice("blocked", c.Blocked).
-			AddIfNotEmpty("target", c.Target).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddIfNotEmpty("target", c.Target).AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("unassign_first", c.UnassignFirst).
@@ -808,6 +816,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed", c.Allowed).
 			AddStringSlice("blocked", c.Blocked).
 			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
@@ -856,8 +866,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		config := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed_fields", c.AllowedFields).
-			AddIfNotEmpty("target", c.Target).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddIfNotEmpty("target", c.Target).AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).

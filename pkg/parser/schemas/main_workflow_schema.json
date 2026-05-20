@@ -6516,6 +6516,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -6598,6 +6609,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -6658,6 +6680,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -6698,6 +6731,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7064,6 +7108,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7116,6 +7171,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7279,6 +7345,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7347,6 +7424,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7490,6 +7578,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7560,6 +7659,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7627,6 +7737,10 @@
                   "type": "boolean",
                   "description": "If true, evaluate merge gates and emit preview results without executing the merge API call.",
                   "examples": [true, false]
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7908,6 +8022,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7971,6 +8096,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -8032,6 +8168,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false

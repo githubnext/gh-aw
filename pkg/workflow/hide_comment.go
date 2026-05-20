@@ -10,6 +10,7 @@ var hideCommentLog = logger.New("workflow:hide_comment")
 type HideCommentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"` // List of allowed reasons for hiding comments (default: all reasons allowed)
 	Discussions            *bool    `yaml:"discussions,omitempty"`     // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission.
 }

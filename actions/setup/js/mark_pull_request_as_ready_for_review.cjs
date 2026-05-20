@@ -9,7 +9,7 @@ const { generateFooterWithMessages, getDetectionCautionAlert } = require("./mess
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -106,6 +106,11 @@ async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
+
   core.info(`Mark pull request as ready for review configuration: max=${maxCount}`);
 
   // Track how many items we've processed for max limit
@@ -154,6 +159,10 @@ async function main(config = {}) {
       }
       prNumber = contextPR;
     }
+
+    const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
+    const filterResult = await checkRequiredFilter(githubClient, repoParts, prNumber, requiredLabels, requiredTitlePrefix, "mark_pull_request_as_ready_for_review");
+    if (filterResult) return filterResult;
 
     // Validate reason
     if (!item.reason || typeof item.reason !== "string" || item.reason.trim().length === 0) {

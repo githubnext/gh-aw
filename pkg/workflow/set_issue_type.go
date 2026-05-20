@@ -10,6 +10,7 @@ var setIssueTypeLog = logger.New("workflow:set_issue_type")
 type SetIssueTypeConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed issue type names. If omitted, any type is allowed (including clearing with "").
 }
 

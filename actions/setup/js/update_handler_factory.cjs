@@ -113,7 +113,7 @@ function createStandardFormatResult(fieldMapping) {
  * @returns {HandlerFactoryFunction} Handler factory function
  */
 function createUpdateHandlerFactory(handlerConfig) {
-  const { itemType, itemTypeName, supportsPR, resolveItemNumber, buildUpdateData, executeUpdate, formatSuccessResult, additionalConfig = {} } = handlerConfig;
+  const { itemType, itemTypeName, supportsPR, resolveItemNumber, buildUpdateData, executeUpdate, formatSuccessResult, additionalConfig = {}, itemFilter = null } = handlerConfig;
 
   /**
    * Main handler factory
@@ -204,6 +204,14 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       const itemNumber = itemNumberResult.number;
       core.info(`Resolved target ${itemTypeName} #${itemNumber} (target config: ${updateTarget})`);
+
+      // Apply required-labels/required-title-prefix filter if configured
+      if (itemFilter) {
+        const filterResult = await itemFilter(githubClient, repoResult.repoParts, itemNumber, config);
+        if (filterResult) {
+          return filterResult;
+        }
+      }
 
       // Build update data (handler-specific logic)
       const updateDataResult = buildUpdateData(item, config);

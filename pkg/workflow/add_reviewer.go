@@ -10,6 +10,7 @@ var addReviewerLog = logger.New("workflow:add_reviewer")
 type AddReviewerConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 	AllowedReviewers       []string `yaml:"allowed-reviewers,omitempty"`      // Allowed reviewer usernames (preferred)
 	AllowedTeamReviewers   []string `yaml:"allowed-team-reviewers,omitempty"` // Allowed team reviewer slugs (preferred)
 	Reviewers              []string `yaml:"reviewers,omitempty"`              // Deprecated: use allowed-reviewers

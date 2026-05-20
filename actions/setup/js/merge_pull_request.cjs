@@ -325,10 +325,13 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const maxCount = Number(config.max || 1);
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
   const allowedBranches = Array.isArray(config.allowed_branches) ? config.allowed_branches : [];
 
   const allowedBranchPatterns = compilePathGlobs(allowedBranches);
-  core.info(`merge_pull_request handler configured: max=${maxCount}, requiredLabels=${requiredLabels.length}, allowedBranches=${allowedBranches.length}, staged=${isStaged}`);
+  core.info(
+    `merge_pull_request handler configured: max=${maxCount}, requiredLabels=${requiredLabels.length}, requiredTitlePrefix=${requiredTitlePrefix ? JSON.stringify(requiredTitlePrefix) : "none"}, allowedBranches=${allowedBranches.length}, staged=${isStaged}`
+  );
 
   let processedCount = 0;
 
@@ -421,6 +424,13 @@ async function main(config = {}) {
           code: "missing_required_labels",
           message: "Required labels are missing",
           details: { missing: missingRequiredLabels, present: labels },
+        });
+      }
+      if (requiredTitlePrefix && !pr.title?.startsWith(requiredTitlePrefix)) {
+        failureReasons.push({
+          code: "title_prefix_mismatch",
+          message: `PR title does not start with required prefix "${requiredTitlePrefix}"`,
+          details: { required_prefix: requiredTitlePrefix, actual_title: pr.title },
         });
       }
 

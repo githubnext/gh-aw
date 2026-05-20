@@ -11,6 +11,7 @@ var replyToPRReviewCommentLog = logger.New("workflow:reply_to_pr_review_comment"
 type ReplyToPullRequestReviewCommentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 	Footer                 *string `yaml:"footer,omitempty"` // Whether to add AI-generated footer to replies
 }
 
