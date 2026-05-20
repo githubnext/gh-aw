@@ -41,14 +41,17 @@ func run(pass *analysis.Pass) (any, error) {
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		var body *ast.BlockStmt
 		var name string
+		var reportNode ast.Node
 
 		switch fn := n.(type) {
 		case *ast.FuncDecl:
 			body = fn.Body
 			name = fn.Name.Name
+			reportNode = fn.Name
 		case *ast.FuncLit:
 			body = fn.Body
 			name = "func literal"
+			reportNode = body
 		}
 
 		if body == nil {
@@ -62,7 +65,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 		if lines > maxLines {
 			pass.ReportRangef(
-				body,
+				reportNode,
 				"%s is %d lines long (limit: %d); consider breaking it up",
 				name, lines, maxLines,
 			)
