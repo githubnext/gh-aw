@@ -773,7 +773,7 @@ jobs:
                 "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core",
                 "headers": {
                   "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APP_KEY}",
+                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
                   "DD_SITE": "\${DD_SITE}"
                 },
                 "tools": [
