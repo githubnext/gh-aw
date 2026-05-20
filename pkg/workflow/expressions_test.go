@@ -162,31 +162,43 @@ func TestBuildReactionConditionForTargetsExcludesPullRequests(t *testing.T) {
 	}
 }
 
-func TestBuildReactionConditionForTargetsIncludesPullRequestReview(t *testing.T) {
+func TestBuildReactionConditionExcludesPullRequestReview(t *testing.T) {
 	result := BuildReactionConditionForTargets(true, true, true, false)
 	rendered := result.Render()
 
-	// Assert the combined sub-expression for pull_request_review with its fork guard,
-	// rather than just the guard string alone (which could already be present via pull_request).
-	const pullRequestReviewWithForkGuard = "github.event_name == 'pull_request_review' && github.event.pull_request.head.repo.id == github.repository_id"
-	if !strings.Contains(rendered, pullRequestReviewWithForkGuard) {
-		t.Errorf("Expected pull_request_review with fork guard to be included when pull request reactions are enabled, got: %s", rendered)
+	if strings.Contains(rendered, "github.event_name == 'pull_request_review'") {
+		t.Errorf("Expected pull_request_review to be excluded from reaction condition, got: %s", rendered)
 	}
-}
-
-func TestBuildStatusCommentConditionIncludesPullRequestReview(t *testing.T) {
-	result := BuildStatusCommentCondition(true, true, true, false)
-	rendered := result.Render()
-
-	// Assert the combined sub-expression for pull_request_review with its fork guard,
-	// rather than just the guard string alone (which could already be present via pull_request).
-	const pullRequestReviewWithForkGuard = "github.event_name == 'pull_request_review' && github.event.pull_request.head.repo.id == github.repository_id"
-	if !strings.Contains(rendered, pullRequestReviewWithForkGuard) {
-		t.Errorf("Expected pull_request_review with fork guard to be included in status comment condition, got: %s", rendered)
+	if !strings.Contains(rendered, "github.event_name == 'issues'") {
+		t.Errorf("Expected issues event to remain in reaction condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id") {
+		t.Errorf("Expected pull_request with fork guard to remain in reaction condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'discussion'") {
+		t.Errorf("Expected discussion event to remain in reaction condition, got: %s", rendered)
 	}
 }
 
 func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
+	result := BuildStatusCommentCondition(true, true, true, false)
+	rendered := result.Render()
+
+	if strings.Contains(rendered, "github.event_name == 'pull_request_review'") {
+		t.Errorf("Expected pull_request_review to be excluded from status comment condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'issues'") {
+		t.Errorf("Expected issues event to remain in status comment condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id") {
+		t.Errorf("Expected pull_request with fork guard to remain in status comment condition, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'discussion'") {
+		t.Errorf("Expected discussion event to remain in status comment condition, got: %s", rendered)
+	}
+}
+
+func TestBuildStatusCommentConditionExcludesPullRequestReviewWhenPullRequestsDisabled(t *testing.T) {
 	result := BuildStatusCommentCondition(true, false, true, false)
 	rendered := result.Render()
 
@@ -217,8 +229,8 @@ func TestBuildStatusCommentConditionIncludesWorkflowDispatchForCentralized(t *te
 	if !strings.Contains(rendered, "github.event_name == 'workflow_dispatch'") {
 		t.Errorf("Expected workflow_dispatch branch for centralized status-comment condition, got: %s", rendered)
 	}
-	if !strings.Contains(rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request_review'") {
-		t.Errorf("Expected aw_context pull_request_review source event condition, got: %s", rendered)
+	if strings.Contains(rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request_review'") {
+		t.Errorf("Expected aw_context pull_request_review source event condition to be excluded, got: %s", rendered)
 	}
 }
 

@@ -172,6 +172,10 @@ func (c *AddInteractiveConfig) resolveWorkflows() error {
 
 // showWorkflowDescriptions displays the descriptions of resolved workflows
 func (c *AddInteractiveConfig) showWorkflowDescriptions() {
+	if !c.Verbose {
+		return
+	}
+
 	if c.resolvedWorkflows == nil || len(c.resolvedWorkflows.Workflows) == 0 {
 		return
 	}

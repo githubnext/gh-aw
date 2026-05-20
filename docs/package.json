@@ -20,16 +20,16 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.18",
     "@astrojs/sitemap": "^3.7.2",
-    "@astrojs/starlight": "^0.38.4",
-    "@primer/octicons": "^19.25.0",
-    "astro": "^6.3.1",
+    "@astrojs/starlight": "^0.39.2",
+    "@primer/octicons": "^19.26.0",
+    "astro": "^6.3.5",
     "astro-mermaid": "^2.0.1",
     "mermaid": "^11.15.0",
     "sharp": "^0.34.5",
     "starlight-blog": "^0.26.1",
     "starlight-changelogs": "^0.5.0",
     "starlight-links-validator": "^0.24.0",
-    "starlight-llms-txt": "^0.9.0",
+    "starlight-llms-txt": "^0.10.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

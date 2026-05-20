@@ -18,5 +18,7 @@ mcp-servers:
     container: "docker.io/mcp/brave-search"
     env:
       BRAVE_API_KEY: "${{ secrets.BRAVE_API_KEY }}"
+    # Security decision (2026-05-19): keep wildcard for this read-only public search server.
+    # The server surface is intentionally small and used as a general-purpose search primitive.
     allowed: ["*"]
 ---

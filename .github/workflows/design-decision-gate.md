@@ -3,13 +3,14 @@ emoji: "🏗️"
 description: Enforces Architecture Decision Records (ADRs) before implementation work can merge, detecting missing design decisions and generating draft ADRs using AI analysis
 on:
   pull_request:
-    types: [labeled, ready_for_review]
+    types: [labeled]
     names: ["implementation"]
+  pull_request_reviewer:
   workflow_dispatch:
     inputs:
       pr_number:
         description: "Pull request number to check"
-        required: true
+        required: false
 permissions:
   contents: read
   pull-requests: read
@@ -65,6 +66,11 @@ steps:
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
     run: |
       set -euo pipefail
+
+      if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${PR_NUMBER:-}" ]; then
+        echo "::error::workflow_dispatch requires inputs.pr_number"
+        exit 1
+      fi
 
       mkdir -p /tmp/gh-aw/agent
 

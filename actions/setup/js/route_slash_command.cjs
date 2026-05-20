@@ -208,10 +208,8 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       workflow_id: workflowId,
       ref,
       inputs,
-      request: {
-        headers: {
-          "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        },
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
       },
     });
   } catch (error) {
