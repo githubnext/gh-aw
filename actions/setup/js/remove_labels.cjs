@@ -27,6 +27,8 @@ const main = createCountGatedHandler({
     // Extract configuration
     const allowedLabels = config.allowed || [];
     const blockedPatterns = config.blocked || [];
+    const requiredLabel = Array.isArray(config.required_label) ? config.required_label : [];
+    const requiredTitlePrefix = config.required_title_prefix || "";
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
 
@@ -37,6 +39,8 @@ const main = createCountGatedHandler({
     if (blockedPatterns.length > 0) {
       core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
     }
+    if (requiredLabel.length > 0) core.info(`Required label (any): ${requiredLabel.join(", ")}`);
+    if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
     core.info(`Default target repo: ${defaultTargetRepo}`);
     if (allowedRepos.size > 0) {
       core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
@@ -75,6 +79,27 @@ const main = createCountGatedHandler({
 
       const contextType = context.payload?.pull_request ? "pull request" : "issue";
       const requestedLabels = message.labels ?? [];
+      core.info(`Requested labels to remove: ${JSON.stringify(requestedLabels)}`);
+
+      // Apply required-label and required-title-prefix filters
+      if (requiredLabel.length > 0 || requiredTitlePrefix) {
+        const { data: item } = await githubClient.rest.issues.get({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          issue_number: itemNumber,
+        });
+        if (requiredLabel.length > 0) {
+          const itemLabels = (item.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || ""));
+          if (!requiredLabel.some(r => itemLabels.includes(r))) {
+            core.info(`Skipping remove_labels for ${contextType} #${itemNumber}: does not match required-label filter (${requiredLabel.join(", ")})`);
+            return { success: false, skipped: true, error: `Item does not match required-label filter` };
+          }
+        }
+        if (requiredTitlePrefix && !item.title?.startsWith(requiredTitlePrefix)) {
+          core.info(`Skipping remove_labels for ${contextType} #${itemNumber}: title does not start with required prefix "${requiredTitlePrefix}"`);
+          return { success: false, skipped: true, error: `Item title does not start with required prefix` };
+        }
+      }
       core.info(`Requested labels to remove: ${JSON.stringify(requestedLabels)}`);
 
       // If no labels provided, return a helpful message with allowed labels if configured

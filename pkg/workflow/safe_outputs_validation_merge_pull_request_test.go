@@ -25,20 +25,20 @@ func TestValidateSafeOutputsMergePullRequestLabelValidation(t *testing.T) {
 			wantErr: "safe-outputs.merge-pull-request.required-labels[1] cannot be empty",
 		},
 		{
-			name: "empty allowed-labels entry fails",
+			name: "empty required-label entry fails",
 			config: &SafeOutputsConfig{
 				MergePullRequest: &MergePullRequestConfig{
-					AllowedLabels: []string{"release", ""},
+					RequiredLabel: []string{"release", ""},
 				},
 			},
-			wantErr: "safe-outputs.merge-pull-request.allowed-labels[1] cannot be empty",
+			wantErr: "safe-outputs.merge-pull-request.required-label[1] cannot be empty",
 		},
 		{
 			name: "non-empty labels pass",
 			config: &SafeOutputsConfig{
 				MergePullRequest: &MergePullRequestConfig{
 					RequiredLabels: []string{"safe-to-merge"},
-					AllowedLabels:  []string{"release", "automerge"},
+					RequiredLabel:  []string{"release", "automerge"},
 				},
 			},
 			wantErr: "",

@@ -377,6 +377,8 @@ async function main(config = {}) {
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = parseBoolTemplatable(config.footer, true);
+  const requiredLabel = Array.isArray(config.required_label) ? config.required_label : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
   const mentionsDisabled = config.mentions === false || config.mentions?.enabled === false;
   const configuredMentionAliases =
     !mentionsDisabled && Array.isArray(config.mentions?.allowed) ? config.mentions.allowed.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
@@ -397,6 +399,8 @@ async function main(config = {}) {
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
+  if (requiredLabel.length > 0) core.info(`Required label (any): ${requiredLabel.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
   if (hideOlderCommentsEnabled) {
     core.info("Hide-older-comments is enabled");
   }
@@ -518,6 +522,31 @@ async function main(config = {}) {
 
         itemNumber = targetResult.number;
         core.info(`Resolved target ${targetResult.contextType} #${itemNumber} (target config: ${commentTarget})`);
+      }
+    }
+
+    // Apply required-label and required-title-prefix filters (issues/PRs only, not discussions)
+    if (!isDiscussion && (requiredLabel.length > 0 || requiredTitlePrefix)) {
+      try {
+        const { data: filterItem } = await githubClient.rest.issues.get({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          issue_number: itemNumber,
+        });
+        if (requiredLabel.length > 0) {
+          const itemLabels = (filterItem.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || ""));
+          if (!requiredLabel.some(r => itemLabels.includes(r))) {
+            core.info(`Skipping add_comment for #${itemNumber}: does not match required-label filter (${requiredLabel.join(", ")})`);
+            return { success: false, skipped: true, error: `Item does not match required-label filter` };
+          }
+        }
+        if (requiredTitlePrefix && !filterItem.title?.startsWith(requiredTitlePrefix)) {
+          core.info(`Skipping add_comment for #${itemNumber}: title does not start with required prefix "${requiredTitlePrefix}"`);
+          return { success: false, skipped: true, error: `Item title does not start with required prefix` };
+        }
+      } catch (err) {
+        core.warning(`Could not fetch item #${itemNumber} to check filters: ${getErrorMessage(err)}`);
+        return { success: false, error: `Failed to check required-label/required-title-prefix filter: ${getErrorMessage(err)}` };
       }
     }
 

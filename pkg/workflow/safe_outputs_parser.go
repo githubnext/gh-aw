@@ -15,7 +15,8 @@ type SafeOutputTargetConfig struct {
 // SafeOutputFilterConfig contains common filtering fields for safe output configurations.
 // Embed this in safe output config structs that support filtering by labels or title prefix.
 type SafeOutputFilterConfig struct {
-	RequiredLabels      []string `yaml:"required-labels,omitempty"`       // Required labels for the operation
+	RequiredLabels      []string `yaml:"required-labels,omitempty"`       // Required labels for the operation (ALL must match)
+	RequiredLabel       []string `yaml:"required-label,omitempty"`        // Disjunctive label filter (AT LEAST ONE must match)
 	RequiredTitlePrefix string   `yaml:"required-title-prefix,omitempty"` // Required title prefix for the operation
 	TitlePrefix         string   `yaml:"title-prefix,omitempty"`          // Deprecated alias for required-title-prefix
 }
@@ -72,6 +73,12 @@ func ParseFilterConfig(configMap map[string]any) SafeOutputFilterConfig {
 	config.RequiredLabels = ParseStringArrayFromConfig(configMap, "required-labels", safeOutputParserLog)
 	if len(config.RequiredLabels) > 0 {
 		safeOutputParserLog.Printf("Parsed %d required labels", len(config.RequiredLabels))
+	}
+
+	// Parse required-label (disjunctive: at least one must match)
+	config.RequiredLabel = ParseStringArrayFromConfig(configMap, "required-label", safeOutputParserLog)
+	if len(config.RequiredLabel) > 0 {
+		safeOutputParserLog.Printf("Parsed %d required-label values (disjunctive)", len(config.RequiredLabel))
 	}
 
 	// Parse required-title-prefix (preferred) with fallback to deprecated title-prefix

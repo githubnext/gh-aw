@@ -3927,7 +3927,6 @@
                     }
                   ]
                 },
-
                 "mounts": {
                   "type": "array",
                   "description": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write). Applies to local mode only. Example: '/data:/data:ro'",
@@ -6090,6 +6089,19 @@
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
+                "required-label": {
+                  "type": "array",
+                  "description": "Disjunctive label constraint: at least one of these labels must be present on the issue/PR for the operation to proceed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
+                },
                 "staged": {
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -6851,6 +6863,19 @@
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be added to. When specified, the agent can use a 'repo' field in the output to specify which repository to add labels to. The target repository (current or target-repo) is always implicitly allowed."
                 },
+                "required-label": {
+                  "type": "array",
+                  "description": "Disjunctive label constraint: at least one of these labels must be present on the issue/PR for the operation to proceed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
+                },
                 "staged": {
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -6923,6 +6948,19 @@
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be removed from. When specified, the agent can use a 'repo' field in the output to specify which repository to remove labels from. The target repository (current or target-repo) is always implicitly allowed."
                 },
+                "required-label": {
+                  "type": "array",
+                  "description": "Disjunctive label constraint: at least one of these labels must be present on the issue/PR for the operation to proceed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
+                },
                 "staged": {
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -6944,17 +6982,44 @@
               "type": "object",
               "description": "Configuration for adding reviewers to pull requests from agentic workflow output",
               "properties": {
-                "reviewers": {
+                "allowed-reviewers": {
                   "type": "array",
-                  "description": "Optional list of allowed reviewers. If omitted, any reviewers are allowed.",
+                  "description": "Optional list of allowed reviewer usernames. If omitted, any reviewers are allowed.",
                   "items": {
                     "type": "string"
                   },
                   "minItems": 1,
                   "maxItems": 50
                 },
-                "team-reviewers": {
+                "reviewers": {
+                  "type": "array",
+                  "description": "Deprecated alias for allowed-reviewers",
+                  "deprecated": true,
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "allowed-team-reviewers": {
                   "description": "Optional allowed team reviewer or list of allowed team reviewers. If omitted, any team reviewers are allowed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "maxItems": 50
+                    }
+                  ]
+                },
+                "team-reviewers": {
+                  "description": "Deprecated alias for allowed-team-reviewers",
+                  "deprecated": true,
                   "oneOf": [
                     {
                       "type": "string"
@@ -7537,21 +7602,37 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of labels that must all be present on the pull request before merge is allowed."
+                  "description": "List of labels that must ALL be present on the pull request before merge is allowed."
+                },
+                "required-label": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Disjunctive label constraint: at least one existing PR label must match one of these values before merge is allowed."
                 },
                 "allowed-labels": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exact pull request label names. At least one existing PR label must exactly match one of these values when configured."
+                  "description": "Deprecated alias for required-label",
+                  "deprecated": true
+                },
+                "required-branch": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Glob patterns for allowed source branch names (pull request head ref). The PR's branch must match at least one pattern."
                 },
                 "allowed-branches": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Glob patterns for allowed source branch names (pull request head ref)."
+                  "description": "Deprecated alias for required-branch",
+                  "deprecated": true
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",

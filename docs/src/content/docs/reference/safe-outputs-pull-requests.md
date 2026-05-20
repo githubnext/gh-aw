@@ -326,13 +326,13 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 
 ## Add Reviewer (`add-reviewer:`)
 
-Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames and `team-reviewers` to restrict to specific team slugs.
+Adds reviewers to pull requests. Specify `allowed-reviewers` to restrict to specific GitHub usernames and `allowed-team-reviewers` to restrict to specific team slugs.
 
 ```yaml wrap
 safe-outputs:
   add-reviewer:
-    reviewers: [user1, copilot]  # restrict to specific user/bot reviewers
-    team-reviewers: [platform-reviewers] # restrict to specific team reviewers
+    allowed-reviewers: [user1, copilot]  # restrict to specific user/bot reviewers
+    allowed-team-reviewers: [platform-reviewers] # restrict to specific team reviewers
     max: 3                       # max reviewers (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
@@ -341,7 +341,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
 
-Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
+Use `allowed-reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
 
 ## Compile-Time Warnings for `target: "*"`
 
