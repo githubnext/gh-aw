@@ -5,6 +5,8 @@ package regexpcompileinfunction
 
 import (
 	"go/ast"
+	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -36,6 +38,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		call, ok := n.(*ast.CallExpr)
 		if !ok || !isRegexpCompileCall(call) {
+			return true
+		}
+		if !hasConstantStringPattern(pass, call) {
 			return true
 		}
 
@@ -81,4 +86,24 @@ func isInsideFunction(stack []ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// hasConstantStringPattern checks whether the regexp pattern is a compile-time constant string.
+func hasConstantStringPattern(pass *analysis.Pass, call *ast.CallExpr) bool {
+	if len(call.Args) == 0 {
+		return false
+	}
+
+	patternArg := call.Args[0]
+	if lit, ok := patternArg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		return true
+	}
+
+	tv, ok := pass.TypesInfo.Types[patternArg]
+	if !ok || tv.Value == nil || tv.Type == nil {
+		return false
+	}
+
+	basic, ok := tv.Type.Underlying().(*types.Basic)
+	return ok && basic.Kind() == types.String
 }

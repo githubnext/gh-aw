@@ -12,6 +12,8 @@ var (
 	anotherPackageLevelRegexp, _ = regexp.Compile(`\d+`)
 )
 
+const constPattern = `^const$`
+
 // flagged: regexp.MustCompile inside function body
 func ProcessString(s string) bool {
 	re := regexp.MustCompile(`^[a-z]+$`) // want `regexp compilation inside function should be moved to package-level variable`
@@ -25,6 +27,12 @@ func ValidateInput(input string) (bool, error) {
 		return false, err
 	}
 	return re.MatchString(input), nil
+}
+
+// flagged: regexp.MustCompile with constant identifier inside function body
+func ValidateConst(input string) bool {
+	re := regexp.MustCompile(constPattern) // want `regexp compilation inside function should be moved to package-level variable`
+	return re.MatchString(input)
 }
 
 // flagged: regexp.MustCompile inside loop (even worse!)
@@ -55,4 +63,13 @@ type Validator struct{}
 
 func (v *Validator) Validate(s string) bool {
 	return packageLevelRegexp.MatchString(s)
+}
+
+// not flagged: dynamic pattern cannot be moved to package-level variable directly
+func ValidateDynamic(pattern, input string) (bool, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return false, err
+	}
+	return re.MatchString(input), nil
 }
