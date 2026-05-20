@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 func TestIsValidFullSHA(t *testing.T) {
@@ -62,9 +64,9 @@ func TestIsValidFullSHA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isValidFullSHA(tt.sha)
+			result := gitutil.IsValidFullSHA(tt.sha)
 			if result != tt.valid {
-				t.Errorf("isValidFullSHA(%q) = %v, want %v", tt.sha, result, tt.valid)
+				t.Errorf("gitutil.IsValidFullSHA(%q) = %v, want %v", tt.sha, result, tt.valid)
 			}
 		})
 	}
