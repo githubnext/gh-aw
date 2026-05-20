@@ -403,8 +403,7 @@ func TestValidateStrictMCPNetwork_ContainerWithEmptyTopLevelNetwork(t *testing.T
 		"mcp-servers": map[string]any{
 			"my-server": map[string]any{
 				"container": "my-image",
-				// No per-server network config
-			},
+				},
 		},
 	}
 
@@ -431,11 +430,9 @@ func TestValidateStrictMCPNetwork_MultipleServersWithTopLevelNetwork(t *testing.
 		"mcp-servers": map[string]any{
 			"server1": map[string]any{
 				"container": "image1",
-				// No per-server network
 			},
 			"server2": map[string]any{
 				"container": "image2",
-				// No per-server network
 			},
 		},
 	}

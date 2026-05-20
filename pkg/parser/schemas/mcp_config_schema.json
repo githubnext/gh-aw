@@ -9,12 +9,20 @@
     {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/tmp"
+      ]
     },
     {
       "type": "stdio",
       "command": "docker",
-      "args": ["run", "-i", "my-mcp-server"]
+      "args": [
+        "run",
+        "-i",
+        "my-mcp-server"
+      ]
     },
     {
       "type": "http",
@@ -32,20 +40,36 @@
       "env": {
         "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
       },
-      "allowed": ["*"]
+      "allowed": [
+        "*"
+      ]
     },
     {
       "container": "mcp/memory",
-      "entrypointArgs": ["-v", "/tmp/gh-aw/cache-memory:/app/dist"],
-      "allowed": ["store_memory", "retrieve_memory", "list_memories"]
+      "entrypointArgs": [
+        "-v",
+        "/tmp/gh-aw/cache-memory:/app/dist"
+      ],
+      "allowed": [
+        "store_memory",
+        "retrieve_memory",
+        "list_memories"
+      ]
     }
   ],
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["stdio", "http", "local"],
+      "enum": [
+        "stdio",
+        "http",
+        "local"
+      ],
       "description": "MCP connection type (local is an alias for stdio)",
-      "examples": ["stdio", "http"]
+      "examples": [
+        "stdio",
+        "http"
+      ]
     },
     "registry": {
       "type": "string",
@@ -55,19 +79,31 @@
       "type": "string",
       "minLength": 1,
       "description": "URL for HTTP MCP connections",
-      "examples": ["http://localhost:8765", "https://api.example.com/mcp"]
+      "examples": [
+        "http://localhost:8765",
+        "https://api.example.com/mcp"
+      ]
     },
     "command": {
       "type": "string",
       "minLength": 1,
       "description": "Command for stdio MCP connections",
-      "examples": ["npx", "docker", "python", "node"]
+      "examples": [
+        "npx",
+        "docker",
+        "python",
+        "node"
+      ]
     },
     "container": {
       "type": "string",
       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
       "description": "Container image for stdio MCP connections (alternative to command)",
-      "examples": ["docker.io/mcp/brave-search", "mcp/memory", "ghcr.io/github/github-mcp-server:latest"]
+      "examples": [
+        "docker.io/mcp/brave-search",
+        "mcp/memory",
+        "ghcr.io/github/github-mcp-server:latest"
+      ]
     },
     "args": {
       "type": "array",
@@ -76,15 +112,30 @@
       },
       "description": "Arguments for command or container execution",
       "examples": [
-        ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
-        ["-y", "@modelcontextprotocol/server-github"],
-        ["run", "-i", "my-mcp-server"]
+        [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "/tmp"
+        ],
+        [
+          "-y",
+          "@modelcontextprotocol/server-github"
+        ],
+        [
+          "run",
+          "-i",
+          "my-mcp-server"
+        ]
       ]
     },
     "entrypoint": {
       "type": "string",
       "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
-      "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
+      "examples": [
+        "/bin/sh",
+        "/custom/entrypoint.sh",
+        "python"
+      ]
     },
     "entrypointArgs": {
       "type": "array",
@@ -93,8 +144,15 @@
       },
       "description": "Arguments to add after the container image (container entrypoint arguments)",
       "examples": [
-        ["-v", "/tmp/gh-aw/cache-memory:/app/dist"],
-        ["--port", "8080", "--debug"]
+        [
+          "-v",
+          "/tmp/gh-aw/cache-memory:/app/dist"
+        ],
+        [
+          "--port",
+          "8080",
+          "--debug"
+        ]
       ]
     },
     "mounts": {
@@ -104,7 +162,15 @@
         "pattern": "^[^:]+:[^:]+:(ro|rw)$"
       },
       "description": "Volume mounts for container (format: 'source:dest:mode' where mode is 'ro' or 'rw')",
-      "examples": [["/host/data:/container/data:ro", "/host/config:/container/config:rw"], ["/tmp/cache:/app/cache:rw"]]
+      "examples": [
+        [
+          "/host/data:/container/data:ro",
+          "/host/config:/container/config:rw"
+        ],
+        [
+          "/tmp/cache:/app/cache:rw"
+        ]
+      ]
     },
     "env": {
       "type": "object",
@@ -147,78 +213,93 @@
         }
       ]
     },
-    "network": {
-      "type": "object",
-      "deprecated": true,
-      "properties": {
-        "allowed": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
-            "description": "Allowed domain name"
-          },
-          "minItems": 1,
-          "uniqueItems": true,
-          "description": "List of allowed domain names for network access",
-          "examples": [
-            ["github.com", "api.github.com"],
-            ["example.com", "api.example.com", "cdn.example.com"]
-          ]
-        },
-        "proxy-args": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Custom proxy arguments for container-based MCP servers",
-          "examples": [
-            ["--proxy", "http://proxy.example.com:8080"],
-            ["--proxy-auth", "user:pass"]
-          ]
-        }
-      },
-      "additionalProperties": false,
-      "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version.",
-      "examples": [
-        {
-          "allowed": ["github.com", "api.github.com"]
-        },
-        {
-          "allowed": ["example.com"],
-          "proxy-args": ["--proxy", "http://proxy.example.com:8080"]
-        }
-      ]
-    },
     "allowed": {
       "type": "array",
       "items": {
         "type": "string"
       },
       "description": "List of allowed tool names for this MCP server",
-      "examples": [["*"], ["store_memory", "retrieve_memory", "list_memories"], ["brave_web_search", "brave_local_search"]]
+      "examples": [
+        [
+          "*"
+        ],
+        [
+          "store_memory",
+          "retrieve_memory",
+          "list_memories"
+        ],
+        [
+          "brave_web_search",
+          "brave_local_search"
+        ]
+      ]
     },
     "version": {
-      "type": ["string", "number"],
+      "type": [
+        "string",
+        "number"
+      ],
       "description": "Version or tag for container images",
-      "examples": ["latest", "v1.0.0", "stable", 20, 3.11]
+      "examples": [
+        "latest",
+        "v1.0.0",
+        "stable",
+        20,
+        3.11
+      ]
     }
   },
-  "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],
+  "anyOf": [
+    {
+      "required": [
+        "type"
+      ]
+    },
+    {
+      "required": [
+        "url"
+      ]
+    },
+    {
+      "required": [
+        "command"
+      ]
+    },
+    {
+      "required": [
+        "container"
+      ]
+    }
+  ],
   "additionalProperties": false,
   "allOf": [
     {
       "if": {
         "properties": {
           "type": {
-            "enum": ["http"]
+            "enum": [
+              "http"
+            ]
           }
         }
       },
       "then": {
-        "required": ["url"],
+        "required": [
+          "url"
+        ],
         "not": {
-          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }, { "required": ["network"] }]
+          "anyOf": [
+            {
+              "required": [
+                "command"
+              ]
+            },
+            {
+              "required": [
+                "container"
+              ]
+            }
+          ]
         }
       }
     },
@@ -226,14 +307,38 @@
       "if": {
         "properties": {
           "type": {
-            "enum": ["stdio"]
+            "enum": [
+              "stdio"
+            ]
           }
         }
       },
       "then": {
-        "anyOf": [{ "required": ["command"] }, { "required": ["container"] }],
+        "anyOf": [
+          {
+            "required": [
+              "command"
+            ]
+          },
+          {
+            "required": [
+              "container"
+            ]
+          }
+        ],
         "not": {
-          "allOf": [{ "required": ["command"] }, { "required": ["container"] }]
+          "allOf": [
+            {
+              "required": [
+                "command"
+              ]
+            },
+            {
+              "required": [
+                "container"
+              ]
+            }
+          ]
         }
       }
     },
@@ -241,34 +346,56 @@
       "if": {
         "properties": {
           "type": {
-            "enum": ["stdio", "local"]
+            "enum": [
+              "stdio",
+              "local"
+            ]
           }
         }
       },
       "then": {
         "not": {
-          "required": ["headers"]
+          "required": [
+            "headers"
+          ]
         }
       }
     },
     {
       "if": {
-        "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
+        "anyOf": [
+          {
+            "required": [
+              "command"
+            ]
+          },
+          {
+            "required": [
+              "container"
+            ]
+          }
+        ]
       },
       "then": {
         "not": {
-          "required": ["headers"]
+          "required": [
+            "headers"
+          ]
         }
       }
     },
     {
       "if": {
-        "required": ["container"]
+        "required": [
+          "container"
+        ]
       },
       "then": {
         "properties": {
           "type": {
-            "enum": ["stdio"]
+            "enum": [
+              "stdio"
+            ]
           }
         }
       }
