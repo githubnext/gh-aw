@@ -124,7 +124,7 @@ network_allowed = os.environ.get(%q, "")
 tokens = [token.strip() for token in network_allowed.split(",") if token.strip()]
 
 if tokens:
-    ecosystem_map = json.loads(r'''%s''')
+    ecosystem_map = json.loads(%q)
     allow_domains = config.setdefault("network", {}).setdefault("allowDomains", [])
     seen = set(allow_domains)
     for token in tokens:
