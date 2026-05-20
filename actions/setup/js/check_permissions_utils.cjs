@@ -155,6 +155,25 @@ function isConfusedDeputyAttack(actor, eventName, payload) {
 }
 
 /**
+ * Returns true when a GitHub API 404 error indicates the username refers to a
+ * GitHub App rather than a regular user account.
+ *
+ * The collaborators permission endpoint (`GET /repos/{owner}/{repo}/collaborators/{username}/permission`)
+ * responds with 404 and a message of the form "<login> is not a user" when called
+ * with a GitHub App actor name (e.g. "Copilot").  A plain "Not Found" 404 means
+ * the actor simply doesn't have repository access or doesn't exist.
+ *
+ * @param {unknown} error - The error to inspect
+ * @returns {boolean}
+ */
+function isGitHubAppNotUserError(error) {
+  if (!error || typeof error !== "object") return false;
+  if (!("status" in error) || error.status !== 404) return false;
+  const msg = getErrorMessage(error);
+  return typeof msg === "string" && msg.includes("is not a user");
+}
+
+/**
  * Check if the actor is a bot and if it's active on the repository.
  * Accepts both <slug> and <slug>[bot] actor forms, since GitHub Apps
  * may appear either way depending on the event context.
@@ -185,7 +204,16 @@ async function checkBotStatus(actor, owner, repo) {
       core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
       return { isBot: true, isActive: true };
     } catch (botError) {
-      // If we get a 404, the [bot]-suffixed form may not be listed as a collaborator.
+      // If we get a 404 "is not a user" response, GitHub is telling us this is a GitHub
+      // App identity (not a regular user).  GitHub Apps trigger events via their installation,
+      // so if an app actor appears in an event payload it must already have repository access.
+      // Treat it as active to avoid false negatives for apps like Copilot.
+      if (isGitHubAppNotUserError(botError)) {
+        core.info(`Bot '${actor}' is a GitHub App; treating as active based on event trigger`);
+        return { isBot: true, isActive: true };
+      }
+
+      // If we get a plain 404, the [bot]-suffixed form may not be listed as a collaborator.
       // Fall back to checking the non-[bot] (slug) form, as some GitHub Apps appear
       // under their plain slug name rather than the [bot]-suffixed form.
       if (botError?.status === 404) {
@@ -199,6 +227,11 @@ async function checkBotStatus(actor, owner, repo) {
           return { isBot: true, isActive: true };
         } catch (slugError) {
           if (slugError?.status === 404) {
+            // Same "is not a user" check for the slug form fallback.
+            if (isGitHubAppNotUserError(slugError)) {
+              core.info(`Bot '${actor}' is a GitHub App; treating as active based on event trigger`);
+              return { isBot: true, isActive: true };
+            }
             core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
             return { isBot: true, isActive: false };
           }
@@ -263,6 +296,7 @@ module.exports = {
   parseAllowedBots,
   canonicalizeBotIdentifier,
   isAllowedBot,
+  isGitHubAppNotUserError,
   readAllowBotAuthoredTriggerComment,
   isConfusedDeputyAttack,
   checkRepositoryPermission,

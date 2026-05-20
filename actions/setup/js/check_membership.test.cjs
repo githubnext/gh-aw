@@ -701,6 +701,22 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "api_error");
     });
 
+    it("should provide actionable guidance when GitHub App actor is not in allowed bots list", async () => {
+      delete process.env.GH_AW_ALLOWED_BOTS;
+      mockContext.actor = "Copilot";
+
+      const notAUserError = { status: 404, message: "Copilot is not a user - https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notAUserError);
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "api_error");
+      const errorMessageCall = mockCore.setOutput.mock.calls.find(([key]) => key === "error_message");
+      expect(errorMessageCall).toBeDefined();
+      expect(errorMessageCall[1]).toContain("Repository permission check failed");
+    });
+
     it("should authorize a bot with [bot] suffix in the allowlist via slug fallback", async () => {
       process.env.GH_AW_ALLOWED_BOTS = "copilot";
       mockContext.actor = "copilot[bot]";

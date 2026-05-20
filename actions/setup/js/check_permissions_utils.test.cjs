@@ -521,6 +521,40 @@ describe("check_permissions_utils", () => {
       expect(mockCore.warning).toHaveBeenCalledWith("Bot 'unknown-app' is not active/installed on testowner/testrepo");
     });
 
+    it("should return active when [bot] form returns 404 'is not a user' (GitHub App like Copilot)", async () => {
+      const notUserError = { status: 404, message: "Copilot[bot] is not a user - https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notUserError);
+
+      const result = await checkBotStatus("Copilot[bot]", "testowner", "testrepo");
+
+      expect(result).toEqual({ isBot: true, isActive: true });
+      expect(mockCore.info).toHaveBeenCalledWith("Bot 'Copilot[bot]' is a GitHub App; treating as active based on event trigger");
+    });
+
+    it("should return active when slug form returns 404 'is not a user' (GitHub App Copilot without [bot] suffix)", async () => {
+      const notFoundError = { status: 404, message: "Not Found" };
+      const notUserError = { status: 404, message: "Copilot is not a user - https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValueOnce(notFoundError) // [bot] form returns plain 404
+        .mockRejectedValueOnce(notUserError); // slug form returns "not a user"
+
+      const result = await checkBotStatus("Copilot", "testowner", "testrepo");
+
+      expect(result).toEqual({ isBot: true, isActive: true });
+      expect(mockCore.info).toHaveBeenCalledWith("Bot 'Copilot' is a GitHub App; treating as active based on event trigger");
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenNthCalledWith(1, {
+        owner: "testowner",
+        repo: "testrepo",
+        username: "Copilot[bot]",
+      });
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenNthCalledWith(2, {
+        owner: "testowner",
+        repo: "testrepo",
+        username: "Copilot",
+      });
+    });
+
     it("should return inactive with error when slug form returns non-404 error", async () => {
       const notFoundError = { status: 404, message: "Not Found" };
       const rateLimit = new Error("API rate limit exceeded");

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
+const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack, isGitHubAppNotUserError } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 function readWorkflowDispatchAwContext(payload) {
@@ -202,7 +202,19 @@ async function main() {
       core.setOutput("is_team_member", "false");
       core.setOutput("result", "api_error");
       core.setOutput("error_message", errorMessage);
-      await writeDenialSummary(errorMessage, "The permission check failed with a GitHub API error. Check the `pre_activation` job log for details.");
+      // When the GitHub API responds with "is not a user", the actor is a GitHub App.
+      // The bot allowlist was either empty or not checked — provide actionable guidance.
+      const isAppActor = isGitHubAppNotUserError({ status: 404, message: result.error });
+      if (isAppActor) {
+        await writeDenialSummary(
+          errorMessage,
+          `Actor '${actorToValidate}' is a GitHub App, not a regular user. ` +
+            `To allow this app to trigger the workflow, add it to \`on.bots:\` in the workflow frontmatter. ` +
+            `Example: \`bots: [${actorToValidate}]\``,
+        );
+      } else {
+        await writeDenialSummary(errorMessage, "The permission check failed with a GitHub API error. Check the `pre_activation` job log for details.");
+      }
     } else {
       const errorMessage =
         `Access denied: User '${actorToValidate}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}. ` +
