@@ -18,7 +18,7 @@ var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 
 // isValidPullRequestReviewerValue validates on.pull_request_reviewer trigger syntax.
 // Accepted values are:
-//   - Go nil (YAML `pull_request_reviewer:` with no value, uses default slash command name)
+//   - Go nil (YAML `pull_request_reviewer:` with no value, uses default slash command name "review")
 //   - empty Go string ("", from YAML `pull_request_reviewer: ""`)
 //   - legacy string "slash_command"
 //   - custom slash command name string
@@ -56,18 +56,14 @@ func extractCustomPullRequestReviewerCommandName(value any) string {
 // resolvePullRequestReviewerCommandName determines the reviewer trigger command
 // name using this precedence:
 //  1. Explicit custom name from on.pull_request_reviewer
-//  2. WorkflowID (preferred default reviewer command identity)
-//  3. Markdown filename stem (legacy fallback when WorkflowID is unavailable)
+//  2. "review" (default slash command name for the centralized reviewer lifecycle)
 //
-// workflowData may be nil; in that case the function falls back to step 3.
+// workflowData is unused but retained for API compatibility.
 func resolvePullRequestReviewerCommandName(reviewerTriggerValue any, workflowData *WorkflowData, markdownPath string) string {
 	if reviewerCommandName := extractCustomPullRequestReviewerCommandName(reviewerTriggerValue); reviewerCommandName != "" {
 		return reviewerCommandName
 	}
-	if workflowData != nil && workflowData.WorkflowID != "" {
-		return workflowData.WorkflowID
-	}
-	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+	return "review"
 }
 
 func mergeCommandOtherEvents(existing map[string]any, incoming map[string]any) map[string]any {
