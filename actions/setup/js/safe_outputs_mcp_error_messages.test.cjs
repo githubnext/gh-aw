@@ -189,7 +189,7 @@ describe("Safe Outputs MCP Error Message Validation", () => {
         method: "tools/call",
         params: {
           name: "test_tool",
-          arguments: {}, // missing 'title'
+          arguments: { title: "" }, // empty string triggers missing-field error (not probe detection)
         },
       });
 
@@ -221,7 +221,7 @@ describe("Safe Outputs MCP Error Message Validation", () => {
         method: "tools/call",
         params: {
           name: "test_tool",
-          arguments: {}, // missing both fields
+          arguments: { title: "", body: "" }, // empty strings trigger missing-field errors (not probe detection)
         },
       });
 
@@ -277,13 +277,19 @@ describe("Safe Outputs MCP Error Message Validation", () => {
           handler: args => ({ content: [{ type: "text", text: "ok" }] }),
         });
 
+        // Use empty-string values to trigger field-level errors (not probe detection)
+        const emptyArgs = testTool.required.reduce((acc, field) => {
+          acc[field] = "";
+          return acc;
+        }, {});
+
         await handleMessage(server, {
           jsonrpc: "2.0",
           id: 1,
           method: "tools/call",
           params: {
             name: testTool.name,
-            arguments: {},
+            arguments: emptyArgs,
           },
         });
 
@@ -333,13 +339,19 @@ describe("Safe Outputs MCP Error Message Validation", () => {
 
         registerTool(server, toolWithHandler);
 
+        // Use empty-string values to trigger field-level errors (not probe detection)
+        const emptyArgs = tool.inputSchema.required.reduce((acc, field) => {
+          acc[field] = "";
+          return acc;
+        }, {});
+
         await handleMessage(server, {
           jsonrpc: "2.0",
           id: 1,
           method: "tools/call",
           params: {
             name: tool.name,
-            arguments: {}, // Empty arguments to trigger missing field errors
+            arguments: emptyArgs, // Empty strings to trigger missing field errors
           },
         });
 
@@ -404,7 +416,7 @@ describe("Safe Outputs MCP Error Message Validation", () => {
         method: "tools/call",
         params: {
           name: "create_issue",
-          arguments: {}, // Missing required fields
+          arguments: { title: "", body: "" }, // Empty strings to trigger missing-field errors (not probe detection)
         },
       });
 
