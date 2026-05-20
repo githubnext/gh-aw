@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	mcpServerListToolsTimeout = 10 * time.Second
-	mcpServerAddToolTimeout   = 60 * time.Second
+	testMCPServerListToolsTimeout = 10 * time.Second
+	testMCPServerAddToolTimeout   = 60 * time.Second
+	// Pinned commit SHA keeps this integration test deterministic across future upstream changes.
+	testAddToolWorkflowSource = "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
 )
 
 func setupMCPServerSession(t *testing.T, binaryPath, workingDir string, timeout time.Duration) (context.Context, *mcp.ClientSession) {
@@ -66,7 +68,7 @@ func setupMCPServerAddRepo(t *testing.T) (string, string) {
 	return tmpDir, workflowsDir
 }
 
-func callToolResultText(result *mcp.CallToolResult) string {
+func extractTextContent(result *mcp.CallToolResult) string {
 	var outputText strings.Builder
 	for _, content := range result.Content {
 		if textContent, ok := content.(*mcp.TextContent); ok {
@@ -79,7 +81,7 @@ func callToolResultText(result *mcp.CallToolResult) string {
 
 // TestMCPServer_AddTool tests that the add tool is exposed and functional
 func TestMCPServer_AddTool(t *testing.T) {
-	ctx, session := setupMCPServerSession(t, "../../gh-aw", "", mcpServerListToolsTimeout)
+	ctx, session := setupMCPServerSession(t, "../../gh-aw", "", testMCPServerListToolsTimeout)
 
 	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
 	require.NoError(t, err, "Expected list tools request to succeed")
@@ -101,12 +103,12 @@ func TestMCPServer_AddTool(t *testing.T) {
 // TestMCPServer_AddTool_Success tests that add tool can add a workflow successfully.
 func TestMCPServer_AddTool_Success(t *testing.T) {
 	tmpDir, workflowsDir := setupMCPServerAddRepo(t)
-	ctx, session := setupMCPServerSession(t, "../../gh-aw", tmpDir, mcpServerAddToolTimeout)
+	ctx, session := setupMCPServerSession(t, "../../gh-aw", tmpDir, testMCPServerAddToolTimeout)
 
 	callResult, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name: "add",
 		Arguments: map[string]any{
-			"workflows": []any{"githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"},
+			"workflows": []any{testAddToolWorkflowSource},
 			"name":      "daily-team-status-test",
 		},
 	})
@@ -114,7 +116,7 @@ func TestMCPServer_AddTool_Success(t *testing.T) {
 	require.NotNil(t, callResult, "Expected add tool call result to be returned")
 	assert.False(t, callResult.IsError, "Expected add tool result to indicate success")
 
-	outputText := callToolResultText(callResult)
+	outputText := extractTextContent(callResult)
 	assert.NotEmpty(t, outputText, "Expected add tool to return non-empty output text")
 	assert.Contains(t, outputText, "daily-team-status-test", "Expected add tool output to mention the target workflow name")
 
@@ -129,7 +131,7 @@ func TestMCPServer_AddTool_Success(t *testing.T) {
 // TestMCPServer_AddToolInvocation tests calling the add tool
 func TestMCPServer_AddToolInvocation(t *testing.T) {
 	tmpDir, _ := setupMCPServerAddRepo(t)
-	ctx, session := setupMCPServerSession(t, "../../gh-aw", tmpDir, mcpServerAddToolTimeout)
+	ctx, session := setupMCPServerSession(t, "../../gh-aw", tmpDir, testMCPServerAddToolTimeout)
 
 	tests := []struct {
 		name           string
@@ -172,7 +174,7 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 				require.NotNil(t, result, "Expected tool result when validation error is returned in MCP content")
 				assert.True(t, result.IsError, "Expected tool result to indicate error for missing required workflows argument")
 
-				outputText := callToolResultText(result)
+				outputText := extractTextContent(result)
 				if outputText != "" {
 					t.Logf("Validation tool error: %s", outputText)
 				}
