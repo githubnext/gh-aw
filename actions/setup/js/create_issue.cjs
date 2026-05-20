@@ -521,12 +521,8 @@ function serializeAsyncHandler(handler) {
   let queue = Promise.resolve();
 
   return /** @type {T} */ async (...args) => {
-    const run = () => handler(...args);
-    const resultPromise = queue.then(run, run);
-    queue = resultPromise.then(
-      () => undefined,
-      () => undefined
-    );
+    const resultPromise = queue.then(() => handler(...args));
+    queue = resultPromise.catch(() => undefined);
     return resultPromise;
   };
 }

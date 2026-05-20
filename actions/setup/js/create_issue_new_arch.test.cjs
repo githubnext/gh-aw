@@ -1,6 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { main } = require("./create_issue.cjs");
 
 const mockCore = {
   debug: vi.fn(),
@@ -43,12 +47,12 @@ global.context = mockContext;
 
 describe("create_issue.cjs (New Handler Factory Architecture)", () => {
   let handler;
+  let originalRunnerTemp;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    originalRunnerTemp = process.env.RUNNER_TEMP;
 
-    // Load the module and create handler
-    const { main } = require("./create_issue.cjs");
     handler = await main({
       max: 10,
       labels: ["automation"],
@@ -56,8 +60,15 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
     });
   });
 
+  afterEach(() => {
+    if (originalRunnerTemp === undefined) {
+      delete process.env.RUNNER_TEMP;
+    } else {
+      process.env.RUNNER_TEMP = originalRunnerTemp;
+    }
+  });
+
   it("should return a function from main()", async () => {
-    const { main } = require("./create_issue.cjs");
     const result = await main({});
     expect(typeof result).toBe("function");
   });
@@ -89,7 +100,6 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
   });
 
   it("should respect max count limit", async () => {
-    const { main } = require("./create_issue.cjs");
     const limitedHandler = await main({ max: 1 });
 
     const mockIssue = { number: 123, html_url: "https://github.com/testowner/testrepo/issues/123", node_id: "I_123" };
@@ -207,7 +217,6 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
     mkdirSync(promptsDir, { recursive: true });
     writeFileSync(join(promptsDir, "issue_group_parent.md"), "Group {{group_id}}");
 
-    const { main } = require("./create_issue.cjs");
     const groupedHandler = await main({ group: true, max: 10 });
 
     let nextIssueNumber = 200;
