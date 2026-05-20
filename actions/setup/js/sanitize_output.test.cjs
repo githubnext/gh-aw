@@ -430,34 +430,34 @@ const mockCore = {
           (vi.clearAllMocks(), fs.existsSync("/tmp/gh-aw") || fs.mkdirSync("/tmp/gh-aw", { recursive: !0 }));
         }),
           it("should neutralize command at the start of text", async () => {
-            process.env.GH_AW_COMMAND = "test-bot";
+            process.env.GH_AW_COMMANDS = JSON.stringify(["test-bot"]);
             const content = "/test-bot please analyze this code",
               testFile = "/tmp/gh-aw/test-command-start.txt";
             (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
-            (expect(result).toContain("`/test-bot`"), expect(result).not.toMatch(/^\/test-bot/), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMAND);
+            (expect(result).toContain("`/test-bot`"), expect(result).not.toMatch(/^\/test-bot/), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMANDS);
           }),
           it("should not neutralize command when it appears later in text", async () => {
-            process.env.GH_AW_COMMAND = "helper";
+            process.env.GH_AW_COMMANDS = JSON.stringify(["helper"]);
             const content = "I need help from /helper please",
               testFile = "/tmp/gh-aw/test-command-middle.txt";
             (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
-            (expect(result).toContain("/helper"), expect(result).toContain("I need help from /helper please"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMAND);
+            (expect(result).toContain("/helper"), expect(result).toContain("I need help from /helper please"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMANDS);
           }),
           it("should handle command at start with leading whitespace", async () => {
-            process.env.GH_AW_COMMAND = "review-bot";
+            process.env.GH_AW_COMMANDS = JSON.stringify(["review-bot"]);
             const content = "  \n/review-bot analyze this PR",
               testFile = "/tmp/gh-aw/test-command-whitespace.txt";
             (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
-            (expect(result).toContain("`/review-bot`"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMAND);
+            (expect(result).toContain("`/review-bot`"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMANDS);
           }),
           it("should not modify text when no command is configured", async () => {
             const content = "/some-bot do something",
@@ -469,24 +469,24 @@ const mockCore = {
             (expect(result).toContain("/some-bot"), fs.unlinkSync(testFile));
           }),
           it("should handle special characters in command name", async () => {
-            process.env.GH_AW_COMMAND = "test-bot_v2";
+            process.env.GH_AW_COMMANDS = JSON.stringify(["test-bot_v2"]);
             const content = "/test-bot_v2 execute task",
               testFile = "/tmp/gh-aw/test-special-chars.txt";
             (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
-            (expect(result).toContain("`/test-bot_v2`"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMAND);
+            (expect(result).toContain("`/test-bot_v2`"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMANDS);
           }),
           it("should combine command neutralization with other sanitizations", async () => {
-            process.env.GH_AW_COMMAND = "analyze-bot";
+            process.env.GH_AW_COMMANDS = JSON.stringify(["analyze-bot"]);
             const content = "/analyze-bot check @user for https://evil.com issues",
               testFile = "/tmp/gh-aw/test-combined.txt";
             (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
-            (expect(result).toContain("`/analyze-bot`"), expect(result).toContain("`@user`"), expect(result).toContain("/redacted"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMAND);
+            (expect(result).toContain("`/analyze-bot`"), expect(result).toContain("`@user`"), expect(result).toContain("/redacted"), fs.unlinkSync(testFile), delete process.env.GH_AW_COMMANDS);
           }));
       }),
       describe("URL Redaction Logging", () => {

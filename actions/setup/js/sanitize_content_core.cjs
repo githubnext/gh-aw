@@ -331,8 +331,7 @@ function sanitizeUrlDomains(s, allowed) {
 
 /**
  * Neutralizes commands at the start of text by wrapping them in backticks.
- * Reads all command names from GH_AW_COMMANDS (JSON array, preferred) or
- * falls back to GH_AW_COMMAND (single string, for backward compatibility).
+ * Reads all command names from GH_AW_COMMANDS (JSON array).
  * @param {string} s - The string to process
  * @returns {string} The string with neutralized commands
  */
@@ -348,16 +347,12 @@ function neutralizeCommands(s) {
         commandNames = parsed.filter((c) => typeof c === "string" && c.length > 0);
       }
     } catch {
-      // fall through to single-command fallback
+      // invalid JSON, no commands to neutralize
     }
   }
 
   if (commandNames.length === 0) {
-    const commandName = process.env.GH_AW_COMMAND;
-    if (!commandName) {
-      return s;
-    }
-    commandNames = [commandName];
+    return s;
   }
 
   // Neutralize each command name at the start of text (with optional leading whitespace)
