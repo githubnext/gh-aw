@@ -125,8 +125,8 @@ function createLogParserFormatters(deps) {
                 break;
               }
             }
-          } else if (content.type === "thinking" && (content.thinking || content.text)) {
-            let text = (content.thinking || content.text || "").trim();
+          } else if (content.type === "thinking" && content.thinking) {
+            let text = content.thinking.trim();
             text = unfenceMarkdown(text);
             if (text && text.length > 0) {
               if (!addContent(`<sub>◯ *${text}*</sub>\n\n`)) {
@@ -551,8 +551,8 @@ function createLogParserFormatters(deps) {
             if (text && text.length > 0) {
               appendAgentText(lines, text, state);
             }
-          } else if (content.type === "thinking" && (content.thinking || content.text)) {
-            let text = (content.thinking || content.text || "").trim();
+          } else if (content.type === "thinking" && content.thinking) {
+            let text = content.thinking.trim();
             text = unfenceMarkdown(text);
             if (text && text.length > 0) {
               appendReasoningText(lines, text, state);
