@@ -114,7 +114,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 		}
 
 		// Attempt to resolve the digest without pulling.
-		digest, resolveErr := resolveContainerDigest(ctx, image, verbose)
+		digest, resolveErr := fetchContainerDigest(ctx, image, verbose)
 		if resolveErr != nil {
 			containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, resolveErr)
 			failedImages = append(failedImages, imageFailure{image: image, reason: resolveErr.Error()})
@@ -221,14 +221,14 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 // while still bounding any hung Docker daemon or slow network connections.
 const dockerCmdTimeout = 60 * time.Second
 
-// resolveContainerDigest returns the SHA-256 content digest for the given image tag.
+// fetchContainerDigest returns the SHA-256 content digest for the given image tag.
 // It tries three strategies in order:
 //  1. "docker buildx imagetools inspect" (no pull, preferred — works when docker daemon is running)
 //  2. "crane digest" (no pull, no daemon — works in CI without Docker)
 //  3. "docker pull" + "docker inspect" (fallback that pulls the full image)
 //
 // Returns an error when all three strategies fail.
-func resolveContainerDigest(ctx context.Context, image string, verbose bool) (string, error) {
+func fetchContainerDigest(ctx context.Context, image string, verbose bool) (string, error) {
 	containerPinsLog.Printf("Resolving digest for container image: %s", image)
 
 	type strategy struct {

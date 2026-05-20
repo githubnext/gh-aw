@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -227,6 +228,26 @@ func isGitHubHost(host string) bool {
 		strings.HasSuffix(host, ".github.com")
 }
 
+// Returns the rewritten URL and true on a match, or ("", false) otherwise.
+func rewriteAutomationsURL(u *url.URL) (string, bool) {
+	// Only rewrite github.com (not GHE) automations UI URLs.
+	if u.Host != "github.com" {
+		return "", false
+	}
+	// Path must be: /{owner}/{repo}/agents/automations/{id}
+	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(segments) != 5 || segments[2] != "agents" || segments[3] != "automations" {
+		return "", false
+	}
+	owner, repo, id := segments[0], segments[1], segments[4]
+	if owner == "" || repo == "" || id == "" {
+		return "", false
+	}
+	capiURL := fmt.Sprintf("https://%s/agents/repos/%s/%s/automations/%s",
+		constants.GitHubCopilotMCPDomain, owner, repo, id)
+	return capiURL, true
+}
+
 func explicitHostForRepo(repoSlug string) string {
 	if repoHost := getGitHubHostForRepo(repoSlug); repoHost != getGitHubHost() {
 		if u, parseErr := url.Parse(repoHost); parseErr == nil && u.Host != "" {
@@ -246,6 +267,14 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 		parsedURL, urlErr := url.Parse(spec)
 		if urlErr == nil && isGitHubHost(parsedURL.Host) {
 			specLog.Print("Detected GitHub URL format")
+			// Rewrite dotcom automations UI URLs to the CAPI endpoint before further parsing.
+			if capiURL, ok := rewriteAutomationsURL(parsedURL); ok {
+				specLog.Printf("Rewrote automations UI URL to CAPI URL")
+				return &WorkflowSpec{
+					RawURL:       capiURL,
+					WorkflowName: genericURLWorkflowName(capiURL),
+				}, nil
+			}
 			return parseGitHubURL(spec)
 		}
 		// Non-GitHub HTTP(S) URL: return a generic URL spec whose content will be

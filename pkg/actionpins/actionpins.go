@@ -254,11 +254,6 @@ func ExtractVersion(uses string) string {
 	return after
 }
 
-// isValidFullSHA checks if a string is a valid 40-character hexadecimal SHA.
-func isValidFullSHA(s string) bool {
-	return gitutil.IsValidFullSHA(s)
-}
-
 // findVersionBySHA returns the version string for a given SHA in the embedded pins
 // for the specified repo. Returns "" if no matching pin is found.
 func findVersionBySHA(repo, sha string) string {
@@ -311,7 +306,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	}
 	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, ctx.StrictMode)
 
-	isAlreadySHA := isValidFullSHA(version)
+	isAlreadySHA := gitutil.IsValidFullSHA(version)
 
 	if ctx.Resolver != nil && !isAlreadySHA {
 		actionPinsLog.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)

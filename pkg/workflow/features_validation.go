@@ -11,7 +11,6 @@
 //
 //   - validateFeatures() - Validates all feature flags in WorkflowData
 //   - validateActionTag() - Validates action-tag is a full SHA or version tag
-//   - isValidFullSHA() - Checks if a string is a valid 40-character SHA
 //   - semverutil.IsActionVersionTag() - Checks if a string is a valid version tag (in pkg/semverutil)
 //
 // # When to Add Validation Here
@@ -79,7 +78,7 @@ func validateActionTag(value any) error {
 	}
 
 	// Accept full 40-character commit SHA
-	if isValidFullSHA(strVal) {
+	if gitutil.IsValidFullSHA(strVal) {
 		return nil
 	}
 
@@ -94,9 +93,4 @@ func validateActionTag(value any) error {
 		fmt.Sprintf("action-tag must be a full 40-character commit SHA or a version tag (e.g. v0, v1.0.0). Got: %q", strVal),
 		"Use a version tag or a full commit SHA. Examples:\nfeatures:\n  action-tag: \"v0\"\n\nOr with a full SHA:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\"",
 	)
-}
-
-// isValidFullSHA checks if a string is a valid 40-character hexadecimal SHA
-func isValidFullSHA(s string) bool {
-	return gitutil.IsValidFullSHA(s)
 }

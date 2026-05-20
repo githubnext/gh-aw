@@ -5,7 +5,6 @@ package errormessage
 import (
 	"go/ast"
 	"go/token"
-	"go/types"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,6 +12,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 var (
@@ -41,7 +42,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	noLintLinesByFile := buildNoLintLineIndex(pass)
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "errormessage")
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 	insp.Preorder(nodeFilter, func(n ast.Node) {
@@ -54,7 +55,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !shouldCheckFile(pos.Filename, changed) || strings.HasSuffix(pos.Filename, "_test.go") {
 			return
 		}
-		if hasNoLintDirective(pos, noLintLinesByFile) {
+		if nolint.HasDirective(pos, noLintLinesByFile) {
 			return
 		}
 
@@ -242,63 +243,5 @@ func returnsError(pass *analysis.Pass, call *ast.CallExpr) bool {
 	if t == nil {
 		return false
 	}
-	return implementsError(t)
-}
-
-func implementsError(t types.Type) bool {
-	obj := types.Universe.Lookup("error")
-	if obj == nil {
-		return false
-	}
-	errIface, ok := obj.Type().Underlying().(*types.Interface)
-	if !ok {
-		return false
-	}
-
-	if types.Implements(t, errIface) {
-		return true
-	}
-	if p, ok := t.(*types.Pointer); ok {
-		return types.Implements(p, errIface)
-	}
-	return types.Implements(types.NewPointer(t), errIface)
-}
-
-func hasNoLintDirective(position token.Position, noLintLinesByFile map[string]map[int]struct{}) bool {
-	if position.Filename == "" {
-		return false
-	}
-
-	noLintLines := noLintLinesByFile[position.Filename]
-	if noLintLines == nil {
-		return false
-	}
-
-	_, sameLine := noLintLines[position.Line]
-	_, previousLine := noLintLines[position.Line-1]
-	return sameLine || previousLine
-}
-
-func buildNoLintLineIndex(pass *analysis.Pass) map[string]map[int]struct{} {
-	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
-	for _, file := range pass.Files {
-		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
-		if filename == "" {
-			continue
-		}
-		for _, group := range file.Comments {
-			for _, comment := range group.List {
-				text := strings.TrimPrefix(comment.Text, "//")
-				if !strings.HasPrefix(text, "nolint:errormessage") && !strings.HasPrefix(text, "nolint:all") {
-					continue
-				}
-				line := pass.Fset.PositionFor(comment.Slash, false).Line
-				if noLintLinesByFile[filename] == nil {
-					noLintLinesByFile[filename] = make(map[int]struct{})
-				}
-				noLintLinesByFile[filename][line] = struct{}{}
-			}
-		}
-	}
-	return noLintLinesByFile
+	return nolint.ImplementsError(t)
 }
