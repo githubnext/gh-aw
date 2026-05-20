@@ -12,6 +12,7 @@ const {
   parseRpcMessagesJsonl,
   getRpcRequestLabel,
   generateRpcMessagesSummary,
+  computeToolCallTokenDeltas,
   printAllGatewayFiles,
   parseTokenUsageJsonl,
   generateTokenUsageSummary,
@@ -1475,6 +1476,110 @@ not-json
     test("returns false for unrelated logs", () => {
       const hasError = hasEffectiveTokensRateLimitError(["gateway started", "request succeeded"]);
       expect(hasError).toBe(false);
+    });
+  });
+
+  describe("computeToolCallTokenDeltas", () => {
+    // Helper to build a token-usage JSONL line
+    function tuLine(ts, inputTokens, outputTokens) {
+      return JSON.stringify({ timestamp: ts, model: "unknown", provider: "test", input_tokens: inputTokens, output_tokens: outputTokens, cache_read_tokens: 0, cache_write_tokens: 0 });
+    }
+    // Helper to build a REQUEST entry
+    function req(ts, toolName) {
+      return { timestamp: ts, server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: toolName } } };
+    }
+
+    test("computes delta for a tool call bracketed by two API calls", () => {
+      // ET(t0) = 1*1000 + 4*50 = 1200; ET(t1) = 1*1500 + 4*80 = 1820; delta = 620
+      const tokenContent = [
+        tuLine("2026-05-19T21:10:00.000Z", 1000, 50),
+        tuLine("2026-05-19T21:10:10.000Z", 1500, 80),
+      ].join("\n");
+      const requests = [req("2026-05-19T21:10:05.000Z", "my-tool")];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.get(0)).toBe(620);
+    });
+
+    test("returns empty map when tool call has no preceding API call", () => {
+      const tokenContent = tuLine("2026-05-19T21:10:10.000Z", 1000, 50);
+      const requests = [req("2026-05-19T21:10:05.000Z", "my-tool")];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.size).toBe(0);
+    });
+
+    test("returns empty map when tool call has no following API call", () => {
+      const tokenContent = tuLine("2026-05-19T21:10:00.000Z", 1000, 50);
+      const requests = [req("2026-05-19T21:10:05.000Z", "my-tool")];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.size).toBe(0);
+    });
+
+    test("returns empty map for empty inputs", () => {
+      expect(computeToolCallTokenDeltas("", []).size).toBe(0);
+      expect(computeToolCallTokenDeltas("", null).size).toBe(0);
+    });
+
+    test("computes correct deltas for multiple sequential tool calls", () => {
+      // ET[0] = 1200, ET[1] = 1820, ET[2] = 2400
+      const tokenContent = [
+        tuLine("2026-05-19T21:10:00.000Z", 1000, 50),
+        tuLine("2026-05-19T21:10:10.000Z", 1500, 80),
+        tuLine("2026-05-19T21:10:20.000Z", 2000, 100),
+      ].join("\n");
+      const requests = [
+        req("2026-05-19T21:10:05.000Z", "tool-a"),
+        req("2026-05-19T21:10:15.000Z", "tool-b"),
+      ];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.get(0)).toBe(620); // 1820 - 1200
+      expect(deltas.get(1)).toBe(580); // 2400 - 1820
+    });
+  });
+
+  describe("generateRpcMessagesSummary with token deltas", () => {
+    test("shows ΔET column when deltas are provided", () => {
+      const entries = {
+        requests: [
+          { timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } },
+        ],
+        responses: [],
+        other: [],
+      };
+      const deltas = new Map([[0, 620]]);
+      const result = generateRpcMessagesSummary(entries, [], deltas);
+      expect(result).toContain("ΔET");
+      expect(result).toContain("+620");
+      expect(result).toContain("my-tool");
+    });
+
+    test("omits ΔET column when no deltas are provided", () => {
+      const entries = {
+        requests: [
+          { timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } },
+        ],
+        responses: [],
+        other: [],
+      };
+      const result = generateRpcMessagesSummary(entries, []);
+      expect(result).not.toContain("ΔET");
+      expect(result).toContain("my-tool");
+    });
+
+    test("shows dash for requests without a delta", () => {
+      const entries = {
+        requests: [
+          { timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "tool-a" } } },
+          { timestamp: "2026-05-19T21:10:15.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "tool-b" } } },
+        ],
+        responses: [],
+        other: [],
+      };
+      const deltas = new Map([[0, 500]]); // only tool-a has a delta
+      const result = generateRpcMessagesSummary(entries, [], deltas);
+      expect(result).toContain("ΔET");
+      expect(result).toContain("+500");
+      expect(result).toContain("tool-a");
+      expect(result).toContain("tool-b");
     });
   });
 });

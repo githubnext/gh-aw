@@ -181,15 +181,16 @@ type MCPToolSummary struct {
 
 // MCPToolCall represents a single MCP tool call with full details
 type MCPToolCall struct {
-	Timestamp  string `json:"timestamp"`
-	ServerName string `json:"server_name"`
-	ToolName   string `json:"tool_name"`
-	Method     string `json:"method,omitempty"`
-	InputSize  int    `json:"input_size"`
-	OutputSize int    `json:"output_size"`
-	Duration   string `json:"duration,omitempty"`
-	Status     string `json:"status"`
-	Error      string `json:"error,omitempty"`
+	Timestamp            string `json:"timestamp"`
+	ServerName           string `json:"server_name"`
+	ToolName             string `json:"tool_name"`
+	Method               string `json:"method,omitempty"`
+	InputSize            int    `json:"input_size"`
+	OutputSize           int    `json:"output_size"`
+	Duration             string `json:"duration,omitempty"`
+	Status               string `json:"status"`
+	Error                string `json:"error,omitempty"`
+	EffectiveTokenDelta  int    `json:"effective_token_delta,omitempty"` // Change in effective tokens caused by this tool call result
 }
 
 // MCPServerStats contains server-level statistics
