@@ -24,6 +24,7 @@ const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./te
  * @property {Function} executeUpdate - Function to execute the update API call
  * @property {Function} formatSuccessResult - Function to format success result
  * @property {Object} [additionalConfig] - Additional configuration options specific to the handler
+ * @property {Function} [itemFilter] - Optional async filter function called before update; returns null to proceed or a result object to skip
  */
 
 /**
