@@ -529,9 +529,9 @@ describe("close_discussion", () => {
       });
     });
 
-    describe("allowed-body: false", () => {
-      it("should close without comment when allowed-body is false and body is empty", async () => {
-        const handler = await main({ max: 10, allowed_body: false });
+    describe("allow-body: false", () => {
+      it("should close without comment when allow-body is false and body is empty", async () => {
+        const handler = await main({ max: 10, allow_body: false });
         let commentCalled = false;
         let closeCalled = false;
 
@@ -563,11 +563,11 @@ describe("close_discussion", () => {
         expect(result.success).toBe(true);
         expect(commentCalled).toBe(false);
         expect(closeCalled).toBe(true);
-        expect(mockCore.infos.some(msg => msg.includes("allowed-body is false"))).toBe(true);
+        expect(mockCore.infos.some(msg => msg.includes("allow-body is false"))).toBe(true);
       });
 
-      it("should close without comment and warn when allowed-body is false and agent provides non-empty body", async () => {
-        const handler = await main({ max: 10, allowed_body: false });
+      it("should close without comment and warn when allow-body is false and agent provides non-empty body", async () => {
+        const handler = await main({ max: 10, allow_body: false });
         let commentCalled = false;
 
         mockGithub.graphql = async (/** @type {string} */ query) => {
@@ -596,10 +596,10 @@ describe("close_discussion", () => {
 
         expect(result.success).toBe(true);
         expect(commentCalled).toBe(false);
-        expect(mockCore.warnings.some(msg => msg.includes("allowed-body is false") && msg.includes("dropping"))).toBe(true);
+        expect(mockCore.warnings.some(msg => msg.includes("allow-body is false") && msg.includes("dropping"))).toBe(true);
       });
 
-      it("should still add comment when allowed-body is not set (default behavior)", async () => {
+      it("should still add comment when allow-body is not set (default behavior)", async () => {
         const handler = await main({ max: 10 });
         let commentCalled = false;
 
@@ -631,8 +631,8 @@ describe("close_discussion", () => {
         expect(commentCalled).toBe(true);
       });
 
-      it("should still add comment when allowed-body is explicitly true", async () => {
-        const handler = await main({ max: 10, allowed_body: true });
+      it("should still add comment when allow-body is explicitly true", async () => {
+        const handler = await main({ max: 10, allow_body: true });
         let commentCalled = false;
 
         mockGithub.graphql = async (/** @type {string} */ query) => {

@@ -99,7 +99,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("state_reason", c.StateReason).
-			AddBoolPtr("allowed_body", c.AllowedBody).
+			AddBoolPtr("allow_body", c.AllowBody).
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
@@ -115,7 +115,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddBoolPtr("allowed_body", c.AllowedBody).
+			AddBoolPtr("allow_body", c.AllowBody).
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},

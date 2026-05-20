@@ -164,7 +164,7 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const allowedBody = config.allowed_body !== false; // default true; false only when explicitly set to false
+  const allowBody = config.allow_body !== false; // default true; false only when explicitly set to false
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -175,7 +175,7 @@ async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
-  core.info(`Close discussion configuration: max=${maxCount}, allowed_body=${allowedBody}`);
+  core.info(`Close discussion configuration: max=${maxCount}, allow_body=${allowBody}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -279,16 +279,16 @@ async function main(config = {}) {
         };
       }
 
-      // Add comment if body is provided and allowed-body is not false
+      // Add comment if body is provided and allow-body is not false
       let commentUrl;
-      if (!allowedBody) {
-        // allowed-body: false — drop any body the agent provided and close without a comment
+      if (!allowBody) {
+        // allow-body: false — drop any body the agent provided and close without a comment
         if (item.body) {
           core.warning(
-            `close_discussion: allowed-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
+            `close_discussion: allow-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
           );
         } else {
-          core.info("close_discussion: allowed-body is false — closing without a comment");
+          core.info("close_discussion: allow-body is false — closing without a comment");
         }
       } else if (item.body) {
         const sanitizedBody = sanitizeContent(item.body, { allowedAliases: allowedMentionAliases });

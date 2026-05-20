@@ -232,22 +232,22 @@ type ToolsMeta struct {
 	// RequiredFieldRemovals maps tool name → list of field names to remove from the
 	// inputSchema.required array. Used when a field that is required in the static
 	// safe_outputs_tools.json should be optional for this specific workflow (e.g. when
-	// allowed-body: false is configured for close_discussion or close_issue).
+	// allow-body: false is configured for close_discussion or close_issue).
 	RequiredFieldRemovals map[string][]string `json:"required_field_removals,omitempty"`
 }
 
 // computeRequiredFieldRemovals returns a map of tool name → required fields to remove
-// based on the safe-outputs configuration. Currently handles allowed-body: false for
+// based on the safe-outputs configuration. Currently handles allow-body: false for
 // close_discussion and close_issue.
 func computeRequiredFieldRemovals(safeOutputs *SafeOutputsConfig) map[string][]string {
 	removals := make(map[string][]string)
 	if safeOutputs == nil {
 		return removals
 	}
-	if safeOutputs.CloseDiscussions != nil && safeOutputs.CloseDiscussions.AllowedBody != nil && !*safeOutputs.CloseDiscussions.AllowedBody {
+	if safeOutputs.CloseDiscussions != nil && safeOutputs.CloseDiscussions.AllowBody != nil && !*safeOutputs.CloseDiscussions.AllowBody {
 		removals["close_discussion"] = []string{"body"}
 	}
-	if safeOutputs.CloseIssues != nil && safeOutputs.CloseIssues.AllowedBody != nil && !*safeOutputs.CloseIssues.AllowedBody {
+	if safeOutputs.CloseIssues != nil && safeOutputs.CloseIssues.AllowBody != nil && !*safeOutputs.CloseIssues.AllowBody {
 		removals["close_issue"] = []string{"body"}
 	}
 	return removals
@@ -308,7 +308,7 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 		dynamicTools = []map[string]any{}
 	}
 
-	// Compute required field removals (e.g. body when allowed-body: false).
+	// Compute required field removals (e.g. body when allow-body: false).
 	requiredFieldRemovals := computeRequiredFieldRemovals(data.SafeOutputs)
 
 	meta := ToolsMeta{
