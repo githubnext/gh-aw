@@ -635,7 +635,7 @@ describe("parse_claude_log.cjs", () => {
       const result = parseClaudeLog(logWithThinking);
 
       // Reasoning text should appear with open circle icon and italic markup
-      expect(result.markdown).toContain("◯");
+      expect(result.markdown).toContain("◐");
       expect(result.markdown).toContain("Let me reason through this problem step by step.");
       // Regular text should appear without open circle
       expect(result.markdown).toContain("Here is my response.");

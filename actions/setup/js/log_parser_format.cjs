@@ -129,7 +129,7 @@ function createLogParserFormatters(deps) {
             let text = content.thinking.trim();
             text = unfenceMarkdown(text);
             if (text && text.length > 0) {
-              if (!addContent(`<sub>◯ *${text}*</sub>\n\n`)) {
+              if (!addContent(`<sub>◐ *${text}*</sub>\n\n`)) {
                 break;
               }
             }
@@ -402,7 +402,7 @@ function createLogParserFormatters(deps) {
       if (i === 0) {
         state.traceEventCount += 1;
       }
-      const prefix = i === 0 ? `[${state.traceEventCount}] ◯ ` : "  ";
+      const prefix = i === 0 ? `[${state.traceEventCount}] ◐ ` : "  ";
       if (!appendConversationLine(lines, `${prefix}${textLines[i]}`, state)) {
         return;
       }

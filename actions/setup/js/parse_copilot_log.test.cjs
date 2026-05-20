@@ -320,7 +320,7 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(debugLog);
 
       // Reasoning should appear with open circle icon
-      expect(result.markdown).toContain("◯");
+      expect(result.markdown).toContain("◐");
       expect(result.markdown).toContain("I need to think carefully about the approach.");
       // Regular content should appear without open circle
       expect(result.markdown).toContain("Here is my answer.");
