@@ -61,9 +61,6 @@ on:
     types:
     - ready_for_review
     - review_requested
-  pull_request_review:
-    types:
-    - submitted
   workflow_dispatch:
     inputs:
       aw_context:

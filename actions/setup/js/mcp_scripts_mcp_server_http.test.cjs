@@ -144,7 +144,7 @@ describe("mcp_scripts_mcp_server_http.cjs integration", () => {
     it("should handle missing required arguments", async () => {
       const headers = sessionId ? { "Mcp-Session-Id": sessionId } : {},
         response = await makeRequest({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "echo_tool", arguments: {} } }, headers);
-      (expect(response.status).toBe(200), expect(response.data.error).toBeDefined(), expect(response.data.error.message).toContain("missing"));
+      (expect(response.status).toBe(200), expect(response.data.error).toBeDefined(), expect(response.data.error.message).toContain("not allowed"));
     }),
     afterAll(async () => {
       (serverProcess &&

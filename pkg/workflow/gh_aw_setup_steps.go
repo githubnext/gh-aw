@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"sort"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var ghAwSetupLog = logger.New("workflow:gh_aw_setup_steps")
 
 type ghAwSetupStepConfig struct {
 	actionMode           ActionMode
@@ -16,7 +20,10 @@ type ghAwSetupStepConfig struct {
 }
 
 func generateGhAwSetupStep(config ghAwSetupStepConfig) (GitHubActionStep, error) {
+	ghAwSetupLog.Printf("Generating gh-aw setup step: action_mode=%s, action_repo=%s, cli_version=%s, with_field_count=%d",
+		config.actionMode, config.actionRepo, config.cliVersion, len(config.withFields))
 	if config.actionMode == ActionModeDev {
+		ghAwSetupLog.Print("Using dev mode: build and install gh-aw CLI from source")
 		step := GitHubActionStep{"      - name: Build and install gh-aw CLI from source"}
 		if config.ifCondition != "" {
 			step = append(step, "        if: "+config.ifCondition)
@@ -36,6 +43,11 @@ func generateGhAwSetupStep(config ghAwSetupStepConfig) (GitHubActionStep, error)
 	// Pinning errors are non-fatal: we still emit a valid step with the fallback
 	// action reference so compilation and workflow execution can continue.
 	actionRef, pinErr := resolveGhAwSetupActionRef(config)
+	if pinErr != nil {
+		ghAwSetupLog.Printf("Action ref resolution returned non-fatal error: %v (using fallback ref %s)", pinErr, actionRef)
+	} else {
+		ghAwSetupLog.Printf("Resolved action ref: %s", actionRef)
+	}
 	step := GitHubActionStep{
 		"      - name: Install gh-aw extension",
 	}
@@ -70,18 +82,24 @@ func resolveGhAwSetupActionRef(config ghAwSetupStepConfig) (string, error) {
 			return actionRef, err
 		}
 		if pinnedRef != "" {
+			ghAwSetupLog.Printf("Using workflow-aware action pin: %s", pinnedRef)
 			return pinnedRef, nil
 		}
+		ghAwSetupLog.Printf("No workflow-aware pin available, falling back to repo@tag: %s", actionRef)
 		return actionRef, nil
 	}
 
 	actionRef := getActionPin(config.actionRepo)
 	if actionRef != "" {
+		ghAwSetupLog.Printf("Using static action pin: %s", actionRef)
 		return actionRef, nil
 	}
 
 	if config.fallbackActionRefTag != "" {
-		return fmt.Sprintf("%s@%s", config.actionRepo, config.fallbackActionRefTag), nil
+		fallback := fmt.Sprintf("%s@%s", config.actionRepo, config.fallbackActionRefTag)
+		ghAwSetupLog.Printf("Using fallback action ref tag: %s", fallback)
+		return fallback, nil
 	}
+	ghAwSetupLog.Printf("Using bare action repo (no ref): %s", config.actionRepo)
 	return config.actionRepo, nil
 }
