@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var remoteWorkflowLog = logger.New("cli:remote_workflow")
@@ -28,6 +29,7 @@ var shaResolutionRetryDelays = []time.Duration{
 }
 
 var transientHTTP5xxPattern = regexp.MustCompile(`http 5\d{2}`)
+var guidLikePattern = regexp.MustCompile(`(?i)^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$`)
 
 // FetchedWorkflow contains content and metadata from a directly fetched workflow file.
 // This is the unified type that combines content with source information.
@@ -279,7 +281,7 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 			return nil, fmt.Errorf("failed to parse JSON workflow from URL: %w", err)
 		}
 
-		nameOverride := spec.WorkflowName
+		nameOverride := selectJSONImportNameOverride(spec.WorkflowName, &wf)
 		generated, err := ConvertJSONWorkflowToMarkdown(&wf, ConvertOptions{NameOverride: nameOverride})
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert JSON workflow: %w", err)
@@ -314,4 +316,36 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 		return nil, errors.New(console.FormatErrorMessage(
 			fmt.Sprintf("unsupported Content-Type %q from URL. Expected text/markdown or application/json.", ct)))
 	}
+}
+
+func selectJSONImportNameOverride(currentName string, wf *JSONWorkflow) string {
+	if !looksLikeGUID(currentName) || wf == nil {
+		return currentName
+	}
+
+	if name := sanitizeJSONImportName(wf.Name); name != "" {
+		return name
+	}
+
+	if rawTitle, ok := wf.Extra["title"]; ok {
+		if title, ok := rawTitle.(string); ok {
+			if sanitized := sanitizeJSONImportName(title); sanitized != "" {
+				return sanitized
+			}
+		}
+	}
+
+	return currentName
+}
+
+func looksLikeGUID(value string) bool {
+	return guidLikePattern.MatchString(strings.TrimSpace(value))
+}
+
+func sanitizeJSONImportName(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return stringutil.SanitizeForFilename(toKebabCase(value))
 }
