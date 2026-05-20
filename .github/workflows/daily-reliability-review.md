@@ -102,6 +102,8 @@ Title:
 
 Body structure:
 
+Use progressive disclosure. Keep `Executive Summary`, `Top Reliability Findings`, and `Recommendations` always visible. Put verbose evidence and supporting detail inside `<details><summary>...</summary>` blocks.
+
 ### Executive Summary
 - Overall health for the last 24 hours.
 
@@ -111,13 +113,23 @@ Body structure:
 | ... | ... | ... | ... | ... |
 
 ### Representative Traces
+<details>
+<summary>Representative Traces (expand)</summary>
+
 - Include one trace or issue link for each major problem class when available.
+
+</details>
 
 ### Recommendations
 - 2-4 concrete actions with the smallest useful fixes first.
 
 ### Notes
+<details>
+<summary>Notes and Observability Gaps (expand)</summary>
+
 - Call out missing telemetry, ambiguous fields, or inconclusive results.
+
+</details>
 
 ## Guardrails
 
