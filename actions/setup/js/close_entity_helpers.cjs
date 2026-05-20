@@ -269,7 +269,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
   const comment = config.comment || "";
   const isStaged = isStagedMode(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const bodyAllowed = config.body_allowed !== false; // default true; false only when explicitly set to false
+  const allowedBody = config.allowed_body !== false; // default true; false only when explicitly set to false
 
   let processedCount = 0;
 
@@ -299,14 +299,14 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
     /** @type {string} */
     let commentSource = "unknown";
 
-    if (!bodyAllowed) {
-      // body-allowed: false — drop any body the agent provided and skip the comment
+    if (!allowedBody) {
+      // allowed-body: false — drop any body the agent provided and skip the comment
       if (typeof item.body === "string" && item.body.trim() !== "") {
         core.warning(
-          `${entityConfig.itemType}: body-allowed is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
+          `${entityConfig.itemType}: allowed-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
         );
       } else {
-        core.info(`${entityConfig.itemType}: body-allowed is false — closing without a comment`);
+        core.info(`${entityConfig.itemType}: allowed-body is false — closing without a comment`);
       }
       commentToPost = undefined;
     } else if (typeof item.body === "string" && item.body.trim() !== "") {
@@ -392,7 +392,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
         };
       }
 
-      // 9. Comment posting (skipped when body-allowed: false or no body available)
+      // 9. Comment posting (skipped when allowed-body: false or no body available)
       /** @type {{id: number, html_url: string}|null} */
       let commentResult = null;
       let commentPosted = false;

@@ -127,7 +127,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only discussions with title prefix %q can be closed.", config.RequiredTitlePrefix))
 			}
-			if config.BodyAllowed != nil && !*config.BodyAllowed {
+			if config.AllowedBody != nil && !*config.AllowedBody {
 				constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
 			}
 		}
@@ -166,7 +166,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only issues with title prefix %q can be closed.", config.RequiredTitlePrefix))
 			}
-			if config.BodyAllowed != nil && !*config.BodyAllowed {
+			if config.AllowedBody != nil && !*config.AllowedBody {
 				constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
 			}
 		}

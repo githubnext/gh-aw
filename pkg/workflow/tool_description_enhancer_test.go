@@ -61,11 +61,11 @@ func TestEnhanceToolDescriptionSetIssueFieldAllowedFieldsList(t *testing.T) {
 	}
 }
 
-func TestEnhanceToolDescriptionCloseDiscussionBodyAllowedFalse(t *testing.T) {
+func TestEnhanceToolDescriptionCloseDiscussionAllowedBodyFalse(t *testing.T) {
 	f := false
 	description := enhanceToolDescription("close_discussion", "Close a discussion.", &SafeOutputsConfig{
 		CloseDiscussions: &CloseDiscussionsConfig{
-			BodyAllowed: &f,
+			AllowedBody: &f,
 		},
 	})
 
@@ -74,24 +74,24 @@ func TestEnhanceToolDescriptionCloseDiscussionBodyAllowedFalse(t *testing.T) {
 	}
 }
 
-func TestEnhanceToolDescriptionCloseDiscussionBodyAllowedTrue(t *testing.T) {
+func TestEnhanceToolDescriptionCloseDiscussionAllowedBodyTrue(t *testing.T) {
 	tr := true
 	description := enhanceToolDescription("close_discussion", "Close a discussion.", &SafeOutputsConfig{
 		CloseDiscussions: &CloseDiscussionsConfig{
-			BodyAllowed: &tr,
+			AllowedBody: &tr,
 		},
 	})
 
 	if strings.Contains(description, "Closing comments are disabled") {
-		t.Fatalf("did not expect body-not-allowed constraint when body-allowed is true, got: %s", description)
+		t.Fatalf("did not expect body-not-allowed constraint when allowed-body is true, got: %s", description)
 	}
 }
 
-func TestEnhanceToolDescriptionCloseIssueBodyAllowedFalse(t *testing.T) {
+func TestEnhanceToolDescriptionCloseIssueAllowedBodyFalse(t *testing.T) {
 	f := false
 	description := enhanceToolDescription("close_issue", "Close an issue.", &SafeOutputsConfig{
 		CloseIssues: &CloseIssuesConfig{
-			BodyAllowed: &f,
+			AllowedBody: &f,
 		},
 	})
 
@@ -100,15 +100,15 @@ func TestEnhanceToolDescriptionCloseIssueBodyAllowedFalse(t *testing.T) {
 	}
 }
 
-func TestEnhanceToolDescriptionCloseIssueBodyAllowedTrue(t *testing.T) {
+func TestEnhanceToolDescriptionCloseIssueAllowedBodyTrue(t *testing.T) {
 	tr := true
 	description := enhanceToolDescription("close_issue", "Close an issue.", &SafeOutputsConfig{
 		CloseIssues: &CloseIssuesConfig{
-			BodyAllowed: &tr,
+			AllowedBody: &tr,
 		},
 	})
 
 	if strings.Contains(description, "Closing comments are disabled") {
-		t.Fatalf("did not expect body-not-allowed constraint when body-allowed is true, got: %s", description)
+		t.Fatalf("did not expect body-not-allowed constraint when allowed-body is true, got: %s", description)
 	}
 }

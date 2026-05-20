@@ -792,9 +792,9 @@ describe("close_issue", () => {
     });
   });
 
-  describe("body-allowed: false", () => {
-    it("should close without comment when body-allowed is false and body is empty", async () => {
-      const handler = await main({ max: 10, body_allowed: false });
+  describe("allowed-body: false", () => {
+    it("should close without comment when allowed-body is false and body is empty", async () => {
+      const handler = await main({ max: 10, allowed_body: false });
       const commentCalls = [];
 
       mockGithub.rest.issues.createComment = async params => {
@@ -806,11 +806,11 @@ describe("close_issue", () => {
 
       expect(result.success).toBe(true);
       expect(commentCalls.length).toBe(0);
-      expect(mockCore.infos.some(msg => msg.includes("body-allowed is false"))).toBe(true);
+      expect(mockCore.infos.some(msg => msg.includes("allowed-body is false"))).toBe(true);
     });
 
-    it("should close without comment and warn when body-allowed is false and agent provides non-empty body", async () => {
-      const handler = await main({ max: 10, body_allowed: false });
+    it("should close without comment and warn when allowed-body is false and agent provides non-empty body", async () => {
+      const handler = await main({ max: 10, allowed_body: false });
       const commentCalls = [];
 
       mockGithub.rest.issues.createComment = async params => {
@@ -822,11 +822,11 @@ describe("close_issue", () => {
 
       expect(result.success).toBe(true);
       expect(commentCalls.length).toBe(0);
-      expect(mockCore.warnings.some(msg => msg.includes("body-allowed is false") && msg.includes("dropping"))).toBe(true);
+      expect(mockCore.warnings.some(msg => msg.includes("allowed-body is false") && msg.includes("dropping"))).toBe(true);
     });
 
-    it("should close without comment when body-allowed is false and no body is provided", async () => {
-      const handler = await main({ max: 10, body_allowed: false });
+    it("should close without comment when allowed-body is false and no body is provided", async () => {
+      const handler = await main({ max: 10, allowed_body: false });
       const commentCalls = [];
 
       mockGithub.rest.issues.createComment = async params => {
@@ -840,7 +840,7 @@ describe("close_issue", () => {
       expect(commentCalls.length).toBe(0);
     });
 
-    it("should still require body when body-allowed is not set (default behavior)", async () => {
+    it("should still require body when allowed-body is not set (default behavior)", async () => {
       const handler = await main({ max: 10 });
 
       const result = await handler({ issue_number: 100 }, {});
@@ -849,8 +849,8 @@ describe("close_issue", () => {
       expect(result.error).toContain("No comment body provided");
     });
 
-    it("should still add comment when body-allowed is explicitly true", async () => {
-      const handler = await main({ max: 10, body_allowed: true });
+    it("should still add comment when allowed-body is explicitly true", async () => {
+      const handler = await main({ max: 10, allowed_body: true });
       const commentCalls = [];
 
       mockGithub.rest.issues.createComment = async params => {

@@ -103,7 +103,7 @@ async function main() {
         enhancedTool.inputSchema.properties.repo = repoParam;
       }
 
-      // Remove fields from inputSchema.required when configured (e.g. body-allowed: false)
+      // Remove fields from inputSchema.required when configured (e.g. allowed-body: false)
       const requiredRemovals = toolsMeta.required_field_removals?.[tool.name];
       if (requiredRemovals && Array.isArray(enhancedTool.inputSchema?.required)) {
         enhancedTool.inputSchema.required = enhancedTool.inputSchema.required.filter(

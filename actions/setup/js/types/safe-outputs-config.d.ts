@@ -40,7 +40,7 @@ interface CloseDiscussionConfig extends SafeOutputConfig {
   "required-category"?: string;
   target?: string;
   /** When false, any body provided by the agent is silently dropped and the discussion is closed without a comment. Default: true. */
-  "body-allowed"?: boolean;
+  "allowed-body"?: boolean;
 }
 
 /**
@@ -51,7 +51,7 @@ interface CloseIssueConfig extends SafeOutputConfig {
   "required-title-prefix"?: string;
   target?: string;
   /** When false, any body provided by the agent is silently dropped and the issue is closed without a comment. Default: true. */
-  "body-allowed"?: boolean;
+  "allowed-body"?: boolean;
 }
 
 /**
