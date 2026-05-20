@@ -253,7 +253,7 @@ Closes GitHub issues with an optional comment and state reason. Filters by label
 safe-outputs:
   close-issue:
     target: "triggering"              # "triggering" (default), "*", or number
-    required-labels: [automated]      # only close with any of these labels
+    required-labels: [automated]      # only close if ALL these labels are present
     required-title-prefix: "[bot]"    # only close matching prefix
     max: 20                           # max closures (default: 1)
     target-repo: "owner/repo"         # cross-repository
@@ -269,6 +269,8 @@ safe-outputs:
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; use `target: "*"` for any, or number for specific items. When combined with `create-issue`, `create-discussion`, or `create-pull-request`, includes "Related Items" section.
 
+Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
+
 ```yaml wrap
 safe-outputs:
   add-comment:
@@ -280,6 +282,8 @@ safe-outputs:
     hide-older-comments: true    # hide previous comments from same workflow
     allowed-reasons: [outdated]  # restrict hiding reasons (optional)
     footer: false                # omit AI-generated footer (default: true)
+    required-labels: [bot, automated]  # only comment if item has ALL of these labels
+    required-title-prefix: "[bot] "    # only comment if item title starts with this prefix
 ```
 
 > [!TIP]
@@ -320,6 +324,8 @@ safe-outputs:
 
 Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels or glob patterns, or `blocked` to deny specific label patterns regardless of the allow list.
 
+Use `required-labels` to only add labels to issues/PRs that already have **all** of the specified labels. Use `required-title-prefix` to only add labels to issues/PRs whose title starts with the given prefix.
+
 ```yaml wrap
 safe-outputs:
   add-labels:
@@ -329,6 +335,8 @@ safe-outputs:
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    required-labels: [automated, bot]  # only operate if item has ALL of these labels
+    required-title-prefix: "[bot] "    # only operate if item title starts with this prefix
 ```
 
 #### Blocked Label Patterns
@@ -359,6 +367,8 @@ safe-outputs:
 
 Removes labels from issues or PRs. Specify `allowed` to restrict which labels can be removed (specific labels or glob patterns), or `blocked` to prevent removal of specific label patterns. If a label is not present on the item, it will be silently skipped.
 
+Use `required-labels` to only remove labels from issues/PRs that already have **all** of the specified labels. Use `required-title-prefix` to only remove labels from issues/PRs whose title starts with the given prefix.
+
 ```yaml wrap
 safe-outputs:
   remove-labels:
@@ -368,6 +378,8 @@ safe-outputs:
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    required-labels: [automated]  # only operate if item has ALL of these labels
+    required-title-prefix: "[bot] "  # only operate if item title starts with this prefix
 ```
 
 **Target**: `"triggering"` (requires issue/PR event), `"*"` (any issue/PR), or number (specific issue/PR).
@@ -401,6 +413,8 @@ safe-outputs:
     auto_create: true         # auto-create milestones in the allowed list if they don't exist
     max: 1                   # max assignments (default: 1)
     target-repo: "owner/repo" # cross-repository
+    required-labels: [automated]     # only assign if item has ALL these labels
+    required-title-prefix: "[bot] "  # only assign if item title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -408,7 +422,7 @@ When `auto_create: true` is set, any milestone from the `allowed` list that does
 
 ### Issue Updates (`update-issue:`)
 
-Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `title-prefix` to restrict updates to issues whose titles start with a specific prefix.
+Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `required-title-prefix` to restrict updates to issues whose titles start with a specific prefix, and `required-labels` to restrict to issues that have all the specified labels.
 
 ```yaml wrap
 safe-outputs:
@@ -416,7 +430,8 @@ safe-outputs:
     status:                   # enable status updates
     title:                    # enable title updates
     body:                     # enable body updates
-    title-prefix: "[bot] "    # only update issues with this title prefix
+    required-title-prefix: "[bot] "  # only update issues with this title prefix
+    required-labels: [automated]     # only update if ALL these labels are present
     max: 3                    # max updates (default: 1)
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
@@ -427,7 +442,11 @@ safe-outputs:
 
 When using `target: "*"`, the agent must provide `issue_number` or `item_number` in the output to identify which issue to update.
 
-**Title Prefix**: When `title-prefix` is set, the update is rejected if the target issue's current title does not start with the specified prefix. This ensures agents can only modify issues that have been explicitly tagged for automated updates.
+**Required Filters**: When `required-title-prefix` is set, the update is rejected if the target issue's current title does not start with the specified prefix. When `required-labels` is set, the update is rejected unless the issue has **all** of the specified labels. These filters ensure agents can only modify issues that have been explicitly tagged for automated updates.
+
+:::note[Backward compatibility]
+The deprecated `title-prefix` field is still accepted as an alias for `required-title-prefix`. Prefer `required-title-prefix` in new configurations.
+:::
 
 **Operation Types** (for body updates):
 
@@ -475,6 +494,8 @@ safe-outputs:
     target: "triggering"                   # "triggering" (default), "*", or issue number
     target-repo: "owner/repo"              # cross-repository
     allowed-repos: ["owner/repo1"]         # additional allowed repositories
+    required-labels: [automated]           # only operate if item has ALL these labels
+    required-title-prefix: "[bot] "        # only operate if item title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }}
 ```
 
@@ -492,6 +513,8 @@ safe-outputs:
     allowed-fields: [Priority, Iteration] # restrict issue fields this workflow may set
     target-repo: "owner/repo"             # cross-repository
     allowed-repos: ["owner/repo1"]        # additional allowed repositories
+    required-labels: [automated]          # only operate if item has ALL these labels
+    required-title-prefix: "[bot] "       # only operate if item title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }}
 ```
 
@@ -905,8 +928,8 @@ See the full reference: [Safe Outputs (Pull Requests) — push-to-pull-request-b
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"                 # "triggering" (default), "*", or number
-    title-prefix: "[bot] "      # require title prefix
-    labels: [automated]         # require all labels
+    required-title-prefix: "[bot] "      # require title prefix
+    required-labels: [automated]         # require all labels
     signed-commits: false  # optional: use git push directly when signed commits are not required
     protected-files: fallback-to-issue  # create review issue if protected files modified
 ```
@@ -1059,7 +1082,7 @@ safe-outputs:
   close-discussion:
     target: "triggering"         # "triggering" (default), "*", or number
     required-category: "Ideas"   # only close in category
-    required-labels: [resolved]  # only close with labels
+    required-labels: [resolved]  # only close if ALL these labels are present
     required-title-prefix: "[ai]" # only close matching prefix
     max: 1                       # max closures (default: 1)
     target-repo: "owner/repo"    # cross-repository
@@ -1322,6 +1345,8 @@ safe-outputs:
     target-repo: "owner/repo"  # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     unassign-first: true       # unassign all current assignees before assigning (default: false)
+    required-labels: [automated]     # only assign if item has ALL these labels
+    required-title-prefix: "[bot] "  # only assign if item title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -1337,6 +1362,8 @@ safe-outputs:
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    required-labels: [automated]     # only unassign if item has ALL these labels
+    required-title-prefix: "[bot] "  # only unassign if item title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 

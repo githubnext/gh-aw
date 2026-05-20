@@ -1025,8 +1025,8 @@ func TestHandlerConfigAddReviewerTeamReviewers(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			AddReviewer: &AddReviewerConfig{
-				Reviewers:     []string{"user1"},
-				TeamReviewers: []string{"team-a"},
+				AllowedReviewers:     []string{"user1"},
+				AllowedTeamReviewers: []string{"team-a"},
 			},
 		},
 	}

@@ -130,6 +130,11 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 		logger.Printf("Set default max to 1 for %s", params.ConfigKey)
 	}
 
+	// Backward compatibility: map deprecated title-prefix to required-title-prefix.
+	if config.RequiredTitlePrefix == "" && config.TitlePrefix != "" {
+		config.RequiredTitlePrefix = config.TitlePrefix
+	}
+
 	logger.Printf("Parsed %s configuration: max=%s, target=%s", params.ConfigKey, *config.Max, config.Target)
 
 	return config

@@ -292,6 +292,20 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Required labels: automated, bot");
     });
 
+    it("should accept required_labels configuration and prefer it over labels", async () => {
+      const module = await loadModule();
+      const handler = await module.main({ required_labels: ["approved"], labels: ["legacy"] });
+
+      expect(mockCore.info).toHaveBeenCalledWith("Required labels: approved");
+    });
+
+    it("should fall back to labels when required_labels is undefined", async () => {
+      const module = await loadModule();
+      const handler = await module.main({ labels: ["fallback-label"] });
+
+      expect(mockCore.info).toHaveBeenCalledWith("Required labels: fallback-label");
+    });
+
     it("should default max_patch_size to 1024 KB", async () => {
       const module = await loadModule();
       const handler = await module.main({});

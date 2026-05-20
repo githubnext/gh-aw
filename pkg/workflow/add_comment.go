@@ -13,16 +13,17 @@ type AddCommentConfig struct {
 
 // AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddCommentsConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	Target               string   `yaml:"target,omitempty"`              // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`         // Target repository in format "owner/repo" for cross-repository comments
-	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`       // List of additional repositories that comments can be added to (additionally to the target-repo)
-	HideOlderComments    *string  `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
-	AllowedReasons       []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
-	Issues               *bool    `yaml:"issues,omitempty"`              // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
-	PullRequests         *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
-	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write.
-	Footer               *string  `yaml:"footer,omitempty"`              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
+	Target                 string   `yaml:"target,omitempty"`              // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
+	TargetRepoSlug         string   `yaml:"target-repo,omitempty"`         // Target repository in format "owner/repo" for cross-repository comments
+	AllowedRepos           []string `yaml:"allowed-repos,omitempty"`       // List of additional repositories that comments can be added to (additionally to the target-repo)
+	HideOlderComments      *string  `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
+	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
+	Issues                 *bool    `yaml:"issues,omitempty"`              // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
+	PullRequests           *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
+	Discussions            *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write.
+	Footer                 *string  `yaml:"footer,omitempty"`              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseCommentsConfig handles add-comment configuration

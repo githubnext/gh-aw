@@ -8,7 +8,7 @@
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "update_issue";
 
-const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { resolveTarget, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
@@ -211,6 +211,11 @@ const main = createUpdateHandlerFactory({
   buildUpdateData: buildIssueUpdateData,
   executeUpdate: executeIssueUpdate,
   formatSuccessResult: formatIssueSuccessResult,
+  itemFilter: async (githubClient, repoParts, issueNumber, config) => {
+    const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+    const requiredTitlePrefix = config.required_title_prefix || "";
+    return checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, "update_issue");
+  },
 });
 
 module.exports = { main, buildIssueUpdateData };

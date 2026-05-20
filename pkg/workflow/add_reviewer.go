@@ -10,8 +10,11 @@ var addReviewerLog = logger.New("workflow:add_reviewer")
 type AddReviewerConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	Reviewers              []string `yaml:"reviewers,omitempty"`      // Optional list of allowed reviewers. If omitted, any reviewers are allowed.
-	TeamReviewers          []string `yaml:"team-reviewers,omitempty"` // Optional list of allowed team reviewers. If omitted, any team reviewers are allowed.
+	SafeOutputFilterConfig `yaml:",inline"`
+	AllowedReviewers       []string `yaml:"allowed-reviewers,omitempty"`      // Allowed reviewer usernames (preferred)
+	AllowedTeamReviewers   []string `yaml:"allowed-team-reviewers,omitempty"` // Allowed team reviewer slugs (preferred)
+	Reviewers              []string `yaml:"reviewers,omitempty"`              // Deprecated: use allowed-reviewers
+	TeamReviewers          []string `yaml:"team-reviewers,omitempty"`         // Deprecated: use allowed-team-reviewers
 }
 
 // parseAddReviewerConfig handles add-reviewer configuration
@@ -26,14 +29,18 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 
 	// Pre-process reviewers fields to convert single string to array BEFORE unmarshaling
 	if configData != nil {
-		if reviewers, exists := configData["reviewers"]; exists {
-			if reviewerStr, ok := reviewers.(string); ok {
-				configData["reviewers"] = []string{reviewerStr}
+		for _, key := range []string{"allowed-reviewers", "reviewers"} {
+			if val, exists := configData[key]; exists {
+				if str, ok := val.(string); ok {
+					configData[key] = []string{str}
+				}
 			}
 		}
-		if teamReviewers, exists := configData["team-reviewers"]; exists {
-			if teamReviewerStr, ok := teamReviewers.(string); ok {
-				configData["team-reviewers"] = []string{teamReviewerStr}
+		for _, key := range []string{"allowed-team-reviewers", "team-reviewers"} {
+			if val, exists := configData[key]; exists {
+				if str, ok := val.(string); ok {
+					configData[key] = []string{str}
+				}
 			}
 		}
 	}
@@ -58,7 +65,15 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 		config.Max = defaultIntStr(3)
 	}
 
-	addReviewerLog.Printf("Parsed add-reviewer config: allowed_reviewers=%d, target=%s", len(config.Reviewers), config.Target)
+	// Fallback from deprecated field names to preferred names
+	if len(config.AllowedReviewers) == 0 {
+		config.AllowedReviewers = config.Reviewers
+	}
+	if len(config.AllowedTeamReviewers) == 0 {
+		config.AllowedTeamReviewers = config.TeamReviewers
+	}
+
+	addReviewerLog.Printf("Parsed add-reviewer config: allowed_reviewers=%d, target=%s", len(config.AllowedReviewers), config.Target)
 
 	return config
 }

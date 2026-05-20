@@ -14,7 +14,8 @@ type PushToPullRequestBranchConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
 	Target                         string   `yaml:"target,omitempty"`                              // Target for push-to-pull-request-branch: like add-comment but for pull requests
 	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`                        // Required title prefix for pull request validation
-	Labels                         []string `yaml:"labels,omitempty"`                              // Required labels for pull request validation
+	RequiredLabels                 []string `yaml:"required-labels,omitempty"`                     // Required labels for pull request validation
+	Labels                         []string `yaml:"labels,omitempty"`                              // Deprecated alias for required-labels
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 	IgnoreMissingBranchFailure     bool     `yaml:"ignore-missing-branch-failure,omitempty"`       // When true, missing/deleted target branches are treated as skipped instead of hard failures.
 	CommitTitleSuffix              string   `yaml:"commit-title-suffix,omitempty"`                 // Optional suffix to append to generated commit titles
@@ -124,11 +125,17 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
-			// Parse title-prefix using shared helper
-			pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
+			// Parse required-title-prefix (preferred) with fallback to deprecated title-prefix alias.
+			pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "required-title-prefix", pushToPullRequestBranchLog)
+			if pushToBranchConfig.TitlePrefix == "" {
+				pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
+			}
 
-			// Parse labels using expression-aware shared helper
-			pushToBranchConfig.Labels = ParseStringArrayOrExprFromConfig(configMap, "labels", pushToPullRequestBranchLog)
+			// Parse required-labels (preferred) with fallback to deprecated labels.
+			pushToBranchConfig.RequiredLabels = ParseStringArrayOrExprFromConfig(configMap, "required-labels", pushToPullRequestBranchLog)
+			if len(pushToBranchConfig.RequiredLabels) == 0 {
+				pushToBranchConfig.RequiredLabels = ParseStringArrayOrExprFromConfig(configMap, "labels", pushToPullRequestBranchLog)
+			}
 
 			// Parse commit-title-suffix (optional)
 			if commitTitleSuffix, exists := configMap["commit-title-suffix"]; exists {
