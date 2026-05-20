@@ -129,7 +129,7 @@ function createLogParserFormatters(deps) {
             let text = content.thinking.trim();
             text = unfenceMarkdown(text);
             if (text && text.length > 0) {
-              if (!addContent(`<sub>◐ *${text}*</sub>\n\n`)) {
+              if (!addContent(`<sub>◐ <em>${text.replace(/\n/g, "<br>")}</em></sub>\n\n`)) {
                 break;
               }
             }

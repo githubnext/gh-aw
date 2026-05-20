@@ -85,7 +85,7 @@ I need to analyze the repository structure to understand the codebase`;
 
       // Thinking content should be wrapped in italic markup with open circle icon
       expect(result.markdown).toContain("◐");
-      expect(result.markdown).toContain("*I need to analyze the repository structure");
+      expect(result.markdown).toContain("<em>I need to analyze the repository structure");
     });
 
     it("should skip metadata lines", () => {

@@ -437,7 +437,7 @@ function parseCodexLog(logContent) {
       const trimmed = line.trim();
       thinkingContent.push(trimmed);
       // Add thinking content directly to markdown with open circle icon and italic styling
-      markdown += `<sub>◐ *${trimmed}*</sub>\n\n`;
+      markdown += `<sub>◐ <em>${trimmed}</em></sub>\n\n`;
     }
   }
 
