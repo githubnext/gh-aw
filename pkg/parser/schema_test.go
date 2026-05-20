@@ -232,6 +232,18 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 			errContains: "jsonschema validation failed",
 		},
 		{
+			name: "per-server network rejected by schema",
+			mcpConfig: map[string]any{
+				"type":    "stdio",
+				"command": "node",
+				"network": map[string]any{
+					"proxy-args": []any{"--proxy-test"},
+				},
+			},
+			wantErr:     true,
+			errContains: "jsonschema validation failed",
+		},
+		{
 			name: "valid local type (alias for stdio)",
 			mcpConfig: map[string]any{
 				"type":    "local",

@@ -147,49 +147,6 @@
         }
       ]
     },
-    "network": {
-      "type": "object",
-      "deprecated": true,
-      "properties": {
-        "allowed": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
-            "description": "Allowed domain name"
-          },
-          "minItems": 1,
-          "uniqueItems": true,
-          "description": "List of allowed domain names for network access",
-          "examples": [
-            ["github.com", "api.github.com"],
-            ["example.com", "api.example.com", "cdn.example.com"]
-          ]
-        },
-        "proxy-args": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Custom proxy arguments for container-based MCP servers",
-          "examples": [
-            ["--proxy", "http://proxy.example.com:8080"],
-            ["--proxy-auth", "user:pass"]
-          ]
-        }
-      },
-      "additionalProperties": false,
-      "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version.",
-      "examples": [
-        {
-          "allowed": ["github.com", "api.github.com"]
-        },
-        {
-          "allowed": ["example.com"],
-          "proxy-args": ["--proxy", "http://proxy.example.com:8080"]
-        }
-      ]
-    },
     "allowed": {
       "type": "array",
       "items": {
@@ -218,7 +175,7 @@
       "then": {
         "required": ["url"],
         "not": {
-          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }, { "required": ["network"] }]
+          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
         }
       }
     },

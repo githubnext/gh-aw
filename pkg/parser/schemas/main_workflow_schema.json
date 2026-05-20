@@ -10723,34 +10723,6 @@
           "additionalProperties": false,
           "description": "Environment variables for MCP server"
         },
-        "network": {
-          "type": "object",
-          "deprecated": true,
-          "$comment": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead.",
-          "properties": {
-            "allowed": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
-                "description": "Allowed domain name"
-              },
-              "minItems": 1,
-              "uniqueItems": true,
-              "description": "List of allowed domain names for network access",
-              "maxItems": 100
-            },
-            "proxy-args": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Custom proxy arguments for container-based MCP servers"
-            }
-          },
-          "additionalProperties": false,
-          "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version."
-        },
         "allowed": {
           "type": "array",
           "description": "List of allowed tool names for this MCP server",
@@ -10768,7 +10740,7 @@
         }
       },
       "additionalProperties": false,
-      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required. Note: Per-server 'network' field is deprecated and ignored.",
+      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required.",
       "anyOf": [
         {
           "required": ["type"]
