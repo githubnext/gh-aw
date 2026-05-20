@@ -249,7 +249,7 @@ describe("add_reaction", () => {
   });
 
   describe("pull_request_review events", () => {
-    it("should add reaction to a PR review", async () => {
+    it("should silently skip pull request reviews", async () => {
       global.context = {
         eventName: "pull_request_review",
         repo: { owner: "testowner", repo: "testrepo" },
@@ -258,19 +258,9 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/pulls/999/reviews/321/reactions", expect.objectContaining({ content: "eyes" }));
-    });
-
-    it("should fail when review ID is missing", async () => {
-      global.context = {
-        eventName: "pull_request_review",
-        repo: { owner: "testowner", repo: "testrepo" },
-        payload: { pull_request: { number: 999 } },
-      };
-
-      await runScript();
-
-      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Review ID not found in event payload`);
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
 
@@ -746,17 +736,11 @@ describe("add_reaction", () => {
       expect(resolveRestEndpoint("pull_request_review_comment", "o", "r", global.context.payload)).toBe("/repos/o/r/pulls/comments/55/reactions");
     });
 
-    it("should return pull_request_review endpoint", async () => {
+    it("should return null without failure for pull_request_review events", async () => {
       global.context = { eventName: "pull_request_review", repo: { owner: "o", repo: "r" }, payload: { pull_request: { number: 7 }, review: { id: 88 } } };
       const { resolveRestEndpoint } = await importHelpers();
-      expect(resolveRestEndpoint("pull_request_review", "o", "r", global.context.payload)).toBe("/repos/o/r/pulls/7/reviews/88/reactions");
-    });
-
-    it("should return null and setFailed when pull_request_review id is missing", async () => {
-      global.context = { eventName: "pull_request_review", repo: { owner: "o", repo: "r" }, payload: { pull_request: { number: 7 } } };
-      const { resolveRestEndpoint } = await importHelpers();
       expect(resolveRestEndpoint("pull_request_review", "o", "r", global.context.payload)).toBeNull();
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Review ID not found"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should return null for discussion events (handled via GraphQL)", async () => {

@@ -108,22 +108,6 @@ function resolveRestEndpoint(eventName, owner, repo, payload) {
       return `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
     }
 
-    case "pull_request_review": {
-      const prNumber = payload?.pull_request?.number;
-      if (!prNumber) {
-        core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
-        return null;
-      }
-
-      const reviewId = payload?.review?.id;
-      if (!reviewId) {
-        core.setFailed(`${ERR_VALIDATION}: Review ID not found in event payload`);
-        return null;
-      }
-
-      return `/repos/${owner}/${repo}/pulls/${prNumber}/reviews/${reviewId}/reactions`;
-    }
-
     default:
       return null;
   }
