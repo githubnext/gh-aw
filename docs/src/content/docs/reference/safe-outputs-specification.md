@@ -2973,9 +2973,9 @@ This section provides complete definitions for all remaining safe output types. 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
-- `required-labels`: Labels that must exist on the pull request
-- `allowed-labels`: Exact label names; at least one pull request label must exactly match when configured
-- `allowed-branches`: Source branch glob patterns
+- `required-labels`: Labels that must ALL be present on the pull request
+- `required-title-prefix`: Title prefix the pull request must start with
+- `allowed-branches`: Source branch glob patterns; the PR's branch must match at least one
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repository allowlist
 - `staged`: Staged mode override

@@ -146,6 +146,8 @@ safe-outputs:
     max: 1                    # max updates (default: 1)
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
+    required-labels: [automated]     # only update if PR has ALL these labels
+    required-title-prefix: "[bot] "  # only update if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -187,6 +189,8 @@ safe-outputs:
     target-repo: "owner/repo" # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     footer: "if-body"         # footer control: "always", "none", or "if-body"
+    required-labels: [automated]     # only comment if PR has ALL these labels
+    required-title-prefix: "[bot] "  # only comment if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -206,6 +210,8 @@ safe-outputs:
     target-repo: "owner/repo"      # cross-repository
     allowed-repos: ["org/repo1"]   # additional allowed repositories
     footer: "always"               # "always", "none", or "if-body"
+    required-labels: [automated]   # only submit review if PR has ALL these labels
+    required-title-prefix: "[bot] " # only submit review if PR title starts with this prefix
 ```
 
 Use `allowed-events` to control review decisions (`APPROVE`, `COMMENT`, `REQUEST_CHANGES`). Prefer `allowed-events: [COMMENT]` by default so bot reviews remain informative and non-blocking.
@@ -224,6 +230,8 @@ safe-outputs:
     target-repo: "owner/repo"            # cross-repository
     allowed-repos: ["org/other-repo"]    # additional allowed repositories
     footer: true                         # add AI-generated footer (default: true)
+    required-labels: [automated]         # only reply if PR has ALL these labels
+    required-title-prefix: "[bot] "      # only reply if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -248,6 +256,8 @@ safe-outputs:
     target: "triggering"                 # "triggering" (default), "*", or number
     target-repo: "owner/repo"            # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    required-labels: [automated]         # only resolve if PR has ALL these labels
+    required-title-prefix: "[bot] "      # only resolve if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -268,7 +278,7 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for docume
 
 ## Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
+Pushes changes to a PR's branch. Validates via `required-title-prefix` and `required-labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
 
 :::caution[Fork PRs Not Supported]
 This safe output **cannot push to PRs from forks**. Fork PRs will fail early with a clear error message. This is a security restriction—the workflow does not have write access to fork repositories.
@@ -278,8 +288,8 @@ This safe output **cannot push to PRs from forks**. Fork PRs will fail early wit
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"                 # "triggering" (default), "*", or number
-    title-prefix: "[bot] "      # require title prefix
-    labels: [automated]         # require all labels
+    required-title-prefix: "[bot] "      # require title prefix
+    required-labels: [automated]         # require all labels
     max: 3                      # max pushes per run (default: 1)
     if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
     excluded-files:               # files to omit from the patch entirely
@@ -315,7 +325,7 @@ safe-outputs:
   github-token: ${{ secrets.CROSS_REPO_PAT }}
   push-to-pull-request-branch:
     target-repo: "org/target-repo"
-    title-prefix: "[bot] "
+    required-title-prefix: "[bot] "
 ```
 
 The `path:` field is required so the agent knows where the target repository is mounted in the workspace. Without a `path`, the checkout action writes to the root of the workspace and overwrites the source repository, which will cause the workflow to fail.
@@ -326,29 +336,31 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 
 ## Add Reviewer (`add-reviewer:`)
 
-Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames and `team-reviewers` to restrict to specific team slugs.
+Adds reviewers to pull requests. Specify `allowed-reviewers` to restrict to specific GitHub usernames and `allowed-team-reviewers` to restrict to specific team slugs.
 
 ```yaml wrap
 safe-outputs:
   add-reviewer:
-    reviewers: [user1, copilot]  # restrict to specific user/bot reviewers
-    team-reviewers: [platform-reviewers] # restrict to specific team reviewers
+    allowed-reviewers: [user1, copilot]  # restrict to specific user/bot reviewers
+    allowed-team-reviewers: [platform-reviewers] # restrict to specific team reviewers
     max: 3                       # max reviewers (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
+    required-labels: [automated]     # only add reviewer if PR has ALL these labels
+    required-title-prefix: "[bot] "  # only add reviewer if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
 **Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
 
-Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
+Use `allowed-reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
 
 ## Compile-Time Warnings for `target: "*"`
 
 When `target: "*"` is used, `gh aw compile` emits warnings for two common misconfigurations:
 
 - **Missing wildcard fetch** — no `checkout` block with a wildcard `fetch` pattern (e.g., `fetch: ["*"]`). Without this, the agent cannot access arbitrary PR branches at runtime and will fail with permission-like errors.
-- **No constraints** — neither `title-prefix` nor `labels` is set, which allows pushing to any PR in the repository with no additional gating.
+- **No constraints** — neither `required-title-prefix` nor `required-labels` is set, which allows pushing to any PR in the repository with no additional gating.
 
 Both warnings are suppressed when the recommended configuration is in place:
 
@@ -356,7 +368,8 @@ Both warnings are suppressed when the recommended configuration is in place:
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"
-    title-prefix: "[bot] "
+    required-title-prefix: "[bot] "
+    required-labels: [automated]
 checkout:
   fetch: ["*"]
   fetch-depth: 0

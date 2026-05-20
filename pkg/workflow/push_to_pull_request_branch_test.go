@@ -753,7 +753,7 @@ func TestPushToPullRequestBranchWithTitlePrefix(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create a test markdown file with title-prefix configuration
+	// Create a test markdown file with required-title-prefix configuration
 	testMarkdown := `---
 on:
   pull_request:
@@ -761,7 +761,8 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
-    title-prefix: "[bot] "
+    required-title-prefix: "[bot] "
+    required-labels: ["automated"]
 ---
 
 # Test Push to Branch with Title Prefix
@@ -797,11 +798,11 @@ This workflow validates PR title prefix.
 	}
 }
 
-func TestPushToPullRequestBranchWithLabels(t *testing.T) {
+func TestPushToPullRequestBranchWithRequiredLabels(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create a test markdown file with labels configuration
+	// Create a test markdown file with required-labels configuration
 	testMarkdown := `---
 on:
   pull_request:
@@ -809,12 +810,12 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
-    labels: ["automated", "enhancement"]
+    required-labels: ["automated", "enhancement"]
 ---
 
-# Test Push to Branch with Labels
+# Test Push to Branch with Required Labels
 
-This workflow validates PR labels.
+This workflow validates required PR labels.
 `
 
 	// Write the test file
@@ -839,17 +840,17 @@ This workflow validates PR labels.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that labels configuration is in handler config JSON (check for push_to_pull_request_branch config)
-	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `labels`) || (!strings.Contains(lockContentStr, `automated`) && !strings.Contains(lockContentStr, `enhancement`)) {
-		t.Errorf("Generated workflow should contain labels configuration in handler config JSON")
+	// Verify that required labels configuration is in handler config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `required_labels`) || (!strings.Contains(lockContentStr, `automated`) && !strings.Contains(lockContentStr, `enhancement`)) {
+		t.Errorf("Generated workflow should contain required_labels configuration in handler config JSON")
 	}
 }
 
-func TestPushToPullRequestBranchWithTitlePrefixAndLabels(t *testing.T) {
+func TestPushToPullRequestBranchWithTitlePrefixAndRequiredLabels(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create a test markdown file with both title-prefix and labels configuration
+	// Create a test markdown file with both required-title-prefix and required-labels configuration
 	testMarkdown := `---
 on:
   pull_request:
@@ -857,13 +858,13 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
-    title-prefix: "[automated] "
-    labels: ["bot", "feature", "enhancement"]
+    required-title-prefix: "[automated] "
+    required-labels: ["bot", "feature", "enhancement"]
 ---
 
-# Test Push to Branch with Title Prefix and Labels
+# Test Push to Branch with Title Prefix and Required Labels
 
-This workflow validates both PR title prefix and labels.
+This workflow validates both PR title prefix and required labels.
 `
 
 	// Write the test file
@@ -888,12 +889,12 @@ This workflow validates both PR title prefix and labels.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that both title prefix and labels configurations are in handler manager config JSON (check for push_to_pull_request_branch config)
+	// Verify that both title prefix and required labels configurations are in handler manager config JSON (check for push_to_pull_request_branch config)
 	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `title_prefix`) || !strings.Contains(lockContentStr, `[automated]`) {
 		t.Errorf("Generated workflow should contain title_prefix:[automated] in handler config JSON")
 	}
-	if !strings.Contains(lockContentStr, `labels`) || (!strings.Contains(lockContentStr, `bot`) && !strings.Contains(lockContentStr, `feature`) && !strings.Contains(lockContentStr, `enhancement`)) {
-		t.Errorf("Generated workflow should contain labels (bot,feature,enhancement) in handler config JSON")
+	if !strings.Contains(lockContentStr, `required_labels`) || (!strings.Contains(lockContentStr, `bot`) && !strings.Contains(lockContentStr, `feature`) && !strings.Contains(lockContentStr, `enhancement`)) {
+		t.Errorf("Generated workflow should contain required_labels (bot,feature,enhancement) in handler config JSON")
 	}
 }
 

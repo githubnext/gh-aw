@@ -217,9 +217,6 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 	if err := validateNonEmptyStringList("required-labels", c.RequiredLabels); err != nil {
 		return err
 	}
-	if err := validateNonEmptyStringList("allowed-labels", c.AllowedLabels); err != nil {
-		return err
-	}
 	if err := validateRefGlobList("allowed-branches", c.AllowedBranches); err != nil {
 		return err
 	}

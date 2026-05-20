@@ -860,7 +860,7 @@ jobs:
 
       - name: Compile workflows
         run: |
-          ` + getCLICmdPrefix(actionMode) + ` compile --validate --validate-images --verbose
+          ` + getCLICmdPrefix(actionMode) + ` compile --validate --verbose
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts

@@ -202,7 +202,9 @@ interface UpdatePullRequestConfig extends SafeOutputConfig {
  */
 interface PushToPullRequestBranchConfig extends SafeOutputConfig {
   target?: string;
+  "required-title-prefix"?: string;
   "title-prefix"?: string;
+  "required-labels"?: string[];
   labels?: string[];
   "if-no-changes"?: string;
 }
