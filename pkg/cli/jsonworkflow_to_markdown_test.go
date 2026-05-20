@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -334,4 +335,47 @@ func TestGenericURLWorkflowName(t *testing.T) {
 			assert.Equal(t, tc.want, genericURLWorkflowName(tc.url))
 		})
 	}
+}
+
+func TestRewriteAutomationsURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantURL string
+		wantOK  bool
+	}{
+		{
+			name:    "dotcom automations UI URL",
+			input:   "https://github.com/dmgardiner25/urban-spork/agents/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768",
+			wantURL: "https://api.githubcopilot.com/agents/repos/dmgardiner25/urban-spork/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768",
+			wantOK:  true,
+		},
+		{
+			name:   "regular github.com file URL — no rewrite",
+			input:  "https://github.com/owner/repo/blob/main/workflow.md",
+			wantOK: false,
+		},
+		{
+			name:   "GHE host — no rewrite",
+			input:  "https://mycompany.ghe.com/owner/repo/agents/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768",
+			wantOK: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			u, _ := url.Parse(tc.input)
+			got, ok := rewriteAutomationsURL(u)
+			assert.Equal(t, tc.wantOK, ok)
+			if tc.wantOK {
+				assert.Equal(t, tc.wantURL, got)
+			}
+		})
+	}
+}
+
+func TestParseWorkflowSpec_AutomationsURL(t *testing.T) {
+	spec, err := parseWorkflowSpec("https://github.com/dmgardiner25/urban-spork/agents/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768")
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.githubcopilot.com/agents/repos/dmgardiner25/urban-spork/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768", spec.RawURL)
+	assert.Equal(t, "1a352b54-80f0-41ed-bf50-9e90e6b9d768", spec.WorkflowName, "workflow name is GUID (will be overridden from JSON name field at fetch time)")
 }

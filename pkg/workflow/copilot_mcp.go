@@ -22,13 +22,18 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
 	// Copilot uses JSON format with type and tools fields, and inline args
-	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"/home/runner/.copilot/mcp-config.json", true, true,
-		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
+		tools:                tools,
+		mcpTools:             mcpTools,
+		workflowData:         workflowData,
+		configPath:           "/home/runner/.copilot/mcp-config.json",
+		includeCopilotFields: true,
+		inlineArgs:           true,
+		renderCustom: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCopilotMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		},
-		copilotMCPToolFilter,
-	)
+		filterTool: copilotMCPToolFilter,
+	})
 }
 
 // renderCopilotMCPConfigWithContext generates custom MCP server configuration for Copilot CLI

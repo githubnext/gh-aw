@@ -125,6 +125,14 @@ function createLogParserFormatters(deps) {
                 break;
               }
             }
+          } else if (content.type === "thinking" && content.thinking) {
+            let text = content.thinking.trim();
+            text = unfenceMarkdown(text);
+            if (text && text.length > 0) {
+              if (!addContent(`<sub>◐ <em>${text.replace(/\n/g, "<br>")}</em></sub>\n\n`)) {
+                break;
+              }
+            }
           } else if (content.type === "tool_use") {
             const toolResult = toolUsePairs.get(content.id);
             const toolMarkdown = formatToolCallback(content, toolResult);
@@ -383,6 +391,25 @@ function createLogParserFormatters(deps) {
     appendConversationLine(lines, "", state);
   }
 
+  function appendReasoningText(lines, text, state) {
+    let displayText = text;
+    if (displayText.length > MAX_AGENT_TEXT_LENGTH) {
+      displayText = displayText.substring(0, MAX_AGENT_TEXT_LENGTH) + `... [truncated: showing first ${MAX_AGENT_TEXT_LENGTH} of ${text.length} chars]`;
+    }
+
+    const textLines = displayText.split("\n");
+    for (let i = 0; i < textLines.length; i++) {
+      if (i === 0) {
+        state.traceEventCount += 1;
+      }
+      const prefix = i === 0 ? `[${state.traceEventCount}] ◐ ` : "  ";
+      if (!appendConversationLine(lines, `${prefix}${textLines[i]}`, state)) {
+        return;
+      }
+    }
+    appendConversationLine(lines, "", state);
+  }
+
   function appendToolExecutionLine(lines, content, toolUsePairs, state) {
     const toolName = content.name;
     const input = content.input || {};
@@ -523,6 +550,12 @@ function createLogParserFormatters(deps) {
             text = unfenceMarkdown(text);
             if (text && text.length > 0) {
               appendAgentText(lines, text, state);
+            }
+          } else if (content.type === "thinking" && content.thinking) {
+            let text = content.thinking.trim();
+            text = unfenceMarkdown(text);
+            if (text && text.length > 0) {
+              appendReasoningText(lines, text, state);
             }
           } else if (content.type === "tool_use") {
             appendToolExecutionLine(lines, content, toolUsePairs, state);

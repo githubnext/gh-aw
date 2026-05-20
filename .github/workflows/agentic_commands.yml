@@ -29,10 +29,10 @@
 #     necromancer -> necromancer [pull_request] reaction=eyes
 #     needs-design -> approach-validator [issues,pull_request] reaction=eyes
 #   pull-request reviewers:
-#     design-decision-gate [pull_request,pull_request_review]
-#     mattpocock-skills-reviewer [pull_request,pull_request_review]
-#     pr-code-quality-reviewer [pull_request,pull_request_review]
-#     test-quality-sentinel [pull_request,pull_request_review]
+#     design-decision-gate [pull_request]
+#     mattpocock-skills-reviewer [pull_request]
+#     pr-code-quality-reviewer [pull_request]
+#     test-quality-sentinel [pull_request]
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -64,8 +64,6 @@ on:
     types: [created, edited]
   pull_request:
     types: [edited, labeled, opened, ready_for_review, reopened, review_requested]
-  pull_request_review:
-    types: [submitted]
   pull_request_review_comment:
     types: [created, edited]
   discussion:
@@ -99,7 +97,7 @@ jobs:
         env:
           GH_AW_SLASH_ROUTING: '{"ace":[{"workflow":"ace-editor","events":["pull_request_comment"],"ai_reaction":"eyes"}],"approach-validator":[{"workflow":"approach-validator","events":["issue_comment","pull_request_comment"],"ai_reaction":"eyes"}],"archie":[{"workflow":"archie","events":["issue_comment","issues","pull_request","pull_request_comment"],"ai_reaction":"eyes"}],"brave":[{"workflow":"brave","events":["issue_comment"],"ai_reaction":"eyes"}],"cloclo":[{"workflow":"cloclo","events":["discussion","discussion_comment","issue_comment","issues","pull_request","pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"craft":[{"workflow":"craft","events":["issues"],"ai_reaction":"eyes"}],"design-decision-gate":[{"workflow":"design-decision-gate","events":["pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"grumpy":[{"workflow":"grumpy-reviewer","events":["pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"matt":[{"workflow":"mattpocock-skills-reviewer","events":["pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"mergefest":[{"workflow":"mergefest","events":["pull_request_comment"],"ai_reaction":"eyes"}],"nit":[{"workflow":"pr-nitpick-reviewer","events":["pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"plan":[{"workflow":"plan","events":["discussion_comment","issue_comment"],"ai_reaction":"eyes"}],"poem-bot":[{"workflow":"poem-bot","events":["issues"],"ai_reaction":"eyes"}],"review":[{"workflow":"pr-code-quality-reviewer","events":["pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"scout":[{"workflow":"scout","events":["discussion","discussion_comment","issue_comment","issues","pull_request","pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"security-review":[{"workflow":"security-review","events":["pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"summarize":[{"workflow":"pdf-summary","events":["issue_comment","issues"],"ai_reaction":"eyes"}],"test-quality-sentinel":[{"workflow":"test-quality-sentinel","events":["pull_request_comment","pull_request_review_comment"],"ai_reaction":"eyes"}],"tidy":[{"workflow":"tidy","events":["pull_request_comment"],"ai_reaction":"eyes"}],"unbloat":[{"workflow":"unbloat-docs","events":["pull_request_comment"],"ai_reaction":"eyes"}]}'
           GH_AW_LABEL_ROUTING: '{"approach-proposal":[{"workflow":"approach-validator","events":["issues","pull_request"],"ai_reaction":"eyes"}],"ci-doctor":[{"workflow":"ci-doctor","events":["pull_request"],"ai_reaction":"eyes"}],"cloclo":[{"workflow":"cloclo","events":["discussion","issues","pull_request"],"ai_reaction":"eyes"}],"dev":[{"workflow":"dev","events":["discussion","issues","pull_request"],"ai_reaction":"eyes"}],"necromancer":[{"workflow":"necromancer","events":["pull_request"],"ai_reaction":"eyes"}],"needs-design":[{"workflow":"approach-validator","events":["issues","pull_request"],"ai_reaction":"eyes"}]}'
-          GH_AW_REVIEWER_ROUTING: '[{"workflow":"design-decision-gate","events":["pull_request","pull_request_review"]},{"workflow":"mattpocock-skills-reviewer","events":["pull_request","pull_request_review"]},{"workflow":"pr-code-quality-reviewer","events":["pull_request","pull_request_review"]},{"workflow":"test-quality-sentinel","events":["pull_request","pull_request_review"]}]'
+          GH_AW_REVIEWER_ROUTING: '[{"workflow":"design-decision-gate","events":["pull_request"]},{"workflow":"mattpocock-skills-reviewer","events":["pull_request"]},{"workflow":"pr-code-quality-reviewer","events":["pull_request"]},{"workflow":"test-quality-sentinel","events":["pull_request"]}]'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

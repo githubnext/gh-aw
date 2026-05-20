@@ -77,6 +77,17 @@ Let me start by listing the files in the root directory`;
       expect(result.markdown).toContain("Let me start by listing the files");
     });
 
+    it("should render thinking sections with open circle icon and italic styling", () => {
+      const logContent = `thinking
+I need to analyze the repository structure to understand the codebase`;
+
+      const result = parseCodexLog(logContent);
+
+      // Thinking content should be wrapped in italic markup with open circle icon
+      expect(result.markdown).toContain("◐");
+      expect(result.markdown).toContain("<em>I need to analyze the repository structure");
+    });
+
     it("should skip metadata lines", () => {
       const logContent = `OpenAI Codex v1.0
 --------

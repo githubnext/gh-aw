@@ -57,7 +57,17 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	steps := append(setupSteps, handlerSteps...)
 
 	// Phase 3: App-token insertion, finalization, job condition/deps, and job construction
-	return c.buildSafeOutputsJobFromParts(data, mainJobName, markdownPath, agentArtifactPrefix, steps, outputs, safeOutputStepNames, permissions, threatDetectionEnabled)
+	return c.buildSafeOutputsJobFromParts(buildSafeOutputsJobFromPartsOptions{
+		data:                   data,
+		mainJobName:            mainJobName,
+		markdownPath:           markdownPath,
+		agentArtifactPrefix:    agentArtifactPrefix,
+		steps:                  steps,
+		outputs:                outputs,
+		safeOutputStepNames:    safeOutputStepNames,
+		permissions:            permissions,
+		threatDetectionEnabled: threatDetectionEnabled,
+	})
 }
 
 // buildSafeOutputsSetupAndDownloadSteps builds the initial steps for the consolidated safe
@@ -379,15 +389,30 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 // buildSafeOutputsJobFromParts finalizes the step list (app-token insertion, token invalidation,
 // items-manifest upload, dev-mode restore, script-mode cleanup), builds the job condition and
 // dependency list, and assembles the Job struct for the safe_outputs job.
+type buildSafeOutputsJobFromPartsOptions struct {
+	data                   *WorkflowData
+	mainJobName            string
+	markdownPath           string
+	agentArtifactPrefix    string
+	steps                  []string
+	outputs                map[string]string
+	safeOutputStepNames    []string
+	permissions            *Permissions
+	threatDetectionEnabled bool
+}
+
 func (c *Compiler) buildSafeOutputsJobFromParts(
-	data *WorkflowData,
-	mainJobName, markdownPath, agentArtifactPrefix string,
-	steps []string,
-	outputs map[string]string,
-	safeOutputStepNames []string,
-	permissions *Permissions,
-	threatDetectionEnabled bool,
+	opts buildSafeOutputsJobFromPartsOptions,
 ) (*Job, []string, error) {
+	data := opts.data
+	mainJobName := opts.mainJobName
+	markdownPath := opts.markdownPath
+	agentArtifactPrefix := opts.agentArtifactPrefix
+	steps := opts.steps
+	outputs := opts.outputs
+	safeOutputStepNames := opts.safeOutputStepNames
+	permissions := opts.permissions
+	threatDetectionEnabled := opts.threatDetectionEnabled
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
 		// Track whether the app token minting succeeded so the conclusion job can surface

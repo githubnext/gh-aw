@@ -107,11 +107,15 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
-	if err := renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json", false, false,
-		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	if err := renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
+		tools:        tools,
+		mcpTools:     mcpTools,
+		workflowData: workflowData,
+		configPath:   "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json",
+		renderCustom: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-		}, nil); err != nil {
+		},
+	}); err != nil {
 		return err
 	}
 

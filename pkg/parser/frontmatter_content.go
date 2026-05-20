@@ -17,8 +17,47 @@ type FrontmatterResult struct {
 	Frontmatter map[string]any
 	Markdown    string
 	// Additional fields for error context
-	FrontmatterLines []string // Original frontmatter lines for error context
-	FrontmatterStart int      // Line number where frontmatter starts (1-based)
+	FrontmatterLines []string       // Original frontmatter lines for error context
+	FrontmatterStart int            // Line number where frontmatter starts (1-based)
+	FieldLines       map[string]int // Absolute line numbers (1-based) of top-level frontmatter keys in the file
+}
+
+// extractTopLevelFieldLines scans YAML text and returns a map of top-level key names to
+// their absolute line numbers in the source file. frontmatterStart is the 1-based line
+// number of the first frontmatter content line (i.e. the line immediately after the
+// opening "---" delimiter). The returned line numbers are absolute: they can be used
+// directly as file:line positions for IDE-navigable error messages.
+func extractTopLevelFieldLines(yamlContent string, frontmatterStart int) map[string]int {
+	fieldLines := make(map[string]int)
+	relLine := 0
+	for line := range strings.SplitSeq(yamlContent, "\n") {
+		relLine++
+		// Skip empty lines and YAML comments
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		// Top-level keys have no leading indentation
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			colonIdx := strings.Index(trimmed, ":")
+			if colonIdx > 0 {
+				key := strings.TrimSpace(trimmed[:colonIdx])
+				// Accept simple unquoted keys only. Bracket characters in the key position
+				// ({, }, [, ]) indicate inline YAML maps/sequences rather than plain string keys
+				// (e.g. `[anchor]: value` or `{implicit_key}: value`). These forms are not used
+				// in workflow frontmatter, so we skip them to avoid false positives.
+				// Quoted YAML keys such as `"key[0]"` are also not used in workflow frontmatter
+				// and are excluded by this check (the extracted substring will contain the quote).
+				if key != "" && !strings.ContainsAny(key, " \t{}[]\"'") {
+					if _, alreadySeen := fieldLines[key]; !alreadySeen {
+						// absoluteLine = relLine + frontmatterStart - 1
+						fieldLines[key] = relLine + frontmatterStart - 1
+					}
+				}
+			}
+		}
+	}
+	return fieldLines
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -114,11 +153,13 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}
 
 	parserLog.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
+	const frontmatterStartLine = 2 // Line 2 is where frontmatter content starts (after opening ---)
 	return &FrontmatterResult{
 		Frontmatter:      frontmatter,
 		Markdown:         strings.TrimSpace(markdown),
 		FrontmatterLines: frontmatterLines,
-		FrontmatterStart: 2, // Line 2 is where frontmatter content starts (after opening ---)
+		FrontmatterStart: frontmatterStartLine,
+		FieldLines:       extractTopLevelFieldLines(frontmatterYAML, frontmatterStartLine),
 	}, nil
 }
 

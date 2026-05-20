@@ -13,9 +13,13 @@ func (e *CrushEngine) RenderMCPConfig(sb *strings.Builder, tools map[string]any,
 	crushMCPLog.Printf("Rendering MCP config for Crush: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
 	// Crush uses JSON format without Copilot-specific fields and multi-line args
-	return renderStandardJSONMCPConfig(sb, tools, mcpTools, workflowData,
-		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false,
-		func(builder *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	return renderStandardJSONMCPConfig(sb, renderStandardJSONMCPConfigOptions{
+		tools:        tools,
+		mcpTools:     mcpTools,
+		workflowData: workflowData,
+		configPath:   "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		renderCustom: func(builder *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return renderCustomMCPConfigWrapperWithContext(builder, toolName, toolConfig, isLast, workflowData)
-		}, nil)
+		},
+	})
 }

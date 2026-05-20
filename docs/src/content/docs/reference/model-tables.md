@@ -40,6 +40,8 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `vision` | `copilot/gemini-*image*`, `gemini/gemini-*image*`, `copilot/gemini-*flash*`, `gemini/gemini-*flash*` |
 | `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
+| `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash-lite`, `copilot/raptor*mini*` |
+| `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
 
 ### Meta-Aliases
 
@@ -48,10 +50,8 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 | Meta-alias | Expands to |
 |------------|------------|
 | `small` | `mini` |
-| `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
 | `auto` | `large` |
-| `any` | `copilot/*` → `anthropic/*` → `openai/*` → `google/*` → `gemini/*` |
 | `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5` → `gemini-pro` → `haiku` → `any` |
 | `copilot` | `agent` → `gpt-5.4` → `sonnet` → `gpt-5` → `any` |
 | `claude` | `agent` → `sonnet-6x` → `haiku` → `any` |
@@ -124,49 +124,85 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-4-turbo` | 1 |
 | `gpt-4` | 1 |
 | `gpt-5` | 1 |
+| `gpt-5-2025-08-07` | 1 |
+| `gpt-5-search-api` | 1 |
+| `gpt-5-search-api-2025-10-14` | 1 |
+| `gpt-5-chat-latest` | 1 |
 | `gpt-5-mini` | 0.33 |
+| `gpt-5-mini-2025-08-07` | 0.33 |
 | `gpt-5-nano` | 0.05 |
+| `gpt-5-nano-2025-08-07` | 0.05 |
 | `gpt-5-pro` | 2 |
+| `gpt-5-pro-2025-10-06` | 2 |
 | `gpt-5.1` | 3 |
+| `gpt-5.1-2025-11-13` | 3 |
+| `gpt-5.1-chat-latest` | 3 |
 | `gpt-5-codex` | 1 |
 | `gpt-5.1-codex` | 3 |
 | `gpt-5.1-codex-mini` | 0.33 |
 | `gpt-5.1-codex-max` | 3 |
+| `gpt-5.1-codex-max-customsummarizer` | 3 |
 | `gpt-5.2` | 3 |
+| `gpt-5.2-2025-12-11` | 3 |
+| `gpt-5.2-chat-latest` | 3 |
 | `gpt-5.2-codex` | 3 |
 | `gpt-5.2-pro` | 2 |
+| `gpt-5.2-pro-2025-12-11` | 2 |
+| `gpt-5.3-chat-latest` | 3 |
 | `gpt-5.3-codex` | 6 |
+| `gpt-5.3-codex-api-preview` | 6 |
 | `gpt-5.4` | 6 |
+| `gpt-5.4-2026-03-05` | 6 |
 | `gpt-5.4-mini` | 6 |
+| `gpt-5.4-mini-2026-03-17` | 6 |
 | `gpt-5.4-nano` | 0.05 |
+| `gpt-5.4-nano-2026-03-17` | 0.05 |
 | `gpt-5.4-pro` | 2 |
+| `gpt-5.4-pro-2026-03-05` | 2 |
 | `gpt-5.5` | 7.5 |
+| `gpt-5.5-2026-04-23` | 7.5 |
 | `gpt-5.5-pro` | 2 |
+| `gpt-5.5-pro-2026-04-23` | 2 |
 
 ### OpenAI Reasoning
 
 | Model | Multiplier |
 |-------|-----------|
 | `o1` | 3 |
+| `o1-2024-12-17` | 3 |
 | `o1-mini` | 0.5 |
 | `o1-pro` | 10 |
+| `o1-pro-2025-03-19` | 10 |
 | `o3` | 3 |
+| `o3-2025-04-16` | 3 |
 | `o3-mini` | 0.5 |
+| `o3-mini-2025-01-31` | 0.5 |
 | `o3-pro` | 10 |
+| `o3-pro-2025-06-10` | 10 |
 | `o3-deep-research` | 3 |
+| `o3-deep-research-2025-06-26` | 3 |
 | `o4-mini` | 0.5 |
+| `o4-mini-2025-04-16` | 0.5 |
 | `o4-mini-deep-research` | 0.5 |
+| `o4-mini-deep-research-2025-06-26` | 0.5 |
 
 ### Google
 
 | Model | Multiplier |
 |-------|-----------|
 | `gemini-2.5-pro` | 1 |
+| `gemini-2.5-pro-preview-tts` | 1 |
 | `gemini-2.5-flash` | 0.2 |
+| `gemini-2.5-flash-native-audio-latest` | 0.2 |
+| `gemini-2.5-flash-native-audio-preview-09-2025` | 0.2 |
+| `gemini-2.5-flash-native-audio-preview-12-2025` | 0.2 |
+| `gemini-2.5-flash-preview-tts` | 0.2 |
 | `gemini-2.5-flash-image` | 0.2 |
 | `gemini-2.5-flash-lite` | 0.1 |
 | `gemini-2.0-flash` | 0.1 |
+| `gemini-2.0-flash-001` | 0.1 |
 | `gemini-2.0-flash-lite` | 0.1 |
+| `gemini-2.0-flash-lite-001` | 0.1 |
 | `gemini-1.5-pro` | 1 |
 | `gemini-1.5-flash` | 0.1 |
 | `gemini-flash-latest` | 0.2 |
@@ -182,6 +218,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-3.1-flash-lite-preview` | 0.1 |
 | `gemini-3.1-flash-image-preview` | 0.33 |
 | `gemini-3.1-flash-tts-preview` | 0.1 |
+| `gemini-3.5-flash` | 14 |
 | `gemini-2.5-computer-use-preview` | 0.2 |
 | `gemini-2.5-computer-use-preview-10-2025` | 0.2 |
 | `gemini-robotics-er-1.5-preview` | 0.2 |

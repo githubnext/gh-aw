@@ -197,8 +197,8 @@ func runUpgradeCommand(opts upgradeOptions) error {
 				return err
 			}
 			// The child process completed all upgrade steps (including any PR creation).
-			// Exit the parent so we do not repeat those steps.
-			os.Exit(0)
+			// Signal the entry-point to exit cleanly without repeating those steps.
+			return &ExitCodeError{Code: 0}
 		}
 	}
 
@@ -395,8 +395,8 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			// Preserve the child's exit code so the caller sees the real failure.
-			os.Exit(exitErr.ExitCode())
+			// Preserve the child's exit code so the entry-point can propagate it.
+			return &ExitCodeError{Code: exitErr.ExitCode()}
 		}
 		return err
 	}

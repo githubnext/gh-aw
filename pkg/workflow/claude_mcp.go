@@ -13,11 +13,15 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	claudeMCPLog.Printf("Rendering MCP config for Claude: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
 	// Claude uses JSON format without Copilot-specific fields and multi-line args
-	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json", false, false,
-		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
+		tools:        tools,
+		mcpTools:     mcpTools,
+		workflowData: workflowData,
+		configPath:   "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json",
+		renderCustom: func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderClaudeMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-		}, nil)
+		},
+	})
 }
 
 // renderClaudeMCPConfigWithContext generates custom MCP server configuration for a single tool in Claude workflow mcp-servers.json
