@@ -213,9 +213,6 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					"pull_request": map[string]any{
 						"types": []string{"ready_for_review", "review_requested"},
 					},
-					"pull_request_review": map[string]any{
-						"types": []string{"submitted"},
-					},
 				}
 				if _, hasConcurrency := frontmatter["concurrency"]; !hasConcurrency && workflowData.Concurrency == "" {
 					workflowData.Concurrency = "concurrency:\n  group: \"gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}-all-reviewers\"\n  queue: max"
