@@ -66,4 +66,3 @@ func TestSelectJSONImportNameOverride(t *testing.T) {
 		})
 	}
 }
-
