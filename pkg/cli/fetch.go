@@ -62,6 +62,8 @@ func FetchWorkflowFromSourceWithContext(ctx context.Context, spec *WorkflowSpec,
 
 // fetchLocalWorkflow reads a workflow file from the local filesystem
 func fetchLocalWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
+	remoteWorkflowLog.Printf("Reading local workflow: %s", spec.WorkflowPath)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reading local workflow: "+spec.WorkflowPath))
 	}
@@ -70,6 +72,8 @@ func fetchLocalWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, err
 	if err != nil {
 		return nil, fmt.Errorf("local workflow '%s' not found: %w", spec.WorkflowPath, err)
 	}
+
+	remoteWorkflowLog.Printf("Read local workflow: bytes=%d", len(content))
 
 	return &FetchedWorkflow{
 		Content:    content,
@@ -125,6 +129,7 @@ func fetchRemoteWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bool) 
 				}
 				remoteWorkflowLog.Printf("Direct path failed, trying: %s", altPath)
 				if altContent, altErr := downloadFileFromGitHubForHost(owner, repo, altPath, ref, spec.Host); altErr == nil {
+					remoteWorkflowLog.Printf("Downloaded workflow via alt path: %s (%d bytes)", altPath, len(altContent))
 					return &FetchedWorkflow{
 						Content:    altContent,
 						CommitSHA:  commitSHA,
@@ -136,6 +141,8 @@ func fetchRemoteWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bool) 
 		}
 		return nil, fmt.Errorf("failed to download workflow from %s/%s/%s@%s: %w", owner, repo, spec.WorkflowPath, ref, err)
 	}
+
+	remoteWorkflowLog.Printf("Downloaded workflow: path=%s bytes=%d", spec.WorkflowPath, len(content))
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded workflow (%d bytes)", len(content))))
@@ -257,6 +264,7 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 	}
 
 	ct := resource.ContentType
+	remoteWorkflowLog.Printf("Fetched URL resource: content_type=%q bytes=%d", ct, len(resource.Body))
 
 	switch {
 	case ct == "text/markdown" || ct == "text/x-markdown":
@@ -277,9 +285,7 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloaded JSON workflow (%d bytes); converting to markdown...", len(resource.Body))))
 		}
 
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("JSON payload:\n"+string(resource.Body)))
-		}
+		remoteWorkflowLog.Printf("JSON payload:\n%s", string(resource.Body))
 
 		var wf JSONWorkflow
 		if err := json.Unmarshal(resource.Body, &wf); err != nil {
@@ -291,6 +297,9 @@ func fetchGenericURLWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bo
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert JSON workflow: %w", err)
 		}
+
+		remoteWorkflowLog.Printf("Converted JSON to markdown: filename=%s bytes=%d warnings=%d",
+			generated.Filename, len(generated.Markdown), len(generated.Warnings))
 
 		if verbose {
 			for _, w := range generated.Warnings {
