@@ -62,6 +62,18 @@ pull-requests: read`,
 			yaml:    `all: read`,
 			wantErr: false,
 		},
+		{
+			name:        "case-only typo Contents suggests contents",
+			yaml:        `Contents: read`,
+			wantErr:     true,
+			errContains: "contents",
+		},
+		{
+			name:        "case-only typo Issues suggests issues",
+			yaml:        `Issues: write`,
+			wantErr:     true,
+			errContains: "issues",
+		},
 	}
 
 	for _, tt := range tests {

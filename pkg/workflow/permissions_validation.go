@@ -450,7 +450,21 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 			continue
 		}
 
-		// Unknown scope key — check for a close match
+		// Unknown scope key — check for a case-only difference first (e.g. "Contents" → "contents")
+		lowerScopeKey := strings.ToLower(scopeKey)
+		if lowerScopeKey != scopeKey {
+			if _, ok := validPermissionScopes[lowerScopeKey]; ok {
+				return fmt.Errorf(
+					"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
+					scopeKey,
+					lowerScopeKey,
+					strings.Join(allScopes[:min(10, len(allScopes))], ", ")+"...",
+					constants.DocsPermissionsURL,
+				)
+			}
+		}
+
+		// Check for a close fuzzy match
 		permissionsValidationLog.Printf("Unknown permission scope key: %q", scopeKey)
 		suggestions := stringutil.FindClosestMatches(scopeKey, allScopes, 3)
 		if len(suggestions) == 0 {

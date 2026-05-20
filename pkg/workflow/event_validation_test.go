@@ -78,6 +78,42 @@ func TestValidateEventTypes(t *testing.T) {
 			wantErr:     true,
 			errContains: "push",
 		},
+		{
+			name: "gh-aw synthetic key pull_request_reviewer is silently skipped",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_reviewer": nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "gh-aw synthetic key needs is silently skipped",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"needs": nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "case-only typo Push suggests push",
+			frontmatter: map[string]any{
+				"on": []any{"Push"},
+			},
+			wantErr:     true,
+			errContains: "push",
+		},
+		{
+			name: "case-only typo Pull_Request suggests pull_request",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"Pull_Request": nil,
+				},
+			},
+			wantErr:     true,
+			errContains: "pull_request",
+		},
 	}
 
 	for _, tt := range tests {

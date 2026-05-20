@@ -87,6 +87,8 @@ var ghAwOnSectionKeys = map[string]bool{
 	"github-token":                       true,
 	"label_command":                      true,
 	"labels":                             true,
+	"needs":                              true,
+	"pull_request_reviewer":              true,
 	"reaction":                           true,
 	"roles":                              true,
 	"skip-author-associations":           true,
@@ -144,6 +146,17 @@ func ValidateEventTypes(frontmatter map[string]any) error {
 		}
 
 		eventValidationLog.Printf("Unknown event type: %q", eventName)
+
+		// Check for a case-only difference first (e.g. "Push" → "push")
+		lowerEventName := strings.ToLower(eventName)
+		if lowerEventName != eventName && isKnownGitHubEvent(lowerEventName) {
+			return fmt.Errorf(
+				"unknown event type %q in 'on:' section.\n\nDid you mean: %s?\n\nValid event types include: %s\n\nSee: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows",
+				eventName,
+				lowerEventName,
+				strings.Join(validGitHubEventTypes[:10], ", ")+"...",
+			)
+		}
 
 		// Only flag as a typo when there is a close match
 		suggestions := stringutil.FindClosestMatches(eventName, validGitHubEventTypes, 3)
