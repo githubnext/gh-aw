@@ -563,7 +563,7 @@ func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) st
 
 	parts := []string{imageTag}
 	for _, spec := range specs {
-		digest := resolveContainerDigest(spec.image, workflowData)
+		digest := lookupContainerDigest(spec.image, workflowData)
 		if digest == "" {
 			continue
 		}
@@ -576,9 +576,9 @@ func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) st
 	return strings.Join(parts, ",")
 }
 
-// resolveContainerDigest resolves a container image digest from cache first, then
+// lookupContainerDigest resolves a container image digest from cache first, then
 // falls back to embedded container pins.
-func resolveContainerDigest(image string, workflowData *WorkflowData) string {
+func lookupContainerDigest(image string, workflowData *WorkflowData) string {
 	var cache *ActionCache
 	if workflowData != nil {
 		cache = workflowData.ActionCache

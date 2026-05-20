@@ -12,6 +12,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the err-string-match analysis pass.
@@ -25,7 +27,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	noLintLinesByFile := buildNoLintLineIndex(pass)
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "errstringmatch")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -58,7 +60,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isStringLiteral(pass, outer.Args[1]) {
 			return
 		}
-		if hasNoLintDirective(position, noLintLinesByFile) {
+		if nolint.HasDirective(position, noLintLinesByFile) {
 			return
 		}
 
@@ -103,29 +105,7 @@ func isErrDotError(pass *analysis.Pass, expr ast.Expr) bool {
 	if t == nil {
 		return false
 	}
-	return implementsError(pass, t)
-}
-
-// implementsError reports whether t implements the built-in error interface.
-func implementsError(pass *analysis.Pass, t types.Type) bool {
-	errIface := pass.Pkg.Scope().Lookup("error")
-	if errIface == nil {
-		// Look up the universe scope.
-		obj := types.Universe.Lookup("error")
-		if obj == nil {
-			return false
-		}
-		iface, ok := obj.Type().Underlying().(*types.Interface)
-		if !ok {
-			return false
-		}
-		return types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface)
-	}
-	iface, ok := errIface.Type().Underlying().(*types.Interface)
-	if !ok {
-		return false
-	}
-	return types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface)
+	return nolint.ImplementsError(t)
 }
 
 // isStringLiteral returns true when expr is a string literal or untyped string constant.
@@ -141,43 +121,4 @@ func isStringLiteral(pass *analysis.Pass, expr ast.Expr) bool {
 	}
 	basic, ok := t.Underlying().(*types.Basic)
 	return ok && basic.Kind() == types.String
-}
-
-func hasNoLintDirective(position token.Position, noLintLinesByFile map[string]map[int]struct{}) bool {
-	if position.Filename == "" {
-		return false
-	}
-
-	noLintLines := noLintLinesByFile[position.Filename]
-	if noLintLines == nil {
-		return false
-	}
-
-	_, sameLine := noLintLines[position.Line]
-	_, previousLine := noLintLines[position.Line-1]
-	return sameLine || previousLine
-}
-
-func buildNoLintLineIndex(pass *analysis.Pass) map[string]map[int]struct{} {
-	noLintLinesByFile := make(map[string]map[int]struct{}, len(pass.Files))
-	for _, file := range pass.Files {
-		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
-		if filename == "" {
-			continue
-		}
-		for _, group := range file.Comments {
-			for _, comment := range group.List {
-				text := strings.TrimPrefix(comment.Text, "//")
-				if !strings.HasPrefix(text, "nolint:errstringmatch") && !strings.HasPrefix(text, "nolint:all") {
-					continue
-				}
-				line := pass.Fset.PositionFor(comment.Slash, false).Line
-				if noLintLinesByFile[filename] == nil {
-					noLintLinesByFile[filename] = make(map[int]struct{})
-				}
-				noLintLinesByFile[filename][line] = struct{}{}
-			}
-		}
-	}
-	return noLintLinesByFile
 }
