@@ -213,16 +213,14 @@ func TestConvertJSONWorkflowToMarkdown_IntervalTrigger(t *testing.T) {
 	assert.NotContains(t, gen.Markdown, "# triggers:", "triggers must NOT appear as comment")
 
 	// Warnings only for genuinely unknown fields (ignored metadata is dropped).
-	for _, field := range []string{"created_at"} {
-		found := false
-		for _, w := range gen.Warnings {
-			if strings.Contains(w, field) {
-				found = true
-				break
-			}
+	foundCreatedAt := false
+	for _, w := range gen.Warnings {
+		if strings.Contains(w, "created_at") {
+			foundCreatedAt = true
+			break
 		}
-		assert.True(t, found, "expected warning for field %q", field)
 	}
+	assert.True(t, foundCreatedAt, "expected warning for field %q", "created_at")
 	for _, field := range []string{"prompt", "triggers", "updated_at", "created_by", "disabled_state"} {
 		for _, w := range gen.Warnings {
 			assert.NotContains(t, w, field, "unexpected warning mentioning %q: %s", field, w)
@@ -295,16 +293,14 @@ func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
 
 	// created_at remains unsupported; ignored metadata fields are dropped.
 	assert.Contains(t, gen.Markdown, "# Unsupported fields preserved from source JSON:", "extra comment header")
-	for _, field := range []string{"created_at"} {
-		found := false
-		for _, w := range gen.Warnings {
-			if strings.Contains(w, field) {
-				found = true
-				break
-			}
+	foundCreatedAt := false
+	for _, w := range gen.Warnings {
+		if strings.Contains(w, "created_at") {
+			foundCreatedAt = true
+			break
 		}
-		assert.True(t, found, "expected warning for extra field %q", field)
 	}
+	assert.True(t, foundCreatedAt, "expected warning for extra field %q", "created_at")
 	for _, field := range []string{"disabled", "disabled_state", "updated_at", "created_by"} {
 		for _, w := range gen.Warnings {
 			assert.NotContains(t, w, field, "unexpected warning mentioning %q: %s", field, w)
