@@ -5,6 +5,7 @@ import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { main } = require("./create_issue.cjs");
+const MOCK_ASYNC_DELAY_MS = 15;
 
 const mockCore = {
   debug: vi.fn(),
@@ -223,12 +224,12 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
     let parentCreateCount = 0;
 
     mockGithub.rest.search.issuesAndPullRequests.mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise(resolve => setTimeout(resolve, MOCK_ASYNC_DELAY_MS));
       return { data: { total_count: 0, items: [] } };
     });
 
     mockGithub.rest.issues.create.mockImplementation(async ({ title }) => {
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise(resolve => setTimeout(resolve, MOCK_ASYNC_DELAY_MS));
 
       if (String(title).includes("Issue Group")) {
         parentCreateCount += 1;
