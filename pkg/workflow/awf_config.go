@@ -178,10 +178,15 @@ type AWFAPIProxyConfig struct {
 }
 
 // AWFAPITargetConfig is a single API proxy target entry.
-// Maps to: --<provider>-api-target <host>
+// Maps to: --<provider>-api-target <host> and --<provider>-api-base-path <path>
 type AWFAPITargetConfig struct {
 	// Host is the hostname (and optional port) of the API endpoint.
 	Host string `json:"host"`
+
+	// BasePath is the URL path prefix to prepend to all API requests (e.g. "/serving-endpoints").
+	// Required for endpoints that include a path component (e.g. Databricks, Azure OpenAI deployments).
+	// Not supported for the copilot provider.
+	BasePath string `json:"basePath,omitempty"`
 }
 
 // AWFContainerConfig is the "container" section of the AWF config file.
@@ -289,20 +294,29 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	targets := map[string]*AWFAPITargetConfig{}
 
 	if openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL"); openaiTarget != "" {
-		targets["openai"] = &AWFAPITargetConfig{Host: openaiTarget}
-		awfConfigLog.Printf("API proxy: custom openai target=%s", openaiTarget)
+		targets["openai"] = &AWFAPITargetConfig{
+			Host:     openaiTarget,
+			BasePath: extractAPIBasePath(config.WorkflowData, "OPENAI_BASE_URL"),
+		}
+		awfConfigLog.Printf("API proxy: custom openai target=%s basePath=%s", openaiTarget, targets["openai"].BasePath)
 	}
 	if anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL"); anthropicTarget != "" {
-		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
-		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
+		targets["anthropic"] = &AWFAPITargetConfig{
+			Host:     anthropicTarget,
+			BasePath: extractAPIBasePath(config.WorkflowData, "ANTHROPIC_BASE_URL"),
+		}
+		awfConfigLog.Printf("API proxy: custom anthropic target=%s basePath=%s", anthropicTarget, targets["anthropic"].BasePath)
 	}
 	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
 	if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
-		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
-		awfConfigLog.Printf("API proxy: custom gemini target=%s", geminiTarget)
+		targets["gemini"] = &AWFAPITargetConfig{
+			Host:     geminiTarget,
+			BasePath: extractAPIBasePath(config.WorkflowData, "GEMINI_API_BASE_URL"),
+		}
+		awfConfigLog.Printf("API proxy: custom gemini target=%s basePath=%s", geminiTarget, targets["gemini"].BasePath)
 	}
 
 	if len(targets) > 0 {

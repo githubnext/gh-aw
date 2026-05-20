@@ -358,9 +358,12 @@ fi`,
 //   - --enable-api-proxy                  → apiProxy.enabled
 //   - --image-tag                         → container.imageTag
 //   - --openai-api-target                 → apiProxy.targets.openai.host
+//   - --openai-api-base-path              → apiProxy.targets.openai.basePath
 //   - --anthropic-api-target              → apiProxy.targets.anthropic.host
+//   - --anthropic-api-base-path           → apiProxy.targets.anthropic.basePath
 //   - --copilot-api-target                → apiProxy.targets.copilot.host
 //   - --gemini-api-target                 → apiProxy.targets.gemini.host
+//   - --gemini-api-base-path              → apiProxy.targets.gemini.basePath
 //
 // Parameters:
 //   - config: AWF command configuration
@@ -469,28 +472,6 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		} else {
 			awfHelpersLog.Printf("Skipping CLI proxy flags: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
 		}
-	}
-
-	// Pass base path if URL contains a path component
-	// This is required for endpoints with path prefixes (e.g., Databricks /serving-endpoints,
-	// Azure OpenAI /openai/deployments/<name>, corporate LLM routers with path-based routing)
-	// Base paths remain as CLI flags — they are not yet represented in the config file schema.
-	openaiBasePath := extractAPIBasePath(config.WorkflowData, "OPENAI_BASE_URL")
-	if openaiBasePath != "" {
-		awfArgs = append(awfArgs, "--openai-api-base-path", openaiBasePath)
-		awfHelpersLog.Printf("Added --openai-api-base-path=%s", openaiBasePath)
-	}
-
-	anthropicBasePath := extractAPIBasePath(config.WorkflowData, "ANTHROPIC_BASE_URL")
-	if anthropicBasePath != "" {
-		awfArgs = append(awfArgs, "--anthropic-api-base-path", anthropicBasePath)
-		awfHelpersLog.Printf("Added --anthropic-api-base-path=%s", anthropicBasePath)
-	}
-
-	geminiBasePath := extractAPIBasePath(config.WorkflowData, "GEMINI_API_BASE_URL")
-	if geminiBasePath != "" {
-		awfArgs = append(awfArgs, "--gemini-api-base-path", geminiBasePath)
-		awfHelpersLog.Printf("Added --gemini-api-base-path=%s", geminiBasePath)
 	}
 
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)

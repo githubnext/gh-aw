@@ -328,12 +328,11 @@ func TestExtractAPIBasePath(t *testing.T) {
 	})
 }
 
-// TestAWFBasePathFlags tests that BuildAWFArgs includes --openai-api-base-path and
-// --anthropic-api-base-path when the configured URLs contain a path component.
-// Note: API targets (hosts) move to the JSON config file, while base paths remain
-// as CLI flags — they are not yet represented in the AWF config file schema.
-func TestAWFBasePathFlags(t *testing.T) {
-	t.Run("includes openai-api-base-path when OPENAI_BASE_URL has path component", func(t *testing.T) {
+// TestAWFBasePathConfig tests that BuildAWFConfigJSON includes basePath in the JSON config
+// when the configured URLs contain a path component.
+// Per the AWF config schema, base paths are expressed as apiProxy.targets.<provider>.basePath.
+func TestAWFBasePathConfig(t *testing.T) {
+	t.Run("includes openai basePath in JSON config when OPENAI_BASE_URL has path component", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -354,21 +353,21 @@ func TestAWFBasePathFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		// Base path is now in the JSON config, not a CLI flag
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
+		assert.NotContains(t, argsStr, "--openai-api-base-path", "basePath should be in JSON config, not CLI args")
 
-		// Base path is still a CLI flag (not in config file schema yet)
-		assert.Contains(t, argsStr, "--openai-api-base-path", "Should include --openai-api-base-path flag")
-		assert.Contains(t, argsStr, "/serving-endpoints", "Should include the path component")
-
-		// API target (host) is now in the config JSON
-		assert.NotContains(t, argsStr, "--openai-api-target", "API target should be in config JSON, not CLI args")
 		awfConfigJSON, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
 		assert.Contains(t, awfConfigJSON, "stone-dataplatform.cloud.databricks.com", "Target host should be in config JSON")
+		assert.Contains(t, awfConfigJSON, "/serving-endpoints", "Base path should be in config JSON")
+
+		// API target (host) is also in the config JSON
+		assert.NotContains(t, argsStr, "--openai-api-target", "API target should be in config JSON, not CLI args")
 	})
 
-	t.Run("includes anthropic-api-base-path when ANTHROPIC_BASE_URL has path component", func(t *testing.T) {
+	t.Run("includes anthropic basePath in JSON config when ANTHROPIC_BASE_URL has path component", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -389,21 +388,21 @@ func TestAWFBasePathFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		// Base path is now in the JSON config, not a CLI flag
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
+		assert.NotContains(t, argsStr, "--anthropic-api-base-path", "basePath should be in JSON config, not CLI args")
 
-		// Base path is still a CLI flag
-		assert.Contains(t, argsStr, "--anthropic-api-base-path", "Should include --anthropic-api-base-path flag")
-		assert.Contains(t, argsStr, "/anthropic/v1", "Should include the path component")
-
-		// API target (host) is now in the config JSON
-		assert.NotContains(t, argsStr, "--anthropic-api-target", "API target should be in config JSON, not CLI args")
 		awfConfigJSON, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
 		assert.Contains(t, awfConfigJSON, "proxy.company.com", "Target host should be in config JSON")
+		assert.Contains(t, awfConfigJSON, "/anthropic/v1", "Base path should be in config JSON")
+
+		// API target (host) is also in the config JSON
+		assert.NotContains(t, argsStr, "--anthropic-api-target", "API target should be in config JSON, not CLI args")
 	})
 
-	t.Run("does not include base-path flags when URLs have no path", func(t *testing.T) {
+	t.Run("does not include basePath in JSON config when URLs have no path", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -426,9 +425,12 @@ func TestAWFBasePathFlags(t *testing.T) {
 
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-
 		assert.NotContains(t, argsStr, "--openai-api-base-path", "Should not include --openai-api-base-path when no path in URL")
 		assert.NotContains(t, argsStr, "--anthropic-api-base-path", "Should not include --anthropic-api-base-path when no path in URL")
+
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.NotContains(t, awfConfigJSON, "basePath", "Should not include basePath in JSON config when URLs have no path")
 	})
 }
 
@@ -1472,7 +1474,7 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not include --gemini-api-target for non-gemini engine")
 	})
 
-	t.Run("includes gemini-api-base-path when custom URL has path component", func(t *testing.T) {
+	t.Run("includes gemini basePath in JSON config when custom URL has path component", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -1495,12 +1497,14 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
+		// Base path is now in the JSON config, not a CLI flag
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
+		assert.NotContains(t, argsStr, "--gemini-api-base-path", "basePath should be in JSON config, not CLI args")
 
-		// Base path remains as a CLI flag (not in config file schema yet)
-		assert.Contains(t, argsStr, "--gemini-api-base-path", "Should include --gemini-api-base-path flag")
-		assert.Contains(t, argsStr, "/serving-endpoints", "Should include the path component")
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, "/serving-endpoints", "Base path should be in config JSON")
 	})
 }
 
