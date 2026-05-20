@@ -162,7 +162,7 @@ func TestBuildReactionConditionForTargetsExcludesPullRequests(t *testing.T) {
 	}
 }
 
-func TestBuildReactionConditionForTargetsExcludesPullRequestReview(t *testing.T) {
+func TestBuildReactionConditionExcludesPullRequestReview(t *testing.T) {
 	result := BuildReactionConditionForTargets(true, true, true, false)
 	rendered := result.Render()
 
@@ -171,7 +171,7 @@ func TestBuildReactionConditionForTargetsExcludesPullRequestReview(t *testing.T)
 	}
 }
 
-func TestBuildStatusCommentConditionExcludesPullRequestReviewWhenPullRequestsDisabled(t *testing.T) {
+func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
 	result := BuildStatusCommentCondition(true, true, true, false)
 	rendered := result.Render()
 
@@ -180,7 +180,7 @@ func TestBuildStatusCommentConditionExcludesPullRequestReviewWhenPullRequestsDis
 	}
 }
 
-func TestBuildStatusCommentConditionExcludesPullRequestReview(t *testing.T) {
+func TestBuildStatusCommentConditionExcludesPullRequestReviewWhenPullRequestsDisabled(t *testing.T) {
 	result := BuildStatusCommentCondition(true, false, true, false)
 	rendered := result.Render()
 

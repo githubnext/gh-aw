@@ -112,7 +112,7 @@ func buildReactionLikeCondition(includeIssues bool, includePullRequests bool, in
 	}
 
 	// For pull_request events, we need to ensure it's not from a forked repository since
-	// forked repositories have read-only permissions and cannot add reactions/comments.
+	// forked repositories have read-only permissions and cannot add reactions.
 	if includePullRequests {
 		pullRequestCondition := &AndNode{
 			Left:  BuildEventTypeEquals("pull_request"),
