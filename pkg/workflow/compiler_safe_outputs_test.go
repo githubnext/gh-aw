@@ -189,6 +189,28 @@ func TestParseOnSection(t *testing.T) {
 			checkCommandEvents:          true,
 		},
 		{
+			name: "pull_request_reviewer preserves reviewer lifecycle when on has other events",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_reviewer": nil,
+					"workflow_dispatch":     map[string]any{},
+				},
+			},
+			workflowData:                &WorkflowData{},
+			markdownPath:                "/path/to/reviewer.md",
+			expectedError:               false,
+			expectedReaction:            "eyes",
+			expectedCentralized:         true,
+			expectedPullRequestReviewer: true,
+			checkCommandEvents:          true,
+			expectedOtherEvents: map[string]any{
+				"pull_request": map[string]any{
+					"types": []string{"ready_for_review", "review_requested"},
+				},
+				"workflow_dispatch": map[string]any{},
+			},
+		},
+		{
 			name: "slash_command conflicts with issues",
 			frontmatter: map[string]any{
 				"on": map[string]any{
@@ -346,8 +368,7 @@ func TestParseOnSection(t *testing.T) {
 				if tt.checkCommandEvents {
 					assert.NotNil(t, tt.workflowData.CommandOtherEvents, "CommandOtherEvents should be set")
 					if tt.expectedOtherEvents != nil {
-						// Basic check that other events were extracted
-						assert.NotEmpty(t, tt.workflowData.CommandOtherEvents, "CommandOtherEvents should not be empty")
+						assert.Equal(t, tt.expectedOtherEvents, tt.workflowData.CommandOtherEvents, "CommandOtherEvents mismatch")
 					}
 				}
 			}

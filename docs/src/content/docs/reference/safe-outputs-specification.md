@@ -1696,8 +1696,7 @@ on:
 - **PRR3**: Built-in slash command behavior for `on.pull_request_reviewer` MUST always be enabled and MUST NOT be replaced by a separate `on.slash_command` trigger definition. If both fields are present, reviewer-trigger command name and reviewer-trigger event set MUST take precedence.
 - **PRR4**: Implementations MUST subscribe reviewer lifecycle routing to:
   - `pull_request` actions `ready_for_review` and `review_requested`
-  - `pull_request_review` action `submitted` only
-- **PRR5**: Implementations MUST ignore `pull_request_review` actions other than `submitted` (including `edited` and `dismissed`) for reviewer lifecycle routing.
+- **PRR5**: Implementations MUST ignore `pull_request` actions outside reviewer lifecycle routing (for example `opened`, `edited`, `synchronize`, and `closed`).
 - **PRR6**: When multiple `pull_request_reviewer` workflows are configured, slash command names MUST be unique case-insensitively.
 - **PRR7**: Duplicate reviewer slash command names MUST fail compilation with an explicit validation error.
 
