@@ -85,7 +85,8 @@ function isAllowedBranch(branch, allowedPatterns) {
     if (branch === pattern) {
       return true;
     }
-    if (pattern === "*") {  // Add this fast-path
+    if (pattern === "*") {
+      // Add this fast-path
       return true;
     }
     if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(branch)) {
