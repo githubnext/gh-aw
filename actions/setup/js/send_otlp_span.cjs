@@ -1173,7 +1173,7 @@ async function sendJobSetupSpan(options = {}) {
     startMs,
     endMs,
     serviceName,
-    scopeVersion: process.env.GH_AW_INFO_VERSION || process.env.GH_AW_INFO_CLI_VERSION || "unknown",
+    scopeVersion: process.env.GH_AW_INFO_VERSION || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown",
     attributes,
     resourceAttributes,
   });
@@ -1627,7 +1627,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const effectiveTokens = rawET ? parseInt(rawET, 10) : NaN;
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
-  const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || awInfo.cli_version || process.env.GH_AW_INFO_CLI_VERSION || "unknown";
+  const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || awInfo.cli_version || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown";
 
   // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
   // all spans in the same job share one trace.  Fall back to aw_context.otel_trace_id
@@ -1791,11 +1791,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     if (workflowName) attributes.push(buildAttr("gen_ai.workflow.name", workflowName));
     if (runtimeMetrics.resolvedModel) attributes.push(buildAttr("gen_ai.response.model", runtimeMetrics.resolvedModel));
     // Use the engine-reported stop_reason when available; fall back to "timeout" when
-    // the agent was killed before it could write a result entry to agent-stdio.log.
-    const effectiveStopReason = runtimeMetrics.stopReason || (isAgentTimedOut ? "timeout" : undefined);
-    if (effectiveStopReason) {
-      attributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [effectiveStopReason]));
-    }
+    // the agent was killed before it could write a result entry to agent-stdio.log;
+    // use "unknown" as a sentinel for engines (e.g. copilot, codex) that do not emit
+    // a result entry at all, so that gen_ai.response.finish_reasons is always present
+    // and length-truncation is always queryable in Sentry/dashboards.
+    const effectiveStopReason = runtimeMetrics.stopReason || (isAgentTimedOut ? "timeout" : "unknown");
+    attributes.push(buildArrayAttr("gen_ai.response.finish_reasons", [effectiveStopReason]));
   }
 
   if (agentConclusion) {
