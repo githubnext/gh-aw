@@ -111,13 +111,31 @@ func FetchDefaultBranch(slug string) string {
 	return branch
 }
 
+// GenerateMaintenanceWorkflowOptions configures a maintenance workflow generation run.
+type GenerateMaintenanceWorkflowOptions struct {
+	WorkflowDataList []*WorkflowData
+	WorkflowDir      string
+	Version          string
+	ActionMode       ActionMode
+	ActionTag        string
+	RepoConfig       *RepoConfig
+	RepoSlug         string
+}
+
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
 // if any workflows use the expires field for discussions or issues.
-// When repoConfig is non-nil and repoConfig.MaintenanceDisabled is true the
+// When opts.RepoConfig is non-nil and opts.RepoConfig.MaintenanceDisabled is true the
 // maintenance workflow is deleted and the function returns immediately.
-// repoSlug is the owner/repo slug used to determine the default branch for the push
+// opts.RepoSlug is the owner/repo slug used to determine the default branch for the push
 // trigger; pass an empty string to fall back to "main".
-func GenerateMaintenanceWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool, repoConfig *RepoConfig, repoSlug string) error {
+func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWorkflowOptions) error {
+	workflowDataList := opts.WorkflowDataList
+	workflowDir := opts.WorkflowDir
+	version := opts.Version
+	actionMode := opts.ActionMode
+	actionTag := opts.ActionTag
+	repoConfig := opts.RepoConfig
+	repoSlug := opts.RepoSlug
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
 	// Respect explicit opt-out from aw.json: maintenance: false
@@ -166,7 +184,17 @@ func GenerateMaintenanceWorkflow(ctx context.Context, workflowDataList []*Workfl
 
 		// Even without expires, side-repo targets still need maintenance workflows
 		// for safe_outputs, create_labels, and validate operations.
-		return generateAllSideRepoMaintenanceWorkflows(ctx, workflowDataList, workflowDir, version, actionMode, actionTag, runsOnValue, resolver, false, 0)
+		return generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOptions{
+			workflowDataList: workflowDataList,
+			workflowDir:      workflowDir,
+			version:          version,
+			actionMode:       actionMode,
+			actionTag:        actionTag,
+			runsOnValue:      runsOnValue,
+			resolver:         resolver,
+			hasExpires:       false,
+			minExpiresDays:   0,
+		})
 	}
 
 	maintenanceLog.Printf("Generating maintenance workflow for expired discussions, issues, and pull requests (minimum expires: %d hours)", minExpires)
@@ -186,7 +214,19 @@ func GenerateMaintenanceWorkflow(ctx context.Context, workflowDataList []*Workfl
 	defaultBranch := FetchDefaultBranch(repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
-	content := buildMaintenanceWorkflowYAML(ctx, cronSchedule, scheduleDesc, minExpiresDays, runsOnValue, actionMode, version, actionTag, resolver, configuredRunsOn, defaultBranch, disableLabelTrigger)
+	content := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOptions{
+		cronSchedule:        cronSchedule,
+		scheduleDesc:        scheduleDesc,
+		minExpiresDays:      minExpiresDays,
+		runsOnValue:         runsOnValue,
+		actionMode:          actionMode,
+		version:             version,
+		actionTag:           actionTag,
+		resolver:            resolver,
+		configuredRunsOn:    configuredRunsOn,
+		defaultBranch:       defaultBranch,
+		disableLabelTrigger: disableLabelTrigger,
+	})
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
@@ -199,7 +239,17 @@ func GenerateMaintenanceWorkflow(ctx context.Context, workflowDataList []*Workfl
 	maintenanceLog.Print("Maintenance workflow generated successfully")
 
 	// Generate side-repo maintenance workflows for any SideRepoOps targets detected.
-	if err := generateAllSideRepoMaintenanceWorkflows(ctx, workflowDataList, workflowDir, version, actionMode, actionTag, runsOnValue, resolver, hasExpires, minExpiresDays); err != nil {
+	if err := generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOptions{
+		workflowDataList: workflowDataList,
+		workflowDir:      workflowDir,
+		version:          version,
+		actionMode:       actionMode,
+		actionTag:        actionTag,
+		runsOnValue:      runsOnValue,
+		resolver:         resolver,
+		hasExpires:       hasExpires,
+		minExpiresDays:   minExpiresDays,
+	}); err != nil {
 		return err
 	}
 

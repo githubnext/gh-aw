@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"go.yaml.in/yaml/v3"
@@ -267,7 +268,7 @@ func extractSHAFromPinnedRef(pinned string) string {
 		afterAt = strings.TrimSpace(afterAt[:commentIdx])
 	}
 	// Validate it looks like a full SHA (40 hex chars)
-	if isValidFullSHA(afterAt) {
+	if gitutil.IsValidFullSHA(afterAt) {
 		return afterAt
 	}
 	return ""

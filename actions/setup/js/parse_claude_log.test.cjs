@@ -617,5 +617,28 @@ describe("parse_claude_log.cjs", () => {
       // Should properly render the tool in initialization section
       expect(result.markdown).toContain("serena::ToolsSearch");
     });
+
+    it("should render native thinking blocks with open circle icon and italic styling", () => {
+      const logWithThinking = JSON.stringify([
+        { type: "system", subtype: "init", session_id: "thinking-test", tools: ["Bash"], model: "claude-sonnet-4-20250514" },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "thinking", thinking: "Let me reason through this problem step by step." },
+              { type: "text", text: "Here is my response." },
+            ],
+          },
+        },
+        { type: "result", num_turns: 1, usage: { input_tokens: 50, output_tokens: 20 } },
+      ]);
+      const result = parseClaudeLog(logWithThinking);
+
+      // Reasoning text should appear with open circle icon and italic markup
+      expect(result.markdown).toContain("◐");
+      expect(result.markdown).toContain("Let me reason through this problem step by step.");
+      // Regular text should appear without open circle
+      expect(result.markdown).toContain("Here is my response.");
+    });
   });
 });

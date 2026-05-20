@@ -88,20 +88,34 @@ func effectiveSideRepoToken(checkout SideRepoTarget) string {
 	return "${{ secrets.GH_AW_GITHUB_TOKEN }}"
 }
 
+// generateAllSideRepoMaintenanceWorkflowsOptions configures side-repo maintenance workflow generation.
+type generateAllSideRepoMaintenanceWorkflowsOptions struct {
+	workflowDataList []*WorkflowData
+	workflowDir      string
+	version          string
+	actionMode       ActionMode
+	actionTag        string
+	runsOnValue      string
+	resolver         SHAResolver
+	hasExpires       bool
+	minExpiresDays   int
+}
+
 // generateAllSideRepoMaintenanceWorkflows detects SideRepoOps targets and
 // generates a per-target maintenance workflow for each unique static repository.
 func generateAllSideRepoMaintenanceWorkflows(
 	ctx context.Context,
-	workflowDataList []*WorkflowData,
-	workflowDir string,
-	version string,
-	actionMode ActionMode,
-	actionTag string,
-	runsOnValue string,
-	resolver SHAResolver,
-	hasExpires bool,
-	minExpiresDays int,
+	opts generateAllSideRepoMaintenanceWorkflowsOptions,
 ) error {
+	workflowDataList := opts.workflowDataList
+	workflowDir := opts.workflowDir
+	version := opts.version
+	actionMode := opts.actionMode
+	actionTag := opts.actionTag
+	runsOnValue := opts.runsOnValue
+	resolver := opts.resolver
+	hasExpires := opts.hasExpires
+	minExpiresDays := opts.minExpiresDays
 	targets := collectSideRepoTargets(workflowDataList)
 	maintenanceLog.Printf("Generating maintenance workflows for %d side-repo target(s): hasExpires=%t, minExpiresDays=%d", len(targets), hasExpires, minExpiresDays)
 
@@ -116,7 +130,17 @@ func generateAllSideRepoMaintenanceWorkflows(
 		outPath := filepath.Join(workflowDir, filename)
 
 		maintenanceLog.Printf("Generating side-repo maintenance workflow: %s → %s", target.Repository, filename)
-		if err := generateSideRepoMaintenanceWorkflow(ctx, target, outPath, version, actionMode, actionTag, runsOnValue, resolver, hasExpires, minExpiresDays); err != nil {
+		if err := generateSideRepoMaintenanceWorkflow(ctx, generateSideRepoMaintenanceWorkflowOptions{
+			target:         target,
+			outPath:        outPath,
+			version:        version,
+			actionMode:     actionMode,
+			actionTag:      actionTag,
+			runsOnValue:    runsOnValue,
+			resolver:       resolver,
+			hasExpires:     hasExpires,
+			minExpiresDays: minExpiresDays,
+		}); err != nil {
 			return fmt.Errorf("failed to generate side-repo maintenance workflow for %s: %w", target.Repository, err)
 		}
 		fmt.Fprintf(os.Stderr, "  Generated side-repo maintenance workflow: %s\n", filename)
@@ -149,6 +173,20 @@ func generateAllSideRepoMaintenanceWorkflows(
 	return nil
 }
 
+// generateSideRepoMaintenanceWorkflowOptions configures generation of a single side-repo
+// maintenance workflow.
+type generateSideRepoMaintenanceWorkflowOptions struct {
+	target         SideRepoTarget
+	outPath        string
+	version        string
+	actionMode     ActionMode
+	actionTag      string
+	runsOnValue    string
+	resolver       SHAResolver
+	hasExpires     bool
+	minExpiresDays int
+}
+
 // generateSideRepoMaintenanceWorkflow generates a workflow_call-based maintenance
 // workflow that targets an external repository detected via the SideRepoOps pattern.
 // The generated workflow mirrors agentics-maintenance.yml but authenticates against
@@ -156,16 +194,17 @@ func generateAllSideRepoMaintenanceWorkflows(
 // GH_AW_TARGET_REPO_SLUG for all cross-repo operations.
 func generateSideRepoMaintenanceWorkflow(
 	ctx context.Context,
-	target SideRepoTarget,
-	outPath string,
-	version string,
-	actionMode ActionMode,
-	actionTag string,
-	runsOnValue string,
-	resolver SHAResolver,
-	hasExpires bool,
-	minExpiresDays int,
+	opts generateSideRepoMaintenanceWorkflowOptions,
 ) error {
+	target := opts.target
+	outPath := opts.outPath
+	version := opts.version
+	actionMode := opts.actionMode
+	actionTag := opts.actionTag
+	runsOnValue := opts.runsOnValue
+	resolver := opts.resolver
+	hasExpires := opts.hasExpires
+	minExpiresDays := opts.minExpiresDays
 	token := effectiveSideRepoToken(target)
 	repoSlug := target.Repository
 	maintenanceLog.Printf("Building side-repo workflow content: repo=%s, actionMode=%s, hasExpires=%t", repoSlug, actionMode, hasExpires)

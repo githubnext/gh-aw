@@ -10,21 +10,39 @@ import (
 
 var maintenanceWorkflowYAMLLog = logger.New("workflow:maintenance_workflow_yaml")
 
+// buildMaintenanceWorkflowYAMLOptions configures the maintenance workflow YAML builder.
+type buildMaintenanceWorkflowYAMLOptions struct {
+	cronSchedule        string
+	scheduleDesc        string
+	minExpiresDays      int
+	runsOnValue         string
+	actionMode          ActionMode
+	version             string
+	actionTag           string
+	resolver            SHAResolver
+	configuredRunsOn    RunsOnValue
+	defaultBranch       string
+	disableLabelTrigger bool
+}
+
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
 // agentics-maintenance.yml workflow. It is called by GenerateMaintenanceWorkflow
 // after the cron schedule and setup parameters have been resolved.
 func buildMaintenanceWorkflowYAML(
 	ctx context.Context,
-	cronSchedule, scheduleDesc string,
-	minExpiresDays int,
-	runsOnValue string,
-	actionMode ActionMode,
-	version, actionTag string,
-	resolver SHAResolver,
-	configuredRunsOn RunsOnValue,
-	defaultBranch string,
-	disableLabelTrigger bool,
+	opts buildMaintenanceWorkflowYAMLOptions,
 ) string {
+	cronSchedule := opts.cronSchedule
+	scheduleDesc := opts.scheduleDesc
+	minExpiresDays := opts.minExpiresDays
+	runsOnValue := opts.runsOnValue
+	actionMode := opts.actionMode
+	version := opts.version
+	actionTag := opts.actionTag
+	resolver := opts.resolver
+	configuredRunsOn := opts.configuredRunsOn
+	defaultBranch := opts.defaultBranch
+	disableLabelTrigger := opts.disableLabelTrigger
 	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger)
 
 	var yaml strings.Builder

@@ -54,6 +54,13 @@ async function main() {
       return;
     }
 
+    if ((eventName === "pull_request" && ["ready_for_review", "review_requested"].includes(context.payload?.action ?? "")) || (eventName === "pull_request_review" && context.payload?.action === "submitted")) {
+      core.info(`Event ${eventName} with action '${context.payload?.action ?? ""}' does not require command position check`);
+      core.setOutput("command_position_ok", "true");
+      core.setOutput("matched_command", "");
+      return;
+    }
+
     if (eventName === "issues") {
       text = context.payload.issue?.body || "";
     } else if (eventName === "pull_request") {
@@ -62,6 +69,8 @@ async function main() {
       text = context.payload.comment?.body || "";
     } else if (eventName === "pull_request_review_comment") {
       text = context.payload.comment?.body || "";
+    } else if (eventName === "pull_request_review") {
+      text = context.payload.review?.body || "";
     } else if (eventName === "discussion") {
       text = context.payload.discussion?.body || "";
     } else if (eventName === "discussion_comment") {

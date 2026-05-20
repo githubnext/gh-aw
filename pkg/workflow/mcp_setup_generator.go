@@ -560,8 +560,29 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold := resolveMCPGatewayValues(workflowData, gatewayConfig)
 	githubTool, hasGitHub := tools["github"]
-	writeMCPGatewayExports(yaml, tools, engine, workflowData, gatewayConfig, hasGitHub, githubTool, port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold)
-	containerCmd := buildMCPGatewayContainerCommand(engine, workflowData, gatewayConfig, mcpEnvVars, payloadDir, payloadPathPrefix, hasGitHub, githubTool, tools)
+	writeMCPGatewayExports(yaml, writeMCPGatewayExportsOptions{
+		engine:               engine,
+		workflowData:         workflowData,
+		gatewayConfig:        gatewayConfig,
+		hasGitHub:            hasGitHub,
+		githubTool:           githubTool,
+		port:                 port,
+		domain:               domain,
+		payloadDir:           payloadDir,
+		payloadPathPrefix:    payloadPathPrefix,
+		payloadSizeThreshold: payloadSizeThreshold,
+	})
+	containerCmd := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
+		engine:            engine,
+		workflowData:      workflowData,
+		gatewayConfig:     gatewayConfig,
+		mcpEnvVars:        mcpEnvVars,
+		payloadDir:        payloadDir,
+		payloadPathPrefix: payloadPathPrefix,
+		hasGitHub:         hasGitHub,
+		githubTool:        githubTool,
+		tools:             tools,
+	})
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
 	// Resolve the Docker socket path from DOCKER_HOST (supports ARC/dind custom socket paths).
@@ -615,7 +636,31 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 	return port, domain, payloadDir, gatewayConfig.PayloadPathPrefix, payloadSizeThreshold
 }
 
-func writeMCPGatewayExports(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, hasGitHub bool, githubTool any, port int, domain string, payloadDir string, payloadPathPrefix string, payloadSizeThreshold int) {
+// writeMCPGatewayExportsOptions holds configuration for writeMCPGatewayExports.
+type writeMCPGatewayExportsOptions struct {
+	engine               CodingAgentEngine
+	workflowData         *WorkflowData
+	gatewayConfig        *MCPGatewayRuntimeConfig
+	hasGitHub            bool
+	githubTool           any
+	port                 int
+	domain               string
+	payloadDir           string
+	payloadPathPrefix    string
+	payloadSizeThreshold int
+}
+
+func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
+	engine := opts.engine
+	workflowData := opts.workflowData
+	gatewayConfig := opts.gatewayConfig
+	hasGitHub := opts.hasGitHub
+	githubTool := opts.githubTool
+	port := opts.port
+	domain := opts.domain
+	payloadDir := opts.payloadDir
+	payloadPathPrefix := opts.payloadPathPrefix
+	payloadSizeThreshold := opts.payloadSizeThreshold
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
@@ -665,7 +710,29 @@ func writeMCPGatewayExports(yaml *strings.Builder, tools map[string]any, engine 
 	}
 }
 
-func buildMCPGatewayContainerCommand(engine CodingAgentEngine, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, payloadDir string, payloadPathPrefix string, hasGitHub bool, githubTool any, tools map[string]any) string {
+// buildMCPGatewayContainerCommandOptions holds configuration for buildMCPGatewayContainerCommand.
+type buildMCPGatewayContainerCommandOptions struct {
+	engine            CodingAgentEngine
+	workflowData      *WorkflowData
+	gatewayConfig     *MCPGatewayRuntimeConfig
+	mcpEnvVars        map[string]string
+	payloadDir        string
+	payloadPathPrefix string
+	hasGitHub         bool
+	githubTool        any
+	tools             map[string]any
+}
+
+func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string {
+	engine := opts.engine
+	workflowData := opts.workflowData
+	gatewayConfig := opts.gatewayConfig
+	mcpEnvVars := opts.mcpEnvVars
+	payloadDir := opts.payloadDir
+	payloadPathPrefix := opts.payloadPathPrefix
+	hasGitHub := opts.hasGitHub
+	githubTool := opts.githubTool
+	tools := opts.tools
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
 		containerImage += ":" + gatewayConfig.Version

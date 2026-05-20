@@ -179,13 +179,14 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockGithub.rest.pulls.createReview).not.toHaveBeenCalled();
     });
 
-    it("should fail when no review context is set", async () => {
+    it("should skip when no review context is set", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
 
       const result = await buffer.submitReview();
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("No review context available");
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toContain("No review context available");
     });
 
     it("should fail when PR head SHA is missing", async () => {

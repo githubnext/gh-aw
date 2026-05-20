@@ -608,9 +608,7 @@ Some content here.`;
         const { main } = require("./parse_mcp_gateway_log.cjs");
         await main();
 
-        expect(mockCore.setFailed).toHaveBeenCalledWith(
-          expect.stringMatching(/ERR_SYSTEM.*rpc-messages\.jsonl.*zero bytes/)
-        );
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/ERR_SYSTEM.*rpc-messages\.jsonl.*zero bytes/));
         expect(mockCore.summary.write).not.toHaveBeenCalled();
       } finally {
         fs.existsSync = originalExistsSync;

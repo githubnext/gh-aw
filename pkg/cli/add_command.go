@@ -525,12 +525,14 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 
 	// Show output
 	if !opts.Quiet {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added workflow: "+destFile))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added workflow: "+filepath.Base(destFile)))
 
-		if description := ExtractWorkflowDescription(string(writtenContent)); description != "" {
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
-			fmt.Fprintln(os.Stderr, "")
+		if opts.Verbose {
+			if description := ExtractWorkflowDescription(string(writtenContent)); description != "" {
+				fmt.Fprintln(os.Stderr, "")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
+				fmt.Fprintln(os.Stderr, "")
+			}
 		}
 	}
 

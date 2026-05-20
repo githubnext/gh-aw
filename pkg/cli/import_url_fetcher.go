@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -46,8 +46,10 @@ type FetchedResource struct {
 //
 // Authentication is attached only when BOTH of the following hold:
 //   - the request scheme is "https"
-//   - the request host is an exact match for "github.com" or the hostname
-//     extracted from the GH_HOST environment variable
+//   - the request host is an exact match for one of the default GitHub import
+//     hosts (github.com, raw/media/objects.githubusercontent.com,
+//     api.githubcopilot.com), or for the hostname extracted from the GH_HOST
+//     environment variable
 //
 // In that case the value of GH_TOKEN (falling back to GITHUB_TOKEN) is sent as
 // "Authorization: Bearer <token>".  For all other hosts, or for any HTTP (non-TLS)
@@ -167,12 +169,22 @@ func canonicalContentType(raw string) string {
 // attachImportAuthHeader adds "Authorization: Bearer <token>" to req if and only if
 // ALL of the following are true:
 //   - the request scheme is "https" (tokens are never sent over plaintext HTTP)
-//   - the request host is an exact match for one of the allowed GitHub hosts:
-//     "github.com" or the hostname extracted from the GH_HOST environment variable
+//   - the request host is an exact match for one of the default GitHub import
+//     hosts (github.com, raw/media/objects.githubusercontent.com,
+//     api.githubcopilot.com), or for the hostname extracted from the GH_HOST
+//     environment variable
 //
 // The token is read from GH_TOKEN, falling back to GITHUB_TOKEN.  Nothing is
 // added when no matching host is found, no token is set, or the request is
 // not over HTTPS.  The token value is never logged.
+var defaultImportAuthHosts = map[string]struct{}{
+	"github.com":                     {},
+	"raw.githubusercontent.com":      {},
+	"media.githubusercontent.com":    {},
+	"objects.githubusercontent.com":  {},
+	constants.GitHubCopilotMCPDomain: {},
+}
+
 func attachImportAuthHeader(req *http.Request, rawURL string) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
@@ -187,28 +199,7 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	host := strings.ToLower(parsed.Hostname())
 
 	// Authoritative GitHub hosts to which the token may be sent.
-	allowedHosts := []string{"github.com"}
-	if ghHost := os.Getenv("GH_HOST"); ghHost != "" {
-		// GH_HOST may carry a scheme prefix; extract just the hostname.
-		if u, parseErr := url.Parse(ghHost); parseErr == nil && u.Host != "" {
-			allowedHosts = append(allowedHosts, strings.ToLower(u.Hostname()))
-		} else {
-			// No scheme present — treat the whole value as a bare hostname (possibly
-			// with port).  Strip a stray "https://" prefix that some callers include
-			// before the hostname portion.
-			bare := strings.TrimPrefix(ghHost, "https://")
-			bare = strings.TrimPrefix(bare, "http://")
-			// Strip any trailing path that was accidentally included.
-			if idx := strings.IndexByte(bare, '/'); idx != -1 {
-				bare = bare[:idx]
-			}
-			if bare != "" {
-				allowedHosts = append(allowedHosts, strings.ToLower(bare))
-			}
-		}
-	}
-
-	if !slices.Contains(allowedHosts, host) {
+	if _, ok := defaultImportAuthHosts[host]; !ok && host != importAuthGHHost() {
 		return
 	}
 
@@ -221,6 +212,29 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
+}
+
+func importAuthGHHost() string {
+	ghHost := os.Getenv("GH_HOST")
+	if ghHost == "" {
+		return ""
+	}
+	// GH_HOST may carry a scheme prefix; extract just the hostname.
+	if u, parseErr := url.Parse(ghHost); parseErr == nil && u.Host != "" {
+		return strings.ToLower(u.Hostname())
+	}
+	// No scheme present — treat the whole value as a bare hostname (possibly
+	// with port). Strip any accidental scheme prefix or trailing path.
+	bare := strings.TrimPrefix(ghHost, "https://")
+	bare = strings.TrimPrefix(bare, "http://")
+	if idx := strings.IndexByte(bare, '/'); idx != -1 {
+		bare = bare[:idx]
+	}
+	parsed, err := url.Parse("https://" + bare)
+	if err == nil && parsed.Host != "" {
+		return strings.ToLower(parsed.Hostname())
+	}
+	return strings.ToLower(bare)
 }
 
 // sanitizeHTTPError strips the request URL from a *url.Error (the error type

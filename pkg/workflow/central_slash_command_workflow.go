@@ -260,17 +260,13 @@ func collectPullRequestReviewerRoutes(workflowDataList []*WorkflowData, mergedEv
 		}
 		routes = append(routes, reviewerLifecycleRoute{
 			Workflow: wd.WorkflowID,
-			Events:   []string{"pull_request", "pull_request_review"},
+			Events:   []string{"pull_request"},
 		})
 		if mergedEvents["pull_request"] == nil {
 			mergedEvents["pull_request"] = make(map[string]bool)
 		}
 		mergedEvents["pull_request"]["ready_for_review"] = true
 		mergedEvents["pull_request"]["review_requested"] = true
-		if mergedEvents["pull_request_review"] == nil {
-			mergedEvents["pull_request_review"] = make(map[string]bool)
-		}
-		mergedEvents["pull_request_review"]["submitted"] = true
 	}
 	sort.Slice(routes, func(i, j int) bool {
 		return routes[i].Workflow < routes[j].Workflow

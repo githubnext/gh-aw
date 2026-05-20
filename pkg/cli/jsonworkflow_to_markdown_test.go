@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -56,6 +57,16 @@ func TestConvertJSONWorkflowToMarkdown_NoIDOrName(t *testing.T) {
 	gen, err := ConvertJSONWorkflowToMarkdown(wf, ConvertOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, "imported-workflow", gen.Filename)
+}
+
+func TestConvertJSONWorkflowToMarkdown_GUIDIDWithNoName(t *testing.T) {
+	wf := &JSONWorkflow{
+		ID:           "b5a3f76a-3d8f-4790-b7e2-f2886f784345",
+		Instructions: "Just instructions",
+	}
+	gen, err := ConvertJSONWorkflowToMarkdown(wf, ConvertOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "imported-workflow", gen.Filename, "GUID id should not be used as filename")
 }
 
 func TestConvertJSONWorkflowToMarkdown_Tags(t *testing.T) {
@@ -144,6 +155,18 @@ func TestJSONWorkflow_UnmarshalJSON_CapturesExtra(t *testing.T) {
 	assert.Contains(t, wf.Extra, "nested")
 }
 
+func TestJSONWorkflow_UnmarshalJSON_IgnoresMetadataFields(t *testing.T) {
+	raw := `{"id":"w","created_by":{"login":"octocat"},"disabled":true,"disabled_state":null,"updated_at":"2026-01-01T00:00:00Z","unknown_key":"val"}`
+	var wf JSONWorkflow
+	require.NoError(t, json.Unmarshal([]byte(raw), &wf))
+
+	assert.Contains(t, wf.Extra, "unknown_key")
+	assert.NotContains(t, wf.Extra, "created_by")
+	assert.NotContains(t, wf.Extra, "disabled")
+	assert.NotContains(t, wf.Extra, "disabled_state")
+	assert.NotContains(t, wf.Extra, "updated_at")
+}
+
 func TestToKebabCase(t *testing.T) {
 	tests := []struct {
 		input string
@@ -186,7 +209,7 @@ func TestConvertJSONWorkflowToMarkdown_IntervalTrigger(t *testing.T) {
 	gen, err := ConvertJSONWorkflowToMarkdown(&wf, ConvertOptions{})
 	require.NoError(t, err)
 
-	assert.Equal(t, "b5a3f76a-3d8f-4790-b7e2-f2886f784345", gen.Filename, "filename from id")
+	assert.Equal(t, "haiku", gen.Filename, "filename from name")
 	assert.Contains(t, gen.Markdown, "description: Format and linter", "description in frontmatter")
 	assert.Contains(t, gen.Markdown, "# haiku", "heading from name")
 
@@ -200,18 +223,8 @@ func TestConvertJSONWorkflowToMarkdown_IntervalTrigger(t *testing.T) {
 	// triggers is a known field now – no comment or warning for it
 	assert.NotContains(t, gen.Markdown, "# triggers:", "triggers must NOT appear as comment")
 
-	// Warnings only for the genuinely unknown fields
-	for _, field := range []string{"created_at", "updated_at", "created_by"} {
-		found := false
-		for _, w := range gen.Warnings {
-			if strings.Contains(w, field) {
-				found = true
-				break
-			}
-		}
-		assert.True(t, found, "expected warning for field %q", field)
-	}
-	for _, field := range []string{"prompt", "triggers"} {
+	// Warnings only for genuinely unknown fields (ignored metadata is dropped silently).
+	for _, field := range []string{"prompt", "triggers", "created_at", "updated_at", "created_by", "disabled_state"} {
 		for _, w := range gen.Warnings {
 			assert.NotContains(t, w, field, "unexpected warning mentioning %q: %s", field, w)
 		}
@@ -247,7 +260,7 @@ func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
 	gen, err := ConvertJSONWorkflowToMarkdown(&wf, ConvertOptions{})
 	require.NoError(t, err)
 
-	assert.Equal(t, "0be2cc4b-de12-43fe-ada7-55ef6dc8f3ba", gen.Filename, "filename from id")
+	assert.Equal(t, "issue-triage", gen.Filename, "filename from name")
 	assert.Contains(t, gen.Markdown, "# issue triage", "heading from name")
 
 	// Multi-trigger → map form (not string shorthand)
@@ -281,17 +294,12 @@ func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
 	assert.True(t, hasQueryWarn, "expected warning about issues.query")
 	assert.True(t, hasConclusionsWarn, "expected warning about workflow_run.conclusions")
 
-	// disabled, disabled_state, created_at, updated_at, created_by → Extra comments
-	assert.Contains(t, gen.Markdown, "# Unsupported fields preserved from source JSON:", "extra comment header")
-	for _, field := range []string{"disabled", "created_at", "updated_at", "created_by"} {
-		found := false
+	// created_at is now a silently-ignored metadata field; no warning expected.
+	assert.NotContains(t, gen.Markdown, "# Unsupported fields preserved from source JSON:", "no extra comment header when no unknown fields remain")
+	for _, field := range []string{"created_at", "disabled", "disabled_state", "updated_at", "created_by"} {
 		for _, w := range gen.Warnings {
-			if strings.Contains(w, field) {
-				found = true
-				break
-			}
+			assert.NotContains(t, w, field, "unexpected warning mentioning %q: %s", field, w)
 		}
-		assert.True(t, found, "expected warning for extra field %q", field)
 	}
 }
 
@@ -327,4 +335,47 @@ func TestGenericURLWorkflowName(t *testing.T) {
 			assert.Equal(t, tc.want, genericURLWorkflowName(tc.url))
 		})
 	}
+}
+
+func TestRewriteAutomationsURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantURL string
+		wantOK  bool
+	}{
+		{
+			name:    "dotcom automations UI URL",
+			input:   "https://github.com/dmgardiner25/urban-spork/agents/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768",
+			wantURL: "https://api.githubcopilot.com/agents/repos/dmgardiner25/urban-spork/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768",
+			wantOK:  true,
+		},
+		{
+			name:   "regular github.com file URL — no rewrite",
+			input:  "https://github.com/owner/repo/blob/main/workflow.md",
+			wantOK: false,
+		},
+		{
+			name:   "GHE host — no rewrite",
+			input:  "https://mycompany.ghe.com/owner/repo/agents/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768",
+			wantOK: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			u, _ := url.Parse(tc.input)
+			got, ok := rewriteAutomationsURL(u)
+			assert.Equal(t, tc.wantOK, ok)
+			if tc.wantOK {
+				assert.Equal(t, tc.wantURL, got)
+			}
+		})
+	}
+}
+
+func TestParseWorkflowSpec_AutomationsURL(t *testing.T) {
+	spec, err := parseWorkflowSpec("https://github.com/dmgardiner25/urban-spork/agents/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768")
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.githubcopilot.com/agents/repos/dmgardiner25/urban-spork/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768", spec.RawURL)
+	assert.Equal(t, "1a352b54-80f0-41ed-bf50-9e90e6b9d768", spec.WorkflowName, "workflow name is GUID (will be overridden from JSON name field at fetch time)")
 }
