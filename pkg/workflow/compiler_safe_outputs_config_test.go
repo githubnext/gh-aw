@@ -1575,7 +1575,7 @@ func TestHandlerConfigCreatePullRequestPatchLimitsOverrideGlobals(t *testing.T) 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			MaximumPatchSize: 4096,
+			MaximumPatchSize:  4096,
 			MaximumPatchFiles: 800,
 			CreatePullRequests: &CreatePullRequestsConfig{
 				MaxPatchSize:  2048,
