@@ -168,14 +168,14 @@ function convertToLogEntries(parsedData) {
 
   for (const item of parsedData) {
     if (item.type === "thinking") {
-      // Add thinking as assistant text content
+      // Add thinking as assistant reasoning content (distinct from regular text)
       logEntries.push({
         type: "assistant",
         message: {
           content: [
             {
-              type: "text",
-              text: item.content,
+              type: "thinking",
+              thinking: item.content,
             },
           ],
         },
@@ -436,8 +436,8 @@ function parseCodexLog(logContent) {
     if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
       const trimmed = line.trim();
       thinkingContent.push(trimmed);
-      // Add thinking content directly to markdown
-      markdown += `${trimmed}\n\n`;
+      // Add thinking content directly to markdown with open circle icon and italic styling
+      markdown += `<sub>◐ <em>${trimmed}</em></sub>\n\n`;
     }
   }
 

@@ -297,6 +297,35 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("echo hello");
     });
 
+    it("should render reasoning_text with open circle icon and italic styling", () => {
+      const debugLog = [
+        "2026-02-21T00:06:13.708Z [INFO] Starting Copilot CLI: 0.0.412",
+        "2026-02-21T00:06:23.701Z [DEBUG] data:",
+        "2026-02-21T00:06:23.702Z [DEBUG] {",
+        '  "model": "gpt-5",',
+        '  "usage": { "prompt_tokens": 100, "completion_tokens": 50 },',
+        '  "choices": [',
+        "    {",
+        '      "message": {',
+        '        "reasoning_text": "I need to think carefully about the approach.",',
+        '        "content": "Here is my answer.",',
+        '        "tool_calls": null',
+        "      }",
+        "    }",
+        "  ]",
+        "}",
+        "2026-02-21T00:06:24.000Z [INFO] Done",
+      ].join("\n");
+
+      const result = parseCopilotLog(debugLog);
+
+      // Reasoning should appear with open circle icon
+      expect(result.markdown).toContain("◐");
+      expect(result.markdown).toContain("I need to think carefully about the approach.");
+      // Regular content should appear without open circle
+      expect(result.markdown).toContain("Here is my answer.");
+    });
+
     it("should handle model info with cost multiplier", () => {
       const structuredLog = JSON.stringify([
         { type: "system", subtype: "init", session_id: "cost-test", tools: ["Bash"], model: "gpt-4", model_info: { is_premium: true, cost_multiplier: 3 } },

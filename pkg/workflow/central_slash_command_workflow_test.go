@@ -169,13 +169,12 @@ func TestGenerateCentralSlashCommandWorkflow_IncludesPullRequestReviewerRoutes(t
 	require.NoError(t, err)
 	text := string(content)
 	require.Contains(t, text, "GH_AW_REVIEWER_ROUTING")
-	require.Contains(t, text, `"workflow":"pr-reviewer","events":["pull_request","pull_request_review"]`)
-	require.Contains(t, text, "pull_request_review:")
-	require.Contains(t, text, "types: [submitted]")
+	require.Contains(t, text, `"workflow":"pr-reviewer","events":["pull_request"]`)
+	require.NotContains(t, text, "pull_request_review:")
 	require.Contains(t, text, "ready_for_review")
 	require.Contains(t, text, "review_requested")
 	require.Contains(t, text, "#   pull-request reviewers:")
-	require.Contains(t, text, "#     pr-reviewer [pull_request,pull_request_review]")
+	require.Contains(t, text, "#     pr-reviewer [pull_request]")
 }
 
 func TestGenerateCentralSlashCommandWorkflow_InfersReviewerCommandFromWorkflowIDWhenMissing(t *testing.T) {
