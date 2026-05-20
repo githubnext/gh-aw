@@ -256,7 +256,16 @@ func ensureMaintenanceWorkflow(ctx context.Context, verbose bool) error {
 		repoConfig = nil
 	}
 
-	if err := workflow.GenerateMaintenanceWorkflow(ctx, workflowDataList, workflowsDir, GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig, compiler.GetRepositorySlug()); err != nil {
+	if err := workflow.GenerateMaintenanceWorkflow(ctx, workflow.GenerateMaintenanceWorkflowOptions{
+		WorkflowDataList: workflowDataList,
+		WorkflowDir:      workflowsDir,
+		Version:          GetVersion(),
+		ActionMode:       compiler.GetActionMode(),
+		ActionTag:        compiler.GetActionTag(),
+		Verbose:          verbose,
+		RepoConfig:       repoConfig,
+		RepoSlug:         compiler.GetRepositorySlug(),
+	}); err != nil {
 		return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 	}
 

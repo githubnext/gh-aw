@@ -905,6 +905,14 @@ func main() {
 	defer stop()
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
+		// ExitCodeError signals an intentional exit with a specific code (e.g.
+		// after relaunching the upgraded binary). Honour it without printing an
+		// error message.
+		var exitCodeErr *cli.ExitCodeError
+		if errors.As(err, &exitCodeErr) {
+			os.Exit(exitCodeErr.Code)
+		}
+
 		errMsg := err.Error()
 		// Check if error is already formatted to avoid double formatting:
 		// - Contains suggestions (FormatErrorWithSuggestions)
