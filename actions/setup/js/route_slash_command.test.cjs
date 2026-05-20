@@ -86,7 +86,7 @@ describe("route_slash_command", () => {
     await main();
     expect(dispatchCalls).toHaveLength(1);
     expect(dispatchCalls[0].workflow_id).toBe("archie.lock.yml");
-    expect(dispatchCalls[0].request?.headers?.["X-GitHub-Api-Version"]).toBe(GITHUB_API_VERSION);
+    expect(dispatchCalls[0].headers?.["X-GitHub-Api-Version"]).toBe(GITHUB_API_VERSION);
     expect(reactionCalls).toHaveLength(1);
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.command_name).toBe("archie");
