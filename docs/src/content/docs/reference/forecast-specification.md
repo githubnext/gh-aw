@@ -1021,7 +1021,7 @@ std_dev ≈ 40,000
 
 Knuth's exact Poisson algorithm is used for small λ (≤ 15) because it produces exact integer draws from the Poisson distribution without bias. For large λ, the Poisson distribution converges to a Normal distribution (`N(λ, λ)`), making the Normal approximation computationally efficient and sufficiently accurate.
 
-The threshold of λ = 15 is chosen as the crossover point where Normal approximation error is below 1% for the tails relevant to P10/P90 computation. Conforming implementations therefore use a fixed crossover at `λ = 15` (see **R-FC-060**) unless this specification is revised.
+The threshold of λ = 15 is chosen as the crossover point where Normal approximation error is below 1% for the tails relevant to P10/P90 computation. This fixed crossover is mandated by **R-FC-060** and MUST NOT be changed without a specification revision.
 
 ### Appendix C: Bootstrap Resampling Rationale
 

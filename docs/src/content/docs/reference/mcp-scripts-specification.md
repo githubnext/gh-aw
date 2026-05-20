@@ -382,8 +382,9 @@ attempt:
 7. Classify failures and set `data.recoverable` before cleanup, then clean up ephemeral resources
    before the server returns the final JSON-RPC response.
 
-Implementations MUST NOT reorder these steps in a way that allows unsanitized output to bypass §7.4
-or allows retry classification to observe partially cleaned-up state from a different attempt.
+Implementations MUST NOT reorder these steps in a way that allows unsanitized output to bypass
+§7.4 (Output Sanitization) or allows retry classification to observe partially cleaned-up state from
+a different attempt.
 
 ### 5.2 Input Validation
 

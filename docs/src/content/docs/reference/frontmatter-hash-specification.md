@@ -65,7 +65,7 @@ BFS queue order: `[root.md, a.md, b.md, shared.md]`
 `shared.md` appears twice but is processed only once (after `a.md` in queue order).  
 Canonical hash input order: root → a → b → shared.
 
-If the root import list were reversed to `[b.md, a.md]`, the canonical order would be `root → b → a → shared`; the first sibling encountered in BFS order always claims the shared dependency, and later duplicates are skipped. This rule ensures that the hash is deterministic regardless of which traversal path first discovers a shared dependency.
+If the root import list were reversed to `[b.md, a.md]`, the canonical order would be `root → b → a → shared`. The first sibling encountered in BFS order always claims the shared dependency, and later duplicates are skipped. This rule ensures that the hash is deterministic regardless of which traversal path first discovers a shared dependency.
 
 ### 2. Field Selection
 
