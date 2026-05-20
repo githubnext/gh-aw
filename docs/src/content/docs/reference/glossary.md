@@ -75,6 +75,31 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 A `tools.github` field that controls how the agent accesses GitHub APIs. Three values are supported: `gh-proxy` (recommended — provides pre-authenticated `gh` CLI prompt guidance without mounting a GitHub MCP server, replacing the deprecated `features.cli-proxy: true`), `local` (Docker-based GitHub MCP server, the legacy default), and `remote` (hosted GitHub MCP server at `api.githubcopilot.com`). Use `gh-proxy` for better performance; use `local` or `remote` when MCP-based GitHub toolsets are required. See [GitHub Tools Reference](/gh-aw/reference/github-tools/).
 
+### Allowed Repos (`tools.github.allowed-repos`)
+
+A GitHub Tools configuration field that restricts which repositories the agent can access through GitHub tools during workflow execution. Accepts `"all"` (default — all repositories accessible by the token), `"public"` (public repositories only), `"current"` (the repository where the workflow is running, normalized to `${{ github.repository }}`), or an array of repository patterns (`"owner/repo"`, `"owner/*"`, `"owner/prefix*"`). Wildcards are only permitted at the end of the repository name component. Use `current` in reusable workflows to express "this repository only" without hard-coding owner/repo values. Patterns must be lowercase. See [GitHub Tools Reference](/gh-aw/reference/github-tools/).
+
+```aw wrap
+tools:
+  github:
+    toolsets: [issues, pull_requests]
+    allowed-repos: current
+    min-integrity: approved
+```
+
+### Ignore If Missing (`ignore-if-missing`)
+
+A GitHub App authentication field that gracefully skips token minting when `client-id` or `private-key` resolve to empty strings at runtime (e.g., on fork pull requests where App secrets are unavailable). When set to `true` under `github-app.ignore-if-missing`, the workflow falls back to the standard token chain (`secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN`) instead of failing. Applies consistently to all token mint paths: safe outputs, activation, pre-activation, and checkout. Default behavior (fail when keys are empty) remains unchanged when omitted or set to `false`. See [Authentication Reference](/gh-aw/reference/auth/).
+
+```aw wrap
+safe-outputs:
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    ignore-if-missing: true
+  create-issue:
+```
+
 ## Security and Outputs
 
 ### MCP Scripts
@@ -468,6 +493,15 @@ Steps injected at a specific lifecycle position within a custom or built-in job'
 ### Pre-Activation Dependencies (`on.needs:`)
 
 A frontmatter field that declares custom jobs that both the `pre_activation` and `activation` built-in jobs depend on. Use this when credentials or secrets must be fetched by a custom job before activation runs — for example, when `on.github-app` tokens come from a secrets-manager job. Values must reference custom jobs defined in the top-level `jobs:` section; built-in job names are rejected at compile time. See [Triggers Reference](/gh-aw/reference/triggers/).
+
+### Pull Request Reviewer Trigger (`on.pull_request_reviewer`)
+
+A synthetic frontmatter trigger for workflows that act as PR reviewers. Configured with `on.pull_request_reviewer: slash_command`, it compiles to centralized routing through the `agentic_commands.yml` dispatcher and automatically subscribes to PR reviewer lifecycle events (`pull_request.ready_for_review` and `pull_request_review` actions). The compiler applies PR-scoped concurrency with queue-max defaults and injects early cancellation when the PR is already closed at workflow start. Review events are resolved to the target workflow via XML markers in the review body using the existing `extractWorkflowId` mechanism. Introduced in [ADR-33273](https://github.com/github/gh-aw/blob/main/docs/adr/33273-synthetic-pull-request-reviewer-trigger.md). See [Triggers Reference](/gh-aw/reference/triggers/).
+
+```aw wrap
+on:
+  pull_request_reviewer: slash_command
+```
 
 ### Stop After
 
