@@ -208,7 +208,11 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			trialRepoLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+		}
+	}()
 
 	if err := os.Chdir(tempDir); err != nil {
 		return fmt.Errorf("failed to change to temp directory: %w", err)
@@ -227,7 +231,11 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 				return nil, fmt.Errorf("failed to change to original directory for local fetch: %w", chErr)
 			}
 			// Always restore to tempDir when this closure exits
-			defer os.Chdir(tempDir)
+			defer func() {
+				if err := os.Chdir(tempDir); err != nil {
+					trialRepoLog.Printf("failed to chdir back to %s: %v", tempDir, err)
+				}
+			}()
 
 			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
@@ -537,7 +545,11 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, cloneRepoVersion string, ho
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			trialRepoLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+		}
+	}()
 
 	// Create temporary directory to clone the source repo
 	tempCloneDir := filepath.Join(os.TempDir(), fmt.Sprintf("gh-aw-clone-%x", time.Now().UnixNano()))

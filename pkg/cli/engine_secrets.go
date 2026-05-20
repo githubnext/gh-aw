@@ -326,7 +326,9 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	}
 
 	// Store in environment for later use
-	_ = os.Setenv(req.Name, token)
+	if err := os.Setenv(req.Name, token); err != nil {
+		engineSecretsLog.Printf("failed to set env var %s: %v", req.Name, err)
+	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
 
 	// Upload to repository if we have a repo slug
@@ -374,7 +376,9 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	}
 
 	// Store in environment for later use
-	_ = os.Setenv(req.Name, token)
+	if err := os.Setenv(req.Name, token); err != nil {
+		engineSecretsLog.Printf("failed to set env var %s: %v", req.Name, err)
+	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(req.Name+" token received"))
 
 	// Upload to repository if we have a repo slug
@@ -427,7 +431,9 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 	}
 
 	// Store in environment for later use
-	_ = os.Setenv(req.Name, apiKey)
+	if err := os.Setenv(req.Name, apiKey); err != nil {
+		engineSecretsLog.Printf("failed to set env var %s: %v", req.Name, err)
+	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(label+" API key received"))
 
 	// Upload to repository if we have a repo slug

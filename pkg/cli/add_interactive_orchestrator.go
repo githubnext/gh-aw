@@ -70,7 +70,9 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		detectedHost := getHostFromOriginRemote()
 		if detectedHost != "github.com" {
 			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
-			os.Setenv("GH_HOST", detectedHost)
+			if err := os.Setenv("GH_HOST", detectedHost); err != nil {
+				addInteractiveLog.Printf("failed to set GH_HOST env var: %v", err)
+			}
 			if config.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
 			}

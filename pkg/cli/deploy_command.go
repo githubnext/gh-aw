@@ -128,7 +128,9 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 		return fmt.Errorf("failed to read current directory: %w", err)
 	}
 	defer func() {
-		_ = os.Chdir(originalDir)
+		if err := os.Chdir(originalDir); err != nil {
+			deployLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+		}
 	}()
 
 	resolvedWorkflows := resolveDeployWorkflowSpecs(workflows, originalDir)

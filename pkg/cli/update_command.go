@@ -217,7 +217,9 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 		return fmt.Errorf("failed to read current directory: %w", err)
 	}
 	defer func() {
-		_ = os.Chdir(originalDir)
+		if err := os.Chdir(originalDir); err != nil {
+			updateLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+		}
 	}()
 
 	if err := os.Chdir(checkoutDir); err != nil {
