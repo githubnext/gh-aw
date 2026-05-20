@@ -32,6 +32,10 @@ async function main(config = {}) {
   const buffer = config._prReviewBuffer;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;

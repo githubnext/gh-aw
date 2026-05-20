@@ -49,6 +49,11 @@ async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
+
   core.info(`Assign milestone configuration: max=${maxCount}, auto_create=${autoCreate}`);
   if (allowedMilestones.length > 0) {
     core.info(`Allowed milestones: ${allowedMilestones.join(", ")}`);
