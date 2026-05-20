@@ -49,8 +49,8 @@ func setupMCPServerSession(t *testing.T, binaryPath, workingDir string, timeout 
 	session, err := client.Connect(ctx, transport, nil)
 	require.NoError(t, err, "Expected MCP client to connect to subprocess server")
 	t.Cleanup(func() {
-		session.Close()
 		cancel()
+		session.Close()
 	})
 
 	return ctx, session
@@ -97,6 +97,9 @@ func TestMCPServer_AddTool(t *testing.T) {
 	assert.NotEmpty(t, addTool.Description, "Expected add tool description to be non-empty")
 	assert.GreaterOrEqual(t, len(addTool.Description), 50, "Expected add tool description to be sufficiently descriptive")
 	assert.Contains(t, addTool.Description, "workflows", "Expected add tool description to mention workflows")
+	require.NotNil(t, addTool.InputSchema, "Expected add tool to expose input schema for MCP clients")
+	assert.Contains(t, addTool.InputSchema, "properties", "Expected add tool input schema to define properties")
+	assert.Contains(t, addTool.InputSchema, "required", "Expected add tool input schema to mark required fields")
 }
 
 // TestMCPServer_AddTool_Success tests that add tool can add a workflow successfully.
@@ -174,8 +177,14 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 				assert.True(t, result.IsError, "Expected tool result to indicate error for missing required workflows argument")
 
 				outputText := extractTextContent(result)
-				if outputText != "" {
-					t.Logf("Validation tool error: %s", outputText)
+				if outputText == "" {
+					t.Log("Validation error returned without text content")
+					return
+				}
+
+				t.Logf("Validation tool error: %s", outputText)
+				for _, expectedErrPart := range tt.errContains {
+					assert.Contains(t, outputText, expectedErrPart, "Expected MCP validation output to contain required error details")
 				}
 				return
 			}
