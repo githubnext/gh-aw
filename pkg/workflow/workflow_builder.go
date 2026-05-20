@@ -36,6 +36,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		FrontmatterName:       toolsResult.frontmatterName,
 		FrontmatterEmoji:      toolsResult.frontmatterEmoji,
 		FrontmatterYAML:       strings.Join(result.FrontmatterLines, "\n"),
+		FrontmatterFieldLines: result.FieldLines,
 		RawMarkdown:           result.Markdown,
 		Description:           c.extractDescription(result.Frontmatter),
 		Source:                c.extractSource(result.Frontmatter),

@@ -450,6 +450,7 @@ type WorkflowData struct {
 	FrontmatterEmoji               string         // emoji field from frontmatter (for display in footers and UI)
 	FrontmatterYAML                string         // raw frontmatter YAML content (rendered as comment in lock file for reference)
 	FrontmatterHash                string         // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
+	FrontmatterFieldLines          map[string]int // absolute 1-based line numbers of top-level frontmatter keys in the source file (populated by parser)
 	RawMarkdown                    string         // raw markdown body before include expansion, used for frontmatter hash computation without re-reading the file
 	Description                    string         // optional description rendered as comment in lock file
 	Source                         string         // optional source field (owner/repo@ref/path) rendered as comment in lock file
