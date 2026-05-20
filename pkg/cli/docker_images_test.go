@@ -270,7 +270,7 @@ func TestMockImageAvailability(t *testing.T) {
 	ResetDockerPullState()
 }
 
-func TestNormalizeDockerContext_NilReturnsTODO(t *testing.T) {
+func TestNormalizeDockerContext_NilContextReturnsTODO(t *testing.T) {
 	//nolint:staticcheck // Intentionally validating nil context normalization behavior.
 	ctx := normalizeDockerContext(nil)
 

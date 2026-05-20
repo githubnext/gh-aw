@@ -88,8 +88,8 @@ func effectiveSideRepoToken(checkout SideRepoTarget) string {
 	return "${{ secrets.GH_AW_GITHUB_TOKEN }}"
 }
 
-// generateAllSideRepoMaintenanceWorkflowsOpts configures side-repo maintenance workflow generation.
-type generateAllSideRepoMaintenanceWorkflowsOpts struct {
+// generateAllSideRepoMaintenanceWorkflowsOptions configures side-repo maintenance workflow generation.
+type generateAllSideRepoMaintenanceWorkflowsOptions struct {
 	workflowDataList []*WorkflowData
 	workflowDir      string
 	version          string
@@ -105,7 +105,7 @@ type generateAllSideRepoMaintenanceWorkflowsOpts struct {
 // generates a per-target maintenance workflow for each unique static repository.
 func generateAllSideRepoMaintenanceWorkflows(
 	ctx context.Context,
-	opts generateAllSideRepoMaintenanceWorkflowsOpts,
+	opts generateAllSideRepoMaintenanceWorkflowsOptions,
 ) error {
 	workflowDataList := opts.workflowDataList
 	workflowDir := opts.workflowDir
@@ -130,7 +130,7 @@ func generateAllSideRepoMaintenanceWorkflows(
 		outPath := filepath.Join(workflowDir, filename)
 
 		maintenanceLog.Printf("Generating side-repo maintenance workflow: %s → %s", target.Repository, filename)
-		if err := generateSideRepoMaintenanceWorkflow(ctx, generateSideRepoMaintenanceWorkflowOpts{
+		if err := generateSideRepoMaintenanceWorkflow(ctx, generateSideRepoMaintenanceWorkflowOptions{
 			target:         target,
 			outPath:        outPath,
 			version:        version,
@@ -173,9 +173,9 @@ func generateAllSideRepoMaintenanceWorkflows(
 	return nil
 }
 
-// generateSideRepoMaintenanceWorkflowOpts configures generation of a single side-repo
+// generateSideRepoMaintenanceWorkflowOptions configures generation of a single side-repo
 // maintenance workflow.
-type generateSideRepoMaintenanceWorkflowOpts struct {
+type generateSideRepoMaintenanceWorkflowOptions struct {
 	target         SideRepoTarget
 	outPath        string
 	version        string
@@ -194,7 +194,7 @@ type generateSideRepoMaintenanceWorkflowOpts struct {
 // GH_AW_TARGET_REPO_SLUG for all cross-repo operations.
 func generateSideRepoMaintenanceWorkflow(
 	ctx context.Context,
-	opts generateSideRepoMaintenanceWorkflowOpts,
+	opts generateSideRepoMaintenanceWorkflowOptions,
 ) error {
 	target := opts.target
 	outPath := opts.outPath

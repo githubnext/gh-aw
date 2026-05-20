@@ -22,7 +22,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
 	// Copilot uses JSON format with type and tools fields, and inline args
-	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOpts{
+	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
 		tools:                tools,
 		mcpTools:             mcpTools,
 		workflowData:         workflowData,

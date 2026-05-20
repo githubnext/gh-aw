@@ -57,7 +57,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	steps := append(setupSteps, handlerSteps...)
 
 	// Phase 3: App-token insertion, finalization, job condition/deps, and job construction
-	return c.buildSafeOutputsJobFromParts(buildSafeOutputsJobFromPartsOpts{
+	return c.buildSafeOutputsJobFromParts(buildSafeOutputsJobFromPartsOptions{
 		data:                   data,
 		mainJobName:            mainJobName,
 		markdownPath:           markdownPath,
@@ -389,7 +389,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 // buildSafeOutputsJobFromParts finalizes the step list (app-token insertion, token invalidation,
 // items-manifest upload, dev-mode restore, script-mode cleanup), builds the job condition and
 // dependency list, and assembles the Job struct for the safe_outputs job.
-type buildSafeOutputsJobFromPartsOpts struct {
+type buildSafeOutputsJobFromPartsOptions struct {
 	data                   *WorkflowData
 	mainJobName            string
 	markdownPath           string
@@ -402,7 +402,7 @@ type buildSafeOutputsJobFromPartsOpts struct {
 }
 
 func (c *Compiler) buildSafeOutputsJobFromParts(
-	opts buildSafeOutputsJobFromPartsOpts,
+	opts buildSafeOutputsJobFromPartsOptions,
 ) (*Job, []string, error) {
 	data := opts.data
 	mainJobName := opts.mainJobName

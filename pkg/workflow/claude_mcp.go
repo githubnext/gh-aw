@@ -13,7 +13,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	claudeMCPLog.Printf("Rendering MCP config for Claude: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
 	// Claude uses JSON format without Copilot-specific fields and multi-line args
-	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOpts{
+	return renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
 		tools:        tools,
 		mcpTools:     mcpTools,
 		workflowData: workflowData,

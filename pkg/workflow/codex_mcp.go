@@ -107,7 +107,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
-	if err := renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOpts{
+	if err := renderStandardJSONMCPConfig(yaml, renderStandardJSONMCPConfigOptions{
 		tools:        tools,
 		mcpTools:     mcpTools,
 		workflowData: workflowData,

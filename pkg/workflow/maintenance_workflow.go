@@ -185,7 +185,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 
 		// Even without expires, side-repo targets still need maintenance workflows
 		// for safe_outputs, create_labels, and validate operations.
-		return generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOpts{
+		return generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOptions{
 			workflowDataList: workflowDataList,
 			workflowDir:      workflowDir,
 			version:          version,
@@ -215,7 +215,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	defaultBranch := FetchDefaultBranch(repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
-	content := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOpts{
+	content := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOptions{
 		cronSchedule:        cronSchedule,
 		scheduleDesc:        scheduleDesc,
 		minExpiresDays:      minExpiresDays,
@@ -240,7 +240,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	maintenanceLog.Print("Maintenance workflow generated successfully")
 
 	// Generate side-repo maintenance workflows for any SideRepoOps targets detected.
-	if err := generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOpts{
+	if err := generateAllSideRepoMaintenanceWorkflows(ctx, generateAllSideRepoMaintenanceWorkflowsOptions{
 		workflowDataList: workflowDataList,
 		workflowDir:      workflowDir,
 		version:          version,

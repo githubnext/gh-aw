@@ -560,7 +560,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold := resolveMCPGatewayValues(workflowData, gatewayConfig)
 	githubTool, hasGitHub := tools["github"]
-	writeMCPGatewayExports(yaml, writeMCPGatewayExportsOpts{
+	writeMCPGatewayExports(yaml, writeMCPGatewayExportsOptions{
 		engine:               engine,
 		workflowData:         workflowData,
 		gatewayConfig:        gatewayConfig,
@@ -572,7 +572,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 		payloadPathPrefix:    payloadPathPrefix,
 		payloadSizeThreshold: payloadSizeThreshold,
 	})
-	containerCmd := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOpts{
+	containerCmd := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
 		engine:            engine,
 		workflowData:      workflowData,
 		gatewayConfig:     gatewayConfig,
@@ -636,8 +636,8 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 	return port, domain, payloadDir, gatewayConfig.PayloadPathPrefix, payloadSizeThreshold
 }
 
-// writeMCPGatewayExportsOpts holds configuration for writeMCPGatewayExports.
-type writeMCPGatewayExportsOpts struct {
+// writeMCPGatewayExportsOptions holds configuration for writeMCPGatewayExports.
+type writeMCPGatewayExportsOptions struct {
 	engine               CodingAgentEngine
 	workflowData         *WorkflowData
 	gatewayConfig        *MCPGatewayRuntimeConfig
@@ -650,7 +650,7 @@ type writeMCPGatewayExportsOpts struct {
 	payloadSizeThreshold int
 }
 
-func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOpts) {
+func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
 	engine := opts.engine
 	workflowData := opts.workflowData
 	gatewayConfig := opts.gatewayConfig
@@ -710,8 +710,8 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	}
 }
 
-// buildMCPGatewayContainerCommandOpts holds configuration for buildMCPGatewayContainerCommand.
-type buildMCPGatewayContainerCommandOpts struct {
+// buildMCPGatewayContainerCommandOptions holds configuration for buildMCPGatewayContainerCommand.
+type buildMCPGatewayContainerCommandOptions struct {
 	engine            CodingAgentEngine
 	workflowData      *WorkflowData
 	gatewayConfig     *MCPGatewayRuntimeConfig
@@ -723,7 +723,7 @@ type buildMCPGatewayContainerCommandOpts struct {
 	tools             map[string]any
 }
 
-func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOpts) string {
+func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string {
 	engine := opts.engine
 	workflowData := opts.workflowData
 	gatewayConfig := opts.gatewayConfig

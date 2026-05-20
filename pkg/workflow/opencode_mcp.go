@@ -12,7 +12,7 @@ var openCodeMCPLog = logger.New("workflow:opencode_mcp")
 func (e *OpenCodeEngine) RenderMCPConfig(sb *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	openCodeMCPLog.Printf("Rendering MCP config for OpenCode: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
-	return renderStandardJSONMCPConfig(sb, renderStandardJSONMCPConfigOpts{
+	return renderStandardJSONMCPConfig(sb, renderStandardJSONMCPConfigOptions{
 		tools:        tools,
 		mcpTools:     mcpTools,
 		workflowData: workflowData,

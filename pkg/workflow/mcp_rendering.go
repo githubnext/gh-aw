@@ -77,8 +77,8 @@ func shouldRewriteLocalhostToDocker(workflowData *WorkflowData) bool {
 // accessible at /tmp/gh-aw/cache-memory/ and requires no MCP configuration.
 func noOpCacheMemoryRenderer(_ *strings.Builder, _ bool, _ *WorkflowData) {}
 
-// renderStandardJSONMCPConfigOpts holds configuration for renderStandardJSONMCPConfig.
-type renderStandardJSONMCPConfigOpts struct {
+// renderStandardJSONMCPConfigOptions holds configuration for renderStandardJSONMCPConfig.
+type renderStandardJSONMCPConfigOptions struct {
 	tools                map[string]any
 	mcpTools             []string
 	workflowData         *WorkflowData
@@ -94,7 +94,7 @@ type renderStandardJSONMCPConfigOpts struct {
 // buildMCPRendererFactory → buildMCPGatewayConfig → buildStandardJSONMCPRenderers → RenderJSONMCPConfig.
 func renderStandardJSONMCPConfig(
 	yaml *strings.Builder,
-	opts renderStandardJSONMCPConfigOpts,
+	opts renderStandardJSONMCPConfigOptions,
 ) error {
 	tools := opts.tools
 	mcpTools := opts.mcpTools

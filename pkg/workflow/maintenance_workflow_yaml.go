@@ -10,8 +10,8 @@ import (
 
 var maintenanceWorkflowYAMLLog = logger.New("workflow:maintenance_workflow_yaml")
 
-// buildMaintenanceWorkflowYAMLOpts configures the maintenance workflow YAML builder.
-type buildMaintenanceWorkflowYAMLOpts struct {
+// buildMaintenanceWorkflowYAMLOptions configures the maintenance workflow YAML builder.
+type buildMaintenanceWorkflowYAMLOptions struct {
 	cronSchedule        string
 	scheduleDesc        string
 	minExpiresDays      int
@@ -30,7 +30,7 @@ type buildMaintenanceWorkflowYAMLOpts struct {
 // after the cron schedule and setup parameters have been resolved.
 func buildMaintenanceWorkflowYAML(
 	ctx context.Context,
-	opts buildMaintenanceWorkflowYAMLOpts,
+	opts buildMaintenanceWorkflowYAMLOptions,
 ) string {
 	cronSchedule := opts.cronSchedule
 	scheduleDesc := opts.scheduleDesc

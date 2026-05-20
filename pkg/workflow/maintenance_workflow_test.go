@@ -1001,7 +1001,7 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	t.Run("dev mode uses custom default branch from buildMaintenanceWorkflowYAML", func(t *testing.T) {
 		// Call buildMaintenanceWorkflowYAML directly to test the branch substitution
 		// without needing a live GitHub API call (FetchDefaultBranch falls back to "main" with no slug)
-		yaml := buildMaintenanceWorkflowYAML(context.Background(), buildMaintenanceWorkflowYAMLOpts{
+		yaml := buildMaintenanceWorkflowYAML(context.Background(), buildMaintenanceWorkflowYAMLOptions{
 			cronSchedule:   "37 */2 * * *",
 			scheduleDesc:   "Every 2 hours",
 			minExpiresDays: 1,

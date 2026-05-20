@@ -13,7 +13,7 @@ func (e *CrushEngine) RenderMCPConfig(sb *strings.Builder, tools map[string]any,
 	crushMCPLog.Printf("Rendering MCP config for Crush: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
 	// Crush uses JSON format without Copilot-specific fields and multi-line args
-	return renderStandardJSONMCPConfig(sb, renderStandardJSONMCPConfigOpts{
+	return renderStandardJSONMCPConfig(sb, renderStandardJSONMCPConfigOptions{
 		tools:        tools,
 		mcpTools:     mcpTools,
 		workflowData: workflowData,
