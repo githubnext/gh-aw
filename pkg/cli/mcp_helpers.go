@@ -39,6 +39,9 @@ func GetBinaryPath() (string, error) {
 	return resolvedPath, nil
 }
 
+// boolPtr returns a pointer to the given bool value, used for optional *bool fields.
+func boolPtr(b bool) *bool { return &b }
+
 // logAndValidateBinaryPath determines the binary path, logs it, and validates it exists.
 // Returns the detected binary path and an error if the path cannot be determined or if the file doesn't exist.
 // This is a helper used by both runMCPServer and validateMCPServerConfiguration.

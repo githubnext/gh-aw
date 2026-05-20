@@ -14,16 +14,12 @@
 //   - pip_validation.go: Python package validation
 //   - npm_validation.go: NPM package validation
 //   - docker_validation.go: Docker image validation
-//   - expression_safety.go: GitHub Actions expression security
+//   - expression_safety_validation.go: GitHub Actions expression security
 //   - engine_validation.go: AI engine configuration validation
 //   - mcp_config_validation.go: MCP server configuration validation
 //   - template_validation.go: Template structure validation
 //   - firewall_validation.go: Firewall log-level validation
-//   - gateway_validation.go: Gateway port validation
 //   - sandbox_validation.go: Sandbox and mounts validation
-//   - bundler_safety_validation.go: JavaScript bundle safety (require/module checks)
-//   - bundler_script_validation.go: JavaScript script content (execSync, GitHub globals)
-//   - bundler_runtime_validation.go: JavaScript runtime mode compatibility
 //
 // # Pass-Through Field Validation
 //
