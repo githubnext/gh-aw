@@ -20,7 +20,7 @@ This document compares **oh-my-opencode** and **GitHub Agentic Workflows** (gh-a
 | **Multi-Agent** | Native multi-agent orchestration | Single-agent per workflow (event-driven) |
 | **Tool Ecosystem** | LSP, AST-Grep, MCP servers | GitHub MCP, Bash allowlist, Playwright |
 | **State Management** | Stateful, persistent across sessions | Stateless workflow runs |
-| **Philosophy** | Provide extensive agent capabilities | "Safe by default" - minimize risk |
+| **Philosophy** | Provide a broad set of agent capabilities | "Safe by default" - minimize risk |
 
 ---
 

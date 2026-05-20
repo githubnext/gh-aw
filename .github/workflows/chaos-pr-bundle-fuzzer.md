@@ -27,6 +27,7 @@ safe-outputs:
     allowed-files:
       - "tmp/chaos/**"
       - "scratchpad/chaos/**"
+      - "tests/chaos/**"
     excluded-files:
       - ".github/workflows/**"
     protected-files: blocked
@@ -72,7 +73,7 @@ For each run:
 For each selected persona:
 
 1. Create a scenario-specific branch that starts with `chaos/`.
-2. Apply only small file edits under `tmp/chaos/**` or `scratchpad/chaos/**`.
+2. Apply only small file edits under `tmp/chaos/**`, `scratchpad/chaos/**`, or `tests/chaos/**`.
 3. Execute git operations to exercise bundling behavior (for example: branch create, add, commit, optional amend or second commit).
 4. Verify changed files are still within allowed scope.
 5. Create the pull request via safe-output `create_pull_request`.
