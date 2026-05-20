@@ -64,6 +64,8 @@ on:
     # names: # Label filtering applied via job conditions
     # - implementation # Label filtering applied via job conditions
     types:
+    - ready_for_review
+    - review_requested
     - labeled
   workflow_dispatch:
     inputs:

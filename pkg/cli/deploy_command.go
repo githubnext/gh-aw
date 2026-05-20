@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -130,6 +131,7 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			deployLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to restore working directory to %s: %v", originalDir, err)))
 		}
 	}()
 

@@ -211,6 +211,7 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			trialRepoLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to restore working directory to %s: %v", originalDir, err)))
 		}
 	}()
 
@@ -234,6 +235,7 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 			defer func() {
 				if err := os.Chdir(tempDir); err != nil {
 					trialRepoLog.Printf("failed to chdir back to %s: %v", tempDir, err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to restore working directory to %s: %v", tempDir, err)))
 				}
 			}()
 
@@ -548,6 +550,7 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, cloneRepoVersion string, ho
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			trialRepoLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to restore working directory to %s: %v", originalDir, err)))
 		}
 	}()
 

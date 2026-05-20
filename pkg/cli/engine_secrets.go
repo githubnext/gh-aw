@@ -327,7 +327,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 
 	// Store in environment for later use
 	if err := os.Setenv(req.Name, token); err != nil {
-		engineSecretsLog.Printf("failed to set env var %s: %v", req.Name, err)
+		return fmt.Errorf("failed to set env var %s: %w", req.Name, err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
 
@@ -377,7 +377,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 
 	// Store in environment for later use
 	if err := os.Setenv(req.Name, token); err != nil {
-		engineSecretsLog.Printf("failed to set env var %s: %v", req.Name, err)
+		return fmt.Errorf("failed to set env var %s: %w", req.Name, err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(req.Name+" token received"))
 
@@ -432,7 +432,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 
 	// Store in environment for later use
 	if err := os.Setenv(req.Name, apiKey); err != nil {
-		engineSecretsLog.Printf("failed to set env var %s: %v", req.Name, err)
+		return fmt.Errorf("failed to set env var %s: %w", req.Name, err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(label+" API key received"))
 

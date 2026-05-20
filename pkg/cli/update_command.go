@@ -219,6 +219,7 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			updateLog.Printf("failed to chdir back to %s: %v", originalDir, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to restore working directory to %s: %v", originalDir, err)))
 		}
 	}()
 
