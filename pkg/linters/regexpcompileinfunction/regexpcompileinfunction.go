@@ -88,7 +88,8 @@ func isInsideFunction(stack []ast.Node) bool {
 	return false
 }
 
-// hasConstantStringPattern checks whether the regexp pattern is a compile-time constant string.
+// hasConstantStringPattern checks whether the regexp pattern is a compile-time constant string,
+// such as a string literal or const identifier (but not variables/parameters).
 func hasConstantStringPattern(pass *analysis.Pass, call *ast.CallExpr) bool {
 	if len(call.Args) == 0 {
 		return false
