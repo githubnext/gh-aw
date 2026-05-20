@@ -2262,6 +2262,7 @@ safe-outputs:
 
 - `max`: Operation limit (default: 1)
 - `base-branch`: Target branch
+- `allowed-branches`: Allowed source branch patterns for `branch` tool input
 - `allowed-base-branches`: Allowed base-branch override patterns for per-run `base` tool input
 - `draft`: Draft status
 - `commit-changes`: Auto-commit workspace
