@@ -33,7 +33,12 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 	// Check for wildcard "*" in allowed domains
 	if slices.Contains(networkPermissions.Allowed, "*") {
 		strictModeValidationLog.Printf("Network validation failed: wildcard detected")
-		return errors.New("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://github.github.com/gh-aw/reference/network/#available-ecosystem-identifiers")
+		return NewValidationError(
+			"network.allowed",
+			"*",
+			"strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access; expected explicit domains or ecosystem identifiers",
+			"Use specific domains or supported ecosystem identifiers:\n\nnetwork:\n  allowed:\n    - github.com\n    - api.github.com\n    - python",
+		)
 	}
 
 	strictModeValidationLog.Printf("Network validation passed: allowed_count=%d", len(networkPermissions.Allowed))
@@ -77,7 +82,12 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any, networkP
 			if _, hasContainer := serverConfig["container"]; hasContainer {
 				// Require top-level network configuration
 				if !hasTopLevelNetwork {
-					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have top-level network configuration for security. Add 'network: { allowed: [...] }' to the workflow to restrict network access. See: https://github.github.com/gh-aw/reference/network/", serverName)
+					return NewValidationError(
+						"network.allowed",
+						serverName,
+						fmt.Sprintf("strict mode: custom MCP server '%s' with container must have top-level network configuration for security; expected top-level network restrictions for container-based MCP servers", serverName),
+						fmt.Sprintf("Add explicit top-level network permissions for mcp-servers.%s:\n\nnetwork:\n  allowed:\n    - github.com\n    - api.github.com\n\nmcp-servers:\n  %s:\n    type: stdio\n    container: ghcr.io/example/mcp-server:latest", serverName, serverName),
+					)
 				}
 			}
 		}
@@ -110,7 +120,12 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 			if scope, hasScope := cacheMap["scope"]; hasScope {
 				if scopeStr, ok := scope.(string); ok && scopeStr == "repo" {
 					strictModeValidationLog.Printf("Cache-memory repo scope validation failed")
-					return errors.New("strict mode: cache-memory with 'scope: repo' is not allowed for security reasons. Repo scope allows cache sharing across all workflows in the repository, which can enable cross-workflow cache poisoning attacks. Use 'scope: workflow' (default) instead, which isolates caches to individual workflows. See: https://github.github.com/gh-aw/reference/tools/#cache-memory")
+					return NewValidationError(
+						"tools.cache-memory.scope",
+						scopeStr,
+						"strict mode: cache-memory with 'scope: repo' is not allowed for security reasons; expected 'scope: workflow' to isolate cache data per workflow",
+						"Use workflow-scoped cache entries:\n\ntools:\n  cache-memory:\n    key: my-cache\n    scope: workflow",
+					)
 				}
 			}
 			return nil

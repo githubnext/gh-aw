@@ -222,10 +222,8 @@ async function main() {
 
   const slashRouteMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");
   const labelRouteMap = JSON.parse(process.env.GH_AW_LABEL_ROUTING || "{}");
-  const reviewerRoutes = JSON.parse(process.env.GH_AW_REVIEWER_ROUTING || "[]");
   core.info(`Configured centralized slash commands: ${Object.keys(slashRouteMap).length}.`);
   core.info(`Configured decentralized label commands: ${Object.keys(labelRouteMap).length}.`);
-  core.info(`Configured pull-request reviewer workflows: ${Array.isArray(reviewerRoutes) ? reviewerRoutes.length : 0}.`);
 
   const identifier = eventIdentifier();
   const { buildAwContext } = require("./aw_context.cjs");
@@ -269,31 +267,6 @@ async function main() {
     }
     core.info(`Completed decentralized label routing for '${labelName}'.`);
     return;
-  }
-
-  if (context.eventName === "pull_request" && Array.isArray(reviewerRoutes) && reviewerRoutes.length > 0) {
-    const matches = reviewerRoutes.filter(route => Array.isArray(route.events) && route.events.includes(context.eventName));
-    if (matches.length > 0) {
-      let selected = matches;
-      if (!["ready_for_review", "review_requested"].includes(context.payload?.action ?? "")) {
-        selected = [];
-      }
-      if (selected.length > 0) {
-        core.info(`Matched reviewer routes on '${context.eventName}': ${selected.map(route => route.workflow).join(", ")}.`);
-        for (const route of selected) {
-          const awContext = {
-            ...buildAwContext(),
-            command_name: "",
-            reviewer_lifecycle_event: context.eventName,
-          };
-          core.info(`Dispatching reviewer workflow '${route.workflow}.lock.yml'.`);
-          await dispatchWorkflow(`${route.workflow}.lock.yml`, ref, {
-            aw_context: JSON.stringify(awContext),
-          });
-        }
-        core.info("Completed reviewer lifecycle routing.");
-      }
-    }
   }
 
   const text = resolveBodyText();

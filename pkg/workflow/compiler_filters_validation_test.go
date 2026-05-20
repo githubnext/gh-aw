@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -328,6 +329,31 @@ func TestValidateFilterExclusivity(t *testing.T) {
 	}
 }
 
+func TestValidateEventFilters_ReturnsValidationErrorWithSuggestion(t *testing.T) {
+	err := ValidateEventFilters(map[string]any{
+		"on": map[string]any{
+			"push": map[string]any{
+				"branches":        []string{"main"},
+				"branches-ignore": []string{"release/**"},
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for conflicting branch filters")
+	}
+
+	var validationErr *WorkflowValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected WorkflowValidationError, got %T", err)
+	}
+	if validationErr.Suggestion == "" {
+		t.Fatal("expected non-empty suggestion")
+	}
+	if !strings.Contains(validationErr.Suggestion, "on:") || !strings.Contains(validationErr.Suggestion, "branches:") {
+		t.Fatalf("expected YAML suggestion, got: %s", validationErr.Suggestion)
+	}
+}
+
 func TestValidateGlobPatterns(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -541,6 +567,30 @@ func TestValidateGlobPatterns(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateGlobPatterns_ReturnsValidationErrorWithSuggestion(t *testing.T) {
+	err := ValidateGlobPatterns(map[string]any{
+		"on": map[string]any{
+			"push": map[string]any{
+				"paths": []string{"./bad/**"},
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid glob pattern")
+	}
+
+	var validationErr *WorkflowValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected WorkflowValidationError, got %T", err)
+	}
+	if validationErr.Suggestion == "" {
+		t.Fatal("expected non-empty suggestion")
+	}
+	if !strings.Contains(validationErr.Suggestion, "on:") || !strings.Contains(validationErr.Suggestion, "paths:") {
+		t.Fatalf("expected YAML suggestion, got: %s", validationErr.Suggestion)
 	}
 }
 

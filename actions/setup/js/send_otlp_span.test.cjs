@@ -1822,6 +1822,22 @@ describe("sendJobSetupSpan", () => {
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.5.0");
   });
 
+  it("falls back to GITHUB_SHA for service.version when no gh-aw version is available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    // No GH_AW_INFO_VERSION or GH_AW_INFO_CLI_VERSION — only SHA available
+    process.env.GITHUB_SHA = "aabbccdd1122334455667788aabbccdd11223344";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "aabbccdd1122334455667788aabbccdd11223344" } });
+    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("aabbccdd1122334455667788aabbccdd11223344");
+  });
+
   it("includes gh-aw.awf.version and gh-aw.awmg.version resource attributes from aw_info.json", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -3040,7 +3056,7 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionAttrs["gen_ai.response.model"]).toBe("claude-sonnet-4-20250514");
   });
 
-  it("omits gen_ai.response.finish_reasons from the agent span when stop_reason is absent in agent-stdio.log", async () => {
+  it("emits gen_ai.response.finish_reasons=[unknown] on the agent span when stop_reason is absent from agent-stdio.log", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3065,13 +3081,15 @@ describe("sendJobConclusionSpan", () => {
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
     expect(agentSpan.name).toBe("gh-aw.agent.agent");
-    const keys = agentSpan.attributes.map(a => a.key);
-    expect(keys).not.toContain("gen_ai.response.finish_reasons");
+    const agentFinishAttr = agentSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
+    expect(agentFinishAttr).toBeDefined();
+    expect(agentFinishAttr.value.arrayValue.values).toEqual([{ stringValue: "unknown" }]);
 
     const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-    const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
-    expect(conclusionKeys).not.toContain("gen_ai.response.finish_reasons");
+    const conclusionFinishAttr = conclusionSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
+    expect(conclusionFinishAttr).toBeDefined();
+    expect(conclusionFinishAttr.value.arrayValue.values).toEqual([{ stringValue: "unknown" }]);
   });
 
   it("includes gen_ai.response.finish_reasons with max_tokens on the agent span when truncated", async () => {
@@ -3932,6 +3950,27 @@ describe("sendJobConclusionSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v3.0.0" } });
+  });
+
+  it("falls back to GITHUB_SHA for service.version on conclusion span when no gh-aw version is available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    // No GH_AW_INFO_VERSION, GH_AW_INFO_CLI_VERSION, or aw_info.json version fields
+    process.env.GITHUB_SHA = "deadbeef1234567890abcdef1234567890abcdef";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "deadbeef1234567890abcdef1234567890abcdef" } });
+    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("deadbeef1234567890abcdef1234567890abcdef");
   });
 
   describe("agent_output.json error enrichment", () => {

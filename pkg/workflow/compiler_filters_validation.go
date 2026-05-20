@@ -102,7 +102,12 @@ func validateFilterExclusivity(eventVal any, eventName string) error {
 
 	if hasBranches && hasBranchesIgnore {
 		filterValidationLog.Printf("ERROR: Event '%s' has both 'branches' and 'branches-ignore' filters", eventName)
-		return fmt.Errorf("%s event cannot specify both 'branches' and 'branches-ignore' - they are mutually exclusive per GitHub Actions requirements. Use either 'branches' to include specific branches, or 'branches-ignore' to exclude specific branches, but not both", eventName)
+		return NewValidationError(
+			"on."+eventName,
+			"branches + branches-ignore",
+			eventName+" event cannot specify both 'branches' and 'branches-ignore'; expected exactly one branch filter because they are mutually exclusive in GitHub Actions",
+			fmt.Sprintf("Use one branch filter for on.%s:\n\non:\n  %s:\n    branches:\n      - main\n    # OR\n    # branches-ignore:\n    #   - release/**", eventName, eventName),
+		)
 	}
 
 	// Check paths/paths-ignore
@@ -111,7 +116,12 @@ func validateFilterExclusivity(eventVal any, eventName string) error {
 
 	if hasPaths && hasPathsIgnore {
 		filterValidationLog.Printf("ERROR: Event '%s' has both 'paths' and 'paths-ignore' filters", eventName)
-		return fmt.Errorf("%s event cannot specify both 'paths' and 'paths-ignore' - they are mutually exclusive per GitHub Actions requirements. Use either 'paths' to include specific paths, or 'paths-ignore' to exclude specific paths, but not both", eventName)
+		return NewValidationError(
+			"on."+eventName,
+			"paths + paths-ignore",
+			eventName+" event cannot specify both 'paths' and 'paths-ignore'; expected exactly one path filter because they are mutually exclusive in GitHub Actions",
+			fmt.Sprintf("Use one path filter for on.%s:\n\non:\n  %s:\n    paths:\n      - src/**\n    # OR\n    # paths-ignore:\n    #   - docs/**", eventName, eventName),
+		)
 	}
 
 	filterValidationLog.Printf("Event '%s' filters are valid", eventName)
@@ -200,7 +210,12 @@ func validateGlobList(eventMap map[string]any, eventName, filterKey string, isPa
 				msgs = append(msgs, e.Message)
 			}
 			filterValidationLog.Printf("ERROR: invalid glob pattern %q in %s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
-			return fmt.Errorf("invalid glob pattern %q in on.%s.%s: %s", pat, eventName, filterKey, strings.Join(msgs, "; "))
+			return NewValidationError(
+				fmt.Sprintf("on.%s.%s", eventName, filterKey),
+				pat,
+				"expected a valid GitHub Actions glob pattern: "+strings.Join(msgs, "; "),
+				fmt.Sprintf("Use valid glob syntax for on.%s.%s:\n\non:\n  %s:\n    %s:\n      - src/**", eventName, filterKey, eventName, filterKey),
+			)
 		}
 	}
 	return nil

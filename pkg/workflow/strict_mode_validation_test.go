@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -285,6 +286,25 @@ func TestValidateStrictNetwork(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateStrictNetwork_ReturnsValidationErrorWithSuggestion(t *testing.T) {
+	compiler := NewCompiler()
+	err := compiler.validateStrictNetwork(&NetworkPermissions{Allowed: []string{"*"}})
+	if err == nil {
+		t.Fatal("expected error for wildcard network permission")
+	}
+
+	var validationErr *WorkflowValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected WorkflowValidationError, got %T", err)
+	}
+	if validationErr.Suggestion == "" {
+		t.Fatal("expected non-empty suggestion")
+	}
+	if !strings.Contains(validationErr.Suggestion, "network:") || !strings.Contains(validationErr.Suggestion, "allowed:") {
+		t.Fatalf("expected YAML suggestion, got: %s", validationErr.Suggestion)
 	}
 }
 
