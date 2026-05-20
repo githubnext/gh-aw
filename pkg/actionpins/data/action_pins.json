@@ -429,6 +429,11 @@
       "image": "semgrep/semgrep:latest",
       "digest": "sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2",
       "pinned_image": "semgrep/semgrep:latest@sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2"
+    },
+    "ghcr.io/github/gh-aw-mcpg:v0.3.12": {
+      "image": "ghcr.io/github/gh-aw-mcpg:v0.3.12",
+      "digest": "sha256:fcd43b78b1a255031886633cf757e2922bfe3344eb90c65df809dcd24e7bff33",
+      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.3.12@sha256:fcd43b78b1a255031886633cf757e2922bfe3344eb90c65df809dcd24e7bff33"
     }
   }
 }
