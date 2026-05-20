@@ -33,7 +33,7 @@ func parseCreateEntityConfig[T any](
 	outputMap map[string]any,
 	configKey string,
 	opts CreateParseOptions,
-	log *logger.Logger,
+	debugLog *logger.Logger,
 	onError func(error) *T,
 	preUnmarshal func(map[string]any) bool,
 	postUnmarshal func(map[string]any, *T, bool),
@@ -53,24 +53,24 @@ func parseCreateEntityConfig[T any](
 
 	expiresDisabled := false
 	if opts.HandleExpires {
-		expiresDisabled = preprocessExpiresField(configData, log)
+		expiresDisabled = preprocessExpiresField(configData, debugLog)
 	}
 
 	for _, field := range opts.BoolFields {
-		if err := preprocessBoolFieldAsString(configData, field, log); err != nil {
-			log.Printf("Invalid %s value: %v", field, err)
+		if err := preprocessBoolFieldAsString(configData, field, debugLog); err != nil {
+			debugLog.Printf("Invalid %s value: %v", field, err)
 			return nil
 		}
 	}
 
 	for _, field := range opts.IntFields {
-		if err := preprocessIntFieldAsString(configData, field, log); err != nil {
-			log.Printf("Invalid %s value: %v", field, err)
+		if err := preprocessIntFieldAsString(configData, field, debugLog); err != nil {
+			debugLog.Printf("Invalid %s value: %v", field, err)
 			return nil
 		}
 	}
 
-	config := parseConfigScaffold(outputMap, configKey, log, onError)
+	config := parseConfigScaffold(outputMap, configKey, debugLog, onError)
 	if config == nil {
 		return nil
 	}

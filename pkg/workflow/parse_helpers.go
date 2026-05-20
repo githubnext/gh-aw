@@ -22,7 +22,7 @@ import "github.com/github/gh-aw/pkg/logger"
 //
 // When key is missing, nil, or already a non-string type, this function is a no-op.
 // The log parameter is optional; pass nil to suppress debug output.
-func coerceStringOrArrayField(configData map[string]any, key string, log *logger.Logger) {
+func coerceStringOrArrayField(configData map[string]any, key string, debugLog *logger.Logger) {
 	if configData == nil {
 		return
 	}
@@ -30,17 +30,17 @@ func coerceStringOrArrayField(configData map[string]any, key string, log *logger
 	if value, exists := configData[key]; exists {
 		if stringValue, ok := value.(string); ok {
 			configData[key] = []string{stringValue}
-			if log != nil {
-				log.Printf("Converted single %s string to array before unmarshaling", key)
+			if debugLog != nil {
+				debugLog.Printf("Converted single %s string to array before unmarshaling", key)
 			}
 		}
 	}
 }
 
 // coerceStringOrArrayFields applies coerceStringOrArrayField to multiple keys.
-func coerceStringOrArrayFields(configData map[string]any, keys []string, log *logger.Logger) {
+func coerceStringOrArrayFields(configData map[string]any, keys []string, debugLog *logger.Logger) {
 	for _, key := range keys {
-		coerceStringOrArrayField(configData, key, log)
+		coerceStringOrArrayField(configData, key, debugLog)
 	}
 }
 
