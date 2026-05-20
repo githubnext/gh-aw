@@ -170,7 +170,7 @@ function isGitHubAppNotUserError(error) {
   if (!error || typeof error !== "object") return false;
   if (!("status" in error) || error.status !== 404) return false;
   const msg = getErrorMessage(error);
-  return typeof msg === "string" && msg.includes("is not a user");
+  return typeof msg === "string" && /\bis not a user\b/.test(msg);
 }
 
 /**
@@ -258,7 +258,7 @@ async function checkBotStatus(actor, owner, repo) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string[]} requiredPermissions - Array of required permission levels
- * @returns {Promise<{authorized: boolean, permission?: string, error?: string}>}
+ * @returns {Promise<{authorized: boolean, permission?: string, error?: string, isGitHubApp?: boolean}>}
  */
 async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
   try {
@@ -287,7 +287,7 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
   } catch (repoError) {
     const errorMessage = getErrorMessage(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
-    return { authorized: false, error: errorMessage };
+    return { authorized: false, error: errorMessage, isGitHubApp: isGitHubAppNotUserError(repoError) };
   }
 }
 

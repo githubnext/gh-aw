@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack, isGitHubAppNotUserError } = require("./check_permissions_utils.cjs");
+const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 function readWorkflowDispatchAwContext(payload) {
@@ -204,8 +204,7 @@ async function main() {
       core.setOutput("error_message", errorMessage);
       // When the GitHub API responds with "is not a user", the actor is a GitHub App.
       // The bot allowlist was either empty or not checked — provide actionable guidance.
-      const isAppActor = isGitHubAppNotUserError({ status: 404, message: result.error });
-      if (isAppActor) {
+      if (result.isGitHubApp) {
         await writeDenialSummary(
           errorMessage,
           `Actor '${actorToValidate}' is a GitHub App, not a regular user. ` +

@@ -133,6 +133,7 @@ describe("check admin permissions for copilot maintenance", () => {
       expect(result).toEqual({
         authorized: false,
         error: "API Error: Not Found",
+        isGitHubApp: false,
       });
 
       expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: API Error: Not Found");
@@ -147,6 +148,7 @@ describe("check admin permissions for copilot maintenance", () => {
       expect(result).toEqual({
         authorized: false,
         error: "Network error: Connection timeout",
+        isGitHubApp: false,
       });
     });
   });

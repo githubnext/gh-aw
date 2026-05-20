@@ -264,6 +264,7 @@ describe("check_permissions_utils", () => {
       expect(result).toEqual({
         authorized: false,
         error: "API Error: Not Found",
+        isGitHubApp: false,
       });
 
       expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: API Error: Not Found");
@@ -277,9 +278,23 @@ describe("check_permissions_utils", () => {
       expect(result).toEqual({
         authorized: false,
         error: "String error",
+        isGitHubApp: false,
       });
 
       expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: String error");
+    });
+
+    it("should return isGitHubApp: true when the API says the actor is not a user", async () => {
+      const notAUserError = { status: 404, message: "Copilot is not a user - https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notAUserError);
+
+      const result = await checkRepositoryPermission("Copilot", "testowner", "testrepo", ["admin"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        error: "Copilot is not a user - https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user",
+        isGitHubApp: true,
+      });
     });
 
     it("should check multiple permissions and return true for any match", async () => {

@@ -337,7 +337,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// occupying the concurrency slot and potentially blocking a simultaneous manual invocation.
 	// pull_request_reviewer workflows set Command internally (to the reviewer handle) but are
 	// triggered by review requests, not comments, so this concern does not apply to them.
-	if len(workflowData.Command) > 0 && len(workflowData.Bots) > 0 && !workflowData.PullRequestReviewer {
+	if !workflowData.PullRequestReviewer && len(workflowData.Command) > 0 && len(workflowData.Bots) > 0 {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"Both slash_command and bots triggers are configured. If a bot listed in bots: "+
 				"posts a comment that starts with the slash command text (e.g., /command-name), "+
