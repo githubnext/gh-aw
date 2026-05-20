@@ -2974,6 +2974,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - `max`: Operation limit (default: 1)
 - `required-labels`: Labels that must ALL be present on the pull request
+- `required-title-prefix`: Title prefix the pull request must start with
 - `allowed-branches`: Source branch glob patterns; the PR's branch must match at least one
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repository allowlist

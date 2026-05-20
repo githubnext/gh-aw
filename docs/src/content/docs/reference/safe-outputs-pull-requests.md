@@ -146,6 +146,8 @@ safe-outputs:
     max: 1                    # max updates (default: 1)
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
+    required-labels: [automated]     # only update if PR has ALL these labels
+    required-title-prefix: "[bot] "  # only update if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -187,6 +189,8 @@ safe-outputs:
     target-repo: "owner/repo" # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     footer: "if-body"         # footer control: "always", "none", or "if-body"
+    required-labels: [automated]     # only comment if PR has ALL these labels
+    required-title-prefix: "[bot] "  # only comment if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -206,6 +210,8 @@ safe-outputs:
     target-repo: "owner/repo"      # cross-repository
     allowed-repos: ["org/repo1"]   # additional allowed repositories
     footer: "always"               # "always", "none", or "if-body"
+    required-labels: [automated]   # only submit review if PR has ALL these labels
+    required-title-prefix: "[bot] " # only submit review if PR title starts with this prefix
 ```
 
 Use `allowed-events` to control review decisions (`APPROVE`, `COMMENT`, `REQUEST_CHANGES`). Prefer `allowed-events: [COMMENT]` by default so bot reviews remain informative and non-blocking.
@@ -224,6 +230,8 @@ safe-outputs:
     target-repo: "owner/repo"            # cross-repository
     allowed-repos: ["org/other-repo"]    # additional allowed repositories
     footer: true                         # add AI-generated footer (default: true)
+    required-labels: [automated]         # only reply if PR has ALL these labels
+    required-title-prefix: "[bot] "      # only reply if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -248,6 +256,8 @@ safe-outputs:
     target: "triggering"                 # "triggering" (default), "*", or number
     target-repo: "owner/repo"            # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    required-labels: [automated]         # only resolve if PR has ALL these labels
+    required-title-prefix: "[bot] "      # only resolve if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -336,6 +346,8 @@ safe-outputs:
     max: 3                       # max reviewers (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
+    required-labels: [automated]     # only add reviewer if PR has ALL these labels
+    required-title-prefix: "[bot] "  # only add reviewer if PR title starts with this prefix
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
