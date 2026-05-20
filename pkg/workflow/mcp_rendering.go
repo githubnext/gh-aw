@@ -89,6 +89,27 @@ type renderStandardJSONMCPConfigOptions struct {
 	filterTool           func(string) bool
 }
 
+// renderDefaultJSONMCPConfig is a convenience wrapper for renderStandardJSONMCPConfig used by
+// simple JSON engines (Claude, Gemini, Crush, OpenCode) that share the standard
+// renderCustomMCPConfigWrapperWithContext callback and differ only in their config path.
+func renderDefaultJSONMCPConfig(
+	sb *strings.Builder,
+	tools map[string]any,
+	mcpTools []string,
+	workflowData *WorkflowData,
+	configPath string,
+) error {
+	return renderStandardJSONMCPConfig(sb, renderStandardJSONMCPConfigOptions{
+		tools:        tools,
+		mcpTools:     mcpTools,
+		workflowData: workflowData,
+		configPath:   configPath,
+		renderCustom: func(builder *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+			return renderCustomMCPConfigWrapperWithContext(builder, toolName, toolConfig, isLast, workflowData)
+		},
+	})
+}
+
 // renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
 // Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
 // buildMCPRendererFactory → buildMCPGatewayConfig → buildStandardJSONMCPRenderers → RenderJSONMCPConfig.
