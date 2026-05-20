@@ -360,8 +360,8 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
       });
     }
 
-    // Check minimum length after any sanitization
-    if (validation.minLength && finalValue.length < validation.minLength) {
+    // Check minimum length after any sanitization (trim before checking to reject whitespace-padded placeholders)
+    if (validation.minLength && finalValue.trim().length < validation.minLength) {
       return {
         isValid: false,
         error: `Line ${lineNum}: ${itemType} '${fieldName}' is too short (minimum ${validation.minLength} characters)`,
