@@ -41,3 +41,21 @@ team:write
 event:write
 ```
 -->
+
+Use this Sentry MCP import for read-only reliability triage with evidence-first reporting.
+
+Preferred query loop:
+
+1. Validate connectivity (`whoami`) and discover the target org/project.
+2. Query spans first (`search_events`; fallback to `list_events` when unavailable in the MCP build).
+3. Run companion checks on `errors` and `logs` datasets, even when empty, and state that result explicitly.
+4. For each major finding, verify one representative trace:
+   - use `get_trace_details` when available
+   - otherwise use `list_events` filtered by `trace:<id>` to confirm continuity
+5. Every priority finding must cite exact evidence (query scope + metric/count + trace or run link).
+
+Grounding rules:
+
+- Prefer recurring patterns over one-off outliers.
+- Separate confirmed failures from observability gaps when core attributes are null/missing.
+- Call out unsupported tools or backend limitations in the report notes instead of silently skipping checks.
