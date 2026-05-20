@@ -178,6 +178,14 @@ const mockCore = {
         expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
         expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", "");
       }),
+      it("should pass pull_request review_requested for pull_request_reviewer workflows", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["review"]);
+        mockContext.eventName = "pull_request";
+        mockContext.payload = { action: "review_requested", pull_request: { body: "PR body without slash command" } };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", "");
+      }),
       it("should pass pull_request_review submitted for pull_request_reviewer workflows", async () => {
         process.env.GH_AW_COMMANDS = JSON.stringify(["review"]);
         mockContext.eventName = "pull_request_review";
