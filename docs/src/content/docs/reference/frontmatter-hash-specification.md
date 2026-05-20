@@ -65,7 +65,7 @@ BFS queue order: `[root.md, a.md, b.md, shared.md]`
 `shared.md` appears twice but is processed only once (after `a.md` in queue order).  
 Canonical hash input order: root → a → b → shared.
 
-This rule ensures that the hash is deterministic regardless of which traversal path first discovers a shared dependency.
+If the root import list were reversed to `[b.md, a.md]`, the canonical order would be `root → b → a → shared`; the first sibling encountered in BFS order always claims the shared dependency, and later duplicates are skipped. This rule ensures that the hash is deterministic regardless of which traversal path first discovers a shared dependency.
 
 ### 2. Field Selection
 
@@ -209,6 +209,29 @@ Both Go and JavaScript implementations MUST:
 - All field types (strings, numbers, booleans, arrays, objects)
 - Special characters and escaping
 - All workflows in the repository
+
+### 5.1 Cross-Language Validation Protocol
+
+The project maintains Go and JavaScript implementations of the frontmatter hash algorithm. A
+conforming change to either implementation MUST follow this validation protocol:
+
+1. Update both implementations in the same change whenever the authoritative runtime algorithm or
+   normalization behavior changes.
+2. Execute the shared cross-language test vectors so each implementation validates the other
+   implementation's output, not just its own fixtures.
+3. Treat any byte-level mismatch in canonical JSON or final SHA-256 output as a release-blocking
+   failure until both implementations are aligned.
+4. Recompile workflow lock files only after the cross-language checks pass, so newly generated hashes
+   reflect a synchronized algorithm.
+
+**R-XLANG-001**: The shared validation corpus **MUST** include at least one empty-frontmatter case,
+one single-file case, one multi-level import case, and one diamond-import case.
+
+**R-XLANG-002**: A change that alters canonical JSON generation in either language **MUST** update
+the shared validation corpus in the same change.
+
+**R-XLANG-003**: CI or pre-release validation **MUST** fail if Go and JavaScript produce different
+hashes for any corpus member.
 
 ## Implementation Notes
 

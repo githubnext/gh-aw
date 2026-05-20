@@ -1262,6 +1262,14 @@ After changing fuzzy schedule semantics:
 2. Update parser/scatter implementation in the mapped files.
 3. Re-run parser/scatter tests to verify behavior remains deterministic.
 
+Integration coverage notes:
+
+- Conforming changes SHOULD exercise end-to-end compile coverage in addition to parser-only tests so
+  fuzzy expressions are validated after placeholder expansion into emitted cron schedules.
+- Changes that affect calendar rendering or weighted slot selection SHOULD include integration
+  assertions against `pkg/cli/compile_schedule_calendar.go` output, not only unit assertions against
+  parser helpers.
+
 ---
 
 ## 12. Calendar Output Schema

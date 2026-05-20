@@ -420,6 +420,14 @@ The implementation MUST use:
 
 - **R-MC-001**: For `λ = 0`, the implementation MUST return a projected token total of 0 for that trial without invoking either algorithm.
 - **R-FC-060**: Implementations MUST use `λ = 15` as the crossover threshold: Knuth's exact algorithm for `λ ≤ 15`, and Normal approximation only for `λ > 15`. Implementations MUST NOT raise this threshold above 15 without a specification revision, because the documented error and comparability assumptions are calibrated to this crossover.
+- **R-MC-002**: `λ` MUST be derived from `observed_runs_per_period` using the formula in §3.7 and
+  MUST be reused unchanged for every trial of the same workflow forecast. Implementations MUST NOT
+  recompute or drift `λ` within a single forecast run.
+- **R-MC-003**: `λ` MUST be treated as a real-valued rate parameter. Implementations MUST NOT round,
+  floor, or ceil `λ` before selecting the Poisson branch or before drawing the projected run count.
+- **R-MC-004**: If the computed `λ` is negative, `NaN`, or otherwise non-finite, implementations
+  MUST replace it with `0`, emit a warning, and continue in the same zero-projection mode required
+  by **R-MC-001**.
 
 #### 7.2.2 Per-Run Token Usage (Bootstrap Resampling)
 
@@ -952,6 +960,15 @@ Sync procedure:
 2. Update corresponding Go implementation/tests in the files above in the same change.
 3. Re-run forecast tests to verify normative parity.
 
+Sync follow-up tasks:
+
+- Add an implementation-level assertion that verbose diagnostics and JSON output are derived from the
+  same `λ` value used by the Monte Carlo engine.
+- Expand forecast fixtures to cover invalid/non-finite `λ` derivation paths and zero-projection
+  fallback behavior.
+- Re-review Appendix B whenever the Poisson branch threshold or `observed_runs_per_period`
+  calculation changes.
+
 ---
 
 ## 14. Appendices
@@ -1004,7 +1021,7 @@ std_dev ≈ 40,000
 
 Knuth's exact Poisson algorithm is used for small λ (≤ 15) because it produces exact integer draws from the Poisson distribution without bias. For large λ, the Poisson distribution converges to a Normal distribution (`N(λ, λ)`), making the Normal approximation computationally efficient and sufficiently accurate.
 
-The threshold of λ = 15 is chosen as the crossover point where Normal approximation error is below 1% for the tails relevant to P10/P90 computation. Implementations MAY lower this threshold (e.g., to λ = 30) for greater accuracy at a minor performance cost.
+The threshold of λ = 15 is chosen as the crossover point where Normal approximation error is below 1% for the tails relevant to P10/P90 computation. Conforming implementations therefore use a fixed crossover at `λ = 15` (see **R-FC-060**) unless this specification is revised.
 
 ### Appendix C: Bootstrap Resampling Rationale
 

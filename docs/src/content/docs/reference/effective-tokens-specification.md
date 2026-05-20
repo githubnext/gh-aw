@@ -127,6 +127,20 @@ Any invocation triggered by another LLM call or orchestration layer. Examples in
 
 A directed structure representing all invocations associated with a single top-level request. The root node has no parent; sub-agents reference their triggering invocation as their parent.
 
+### 3.6 Execution-Graph Traversal Entities
+
+For deterministic aggregation and reporting, implementations MUST distinguish the following traversal
+entities when processing an execution graph:
+
+- **Local invocation cost**: The ET computed from the current node's own `usage.*` payload only.
+- **Descendant contribution**: The subtotal accumulated from child nodes and deeper descendants before
+  the current node's local invocation cost is added.
+- **Observed subtree**: A subtree whose invocation nodes have concrete usage payloads and therefore
+  contribute measured ET rather than fallback zeros.
+- **Unobservable subtree**: A subtree whose invocation nodes are known to exist but whose concrete
+  usage payloads are unavailable; these nodes remain part of traversal order even when their ET is
+  serialized as `0`.
+
 ---
 
 ## 4. Token Accounting Model
@@ -364,6 +378,23 @@ implementations **MUST** serialize `usage.input_tokens`, `usage.cached_input_tok
 **R-SAFE-006**: For invocation nodes that are incomplete/unobservable, implementations **MUST**
 include a `flagged` object with schema `{ "code": "UNOBSERVABLE_INVOCATION", "reason": string }`.
 For fully observed invocation nodes, implementations **MAY** omit `flagged`.
+
+**R-SAFE-007**: Before ET computation begins, implementations **MUST** validate the active model
+multiplier registry described in [Model Multiplier Registry](#model-multiplier-registry). Registry
+validation **MUST** confirm that `version` and `reference_model` are non-empty strings and that the
+reference model has a numeric multiplier entry.
+
+**R-SAFE-008**: Every declared token class weight and model multiplier loaded from the registry
+**MUST** be finite numeric data. `NaN`, infinite values, strings, `null`, and negative multiplier
+values **MUST** be rejected before any ET output is produced.
+
+**R-SAFE-009**: If registry validation fails, implementations **MUST NOT** continue with partially
+parsed multiplier data. They **MUST** fail deterministically with an error that identifies the
+invalid registry field or model entry.
+
+**R-SAFE-010**: When a runtime override or custom multiplier map is merged with the embedded
+registry, implementations **MUST** apply the same validation rules to the merged result before using
+it for ET computation.
 
 ---
 
@@ -645,6 +676,8 @@ To keep specification and implementation synchronized:
 3. When deprecating a model, add a `deprecated` comment alongside the entry and keep it in the registry for at least one minor version before removal (R-REG-009). Update the registry `version` field on removal.
 4. Verify loading and fallback behavior in `pkg/cli/effective_tokens_test.go` (`TestModelMultipliersJSONEmbedded`, `TestResolveEffectiveWeightsDefault`, and inventory checks).
 5. Run `make build` so the embedded registry is rebuilt into the `gh-aw` binary.
+6. Re-run registry validation coverage after any registry edit so malformed multiplier entries fail
+   before ET computation paths are exercised.
 
 Conforming releases SHOULD include a test assertion for newly added model multipliers to ensure implementation-registry parity.
 

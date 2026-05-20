@@ -365,6 +365,26 @@ Implementations SHOULD validate:
 6. Handler captures output and errors
 7. Server returns JSON-RPC response to agent
 
+### 5.1.1 Operations Ordering
+
+A conforming implementation MUST preserve the following operation order for each tool invocation
+attempt:
+
+1. Authenticate the request and resolve the target tool name before executing any user-defined code.
+2. Apply input validation and default-value expansion before runtime startup or dependency
+   installation.
+3. Complete any required dependency installation or runtime bootstrap before invoking the tool body.
+4. Execute the tool body exactly once for the current attempt.
+5. Sanitize stdout-derived results before classifying success, generating previews, or writing
+   oversized payloads to disk.
+6. Apply the large-output transformation in §8 only after the sanitized success payload has been
+   fully materialized for the current attempt.
+7. Classify failures and set `data.recoverable` before cleanup, then clean up ephemeral resources
+   before the server returns the final JSON-RPC response.
+
+Implementations MUST NOT reorder these steps in a way that allows unsanitized output to bypass §7.4
+or allows retry classification to observe partially cleaned-up state from a different attempt.
+
 ### 5.2 Input Validation
 
 Implementations MUST:
@@ -465,6 +485,14 @@ plus retries) permitted for a single invocation.
 5. Because tool invocations may be non-idempotent, callers **MUST** treat retry safety as a
    caller responsibility and **MUST** apply idempotency safeguards (e.g., idempotency keys or
    side-effect checks) before retrying state-changing tools.
+6. Each retry **MUST** begin from a fresh invocation attempt: callers and servers **MUST NOT** reuse
+   partially emitted stdout, partially written large-output files, or partially initialized runtime
+   state from a previous failed attempt as the result for the retry.
+7. When a recoverable attempt fails after producing side effects outside the tool process (for
+   example, creating a remote resource before timing out), callers **SHOULD** perform explicit
+   side-effect checks or compensating cleanup before retrying.
+8. Once the retry budget is exhausted, the caller **MUST** surface the final failure as terminal and
+   **SHOULD** include the total attempts made when reporting the error to operators.
 
 ---
 
@@ -830,6 +858,19 @@ When tool output exceeds 500 characters, implementations MUST:
 - `preview.schema`: JSON schema of content
 - `preview.first_item`: First item in array/list
 - `preview.item_count`: Number of items in collection
+
+### 8.2.1 Response Structure Norms
+
+- The large-output response **MUST** preserve the original tool result envelope and replace only the
+  oversized content payload with the `content` metadata object shown above.
+- The `content` object **MUST NOT** embed the full original payload inline once the file indirection
+  path is chosen.
+- `preview` is OPTIONAL, but when present it **MUST** summarize sanitized content from the same
+  attempt that produced `content.path`; implementations **MUST NOT** mix preview data from a prior
+  failed or retried attempt.
+- For collection-shaped outputs, `preview.first_item` and `preview.item_count` SHOULD describe the
+  collection shape without requiring the client to open the file immediately. For non-collection
+  outputs, implementations MAY omit these fields and return only `preview.schema`.
 
 ### 8.3 File Access
 
