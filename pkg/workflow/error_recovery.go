@@ -4,7 +4,11 @@ import (
 	"errors"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var errorRecoveryLog = logger.New("workflow:error_recovery")
 
 // ErrorSeverity classifies how urgently a compilation error should be fixed.
 type ErrorSeverity int
@@ -44,6 +48,7 @@ func ExpandErrorMessages(err error) []string {
 		return nil
 	}
 
+	errorRecoveryLog.Print("Expanding error messages from compilation error")
 	var messages []string
 	collectErrorMessages(err, &messages)
 	if len(messages) == 0 {
@@ -109,9 +114,11 @@ func shouldSuppressWrapperMessage(message string) bool {
 
 // BuildPrioritizedErrorReportFromMessages classifies, suppresses, and limits messages.
 func BuildPrioritizedErrorReportFromMessages(messages []string, showAll bool) PrioritizedErrorReport {
+	errorRecoveryLog.Printf("Building prioritized error report: message_count=%d, show_all=%v", len(messages), showAll)
 	prioritized, suppressedCount := prioritizeErrorMessages(messages)
 	displayed := prioritized
 	if !showAll && len(displayed) > 5 {
+		errorRecoveryLog.Printf("Truncating displayed errors from %d to top 5 (set show_all=true to see all)", len(displayed))
 		displayed = displayed[:5]
 	}
 
@@ -125,6 +132,8 @@ func BuildPrioritizedErrorReportFromMessages(messages []string, showAll bool) Pr
 		report.RecoveryPlan = buildRecoveryPlan(prioritized, suppressedCount)
 	}
 
+	errorRecoveryLog.Printf("Prioritized report ready: total=%d, displayed=%d, hidden=%d, suppressed=%d, has_plan=%v",
+		report.TotalCount, len(report.DisplayedErrors), report.HiddenCount, report.SuppressedCount, report.RecoveryPlan != nil)
 	return report
 }
 
@@ -160,6 +169,10 @@ func prioritizeErrorMessages(messages []string) ([]PrioritizedError, int) {
 			continue
 		}
 		prioritized = append(prioritized, candidate)
+	}
+
+	if hasCriticalSyntax {
+		errorRecoveryLog.Printf("Critical syntax errors detected, suppressed %d cascading errors", suppressedCount)
 	}
 
 	if len(prioritized) == 0 {
