@@ -5,6 +5,7 @@ description: Analyzes Go codebase daily to identify opportunities for semantic f
 on:
   workflow_dispatch:
   schedule: daily
+  skip-if-match: 'is:issue is:open label:copilot-retry-blocked in:title "semantic-function-clustering refactor"'
 
 permissions:
   contents: read
