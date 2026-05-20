@@ -22,7 +22,7 @@ safe-outputs:
   create-issue:
     expires: 2d
     title-prefix: "[reliability] "
-    labels: [observability, reliability, automated-analysis]
+    labels: [observability, automated-analysis]
     max: 1
     close-older-issues: true
 timeout-minutes: 30
