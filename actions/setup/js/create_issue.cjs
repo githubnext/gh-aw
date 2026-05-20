@@ -524,6 +524,7 @@ function serializeAsyncHandler(handler) {
     // Chain each invocation onto the previous one so calls run strictly in order.
     // Keep the queue alive after failures so one rejected invocation does not block the next.
     const resultPromise = queue.then(() => handler(...args));
+    // Intentionally suppress rejection in the queue chain only: callers still receive resultPromise errors.
     queue = resultPromise.catch(() => undefined);
     return resultPromise;
   };

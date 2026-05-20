@@ -6,7 +6,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { main } = require("./create_issue.cjs");
 // Delay long enough for Promise.all-started calls to overlap and exercise concurrent interleaving paths.
-const MOCK_ASYNC_DELAY_MS = 15;
+const CONCURRENT_TEST_DELAY_MS = 15;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const mockCore = {
@@ -226,12 +226,12 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
     let parentCreateCount = 0;
 
     mockGithub.rest.search.issuesAndPullRequests.mockImplementation(async () => {
-      await delay(MOCK_ASYNC_DELAY_MS);
+      await delay(CONCURRENT_TEST_DELAY_MS);
       return { data: { total_count: 0, items: [] } };
     });
 
     mockGithub.rest.issues.create.mockImplementation(async ({ title }) => {
-      await delay(MOCK_ASYNC_DELAY_MS);
+      await delay(CONCURRENT_TEST_DELAY_MS);
 
       if (String(title).includes("Issue Group")) {
         parentCreateCount += 1;
