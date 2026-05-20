@@ -5,365 +5,151 @@ sidebar:
   order: 100
 ---
 
-This reference documents common error messages encountered when working with GitHub Agentic Workflows, organized by when they occur during the workflow lifecycle.
+This reference documents common error messages, organized by when they occur during the workflow lifecycle.
+
+> [!TIP]
+> When you mistype a frontmatter field, the compiler suggests a correction via fuzzy matching. Look for "Did you mean" hints in the output (e.g., `permisions` → `permissions`).
 
 ## Schema Validation Errors
 
-Schema validation errors occur when the workflow frontmatter does not conform to the expected JSON schema. These errors are detected during the compilation process.
+Detected during compilation when frontmatter does not conform to the JSON schema.
 
-> [!TIP]
-> Typo Detection
-> When you make a typo in frontmatter field names, the compiler automatically suggests correct field names using fuzzy matching. Look for "Did you mean" suggestions in error messages to quickly identify and fix common typos like `permisions` → `permissions` or `engnie` → `engine`.
-
-### Frontmatter Not Properly Closed
-
-`frontmatter not properly closed`
-
-The YAML frontmatter section lacks a closing `---` delimiter. Ensure the frontmatter is enclosed between two `---` lines:
-
-```aw wrap
----
-on: push
-permissions:
-  contents: read
----
-
-# Workflow content
-```
-
-### Failed to Parse Frontmatter
-
-`failed to parse frontmatter: [yaml error details]`
-
-Invalid YAML syntax in the frontmatter. Check indentation (use spaces, not tabs), ensure colons are followed by spaces, quote strings with special characters, and verify array/object syntax:
-
-```yaml wrap
-# Correct indentation and spacing
-on:
-  issues:
-    types: [opened]
-```
-
-### Invalid Field Type
-
-`timeout-minutes must be an integer`
-
-A field received a value of the wrong type. Use the correct type as specified in the [frontmatter reference](/gh-aw/reference/frontmatter/) (e.g., `timeout-minutes: 10` not `"10"`).
-
-### Unknown Property
-
-`Unknown property: permisions. Did you mean 'permissions'?`
-
-Use the suggested field name from the error message. The compiler uses fuzzy matching to suggest corrections for common typos.
-
-### Imports Field Must Be Array
-
-`imports field must be an array of strings`
-
-The `imports:` field must use array syntax:
-
-```yaml wrap
-imports:
-  - shared/tools.md
-  - shared/security.md
-```
-
-### Multiple Agent Files in Imports
-
-`multiple agent files found in imports: 'file1.md' and 'file2.md'. Only one agent file is allowed per workflow`
-
-Import only one agent file per workflow from `.github/agents/`.
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `frontmatter not properly closed` | Missing closing `---` delimiter | Enclose frontmatter between two `---` lines |
+| `failed to parse frontmatter: ...` | Invalid YAML syntax | Check indentation (spaces, not tabs), colons followed by spaces, quoted special characters |
+| `timeout-minutes must be an integer` | Wrong value type | Use the documented type — e.g., `timeout-minutes: 10`, not `"10"` |
+| `Unknown property: ...` | Misspelled field name | Apply the "Did you mean" suggestion; see [Frontmatter Reference](/gh-aw/reference/frontmatter/) |
+| `imports field must be an array of strings` | Wrong syntax for `imports:` | Use list form: `- shared/tools.md` |
+| `multiple agent files found in imports: ...` | More than one agent file imported | Import only one file from `.github/agents/` per workflow |
 
 ## Compilation Errors
 
-Compilation errors occur when the workflow file is being converted to a GitHub Actions YAML workflow (`.lock.yml` file).
+Raised when converting the `.md` workflow to its `.lock.yml`.
 
-### Workflow File Not Found
-
-`workflow file not found: [path]`
-
-Verify the file exists in `.github/workflows/` and the filename is correct. Use `gh aw compile` without arguments to compile all workflows in the directory.
-
-### Failed to Resolve Import
-
-`failed to resolve import 'path': [details]`
-
-Ensure the imported file exists at the specified path (relative to repository root) and has read permissions.
-
-### Invalid Workflow Specification
-
-`invalid workflowspec: must be owner/repo/path[@ref]`
-
-Use the correct format for remote imports: `owner/repo/path[@ref]` (e.g., `github/gh-aw/.github/workflows/shared/example.md@main`).
-
-### Section Not Found
-
-`section 'name' not found`
-
-Verify the referenced section exists in the frontmatter. This typically occurs during internal processing and may indicate a bug.
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `workflow file not found: ...` | Path is wrong or missing | Verify the file exists under `.github/workflows/`; run `gh aw compile` to compile all |
+| `failed to resolve import '...'` | Import path or permissions | Confirm the file exists relative to repo root and is readable |
+| `invalid workflowspec: must be owner/repo/path[@ref]` | Wrong remote import format | Use `owner/repo/path[@ref]` (e.g., `github/gh-aw/.github/workflows/shared/example.md@main`) |
+| `section 'name' not found` | Referenced section missing | Internal processing issue — verify the section exists; report if persistent |
 
 ## Runtime Errors
 
-Runtime errors occur when the compiled workflow executes in GitHub Actions.
+Raised when the compiled workflow executes in GitHub Actions.
 
 ### Time Delta Errors
 
-`invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m`
+The `stop-after` and similar fields accept relative deltas (`+24h`, `+3d`, `+1d12h30m`) and absolute dates (`2025-12-31`, `December 31, 2025`).
 
-Use the correct time delta syntax with supported units: `h` (hours, minimum), `d` (days), `w` (weeks), `mo` (months). Example: `stop-after: +24h`.
+| Error | Fix |
+|-------|-----|
+| `invalid time delta format: ...` | Use supported units: `h` (minimum), `d`, `w`, `mo` |
+| `minute unit 'm' is not allowed for stop-after` | Convert minutes to hours, rounding up (e.g., `+2h` instead of `+90m`) |
+| `time delta too large: ...` | Stay within: 12 months, 52 weeks, 365 days, 8760 hours |
+| `duplicate unit '[unit]' in time delta` | Combine values for the same unit (e.g., `+3d` instead of `+1d2d`) |
+| `unable to parse date-time: ...` | Use a supported format like `2025-12-31 23:59:59`, `December 31, 2025`, or `12/31/2025` |
 
-`minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +[hours]h instead of +[minutes]m`
+### Other Runtime Errors
 
-Convert minutes to hours (round up as needed). Use `+2h` instead of `+90m`.
-
-### Time Delta Too Large
-
-`time delta too large: [value] [unit] exceeds maximum of [max]`
-
-Reduce the time delta or use a larger unit. Maximum values: 12 months, 52 weeks, 365 days, 8760 hours.
-
-### Duplicate Time Unit
-
-`duplicate unit '[unit]' in time delta: +[value]`
-
-Combine values for the same unit (e.g., `+3d` instead of `+1d2d`).
-
-### Unable to Parse Date-Time
-
-`unable to parse date-time: [value]. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc`
-
-Use a supported date format like `"2025-12-31 23:59:59"`, `"December 31, 2025"`, or `"12/31/2025"`.
-
-### JQ Not Found
-
-`jq not found in PATH`
-
-Install `jq`: Ubuntu/Debian: `sudo apt-get install jq`, macOS: `brew install jq`.
-
-### Authentication Errors
-
-`authentication required`
-
-Authenticate with GitHub CLI (`gh auth login`) or ensure `GITHUB_TOKEN` is available in GitHub Actions.
+| Error | Fix |
+|-------|-----|
+| `jq not found in PATH` | Install `jq` — Ubuntu/Debian: `sudo apt-get install jq`; macOS: `brew install jq` |
+| `authentication required` | Run `gh auth login`, or ensure `GITHUB_TOKEN` is available in Actions |
 
 ## Engine-Specific Errors
 
-### Manual Approval Invalid Format
-
-`manual-approval value must be a string`
-
-Use a string value: `manual-approval: "Approve deployment to production"`.
-
-### Invalid Frontmatter Key `triggers:`
-
-`invalid frontmatter key 'triggers:' — use 'on:' to define workflow triggers`
-
-Agentic workflow files use `on:` (not `triggers:`) to define workflow trigger events, matching standard GitHub Actions syntax. Replace `triggers:` with `on:`:
-
-```aw wrap
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
----
-```
-
-See [Triggers](/gh-aw/reference/triggers/) for the full list of supported trigger events.
-
-### Invalid On Section Format
-
-`invalid on: section format`
-
-Verify the trigger configuration follows [GitHub Actions syntax](/gh-aw/reference/triggers/) (e.g., `on: push`, `on: { push: { branches: [main] } }`).
+| Error | Fix |
+|-------|-----|
+| `manual-approval value must be a string` | Use a string: `manual-approval: "Approve deployment to production"` |
+| `invalid frontmatter key 'triggers:'` | Use `on:` instead of `triggers:` to match standard GitHub Actions syntax — see [Triggers](/gh-aw/reference/triggers/) |
+| `invalid on: section format` | Follow [GitHub Actions syntax](/gh-aw/reference/triggers/) (e.g., `on: push`, `on: { push: { branches: [main] } }`) |
 
 ## File Processing Errors
 
-### Failed to Read File
+| Error | Fix |
+|-------|-----|
+| `failed to read file ...` | Verify the file exists, is readable, and the disk is not full |
+| `failed to create .github/workflows directory` | Check filesystem permissions and disk space |
+| `workflow file '...' already exists. Use --force to overwrite` | Re-run with `--force` (e.g., `gh aw init my-workflow --force`) |
 
-`failed to read file [path]: [details]`
+## MCP Configuration Errors
 
-Verify the file exists, has read permissions, and the disk is not full.
+| Error | Fix |
+|-------|-----|
+| `failed to parse existing mcp.json: ...` | Validate JSON (`cat .github/mcp.json \| jq .`) or delete to regenerate |
+| `failed to marshal mcp.json: ...` | Internal error — report with reproduction steps |
+| `http MCP tool '...' missing required 'url' field` | Add `url:` to the HTTP MCP server configuration |
+| `unable to determine MCP type for tool '...'` | Specify at least one of `type`, `url`, `command`, or `container` |
+| `tool '...' mcp configuration cannot specify both 'container' and 'command'` | Use either `container:` or `command:`, not both |
+| `tool '...' mcp configuration with type 'http' cannot use 'container' field` | Remove `container:` from HTTP MCP servers (only valid for stdio) |
 
-### Failed to Create Directory
+## Strict Mode Errors
 
-`failed to create .github/workflows directory: [details]`
+Strict mode is the default. To opt out, use `gh aw compile` without `--strict` and avoid `strict: false` in frontmatter — see [Strict Mode](/gh-aw/reference/frontmatter/#strict-mode-strict).
 
-Check file system permissions and available disk space.
+| Error | Fix |
+|-------|-----|
+| `'network' configuration is required` | Add `network: defaults`, explicit allowed domains, or `network: {}` to deny all |
+| `write permission 'contents: write' is not allowed` | Use [safe outputs](/gh-aw/reference/safe-outputs/) (e.g., `create-issue`, `create-pull-request`) instead of write permissions |
+| `wildcard '*' is not allowed in network.allowed domains` | Use specific domains, wildcard patterns (`*.cdn.example.com`), or ecosystem identifiers (`python`, `node`) |
+| `custom MCP server '...' with container must have network configuration` | Add `network:` with allowed domains to containerized MCP servers |
+| `engine does not support firewall` | Use an engine with firewall support (e.g., `copilot`), or remove `--strict` |
+| `This workflow is running on a public repository but was not compiled with strict mode.` | Recompile with `gh aw compile --strict` |
 
-### Workflow File Already Exists
+## Safe Output & Workflow Errors
 
-`workflow file '[path]' already exists. Use --force to overwrite`
+| Error | Fix |
+|-------|-----|
+| `cannot use 'command' with 'issues' in the same workflow` | Remove the conflicting event trigger — `command:` auto-handles these events. Use `events:` inside the command to restrict scope |
+| `workflow uses safe-outputs.create-issue but repository ... does not have issues enabled` | Enable the feature in Settings → General → Features, or use a different safe output |
+| `job name cannot be empty` | Internal error — report with your workflow file |
 
-Use `gh aw init my-workflow --force` to overwrite.
-
-## Safe Output Errors
-
-### Failed to Parse Existing MCP Config
-
-`failed to parse existing mcp.json: [details]`
-
-Fix the JSON syntax (validate with `cat .github/mcp.json | jq .`) or delete the file to regenerate.
-
-### Failed to Marshal MCP Config
-
-`failed to marshal mcp.json: [details]`
-
-Internal error when generating the MCP configuration. Report the issue with reproduction steps.
-
-## Top User-Facing Errors
-
-This section documents the most common errors you may encounter when working with GitHub Agentic Workflows.
-
-### Cannot Use Command with Event Trigger
-
-`cannot use 'command' with 'issues' in the same workflow`
-
-Remove the conflicting event trigger (`issues`, `issue_comment`, `pull_request`, or `pull_request_review_comment`). The `command:` configuration automatically handles these events. To restrict to specific events, use the `events:` field within the command configuration.
-
-### Strict Mode Network Configuration Required
-
-`strict mode: 'network' configuration is required`
-
-Add network configuration: use `network: defaults` (recommended), specify allowed domains explicitly, or deny all network access with `network: {}`.
-
-### Strict Mode Write Permission Not Allowed
-
-`strict mode: write permission 'contents: write' is not allowed`
-
-Use `safe-outputs` instead of write permissions. Configure safe outputs like `create-issue` or `create-pull-request` with appropriate options.
-
-### Strict Mode Network Wildcard Not Allowed
-
-`strict mode: wildcard '*' is not allowed in network.allowed domains`
-
-Replace the standalone `*` wildcard with specific domains, wildcard patterns (e.g., `*.cdn.example.com`), or ecosystem identifiers (e.g., `python`, `node`). Alternatively, use `network: defaults`.
-
-### HTTP MCP Tool Missing Required URL Field
-
-`http MCP tool 'my-tool' missing required 'url' field`
-
-Add the required `url:` field to the HTTP MCP server configuration.
-
-### Job Name Cannot Be Empty
-
-`job name cannot be empty`
-
-Internal error. Report it with your workflow file.
-
-### Unable to Determine MCP Type
-
-`unable to determine MCP type for tool 'my-tool': missing type, url, command, or container`
-
-Specify at least one of: `type`, `url`, `command`, or `container`.
-
-### Tool MCP Configuration Cannot Specify Both Container and Command
-
-`tool 'my-tool' mcp configuration cannot specify both 'container' and 'command'`
-
-Use either `container:` OR `command:`, not both.
-
-### HTTP MCP Configuration Cannot Use Container
-
-`tool 'my-tool' mcp configuration with type 'http' cannot use 'container' field`
-
-Remove the `container:` field from HTTP MCP server configurations (only valid for stdio-based servers).
-
-### Strict Mode Custom MCP Server Requires Network Configuration
-
-`strict mode: custom MCP server 'my-server' with container must have network configuration`
-
-Add network configuration with allowed domains to containerized MCP servers in strict mode.
-
-### Repository Features Not Enabled for Safe Outputs
-
-`workflow uses safe-outputs.create-issue but repository owner/repo does not have issues enabled`
-
-Enable the required repository feature (Settings → General → Features) or use a different safe output type.
-
-### Engine Does Not Support Firewall
-
-`strict mode: engine does not support firewall`
-
-Use an engine with firewall support (e.g., `copilot`), compile without `--strict` flag, or use `network: defaults`.
-
-### Public Repository Requires Strict Mode
-
-`This workflow is running on a public repository but was not compiled with strict mode.`
-
-Recompile the workflow with strict mode enabled:
-
-```bash
-gh aw compile --strict
-```
-
-Alternatively, do not set `strict: false` in the workflow frontmatter (strict mode is the default). See [Strict Mode](/gh-aw/reference/frontmatter/#strict-mode-strict) for details.
-
-## Toolsets Configuration Issues
+## Toolset Configuration
 
 ### Tool Not Found After Migrating to Toolsets
 
-After changing from `allowed:` to `toolsets:`, expected tools are not available. The tool may be in a different toolset than expected, or a narrower toolset was chosen.
-
-Check the [GitHub Toolsets](/gh-aw/reference/github-tools/) documentation, use `gh aw mcp inspect <workflow>` to see available tools, then add the required toolset.
+The tool may be in a different toolset, or you chose a narrower one. Check [GitHub Toolsets](/gh-aw/reference/github-tools/), run `gh aw mcp inspect <workflow>` to list available tools, then add the required toolset.
 
 ### Invalid Toolset Name
 
-`invalid toolset: 'action' is not a valid toolset`
-
-Use valid toolset names: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`, `default`, `all`.
+`invalid toolset: '...' is not a valid toolset` — valid names: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`, `default`, `all`.
 
 ### Toolsets and Allowed Conflict
 
-Unexpected tool availability when using both `toolsets:` and `allowed:`. When both are specified, `allowed:` restricts tools to only those listed within the enabled toolsets.
-
-For most use cases, use only `toolsets:` without `allowed:`:
+When both `toolsets:` and `allowed:` are specified, `allowed:` restricts tools to only those listed within the enabled toolsets. Prefer using only `toolsets:`:
 
 ```yaml wrap
-# Recommended: use only toolsets
+# Recommended
 tools:
   github:
-    toolsets: [issues]  # Gets all issue-related tools
+    toolsets: [issues]
 
 # Advanced: restrict within toolset
 tools:
   github:
     toolsets: [issues]
-    allowed: [create_issue]  # Only create_issue from issues toolset
+    allowed: [create_issue]
 ```
 
 ### GitHub MCP Server Read-Only Enforcement
 
-`GitHub MCP server read-only mode cannot be disabled`
-
-The GitHub MCP server always operates in read-only mode. Setting `read-only: false` is not permitted and causes a compilation error:
-
-```yaml wrap
-# Not allowed — causes a compilation error
-tools:
-  github:
-    read-only: false
-```
-
-Remove `read-only: false` or change it to `read-only: true` (the default). Write operations should use [safe outputs](/gh-aw/reference/safe-outputs/) instead of granting the agent direct write access.
+`GitHub MCP server read-only mode cannot be disabled` — the GitHub MCP server is always read-only. Remove `read-only: false` (or set it to `true`). Use [safe outputs](/gh-aw/reference/safe-outputs/) for write operations.
 
 ## Troubleshooting Tips
 
-- Use `--verbose` flag for detailed error information
-- Validate YAML syntax and check file paths
-- Consult the [frontmatter reference](/gh-aw/reference/frontmatter-full/)
-- Run `gh aw compile` frequently to catch errors early
-- Use `--strict` flag to catch security issues early
-- Test incrementally: add one feature at a time
+- Use `--verbose` for detailed error information
+- Validate YAML syntax and file paths
+- Consult the [Frontmatter Reference](/gh-aw/reference/frontmatter-full/)
+- Compile frequently to catch errors early; use `--strict` to surface security issues
+- Add features incrementally
 
 ## Getting Help
 
-If you encounter an error not documented here:
+If your error isn't listed:
 
-1. Enable verbose mode for details: `gh aw compile --verbose`
-2. Search this page (Ctrl+F / Cmd+F) for keywords from the error message
-3. Use an agent with the [debug.md prompt](https://raw.githubusercontent.com/github/gh-aw/main/debug.md) to investigate failing workflow runs
-4. Review [workflow patterns](/gh-aw/patterns/issue-ops/) in the documentation
-5. Check [Common Issues](/gh-aw/troubleshooting/common-issues/) for additional guidance
-6. [Report the issue on GitHub](https://github.com/github/gh-aw/issues) if it is not documented
+1. Re-run with `gh aw compile --verbose`
+2. Search this page (Ctrl+F / Cmd+F) for keywords from the error
+3. Use an agent with the [debug.md prompt](https://raw.githubusercontent.com/github/gh-aw/main/debug.md) to investigate failing runs
+4. Review [workflow patterns](/gh-aw/patterns/issue-ops/) and [Common Issues](/gh-aw/troubleshooting/common-issues/)
+5. [Report the issue on GitHub](https://github.com/github/gh-aw/issues)
