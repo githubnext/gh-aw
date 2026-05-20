@@ -1809,18 +1809,21 @@ describe("sendJobSetupSpan", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
-    // GH_AW_INFO_VERSION deliberately absent (custom engine with no default version)
-    process.env.GH_AW_INFO_CLI_VERSION = "v2.5.0";
 
-    await sendJobSetupSpan();
+    try {
+      // GH_AW_INFO_VERSION deliberately absent (custom engine with no default version)
+      process.env.GH_AW_INFO_CLI_VERSION = "v2.5.0";
 
-    delete process.env.GH_AW_INFO_CLI_VERSION;
+      await sendJobSetupSpan();
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    const resourceAttrs = body.resourceSpans[0].resource.attributes;
-    expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v2.5.0" } });
-    // scope.version also uses the CLI fallback
-    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.5.0");
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v2.5.0" } });
+      // scope.version also uses the CLI fallback
+      expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.5.0");
+    } finally {
+      delete process.env.GH_AW_INFO_CLI_VERSION;
+    }
   });
 
   it("includes gh-aw.awf.version and gh-aw.awmg.version resource attributes from aw_info.json", async () => {
