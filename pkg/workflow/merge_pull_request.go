@@ -8,8 +8,6 @@ var mergePullRequestLog = logger.New("workflow:merge_pull_request")
 type MergePullRequestConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	RequiredLabels       []string `yaml:"required-labels,omitempty"`  // Labels that must ALL be present on the PR
-	RequiredLabel        []string `yaml:"required-label,omitempty"`   // Disjunctive: at least one PR label must match
-	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`   // Deprecated: use required-label
 	RequiredBranch       []string `yaml:"required-branch,omitempty"`  // Glob patterns: source branch must match one
 	AllowedBranches      []string `yaml:"allowed-branches,omitempty"` // Deprecated: use required-branch
 }
@@ -25,10 +23,9 @@ func (c *Compiler) parseMergePullRequestConfig(outputMap map[string]any) *MergeP
 	cfg := &MergePullRequestConfig{}
 	if configMap, ok := configData.(map[string]any); ok {
 		cfg.RequiredLabels = ParseStringArrayFromConfig(configMap, "required-labels", mergePullRequestLog)
-		// Parse required-label (preferred) with fallback to deprecated allowed-labels — also accepts bare string scalar
-		cfg.RequiredLabel = ParseStringOrSliceFromConfig(configMap, "required-label", mergePullRequestLog)
-		if len(cfg.RequiredLabel) == 0 {
-			cfg.RequiredLabel = ParseStringOrSliceFromConfig(configMap, "allowed-labels", mergePullRequestLog)
+		if len(cfg.RequiredLabels) == 0 {
+			// Deprecated: allowed-labels is migrated to required-labels by the codemod
+			cfg.RequiredLabels = ParseStringArrayFromConfig(configMap, "allowed-labels", mergePullRequestLog)
 		}
 		// Parse required-branch (preferred) with fallback to deprecated allowed-branches
 		cfg.RequiredBranch = ParseStringArrayFromConfig(configMap, "required-branch", mergePullRequestLog)
@@ -36,7 +33,7 @@ func (c *Compiler) parseMergePullRequestConfig(outputMap map[string]any) *MergeP
 			cfg.RequiredBranch = ParseStringArrayFromConfig(configMap, "allowed-branches", mergePullRequestLog)
 		}
 		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 1)
-		mergePullRequestLog.Printf("Parsed merge-pull-request config: requiredLabels=%v, requiredLabel=%v, requiredBranch=%v", cfg.RequiredLabels, cfg.RequiredLabel, cfg.RequiredBranch)
+		mergePullRequestLog.Printf("Parsed merge-pull-request config: requiredLabels=%v, requiredBranch=%v", cfg.RequiredLabels, cfg.RequiredBranch)
 		return cfg
 	}
 

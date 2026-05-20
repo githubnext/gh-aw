@@ -282,11 +282,10 @@ function sanitizeBranchName(branchName, branchRole) {
 
 /**
  * @param {string[]} labels
- * @param {string[]} allowedLabels
  * @returns {string[]}
  */
-function findAllowedLabelMatches(labels, allowedLabels) {
-  return labels.filter(label => allowedLabels.includes(label));
+function findMissingRequiredLabels(labels, requiredLabels) {
+  return requiredLabels.filter(label => !labels.includes(label));
 }
 
 /**
@@ -326,11 +325,10 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const maxCount = Number(config.max || 1);
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
-  const allowedLabels = Array.isArray(config.allowed_labels) ? config.allowed_labels : [];
   const allowedBranches = Array.isArray(config.allowed_branches) ? config.allowed_branches : [];
 
   const allowedBranchPatterns = compilePathGlobs(allowedBranches);
-  core.info(`merge_pull_request handler configured: max=${maxCount}, requiredLabels=${requiredLabels.length}, allowedLabels=${allowedLabels.length}, allowedBranches=${allowedBranches.length}, staged=${isStaged}`);
+  core.info(`merge_pull_request handler configured: max=${maxCount}, requiredLabels=${requiredLabels.length}, allowedBranches=${allowedBranches.length}, staged=${isStaged}`);
 
   let processedCount = 0;
 
@@ -417,25 +415,13 @@ async function main(config = {}) {
 
       const labels = (pr.labels || []).map(l => l.name).filter(Boolean);
       core.info(`PR labels (${labels.length}): ${labels.join(", ") || "(none)"}`);
-      const missingRequiredLabels = requiredLabels.filter(label => !labels.includes(label));
+      const missingRequiredLabels = findMissingRequiredLabels(labels, requiredLabels);
       if (missingRequiredLabels.length > 0) {
         failureReasons.push({
           code: "missing_required_labels",
           message: "Required labels are missing",
           details: { missing: missingRequiredLabels, present: labels },
         });
-      }
-
-      if (allowedLabels.length > 0) {
-        const matchedLabels = findAllowedLabelMatches(labels, allowedLabels);
-        core.info(`Allowed label match count: ${matchedLabels.length}`);
-        if (matchedLabels.length === 0) {
-          failureReasons.push({
-            code: "allowed_labels_no_match",
-            message: "No pull request label matches allowed-labels",
-            details: { present: labels, allowed_labels: allowedLabels },
-          });
-        }
       }
 
       if (allowedBranchPatterns.length > 0 && sourceBranch && !allowedBranchPatterns.some(re => re.test(sourceBranch))) {
@@ -579,7 +565,7 @@ module.exports = {
     resolveContextPullNumber,
     sanitizeBranchName,
     getBranchPolicy,
-    findAllowedLabelMatches,
+    findMissingRequiredLabels,
     resolvePullRequestNumber,
   },
 };

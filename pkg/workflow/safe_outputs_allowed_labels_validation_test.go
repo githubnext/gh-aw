@@ -124,9 +124,9 @@ strict: false
 	}
 }
 
-// TestRequiredLabelScalarShorthand verifies that required-label accepts a bare scalar string
-// (e.g. `required-label: approved`) as a shorthand for a single-element list.
-func TestRequiredLabelScalarShorthand(t *testing.T) {
+// TestRequiredLabelsConjunctive verifies that required-labels requires ALL labels to match
+// (conjunctive semantics) for add-labels, remove-labels, and add-comment operations.
+func TestRequiredLabelsConjunctive(t *testing.T) {
 	basePermissions := `
 permissions:
   contents: read
@@ -145,27 +145,27 @@ strict: false
 		wantInJSON  string
 	}{
 		{
-			name: "add-labels required-label as scalar",
+			name: "add-labels required-labels as array",
 			safeOutputs: `safe-outputs:
   add-labels:
     allowed: [bug]
-    required-label: approved
+    required-labels: [approved, ready]
 `,
-			wantInJSON: `"required_label":["approved"]`,
+			wantInJSON: `"required_labels":["approved","ready"]`,
 		},
 		{
-			name: "add-comment required-label as scalar",
+			name: "add-comment required-labels as array",
 			safeOutputs: `safe-outputs:
   add-comment:
-    required-label: approved
+    required-labels: [approved]
 `,
-			wantInJSON: `"required_label":["approved"]`,
+			wantInJSON: `"required_labels":["approved"]`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := testutil.TempDir(t, "scalar-rl-test")
+			tmpDir := testutil.TempDir(t, "conjunctive-rl-test")
 			content := "---\n" + basePermissions + tt.safeOutputs + "---\n\n# Test\n\nBody.\n"
 			wfPath := filepath.Join(tmpDir, "test.md")
 			err := os.WriteFile(wfPath, []byte(content), 0o600)
@@ -173,13 +173,13 @@ strict: false
 
 			compiler := NewCompiler()
 			compileErr := compiler.CompileWorkflow(wfPath)
-			require.NoError(t, compileErr, "scalar required-label should compile without error")
+			require.NoError(t, compileErr, "required-labels array should compile without error")
 
 			lockPath := wfPath[:len(wfPath)-3] + ".lock.yml"
 			lockBytes, err := os.ReadFile(lockPath)
 			require.NoError(t, err, "lock file should exist")
 			assert.Contains(t, string(lockBytes), tt.wantInJSON,
-				"compiled JSON should contain required_label as single-element array")
+				"compiled JSON should contain required_labels as array")
 		})
 	}
 }

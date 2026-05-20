@@ -66,38 +66,6 @@ func ParseStringArrayFromConfig(m map[string]any, key string, debugLog *logger.L
 	return nil
 }
 
-// ParseStringOrSliceFromConfig is like ParseStringArrayFromConfig but also accepts a
-// bare scalar string as a shorthand for a single-element list (e.g. `required-label: approved`).
-func ParseStringOrSliceFromConfig(m map[string]any, key string, debugLog *logger.Logger) []string {
-	if value, exists := m[key]; exists {
-		if s, ok := value.(string); ok {
-			if debugLog != nil {
-				debugLog.Printf("Field %q is a scalar string, wrapping as single-element array", key)
-			}
-			return []string{s}
-		}
-	}
-	return ParseStringArrayFromConfig(m, key, debugLog)
-}
-
-// normalizeScalarArrayFields coerces scalar string values to single-element slices for the
-// specified keys in configData (must be a map[string]any). This lets YAML authors write
-// shorthand like `required-label: approved` instead of `required-label: [approved]`.
-// Only string scalars are coerced; existing slices and other types are left unchanged.
-func normalizeScalarArrayFields(configData any, keys ...string) {
-	m, ok := configData.(map[string]any)
-	if !ok {
-		return
-	}
-	for _, key := range keys {
-		if v, ok := m[key]; ok {
-			if s, ok := v.(string); ok {
-				m[key] = []any{s}
-			}
-		}
-	}
-}
-
 // ParseStringArrayOrExprFromConfig is like ParseStringArrayFromConfig but also accepts a
 // GitHub Actions expression string as a valid value.  When the raw value is an expression
 // (starts with "${{" and ends with "}}") it is returned as []string{exprString} so that

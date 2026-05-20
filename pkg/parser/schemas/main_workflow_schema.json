@@ -6089,21 +6089,14 @@
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
-                "required-label": {
-                  "description": "Disjunctive label constraint: at least one of these labels must be present on the issue/PR for the operation to proceed. Accepts a single string or an array of strings.",
-                  "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "maxItems": 50
-                    }
-                  ]
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Conjunctive label constraint: ALL of these labels must be present on the issue/PR for the operation to proceed."
                 },
                 "required-title-prefix": {
                   "type": "string",
@@ -6870,21 +6863,14 @@
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be added to. When specified, the agent can use a 'repo' field in the output to specify which repository to add labels to. The target repository (current or target-repo) is always implicitly allowed."
                 },
-                "required-label": {
-                  "description": "Disjunctive label constraint: at least one of these labels must be present on the issue/PR for the operation to proceed. Accepts a single string or an array of strings.",
-                  "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "maxItems": 50
-                    }
-                  ]
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Conjunctive label constraint: ALL of these labels must be present on the issue/PR for the operation to proceed."
                 },
                 "required-title-prefix": {
                   "type": "string",
@@ -6962,21 +6948,14 @@
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be removed from. When specified, the agent can use a 'repo' field in the output to specify which repository to remove labels from. The target repository (current or target-repo) is always implicitly allowed."
                 },
-                "required-label": {
-                  "description": "Disjunctive label constraint: at least one of these labels must be present on the issue/PR for the operation to proceed. Accepts a single string or an array of strings.",
-                  "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "maxItems": 50
-                    }
-                  ]
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Conjunctive label constraint: ALL of these labels must be present on the issue/PR for the operation to proceed."
                 },
                 "required-title-prefix": {
                   "type": "string",
@@ -7625,28 +7604,12 @@
                   },
                   "description": "List of labels that must ALL be present on the pull request before merge is allowed."
                 },
-                "required-label": {
-                  "description": "Disjunctive label constraint: at least one existing PR label must match one of these values before merge is allowed. Accepts a single string or an array of strings.",
-                  "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "minItems": 1,
-                      "maxItems": 50
-                    }
-                  ]
-                },
                 "allowed-labels": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Deprecated alias for required-label",
+                  "description": "Deprecated alias for required-labels",
                   "deprecated": true
                 },
                 "required-branch": {

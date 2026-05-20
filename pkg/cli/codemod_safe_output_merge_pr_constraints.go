@@ -14,7 +14,7 @@ func getSafeOutputMergePRConstraintsCodemod() Codemod {
 	return Codemod{
 		ID:           "safe-output-merge-pr-constraints",
 		Name:         "Rename deprecated merge-pull-request constraint fields",
-		Description:  "Renames allowed-labels to required-label and allowed-branches to required-branch in safe-outputs.merge-pull-request.",
+		Description:  "Renames allowed-labels to required-labels and allowed-branches to required-branch in safe-outputs.merge-pull-request.",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !mergePRConstraintsNeedsMigration(frontmatter) {
@@ -50,7 +50,7 @@ func mergePRConstraintsNeedsMigration(frontmatter map[string]any) bool {
 		return false
 	}
 
-	if _, hasNew := handlerMap["required-label"]; !hasNew {
+	if _, hasNew := handlerMap["required-labels"]; !hasNew {
 		if _, hasOld := handlerMap["allowed-labels"]; hasOld {
 			return true
 		}
@@ -129,11 +129,11 @@ func renameMergePRConstraints(lines []string) ([]string, bool) {
 		}
 
 		if inMergePR && indent == mergePRChildIndent && strings.HasPrefix(trimmed, "allowed-labels:") {
-			newLine, replaced := findAndReplaceInLine(line, "allowed-labels", "required-label")
+			newLine, replaced := findAndReplaceInLine(line, "allowed-labels", "required-labels")
 			if replaced {
 				result = append(result, newLine)
 				modified = true
-				safeOutputMergePRConstraintsCodemodLog.Printf("Renamed allowed-labels to required-label in safe-outputs.merge-pull-request on line %d", i+1)
+				safeOutputMergePRConstraintsCodemodLog.Printf("Renamed allowed-labels to required-labels in safe-outputs.merge-pull-request on line %d", i+1)
 				continue
 			}
 		}

@@ -12,7 +12,7 @@ import (
 func TestSafeOutputMergePRConstraintsCodemod(t *testing.T) {
 	codemod := getSafeOutputMergePRConstraintsCodemod()
 
-	t.Run("renames allowed-labels and allowed-branches to required-label and required-branch", func(t *testing.T) {
+	t.Run("renames allowed-labels and allowed-branches to required-labels and required-branch", func(t *testing.T) {
 		content := `---
 safe-outputs:
   merge-pull-request:
@@ -34,11 +34,10 @@ safe-outputs:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err)
 		assert.True(t, applied)
-		assert.Contains(t, result, "required-label:")
+		assert.Contains(t, result, "required-labels:")
 		assert.Contains(t, result, "required-branch:")
 		assert.NotContains(t, result, "allowed-labels:")
 		assert.NotContains(t, result, "allowed-branches:")
-		assert.Contains(t, result, "required-labels:") // existing field unchanged
 	})
 
 	t.Run("renames only allowed-branches when allowed-labels absent", func(t *testing.T) {
@@ -67,14 +66,14 @@ safe-outputs:
 		content := `---
 safe-outputs:
   merge-pull-request:
-    required-label: [release]
+    required-labels: [release]
     required-branch: [main]
 ---
 `
 		frontmatter := map[string]any{
 			"safe-outputs": map[string]any{
 				"merge-pull-request": map[string]any{
-					"required-label":  []string{"release"},
+					"required-labels": []string{"release"},
 					"required-branch": []string{"main"},
 				},
 			},
@@ -112,7 +111,7 @@ safe-outputs:
 		// close-issue.allowed-labels must remain unchanged
 		assert.Contains(t, result, "  close-issue:\n    allowed-labels:")
 		// only merge-pull-request gets renamed
-		assert.Contains(t, result, "required-label:")
+		assert.Contains(t, result, "required-labels:")
 	})
 
 	t.Run("no-op when safe-outputs missing", func(t *testing.T) {

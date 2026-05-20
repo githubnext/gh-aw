@@ -17,8 +17,6 @@ type RemoveLabelsConfig struct {
 
 // parseRemoveLabelsConfig handles remove-labels configuration
 func (c *Compiler) parseRemoveLabelsConfig(outputMap map[string]any) *RemoveLabelsConfig {
-	// Allow scalar shorthand: `required-label: approved` → `required-label: [approved]`
-	normalizeScalarArrayFields(outputMap["remove-labels"], "required-label")
 	config := parseConfigScaffold(outputMap, "remove-labels", removeLabelsLog, func(err error) *RemoveLabelsConfig {
 		removeLabelsLog.Printf("Failed to unmarshal config: %v", err)
 		// Handle null case: create empty config (allows any labels)

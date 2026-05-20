@@ -253,7 +253,7 @@ Closes GitHub issues with an optional comment and state reason. Filters by label
 safe-outputs:
   close-issue:
     target: "triggering"              # "triggering" (default), "*", or number
-    required-labels: [automated]      # only close with any of these labels
+    required-labels: [automated]      # only close if ALL these labels are present
     required-title-prefix: "[bot]"    # only close matching prefix
     max: 20                           # max closures (default: 1)
     target-repo: "owner/repo"         # cross-repository
@@ -269,7 +269,7 @@ safe-outputs:
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; use `target: "*"` for any, or number for specific items. When combined with `create-issue`, `create-discussion`, or `create-pull-request`, includes "Related Items" section.
 
-Use `required-label` to only comment on issues/PRs that have at least one of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
+Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
 
 ```yaml wrap
 safe-outputs:
@@ -282,8 +282,8 @@ safe-outputs:
     hide-older-comments: true    # hide previous comments from same workflow
     allowed-reasons: [outdated]  # restrict hiding reasons (optional)
     footer: false                # omit AI-generated footer (default: true)
-    required-label: [bot, automated]  # only comment if item has at least one of these labels
-    required-title-prefix: "[bot] "   # only comment if item title starts with this prefix
+    required-labels: [bot, automated]  # only comment if item has ALL of these labels
+    required-title-prefix: "[bot] "    # only comment if item title starts with this prefix
 ```
 
 > [!TIP]
@@ -324,7 +324,7 @@ safe-outputs:
 
 Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels or glob patterns, or `blocked` to deny specific label patterns regardless of the allow list.
 
-Use `required-label` to only add labels to issues/PRs that already have at least one of the specified labels. Use `required-title-prefix` to only add labels to issues/PRs whose title starts with the given prefix.
+Use `required-labels` to only add labels to issues/PRs that already have **all** of the specified labels. Use `required-title-prefix` to only add labels to issues/PRs whose title starts with the given prefix.
 
 ```yaml wrap
 safe-outputs:
@@ -335,8 +335,8 @@ safe-outputs:
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
-    required-label: [automated, bot]  # only operate if item has at least one of these labels
-    required-title-prefix: "[bot] "   # only operate if item title starts with this prefix
+    required-labels: [automated, bot]  # only operate if item has ALL of these labels
+    required-title-prefix: "[bot] "    # only operate if item title starts with this prefix
 ```
 
 #### Blocked Label Patterns
@@ -367,7 +367,7 @@ safe-outputs:
 
 Removes labels from issues or PRs. Specify `allowed` to restrict which labels can be removed (specific labels or glob patterns), or `blocked` to prevent removal of specific label patterns. If a label is not present on the item, it will be silently skipped.
 
-Use `required-label` to only remove labels from issues/PRs that already have at least one of the specified labels. Use `required-title-prefix` to only remove labels from issues/PRs whose title starts with the given prefix.
+Use `required-labels` to only remove labels from issues/PRs that already have **all** of the specified labels. Use `required-title-prefix` to only remove labels from issues/PRs whose title starts with the given prefix.
 
 ```yaml wrap
 safe-outputs:
@@ -378,7 +378,7 @@ safe-outputs:
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
-    required-label: [automated]  # only operate if item has at least one of these labels
+    required-labels: [automated]  # only operate if item has ALL of these labels
     required-title-prefix: "[bot] "  # only operate if item title starts with this prefix
 ```
 
@@ -1071,7 +1071,7 @@ safe-outputs:
   close-discussion:
     target: "triggering"         # "triggering" (default), "*", or number
     required-category: "Ideas"   # only close in category
-    required-labels: [resolved]  # only close with labels
+    required-labels: [resolved]  # only close if ALL these labels are present
     required-title-prefix: "[ai]" # only close matching prefix
     max: 1                       # max closures (default: 1)
     target-repo: "owner/repo"    # cross-repository

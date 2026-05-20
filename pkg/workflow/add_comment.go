@@ -57,8 +57,6 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		addCommentLog.Printf("Invalid allowed-repos value: %v", err)
 		return nil
 	}
-	// Allow scalar shorthand: `required-label: approved` → `required-label: [approved]`
-	normalizeScalarArrayFields(configData, "required-label")
 
 	config := parseConfigScaffold(outputMap, "add-comment", addCommentLog, func(err error) *AddCommentsConfig {
 		addCommentLog.Printf("Failed to unmarshal config: %v", err)
