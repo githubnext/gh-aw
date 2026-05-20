@@ -58,6 +58,12 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 		workflowPermissions = NewPermissionsParser(workflowData.Permissions).ToPermissions()
 	}
 
+	// Validate permission scope names for typos (e.g. "contnts" → "contents")
+	workflowLog.Printf("Validating permission scope names")
+	if err := ValidatePermissionScopeNames(workflowData.Permissions); err != nil {
+		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate dangerous permissions
 	workflowLog.Printf("Validating dangerous permissions")
 	if err := validateDangerousPermissions(workflowData, workflowPermissions); err != nil {

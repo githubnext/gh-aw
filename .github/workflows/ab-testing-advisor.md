@@ -1,82 +1,76 @@
 ---
-emoji: "🧪"
-description: Daily A/B testing advisor that picks a random agentic workflow without an experiments section, devises an experiment campaign to improve it, and creates a GitHub issue with the implementation task
 on:
   schedule:
-    - cron: "daily around 10:00"  # gh-aw friendly cron DSL, compiled to standard 5-field cron (e.g. "22 10 * * *")
-  workflow_dispatch:
+  - cron: daily around 10:00
   skip-if-match:
-    query: 'is:issue is:open in:title "[ab-advisor] " label:experiments'
     max: 3
+    query: is:issue is:open in:title "[ab-advisor] " label:experiments
+  workflow_dispatch: null
 permissions:
+  actions: read
   contents: read
   issues: read
   pull-requests: read
-  actions: read
-
-tracker-id: ab-testing-advisor
-engine:
-  id: copilot
-  bare: true
-
-timeout-minutes: 30
-
-strict: true
-
 network:
   allowed:
-    - defaults
-
+  - defaults
 imports:
-  - shared/otlp.md
+- shared/otlp.md
+safe-outputs:
+  create-issue:
+    close-older-issues: true
+    close-older-key: ab-testing-advisor
+    expires: 14d
+    group: true
+    labels:
+    - automation
+    - experiments
+    - ai-generated
+    max: 2
+    title-prefix: "[ab-advisor] "
+description: Daily A/B testing advisor that picks a random agentic workflow without an experiments section, devises an experiment campaign to improve it, and creates a GitHub issue with the implementation task
+emoji: 🧪
+engine:
+  bare: true
+  id: copilot
+features:
+  copilot-requests: true
+strict: true
+timeout-minutes: 30
 tools:
-  cli-proxy: true
+  bash:
+  - find .github/workflows -maxdepth 1 -name "*.md" ! -name "shared" -type f
+  - grep -l "experiments:" .github/workflows/*.md
+  - grep -rL "experiments:" .github/workflows/*.md
+  - grep -rn "experiments:" .github/workflows/*.md
+  - cat .github/workflows/
+  - shuf -n 1
+  - awk
+  - wc -l
+  - ls .github/workflows/
+  - head -200
+  - grep -c
+  - grep
+  - echo
+  - date
+  - python3
+  - jq
+  - find
+  - cat
+  - sort
+  - basename
+  - tail
+  - uniq
+  - mkdir
   cache-memory: true
+  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:
-      - default
-      - actions
-  bash:
-    - "find .github/workflows -maxdepth 1 -name '*.md' ! -name 'shared' -type f"
-    - "grep -l 'experiments:' .github/workflows/*.md"
-    - "grep -rL 'experiments:' .github/workflows/*.md"
-    - "grep -rn 'experiments:' .github/workflows/*.md"
-    - "cat .github/workflows/"
-    - "shuf -n 1"
-    - "awk"
-    - "wc -l"
-    - "ls .github/workflows/"
-    - "head -200"
-    - "grep -c"
-    - "grep"
-    - "echo"
-    - "date"
-    - "python3"
-    - "jq"
-    - "find"
-    - "cat"
-    - "sort"
-    - "basename"
-    - "tail"
-    - "uniq"
-    - "mkdir"
-
-safe-outputs:
-  create-issue:
-    title-prefix: "[ab-advisor] "
-    labels: [automation, experiments, ai-generated]
-    expires: 14d
-    max: 2
-    group: true
-    close-older-issues: true
-    close-older-key: ab-testing-advisor
-
-features:
-  copilot-requests: true
-
+    - default
+    - actions
+tracker-id: ab-testing-advisor
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily A/B Testing Advisor

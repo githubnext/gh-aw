@@ -1,53 +1,53 @@
 ---
-emoji: "🔒"
-name: Daily Compiler Threat Spec Optimizer
-description: Daily optimizer that reconciles compiler threat coverage with W3C specification-driven detection rules
 on:
   schedule: daily
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
   security-events: read
-
-tracker-id: daily-compiler-threat-spec-optimizer
-engine: copilot
-strict: true
-
 imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[compiler-threat-spec] "
-      expires: 3d
-
-  - shared/otlp.md
+- uses: shared/daily-audit-base.md
+  with:
+    expires: 3d
+    title-prefix: "[compiler-threat-spec] "
+- shared/otlp.md
 safe-outputs:
   create-pull-request:
-    title-prefix: "[compiler-threat-spec] "
-    labels: [security, compiler, specification, automation]
-    expires: 7d
     draft: false
-
+    expires: 7d
+    labels:
+    - security
+    - compiler
+    - specification
+    - automation
+    title-prefix: "[compiler-threat-spec] "
+description: Daily optimizer that reconciles compiler threat coverage with W3C specification-driven detection rules
+emoji: 🔒
+engine: copilot
+name: Daily Compiler Threat Spec Optimizer
+strict: true
+timeout-minutes: 30
 tools:
+  bash:
+  - git ls-files pkg/workflow/*.go
+  - git ls-files pkg/parser/*.go
+  - cat specs/compiler-threat-detection-spec.md
+  - "git log --since=\"2 days ago\" --oneline -- pkg/workflow pkg/parser actions/setup/js"
+  - "git diff -- pkg/workflow pkg/parser actions/setup/js"
+  - go test -v ./pkg/workflow/...
   cli-proxy: true
+  edit: null
   github:
     mode: gh-proxy
-    toolsets: [default, issues, pull_requests, code_security]
-  edit:
-  bash:
-    - "git ls-files pkg/workflow/*.go"
-    - "git ls-files pkg/parser/*.go"
-    - "cat specs/compiler-threat-detection-spec.md"
-    - "git log --since='2 days ago' --oneline -- pkg/workflow pkg/parser actions/setup/js"
-    - "git diff -- pkg/workflow pkg/parser actions/setup/js"
-    - "go test -v ./pkg/workflow/..."
-
-timeout-minutes: 30
-
+    toolsets:
+    - default
+    - issues
+    - pull_requests
+    - code_security
+tracker-id: daily-compiler-threat-spec-optimizer
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Compiler Threat Spec Optimizer

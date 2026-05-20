@@ -404,7 +404,7 @@ tools:
 The `read-only` field restricts the GitHub MCP server to read-only operations, preventing write operations like creating issues, PRs, or modifying repository content.
 
 **Values**:
-- `true` (default) - Only read operations allowed (enhanced security)
+- `true` (default) - Only read operations allowed (write operations rejected)
 - `false` - Both read and write operations allowed
 
 **Security Note**: The default is `true` to prevent accidental write operations. Explicitly set to `false` only when write operations are required and authorized.
@@ -505,7 +505,7 @@ tools:
 The `lockdown` field restricts GitHub MCP server to **only the triggering repository**, preventing access to other repositories even if the token has permissions.
 
 **Values**:
-- `true` - Only triggering repository accessible (enhanced security)
+- `true` - Only triggering repository accessible (cross-repo access rejected)
 - `false` - All token-accessible repositories available
 - **Omitted** - Automatically set based on repository visibility (private repos → `true`, public repos → `false`)
 
@@ -2338,7 +2338,7 @@ tools:
     private-repos: true
 ```
 
-**Use Case**: Multi-repository automation with fine-grained permissions, enhanced security posture
+**Use Case**: Multi-repository automation with fine-grained permissions and short-lived tokens
 
 **GitHub App Benefits**:
 - Short-lived tokens (auto-expire)

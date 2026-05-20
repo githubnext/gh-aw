@@ -29,6 +29,7 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
@@ -53,7 +54,7 @@ steps:
         touch /tmp/gh-aw/agent/test-diff.txt
       fi
 
-      git diff "${{ github.event.pull_request.base.sha }}...HEAD" --numstat \
+      git diff "$EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA...HEAD" --numstat \
         > /tmp/gh-aw/agent/diff-numstat.txt 2>/dev/null || true
 
       echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"

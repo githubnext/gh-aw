@@ -4,12 +4,13 @@ package osexitinlibrary
 
 import (
 	"go/ast"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 )
 
 // Analyzer is the os-exit-in-library analysis pass.
@@ -36,7 +37,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
-		if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(filepath.Base(pass.Fset.Position(call.Pos()).Filename), "_test.go") {
+		if strings.HasSuffix(pkgPath, ".test") || filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
 			return
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
@@ -48,7 +49,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		if ident.Name == "os" && sel.Sel.Name == "Exit" {
-			pass.Reportf(call.Pos(), "os.Exit called in library package %s; move process termination to a cmd/ entry-point", pkgPath)
+			pass.ReportRangef(call, "os.Exit called in library package %s; move process termination to a cmd/ entry-point", pkgPath)
 		}
 	})
 

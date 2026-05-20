@@ -1,111 +1,107 @@
 ---
-emoji: "🔍"
-name: Workflow Skill Extractor
-description: Analyzes existing agentic workflows to identify shared skills, tools, and prompts that could be refactored into shared components
 on:
   schedule: weekly
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
-  contents: read
   actions: read
+  contents: read
   issues: read
   pull-requests: read
-
-engine:
-  id: copilot
-
-timeout-minutes: 30
-
-tools:
-  cli-proxy: true
-  bash:
-    - "find .github/workflows -name '*.md'"
-    - "grep -r '*' .github/workflows"
-    - "cat *"
-    - "ls *"
-    - "wc *"
-    - "python3 *"
-    - "cat > /tmp/gh-aw/agent/*.py"
-
+imports:
+- shared/reporting.md
+- shared/otlp.md
 safe-outputs:
   create-discussion:
-    category: "reports"
-    max: 1
+    category: reports
     close-older-discussions: true
+    max: 1
   create-issue:
     expires: 2d
-    title-prefix: "[refactoring] "
-    labels: [refactoring, shared-component, improvement, cookie]
-    max: 3
     group: true
-
-imports:
-  - shared/reporting.md
-  - shared/otlp.md
+    labels:
+    - refactoring
+    - shared-component
+    - improvement
+    - cookie
+    max: 3
+    title-prefix: "[refactoring] "
 steps:
-  - name: Build workflow index
-    uses: actions/github-script@v9
-    with:
-      script: |
-        const fs = require('fs');
-        const path = require('path');
-
-        const workflowDir = '.github/workflows';
-        const entries = fs.readdirSync(workflowDir, { withFileTypes: true });
-        const index = [];
-
-        for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-          if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name.startsWith('.')) {
+- name: Build workflow index
+  uses: actions/github-script@v9
+  with:
+    script: |
+      const fs = require('fs');
+      const path = require('path');
+      
+      const workflowDir = '.github/workflows';
+      const entries = fs.readdirSync(workflowDir, { withFileTypes: true });
+      const index = [];
+      
+      for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+        if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name.startsWith('.')) {
+          continue;
+        }
+      
+        const workflowPath = path.join(workflowDir, entry.name);
+        const content = fs.readFileSync(workflowPath, 'utf8');
+        const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        const frontmatter = frontmatterMatch ? frontmatterMatch[1] : '';
+      
+        const imports = Array.from(frontmatter.matchAll(/^\s*-\s+(shared\/\S+)/gm), (m) => m[1]);
+        let engine = null;
+        const frontmatterLines = frontmatter.split('\n');
+        let inEngineBlock = false;
+      
+        for (const line of frontmatterLines) {
+          if (!inEngineBlock) {
+            if (/^engine:\s*$/.test(line)) {
+              inEngineBlock = true;
+            }
             continue;
           }
-
-          const workflowPath = path.join(workflowDir, entry.name);
-          const content = fs.readFileSync(workflowPath, 'utf8');
-          const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-          const frontmatter = frontmatterMatch ? frontmatterMatch[1] : '';
-
-          const imports = Array.from(frontmatter.matchAll(/^\s*-\s+(shared\/\S+)/gm), (m) => m[1]);
-          let engine = null;
-          const frontmatterLines = frontmatter.split('\n');
-          let inEngineBlock = false;
-
-          for (const line of frontmatterLines) {
-            if (!inEngineBlock) {
-              if (/^engine:\s*$/.test(line)) {
-                inEngineBlock = true;
-              }
-              continue;
-            }
-
-            if (!/^[ \t]/.test(line)) {
-              break;
-            }
-
-            const engineIDMatch = line.match(/^\s*id:\s*(\S+)/);
-            if (engineIDMatch) {
-              engine = engineIDMatch[1];
-              break;
-            }
+      
+          if (!/^[ \t]/.test(line)) {
+            break;
           }
-
-          index.push({
-            file: entry.name,
-            path: workflowPath,
-            imports,
-            engine,
-            has_github_tools: frontmatter.includes('github:'),
-            has_safe_outputs: frontmatter.includes('safe-outputs:'),
-            frontmatter_preview: frontmatter.slice(0, 400)
-          });
+      
+          const engineIDMatch = line.match(/^\s*id:\s*(\S+)/);
+          if (engineIDMatch) {
+            engine = engineIDMatch[1];
+            break;
+          }
         }
-
-        fs.mkdirSync('/tmp/gh-aw/agent', { recursive: true });
-        fs.writeFileSync('/tmp/gh-aw/agent/workflow-index.json', JSON.stringify(index, null, 2) + '\n', 'utf8');
-        core.info(`Indexed ${index.length} workflows`);
-
+      
+        index.push({
+          file: entry.name,
+          path: workflowPath,
+          imports,
+          engine,
+          has_github_tools: frontmatter.includes('github:'),
+          has_safe_outputs: frontmatter.includes('safe-outputs:'),
+          frontmatter_preview: frontmatter.slice(0, 400)
+        });
+      }
+      
+      fs.mkdirSync('/tmp/gh-aw/agent', { recursive: true });
+      fs.writeFileSync('/tmp/gh-aw/agent/workflow-index.json', JSON.stringify(index, null, 2) + '\n', 'utf8');
+      core.info(`Indexed ${index.length} workflows`);
+description: Analyzes existing agentic workflows to identify shared skills, tools, and prompts that could be refactored into shared components
+emoji: 🔍
+engine:
+  id: copilot
+name: Workflow Skill Extractor
+timeout-minutes: 30
+tools:
+  bash:
+  - find .github/workflows -name "*.md"
+  - grep -r "*" .github/workflows
+  - cat *
+  - ls *
+  - wc *
+  - python3 *
+  - cat > /tmp/gh-aw/agent/*.py
+  cli-proxy: true
 ---
-
 # Workflow Skill Extractor
 
 You are an AI workflow analyst specialized in identifying reusable skills in GitHub Agentic Workflows.

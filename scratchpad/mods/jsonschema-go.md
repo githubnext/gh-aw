@@ -116,7 +116,7 @@ tool := &mcp.Tool{
 
 Based on upstream activity and community discussions:
 
-- **Enhanced Type Mapping:** Improved handling of pointer types for nullable fields
+- **Type Mapping:** Improved handling of pointer types for nullable fields
 - **Better Error Messages:** More descriptive validation errors, especially for `additionalProperties` violations
 - **Performance Improvements:** Optimizations in validation logic
 - **TypeSchemas Key Update:** Changed from `any` to `reflect.Type` for better type safety
@@ -126,7 +126,7 @@ Based on upstream activity and community discussions:
 
 While not officially released, upstream development suggests:
 - Deeper customization for schema inference
-- Enhanced default value support
+- Expanded default value support
 - More informative validation error messages
 - Better meta-schema integration
 - Improved handling of complex Go types

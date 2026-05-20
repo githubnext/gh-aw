@@ -1,68 +1,61 @@
 ---
-emoji: "📝"
-name: Go Logger Enhancement
-description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
 on:
   schedule: daily
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-engine: claude
-
+imports:
+- shared/go-make.md
+- shared/otlp.md
 safe-outputs:
   create-pull-request:
-    expires: 2d
-    title-prefix: "[log] "
-    labels: [enhancement, automation]
     draft: false
-
+    expires: 2d
+    labels:
+    - enhancement
+    - automation
+    title-prefix: "[log] "
 steps:
-  - name: Setup Node.js
-    uses: actions/setup-node@v6.4.0
-    with:
-      node-version: "24"
-      cache: npm
-      cache-dependency-path: actions/setup/js/package-lock.json
-  - name: Setup Go
-    uses: actions/setup-go@v6.4.0
-    with:
-      go-version-file: go.mod
-      cache: true
-  - name: Install npm dependencies
-    run: npm ci
-    working-directory: ./actions/setup/js
-
+- name: Setup Node.js
+  uses: actions/setup-node@v6.4.0
+  with:
+    cache: npm
+    cache-dependency-path: actions/setup/js/package-lock.json
+    node-version: "24"
+- name: Setup Go
+  uses: actions/setup-go@v6.4.0
+  with:
+    cache: true
+    go-version-file: go.mod
+- name: Install npm dependencies
+  run: npm ci
+  working-directory: ./actions/setup/js
+description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
+emoji: 📝
+engine: claude
+name: Go Logger Enhancement
+timeout-minutes: 15
 tools:
+  bash:
+  - find pkg -name "*.go" -type f ! -name "*_test.go"
+  - grep -r "var log = logger.New" pkg --include="*.go"
+  - grep -n "func " pkg/*.go
+  - head -n * pkg/**/*.go
+  - wc -l pkg/**/*.go
+  - make build
+  - make recompile
+  - ./gh-aw compile *
+  - git
+  cache-memory: null
   cli-proxy: true
+  edit: null
   github:
     mode: gh-proxy
-    toolsets: [default]
-  edit:
-  bash:
-    - "find pkg -name '*.go' -type f ! -name '*_test.go'"
-    - "grep -r 'var log = logger.New' pkg --include='*.go'"
-    - "grep -n 'func ' pkg/*.go"
-    - "head -n * pkg/**/*.go"
-    - "wc -l pkg/**/*.go"
-    - "make build"
-    - "make recompile"
-    - "./gh-aw compile *"
-    - "git"
-  cache-memory:
-
-imports:
-  - shared/go-make.md
-
-  - shared/otlp.md
-timeout-minutes: 15
-
-
+    toolsets:
+    - default
 ---
-
 # Go Logger Enhancement
 
 You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.

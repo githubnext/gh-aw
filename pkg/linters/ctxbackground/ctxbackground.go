@@ -10,6 +10,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 )
 
 // Analyzer is the ctx-background analysis pass.
@@ -25,53 +27,80 @@ func run(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
-		(*ast.FuncDecl)(nil),
+		(*ast.CallExpr)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		fn, ok := n.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			return
-		}
-
-		// Check if any parameter is context.Context (and not blank).
-		if !hasContextParam(pass, fn) {
-			return
-		}
-
-		// Walk the function body for context.Background() calls.
-		ast.Inspect(fn.Body, func(node ast.Node) bool {
-			call, ok := node.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
-			ident, ok := sel.X.(*ast.Ident)
-			if !ok {
-				return true
-			}
-			if ident.Name == "context" && sel.Sel.Name == "Background" {
-				pass.Reportf(call.Pos(), "use the context.Context parameter instead of context.Background()")
-			}
+	insp.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
+		if !push {
 			return true
-		})
+		}
+
+		call, ok := n.(*ast.CallExpr)
+		if !ok || !isContextBackgroundCall(call) {
+			return true
+		}
+
+		pos := pass.Fset.PositionFor(call.Pos(), false)
+		if filecheck.IsTestFile(pos.Filename) {
+			return true
+		}
+
+		for i := len(stack) - 1; i >= 0; i-- {
+			fn, ok := stack[i].(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+
+			ctxParamName, ok := contextParamName(pass, fn)
+			if !ok {
+				return true
+			}
+
+			pass.Report(analysis.Diagnostic{
+				Pos:     call.Pos(),
+				End:     call.End(),
+				Message: "use the context.Context parameter instead of context.Background()",
+				SuggestedFixes: []analysis.SuggestedFix{
+					{
+						Message: "Replace context.Background() with context parameter",
+						TextEdits: []analysis.TextEdit{
+							{
+								Pos:     call.Pos(),
+								End:     call.End(),
+								NewText: []byte(ctxParamName),
+							},
+						},
+					},
+				},
+			})
+			return true
+		}
+		return true
 	})
 
 	return nil, nil
 }
 
-// hasContextParam returns true if fn has at least one non-blank parameter
-// whose type is context.Context.
-func hasContextParam(pass *analysis.Pass, fn *ast.FuncDecl) bool {
-	if fn.Type.Params == nil {
+func isContextBackgroundCall(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
 		return false
+	}
+	ident, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	return ident.Name == "context" && sel.Sel.Name == "Background"
+}
+
+// contextParamName returns the first non-blank context.Context parameter name.
+func contextParamName(pass *analysis.Pass, fn *ast.FuncDecl) (string, bool) {
+	if fn.Type.Params == nil {
+		return "", false
 	}
 	ctxType := contextType(pass)
 	if ctxType == nil {
-		return false
+		return "", false
 	}
 	for _, field := range fn.Type.Params.List {
 		t := pass.TypesInfo.TypeOf(field.Type)
@@ -84,11 +113,11 @@ func hasContextParam(pass *analysis.Pass, fn *ast.FuncDecl) bool {
 		// At least one name must not be blank.
 		for _, name := range field.Names {
 			if name.Name != "_" {
-				return true
+				return name.Name, true
 			}
 		}
 	}
-	return false
+	return "", false
 }
 
 // contextType returns the types.Type for context.Context, or nil if the

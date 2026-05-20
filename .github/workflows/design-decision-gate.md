@@ -64,10 +64,13 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+      EXPR_GITHUB_EVENT_NAME: ${{ github.event_name }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
       set -euo pipefail
 
-      if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${PR_NUMBER:-}" ]; then
+      if [ "$EXPR_GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ -z "${PR_NUMBER:-}" ]; then
         echo "::error::workflow_dispatch requires inputs.pr_number"
         exit 1
       fi
@@ -75,19 +78,19 @@ steps:
       mkdir -p /tmp/gh-aw/agent
 
       gh pr view "$PR_NUMBER" \
-        --repo "${{ github.repository }}" \
+        --repo "$EXPR_GITHUB_REPOSITORY" \
         --json number,title,body,labels,baseRefName,headRefName,author,url \
         > /tmp/gh-aw/agent/pr.json
 
       gh pr diff "$PR_NUMBER" \
-        --repo "${{ github.repository }}" \
+        --repo "$EXPR_GITHUB_REPOSITORY" \
         > /tmp/gh-aw/agent/pr.diff
 
-      gh api --paginate "repos/${{ github.repository }}/pulls/$PR_NUMBER/files?per_page=100" \
+      gh api --paginate "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
         --jq '.[]' | jq -s '.' > /tmp/gh-aw/agent/pr-files.json
 
-      if [ -f "${{ github.workspace }}/.design-gate.yml" ]; then
-        cp "${{ github.workspace }}/.design-gate.yml" /tmp/gh-aw/agent/design-gate-config.yml
+      if [ -f "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" ]; then
+        cp "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" /tmp/gh-aw/agent/design-gate-config.yml
         HAS_CUSTOM_CONFIG=true
       else
         echo "No .design-gate.yml found — using defaults" > /tmp/gh-aw/agent/design-gate-config.yml

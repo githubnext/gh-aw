@@ -1,66 +1,61 @@
 ---
-emoji: "📝"
-name: Daily Documentation Healer
-description: Self-healing companion to the Daily Documentation Updater that detects documentation gaps missed by DDUw and proposes corrections
 on:
   schedule:
-    - cron: daily
-  workflow_dispatch:
-
+  - cron: daily
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-tracker-id: daily-doc-healer
-engine: claude
-strict: true
-
 network:
   allowed:
-    - defaults
-    - github
-
-safe-outputs:
-  create-pull-request:
-    expires: 3d
-    title-prefix: "[docs] "
-    labels: [documentation, automation]
-
-  create-issue:
+  - defaults
+  - github
+imports:
+- uses: shared/daily-audit-base.md
+  with:
     expires: 3d
     title-prefix: "[doc-healer] "
-    labels: [documentation, automation]
-    assignees: [copilot]
-  noop:
-
+- shared/otlp.md
+safe-outputs:
+  create-issue:
+    assignees:
+    - copilot
+    expires: 3d
+    labels:
+    - documentation
+    - automation
+    title-prefix: "[doc-healer] "
+  create-pull-request:
+    expires: 3d
+    labels:
+    - documentation
+    - automation
+    title-prefix: "[docs] "
+  noop: null
+description: Self-healing companion to the Daily Documentation Updater that detects documentation gaps missed by DDUw and proposes corrections
+emoji: 📝
+engine: claude
+name: Daily Documentation Healer
+strict: true
+timeout-minutes: 45
 tools:
-  cli-proxy: true
+  bash:
+  - find docs -name "*.md" -o -name "*.mdx"
+  - cat .github/workflows/daily-doc-updater.md
+  - git log:*
+  - git diff:*
+  - git show:*
+  - grep:*
   cache-memory: true
+  cli-proxy: true
+  edit: null
   github:
     mode: gh-proxy
-    toolsets: [default]
-  edit:
-  bash:
-    - "find docs -name '*.md' -o -name '*.mdx'"
-    - "cat .github/workflows/daily-doc-updater.md"
-    - "git log:*"
-    - "git diff:*"
-    - "git show:*"
-    - "grep:*"
-
-timeout-minutes: 45
-
-imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[doc-healer] "
-      expires: 3d
-
-
-  - shared/otlp.md
+    toolsets:
+    - default
+tracker-id: daily-doc-healer
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Documentation Healer

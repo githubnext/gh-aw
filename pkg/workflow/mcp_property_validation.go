@@ -13,6 +13,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -78,6 +79,9 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		mcpPropertyValidationLog.Printf("Tool %s: inferred MCP type=%s", toolName, typeStr)
 	}
 
+	// Normalize type: trim whitespace and convert to lowercase so "Stdio", "HTTP",
+	// and "Local" are accepted the same as their canonical lowercase forms.
+	typeStr = strings.ToLower(strings.TrimSpace(typeStr))
 	// Normalize "local" to "stdio" for validation
 	if typeStr == "local" {
 		typeStr = "stdio"

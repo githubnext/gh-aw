@@ -4,12 +4,13 @@ package rawloginlib
 
 import (
 	"go/ast"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -39,7 +40,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
-		if strings.HasSuffix(filepath.Base(pass.Fset.Position(call.Pos()).Filename), "_test.go") {
+		if filecheck.IsTestFile(pass.Fset.Position(call.Pos()).Filename) {
 			return
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
@@ -51,7 +52,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		if ident.Name == "log" && rawLogFuncs[sel.Sel.Name] {
-			pass.Reportf(call.Pos(), "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
+			pass.ReportRangef(call, "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
 		}
 	})
 

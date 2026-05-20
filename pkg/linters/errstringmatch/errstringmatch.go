@@ -7,12 +7,12 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
@@ -39,7 +39,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		position := pass.Fset.PositionFor(outer.Pos(), false)
-		if strings.HasSuffix(position.Filename, "_test.go") {
+		if filecheck.IsTestFile(position.Filename) {
 			return
 		}
 
@@ -64,7 +64,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		pass.Reportf(outer.Pos(), "avoid strings.Contains(err.Error(), ...) — use errors.Is, errors.As, or a sentinel error instead")
+		pass.ReportRangef(outer, "avoid strings.Contains(err.Error(), ...) — use errors.Is, errors.As, or a sentinel error instead")
 	})
 
 	return nil, nil
