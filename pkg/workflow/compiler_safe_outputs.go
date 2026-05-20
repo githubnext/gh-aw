@@ -100,8 +100,13 @@ func mergeEventConfig(existing any, incoming any) any {
 	existingTypes, existingTypesOK := parseEventTypes(existingMap["types"])
 	incomingTypes, incomingTypesOK := parseEventTypes(incomingMap["types"])
 	if existingTypesOK && incomingTypesOK {
-		seen := make(map[string]bool, len(existingTypes)+len(incomingTypes))
-		combined := make([]string, 0, len(existingTypes)+len(incomingTypes))
+		maxInt := int(^uint(0) >> 1)
+		totalTypes := 0
+		if len(existingTypes) <= maxInt-len(incomingTypes) {
+			totalTypes = len(existingTypes) + len(incomingTypes)
+		}
+		seen := make(map[string]bool, totalTypes)
+		combined := make([]string, 0, totalTypes)
 		for _, eventType := range existingTypes {
 			if !seen[eventType] {
 				seen[eventType] = true
