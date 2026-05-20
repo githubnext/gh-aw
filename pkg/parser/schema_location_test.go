@@ -167,6 +167,20 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "valid workflow frontmatter with top-level applyTo and inputs",
+			frontmatter: map[string]any{
+				"on":      "push",
+				"applyTo": []any{"**/*.go", "pkg/**/*.md"},
+				"inputs": map[string]any{
+					"mode":    "fast",
+					"retries": 2,
+					"notify":  true,
+				},
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
 			name: "invalid workflow frontmatter with location",
 			frontmatter: map[string]any{
 				"on":      "push",

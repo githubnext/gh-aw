@@ -9765,6 +9765,25 @@
       "$ref": "#/$defs/github_app",
       "description": "Top-level GitHub App configuration used as a fallback for all nested github-app token minting operations (on, safe-outputs, checkout, tools.github, dependencies). When a nested section does not define its own github-app, this top-level configuration is used automatically."
     },
+    "applyTo": {
+      "description": "Optional custom-agent scope selector. Use a glob string or array of glob strings to restrict where an imported instruction/agent applies.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "inputs": {
+      "type": "object",
+      "description": "Optional top-level input values for imported/shared workflow contexts. Values may be scalars, arrays, objects, or expressions and are consumed by import-time substitution and trigger processing.",
+      "additionalProperties": true
+    },
     "import-schema": {
       "type": "object",
       "description": "Schema for validating 'with' input values when this workflow is imported by another workflow using the 'uses'/'with' syntax. Defines the expected parameters, their types, and whether they are required. Scalar inputs are accessible via '${{ github.aw.import-inputs.<name> }}' expressions. Object inputs (type: object) allow one-level deep sub-fields accessible via '${{ github.aw.import-inputs.<name>.<subkey> }}' expressions.",

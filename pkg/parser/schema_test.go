@@ -1006,6 +1006,46 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ProtectedFilesObje
 	}
 }
 
+func TestMainWorkflowSchema_TopLevelApplyToAndInputs(t *testing.T) {
+	t.Parallel()
+
+	schemaPath := "schemas/main_workflow_schema.json"
+	schemaContent, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schema map[string]any
+	if err := json.Unmarshal(schemaContent, &schema); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("schema properties section not found")
+	}
+
+	applyToField, ok := properties["applyTo"].(map[string]any)
+	if !ok {
+		t.Fatal("'applyTo' field not found in schema")
+	}
+	applyToOneOf, ok := applyToField["oneOf"].([]any)
+	if !ok || len(applyToOneOf) != 2 {
+		t.Fatal("'applyTo.oneOf' not found or has unexpected shape")
+	}
+
+	inputsField, ok := properties["inputs"].(map[string]any)
+	if !ok {
+		t.Fatal("'inputs' field not found in schema")
+	}
+	if inputsField["type"] != "object" {
+		t.Fatalf("'inputs.type' expected object, got %v", inputsField["type"])
+	}
+	if _, ok := inputsField["additionalProperties"]; !ok {
+		t.Fatal("'inputs.additionalProperties' not found")
+	}
+}
+
 // TestMainWorkflowSchema_ProtectedFilesObjectFormStructure verifies that the
 // main workflow JSON schema defines protected-files as a oneOf [string, object],
 // not as a oneOf [string, null] (the old broken form that caused
