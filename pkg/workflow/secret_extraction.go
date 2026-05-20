@@ -121,7 +121,13 @@ func ExtractEnvExpressionsFromMap(values map[string]string) map[string]string {
 // The backslash is used to escape the ${} for proper JSON rendering in Copilot configs
 func ReplaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 	result := value
-	for varName, secretExpr := range secrets {
+	// Sort keys for deterministic output. When multiple secret names share the same
+	// expression (e.g. "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}" maps
+	// to both "DD_APPLICATION_KEY" and "DD_APP_KEY"), the alphabetically first key is
+	// processed first and its replacement wins; subsequent keys find the expression
+	// already replaced and are no-ops. This ensures stable lock-file output across runs.
+	for _, varName := range sortedMapKeys(secrets) {
+		secretExpr := secrets[varName]
 		// Replace ${{ secrets.VAR }} with \${VAR} (backslash-escaped for copilot JSON config)
 		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
 	}
@@ -137,7 +143,9 @@ func ReplaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 func ReplaceSecretsWithBashVars(value string) string {
 	result := value
 	secrets := ExtractSecretsFromValue(value)
-	for varName, secretExpr := range secrets {
+	// Sort keys for deterministic output; see ReplaceSecretsWithEnvVars for rationale.
+	for _, varName := range sortedMapKeys(secrets) {
+		secretExpr := secrets[varName]
 		result = strings.ReplaceAll(result, secretExpr, "${"+varName+"}")
 	}
 	return result
@@ -321,15 +329,18 @@ func formatInputNameAsEnvVar(inputName string) string {
 func ReplaceTemplateExpressionsWithEnvVars(value string) string {
 	result := value
 
-	// Extract and replace secrets
+	// Extract and replace secrets — sort keys for deterministic output; see
+	// ReplaceSecretsWithEnvVars for rationale.
 	secrets := ExtractSecretsFromValue(value)
-	for varName, secretExpr := range secrets {
+	for _, varName := range sortedMapKeys(secrets) {
+		secretExpr := secrets[varName]
 		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
 	}
 
-	// Extract and replace env vars
+	// Extract and replace env vars — sort keys for deterministic output.
 	envVars := ExtractEnvExpressionsFromValue(value)
-	for varName, envExpr := range envVars {
+	for _, varName := range sortedMapKeys(envVars) {
+		envExpr := envVars[varName]
 		result = strings.ReplaceAll(result, envExpr, "\\${"+varName+"}")
 	}
 
