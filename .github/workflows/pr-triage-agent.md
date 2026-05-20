@@ -22,7 +22,7 @@ tools:
     toolsets: [pull_requests, repos, issues, labels]
   repo-memory:
     branch-name: memory/pr-triage
-    file-glob: "**"
+    file-glob: ["*.json", "*.md"]
     max-file-size: 102400  # 100KB
 safe-outputs:
   add-labels:
@@ -40,6 +40,8 @@ safe-outputs:
     run-success: "✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the issue for detailed report."
     run-failure: "❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged."
 timeout-minutes: 30
+# PR triage does classification work; 10M is a firm ceiling for this 6-hourly workflow.
+max-effective-tokens: 10000000
 
 
 ---
