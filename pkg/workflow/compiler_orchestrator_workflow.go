@@ -353,6 +353,11 @@ func (c *Compiler) extractAdditionalConfigurations(
 
 	workflowData.Roles = c.extractRoles(frontmatter)
 	workflowData.Bots = c.mergeBots(c.extractBots(frontmatter), importsResult.MergedBots)
+	// pull_request_reviewer workflows are triggered by review-request events from Copilot.
+	// Automatically allow the Copilot bot so authors don't need to add bots: [Copilot] manually.
+	if workflowData.PullRequestReviewer {
+		workflowData.Bots = c.mergeBots(workflowData.Bots, []string{"Copilot"})
+	}
 	workflowData.LabelNames = c.extractLabelNames(frontmatter)
 	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
 	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)

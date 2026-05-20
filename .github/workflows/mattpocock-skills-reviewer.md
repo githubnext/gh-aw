@@ -3,7 +3,6 @@ emoji: "🔍"
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 on:
   pull_request_reviewer: matt
-  bots: [Copilot]
 permissions:
   contents: read
   pull-requests: read

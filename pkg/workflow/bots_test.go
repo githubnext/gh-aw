@@ -423,3 +423,84 @@ imports:
 			"Expected compiled workflow to deduplicate bots from top-level and import")
 	})
 }
+
+// TestPullRequestReviewerAutoInjectsCopilotBot verifies that pull_request_reviewer workflows
+// automatically include the Copilot bot in the allowed bots list without requiring
+// an explicit bots: [Copilot] declaration.
+func TestPullRequestReviewerAutoInjectsCopilotBot(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-pr-reviewer-copilot-test")
+	compiler := NewCompiler()
+
+	t.Run("pull_request_reviewer_without_explicit_bots_auto_injects_Copilot", func(t *testing.T) {
+		frontmatter := `---
+on:
+  pull_request_reviewer: my-reviewer
+permissions:
+  pull-requests: read
+---
+
+# PR Reviewer Workflow
+`
+		workflowPath := filepath.Join(tmpDir, "pr-reviewer-no-bots.md")
+		err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+		require.NoError(t, err)
+
+		err = compiler.CompileWorkflow(workflowPath)
+		require.NoError(t, err)
+
+		lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+		require.NoError(t, err)
+
+		assert.Contains(t, string(lockContent), `GH_AW_ALLOWED_BOTS: "Copilot"`,
+			"pull_request_reviewer should auto-inject Copilot into GH_AW_ALLOWED_BOTS")
+	})
+
+	t.Run("pull_request_reviewer_with_explicit_bots_deduplicates_Copilot", func(t *testing.T) {
+		frontmatter := `---
+on:
+  pull_request_reviewer: my-reviewer
+  bots: [Copilot]
+permissions:
+  pull-requests: read
+---
+
+# PR Reviewer Workflow With Explicit Bots
+`
+		workflowPath := filepath.Join(tmpDir, "pr-reviewer-explicit-bots.md")
+		err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+		require.NoError(t, err)
+
+		err = compiler.CompileWorkflow(workflowPath)
+		require.NoError(t, err)
+
+		lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+		require.NoError(t, err)
+
+		lockStr := string(lockContent)
+		// The GH_AW_ALLOWED_BOTS value must not contain "Copilot,Copilot" (deduplication check).
+		assert.NotContains(t, lockStr, `"Copilot,Copilot"`,
+			"Copilot should be deduplicated — explicit bots: [Copilot] + auto-inject must not double up")
+		assert.Contains(t, lockStr, `GH_AW_ALLOWED_BOTS: "Copilot"`,
+			"GH_AW_ALLOWED_BOTS should contain exactly Copilot")
+	})
+
+	t.Run("non_pull_request_reviewer_does_not_auto_inject_Copilot", func(t *testing.T) {
+		frontmatter := `---
+on:
+  issues:
+    types: [opened]
+---
+
+# Issues Workflow
+`
+		workflowPath := filepath.Join(tmpDir, "issues-workflow.md")
+		err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+		require.NoError(t, err)
+
+		workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+		require.NoError(t, err)
+
+		assert.NotContains(t, workflowData.Bots, "Copilot",
+			"non-pull_request_reviewer workflows should not auto-inject Copilot")
+	})
+}
