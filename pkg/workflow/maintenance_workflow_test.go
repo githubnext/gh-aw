@@ -1107,6 +1107,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		if !strings.Contains(yaml, "compile --validate --no-emit --verbose") {
 			t.Errorf("Workflow should run pre-compile validation with --no-emit, but did not. Generated YAML:\n%s", yaml)
 		}
+		if strings.Contains(yaml, "compile --validate --validate-images --verbose") {
+			t.Errorf("Workflow should not require --validate-images in compile-workflows, but generated YAML includes it:\n%s", yaml)
+		}
 	})
 }
 
