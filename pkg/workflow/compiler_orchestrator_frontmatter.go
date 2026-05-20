@@ -148,6 +148,12 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, err
 	}
 
+	// Validate event type names in the 'on:' section for potential typos
+	if err := ValidateEventTypes(frontmatterForValidation); err != nil {
+		orchestratorFrontmatterLog.Printf("Event type validation failed: %v", err)
+		return nil, err
+	}
+
 	// Validate glob pattern syntax in event filters (branches, tags, paths, etc.)
 	if err := ValidateGlobPatterns(frontmatterForValidation); err != nil {
 		orchestratorFrontmatterLog.Printf("Glob pattern validation failed: %v", err)

@@ -13,10 +13,12 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var mcpPropertyValidationLog = logger.New("workflow:mcp_property_validation")
@@ -64,6 +66,11 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 
 	// Validate type is one of the supported types
 	if !parser.IsMCPType(typeStr) {
+		validTypes := []string{"stdio", "http"}
+		suggestions := stringutil.FindClosestMatches(typeStr, validTypes, 1)
+		if len(suggestions) > 0 {
+			return fmt.Errorf("tool '%s' mcp configuration 'type' must be one of: stdio, http (per MCP Gateway Specification). Note: 'local' is accepted for backward compatibility and treated as 'stdio'. Got: %s.\n\nDid you mean: %s?\n\nExample:\ntools:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"\n\nSee: %s", toolName, typeStr, strings.Join(suggestions, ", "), toolName, constants.DocsToolsURL)
+		}
 		return fmt.Errorf("tool '%s' mcp configuration 'type' must be one of: stdio, http (per MCP Gateway Specification). Note: 'local' is accepted for backward compatibility and treated as 'stdio'. Got: %s.\n\nExample:\ntools:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"\n\nSee: %s", toolName, typeStr, toolName, constants.DocsToolsURL)
 	}
 
