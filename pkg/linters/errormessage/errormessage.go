@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
@@ -52,7 +53,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if !shouldCheckFile(pos.Filename, changed) || strings.HasSuffix(pos.Filename, "_test.go") {
+		if !shouldCheckFile(pos.Filename, changed) || filecheck.IsTestFile(pos.Filename) {
 			return
 		}
 		if nolint.HasDirective(pos, noLintLinesByFile) {
@@ -140,7 +141,7 @@ func checkValidationFmtErrorf(pass *analysis.Pass, call *ast.CallExpr, filename 
 	if !strings.HasSuffix(filename, "_validation.go") || !isFmtErrorf(call) {
 		return
 	}
-	pass.Reportf(call.Pos(), "use NewValidationError(...) instead of fmt.Errorf(...) in validation files")
+	pass.ReportRangef(call, "use NewValidationError(...) instead of fmt.Errorf(...) in validation files")
 }
 
 func checkNegativeLanguage(pass *analysis.Pass, call *ast.CallExpr, msg string) {
@@ -151,12 +152,12 @@ func checkNegativeLanguage(pass *analysis.Pass, call *ast.CallExpr, msg string) 
 	if containsAnyKeyword(lower, "expected", "requires", "should", "example", "valid") {
 		return
 	}
-	pass.Reportf(call.Pos(), "error message uses negative language without constructive guidance; include expected/requires/should/example details")
+	pass.ReportRangef(call, "error message uses negative language without constructive guidance; include expected/requires/should/example details")
 }
 
 func checkNewValidationSuggestion(pass *analysis.Pass, call *ast.CallExpr) {
 	if len(call.Args) < 4 {
-		pass.Reportf(call.Pos(), "NewValidationError(...) should include a non-empty suggestion with an example")
+		pass.ReportRangef(call, "NewValidationError(...) should include a non-empty suggestion with an example")
 		return
 	}
 
@@ -166,13 +167,13 @@ func checkNewValidationSuggestion(pass *analysis.Pass, call *ast.CallExpr) {
 	}
 
 	if strings.TrimSpace(suggestion) == "" {
-		pass.Reportf(call.Pos(), "NewValidationError(...) suggestion must not be empty")
+		pass.ReportRangef(call, "NewValidationError(...) suggestion must not be empty")
 		return
 	}
 
 	lower := strings.ToLower(suggestion)
 	if !strings.Contains(lower, "example") && !looksLikeYAMLExample(suggestion) {
-		pass.Reportf(call.Pos(), "NewValidationError(...) suggestion should include an example (for example: YAML snippet)")
+		pass.ReportRangef(call, "NewValidationError(...) suggestion should include an example (for example: YAML snippet)")
 	}
 }
 
@@ -181,7 +182,7 @@ func checkGenericWrap(pass *analysis.Pass, call *ast.CallExpr, msg string) {
 		return
 	}
 	if strings.HasPrefix(strings.ToLower(msg), "failed to ") && strings.Contains(msg, ": %w") {
-		pass.Reportf(call.Pos(), "avoid generic 'failed to ...: %%w' wrapping; add specific recovery guidance")
+		pass.ReportRangef(call, "avoid generic 'failed to ...: %%w' wrapping; add specific recovery guidance")
 	}
 }
 

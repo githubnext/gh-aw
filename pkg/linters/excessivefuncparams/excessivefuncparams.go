@@ -53,8 +53,8 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if params > maxParams {
-			pass.Reportf(
-				fn.Name.Pos(),
+			pass.ReportRangef(
+				fn.Name,
 				"%s has %d parameters (limit: %d); consider using an options struct",
 				fn.Name.Name, params, maxParams,
 			)

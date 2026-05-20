@@ -61,8 +61,8 @@ func run(pass *analysis.Pass) (any, error) {
 		lines := end.Line - start.Line - 1
 
 		if lines > maxLines {
-			pass.Reportf(
-				body.Lbrace,
+			pass.ReportRangef(
+				body,
 				"%s is %d lines long (limit: %d); consider breaking it up",
 				name, lines, maxLines,
 			)
