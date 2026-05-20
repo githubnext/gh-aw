@@ -134,7 +134,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		return p.parseMonthlyBase()
 
 	default:
-		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'weekly', 'bi-weekly', 'tri-weekly', or 'monthly'", baseType)
+		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'hourly', 'weekly', 'bi-weekly', 'tri-weekly', or 'monthly'", baseType)
 	}
 }
 
@@ -183,6 +183,9 @@ func (p *ScheduleParser) parseEveryDayIntervalAlias(hasWeekdaysSuffix bool) (str
 			return "", true, err
 		}
 		minute, hour := parseTime(timeStr)
+		if hasWeekdaysSuffix {
+			return fmt.Sprintf("%s %s * * 1-5", minute, hour), true, nil
+		}
 		return fmt.Sprintf("%s %s * * *", minute, hour), true, nil
 	}
 	return "", true, errors.New("invalid 'every day' format, use 'every day' or 'every day at HH:MM'")
