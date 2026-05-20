@@ -3,7 +3,6 @@ package workflow
 import (
 	"maps"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -127,12 +126,7 @@ func ReplaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 	// to both "DD_APPLICATION_KEY" and "DD_APP_KEY"), the alphabetically first key is
 	// processed first and its replacement wins; subsequent keys find the expression
 	// already replaced and are no-ops. This ensures stable lock-file output across runs.
-	sortedKeys := make([]string, 0, len(secrets))
-	for k := range secrets {
-		sortedKeys = append(sortedKeys, k)
-	}
-	sort.Strings(sortedKeys)
-	for _, varName := range sortedKeys {
+	for _, varName := range sortedMapKeys(secrets) {
 		secretExpr := secrets[varName]
 		// Replace ${{ secrets.VAR }} with \${VAR} (backslash-escaped for copilot JSON config)
 		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
@@ -150,12 +144,7 @@ func ReplaceSecretsWithBashVars(value string) string {
 	result := value
 	secrets := ExtractSecretsFromValue(value)
 	// Sort keys for deterministic output; see ReplaceSecretsWithEnvVars for rationale.
-	sortedKeys := make([]string, 0, len(secrets))
-	for k := range secrets {
-		sortedKeys = append(sortedKeys, k)
-	}
-	sort.Strings(sortedKeys)
-	for _, varName := range sortedKeys {
+	for _, varName := range sortedMapKeys(secrets) {
 		secretExpr := secrets[varName]
 		result = strings.ReplaceAll(result, secretExpr, "${"+varName+"}")
 	}
@@ -343,24 +332,14 @@ func ReplaceTemplateExpressionsWithEnvVars(value string) string {
 	// Extract and replace secrets — sort keys for deterministic output; see
 	// ReplaceSecretsWithEnvVars for rationale.
 	secrets := ExtractSecretsFromValue(value)
-	secretKeys := make([]string, 0, len(secrets))
-	for k := range secrets {
-		secretKeys = append(secretKeys, k)
-	}
-	sort.Strings(secretKeys)
-	for _, varName := range secretKeys {
+	for _, varName := range sortedMapKeys(secrets) {
 		secretExpr := secrets[varName]
 		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
 	}
 
 	// Extract and replace env vars — sort keys for deterministic output.
 	envVars := ExtractEnvExpressionsFromValue(value)
-	envKeys := make([]string, 0, len(envVars))
-	for k := range envVars {
-		envKeys = append(envKeys, k)
-	}
-	sort.Strings(envKeys)
-	for _, varName := range envKeys {
+	for _, varName := range sortedMapKeys(envVars) {
 		envExpr := envVars[varName]
 		result = strings.ReplaceAll(result, envExpr, "\\${"+varName+"}")
 	}
