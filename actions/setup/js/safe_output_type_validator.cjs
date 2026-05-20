@@ -353,8 +353,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
     let finalValue = value;
     if (validation.sanitize) {
       // Apply unfencing to remove accidental outer markdown fences before sanitization
-      let processedValue = unfenceMarkdown(value);
-      finalValue = sanitizeContent(processedValue, {
+      finalValue = sanitizeContent(unfenceMarkdown(value), {
         maxLength: validation.maxLength || MAX_BODY_LENGTH,
         allowedAliases: options?.allowedAliases || [],
         maxBotMentions: options?.maxBotMentions,
@@ -362,7 +361,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
     }
 
     // Check minimum length after any sanitization
-    if (validation.minLength && finalValue.trim().length < validation.minLength) {
+    if (validation.minLength && finalValue.length < validation.minLength) {
       return {
         isValid: false,
         error: `Line ${lineNum}: ${itemType} '${fieldName}' is too short (minimum ${validation.minLength} characters)`,
