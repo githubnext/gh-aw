@@ -1,6 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
+import crypto from "crypto";
 
 const require = createRequire(import.meta.url);
 
@@ -111,11 +112,19 @@ describe("createBundleTempRef", () => {
     expect(ref).toMatch(/^refs\/bundles\/create-pr-main-[a-f0-9]{8}$/);
   });
 
-  it("produces different refs on consecutive calls (collision avoidance)", () => {
+  it("produces different refs when crypto returns different bytes", () => {
+    const randomBytesSpy = vi
+      .spyOn(crypto, "randomBytes")
+      .mockReturnValueOnce(Buffer.from("aabbccdd", "hex"))
+      .mockReturnValueOnce(Buffer.from("11223344", "hex"));
+
     const ref1 = createBundleTempRef("same-branch");
     const ref2 = createBundleTempRef("same-branch");
-    // Extremely unlikely to collide; test documents intent
-    expect(ref1).not.toBe(ref2);
+
+    expect(ref1).toBe("refs/bundles/create-pr-same-branch-aabbccdd");
+    expect(ref2).toBe("refs/bundles/create-pr-same-branch-11223344");
+
+    randomBytesSpy.mockRestore();
   });
 });
 
@@ -456,9 +465,10 @@ describe("buildManifestProtectionCreatePrUrl", () => {
   });
 
   it("URL-encodes branch names with special characters via encodePathSegments", () => {
-    const url = buildManifestProtectionCreatePrUrl("https://github.com", repoParts, "main", "release/v2.0-rc1", "Title");
-    // encodePathSegments encodes each slash-delimited segment but preserves '/'
-    expect(url).toContain("/compare/main...release/v2.0-rc1");
+    const url = buildManifestProtectionCreatePrUrl("https://github.com", repoParts, "main", "feature/my branch#1", "Title");
+    // encodePathSegments encodes each slash-delimited segment but preserves '/';
+    // space → %20, # → %23
+    expect(url).toContain("/compare/main...feature/my%20branch%231");
   });
 
   it("URL-encodes the PR title", () => {
