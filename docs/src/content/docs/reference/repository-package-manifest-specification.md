@@ -80,11 +80,10 @@ Implementations SHOULD warn if `description` exceeds 255 characters.
 
 If present, `files` MUST be an array of strings.
 
-Each entry:
+Each entry MUST be resolved relative to the package root and MUST match one of the following kinds:
 
-- MUST be resolved relative to the package root;
-- MUST end in `.md`; and
-- MUST begin with either `workflows/` or `.github/workflows/`.
+- **Agentic workflow markdown** — the path MUST end in `.md` (case-insensitive) and MUST begin with either `workflows/` or `.github/workflows/`.
+- **Raw GitHub Actions YAML** — the path MUST end in `.yml` (case-insensitive) but MUST NOT end in `.lock.yml`. It MUST be a direct child of `.github/workflows/` (no nested subdirectories) and MUST NOT appear under `workflows/`.
 
 Duplicate entries SHOULD be ignored after normalization.
 
@@ -94,8 +93,11 @@ Supported installable paths are:
 
 - `workflows/<name>.md`
 - `.github/workflows/<name>.md`
+- `.github/workflows/<name>.yml` (raw GitHub Actions YAML; direct children only, `.lock.yml` excluded)
 
-Nested descendants under those directories are also valid when referenced explicitly in `files`.
+Nested descendants under the markdown directories are also valid when referenced explicitly in `files`. Raw `.yml` action workflows MUST be direct children of `.github/workflows/`; nested `.yml` files are rejected.
+
+Raw `.yml` action workflows are installed verbatim: `gh aw add` copies the file to `.github/workflows/<name>.yml` and performs no frontmatter parsing, no dependency resolution, and no compilation. No `.lock.yml` is produced.
 
 If `files` is present, valid entries are used as the installable workflow set. Invalid entries MUST be ignored with a warning.
 
@@ -104,7 +106,9 @@ If `files` is omitted, or if no valid entries remain after filtering, the implem
 - `workflows/`
 - `.github/workflows/`
 
-If no installable workflow markdown files are resolved, package validation MUST fail.
+Auto-discovery considers only agentic workflow markdown (`.md`); raw `.yml` action workflows MUST be referenced explicitly in `files` to be installed.
+
+If no installable workflow files are resolved, package validation MUST fail.
 
 ## 6. Documentation
 
@@ -160,8 +164,9 @@ name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation for review and issue triage
 files:
-  - workflows/review.md
+  - workflows/review.md                # agentic workflow — compiled on install
   - .github/workflows/nightly-review.md
+  - .github/workflows/ci.yml           # raw Actions YAML — copied verbatim
 ```
 
 ### 9.2 Nested package folder
