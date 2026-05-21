@@ -1331,6 +1331,24 @@ func TestParsePushToPullRequestBranchExpressionFields(t *testing.T) {
 	}
 }
 
+func TestParsePushToPullRequestBranchMaxPatchSize(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"push-to-pull-request-branch": map[string]any{
+			"max-patch-size": 2048,
+		},
+	}
+
+	result := compiler.parsePushToPullRequestBranchConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if result.MaxPatchSize != 2048 {
+		t.Fatalf("expected MaxPatchSize=2048, got %d", result.MaxPatchSize)
+	}
+}
+
 // TestHandlerConfigExpressionFields verifies that the handler config builder
 // emits expression strings as JSON strings (not arrays) when a single-element
 // expression slice is provided.

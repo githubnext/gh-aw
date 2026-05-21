@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } },
   mockContext = { eventName: "issues", runId: 12345, repo: { owner: "testowner", repo: "testrepo" }, payload: { issue: { number: 42 }, pull_request: { number: 100 }, repository: { html_url: "https://github.com/testowner/testrepo" } } };
 ((global.core = mockCore), (global.context = mockContext));
@@ -14,6 +15,10 @@ describe("close_entity_helpers", () => {
       delete process.env.GH_AW_CLOSE_PR_REQUIRED_LABELS,
       delete process.env.GH_AW_CLOSE_PR_REQUIRED_TITLE_PREFIX,
       delete process.env.GH_AW_CLOSE_PR_TARGET,
+      // Point GH_AW_PROMPTS_DIR to the source md/ directory so getPromptPath()
+      // resolves template files from the source tree in test environments where
+      // RUNNER_TEMP is set but the runtime prompts directory is not populated.
+      (process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md")),
       (global.context.eventName = "issues"),
       (global.context.payload.issue = { number: 42 }),
       (global.context.payload.pull_request = { number: 100 }));
