@@ -83,6 +83,62 @@ function resolveGatewayUrl(provider) {
 }
 
 /**
+ * Join a base URL and relative API path without duplicating slashes.
+ *
+ * @param {string} baseUrl
+ * @param {string} apiPath
+ * @returns {string}
+ */
+function joinApiUrl(baseUrl, apiPath) {
+  return `${baseUrl.replace(/\/+$/, "")}${apiPath}`;
+}
+
+/**
+ * Resolve the Pi model's inferred provider request target for logging.
+ *
+ * @param {any} model
+ * @returns {{ api: string, method: string, url: string }}
+ */
+function resolveProviderRequestTarget(model) {
+  const api = typeof model?.api === "string" && model.api ? model.api : "(unknown api)";
+  const method = "POST";
+  const baseUrl = typeof model?.baseUrl === "string" && model.baseUrl ? model.baseUrl : "";
+
+  if (!baseUrl) {
+    return { api, method, url: "(baseUrl unavailable)" };
+  }
+
+  switch (api) {
+    case "openai-completions":
+      return { api, method, url: joinApiUrl(baseUrl, "/chat/completions") };
+    case "openai-responses":
+    case "azure-openai-responses":
+    case "openai-codex-responses":
+      return { api, method, url: joinApiUrl(baseUrl, "/responses") };
+    case "anthropic":
+    case "anthropic-messages":
+      return { api, method, url: joinApiUrl(baseUrl, "/messages") };
+    case "mistral-conversations":
+      return { api, method, url: joinApiUrl(baseUrl, "/conversations") };
+    default:
+      return { api, method, url: baseUrl };
+  }
+}
+
+/**
+ * Format response header names for logs without printing sensitive values.
+ *
+ * @param {Record<string, string>|undefined|null} headers
+ * @returns {string}
+ */
+function formatResponseHeaderNames(headers) {
+  const names = Object.keys(headers || {})
+    .map(name => String(name).toLowerCase())
+    .sort();
+  return names.length > 0 ? names.join(",") : "none";
+}
+
+/**
  * Register a Pi provider and any aliases.
  *
  * @param {any} pi
@@ -175,7 +231,43 @@ function registerConfiguredProviders(pi, logger) {
  */
 function piProviderExtension(pi) {
   const log = DEFAULT_LOGGER;
+  /** @type {{ api: string, method: string, url: string }|null} */
+  let lastProviderRequest = null;
+  /** @type {{ status: number, responseHeaders: string }|null} */
+  let lastProviderResponse = null;
   registerConfiguredProviders(pi, log);
+
+  pi.on("before_provider_request", (_event, ctx) => {
+    lastProviderRequest = resolveProviderRequestTarget(ctx && ctx.model);
+    lastProviderResponse = null;
+    const provider = ctx?.model?.provider || "(unknown provider)";
+    const model = ctx?.model?.id || getConfiguredModel() || "(unknown model)";
+    log(`provider_request provider=${provider} model=${model} api=${lastProviderRequest.api} method=${lastProviderRequest.method} url=${lastProviderRequest.url}`);
+  });
+
+  pi.on("after_provider_response", (event, ctx) => {
+    const request = lastProviderRequest || resolveProviderRequestTarget(ctx && ctx.model);
+    lastProviderResponse = {
+      status: event.status,
+      responseHeaders: formatResponseHeaderNames(event.headers),
+    };
+    const provider = ctx?.model?.provider || "(unknown provider)";
+    const model = ctx?.model?.id || getConfiguredModel() || "(unknown model)";
+    log(`provider_response provider=${provider} model=${model} status=${event.status} method=${request.method} url=${request.url} response_headers=${lastProviderResponse.responseHeaders}`);
+  });
+
+  pi.on("message_end", event => {
+    const message = event && event.message;
+    if (message?.role !== "assistant" || message?.stopReason !== "error" || !message?.errorMessage) {
+      return;
+    }
+    const request = lastProviderRequest || { api: message.api || "(unknown api)", method: "POST", url: "(request unavailable)" };
+    const status = lastProviderResponse ? String(lastProviderResponse.status) : "no-response";
+    const responseHeaders = lastProviderResponse ? lastProviderResponse.responseHeaders : "none";
+    log(
+      `provider_error provider=${message.provider || "(unknown provider)"} model=${message.model || "(unknown model)"} api=${request.api} status=${status} method=${request.method} url=${request.url} response_headers=${responseHeaders} error=${JSON.stringify(message.errorMessage)}`
+    );
+  });
 
   pi.on("agent_start", async () => {
     const model = getConfiguredModel();
@@ -227,3 +319,5 @@ module.exports.getConfiguredModel = getConfiguredModel;
 module.exports.extractProviderFromModel = extractProviderFromModel;
 module.exports.resolveGatewayUrl = resolveGatewayUrl;
 module.exports.registerConfiguredProviders = registerConfiguredProviders;
+module.exports.resolveProviderRequestTarget = resolveProviderRequestTarget;
+module.exports.formatResponseHeaderNames = formatResponseHeaderNames;
