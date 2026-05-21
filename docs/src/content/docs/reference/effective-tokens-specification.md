@@ -171,9 +171,14 @@ Implementations MAY override these values but MUST disclose the weights used in 
 Per invocation:
 
 ```
+effective_input_tokens = max(I - C, 0)
+
 base_weighted_tokens =
-    (w_in × I) + (w_cache × C) + (w_out × O) + (w_reason × R)
+    (w_in × effective_input_tokens) + (w_cache × C) + (w_out × O) + (w_reason × R)
 ```
+
+When providers report cached reads (`C`) as part of input tokens (`I`), implementations MUST
+subtract cached input from `I` before applying `w_in` to avoid double counting.
 
 ### 4.4 Effective Tokens Per Invocation
 
@@ -590,13 +595,13 @@ usage is observed.
 ### Appendix B: Core Formula Reference
 
 ```
-ET_total = Σ [ m_i × (w_in × I_i + w_cache × C_i + w_out × O_i + w_reason × R_i) ]
+ET_total = Σ [ m_i × (w_in × max(I_i - C_i, 0) + w_cache × C_i + w_out × O_i + w_reason × R_i) ]
 ```
 
 With default weights:
 
 ```
-ET_total = Σ [ m_i × (I_i + 0.1 C_i + 4 O_i + 4 R_i) ]
+ET_total = Σ [ m_i × (max(I_i - C_i, 0) + 0.1 C_i + 4 O_i + 4 R_i) ]
 ```
 
 ### Appendix C: Security Considerations
