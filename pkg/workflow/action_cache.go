@@ -484,6 +484,49 @@ func (c *ActionCache) GetCachePath() string {
 	return c.path
 }
 
+// Clone returns a deep copy of the cache.  The copy shares no underlying maps
+// with the original, so it is safe to mutate independently (e.g., in a worker
+// goroutine).  The cache file path is preserved so that the clone can be saved
+// to the same location if needed.
+func (c *ActionCache) Clone() *ActionCache {
+	clone := &ActionCache{
+		path:          c.path,
+		Entries:       make(map[string]ActionCacheEntry, len(c.Entries)),
+		ContainerPins: make(map[string]ContainerPin, len(c.ContainerPins)),
+		// dirty starts false: the clone starts clean; only new resolutions mark it dirty.
+	}
+	for k, v := range c.Entries {
+		clone.Entries[k] = v
+	}
+	for k, v := range c.ContainerPins {
+		clone.ContainerPins[k] = v
+	}
+	return clone
+}
+
+// MergeFrom copies entries from other that are not already present in c.
+// Existing entries in c are never overwritten, ensuring that the authoritative
+// baseline (loaded from disk) takes precedence over new resolutions.
+// It is safe to call from a single goroutine after all worker goroutines have
+// finished (i.e., as part of the post-parallel merge phase).
+func (c *ActionCache) MergeFrom(other *ActionCache) {
+	if other == nil {
+		return
+	}
+	for k, v := range other.Entries {
+		if _, exists := c.Entries[k]; !exists {
+			c.Entries[k] = v
+			c.dirty = true
+		}
+	}
+	for k, v := range other.ContainerPins {
+		if _, exists := c.ContainerPins[k]; !exists {
+			c.ContainerPins[k] = v
+			c.dirty = true
+		}
+	}
+}
+
 // deduplicateEntries removes duplicate entries by keeping only the most precise version reference
 // for each repo+SHA combination. For example, if both "actions/cache@v4" and "actions/cache@v4.3.0"
 // point to the same SHA and version, only "actions/cache@v4.3.0" is kept.

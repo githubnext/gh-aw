@@ -418,6 +418,173 @@ func (c *Compiler) GetSharedActionCache() *ActionCache {
 	return cache
 }
 
+// WarmUp eagerly initialises lazily-loaded shared state (action cache, import
+// cache, repo config).  Call this on the parent compiler before calling Fork
+// so that no two goroutines race on the same lazy-init code path.
+func (c *Compiler) WarmUp() {
+	c.getSharedActionResolver()
+	c.getSharedImportCache()
+	_, _ = c.loadRepoConfig()
+}
+
+// Fork creates a child compiler that inherits the parent's read-only
+// configuration and pre-warmed shared state, but owns its own copy of every
+// mutable per-file field (warning counters, accumulators, step tracker, etc.).
+//
+// The child's action cache is an independent clone of the parent's entries so
+// that concurrent resolutions never race on the same map.  New entries
+// discovered during the child's compilation are propagated back to the parent
+// via Merge after the child finishes.
+//
+// WarmUp must be called on the parent before Fork to ensure the shared caches
+// are fully initialised and no lazy-init happens inside a goroutine.
+func (c *Compiler) Fork() *Compiler {
+	// Clone the action cache so the child can resolve new entries independently.
+	parentCache, _ := c.getSharedActionResolver()
+
+	childCache := parentCache.Clone()
+	child := &Compiler{
+		// Context (treated as read-only; set once before compilation starts)
+		ctx: c.ctx,
+
+		// Read-only configuration flags
+		verbose:                c.verbose,
+		quiet:                  c.quiet,
+		engineOverride:         c.engineOverride,
+		customOutput:           c.customOutput,
+		version:                c.version,
+		skipValidation:         c.skipValidation,
+		noEmit:                 c.noEmit,
+		strictMode:             c.strictMode,
+		allowActionRefs:        c.allowActionRefs,
+		approve:                c.approve,
+		forceStaged:            c.forceStaged,
+		trialMode:              c.trialMode,
+		trialLogicalRepoSlug:   c.trialLogicalRepoSlug,
+		refreshStopTime:        c.refreshStopTime,
+		forceRefreshActionPins: c.forceRefreshActionPins,
+		actionCacheCleared:     c.actionCacheCleared,
+		failFast:               c.failFast,
+		actionMode:             c.actionMode,
+		actionTag:              c.actionTag,
+		actionsRepo:            c.actionsRepo,
+		gitRoot:                c.gitRoot,
+		ghesCompatFromCLI:      c.ghesCompatFromCLI,
+		requireDocker:          c.requireDocker,
+		skipHeader:             c.skipHeader,
+		inlinePrompt:           c.inlinePrompt,
+
+		// Repository slug (read-only after WarmUp; per-file SetRepositorySlugIfUnlocked
+		// calls go to the child so they never mutate the parent during parallel execution)
+		repositorySlug:       c.repositorySlug,
+		repositorySlugLocked: c.repositorySlugLocked,
+
+		// Global singletons – read-only, safe to share
+		engineRegistry: c.engineRegistry,
+		engineCatalog:  c.engineCatalog,
+		fileTracker:    c.fileTracker,
+
+		// Shared filesystem-backed import cache: each Get/Set operates on a
+		// unique file path so concurrent access is safe without locking.
+		importCache: c.importCache,
+
+		// Repo config is read-only after WarmUp; share the pointer.
+		repoConfig:       c.repoConfig,
+		repoConfigErr:    c.repoConfigErr,
+		repoConfigLoaded: c.repoConfigLoaded,
+
+		// Independent action cache clone
+		actionCache:    childCache,
+		actionResolver: NewActionResolver(childCache),
+
+		// Copy warning-suppression map so the child can add entries without
+		// racing with the parent or other forks.
+		actionPinWarnings: copyStringBoolMap(c.actionPinWarnings),
+
+		// Copy prior manifests so the child accumulates its own baseline entries
+		// without racing with other forks.  New entries are merged back via Merge.
+		priorManifests: copyManifestsMap(c.priorManifests),
+
+		// Fresh per-file mutable state
+		jobManager:       NewJobManager(),
+		stepOrderTracker: NewStepOrderTracker(),
+		artifactManager:  NewArtifactManager(),
+		// warningCount, scheduleWarnings, safeUpdateWarnings start at zero-value
+	}
+	return child
+}
+
+// Merge aggregates the per-file results of a child compiler back into this
+// (parent) compiler.  It must be called from a single goroutine after the
+// child's compilation goroutine has finished – typically from the result
+// collector goroutine in the parallel pipeline.
+func (c *Compiler) Merge(child *Compiler) {
+	if child == nil {
+		return
+	}
+
+	// Accumulate warning count
+	c.warningCount += child.warningCount
+
+	// Accumulate per-file warning slices
+	c.scheduleWarnings = append(c.scheduleWarnings, child.scheduleWarnings...)
+	c.safeUpdateWarnings = append(c.safeUpdateWarnings, child.safeUpdateWarnings...)
+
+	// Merge action-pin warning suppressions so subsequent compilations keep
+	// benefiting from the same deduplicated set.
+	if c.actionPinWarnings == nil {
+		c.actionPinWarnings = make(map[string]bool)
+	}
+	for k, v := range child.actionPinWarnings {
+		if !c.actionPinWarnings[k] {
+			c.actionPinWarnings[k] = v
+		}
+	}
+
+	// Propagate new action cache entries resolved by this child back into the
+	// parent cache, so subsequent forks (or a final Save call) pick them up.
+	if c.actionCache != nil && child.actionCache != nil {
+		c.actionCache.MergeFrom(child.actionCache)
+	}
+
+	// Propagate any newly-cached prior manifest baselines back into the parent
+	// so that repeated compiles in the same process keep using stable baselines.
+	if c.priorManifests == nil {
+		c.priorManifests = make(map[string]*GHAWManifest)
+	}
+	for k, v := range child.priorManifests {
+		if _, exists := c.priorManifests[k]; !exists {
+			c.priorManifests[k] = v
+		}
+	}
+}
+
+// copyStringBoolMap returns a shallow copy of a map[string]bool.
+func copyStringBoolMap(src map[string]bool) map[string]bool {
+	if src == nil {
+		return make(map[string]bool)
+	}
+	dst := make(map[string]bool, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+// copyManifestsMap returns a shallow copy of a map[string]*GHAWManifest.
+// The pointer values are shared (the manifests themselves are treated as
+// immutable once created).
+func copyManifestsMap(src map[string]*GHAWManifest) map[string]*GHAWManifest {
+	if src == nil {
+		return make(map[string]*GHAWManifest)
+	}
+	dst := make(map[string]*GHAWManifest, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
 // SkipIfMatchConfig holds the configuration for skip-if-match conditions
 type SkipIfMatchConfig struct {
 	Query string // GitHub search query to check before running workflow

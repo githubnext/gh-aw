@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -295,8 +296,18 @@ Examples:
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		ghes, _ := cmd.Flags().GetBool("ghes")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+		workers, _ := cmd.Flags().GetInt("workers")
 		if err := validateEngine(engineOverride); err != nil {
 			return err
+		}
+
+		// Clamp workers to at least 1.  A value of 0 (or negative) means the flag
+		// was not set; fall back to the default of max(1, nCPU-1).
+		if workers <= 0 {
+			workers = runtime.NumCPU() - 1
+		}
+		if workers < 1 {
+			workers = 1
 		}
 
 		finishCompileUpdateCheck := cli.StartCompileUpdateCheck(cmd.Context(), noCheckUpdate, verbose)
@@ -355,6 +366,7 @@ Examples:
 			ValidateImages:         validateImages,
 			PriorManifestFile:      priorManifestFile,
 			GHESCompat:             ghes,
+			Workers:                workers,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
 			// Return error as-is without additional formatting
@@ -713,6 +725,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	compileCmd.Flags().Bool("ghes", false, "Enable GitHub Enterprise Server (GHES) compatibility mode: emit upload-artifact@v3 and download-artifact@v3 instead of the latest v7/v8 which are not supported on GHES. Overrides the aw.json ghes field")
+	compileCmd.Flags().Int("workers", 0, "Number of parallel compilation workers (default: max(1, nCPU-1); set to 1 to disable concurrency)")
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {
 		// Non-fatal: flag is registered even if MarkHidden fails
 		_ = err

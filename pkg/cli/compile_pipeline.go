@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -40,7 +41,94 @@ var compileOrchestrationLog = logger.New("cli:compile_pipeline")
 
 const fallbackCompilationErrorMessage = "compilation failed (no detailed error message available)"
 
-// compileSpecificFiles compiles a specific list of workflow files
+// compileResolvedFilesInParallel compiles a list of already-resolved workflow
+// file paths, using up to workers goroutines.  Results are returned in the same
+// order as the input slice.
+//
+// When workers <= 1 (or there is only one file) the compilation is sequential:
+// no goroutines are launched and the compiler is used directly.  For workers > 1
+// the compiler is forked once per file so each goroutine operates on independent
+// mutable state; results are merged back into the parent compiler after all
+// goroutines finish.
+//
+// compiler.WarmUp() must have been called before this function so that shared
+// lazy-init paths (action cache, import cache, repo config) are fully
+// initialised and not triggered from inside a goroutine.
+func compileResolvedFilesInParallel(
+	ctx context.Context,
+	compiler *workflow.Compiler,
+	resolvedFiles []string,
+	workers int,
+	opts compileWorkflowFileOptions,
+) []compileWorkflowFileResult {
+	n := len(resolvedFiles)
+	if n == 0 {
+		return nil
+	}
+
+	results := make([]compileWorkflowFileResult, n)
+
+	if workers <= 1 || n == 1 {
+		// Sequential path: fork/merge still applies so that the pattern is
+		// consistent and parent state is not accidentally mutated mid-loop.
+		for i, file := range resolvedFiles {
+			child := compiler.Fork()
+			results[i] = compileWorkflowFile(ctx, child, file, opts)
+			compiler.Merge(child)
+		}
+		return results
+	}
+
+	// Parallel path: bounded goroutine pool.
+	type indexedResult struct {
+		idx   int
+		res   compileWorkflowFileResult
+		child *workflow.Compiler
+	}
+
+	jobs := make(chan int, n)
+	for i := range resolvedFiles {
+		jobs <- i
+	}
+	close(jobs)
+
+	resultCh := make(chan indexedResult, n)
+
+	numWorkers := workers
+	if numWorkers > n {
+		numWorkers = n
+	}
+
+	var wg sync.WaitGroup
+	for w := 0; w < numWorkers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				child := compiler.Fork()
+				res := compileWorkflowFile(ctx, child, resolvedFiles[idx], opts)
+				resultCh <- indexedResult{idx: idx, res: res, child: child}
+			}
+		}()
+	}
+
+	// Close the result channel once all workers have finished.
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	// Collect results in completion order; merge child compiler state back into
+	// the parent serially so no locking is required on the parent.
+	for ir := range resultCh {
+		results[ir.idx] = ir.res
+		compiler.Merge(ir.child)
+	}
+
+	return results
+}
+
+
 func compileSpecificFiles(
 	ctx context.Context,
 	compiler *workflow.Compiler,
@@ -57,58 +145,87 @@ func compileSpecificFiles(
 		compileOrchestrationLog.Print("Automatically enabling action SHA validation due to --force-refresh-action-pins")
 	}
 
+	opts := compileWorkflowFileOptions{
+		verbose:    config.Verbose,
+		jsonOutput: config.JSONOutput,
+		noEmit:     config.NoEmit,
+		strict:     config.Strict,
+		validate:   shouldValidate,
+		// zizmor, poutine, actionlint disabled per-file (batched instead)
+	}
+
+	// Phase 1 (sequential): resolve every markdown file.  Record resolution
+	// errors immediately; collect resolved paths for parallel compilation.
+	type entry struct {
+		markdownFile    string
+		resolvedFile    string
+		resolutionError *CompileValidationError
+	}
+
+	entries := make([]entry, len(config.MarkdownFiles))
+	var toCompile []string
+	var toCompileIdx []int
+
+	for i, markdownFile := range config.MarkdownFiles {
+		stats.Total++
+		e := entry{markdownFile: markdownFile}
+
+		compileOrchestrationLog.Printf("Resolving workflow file: %s", markdownFile)
+		resolvedFile, err := resolveWorkflowFile(markdownFile, config.Verbose)
+		if err != nil {
+			compileOrchestrationLog.Printf("Resolution failed: %s: %v", markdownFile, err)
+			stats.Errors++
+			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
+			e.resolutionError = &CompileValidationError{
+				Type:    "resolution_error",
+				Message: err.Error(),
+			}
+		} else {
+			compileOrchestrationLog.Printf("Resolved to: %s", resolvedFile)
+			e.resolvedFile = resolvedFile
+			toCompile = append(toCompile, resolvedFile)
+			toCompileIdx = append(toCompileIdx, i)
+		}
+		entries[i] = e
+	}
+
+	// Phase 2 (parallel): compile all successfully resolved files.
+	// WarmUp initialises lazy-loaded shared state before any goroutine is created.
+	compiler.WarmUp()
+	fileResults := compileResolvedFilesInParallel(ctx, compiler, toCompile, config.Workers, opts)
+
+	// Phase 3 (sequential): aggregate results in original file order.
+	fileResultByIdx := make(map[int]compileWorkflowFileResult, len(toCompileIdx))
+	for j, entryIdx := range toCompileIdx {
+		fileResultByIdx[entryIdx] = fileResults[j]
+	}
+
 	var workflowDataList []*workflow.WorkflowData
 	var compiledCount int
 	var errorCount int
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
-	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	var lockFilesForDirTools []string
 
-	// Compile each specified file
-	for _, markdownFile := range config.MarkdownFiles {
-		stats.Total++
-
-		// Initialize validation result
+	for i, e := range entries {
 		result := ValidationResult{
-			Workflow: markdownFile,
+			Workflow: e.markdownFile,
 			Valid:    true,
 			Errors:   []CompileValidationError{},
 			Warnings: []CompileValidationError{},
 		}
 
-		// Resolve workflow ID or file path to actual file path
-		compileOrchestrationLog.Printf("Resolving workflow file: %s", markdownFile)
-		resolvedFile, err := resolveWorkflowFile(markdownFile, config.Verbose)
-		if err != nil {
-			// Don't print error here - it will be displayed in the compilation summary
-			// The error is stored in ValidationResult for JSON output and returned for main to display
+		if e.resolutionError != nil {
 			errorCount++
-			stats.Errors++
-			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
 			result.Valid = false
-			result.Errors = append(result.Errors, CompileValidationError{
-				Type:    "resolution_error",
-				Message: err.Error(),
-			})
+			result.Errors = append(result.Errors, *e.resolutionError)
 			*validationResults = append(*validationResults, result)
 			continue
 		}
-		compileOrchestrationLog.Printf("Resolved to: %s", resolvedFile)
 
 		// Update result with resolved file name
-		result.Workflow = filepath.Base(resolvedFile)
-
-		// Compile regular workflow file (disable per-file security tools)
-		fileResult := compileWorkflowFile(
-			ctx, compiler, resolvedFile, compileWorkflowFileOptions{
-				verbose:    config.Verbose,
-				jsonOutput: config.JSONOutput,
-				noEmit:     config.NoEmit,
-				strict:     config.Strict,
-				validate:   shouldValidate,
-				// zizmor, poutine, actionlint disabled per-file (batched instead)
-			},
-		)
+		result.Workflow = filepath.Base(e.resolvedFile)
+		fileResult := fileResultByIdx[i]
 
 		if !fileResult.success {
 			// Collect error messages from validation result for display in summary
@@ -121,7 +238,7 @@ func compileSpecificFiles(
 			}
 			errorCount++
 			stats.Errors += len(errMsgs)
-			trackWorkflowFailure(stats, resolvedFile, len(errMsgs), errMsgs)
+			trackWorkflowFailure(stats, e.resolvedFile, len(errMsgs), errMsgs)
 		} else {
 			compiledCount++
 			if fileResult.workflowData != nil {
@@ -275,7 +392,23 @@ func compileAllFilesInDirectory(
 		compileOrchestrationLog.Print("Automatically enabling action SHA validation due to --force-refresh-action-pins")
 	}
 
-	// Compile each file
+	stats.Total += len(mdFiles)
+
+	opts := compileWorkflowFileOptions{
+		verbose:    config.Verbose,
+		jsonOutput: config.JSONOutput,
+		noEmit:     config.NoEmit,
+		strict:     config.Strict,
+		validate:   shouldValidate,
+		// zizmor, poutine, actionlint disabled per-file (batched instead)
+	}
+
+	// Phase 2 (parallel): compile all files.
+	// WarmUp initialises lazy-loaded shared state before any goroutine is created.
+	compiler.WarmUp()
+	fileResults := compileResolvedFilesInParallel(ctx, compiler, mdFiles, config.Workers, opts)
+
+	// Phase 3 (sequential): aggregate results in original file order.
 	var workflowDataList []*workflow.WorkflowData
 	var successCount int
 	var errorCount int
@@ -283,20 +416,8 @@ func compileAllFilesInDirectory(
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 
-	for _, file := range mdFiles {
-		stats.Total++
-
-		// Compile regular workflow file (disable per-file security tools)
-		fileResult := compileWorkflowFile(
-			ctx, compiler, file, compileWorkflowFileOptions{
-				verbose:    config.Verbose,
-				jsonOutput: config.JSONOutput,
-				noEmit:     config.NoEmit,
-				strict:     config.Strict,
-				validate:   shouldValidate,
-				// zizmor, poutine, actionlint disabled per-file (batched instead)
-			},
-		)
+	for i, file := range mdFiles {
+		fileResult := fileResults[i]
 
 		if !fileResult.success {
 			// Collect error messages from validation result
