@@ -197,20 +197,21 @@ Focus areas by skill:
 
 ### Step 5: Post Inline Review Comments
 
-For each issue found, create a review comment using `create-pull-request-review-comment`:
+For each issue found, create a review comment using `create-pull-request-review-comment`. Apply **progressive disclosure**: lead with a brief visible statement, then collapse verbose analysis and code examples in a `<details>` block:
 
 ```json
 {
   "path": "path/to/file.ts",
   "line": 42,
-  "body": "**[/tdd]** This function is modified but the tests don't cover the edge case where `value` is `null`. Consider adding:\n\n```ts\nit('returns default when value is null', () => {\n  expect(fn(null)).toBe(defaultValue);\n});\n```\n\nMissing edge case tests are a common source of regressions."
+  "body": "**[/tdd]** Missing edge case: `value` is `null` — add a test to prevent this regression.\n\n<details>\n<summary>💡 Suggested test</summary>\n\n```ts\nit('returns default when value is null', () => {\n  expect(fn(null)).toBe(defaultValue);\n});\n```\n\nMissing edge case tests are a common source of regressions.\n\n</details>"
 }
 ```
 
 Guidelines:
 - Prefix each comment with the skill name in brackets: `**[/diagnose]**`, `**[/tdd]**`, etc.
+- Keep the **immediately visible text brief** (1–2 sentences): state the issue and its impact
+- Wrap code examples, detailed explanations, and multi-step suggestions in `<details><summary>💡 …</summary>` blocks
 - Be specific: file path, line number, exact issue
-- Provide code examples when possible
 - Limit to the **10 most impactful** issues
 
 ### Step 6: Submit the Overall Review
@@ -221,18 +222,17 @@ Submit a review using `submit_pull_request_review` with an overall summary:
 - **`REQUEST_CHANGES`** — There are important issues that should be addressed
 - **`COMMENT`** — Observations only; no blocking issues
 
-The review body should include:
-1. Which skill(s) were applied and why
-2. A brief summary of the key themes found
-3. Any positive highlights — what was done well
-4. Overall verdict
+The review body should apply progressive disclosure — keep the immediately visible portion brief and collapse details:
 
 **Example review body:**
 
 ```markdown
 ### Skills-Based Review 🧠
 
-Applied **`/tdd`** and **`/zoom-out`** based on the feature addition + refactor in this PR.
+Applied **`/tdd`** and **`/zoom-out`** — requesting changes on test coverage gaps.
+
+<details>
+<summary>📋 Key Themes & Highlights</summary>
 
 #### Key Themes
 
@@ -244,14 +244,12 @@ Applied **`/tdd`** and **`/zoom-out`** based on the feature addition + refactor 
 - ✅ Clean separation of concerns in the new module
 - ✅ Good use of early returns throughout
 
-#### Verdict
-
-Requesting changes on the test coverage gaps before merge.
+</details>
 ```
 
 ### Step 7: Post a Summary Comment (optional)
 
-If the review is complex or the overall findings are significant, post a single `add-comment` with a concise summary for the author, including links to relevant Matt Pocock skill documentation.
+If the review is complex or the overall findings are significant, post a single `add-comment` with a concise summary for the author. Apply progressive disclosure: one-line outcome visible, details in `<details>` blocks.
 
 ## Scope Rules
 
