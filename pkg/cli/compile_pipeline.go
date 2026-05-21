@@ -66,6 +66,14 @@ func compileSpecificFiles(
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
+		// Respect context cancellation between files (e.g. Ctrl+C)
+		select {
+		case <-ctx.Done():
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Compilation cancelled"))
+			return workflowDataList, ctx.Err()
+		default:
+		}
+
 		stats.Total++
 
 		// Initialize validation result
@@ -284,6 +292,14 @@ func compileAllFilesInDirectory(
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 
 	for _, file := range mdFiles {
+		// Respect context cancellation between files (e.g. Ctrl+C)
+		select {
+		case <-ctx.Done():
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Compilation cancelled"))
+			return workflowDataList, ctx.Err()
+		default:
+		}
+
 		stats.Total++
 
 		// Compile regular workflow file (disable per-file security tools)
