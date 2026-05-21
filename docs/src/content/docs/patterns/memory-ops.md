@@ -7,6 +7,16 @@ sidebar:
 
 MemoryOps is a set of design patterns using [Cache Memory](/gh-aw/reference/cache-memory/) and [Repo Memory](/gh-aw/reference/repo-memory/) to persist state across workflow runs. Use memory to build workflows that record their progress, resume after interruptions, share data between workflows, incremental processing, trend analysis, multi-step tasks, and workflow coordination.
 
+```mermaid
+flowchart LR
+    r1([Run 1]) --> s1[memory\nstate 1]
+    s1 --> r2([Run 2])
+    r2 --> s2[memory\nstate 2]
+    s2 --> r3([Run 3])
+```
+
+When writing prompting for using memory, you can usually use surprisingly high level descriptions of the information to be stored. You often don't even need to write a schema for the memory. The first run will write data with an appropriate schema, later runs will read it and see the implicit schema. The agent can adapt to changes in the schema over time as long as the data is still there. This makes memory a very flexible tool for stateful workflows without needing to define rigid schemas upfront.
+
 ## Memory Types
 
 Two types of memory stores are available. Each has different use cases and access patterns.

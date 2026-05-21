@@ -61,6 +61,17 @@ gh aw secrets set GH_AW_WRITE_PROJECT_TOKEN --value "<write-token>"
 
 ## How it works
 
+```mermaid
+flowchart LR
+    ev([Issue / PR event\nor schedule]) --> agent[ProjectOps agent]
+    subgraph gh["GitHub Projects"]
+        board[(board\nfields & items)]
+    end
+    agent -->|read — projects toolset| board
+    board -->|project state| agent
+    agent -->|update-project\nadd-comment| board
+```
+
 A practical way to adopt ProjectOps is to start with read-only MCP/GitHub analysis, then gradually add targeted write operations as workflow confidence and policy maturity increase.
 
 ProjectOps combines two capability layers:
