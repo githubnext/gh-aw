@@ -357,6 +357,12 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 		workflowName = workflowSpec.WorkflowName
 	}
 
+	// Action workflow files (.yml) are copied as-is to .github/workflows/ without any
+	// frontmatter processing, dependency fetching, or compilation.
+	if resolved.IsActionWorkflow {
+		return addActionWorkflowWithTracking(resolved, tracker, opts, githubWorkflowsDir, workflowName)
+	}
+
 	// Check if a workflow with this name already exists
 	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	if _, err := os.Stat(existingFile); err == nil && !opts.Force {
@@ -557,6 +563,49 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 		if err := compileWorkflow(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
 			printCompilationError(err, opts.Quiet)
 		}
+	}
+
+	return nil
+}
+
+// addActionWorkflowWithTracking installs a raw GitHub Actions YAML workflow file (.yml)
+// directly to the target directory without any frontmatter processing or compilation.
+func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, githubWorkflowsDir, workflowName string) error {
+	destFile := filepath.Join(githubWorkflowsDir, workflowName+".yml")
+
+	addLog.Printf("Adding action workflow: dest=%s, content_size=%d bytes", destFile, len(resolved.Content))
+
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding action workflow: "+destFile))
+	}
+
+	fileExists := false
+	if _, err := os.Stat(destFile); err == nil {
+		fileExists = true
+		if !opts.Force {
+			if opts.FromWildcard {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Action workflow '%s' already exists. Skipping.", workflowName+".yml")))
+				return nil
+			}
+			return fmt.Errorf("action workflow '%s' already exists in %s. Use --force to overwrite", workflowName+".yml", githubWorkflowsDir)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
+	}
+
+	if tracker != nil {
+		if fileExists {
+			tracker.TrackModified(destFile)
+		} else {
+			tracker.TrackCreated(destFile)
+		}
+	}
+
+	if err := os.WriteFile(destFile, resolved.Content, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write action workflow file '%s': %w", destFile, err)
+	}
+
+	if !opts.Quiet {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added action workflow: "+filepath.Base(destFile)))
 	}
 
 	return nil

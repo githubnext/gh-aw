@@ -302,9 +302,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
     if (!allowBody) {
       // allow-body: false — drop any body the agent provided and skip the comment
       if (typeof item.body === "string" && item.body.trim() !== "") {
-        core.warning(
-          `${entityConfig.itemType}: allow-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
-        );
+        core.warning(`${entityConfig.itemType}: allow-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`);
       } else {
         core.info(`${entityConfig.itemType}: allow-body is false — closing without a comment`);
       }

@@ -222,7 +222,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	seen := make(map[string]struct{})
 	for _, file := range rawFiles {
 		if !isSupportedPackageInstallablePath(file) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: workflow files must be markdown (.md) files under workflows/ or .github/workflows/", file, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: supported files are markdown (.md) files under workflows/ or .github/workflows/, or action workflow (.yml) files under .github/workflows/", file, manifestPath))
 			continue
 		}
 		if _, exists := seen[file]; exists {
@@ -301,9 +301,28 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 	return normalized
 }
 
-func isSupportedPackageInstallablePath(path string) bool {
-	return strings.HasSuffix(strings.ToLower(path), ".md") &&
-		(strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/"))
+func isSupportedPackageInstallablePath(p string) bool {
+	// Normalize separators to forward slashes (consistent with joinRepositoryPackagePath) then
+	// clean to reject path traversal (e.g. "workflows/../README.md" → "README.md").
+	cleaned := path.Clean(filepath.ToSlash(p))
+	lowerCleaned := strings.ToLower(cleaned)
+	if strings.HasSuffix(lowerCleaned, ".md") {
+		return strings.HasPrefix(cleaned, "workflows/") || strings.HasPrefix(cleaned, ".github/workflows/")
+	}
+	if isActionWorkflowPath(cleaned) {
+		if !strings.HasPrefix(cleaned, ".github/workflows/") {
+			return false
+		}
+		// Reject nested subdirectories: only direct children of .github/workflows/ are allowed.
+		remaining := strings.TrimPrefix(cleaned, ".github/workflows/")
+		return !strings.Contains(remaining, "/")
+	}
+	return false
+}
+
+func isActionWorkflowPath(p string) bool {
+	lowerPath := strings.ToLower(p)
+	return strings.HasSuffix(lowerPath, ".yml") && !strings.HasSuffix(lowerPath, ".lock.yml")
 }
 
 func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {

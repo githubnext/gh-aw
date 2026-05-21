@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const mockCore = {
   debug: vi.fn(),
@@ -28,6 +30,7 @@ const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 describe("pr_review_buffer (factory pattern)", () => {
   let buffer;
   let originalMessages;
+  let originalPromptsDir;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -35,6 +38,12 @@ describe("pr_review_buffer (factory pattern)", () => {
     // Save and clear messages env var (generateFooterWithMessages reads this)
     originalMessages = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+
+    // Point GH_AW_PROMPTS_DIR to the source md/ directory so getPromptPath()
+    // resolves template files from the source tree in test environments where
+    // RUNNER_TEMP is set but the runtime prompts directory is not populated.
+    originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
 
     // Default: return empty file list so path filtering is skipped unless explicitly mocked
     mockGithub.rest.pulls.listFiles.mockResolvedValue({ data: [] });
@@ -49,6 +58,11 @@ describe("pr_review_buffer (factory pattern)", () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = originalMessages;
     } else {
       delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+    }
+    if (originalPromptsDir !== undefined) {
+      process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+    } else {
+      delete process.env.GH_AW_PROMPTS_DIR;
     }
   });
 
