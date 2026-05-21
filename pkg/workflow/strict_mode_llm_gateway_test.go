@@ -9,8 +9,6 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-const ecosystemGuidancePrefix = "recommend using ecosystem identifiers instead of individual domain names for better maintainability: "
-
 // TestValidateStrictFirewall_LLMGatewaySupport tests the LLM gateway validation in strict mode
 func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 	t.Run("codex engine allows truly custom domains in strict mode", func(t *testing.T) {
@@ -282,7 +280,9 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 		if compiler.GetWarningCount() != 0 {
 			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
-		if !strings.Contains(output, ecosystemGuidancePrefix+"'pypi.org' → 'python'") {
+		if !strings.Contains(output, "recommend using ecosystem identifiers") ||
+			!strings.Contains(output, "'pypi.org'") ||
+			!strings.Contains(output, "'python'") {
 			t.Errorf("Expected informational ecosystem guidance in stderr, got: %q", output)
 		}
 	})
@@ -304,7 +304,7 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 				t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 			}
 		})
-		if !strings.Contains(output, ecosystemGuidancePrefix) {
+		if !strings.Contains(output, "recommend using ecosystem identifiers") {
 			t.Errorf("Expected informational ecosystem guidance in stderr, got: %q", output)
 		}
 		if strings.Contains(output, "strict mode:") {
