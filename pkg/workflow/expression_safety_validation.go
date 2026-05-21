@@ -23,11 +23,6 @@ const maxFuzzyMatchSuggestions = 7
 
 // Pre-compiled regexes for expression safety validation (performance optimization)
 var (
-	needsStepsRegex         = NeedsStepsPattern
-	inputsRegex             = InputsPattern
-	workflowCallInputsRegex = WorkflowCallInputsPattern
-	awInputsRegex           = AWInputsPattern
-	envRegex                = EnvPattern
 	// comparisonExpressionPattern matches a full comparison expression so both sides can be
 	// validated recursively instead of allowing a safe-looking prefix to bypass validation.
 	comparisonExpressionPattern = regexp.MustCompile(`^(.+?)\s*(?:==|!=|<|>|<=|>=)\s*(.+)$`)
