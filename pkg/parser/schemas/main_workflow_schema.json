@@ -2983,16 +2983,9 @@
         }
       }
     },
-    "infer": {
-      "type": "boolean",
-      "deprecated": true,
-      "description": "DEPRECATED: Use 'disable-model-invocation' instead. Controls whether the custom agent should infer additional context from the conversation. This field is maintained for backward compatibility with existing custom agent files.",
-      "x-deprecation-message": "'infer' is deprecated. Use 'disable-model-invocation' instead.",
-      "examples": [false]
-    },
     "disable-model-invocation": {
       "type": "boolean",
-      "description": "Controls whether the custom agent should disable model invocation. When set to true, the agent will not make additional model calls. This is the preferred field name for custom agent files (replaces the deprecated 'infer' field).",
+      "description": "Controls whether the custom agent should disable model invocation. When set to true, the agent will not make additional model calls.",
       "examples": [true]
     },
     "secrets": {
