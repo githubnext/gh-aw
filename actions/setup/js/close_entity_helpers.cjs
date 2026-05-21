@@ -269,6 +269,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
   const comment = config.comment || "";
   const isStaged = isStagedMode(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const allowBody = config.allow_body !== false; // default true; false only when explicitly set to false
 
   let processedCount = 0;
 
@@ -293,12 +294,22 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
     core.info(`Processing ${entityConfig.itemType} message: ${JSON.stringify(logFields)}`);
 
     // 2. Comment body resolution
-    /** @type {string} */
+    /** @type {string|undefined} */
     let commentToPost;
     /** @type {string} */
     let commentSource = "unknown";
 
-    if (typeof item.body === "string" && item.body.trim() !== "") {
+    if (!allowBody) {
+      // allow-body: false — drop any body the agent provided and skip the comment
+      if (typeof item.body === "string" && item.body.trim() !== "") {
+        core.warning(
+          `${entityConfig.itemType}: allow-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
+        );
+      } else {
+        core.info(`${entityConfig.itemType}: allow-body is false — closing without a comment`);
+      }
+      commentToPost = undefined;
+    } else if (typeof item.body === "string" && item.body.trim() !== "") {
       commentToPost = item.body;
       commentSource = "item.body";
     } else if (typeof comment === "string" && comment.trim() !== "") {
@@ -309,10 +320,12 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
       return { success: false, error: "No comment body provided" };
     }
 
-    core.info(`Comment body determined: length=${commentToPost.length}, source=${commentSource}`);
+    if (commentToPost !== undefined) {
+      core.info(`Comment body determined: length=${commentToPost.length}, source=${commentSource}`);
 
-    // 3. Content sanitization
-    commentToPost = sanitizeContent(commentToPost);
+      // 3. Content sanitization
+      commentToPost = sanitizeContent(commentToPost);
+    }
 
     // 4. Target repository / entity number resolution
     const targetResult = callbacks.resolveTarget(item, config, resolvedTemporaryIds);
@@ -379,34 +392,38 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
         };
       }
 
-      // 9. Comment posting
-      const commentBody = callbacks.buildCommentBody(commentToPost, item);
-      core.info(`Adding comment to ${entityConfig.displayName} #${entityNumber}: length=${commentBody.length}`);
-
+      // 9. Comment posting (skipped when allow-body: false or no body available)
       /** @type {{id: number, html_url: string}|null} */
       let commentResult = null;
       let commentPosted = false;
-      try {
-        commentResult = await callbacks.addComment(githubClient, owner, repoName, entityNumber, commentBody);
-        commentPosted = true;
-        core.info(`✓ Comment posted to ${entityConfig.displayName} #${entityNumber}: ${commentResult.html_url}`);
-        core.info(`Comment details: id=${commentResult.id}, body_length=${commentBody.length}`);
-      } catch (commentError) {
-        const errorMsg = getErrorMessage(commentError);
-        if (callbacks.continueOnCommentError) {
-          core.error(`Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`);
-          core.error(
-            `Error details: ${JSON.stringify({
-              entityNumber,
-              hasBody: !!item.body,
-              bodyLength: item.body ? item.body.length : 0,
-              errorMessage: errorMsg,
-            })}`
-          );
-          // commentPosted stays false; close operation continues
-        } else {
-          throw new Error(`${ERR_API}: Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`, { cause: commentError });
+      if (commentToPost !== undefined) {
+        const commentBody = callbacks.buildCommentBody(commentToPost, item);
+        core.info(`Adding comment to ${entityConfig.displayName} #${entityNumber}: length=${commentBody.length}`);
+
+        try {
+          commentResult = await callbacks.addComment(githubClient, owner, repoName, entityNumber, commentBody);
+          commentPosted = true;
+          core.info(`✓ Comment posted to ${entityConfig.displayName} #${entityNumber}: ${commentResult.html_url}`);
+          core.info(`Comment details: id=${commentResult.id}, body_length=${commentBody.length}`);
+        } catch (commentError) {
+          const errorMsg = getErrorMessage(commentError);
+          if (callbacks.continueOnCommentError) {
+            core.error(`Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`);
+            core.error(
+              `Error details: ${JSON.stringify({
+                entityNumber,
+                hasBody: !!item.body,
+                bodyLength: item.body ? item.body.length : 0,
+                errorMessage: errorMsg,
+              })}`
+            );
+            // commentPosted stays false; close operation continues
+          } else {
+            throw new Error(`${ERR_API}: Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`, { cause: commentError });
+          }
         }
+      } else {
+        core.info(`Skipping comment for ${entityConfig.displayName} #${entityNumber}: no comment body`);
       }
 
       // 10. Entity close (skipped when already closed)

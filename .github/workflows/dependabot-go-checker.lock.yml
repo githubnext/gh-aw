@@ -487,7 +487,6 @@ jobs:
                 "defaultMax": 1,
                 "fields": {
                   "body": {
-                    "required": true,
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000

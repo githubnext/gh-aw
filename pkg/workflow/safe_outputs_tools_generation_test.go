@@ -295,3 +295,68 @@ func TestGenerateDispatchWorkflowToolRequiredSorted(t *testing.T) {
 
 // TestGenerateFilteredToolsJSONWithStandardOutputs tests that standard safe outputs produce
 // the expected tools in the filtered output (regression test for the completeness check).
+
+// TestComputeRequiredFieldRemovalsCloseDiscussion verifies that allow-body: false for
+// close-discussion produces a required field removal for the body field.
+func TestComputeRequiredFieldRemovalsCloseDiscussion(t *testing.T) {
+	f := false
+	removals := computeRequiredFieldRemovals(&SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{
+			AllowBody: &f,
+		},
+	})
+
+	require.Contains(t, removals, "close_discussion", "expected close_discussion key")
+	assert.Equal(t, []string{"body"}, removals["close_discussion"])
+	assert.NotContains(t, removals, "close_issue", "close_issue should not be affected")
+}
+
+// TestComputeRequiredFieldRemovalsCloseIssue verifies that allow-body: false for
+// close-issue produces a required field removal for the body field.
+func TestComputeRequiredFieldRemovalsCloseIssue(t *testing.T) {
+	f := false
+	removals := computeRequiredFieldRemovals(&SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			AllowBody: &f,
+		},
+	})
+
+	require.Contains(t, removals, "close_issue", "expected close_issue key")
+	assert.Equal(t, []string{"body"}, removals["close_issue"])
+	assert.NotContains(t, removals, "close_discussion", "close_discussion should not be affected")
+}
+
+// TestComputeRequiredFieldRemovalsAllowBodyTrue verifies that allow-body: true
+// does NOT produce any required field removals.
+func TestComputeRequiredFieldRemovalsAllowBodyTrue(t *testing.T) {
+	tr := true
+	removals := computeRequiredFieldRemovals(&SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{
+			AllowBody: &tr,
+		},
+		CloseIssues: &CloseIssuesConfig{
+			AllowBody: &tr,
+		},
+	})
+
+	assert.Empty(t, removals, "no removals expected when allow-body is true")
+}
+
+// TestComputeRequiredFieldRemovalsNilConfig verifies that a nil config returns empty removals.
+func TestComputeRequiredFieldRemovalsNilConfig(t *testing.T) {
+	removals := computeRequiredFieldRemovals(nil)
+	assert.Empty(t, removals)
+}
+
+// TestComputeRequiredFieldRemovals_BothFalse verifies that allow-body: false on both tools
+// produces removals for both.
+func TestComputeRequiredFieldRemovals_BothFalse(t *testing.T) {
+	f := false
+	removals := computeRequiredFieldRemovals(&SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{AllowBody: &f},
+		CloseIssues:      &CloseIssuesConfig{AllowBody: &f},
+	})
+
+	assert.Equal(t, []string{"body"}, removals["close_discussion"])
+	assert.Equal(t, []string{"body"}, removals["close_issue"])
+}

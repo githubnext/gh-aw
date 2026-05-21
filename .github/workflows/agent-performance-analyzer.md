@@ -12,7 +12,7 @@ engine: copilot
 tools:
   repo-memory:
     branch-name: memory/meta-orchestrators
-    file-glob: "**"
+    file-glob: ["*.json", "*.md"]
     max-file-size: 102400  # 100KB
 imports:
   - uses: shared/meta-analysis-base.md
@@ -32,6 +32,9 @@ safe-outputs:
   add-comment:
     max: 10
 timeout-minutes: 30
+# Raised above 25M default: meta-orchestrator does deep analysis across all agents.
+# Caveman experiment aims to reduce by ≥20%; set ceiling to catch runaway loops.
+max-effective-tokens: 40000000
 features:
   copilot-requests: true
 experiments:
@@ -121,6 +124,13 @@ Use measurable evidence. Compare within agent categories. Be constructive and sp
 ## Success Metrics
 
 Track: quality/effectiveness improvement, reduced problematic patterns, better coverage, higher PR merge rates, recommendation adoption.
+
+## Token Budget Guidelines
+
+- Focus on top 10 agents by issue volume; skip inactive agents with zero outputs.
+- Use pre-loaded metrics JSON; do not re-fetch what is already in memory.
+- Stop immediately after `create_discussion` or `noop`; no follow-up analysis.
+- If analysis is incomplete due to scope, note what was skipped in the report.
 
 Execute all phases systematically.
 {{else}}
@@ -693,6 +703,14 @@ Your effectiveness is measured by:
 - Agent ecosystem health and sustainability
 
 Execute all phases systematically and maintain an objective, data-driven approach to agent performance analysis.
+
+## Token Budget Guidelines
+
+- Analyze the top 20 agents by output volume; skip agents with zero outputs in the analysis window.
+- Use pre-loaded metrics JSON from Phase 1 as the primary data source; avoid redundant API calls.
+- Cap sampled outputs to 3 per agent for quality scoring — do not read every output.
+- Create at most 3 improvement issues per run; batch minor findings into one systemic issue.
+- Stop immediately after `create_discussion` and any issues are filed; no post-report analysis.
 
 {{/if}}
 {{#runtime-import shared/noop-reminder.md}}

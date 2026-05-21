@@ -427,6 +427,147 @@ func extractCustomTokenWeightsFromDir(runDir string) *types.TokenWeights {
 	return awInfo.TokenWeights
 }
 
+// readTokenUsageEntries parses a token-usage.jsonl file and returns the raw
+// ordered list of entries, sorted by timestamp where available.
+func readTokenUsageEntries(filePath string) ([]TokenUsageEntry, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open token usage file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	type orderedEntry struct {
+		entry        TokenUsageEntry
+		timestamp    time.Time
+		hasTimestamp bool
+		order        int
+	}
+
+	var ordered []orderedEntry
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var entry TokenUsageEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
+			continue
+		}
+		ts, hasTs := parseTokenUsageTimestamp(entry.Timestamp)
+		ordered = append(ordered, orderedEntry{entry: entry, timestamp: ts, hasTimestamp: hasTs, order: lineNum})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading token usage file: %w", err)
+	}
+
+	sort.SliceStable(ordered, func(i, j int) bool {
+		l, r := ordered[i], ordered[j]
+		if l.hasTimestamp && r.hasTimestamp {
+			return l.timestamp.Before(r.timestamp)
+		}
+		if l.hasTimestamp != r.hasTimestamp {
+			return l.hasTimestamp
+		}
+		return l.order < r.order
+	})
+
+	entries := make([]TokenUsageEntry, len(ordered))
+	for i, o := range ordered {
+		entries[i] = o.entry
+	}
+	return entries, nil
+}
+
+// correlateToolCallsWithTokenDelta correlates each tool call with the effective-token
+// delta introduced by its result being appended to the LLM context.
+//
+// For each tool call at timestamp T, the algorithm finds:
+//   - prev: the last token-usage entry whose timestamp is before T (the API call
+//     that produced the tool call decision)
+//   - next: the first token-usage entry whose timestamp is after T (the API call
+//     that consumed the tool call result)
+//
+// delta = effectiveTokens(next) − effectiveTokens(prev).
+//
+// Tool calls that cannot be bracketed by a prev/next pair receive delta = 0.
+// The function is a no-op when tokenUsageFile is empty or unreadable.
+func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
+	if len(toolCalls) == 0 || tokenUsageFile == "" {
+		return toolCalls
+	}
+
+	entries, err := readTokenUsageEntries(tokenUsageFile)
+	if err != nil {
+		tokenUsageLog.Printf("correlateToolCallsWithTokenDelta: failed to read %s: %v", tokenUsageFile, err)
+		return toolCalls
+	}
+	if len(entries) < 2 {
+		return toolCalls
+	}
+
+	// Resolve weights once for all entries
+	multipliers, classWeights := resolveEffectiveWeights(nil)
+
+	// Pre-compute effective tokens for each entry
+	type entryWithET struct {
+		ts time.Time
+		et int
+	}
+	etEntries := make([]entryWithET, 0, len(entries))
+	for _, e := range entries {
+		ts, ok := parseTokenUsageTimestamp(e.Timestamp)
+		if !ok {
+			continue
+		}
+		et := computeModelEffectiveTokensWithWeights(
+			e.Model, e.InputTokens, e.OutputTokens, e.CacheReadTokens, e.CacheWriteTokens,
+			multipliers, classWeights,
+		)
+		etEntries = append(etEntries, entryWithET{ts: ts, et: et})
+	}
+	if len(etEntries) < 2 {
+		return toolCalls
+	}
+
+	updated := make([]MCPToolCall, len(toolCalls))
+	copy(updated, toolCalls)
+
+	for i, tc := range updated {
+		callTS, ok := parseTokenUsageTimestamp(tc.Timestamp)
+		if !ok {
+			continue
+		}
+
+		// Find prev (last entry with ts < callTS) and next (first entry with ts > callTS)
+		prevIdx := -1
+		nextIdx := -1
+		for j, e := range etEntries {
+			if e.ts.Before(callTS) {
+				prevIdx = j // keep updating to get the last one before callTS
+			} else if e.ts.After(callTS) && nextIdx == -1 {
+				nextIdx = j // first entry after callTS
+			}
+		}
+
+		if prevIdx == -1 || nextIdx == -1 {
+			continue
+		}
+
+		delta := etEntries[nextIdx].et - etEntries[prevIdx].et
+		if delta > 0 {
+			updated[i].EffectiveTokenDelta = delta
+		}
+	}
+
+	return updated
+}
+
 // TotalTokens returns the sum of all token types
 func (s *TokenUsageSummary) TotalTokens() int {
 	return s.TotalInputTokens + s.TotalOutputTokens + s.TotalCacheReadTokens + s.TotalCacheWriteTokens

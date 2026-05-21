@@ -127,6 +127,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only discussions with title prefix %q can be closed.", config.RequiredTitlePrefix))
 			}
+			if config.AllowBody != nil && !*config.AllowBody {
+				constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
+			}
 		}
 
 	case "update_discussion":
@@ -162,6 +165,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only issues with title prefix %q can be closed.", config.RequiredTitlePrefix))
+			}
+			if config.AllowBody != nil && !*config.AllowBody {
+				constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
 			}
 		}
 

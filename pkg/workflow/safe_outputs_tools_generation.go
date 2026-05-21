@@ -229,6 +229,28 @@ type ToolsMeta struct {
 	// targets, and call_workflow targets. These are workflow-specific and cannot be
 	// derived from the static safe_outputs_tools.json at runtime.
 	DynamicTools []map[string]any `json:"dynamic_tools"`
+	// RequiredFieldRemovals maps tool name → list of field names to remove from the
+	// inputSchema.required array. Used when a field that is required in the static
+	// safe_outputs_tools.json should be optional for this specific workflow (e.g. when
+	// allow-body: false is configured for close_discussion or close_issue).
+	RequiredFieldRemovals map[string][]string `json:"required_field_removals,omitempty"`
+}
+
+// computeRequiredFieldRemovals returns a map of tool name → required fields to remove
+// based on the safe-outputs configuration. Currently handles allow-body: false for
+// close_discussion and close_issue.
+func computeRequiredFieldRemovals(safeOutputs *SafeOutputsConfig) map[string][]string {
+	removals := make(map[string][]string)
+	if safeOutputs == nil {
+		return removals
+	}
+	if safeOutputs.CloseDiscussions != nil && safeOutputs.CloseDiscussions.AllowBody != nil && !*safeOutputs.CloseDiscussions.AllowBody {
+		removals["close_discussion"] = []string{"body"}
+	}
+	if safeOutputs.CloseIssues != nil && safeOutputs.CloseIssues.AllowBody != nil && !*safeOutputs.CloseIssues.AllowBody {
+		removals["close_issue"] = []string{"body"}
+	}
+	return removals
 }
 
 // generateToolsMetaJSON generates the content for tools_meta.json: a compact file
@@ -286,10 +308,14 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 		dynamicTools = []map[string]any{}
 	}
 
+	// Compute required field removals (e.g. body when allow-body: false).
+	requiredFieldRemovals := computeRequiredFieldRemovals(data.SafeOutputs)
+
 	meta := ToolsMeta{
-		DescriptionSuffixes: descriptionSuffixes,
-		RepoParams:          repoParams,
-		DynamicTools:        dynamicTools,
+		DescriptionSuffixes:   descriptionSuffixes,
+		RepoParams:             repoParams,
+		DynamicTools:           dynamicTools,
+		RequiredFieldRemovals: requiredFieldRemovals,
 	}
 
 	result, err := json.MarshalIndent(meta, "", "  ")
