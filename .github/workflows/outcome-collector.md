@@ -86,44 +86,69 @@ Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2
 Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling. Keep critical summaries and key metrics always visible.
 
 Suggested structure:
-- Brief summary (always visible)
-- Key metrics or highlights (always visible)
-- Detailed analysis (in `<details>` tags)
-- Recommendations (always visible)
+- Scorecard with economics metrics (always visible)
+- Actionable recommendations with specific next steps (always visible)
+- Per-workflow breakdown (in `<details>` tags)
+- Detailed per-run data (in `<details>` tags)
 
 ```markdown
-## Safe Output Outcomes — {date}
+### Outcome Scorecard — {date}
 
-### Fleet Summary
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Acceptance rate** | **{acceptance_rate}%** | 🟢 >80% / 🟡 60-80% / 🔴 <60% |
+| **Zero-touch rate** | **{zero_touch_rate}%** | 🟢 >50% / 🟡 25-50% / 🔴 <25% |
+| **Waste rate** | {waste_rate}% | 🟢 <10% / 🟡 10-25% / 🔴 >25% |
+| **Median time to resolution** | {median_resolution} | — |
+| Accepted | {accepted} / {total_outcomes} | — |
+| Rejected | {rejected} | — |
+| Zero-touch | {zero_touch} / {accepted} | — |
+| Pending | {pending} | — |
+| Runs checked | {runs_checked} | — |
 
-| Metric | Value |
-|--------|-------|
-| Runs checked | {runs_checked} |
-| Total outcomes | {total_outcomes} |
-| Accepted | {accepted} |
-| Rejected | {rejected} |
-| Ignored | {ignored} |
-| Pending | {pending} |
-| **Acceptance rate** | **{acceptance_rate}%** |
-| Waste rate | {waste_rate}% |
+### 🔴 Action Items
+
+List concrete actions the team should take based on the data:
+
+1. **Highest-waste workflows** — Name the top 2-3 workflows by waste rate. If waste rate >25%, recommend reviewing the prompt or safe-output configuration.
+2. **Stuck pending items** — List any items pending >48 hours. These need human review or the workflow needs a timeout.
+3. **Low zero-touch workflows** — Workflows where accepted items always need human edits indicate the agent's output quality needs improvement.
+4. **Negative reactions** — Items with negative reactions (👎, confused) signal user dissatisfaction even on "accepted" items.
 
 ### Per-Workflow Breakdown
 
-For each workflow with outcomes, show:
-- Workflow name
-- Outcomes: accepted / rejected / ignored
-- Acceptance rate
+For each workflow with outcomes, show a mini-scorecard:
 
-### Key Observations
+| Workflow | Accepted | Rejected | Pending | Acceptance | Zero-touch | Reactions 👍/👎 |
+|----------|----------|----------|---------|------------|------------|----------------|
 
-- Which workflows have the highest acceptance rate?
-- Which workflows have the highest waste rate?
-- Any workflows with all outcomes ignored (noise signal)?
+Sort by waste rate descending (worst first).
+
+### Reaction Summary
+
+If any items have reactions, summarize:
+- Items with positive reactions (👍 heart rocket hooray): these workflows are producing valued output
+- Items with negative reactions (👎 confused): these need prompt or quality improvements
+- Items with zero reactions: no signal yet
+
+### Trend Signal
+
+Compare today's acceptance rate and zero-touch rate against the previous report in cache-memory (if available). Flag:
+- ⬆️ Improving: acceptance rate up >5pp or zero-touch rate up >10pp
+- ⬇️ Regressing: acceptance rate down >5pp or waste rate up >5pp
+- ➡️ Stable: within 5pp of previous
+
+If no previous data exists, skip this section.
 ```
 
 ## Guidelines
 
 - Keep the report factual — numbers only, no speculation
 - Do not re-evaluate outcomes — use the pre-computed data
+- Sort workflows by waste rate descending so the worst performers are at the top
+- Flag any workflow with acceptance rate <60% as needing attention
+- Flag any item pending >48 hours
+- If reactions data is available, include it in the per-workflow breakdown
+- Save this report's key metrics to cache-memory for trend comparison in the next run
 - If no outcomes exist, use `noop`
 - Stop immediately after creating the issue
