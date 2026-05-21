@@ -2089,10 +2089,10 @@ ${patchPreview}`;
       // Return success with PR details
       return {
         success: true,
-        pull_request_number: pullRequest.number,
-        pull_request_url: pullRequest.html_url,
+        number: pullRequest.number,
+        url: pullRequest.html_url,
         branch_name: branchName,
-        temporary_id: temporaryId,
+        temporaryId: temporaryId,
         repo: itemRepo,
       };
     } catch (prError) {
