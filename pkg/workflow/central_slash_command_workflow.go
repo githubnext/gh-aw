@@ -115,6 +115,13 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 			continue
 		}
 
+		// PullRequestReviewer workflows are driven by PR lifecycle events only.
+		// They must not be enrolled in comment-based slash-command routing to
+		// prevent accidental double-triggers when comments are posted.
+		if wd.PullRequestReviewer {
+			continue
+		}
+
 		filteredEvents := FilterCommentEvents(wd.CommandEvents)
 		if len(filteredEvents) == 0 {
 			continue

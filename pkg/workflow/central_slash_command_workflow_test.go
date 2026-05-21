@@ -271,6 +271,41 @@ func TestCollectCentralSlashCommandRoutes_RespectsReactionEventTargets(t *testin
 	require.Equal(t, []string{"|issue_comment"}, routeReactions["none-reaction"])
 }
 
+func TestCollectCentralSlashCommandRoutes_ExcludesPullRequestReviewerWorkflows(t *testing.T) {
+	data := []*WorkflowData{
+		{
+			WorkflowID:          "regular-slash-command",
+			Command:             []string{"review"},
+			CommandEvents:       []string{"issue_comment"},
+			CommandCentralized:  true,
+			PullRequestReviewer: false,
+		},
+		{
+			WorkflowID:  "reviewer-workflow",
+			Command:     []string{"review"},
+			CommandEvents: nil, // nil CommandEvents would normally mean all events in FilterCommentEvents,
+			// but this workflow is excluded from routing by PullRequestReviewer=true
+			// before FilterCommentEvents is called.
+			CommandCentralized:  true,
+			PullRequestReviewer: true,
+		},
+	}
+
+	routesByCommand, mergedEvents := collectCentralSlashCommandRoutes(data)
+
+	// Only the regular slash-command workflow should be registered; the reviewer
+	// workflow must be absent even though CommandEvents is nil (which FilterCommentEvents
+	// would normally treat as "all events").
+	require.Len(t, routesByCommand["review"], 1)
+	require.Equal(t, "regular-slash-command", routesByCommand["review"][0].Workflow)
+	for _, route := range routesByCommand["review"] {
+		require.NotEqual(t, "reviewer-workflow", route.Workflow,
+			"reviewer-workflow must not appear in centralized slash-command routes")
+	}
+	// The reviewer workflow must not contribute any events to the merged event set.
+	require.NotContains(t, mergedEvents, "pull_request_review")
+}
+
 func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "central-slash-workflow-runs-on-test")
 	data := []*WorkflowData{

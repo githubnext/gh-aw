@@ -283,10 +283,10 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				workflowData.PullRequestReviewer = true
 				workflowData.CommandCentralized = true
 				workflowData.Command = resolvePullRequestReviewerCommandNames(reviewerValue, workflowData, markdownPath)
-				// Reviewer workflows are driven by PR lifecycle events, not by slash
-				// commands in comments. Leave CommandEvents nil so the central router
-				// does not register this workflow for comment-based routing (which was
-				// the source of accidental double-triggers when comments were posted).
+				// Reviewer workflows are driven by PR lifecycle events only.
+				// CommandEvents is left nil here; the actual exclusion from
+				// comment-based slash-command routing is enforced in
+				// collectCentralSlashCommandRoutes via the PullRequestReviewer flag.
 				workflowData.CommandEvents = nil
 				// Populate CommandOtherEvents with reviewer lifecycle events
 				workflowData.CommandOtherEvents = map[string]any{

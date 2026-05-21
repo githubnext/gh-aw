@@ -14,9 +14,10 @@ import (
 
 // TestPullRequestReviewerIfGuard verifies that the compiled if: condition for
 // pull_request_reviewer workflows uses an allowlist (not a denylist) so that
-// comment events (pull_request_review_comment, issue_comment, etc.) cannot
-// accidentally trigger the reviewer job – either directly or via workflow_dispatch
-// from the central router.
+// only pull_request, pull_request_review, and workflow_dispatch events can
+// trigger the reviewer job. Comment events are excluded from triggering via
+// the central router by the PullRequestReviewer check in
+// collectCentralSlashCommandRoutes, not by this if: guard.
 func TestPullRequestReviewerIfGuard(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "reviewer-if-guard-test")
 
