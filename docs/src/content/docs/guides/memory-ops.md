@@ -9,10 +9,8 @@ MemoryOps enables workflows to persist state across runs using `cache-memory` an
 
 Use MemoryOps for incremental processing, trend analysis, multi-step tasks, and workflow coordination.
 
-## How to Use These Patterns
-
 > [!TIP]
-> State your high-level goal in the workflow prompt and let the AI agent handle the implementation. The examples below are prompts you'd write — the agent generates the code automatically based on your memory configuration.
+> State your high-level goal in the workflow prompt and let the agentic engine handle the details.
 
 ## Memory Types
 

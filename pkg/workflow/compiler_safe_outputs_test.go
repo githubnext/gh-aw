@@ -23,7 +23,6 @@ func TestParseOnSection(t *testing.T) {
 		expectedOn                  string
 		expectedCentralized         bool
 		expectedLabelDecentralized  bool
-		expectedPullRequestReviewer bool
 		checkCommandEvents          bool
 		expectedOtherEvents         map[string]any
 		expectedConcurrencyContains string
@@ -171,44 +170,6 @@ func TestParseOnSection(t *testing.T) {
 			expectedError:              false,
 			expectedReaction:           "eyes",
 			expectedLabelDecentralized: true,
-		},
-		{
-			name: "pull_request_reviewer synthetic trigger enables centralized reviewer lifecycle",
-			frontmatter: map[string]any{
-				"on": map[string]any{
-					"pull_request_reviewer": nil,
-				},
-			},
-			workflowData:                &WorkflowData{},
-			markdownPath:                "/path/to/reviewer.md",
-			expectedError:               false,
-			expectedReaction:            "eyes",
-			expectedCentralized:         true,
-			expectedPullRequestReviewer: true,
-			expectedConcurrencyContains: "queue: max",
-			checkCommandEvents:          true,
-		},
-		{
-			name: "pull_request_reviewer preserves reviewer lifecycle when on has other events",
-			frontmatter: map[string]any{
-				"on": map[string]any{
-					"pull_request_reviewer": nil,
-					"workflow_dispatch":     map[string]any{},
-				},
-			},
-			workflowData:                &WorkflowData{},
-			markdownPath:                "/path/to/reviewer.md",
-			expectedError:               false,
-			expectedReaction:            "eyes",
-			expectedCentralized:         true,
-			expectedPullRequestReviewer: true,
-			checkCommandEvents:          true,
-			expectedOtherEvents: map[string]any{
-				"pull_request": map[string]any{
-					"types": []string{"ready_for_review", "review_requested"},
-				},
-				"workflow_dispatch": map[string]any{},
-			},
 		},
 		{
 			name: "slash_command conflicts with issues",
@@ -360,7 +321,6 @@ func TestParseOnSection(t *testing.T) {
 				}
 				assert.Equal(t, tt.expectedCentralized, tt.workflowData.CommandCentralized, "CommandCentralized mismatch")
 				assert.Equal(t, tt.expectedLabelDecentralized, tt.workflowData.LabelCommandDecentralized, "LabelCommandDecentralized mismatch")
-				assert.Equal(t, tt.expectedPullRequestReviewer, tt.workflowData.PullRequestReviewer, "PullRequestReviewer mismatch")
 				assert.Equal(t, tt.expectedLockAgent, tt.workflowData.LockForAgent, "LockForAgent mismatch")
 				if tt.expectedConcurrencyContains != "" {
 					assert.Contains(t, tt.workflowData.Concurrency, tt.expectedConcurrencyContains)
@@ -453,91 +413,6 @@ func TestCompilerMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestParseOnSection_PullRequestReviewerInfersDefaultCommand(t *testing.T) {
-	c := &Compiler{}
-	frontmatter := map[string]any{
-		"on": map[string]any{
-			"pull_request_reviewer": nil,
-		},
-	}
-	workflowData := &WorkflowData{}
-
-	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
-	require.NoError(t, err)
-	assert.Equal(t, []string{"review", "reviewer"}, workflowData.Command)
-}
-
-func TestParseOnSection_PullRequestReviewerUsesCustomCommand(t *testing.T) {
-	c := &Compiler{}
-	frontmatter := map[string]any{
-		"on": map[string]any{
-			"pull_request_reviewer": "custom-review",
-		},
-	}
-	workflowData := &WorkflowData{}
-
-	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
-	require.NoError(t, err)
-	assert.Equal(t, []string{"custom-review"}, workflowData.Command)
-}
-
-func TestParseOnSection_PullRequestReviewerDefaultsToReviewAndWorkflowID(t *testing.T) {
-	c := &Compiler{}
-	frontmatter := map[string]any{
-		"on": map[string]any{
-			"pull_request_reviewer": nil,
-		},
-	}
-	workflowData := &WorkflowData{WorkflowID: "reviewer-workflow-id"}
-
-	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
-	require.NoError(t, err)
-	assert.Equal(t, []string{"review", "reviewer-workflow-id"}, workflowData.Command)
-	assert.Equal(t, []string{"pull_request_comment", "pull_request_review_comment"}, workflowData.CommandEvents)
-	assert.True(t, workflowData.CommandCentralized)
-}
-
-func TestParseOnSection_PullRequestReviewerOwnsCommandAndEvents(t *testing.T) {
-	c := &Compiler{}
-	frontmatter := map[string]any{
-		"on": map[string]any{
-			"pull_request_reviewer": nil,
-			"slash_command": map[string]any{
-				"name":   "override-me",
-				"events": []any{"issue_comment"},
-			},
-		},
-	}
-	workflowData := &WorkflowData{
-		WorkflowID:         "reviewer-workflow-id",
-		Command:            []string{"existing-name"},
-		CommandEvents:      []string{"issue_comment"},
-		CommandCentralized: false,
-	}
-
-	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
-	require.NoError(t, err)
-	assert.Equal(t, []string{"review", "reviewer-workflow-id"}, workflowData.Command)
-	assert.Equal(t, []string{"pull_request_comment", "pull_request_review_comment"}, workflowData.CommandEvents)
-	assert.True(t, workflowData.CommandCentralized)
-}
-
-func TestParseOnSection_PullRequestReviewerDoesNotInjectLifecycleTriggers(t *testing.T) {
-	c := &Compiler{}
-	onMap := map[string]any{
-		"pull_request_reviewer": nil,
-	}
-	frontmatter := map[string]any{
-		"on": onMap,
-	}
-	workflowData := &WorkflowData{WorkflowID: "reviewer-workflow-id"}
-
-	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
-	require.NoError(t, err)
-	assert.NotContains(t, onMap, "pull_request")
-	assert.NotContains(t, onMap, "pull_request_review")
 }
 
 func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {

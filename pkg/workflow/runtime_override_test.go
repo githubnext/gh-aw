@@ -315,3 +315,29 @@ func TestDetectRuntimeRequirementsWithOverrides(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyRuntimeOverrides_Cooldown(t *testing.T) {
+	requirements := map[string]*RuntimeRequirement{
+		"node": {
+			Runtime: &Runtime{
+				ID: "node",
+			},
+			Version:  "20",
+			Cooldown: true,
+		},
+	}
+
+	applyRuntimeOverrides(map[string]any{
+		"node": map[string]any{
+			"cooldown": false,
+		},
+	}, requirements)
+
+	nodeReq, ok := requirements["node"]
+	if !ok {
+		t.Fatal("expected node requirement to exist")
+	}
+	if nodeReq.Cooldown {
+		t.Fatal("expected node cooldown to be disabled by override")
+	}
+}

@@ -26,15 +26,18 @@ on:
     branches: [main]
     paths:
       - 'shared/**'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -61,15 +64,18 @@ on:
     branches: [main]
     paths:
       - 'core/**'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -93,15 +99,18 @@ Synchronize when new releases are published:
 on:
   release:
     types: [published]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -129,15 +138,18 @@ on:
     paths:
       - 'types/**/*.ts'
       - 'interfaces/**/*.ts'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -163,15 +175,18 @@ on:
     branches: [main]
     paths:
       - 'shared-config/**'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos, pull_requests]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -197,16 +212,19 @@ on:
     types: [opened, synchronize]
     branches:
       - 'feature/**'
+
 permissions:
   contents: read
   pull-requests: read
   actions: read
+
 tools:
   github:
     toolsets: [repos, pull_requests]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -228,15 +246,18 @@ Regularly check for sync drift and create catch-up PRs:
 ```aw wrap
 ---
 on: weekly on monday
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos, pull_requests]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:

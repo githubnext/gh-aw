@@ -1,11 +1,11 @@
 ---
-title: Inline Sub-Agents
-description: Define sub-agents directly inside a workflow markdown file using a level-2 heading delimiter.
+title: Copilot Inline Sub-Agents
+description: Define Copilot sub-agents directly inside a workflow markdown file using a level-2 heading delimiter.
 sidebar:
   order: 645
 ---
 
-An inline sub-agent is a named agent definition embedded directly in a workflow markdown file. Instead of creating a separate file in `.github/agents/`, you define the agent's frontmatter and instructions in a dedicated section of the same workflow file.
+An inline Copilot sub-agent is a named agent definition embedded directly in a workflow markdown file. Instead of creating a separate file in `.github/agents/`, you define the agent's frontmatter and instructions in a dedicated section of the same workflow file.
 
 Inline sub-agents are enabled by default. `features.inline-agents` is deprecated/no-op, and `inline-sub-agents: false` is rejected at compile time.
 
@@ -79,6 +79,7 @@ The following excerpt shows a full workflow that defines and uses an inline sub-
 ---
 on:
   workflow_dispatch:
+
 engine: copilot
 ---
 

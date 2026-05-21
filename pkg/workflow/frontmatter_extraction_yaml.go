@@ -1139,44 +1139,6 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 	return nil, nil, false, true
 }
 
-// extractPullRequestReviewerConfig extracts the synthetic on.pull_request_reviewer configuration.
-// Supported values:
-//
-//	on:
-//	  pull_request_reviewer:
-//
-// or legacy:
-//
-//	on:
-//	  pull_request_reviewer: slash_command
-//
-// or custom command name:
-//
-//	on:
-//	  pull_request_reviewer: my-reviewer
-func (c *Compiler) extractPullRequestReviewerConfig(frontmatter map[string]any) bool {
-	onValue, exists := frontmatter["on"]
-	if !exists {
-		return false
-	}
-	onMap, ok := onValue.(map[string]any)
-	if !ok {
-		return false
-	}
-	rawValue, hasReviewer := onMap["pull_request_reviewer"]
-	if !hasReviewer {
-		return false
-	}
-
-	if rawValue == nil {
-		return true
-	}
-	if _, ok := rawValue.(string); ok {
-		return true
-	}
-	return false
-}
-
 // isGitHubAppNestedField returns true if the trimmed YAML line represents a known
 // nested field or array item inside an on.github-app object.
 func isGitHubAppNestedField(trimmedLine string) bool {

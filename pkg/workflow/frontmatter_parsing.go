@@ -133,12 +133,21 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			}
 		}
 
+		// Extract cooldown flag (optional, default true when omitted)
+		var cooldown *bool
+		if cooldownAny, hasCooldown := configMap["cooldown"]; hasCooldown {
+			if cooldownBool, ok := cooldownAny.(bool); ok {
+				cooldown = &cooldownBool
+			}
+		}
+
 		// Create runtime config with all fields
 		runtimeConfig := &RuntimeConfig{
 			Version:           version,
 			If:                ifCondition,
 			ActionRepo:        actionRepo,
 			ActionVersion:     actionVersion,
+			Cooldown:          cooldown,
 			RunInstallScripts: runInstallScripts,
 		}
 

@@ -3,7 +3,13 @@ title: SpecOps
 description: Maintain and propagate W3C-style specifications using agentic workflows
 ---
 
-SpecOps is a pattern for maintaining formal specifications using agentic workflows. It leverages the [`w3c-specification-writer` agent](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md) to create W3C-style specifications with RFC 2119 keywords (MUST, SHALL, SHOULD, MAY) and automatically propagates changes to consuming implementations across repositories.
+SpecOps is a pattern for maintaining formal specifications using agentic workflows. It leverages the [`w3c-specification-writer` agent](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md) to create W3C-style specifications with RFC 2119 keywords (MUST, SHALL, SHOULD, MAY) and automatically propagates changes to consuming implementations via [cross-repository workflows](/gh-aw/reference/cross-repository/).
+
+```mermaid
+flowchart LR
+    update([Update spec]) --> review[Review & merge spec PR]
+    review --> propagate[Propagate to consumer repos]
+```
 
 ## How SpecOps Works
 
@@ -135,6 +141,8 @@ See the [`w3c-specification-writer` agent](https://github.com/github/gh-aw/blob/
 
 The [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/) is a live example — maintained by the `layout-spec-maintainer` workflow and implemented in [gh-aw-mcpg](https://github.com/github/gh-aw-mcpg).
 
-## Related Patterns
+## Related Documentation
 
-- **[MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)** — Cross-repository coordination
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Cross-repository coordination
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and target-repo configuration
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations

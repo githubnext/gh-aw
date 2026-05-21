@@ -198,6 +198,7 @@ Import the configuration:
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
@@ -460,8 +461,10 @@ Define jobs in shared files under `.github/workflows/shared/` and import them:
 ```aw wrap
 ---
 on: issues
+
 permissions:
   contents: read
+
 imports:
   - shared/slack-notify.md
   - shared/jira-integration.md

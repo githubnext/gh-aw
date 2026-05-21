@@ -2,7 +2,12 @@
 emoji: "🔍"
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 on:
-  pull_request_reviewer: matt
+  pull_request:
+    types: [ready_for_review]
+  slash_command:
+    strategy: centralized
+    name: matt
+    events: [pull_request_comment, pull_request_review_comment]
 permissions:
   contents: read
   pull-requests: read
@@ -54,13 +59,12 @@ pre-agent-steps:
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
-      gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
-        --exclude '**/*.lock.yml' \
-        --exclude '**/generated/**' \
-        --exclude '**/dist/**' \
-        --exclude '**/build/**' \
-        | head -n 3000 \
-        > /tmp/gh-aw/agent/pr-diff.patch
+      { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
+          --exclude '**/*.lock.yml' \
+          --exclude '**/generated/**' \
+          --exclude '**/dist/**' \
+          --exclude '**/build/**' \
+          || true; } | head -n 3000 > /tmp/gh-aw/agent/pr-diff.patch
       LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
       gh pr view "$PR_NUMBER" \
         --repo $EXPR_GITHUB_REPOSITORY \

@@ -3,13 +3,14 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 )
 
 func TestRunActionlintOnFiles_EmptyList(t *testing.T) {
-	err := RunActionlintOnFiles(nil, false, false)
+	err := RunActionlintOnFiles(context.Background(), nil, false, false)
 	if err != nil {
 		t.Fatalf("expected nil error for empty lock file list, got %v", err)
 	}
