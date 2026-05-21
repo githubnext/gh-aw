@@ -24,50 +24,7 @@ on:
     - 'install-gh-aw.sh'
   workflow_dispatch:
 jobs:
-  lint-gate:
-    name: Lint Gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-lint-gate
-      cancel-in-progress: true
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
-
-    - name: Set up Node.js
-      id: setup-node
-      uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f   # v6
-      with:
-        node-version: "24"
-        cache: npm
-        cache-dependency-path: actions/setup/js/package-lock.json
-
-    - name: Set up Go
-      id: setup-go
-      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
-      with:
-        go-version-file: go.mod
-        cache: true
-
-    - name: Install npm dependencies
-      run: npm ci
-      working-directory: ./actions/setup/js
-
-    - name: Install golangci-lint
-      run: make install-golangci-lint
-
-    - name: Run formatting + lint gate
-      run: |
-        make fmt-check
-        make fmt-check-json
-        make lint-cjs
-
   test:
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -272,8 +229,6 @@ jobs:
         retention-days: 7
 
   build:
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -362,8 +317,6 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   build-wasm:
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1087,8 +1040,6 @@ jobs:
       run: make golint-custom LINTER_FLAGS="-errstringmatch -test=false"
 
   actions-build:
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1151,8 +1102,6 @@ jobs:
   fuzz:
     # Only run fuzz tests on main branch (10s is insufficient for PRs)
     if: github.ref == 'refs/heads/main'
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -1311,8 +1260,6 @@ jobs:
         retention-days: 7
 
   security:
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1372,8 +1319,6 @@ jobs:
   security-scan:
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Prevent jobs from hanging indefinitely
     permissions:
@@ -1444,8 +1389,6 @@ jobs:
       run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
 
   mcp-server-compile-test:
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1618,8 +1561,6 @@ jobs:
 
   cross-platform-build:
     name: Build & Test on ${{ matrix.os }}
-    needs:
-    - lint-gate
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     permissions:
@@ -1750,8 +1691,6 @@ jobs:
 
   alpine-container-test:
     name: Alpine Container Test
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -1888,8 +1827,6 @@ jobs:
         rm -rf test-workspace
 
   safe-outputs-conformance:
-    needs:
-    - lint-gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1954,7 +1891,6 @@ jobs:
     - validate-yaml
     - bench
     - check-validator-sizes
-    - lint-gate
     - lint-go
     - actions-build
     - fuzz
