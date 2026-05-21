@@ -4916,6 +4916,7 @@ describe("sendJobConclusionSpan", () => {
     afterEach(() => {
       readFileSpy.mockRestore();
       statSpy.mockRestore();
+      delete process.env.GH_AW_AGENT_CONCLUSION;
     });
 
     it("omits all gen_ai token breakdown attributes from the conclusion span when agent sub-span is emitted", async () => {
@@ -4944,12 +4945,17 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
-    it("includes gen_ai token breakdown on conclusion span even when no agent sub-span is emitted", async () => {
+    it("includes gen_ai token breakdown on agent conclusion span when no agent sub-span is emitted", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
-      // Clear INPUT_JOB_NAME so no agent sub-span is emitted
-      delete process.env.INPUT_JOB_NAME;
+      // Keep INPUT_JOB_NAME=agent but prevent dedicated agent sub-span by
+      // making agent_output.json absent and not setting startMs so
+      // hasDedicatedAgentSpan is false.
+      process.env.INPUT_JOB_NAME = "agent";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
       const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, cache_write_tokens: 50, effective_tokens: 500 };
@@ -4960,7 +4966,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("gh-aw.agent.conclusion");
 
       // Only one fetch call: the conclusion span (no agent sub-span)
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -4972,6 +4978,206 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(50);
       // total_tokens also falls through to the conclusion span
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(5000 + 200);
+    });
+
+    it("omits gen_ai token breakdown from non-agent job conclusion span even when agent_usage.json is present", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      // Simulate a downstream job (e.g. conclusion, detection, safe_outputs) that
+      // has agent_usage.json on disk via artifact download but should NOT emit tokens.
+      process.env.INPUT_JOB_NAME = "conclusion";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, cache_write_tokens: 50, effective_tokens: 500 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.total_tokens");
+    });
+
+    it("omits gen_ai token breakdown from detection job even when agent_usage.json is present", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.INPUT_JOB_NAME = "detection";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: 5000, output_tokens: 200 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.detection.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const keys = body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.total_tokens");
+    });
+
+    it("omits gen_ai token breakdown when INPUT_JOB_NAME is empty", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      // Empty/missing INPUT_JOB_NAME should not emit tokens — regression guard
+      // for the pre-fix behavior where any job with agent_usage.json would emit.
+      delete process.env.INPUT_JOB_NAME;
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: 5000, output_tokens: 200 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const keys = body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.total_tokens");
+    });
+
+    it("attaches tokens to dedicated agent span on failure when agent_cli_start_ms.txt exists", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      // Agent failed but agent_cli_start_ms.txt exists → agentEndMs uses nowMs()
+      // fallback → hasDedicatedAgentSpan is true → tokens go to sub-span, not conclusion.
+      process.env.INPUT_JOB_NAME = "agent";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: 3000, output_tokens: 150 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_cli_start_ms.txt") {
+          return "1700000001000";
+        }
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion");
+
+      // Two calls: [0] = dedicated agent span, [1] = conclusion span
+      expect(mockFetch.mock.calls.length).toBe(2);
+
+      // Dedicated agent span has tokens
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentAttrs = Object.fromEntries(agentBody.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(agentAttrs["gen_ai.usage.input_tokens"]).toBe(3000);
+      expect(agentAttrs["gen_ai.usage.output_tokens"]).toBe(150);
+      expect(agentAttrs["gen_ai.usage.total_tokens"]).toBe(3150);
+
+      // Conclusion span does NOT have tokens
+      const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      const conclusionKeys = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
+      expect(conclusionKeys).not.toContain("gen_ai.usage.input_tokens");
+      expect(conclusionKeys).not.toContain("gen_ai.usage.total_tokens");
+    });
+
+    it("falls back tokens to agent conclusion span on failure when agent_cli_start_ms.txt is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      // Agent failed and agent_cli_start_ms.txt is absent → agentStartMs is undefined
+      // → hasDedicatedAgentSpan is false → tokens fall through to agent conclusion.
+      process.env.INPUT_JOB_NAME = "agent";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: 3000, output_tokens: 150 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion");
+
+      // Only one call: conclusion span (no dedicated span without agentStartMs)
+      expect(mockFetch.mock.calls.length).toBe(1);
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gen_ai.usage.input_tokens"]).toBe(3000);
+      expect(attrs["gen_ai.usage.output_tokens"]).toBe(150);
+      expect(attrs["gen_ai.usage.total_tokens"]).toBe(3150);
+    });
+
+    it("omits gen_ai tokens from downstream job even when all agent files are readable from artifact", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      // Realistic production scenario: the 'conclusion' job downloads the full
+      // agent artifact to /tmp/gh-aw/ so agent_cli_start_ms.txt, agent_output.json,
+      // AND agent_usage.json are all readable.  Despite having enough data to form
+      // a dedicated agent span, jobName !== "agent" prevents both sub-span emission
+      // and token fallback.  This is the exact scenario that caused 4x inflation.
+      process.env.INPUT_JOB_NAME = "conclusion";
+      // statSpy already returns valid mtimeMs from beforeEach (agent_output.json exists)
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: 48200, output_tokens: 1350, cache_read_tokens: 41000, cache_write_tokens: 3100 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_cli_start_ms.txt") {
+          return "1700000001000";
+        }
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+
+      // Only one fetch call — no dedicated agent sub-span despite files being present
+      expect(mockFetch.mock.calls.length).toBe(1);
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const keys = body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
+      expect(keys).not.toContain("gen_ai.usage.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.output_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_read.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
+      expect(keys).not.toContain("gen_ai.usage.total_tokens");
     });
 
     it("omits all gen_ai token breakdown attributes from conclusion span when agent_usage.json is absent", async () => {
