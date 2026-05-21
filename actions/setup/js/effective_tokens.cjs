@@ -65,20 +65,24 @@ function getMultipliersData() {
       _parsedMultipliers = null;
       return null;
     }
-    const weights = { ...defaultTokenClassWeights(), ...(parsed.token_class_weights || {}) };
-    // Ensure missing or invalid weights fall back to defaults, but preserve explicit 0 overrides
+
     const defaults = defaultTokenClassWeights();
+    const weights = { ...defaults, ...(parsed.token_class_weights || {}) };
+
+    // Ensure missing or invalid weights fall back to defaults, but preserve explicit 0 overrides
     for (const key of Object.keys(defaults)) {
       const value = weights[key];
       if (value == null || !Number.isFinite(value)) {
         weights[key] = defaults[key];
       }
     }
+
     /** @type {Record<string, number>} */
     const multipliers = {};
     for (const [model, mult] of Object.entries(parsed.multipliers || {})) {
       multipliers[model.toLowerCase()] = Number(mult);
     }
+
     _parsedMultipliers = { token_class_weights: weights, multipliers };
     return _parsedMultipliers;
   } catch {
@@ -110,11 +114,11 @@ function getTokenClassWeights() {
  */
 function getModelMultiplier(model) {
   const data = getMultipliersData();
-  if (!data || !model) {
+  if (!data) {
     return 1.0;
   }
 
-  const key = model.toLowerCase().trim();
+  const key = model?.toLowerCase().trim();
   if (!key) {
     return 1.0;
   }
@@ -127,16 +131,16 @@ function getModelMultiplier(model) {
   }
 
   // Longest prefix match
-  let best = "";
-  let bestMult = 1.0;
+  let longestMatch = "";
+  let longestMatchMultiplier = 1.0;
   for (const [name, mult] of Object.entries(multipliers)) {
-    if (key.startsWith(name) && name.length > best.length) {
-      best = name;
-      bestMult = mult;
+    if (key.startsWith(name) && name.length > longestMatch.length) {
+      longestMatch = name;
+      longestMatchMultiplier = mult;
     }
   }
 
-  return bestMult;
+  return longestMatchMultiplier;
 }
 
 /**
@@ -161,6 +165,7 @@ function computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, c
   const input = inputTokens || 0;
   const cached = cacheReadTokens || 0;
   const effectiveInput = Math.max(input - cached, 0);
+
   return w.input * effectiveInput + w.cached_input * cached + w.output * (outputTokens || 0) + w.reasoning * (reasoningTokens || 0) + w.cache_write * (cacheWriteTokens || 0);
 }
 
@@ -223,7 +228,8 @@ function _resetCache() {
  */
 function getEffectiveTokensSuffix() {
   const raw = process.env.GH_AW_EFFECTIVE_TOKENS;
-  const parsed = raw ? parseInt(raw, 10) : NaN;
+  const parsed = parseInt(raw, 10);
+
   if (!isNaN(parsed) && parsed > 0) {
     return ` · ● ${formatET(parsed)}`;
   }
