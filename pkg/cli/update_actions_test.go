@@ -783,6 +783,39 @@ func TestUpdateActions_NeverDowngrades(t *testing.T) {
 	}
 }
 
+func TestUpdateActionsInWorkflowFiles_UpdatesUsesReferences(t *testing.T) {
+	// Stub the release-fetch function so no network calls are made.
+	orig := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = orig }()
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		if repo == "ruby/setup-ruby" {
+			return "v1.310.0", "newrubysha1234567890123456789012345678901", nil
+		}
+		return currentVersion, "", nil
+	}
+
+	// Create a temp workflows directory with a .md file that has an outdated uses: reference.
+	workflowsDir := t.TempDir()
+	mdContent := "steps:\n  - uses: ruby/setup-ruby@v1.309.0\n"
+	mdPath := workflowsDir + "/my-workflow.md"
+	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	if err := UpdateActionsInWorkflowFiles(context.Background(), workflowsDir, "", false, false, true, 0); err != nil {
+		t.Fatalf("UpdateActionsInWorkflowFiles() error = %v", err)
+	}
+
+	got, err := os.ReadFile(mdPath)
+	if err != nil {
+		t.Fatalf("failed to read updated workflow file: %v", err)
+	}
+
+	if want := "steps:\n  - uses: ruby/setup-ruby@v1.310.0\n"; string(got) != want {
+		t.Errorf("workflow file not updated:\ngot:  %s\nwant: %s", string(got), want)
+	}
+}
+
 // savedEntryKeys returns the map keys of a loaded ActionCache for error messages.
 func savedEntryKeys(cache *workflow.ActionCache) []string {
 	keys := make([]string, 0, len(cache.Entries))
