@@ -88,7 +88,7 @@ func BuildStandardNpmEngineInstallSteps(
 	// Always pass false for runInstallScripts: engine CLI installs must never run
 	// pre/post install scripts regardless of the workflow's run-install-scripts setting.
 	// This is a supply chain security requirement for the engine binary itself.
-	cooldownEnabled := resolveRuntimeCooldown(workflowData.Runtimes, "node")
+	cooldownEnabled := resolveRuntimeCooldown(workflowData, "node")
 	return GenerateNpmInstallSteps(
 		packageName,
 		version,
@@ -238,11 +238,45 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 
 // resolveRuntimeCooldown returns whether runtime-associated dependency installs should apply
 // the default release-age cooldown. Defaults to true; runtimes.<id>.cooldown: false disables it.
-func resolveRuntimeCooldown(runtimes map[string]any, runtimeID string) bool {
-	if len(runtimes) == 0 {
+func resolveRuntimeCooldown(workflowData *WorkflowData, runtimeID string) bool {
+	if workflowData == nil {
 		return true
 	}
-	runtimeAny, ok := runtimes[runtimeID]
+
+	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.RuntimesTyped != nil {
+		var runtimeConfig *RuntimeConfig
+		switch runtimeID {
+		case "node":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Node
+		case "python":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Python
+		case "go":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Go
+		case "uv":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.UV
+		case "bun":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Bun
+		case "deno":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Deno
+		case "dotnet":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Dotnet
+		case "elixir":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Elixir
+		case "gh-aw":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.GhAw
+		case "haskell":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Haskell
+		case "java":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Java
+		case "ruby":
+			runtimeConfig = workflowData.ParsedFrontmatter.RuntimesTyped.Ruby
+		}
+		if runtimeConfig != nil && runtimeConfig.Cooldown != nil {
+			return *runtimeConfig.Cooldown
+		}
+	}
+
+	runtimeAny, ok := workflowData.Runtimes[runtimeID]
 	if !ok {
 		return true
 	}

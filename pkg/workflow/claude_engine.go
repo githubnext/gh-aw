@@ -90,7 +90,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		"claude",
 		true, // Include Node.js setup
 		true, // Claude Code requires post-install scripts for native binaries
-		resolveRuntimeCooldown(workflowData.Runtimes, "node"),
+		resolveRuntimeCooldown(workflowData, "node"),
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
