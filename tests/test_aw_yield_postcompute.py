@@ -150,6 +150,40 @@ def test_recommendations_are_valid_and_mutually_exclusive(tmp_path: Path) -> Non
     assert final_payload["telemetry_validated_coverage"] == 0.5
 
 
+def test_postcompute_ignores_unknown_or_conflicting_recommendations(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    agent_dir.mkdir()
+    (agent_dir / "portfolio-yield-agent.json").write_text(
+        json.dumps(
+            {
+                "recommendations": {
+                    "keep": [{"path": ".github/workflows/b.md"}],
+                    "instrument": [
+                        {"path": ".github/workflows/a.md"},
+                        {"path": ".github/workflows/missing.md"},
+                        {"path": ".github/workflows/b.md"},
+                    ],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    final_payload, _summary, notes = post.finalize(sample_precompute(), agent_dir)
+    assert final_payload["keep"] == [".github/workflows/b.md"]
+    assert final_payload["instrument"] == [".github/workflows/a.md"]
+    assert any("unknown workflow" in note.lower() for note in notes)
+    assert any("conflicting recommendation" in note.lower() for note in notes)
+
+
+def test_recommendation_seed_merge_entries_support_paths_lists() -> None:
+    precompute = sample_precompute()
+    precompute["recommendations_seed"]["keep"] = []
+    precompute["recommendations_seed"]["instrument"] = []
+    precompute["recommendations_seed"]["merge"] = [{"paths": [".github/workflows/a.md", ".github/workflows/b.md"]}]
+    final_payload, _summary, _notes = post.finalize(precompute, Path("/tmp/nonexistent-agent-summary"))
+    assert final_payload["merge"] == [".github/workflows/a.md", ".github/workflows/b.md"]
+
+
 def test_postcompute_handles_malformed_agent_output_safely(tmp_path: Path) -> None:
     bad_precompute = tmp_path / "precompute.json"
     bad_precompute.write_text("{}", encoding="utf-8")
