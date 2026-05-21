@@ -117,9 +117,7 @@ describe("createBundleTempRef", () => {
   });
 
   it("produces different refs when crypto returns different bytes", () => {
-    vi.spyOn(crypto, "randomBytes")
-      .mockReturnValueOnce(Buffer.from("aabbccdd", "hex"))
-      .mockReturnValueOnce(Buffer.from("11223344", "hex"));
+    vi.spyOn(crypto, "randomBytes").mockReturnValueOnce(Buffer.from("aabbccdd", "hex")).mockReturnValueOnce(Buffer.from("11223344", "hex"));
 
     const ref1 = createBundleTempRef("same-branch");
     const ref2 = createBundleTempRef("same-branch");

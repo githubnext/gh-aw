@@ -180,8 +180,7 @@ function neutralizeClosingKeywordsForIssueBody(content) {
     return content;
   }
   const closingKeywordPattern = /\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+((?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+)\b/gi;
-  const escapeIssueRef = (_match, keyword, issueRef) =>
-    `${keyword} ${String(issueRef).replace("#", "\\#")}`;
+  const escapeIssueRef = (_match, keyword, issueRef) => `${keyword} ${String(issueRef).replace("#", "\\#")}`;
   return String(content).replace(closingKeywordPattern, escapeIssueRef);
 }
 
