@@ -14,10 +14,7 @@ import (
 // resetDockerDaemonStateForTest resets the package-level daemon state so
 // individual tests can control it without interference from earlier tests.
 func resetDockerDaemonStateForTest() {
-	dockerDaemonMu.Lock()
-	dockerDaemonChecked = false
-	dockerDaemonAvailable = false
-	dockerDaemonMu.Unlock()
+	dockerDaemonLoader.Reset()
 	emitDaemonUnavailableWarningOnce = sync.Once{}
 }
 
@@ -130,10 +127,7 @@ func TestMarkDockerDaemonUnavailable_UpdatesState(t *testing.T) {
 	t.Cleanup(resetDockerDaemonStateForTest)
 
 	// Seed the cache as "available"
-	dockerDaemonMu.Lock()
-	dockerDaemonChecked = true
-	dockerDaemonAvailable = true
-	dockerDaemonMu.Unlock()
+	dockerDaemonLoader.Override(true, nil)
 
 	assert.True(t, isDockerDaemonRunning(), "daemon should appear available before marking unavailable")
 
@@ -152,10 +146,7 @@ func TestMarkDockerDaemonUnavailable_SkipsSubsequentValidation(t *testing.T) {
 	t.Cleanup(resetDockerDaemonStateForTest)
 
 	// Mark daemon unavailable as if a previous pull had discovered "Cannot connect to the Docker daemon"
-	dockerDaemonMu.Lock()
-	dockerDaemonChecked = true
-	dockerDaemonAvailable = false
-	dockerDaemonMu.Unlock()
+	dockerDaemonLoader.Override(false, nil)
 
 	// Subsequent validation of any image (even a clearly non-existent one) should return nil, not an error.
 	err := validateDockerImage("ghcr.io/github/serena-mcp-server:latest", false, false)

@@ -52,6 +52,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 var dockerValidationLog = newValidationLogger("docker")
@@ -60,50 +61,39 @@ var dockerValidationLog = newValidationLogger("docker")
 // If the daemon isn't running, this prevents long hangs on every docker command.
 const dockerDaemonCheckTimeout = 3 * time.Second
 
-// Cached result of Docker daemon availability check.
-// Uses a mutex instead of sync.Once so the state can be updated when a docker
-// command (e.g. docker pull) later discovers the daemon is not reachable.
-// dockerDaemonMu protects both dockerDaemonChecked and dockerDaemonAvailable;
-// callers must hold the lock when reading or writing these variables.
-var (
-	dockerDaemonMu        sync.Mutex
-	dockerDaemonChecked   bool
-	dockerDaemonAvailable bool
+// dockerDaemonLoader caches the result of the Docker daemon availability check.
+// Using OnceLoader[bool] gives thread-safe one-shot initialisation with the
+// ability to override the cached value via Override when a docker command
+// (e.g. docker pull) later discovers the daemon is not reachable.
+var dockerDaemonLoader syncutil.OnceLoader[bool]
 
-	// emitDaemonUnavailableWarningOnce ensures the "daemon unavailable" warning
-	// is printed at most once per process even when validating multiple images.
-	emitDaemonUnavailableWarningOnce sync.Once
-)
+// emitDaemonUnavailableWarningOnce ensures the "daemon unavailable" warning
+// is printed at most once per process even when validating multiple images.
+var emitDaemonUnavailableWarningOnce sync.Once
 
 // isDockerDaemonRunning checks if the Docker daemon is responsive.
 // Uses a short timeout to avoid hanging when Docker is installed but the daemon is stopped.
-// Results are cached; the cached value can be updated by markDockerDaemonUnavailable
-// when a later docker command detects the daemon has become unreachable.
+// Results are cached via dockerDaemonLoader; the cached value can be overridden by
+// markDockerDaemonUnavailable when a later docker command detects the daemon is unreachable.
 func isDockerDaemonRunning() bool {
-	dockerDaemonMu.Lock()
-	defer dockerDaemonMu.Unlock()
+	available, _ := dockerDaemonLoader.Get(func() (bool, error) {
+		dockerValidationLog.Print("Checking if Docker daemon is running")
+		ctx, cancel := context.WithTimeout(context.Background(), dockerDaemonCheckTimeout)
+		defer cancel()
 
-	if dockerDaemonChecked {
-		return dockerDaemonAvailable
-	}
+		cmd := exec.CommandContext(ctx, "docker", "info")
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		err := cmd.Run()
 
-	dockerValidationLog.Print("Checking if Docker daemon is running")
-	ctx, cancel := context.WithTimeout(context.Background(), dockerDaemonCheckTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "docker", "info")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	err := cmd.Run()
-
-	dockerDaemonChecked = true
-	dockerDaemonAvailable = err == nil
-	if !dockerDaemonAvailable {
-		dockerValidationLog.Printf("Docker daemon not running or not responsive: %v", err)
-	} else {
+		if err != nil {
+			dockerValidationLog.Printf("Docker daemon not running or not responsive: %v", err)
+			return false, nil //nolint:nilerr // intentional: cache false without an error
+		}
 		dockerValidationLog.Print("Docker daemon is running")
-	}
-	return dockerDaemonAvailable
+		return true, nil
+	})
+	return available
 }
 
 // markDockerDaemonUnavailable records that the Docker daemon is not reachable and
@@ -111,10 +101,7 @@ func isDockerDaemonRunning() bool {
 // return false immediately, so image validation for remaining tools is skipped
 // without further retries.
 func markDockerDaemonUnavailable() {
-	dockerDaemonMu.Lock()
-	dockerDaemonChecked = true
-	dockerDaemonAvailable = false
-	dockerDaemonMu.Unlock()
+	dockerDaemonLoader.Override(false, nil)
 
 	emitDaemonUnavailableWarningOnce.Do(func() {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Docker daemon is not running — skipping container image validation"))
