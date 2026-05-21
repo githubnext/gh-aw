@@ -263,7 +263,7 @@ function evaluateItem(item, defaultRepo) {
     }
 
     // Zero-touch: merged with no human review comments and no issue-level comments
-    if (data.merged === true && (out.review_comments === 0 || out.review_comments === null) && (out.comments === 0 || out.comments === null)) {
+    if (data.merged === true && out.review_comments === 0 && out.comments === 0) {
       out.zero_touch = true;
     }
 
