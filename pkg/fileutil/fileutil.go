@@ -11,7 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var log = logger.New("fileutil:fileutil")
+var fileutilLog = logger.New("fileutil:fileutil")
 
 // ValidateAbsolutePath validates that a file path is absolute and safe to use.
 // It performs the following security checks:
@@ -37,7 +37,7 @@ var log = logger.New("fileutil:fileutil")
 func ValidateAbsolutePath(path string) (string, error) {
 	// Check for empty path
 	if path == "" {
-		log.Print("ValidateAbsolutePath: rejected empty path")
+		fileutilLog.Print("ValidateAbsolutePath: rejected empty path")
 		return "", errors.New("path cannot be empty")
 	}
 
@@ -46,11 +46,11 @@ func ValidateAbsolutePath(path string) (string, error) {
 
 	// Verify the path is absolute to prevent relative path traversal
 	if !filepath.IsAbs(cleanPath) {
-		log.Printf("ValidateAbsolutePath: rejected relative path: %s", path)
+		fileutilLog.Printf("ValidateAbsolutePath: rejected relative path: %s", path)
 		return "", fmt.Errorf("path must be absolute, got: %s", path)
 	}
 
-	log.Printf("ValidateAbsolutePath: validated path: %s", cleanPath)
+	fileutilLog.Printf("ValidateAbsolutePath: validated path: %s", cleanPath)
 	return cleanPath, nil
 }
 
@@ -63,7 +63,7 @@ func ValidateAbsolutePath(path string) (string, error) {
 //   - Either path cannot be resolved to an absolute form.
 //   - The resolved candidate path starts outside the resolved base directory.
 func ValidatePathWithinBase(base, candidate string) error {
-	log.Printf("ValidatePathWithinBase: checking candidate=%q within base=%q", candidate, base)
+	fileutilLog.Printf("ValidatePathWithinBase: checking candidate=%q within base=%q", candidate, base)
 	// EvalSymlinks resolves both symlinks and ".." components.
 	// Fall back to Abs when a path does not exist on disk yet.
 	absBase, err := filepath.EvalSymlinks(base)
@@ -82,10 +82,10 @@ func ValidatePathWithinBase(base, candidate string) error {
 	}
 	rel, err := filepath.Rel(absBase, absCand)
 	if err != nil || !filepath.IsLocal(rel) {
-		log.Printf("ValidatePathWithinBase: path escape detected: candidate=%q base=%q", candidate, base)
+		fileutilLog.Printf("ValidatePathWithinBase: path escape detected: candidate=%q base=%q", candidate, base)
 		return fmt.Errorf("path %q escapes base directory %q", candidate, base)
 	}
-	log.Printf("ValidatePathWithinBase: path is safe: candidate=%q (rel=%s) within base=%q", candidate, rel, base)
+	fileutilLog.Printf("ValidatePathWithinBase: path is safe: candidate=%q (rel=%s) within base=%q", candidate, rel, base)
 	return nil
 }
 
@@ -131,7 +131,7 @@ func copyFileContents(in io.Reader, out syncWriteCloser, dst string) (err error)
 		}
 		if removePartial {
 			if removeErr := os.Remove(dst); removeErr != nil {
-				log.Printf("Failed to remove partial destination file during cleanup: %s", removeErr)
+				fileutilLog.Printf("Failed to remove partial destination file during cleanup: %s", removeErr)
 			}
 		}
 	}()
@@ -146,17 +146,17 @@ func copyFileContents(in io.Reader, out syncWriteCloser, dst string) (err error)
 
 // CopyFile copies a file from src to dst using buffered IO.
 func CopyFile(src, dst string) error {
-	log.Printf("Copying file: src=%s, dst=%s", src, dst)
+	fileutilLog.Printf("Copying file: src=%s, dst=%s", src, dst)
 	in, err := os.Open(src)
 	if err != nil {
-		log.Printf("Failed to open source file: %s", err)
+		fileutilLog.Printf("Failed to open source file: %s", err)
 		return err
 	}
 	defer in.Close()
 
 	out, err := os.Create(dst)
 	if err != nil {
-		log.Printf("Failed to create destination file: %s", err)
+		fileutilLog.Printf("Failed to create destination file: %s", err)
 		return err
 	}
 	err = copyFileContents(in, out, dst)
@@ -164,6 +164,6 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 
-	log.Printf("File copied successfully: src=%s, dst=%s", src, dst)
+	fileutilLog.Printf("File copied successfully: src=%s, dst=%s", src, dst)
 	return nil
 }

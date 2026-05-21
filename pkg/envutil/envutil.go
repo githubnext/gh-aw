@@ -19,7 +19,7 @@ import (
 //   - defaultValue: The default value to return if env var is not set or invalid
 //   - minValue: Minimum allowed value (inclusive)
 //   - maxValue: Maximum allowed value (inclusive)
-//   - log: Optional logger for debug output
+//   - debugLog: Optional logger for debug output
 //
 // Returns the parsed integer value, or defaultValue if:
 //   - Environment variable is not set
@@ -27,10 +27,10 @@ import (
 //   - Value is outside the [minValue, maxValue] range
 //
 // Invalid values trigger warning messages to stderr, or through the logger if provided.
-func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, log *logger.Logger) int {
+func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, debugLog *logger.Logger) int {
 	warn := func(msg string) {
-		if log != nil {
-			log.Printf("WARNING: %s", msg)
+		if debugLog != nil {
+			debugLog.Printf("WARNING: %s", msg)
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
 		}
@@ -52,8 +52,8 @@ func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, log *log
 		return defaultValue
 	}
 
-	if log != nil {
-		log.Printf("Using %s=%d", envVar, val)
+	if debugLog != nil {
+		debugLog.Printf("Using %s=%d", envVar, val)
 	}
 	return val
 }
