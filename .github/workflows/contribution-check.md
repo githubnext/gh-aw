@@ -178,7 +178,7 @@ Gather all returned JSON objects. If a subagent call fails, record the PR with v
 
 ### Posting comments
 
-Use the `comment-dispatcher` agent on the collected verdict array to get the list of comments to post. For each returned entry, emit one `add_comment` safe output using `issue_number` and `body` (do not specify the repo — `target-repo` is pre-configured).
+Use the `comment-dispatcher` agent on the verdict array (the JSON objects returned by the contribution-checker subagent in Step 1) to get the list of comments to post. For each returned entry, emit one `add_comment` safe output using `issue_number` and `body` (do not specify the repo — `target-repo` is pre-configured).
 
 ## Completion Gate
 
@@ -188,7 +188,7 @@ Keep a running count of actions taken (each tool call or subagent dispatch count
 
 ## Step 2: Compile Report
 
-Use the `report-formatter` agent, passing the array of returned subagent JSON objects, the `skipped_count` from `pr-filter-results.json`, and the current `run_url`, to produce the report body. Then emit a single `create_issue` safe output with that body as `body` and `temporary_id: "aw_summary"`.
+Use the `report-formatter` agent, passing the array of returned subagent JSON objects, the `skipped_count` from `pr-filter-results.json`, and the run URL (constructed as `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`), to produce the report body. Then emit a single `create_issue` safe output with that body as `body` and `temporary_id: "aw_summary"`.
 
 ## Step 3: Label the Report Issue
 
