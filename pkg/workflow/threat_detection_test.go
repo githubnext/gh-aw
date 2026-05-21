@@ -1802,7 +1802,11 @@ func TestBuildDetectionEngineExecutionStepPropagatesRuntimeCooldownOverride(t *t
 		t.Fatal("expected non-empty steps")
 	}
 
-	if strings.Contains(strings.Join(steps, ""), "NPM_CONFIG_MIN_RELEASE_AGE") {
-		t.Fatalf("expected detection steps to honor runtimes.node.cooldown=false")
+	rendered := strings.Join(steps, "")
+	if !strings.Contains(rendered, "Install Pi CLI") {
+		t.Fatal("expected detection steps to include the Pi install step")
+	}
+	if strings.Contains(rendered, "NPM_CONFIG_MIN_RELEASE_AGE:") {
+		t.Fatalf("expected detection steps to omit npm cooldown env when runtimes.node.cooldown=false")
 	}
 }
