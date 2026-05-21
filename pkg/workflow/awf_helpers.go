@@ -37,6 +37,8 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
+	// Path expression for the bundled builtin model aliases used for runtime model-map merge.
+	awfBuiltinModelAliasesPathExpr = "${RUNNER_TEMP}/gh-aw/actions/model_aliases.json"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
@@ -225,7 +227,7 @@ fi`,
 			"\nnode %q %q %q",
 			"${RUNNER_TEMP}/gh-aw/actions/merge_model_aliases.cjs",
 			awfConfigRuntimePathExpr,
-			"${RUNNER_TEMP}/gh-aw/actions/model_aliases.json",
+			awfBuiltinModelAliasesPathExpr,
 		)
 		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
 		// Add --config as the first expandable arg so it appears before --container-workdir.

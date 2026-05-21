@@ -129,8 +129,9 @@ func MergeImportedModelAliases(importedModels []map[string][]string, frontmatter
 	return merged
 }
 
-// BuildModelAliasesDelta returns only the alias entries that differ from builtins.
-// Added aliases and overridden builtin aliases are included; unchanged builtin aliases are omitted.
+// BuildModelAliasesDelta returns only alias entries that differ from BuiltinModelAliases().
+// Added aliases (not present in builtins) and overridden builtin aliases are included;
+// unchanged builtin aliases are omitted. Returns nil when no differences exist.
 func BuildModelAliasesDelta(merged map[string][]string) map[string][]string {
 	if len(merged) == 0 {
 		return nil

@@ -27,7 +27,7 @@ function loadBaseAliases(baseAliasesPath) {
   const content = fs.readFileSync(baseAliasesPath, "utf8");
   const parsed = JSON.parse(content);
   if (!parsed || typeof parsed !== "object" || !parsed.aliases || typeof parsed.aliases !== "object") {
-    throw new Error(`invalid model aliases file: ${baseAliasesPath}`);
+    throw new Error(`invalid model aliases file: expected JSON object with an "aliases" map at ${baseAliasesPath}`);
   }
   return parsed.aliases;
 }
@@ -56,7 +56,7 @@ function mergeModelAliasesInConfig(configPath, baseAliasesPath) {
 if (require.main === module) {
   const [, , configPath, baseAliasesPath] = process.argv;
   if (!configPath || !baseAliasesPath) {
-    console.error("usage: node merge_model_aliases.cjs <awf-config-path> <model-aliases-json-path>");
+    console.error("usage: node merge_model_aliases.cjs <awf-config-path> <base-aliases-path>");
     process.exit(1);
   }
   try {
