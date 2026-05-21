@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -30,8 +31,8 @@ func TestCompileWorkflows_ContextCancelledAtStart(t *testing.T) {
 }
 
 // TestCompileWorkflows_ContextCancelledDuringSpecificFiles verifies that the
-// per-file compilation loop in compileSpecificFiles stops processing additional
-// files once the context is cancelled between iterations.
+// per-file compilation loop in compileSpecificFiles stops when the context is
+// cancelled mid-loop (i.e. after CompileWorkflows has already started).
 func TestCompileWorkflows_ContextCancelledDuringSpecificFiles(t *testing.T) {
 	tempDir := testutil.TempDir(t, "compile-ctx-cancel-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
@@ -49,7 +50,8 @@ func TestCompileWorkflows_ContextCancelledDuringSpecificFiles(t *testing.T) {
 	defer os.Chdir(oldDir)
 
 	// Create several dummy .md files.  The compiler will fail to parse them,
-	// but that is fine – we just want to observe that the loop is exited early.
+	// but each failure still advances through the loop so the per-iteration
+	// ctx.Done() guard is reached on subsequent iterations.
 	const numFiles = 5
 	var files []string
 	for i := 0; i < numFiles; i++ {
@@ -60,23 +62,40 @@ func TestCompileWorkflows_ContextCancelledDuringSpecificFiles(t *testing.T) {
 		files = append(files, name)
 	}
 
-	// Cancel the context before calling CompileWorkflows so that the loop
-	// exits on the very first ctx.Done() check.
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run CompileWorkflows concurrently and cancel the context shortly after
+	// it starts — after the goroutine has been scheduled but while it is still
+	// iterating through the file list.  The per-iteration guard must catch the
+	// cancellation and return context.Canceled.
+	done := make(chan error, 1)
+	go func() {
+		_, err := CompileWorkflows(ctx, CompileConfig{
+			MarkdownFiles: files,
+			NoEmit:        true,
+		})
+		done <- err
+	}()
+
+	// Yield to let the goroutine start, then cancel.
+	runtime.Gosched()
+	time.Sleep(time.Millisecond)
 	cancel()
 
-	_, err := CompileWorkflows(ctx, CompileConfig{
-		MarkdownFiles: files,
-		NoEmit:        true,
-	})
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("expected context.Canceled, got %v", err)
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("expected context.Canceled, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("CompileWorkflows did not exit within 5s after context cancellation")
 	}
 }
 
 // TestCompileWorkflows_ContextCancelledDuringDirectory verifies that the
-// directory-wide compilation loop stops processing additional files once the
-// context is cancelled between iterations.
+// directory-wide compilation loop stops when the context is cancelled while
+// CompileWorkflows is already running.
 func TestCompileWorkflows_ContextCancelledDuringDirectory(t *testing.T) {
 	tempDir := testutil.TempDir(t, "compile-ctx-dir-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
@@ -101,16 +120,30 @@ func TestCompileWorkflows_ContextCancelledDuringDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Cancel the context before calling so the loop exits immediately.
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := CompileWorkflows(ctx, CompileConfig{
+			NoEmit:      true,
+			WorkflowDir: ".github/workflows",
+		})
+		done <- err
+	}()
+
+	// Yield to let the goroutine start, then cancel.
+	runtime.Gosched()
+	time.Sleep(time.Millisecond)
 	cancel()
 
-	_, err := CompileWorkflows(ctx, CompileConfig{
-		NoEmit:      true,
-		WorkflowDir: ".github/workflows",
-	})
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("expected context.Canceled, got %v", err)
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("expected context.Canceled, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("CompileWorkflows did not exit within 5s after context cancellation")
 	}
 }
 
@@ -126,9 +159,11 @@ func TestWatchAndCompileWorkflows_ContextCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a dummy markdown file to satisfy the watcher's existence check.
+	// Create a minimal valid workflow file so compilation reaches the watch
+	// select loop rather than exiting early on a parse error.
 	testFile := filepath.Join(workflowsDir, "test.md")
-	if err := os.WriteFile(testFile, []byte("# Test\n"), 0644); err != nil {
+	validFrontmatter := "---\nname: test\non:\n  push:\n    branches: [main]\n---\n# Test Workflow\n"
+	if err := os.WriteFile(testFile, []byte(validFrontmatter), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -142,10 +177,10 @@ func TestWatchAndCompileWorkflows_ContextCancellation(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- watchAndCompileWorkflows(ctx, testFile, &workflow.Compiler{}, false)
+		done <- watchAndCompileWorkflows(ctx, testFile, workflow.NewCompiler(), false)
 	}()
 
-	// Give the watcher a moment to start, then cancel the context.
+	// Give the watcher time to enter the select loop, then cancel the context.
 	time.Sleep(50 * time.Millisecond)
 	cancel()
 
