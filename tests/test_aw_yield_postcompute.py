@@ -177,6 +177,8 @@ def test_postcompute_ignores_unknown_or_conflicting_recommendations(tmp_path: Pa
 
 def test_recommendation_seed_merge_entries_support_paths_lists() -> None:
     precompute = sample_precompute()
+    precompute["recommendations_seed"]["keep"] = []
+    precompute["recommendations_seed"]["instrument"] = []
     precompute["recommendations_seed"]["merge"] = [{"paths": [".github/workflows/a.md", ".github/workflows/b.md"]}]
     final_payload, _summary, _notes = post.finalize(precompute, Path("/tmp/nonexistent-agent-summary"))
     assert final_payload["merge"] == [".github/workflows/a.md", ".github/workflows/b.md"]
