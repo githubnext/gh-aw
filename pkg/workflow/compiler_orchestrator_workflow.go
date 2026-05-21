@@ -123,6 +123,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate optional engine.permission-mode configuration (Claude-specific).
+	if err := c.validateEnginePermissionMode(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate that inlined-imports is not used with agent file imports.
 	// Agent files require runtime access and cannot be resolved without sources.
 	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {

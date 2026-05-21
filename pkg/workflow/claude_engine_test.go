@@ -268,6 +268,60 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 	}
 }
 
+func TestClaudeEnginePermissionModeExplicitOverride(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	tests := []struct {
+		name         string
+		permMode     string
+		tools        map[string]any
+		expectedMode string
+	}{
+		{
+			// explicit auto overrides the bash-wildcard default
+			name:         "explicit auto with bash wildcard",
+			permMode:     "auto",
+			tools:        map[string]any{"bash": []any{"*"}},
+			expectedMode: "auto",
+		},
+		{
+			// explicit acceptEdits overrides the bash-wildcard default
+			name:         "explicit acceptEdits with bash wildcard",
+			permMode:     "acceptEdits",
+			tools:        map[string]any{"bash": []any{"*"}},
+			expectedMode: "acceptEdits",
+		},
+		{
+			// explicit bypassPermissions overrides the non-wildcard default
+			name:         "explicit bypassPermissions with restricted bash",
+			permMode:     "bypassPermissions",
+			tools:        map[string]any{"bash": []any{"git", "echo"}},
+			expectedMode: "bypassPermissions",
+		},
+		{
+			name:         "explicit plan mode",
+			permMode:     "plan",
+			tools:        nil,
+			expectedMode: "plan",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:         "test-workflow",
+				Tools:        tt.tools,
+				EngineConfig: &EngineConfig{ID: "claude", PermissionMode: tt.permMode},
+			}
+			steps := engine.GetExecutionSteps(workflowData, "test-log")
+			require.Len(t, steps, 1, "Expected one execution step")
+			stepContent := strings.Join([]string(steps[0]), "\n")
+			assert.Contains(t, stepContent, "--permission-mode "+tt.expectedMode,
+				"Expected --permission-mode %s", tt.expectedMode)
+		})
+	}
+}
+
 func TestClaudeEngineConfiguration(t *testing.T) {
 	engine := NewClaudeEngine()
 

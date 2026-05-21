@@ -1135,3 +1135,75 @@ func TestEngineMCPToolTimeoutExtraction(t *testing.T) {
 		})
 	}
 }
+
+func TestEnginePermissionModeExtraction(t *testing.T) {
+compiler := NewCompiler()
+
+tests := []struct {
+name           string
+frontmatter    map[string]any
+expectedMode   string
+}{
+{
+name: "permission-mode auto",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id":              "claude",
+"permission-mode": "auto",
+},
+},
+expectedMode: "auto",
+},
+{
+name: "permission-mode acceptEdits",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id":              "claude",
+"permission-mode": "acceptEdits",
+},
+},
+expectedMode: "acceptEdits",
+},
+{
+name: "permission-mode plan",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id":              "claude",
+"permission-mode": "plan",
+},
+},
+expectedMode: "plan",
+},
+{
+name: "permission-mode bypassPermissions",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id":              "claude",
+"permission-mode": "bypassPermissions",
+},
+},
+expectedMode: "bypassPermissions",
+},
+{
+name: "permission-mode not set — empty string",
+frontmatter: map[string]any{
+"engine": map[string]any{
+"id": "claude",
+},
+},
+expectedMode: "",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+if config == nil {
+t.Fatal("Expected non-nil config")
+}
+if config.PermissionMode != tt.expectedMode {
+t.Errorf("PermissionMode = %q, want %q", config.PermissionMode, tt.expectedMode)
+}
+})
+}
+}

@@ -45,6 +45,7 @@ type EngineConfig struct {
 	Agent              string // Agent identifier for copilot --agent flag (copilot engine only)
 	APITarget          string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 	Bare               bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
+	PermissionMode     string // Claude-only: explicit --permission-mode value (auto | acceptEdits | plan | bypassPermissions). Empty means auto-select based on tool configuration.
 	// TokenWeights provides custom model cost data for effective token computation.
 	// When set, overrides or extends the built-in model_multipliers.json values.
 	TokenWeights *types.TokenWeights
@@ -256,6 +257,15 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						engineLog.Printf("Extracted bare mode (inline): %v", config.Bare)
 					}
 				}
+
+				// Extract optional 'permission-mode' field (shared with non-inline path)
+				if pm, hasPM := engineObj["permission-mode"]; hasPM {
+					if pmStr, ok := pm.(string); ok && pmStr != "" {
+						config.PermissionMode = pmStr
+						engineLog.Printf("Extracted permission-mode (inline): %s", config.PermissionMode)
+					}
+				}
+
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 
@@ -418,6 +428,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				if bareBool, ok := bare.(bool); ok {
 					config.Bare = bareBool
 					engineLog.Printf("Extracted bare mode: %v", config.Bare)
+				}
+			}
+
+			// Extract optional 'permission-mode' field (Claude-only: explicit permission mode override)
+			if pm, hasPM := engineObj["permission-mode"]; hasPM {
+				if pmStr, ok := pm.(string); ok && pmStr != "" {
+					config.PermissionMode = pmStr
+					engineLog.Printf("Extracted permission-mode: %s", config.PermissionMode)
 				}
 			}
 

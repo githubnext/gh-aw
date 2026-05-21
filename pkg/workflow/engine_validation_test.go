@@ -671,3 +671,92 @@ func TestValidateEngineMCPToolTimeout(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateEnginePermissionMode tests the validateEnginePermissionMode function.
+func TestValidateEnginePermissionMode(t *testing.T) {
+tests := []struct {
+name        string
+workflow    *WorkflowData
+expectError bool
+errorSubstr string
+}{
+{
+name:        "nil workflow data",
+workflow:    nil,
+expectError: false,
+},
+{
+name:        "nil engine config",
+workflow:    &WorkflowData{},
+expectError: false,
+},
+{
+name: "permission-mode not set — no error",
+workflow: &WorkflowData{
+EngineConfig: &EngineConfig{ID: "claude"},
+},
+expectError: false,
+},
+{
+name: "valid mode: auto",
+workflow: &WorkflowData{
+EngineConfig: &EngineConfig{ID: "claude", PermissionMode: "auto"},
+},
+expectError: false,
+},
+{
+name: "valid mode: acceptEdits",
+workflow: &WorkflowData{
+EngineConfig: &EngineConfig{ID: "claude", PermissionMode: "acceptEdits"},
+},
+expectError: false,
+},
+{
+name: "valid mode: plan",
+workflow: &WorkflowData{
+EngineConfig: &EngineConfig{ID: "claude", PermissionMode: "plan"},
+},
+expectError: false,
+},
+{
+name: "valid mode: bypassPermissions",
+workflow: &WorkflowData{
+EngineConfig: &EngineConfig{ID: "claude", PermissionMode: "bypassPermissions"},
+},
+expectError: false,
+},
+{
+name: "invalid mode: unknown value",
+workflow: &WorkflowData{
+EngineConfig: &EngineConfig{ID: "claude", PermissionMode: "superuser"},
+},
+expectError: true,
+errorSubstr: "invalid value",
+},
+{
+name: "invalid mode: case-mismatch",
+workflow: &WorkflowData{
+EngineConfig: &EngineConfig{ID: "claude", PermissionMode: "bypasspermissions"},
+},
+expectError: true,
+errorSubstr: "invalid value",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+compiler := NewCompiler()
+err := compiler.validateEnginePermissionMode(tt.workflow)
+
+if tt.expectError {
+require.Error(t, err, "Expected validation error")
+if tt.errorSubstr != "" {
+assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+}
+return
+}
+
+assert.NoError(t, err, "Expected permission-mode validation to pass")
+})
+}
+}

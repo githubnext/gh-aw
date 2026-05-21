@@ -153,6 +153,26 @@ func (c *Compiler) validateEngineMCPToolTimeout(workflowData *WorkflowData) erro
 	return nil
 }
 
+// validateEnginePermissionMode validates optional engine.permission-mode configuration.
+// Valid values are: auto, acceptEdits, plan, bypassPermissions (Claude Code CLI values).
+// The field is only meaningful for the Claude engine; it is silently ignored by other engines.
+func (c *Compiler) validateEnginePermissionMode(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.PermissionMode == "" {
+		return nil
+	}
+
+	mode := workflowData.EngineConfig.PermissionMode
+	validModes := []string{"auto", "acceptEdits", "plan", "bypassPermissions"}
+	for _, v := range validModes {
+		if mode == v {
+			engineValidationLog.Printf("engine.permission-mode validated: %s", mode)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("engine.permission-mode: invalid value %q. Must be one of: auto, acceptEdits, plan, bypassPermissions.\n\nExample:\n  engine:\n    id: claude\n    permission-mode: auto\n\nSee: %s", mode, constants.DocsEnginesURL)
+}
+
 // validateEngineInlineDefinition validates an inline engine definition parsed from
 // engine.runtime + optional engine.provider in the workflow frontmatter.
 // Returns an error if:

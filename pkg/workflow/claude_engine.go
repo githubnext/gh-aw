@@ -183,10 +183,17 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// no meaningful security boundary.  In that case we switch back to
 	// "bypassPermissions" which auto-approves all permission requests and produces a
 	// smoother headless execution experience.
-	permissionMode := "acceptEdits"
-	if hasBashWildcardInTools(workflowData.Tools) {
+	//
+	// An explicit engine.permission-mode config field overrides both defaults.
+	var permissionMode string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.PermissionMode != "" {
+		permissionMode = workflowData.EngineConfig.PermissionMode
+		claudeLog.Printf("Using explicit permission mode from config: %s", permissionMode)
+	} else if hasBashWildcardInTools(workflowData.Tools) {
 		claudeLog.Print("Unrestricted bash detected: using bypassPermissions mode")
 		permissionMode = "bypassPermissions"
+	} else {
+		permissionMode = "acceptEdits"
 	}
 	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
 
