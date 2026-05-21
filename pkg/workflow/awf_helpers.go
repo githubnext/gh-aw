@@ -221,6 +221,12 @@ fi`,
 				configFileSetup += "\n" + updateScript
 			}
 		}
+		configFileSetup += fmt.Sprintf(
+			"\nnode %q %q %q",
+			"${RUNNER_TEMP}/gh-aw/actions/merge_model_aliases.cjs",
+			awfConfigRuntimePathExpr,
+			"${RUNNER_TEMP}/gh-aw/actions/model_aliases.json",
+		)
 		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
 		// Add --config as the first expandable arg so it appears before --container-workdir.
 		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs

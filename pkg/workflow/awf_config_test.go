@@ -591,6 +591,7 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 
 	// Should copy the config file to /tmp/gh-aw/awf-config.json for artifact upload
 	assert.Contains(t, command, constants.AWFConfigFilePath, "expected awf-config.json to be copied to /tmp/gh-aw/")
+	assert.Contains(t, command, "merge_model_aliases.cjs", "expected runtime model-alias merge helper invocation")
 
 	// Should reference the config file via --config
 	assert.Contains(t, command, "--config", "expected --config flag in AWF invocation")

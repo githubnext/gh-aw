@@ -312,8 +312,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── Models section (nested under apiProxy per AWF config schema) ──────────
 	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
-		apiProxy.Models = config.WorkflowData.ModelMappings
-		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
+		apiProxy.Models = BuildModelAliasesDelta(config.WorkflowData.ModelMappings)
+		if len(apiProxy.Models) > 0 {
+			awfConfigLog.Printf("Models section: %d delta alias entries", len(apiProxy.Models))
+		}
 	}
 
 	awfConfig.APIProxy = apiProxy

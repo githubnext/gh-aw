@@ -136,6 +136,7 @@ func TestModelAliasesAWFConfigJSON(t *testing.T) {
 
 	// models must appear nested under apiProxy
 	assert.Contains(t, jsonStr, `"models"`, "models section must be present under apiProxy in AWF config JSON")
+	assert.NotContains(t, jsonStr, `"sonnet"`, "builtin aliases should not be serialized into AWF config JSON")
 
 	// Verify that the alias map is correctly populated in WorkflowData.
 	mappings := awfConfig.WorkflowData.ModelMappings
@@ -152,4 +153,8 @@ func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	// Other builtins preserved.
 	assert.NotEmpty(t, mappings["sonnet"], "builtin sonnet should still be in ModelMappings")
 	assert.NotEmpty(t, mappings["auto"], "builtin auto should still be in ModelMappings")
+
+	// AWF config models now carry only delta entries.
+	assert.Contains(t, jsonStr, `"import-alias"`, "imported alias should be present in models delta")
+	assert.Contains(t, jsonStr, `"haiku"`, "main override should be present in models delta")
 }

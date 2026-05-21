@@ -84,9 +84,10 @@ type awfConfigModelsResult struct {
 // TestBuildAWFConfigJSON_ModelsSection verifies model alias behaviour in BuildAWFConfigJSON.
 //
 // Models are serialised under apiProxy.models per the AWF config schema (apiProxy.models
-// is supported in AWF v0.25.38+). The builtin aliases are included when ModelMappings is set.
+// is supported in AWF v0.25.38+). gh-aw now serializes only the workflow delta; builtins are
+// merged at runtime by actions/setup/js/merge_model_aliases.cjs.
 func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
-	t.Run("builtin model aliases are included when WorkflowData has ModelMappings", func(t *testing.T) {
+	t.Run("no models section when WorkflowData has only builtin aliases", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -105,9 +106,9 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		var parsed awfConfigModelsResult
 		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
 
-		// models must appear nested under apiProxy
-		assert.NotEmpty(t, parsed.APIProxy.Models, "models section must be present and non-empty under apiProxy in AWF config JSON")
-		assert.Contains(t, jsonStr, `"models"`, "models key must appear in AWF config JSON")
+		// Builtins are no longer serialized in AWF config JSON.
+		assert.Empty(t, parsed.APIProxy.Models, "models section should be absent when no delta is required")
+		assert.NotContains(t, jsonStr, `"models"`, "models key should be omitted when no delta is required")
 
 		// the alias map is populated in WorkflowData
 		assert.NotEmpty(t, config.WorkflowData.ModelMappings, "ModelMappings should be populated on WorkflowData")
@@ -151,6 +152,7 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 			"default policy should be stored in ModelMappings")
 		assert.Equal(t, []string{"sonnet"}, parsed.APIProxy.Models[""],
 			"default policy should be emitted under apiProxy.models in AWF config JSON")
+		assert.Len(t, parsed.APIProxy.Models, 2, "only delta aliases should be emitted")
 	})
 
 	t.Run("no models section when ModelMappings is nil", func(t *testing.T) {
@@ -170,6 +172,30 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
 		assert.NotContains(t, jsonStr, `"models"`, "models section should be absent when ModelMappings is nil")
+	})
+}
+
+func TestBuildModelAliasesDelta(t *testing.T) {
+	t.Run("returns nil for builtin-only map", func(t *testing.T) {
+		delta := BuildModelAliasesDelta(BuiltinModelAliases())
+		assert.Nil(t, delta)
+	})
+
+	t.Run("includes new aliases and overrides only", func(t *testing.T) {
+		merged := MergeImportedModelAliases(
+			[]map[string][]string{
+				{"import-only": {"import/model"}},
+			},
+			map[string][]string{
+				"sonnet": {"custom/sonnet"},
+			},
+		)
+
+		delta := BuildModelAliasesDelta(merged)
+		require.NotNil(t, delta)
+		assert.Equal(t, []string{"import/model"}, delta["import-only"])
+		assert.Equal(t, []string{"custom/sonnet"}, delta["sonnet"])
+		assert.NotContains(t, delta, "haiku")
 	})
 }
 

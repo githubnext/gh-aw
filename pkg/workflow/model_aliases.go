@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -126,4 +127,25 @@ func MergeImportedModelAliases(importedModels []map[string][]string, frontmatter
 
 	modelAliasesLog.Printf("Final alias map has %d entries", len(merged))
 	return merged
+}
+
+// BuildModelAliasesDelta returns only the alias entries that differ from builtins.
+// Added aliases and overridden builtin aliases are included; unchanged builtin aliases are omitted.
+func BuildModelAliasesDelta(merged map[string][]string) map[string][]string {
+	if len(merged) == 0 {
+		return nil
+	}
+	builtin := BuiltinModelAliases()
+	delta := make(map[string][]string)
+	for key, value := range merged {
+		baseValue, ok := builtin[key]
+		if ok && slices.Equal(baseValue, value) {
+			continue
+		}
+		delta[key] = value
+	}
+	if len(delta) == 0 {
+		return nil
+	}
+	return delta
 }
