@@ -180,6 +180,16 @@ base_weighted_tokens =
 When providers report cached reads (`C`) as part of input tokens (`I`), implementations MUST
 subtract cached input from `I` before applying `w_in` to avoid double counting.
 
+To avoid ambiguity, conforming implementations MUST treat these symbols as follows:
+
+- `I`: total reported input tokens for the invocation
+- `C`: cached subset of that same input
+- `w_in` MUST be applied only to `max(I - C, 0)` (the non-cached portion)
+- `w_cache` MUST be applied only to `C`
+
+Implementations MUST NOT charge the cached portion twice (once via `w_in × I` and again via
+`w_cache × C`).
+
 ### 4.4 Effective Tokens Per Invocation
 
 ```
@@ -425,6 +435,8 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 - **T-ET-002**: Single invocation ET equals `m × base_weighted_tokens`
 - **T-ET-003**: Zero-value token classes do not affect the result
 - **T-ET-004**: Custom weights are applied when default weights are overridden
+- **T-ET-005**: Cached/input overlap is not double counted (`w_in` applies to `max(I-C,0)`, not `I`)
+- **T-ET-007**: Effective input is clamped at zero when `C > I` (`max(I-C,0)`)
 
 #### 10.1.2 Aggregation Tests
 
@@ -462,15 +474,15 @@ Extensions MUST NOT alter the core ET definition or the default weight values wi
 
 | Category | Count |
 |---|---|
-| Total tests defined | 14 |
-| Required tests | 14 |
+| Total tests defined | 16 |
+| Required tests | 16 |
 | Optional tests | 0 |
 
-Count method: unique `T-ET-*` IDs in §10.1 (`001–004`, `006`, `010–012`, `020–022`, `030–032`).
+Count method: unique `T-ET-*` IDs in §10.1 (`001–005`, `007`, `010–012`, `020–022`, `030–032`).
 
 | Requirement | Test ID | Level | Status |
 |---|---|---|---|
-| Per-invocation base weighted tokens | T-ET-001–004 | 1 | Implemented |
+| Per-invocation base weighted tokens | T-ET-001–005, T-ET-007 | 1 | Implemented |
 | Per-invocation ET computation | T-ET-002 | 1 | Implemented |
 | Multi-invocation aggregation | T-ET-010–012 | 2 | Implemented |
 | Zero-ET leaf node aggregation | T-ET-006 | 2 | Required |
@@ -537,16 +549,16 @@ A request triggers three invocations: a root call, a retrieval sub-agent, and a 
 
 ```
 root:
-  base = (1.0 × 500) + (0.1 × 200) + (4.0 × 150) = 500 + 20 + 600 = 1120
-  ET   = 2.0 × 1120 = 2240
+  base = (1.0 × max(500-200,0)) + (0.1 × 200) + (4.0 × 150) = 300 + 20 + 600 = 920
+  ET   = 2.0 × 920 = 1840
 
 retrieval:
   base = (1.0 × 300) + (4.0 × 100) = 300 + 400 = 700
   ET   = 1.0 × 700 = 700
 
 synthesis:
-  base = (1.0 × 200) + (0.1 × 100) + (4.0 × 250) = 200 + 10 + 1000 = 1210
-  ET   = 2.0 × 1210 = 2420
+  base = (1.0 × max(200-100,0)) + (0.1 × 100) + (4.0 × 250) = 100 + 10 + 1000 = 1110
+  ET   = 2.0 × 1110 = 2220
 ```
 
 #### A.4 Output
@@ -556,13 +568,23 @@ synthesis:
   "summary": {
     "total_invocations": 3,
     "raw_total_tokens": 1800,
-    "base_weighted_tokens": 3030,
-    "effective_tokens": 5360
+    "base_weighted_tokens": 2730,
+    "effective_tokens": 4760
   }
 }
 ```
 
-#### A.5 Partial Observability Examples
+#### A.5 Input vs Cached Conformance Test Vectors
+
+These vectors are normative examples for overlap handling and are intended to be asserted by
+conformance tests.
+
+| Test ID | Inputs `(I,O,C,R)` | Base computation (default weights) | Expected `base_weighted_tokens` |
+|---|---|---|---:|
+| T-ET-005 | `(100, 0, 80, 0)` | `1.0×max(100-80,0) + 0.1×80 = 20 + 8` | 28 |
+| T-ET-007 | `(50, 0, 80, 0)` | `1.0×max(50-80,0) + 0.1×80 = 0 + 8` | 8 |
+
+#### A.6 Partial Observability Examples
 
 When some descendant invocations are unobservable, implementations still report deterministic
 partial totals and preserve stable ordering.

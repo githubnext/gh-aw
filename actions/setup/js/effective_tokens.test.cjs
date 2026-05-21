@@ -180,6 +180,18 @@ describe("effective_tokens", () => {
       const base = computeBaseWeightedTokens(100, 50, 0, 0, 0);
       expect(base).toBe(600);
     });
+
+    // T-ET-005: Cached/input overlap must not be double-counted
+    test("T-ET-005: uses input minus cached input to avoid double counting", () => {
+      const base = computeBaseWeightedTokens(100, 0, 80, 0, 0);
+      expect(base).toBe(28); // 1.0 × max(100-80,0) + 0.1 × 80
+    });
+
+    // T-ET-007: Clamp overlap subtraction when cached exceeds input
+    test("T-ET-007: clamps effective input at zero when cached exceeds input", () => {
+      const base = computeBaseWeightedTokens(50, 0, 80, 0, 0);
+      expect(base).toBe(8); // 1.0 × max(50-80,0) + 0.1 × 80
+    });
   });
 
   describe("computeEffectiveTokens", () => {
@@ -398,8 +410,4 @@ describe("effective_tokens", () => {
       expect(result).not.toContain("Weighted tokens");
     });
   });
-});
-test("uses input minus cached input to avoid double counting", () => {
-  const base = computeBaseWeightedTokens(100, 0, 80, 0, 0);
-  expect(base).toBe(28); // 1.0 × (100-80) + 0.1 × 80
 });
