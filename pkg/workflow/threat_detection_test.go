@@ -1778,3 +1778,31 @@ func TestBuildDetectionEngineExecutionStepPropagatesHarnessScriptOverride(t *tes
 		t.Errorf("expected default harness to be replaced by custom override, got:\n%s", s)
 	}
 }
+
+func TestBuildDetectionEngineExecutionStepPropagatesRuntimeCooldownOverride(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "pi",
+		EngineConfig: &EngineConfig{
+			ID: "pi",
+		},
+		Runtimes: map[string]any{
+			"node": map[string]any{
+				"cooldown": false,
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty steps")
+	}
+
+	if strings.Contains(strings.Join(steps, ""), "NPM_CONFIG_MIN_RELEASE_AGE") {
+		t.Fatalf("expected detection steps to honor runtimes.node.cooldown=false")
+	}
+}

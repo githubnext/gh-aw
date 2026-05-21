@@ -653,6 +653,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		EngineConfig:   detectionEngineConfig,
 		AI:             engineSetting,
 		Features:       data.Features,
+		Runtimes:       data.Runtimes,
 		IsDetectionRun: true, // Mark as detection run for phase tagging
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: []string{}, // no user-specified additional domains; engine provides its own minimal set

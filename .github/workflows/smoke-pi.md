@@ -17,6 +17,9 @@ engine:
   id: pi
   model: copilot/claude-sonnet-4-20250514
 strict: true
+runtimes:
+  node:
+    cooldown: false
 imports:
   - shared/gh.md
   - shared/reporting-otlp.md
