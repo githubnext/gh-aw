@@ -10030,6 +10030,12 @@
               "description": "Optional GitHub Actions if condition to control when the runtime setup step runs. Supports standard GitHub Actions expression syntax. Useful for conditionally installing runtimes based on file presence (e.g., \"hashFiles('go.mod') != ''\" to install Go only when go.mod exists).",
               "examples": ["hashFiles('go.mod') != ''", "hashFiles('package.json') != ''", "hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''", "hashFiles('uv.lock') != ''", "github.event_name == 'workflow_dispatch'"]
             },
+            "cooldown": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable a default 3-day dependency cooldown for installs associated with this runtime. Set to false to disable.",
+              "examples": [true, false]
+            },
             "run-install-scripts": {
               "type": "boolean",
               "default": false,

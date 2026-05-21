@@ -1584,6 +1584,47 @@ func TestRuntimesConfigToMapWithIfCondition(t *testing.T) {
 	}
 }
 
+func TestParseRuntimesConfig_Cooldown(t *testing.T) {
+	runtimes := map[string]any{
+		"node": map[string]any{
+			"version":  "20",
+			"cooldown": false,
+		},
+	}
+
+	config, err := parseRuntimesConfig(runtimes)
+	if err != nil {
+		t.Fatalf("parseRuntimesConfig failed: %v", err)
+	}
+	if config.Node == nil {
+		t.Fatal("node runtime not found in config")
+	}
+	if config.Node.Cooldown == nil {
+		t.Fatal("node cooldown should be parsed")
+	}
+	if *config.Node.Cooldown {
+		t.Fatal("expected node cooldown to be false")
+	}
+}
+
+func TestRuntimesConfigToMap_Cooldown(t *testing.T) {
+	disabled := false
+	result := runtimesConfigToMap(&RuntimesConfig{
+		Node: &RuntimeConfig{
+			Version:  "20",
+			Cooldown: &disabled,
+		},
+	})
+
+	nodeMap, ok := result["node"].(map[string]any)
+	if !ok {
+		t.Fatal("node runtime not found in result")
+	}
+	if nodeMap["cooldown"] != false {
+		t.Fatalf("expected cooldown=false in serialized runtime map, got %v", nodeMap["cooldown"])
+	}
+}
+
 func TestParseFrontmatterConfigCheckoutDisabled(t *testing.T) {
 	t.Run("checkout: false sets CheckoutDisabled", func(t *testing.T) {
 		frontmatter := map[string]any{
