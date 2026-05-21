@@ -1948,11 +1948,14 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   try {
     agentEndMs = fs.statSync("/tmp/gh-aw/agent_output.json").mtimeMs;
   } catch {
-    // agent_output.json may be absent for agent failures and cancellations,
-    // including timed-out or manually-cancelled runs where the process was
-    // killed before writing output. Fall back to nowMs() so we still emit
-    // the dedicated agent span for these cases.
-    if ((isAgentFailure || isAgentCancelled) && jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0) {
+    // agent_output.json may be absent when the agent process was killed before
+    // writing output (timeout, policy-blocked exit, cancellation, or other failure).
+    // In the agent job's own post-step, GH_AW_AGENT_CONCLUSION is always empty
+    // (needs.<job>.result is not yet visible to the running job), so the fallback
+    // must not be gated on isAgentFailure/isAgentCancelled — it runs whenever
+    // agentStartMs is known, ensuring the usage rollup span is always emitted on
+    // every termination path.
+    if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0) {
       agentEndMs = nowMs();
     }
   }

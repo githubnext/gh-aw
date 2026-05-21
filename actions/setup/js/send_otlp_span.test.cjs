@@ -2779,6 +2779,41 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionSpan.status.message).toContain("agent cancelled");
   });
 
+  it("emits a dedicated agent span when agent_output.json is absent and GH_AW_AGENT_CONCLUSION is not set", async () => {
+    // Covers the agent job's own post-step where GH_AW_AGENT_CONCLUSION is always
+    // empty (needs.<job>.result is not yet visible to the running job). This is the
+    // common termination path for policy-blocked or timed-out runs that are killed
+    // before writing agent_output.json.
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+    // GH_AW_AGENT_CONCLUSION is NOT set — simulates agent job post-step
+
+    const startMs = 1_700_000_000_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    // Two calls: [0] = dedicated agent span, [1] = conclusion span
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
+    expect(BigInt(agentSpan.endTimeUnixNano)).toBeGreaterThan(BigInt(toNanoString(startMs)));
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(agentSpan.parentSpanId).toBe(conclusionSpan.spanId);
+  });
+
   it("does not emit a dedicated agent span for non-agent jobs", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
