@@ -20,6 +20,7 @@ This package provides generic types for common concurrency patterns with zero-al
 |--------|-----------|-------------|
 | `Get` | `func (o *OnceLoader[T]) Get(loader func() (T, error)) (T, error)` | Returns the cached result, invoking `loader` exactly once |
 | `Reset` | `func (o *OnceLoader[T]) Reset()` | Clears the cached result and error so that the next `Get` call re-invokes `loader` |
+| `Override` | `func (o *OnceLoader[T]) Override(result T, err error)` | Stores `result` and `err` as the cached value without invoking `loader`; subsequent `Get` calls return this value |
 
 ## Usage Examples
 
