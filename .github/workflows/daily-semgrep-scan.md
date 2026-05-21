@@ -20,8 +20,8 @@ safe-outputs:
 network:
   allowed:
     - defaults
-    - pypi.org
-    - files.pythonhosted.org
+    - python
+    - containers
 
 tools:
   cli-proxy: true
