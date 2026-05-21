@@ -2007,9 +2007,7 @@ jobs:
       - activation
       - agent
       - detection
-    if: >
-      always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped') &&
-      needs.agent.result == 'success'
+    if: always() && needs.detection.result == 'success' && needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
       contents: read
