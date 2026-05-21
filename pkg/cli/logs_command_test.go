@@ -4,6 +4,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -341,20 +342,17 @@ func TestLogsCommand_RepoBypassesLocalWorkflowResolution(t *testing.T) {
 // causing GitHub's API to report "could not find any workflows named X".
 func TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists(t *testing.T) {
 	tmpDir := t.TempDir()
-	workflowsDir := os.Getenv("GH_AW_WORKFLOWS_DIR")
-	if workflowsDir == "" {
-		workflowsDir = tmpDir + "/.github/workflows"
-	}
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
 
 	// Create the markdown file (required by ResolveWorkflowName).
-	require.NoError(t, os.WriteFile(workflowsDir+"/my-test-workflow.md", []byte("---\nname: my-test-workflow\n---\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-test-workflow.md"), []byte("---\nname: my-test-workflow\n---\n"), 0644))
 
 	// Create a lock file whose display name differs from the workflow ID.
 	// This simulates the real scenario where audit-workflows.lock.yml has
 	// name: "Agentic Workflow Audit Agent" while the ID is "audit-workflows".
 	lockContent := "name: \"My Test Workflow Display Name\"\non: push\n"
-	require.NoError(t, os.WriteFile(workflowsDir+"/my-test-workflow.lock.yml", []byte(lockContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-test-workflow.lock.yml"), []byte(lockContent), 0644))
 
 	t.Setenv("GH_AW_WORKFLOWS_DIR", workflowsDir)
 
