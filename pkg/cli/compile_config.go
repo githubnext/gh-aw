@@ -36,7 +36,7 @@ type CompileConfig struct {
 	ValidateImages         bool     // Require Docker to be available for container image validation (fail instead of skipping when Docker is unavailable)
 	PriorManifestFile      string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
 	GHESCompat             bool     // Enable GHES compatibility mode: emit v3.x artifact action pins instead of v7/v8 (overrides aw.json ghes field)
-	Workers                int      // Number of parallel workers for compilation (0 or 1 = sequential, default = max(1, nCPU-1))
+	Workers                int      // Number of parallel workers for compilation (0 or 1 = sequential)
 }
 
 // CompileValidationError represents a single validation error or warning

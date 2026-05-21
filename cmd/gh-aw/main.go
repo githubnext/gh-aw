@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -301,12 +300,9 @@ Examples:
 			return err
 		}
 
-		// Clamp workers: 0 (flag not set) → nCPU-1; anything < 1 → 1.
-		if workers <= 0 {
-			workers = runtime.NumCPU() - 1
-			if workers < 1 {
-				workers = 1
-			}
+		// Clamp workers: anything < 1 → 1.
+		if workers < 1 {
+			workers = 1
 		}
 
 		finishCompileUpdateCheck := cli.StartCompileUpdateCheck(cmd.Context(), noCheckUpdate, verbose)
@@ -724,7 +720,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	compileCmd.Flags().Bool("ghes", false, "Enable GitHub Enterprise Server (GHES) compatibility mode: emit upload-artifact@v3 and download-artifact@v3 instead of the latest v7/v8 which are not supported on GHES. Overrides the aw.json ghes field")
-	compileCmd.Flags().Int("workers", 0, "Number of parallel compilation workers (default: max(1, nCPU-1); set to 1 to disable concurrency)")
+	compileCmd.Flags().Int("workers", 1, "Number of parallel compilation workers (default: 1, sequential; increase for parallel compilation)")
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {
 		// Non-fatal: flag is registered even if MarkHidden fails
 		_ = err
