@@ -167,7 +167,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		}
 
 		if len(ecosystemDomainsNotAsIdentifiers) > 0 {
-			strictModeValidationLog.Printf("Engine '%s' has ecosystem domains not specified as identifiers in strict mode, emitting warning", engineID)
+			strictModeValidationLog.Printf("Engine '%s' has ecosystem domains not specified as identifiers in strict mode, emitting informational guidance", engineID)
 
 			// Build informational message with ecosystem suggestions
 			var suggestions []string

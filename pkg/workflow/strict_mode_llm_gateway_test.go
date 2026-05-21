@@ -280,7 +280,7 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 		if compiler.GetWarningCount() != 0 {
 			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
-		if !strings.Contains(output, "ℹ recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python'") {
+		if !strings.Contains(output, "recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python'") {
 			t.Errorf("Expected informational ecosystem guidance in stderr, got: %q", output)
 		}
 	})
