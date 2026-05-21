@@ -5,12 +5,15 @@ sidebar:
   badge: { text: 'Multi-phase', variant: 'caution' }
 ---
 
-ResearchPlanAssignOps is a four-phase development pattern that moves from automated discovery to merged code with human control at every decision point. A research agent surfaces insights, a planning agent converts them into actionable issues, a coding agent implements the work, and a human reviews and merges.
+ResearchPlanAssignOps is a four-phase development pattern that moves from automated discovery to merged code with human control at every decision point. A research agent surfaces insights, a planning agent converts them into actionable issues, a coding agent implements the work by [assigning issues to GitHub Copilot](/gh-aw/reference/assign-to-copilot/), and a human reviews and merges.
 
 ## The Four Phases
 
-```
-Research → Plan → Assign → Merge
+```mermaid
+flowchart LR
+    research([Research]) --> plan[Plan issues]
+    plan --> assign[Assign to Copilot]
+    assign --> merge[Review & merge]
 ```
 
 Each phase produces a concrete artifact consumed by the next, and every transition is a human checkpoint.
@@ -24,16 +27,20 @@ The [`go-fan`](https://github.com/github/gh-aw/blob/main/.github/workflows/go-fa
 ```aw wrap
 ---
 name: Go Fan
+
 on:
   schedule: daily on weekdays
   workflow_dispatch:
+
 engine: claude
+
 safe-outputs:
   create-discussion:
     title-prefix: "[go-fan] "
     category: "audits"
     max: 1
     close-older-discussions: true
+
 tools:
   cache-memory: true
   github:
@@ -70,10 +77,13 @@ Issues can be assigned individually through the GitHub UI, or pre-assigned in bu
 ```aw wrap
 ---
 name: Auto-assign plan issues to Copilot
+
 on:
   issues:
     types: [labeled]
+
 engine: copilot
+
 safe-outputs:
   assign-to-user:
     target: "*"
@@ -212,8 +222,9 @@ Prefer a simpler pattern when:
 | Plan | [`plan`](https://github.com/github/gh-aw/blob/main/.github/workflows/plan.md) | `/plan` slash command—converts issues or discussions into sub-issues |
 | Assign | GitHub UI / workflow | [Assign issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) for automated PR creation |
 
-## Related Patterns
+## Related Documentation
 
-- **[Orchestration](/gh-aw/patterns/orchestration/)** — Fan out work across multiple worker workflows
-- **[DailyOps](/gh-aw/patterns/daily-ops/)** — Scheduled incremental improvements without a separate planning phase
-- **[DispatchOps](/gh-aw/patterns/dispatch-ops/)** — Manually triggered research and one-off investigations
+- [DispatchOps](/gh-aw/patterns/dispatch-ops/) — Manually triggered research and one-off investigations
+- [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing for large backlogs
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
+- [Assign to Copilot](/gh-aw/reference/assign-to-copilot/) — Assigning issues to GitHub Copilot

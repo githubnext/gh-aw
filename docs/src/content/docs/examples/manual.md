@@ -60,8 +60,10 @@ on:
           - brief
           - detailed
         default: brief
+
 permissions:
   contents: read
+
 safe-outputs:
   create-discussion:
 ---

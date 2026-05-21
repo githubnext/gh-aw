@@ -66,9 +66,11 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [truth-feedback]
+
 permissions:
   contents: read
   issues: read
+
 safe-outputs:
   create-issue:
   create-pull-request:

@@ -389,7 +389,7 @@ Summarize this issue in a **${{ experiments.prompt_style }}** way.
 
 ### Feature Flags (`features:`)
 
-A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary), and `awf-diagnostic-logs` (enables AWF Docker operational diagnostics collection on failure). `byok-copilot` is deprecated because Copilot BYOK behavior is now the default for `engine: copilot`. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
+A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary), and `awf-diagnostic-logs` (enables AWF Docker operational diagnostics collection on failure). `byok-copilot` is deprecated because Copilot BYOK behavior is now the default for `engine: copilot`. See [Feature Flags Reference](/gh-aw/reference/feature-flags/).
 
 ### Fuzzy Scheduling
 
@@ -488,7 +488,7 @@ Controls behavior when OTLP endpoint or header values resolve to empty at runtim
 
 ### Pre-Steps (`jobs.<job-id>.pre-steps`)
 
-Steps injected at a specific lifecycle position within a custom or built-in job's step sequence: after the compiler-generated setup step and before the first checkout or regular `steps`. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. For built-in jobs (`activation`, `pre_activation`), pre-steps are inserted after the `setup` step and before the first `actions/checkout` step. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/frontmatter/#custom-jobs-jobs).
+Steps injected at a specific lifecycle position within a custom or built-in job's step sequence: after the compiler-generated setup step and before the first checkout or regular `steps`. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. For built-in jobs (`activation`, `pre_activation`), pre-steps are inserted after the `setup` step and before the first `actions/checkout` step. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/steps-jobs/#custom-jobs-jobs).
 
 ### Pre-Activation Dependencies (`on.needs:`)
 
@@ -836,7 +836,7 @@ Interactive automation triggered by slash commands (`/review`, `/deploy`) in iss
 
 ### DailyOps
 
-Scheduled workflows for incremental daily improvements, automating progress toward large goals through small, manageable changes on weekday schedules. See [DailyOps](/gh-aw/patterns/daily-ops/).
+Scheduled workflows for incremental daily improvements, automating progress toward large goals through small, manageable changes on weekday schedules.
 
 ### DataOps
 

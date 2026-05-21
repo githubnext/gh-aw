@@ -23,23 +23,7 @@ network:
 
 ## Available Ecosystems
 
-| Ecosystem | Includes | Use For |
-|-----------|----------|---------|
-| `defaults` | Certificates, JSON schema, Ubuntu mirrors | All workflows (required) |
-| `python` | PyPI, conda, pythonhosted.org | Python packages |
-| `python-native` | PyPI, conda, pythonhosted.org + crates.io | Python packages with native extensions (pyo3/maturin) |
-| `node` | npm, yarn, pnpm, Node.js | JavaScript/TypeScript |
-| `go` | proxy.golang.org, sum.golang.org | Go modules |
-| `containers` | Docker Hub, GHCR, Quay, GCR, MCR | Container images |
-| `java` | Maven, Gradle | Java dependencies |
-| `dotnet` | NuGet | .NET packages |
-| `julia` | pkg.julialang.org, storage.julialang.net | Julia packages |
-| `ruby` | RubyGems, Bundler | Ruby gems |
-| `rust` | crates.io | Rust crates |
-| `github` | githubusercontent.com | GitHub resources |
-| `terraform` | HashiCorp registry | Terraform modules |
-| `playwright` | Browser downloads | Web testing ([reference](/gh-aw/reference/playwright/)) |
-| `linux-distros` | Debian, Ubuntu, Alpine | Linux packages |
+For the full list of ecosystem identifiers and the domains they include, see the [Ecosystem Identifiers reference](/gh-aw/reference/network/#ecosystem-identifiers).
 
 ## Common Configuration Patterns
 

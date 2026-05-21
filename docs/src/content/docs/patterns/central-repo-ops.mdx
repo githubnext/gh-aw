@@ -3,11 +3,24 @@ title: CentralRepoOps
 description: Operate and roll out changes across many repositories from a single private control repository.
 ---
 
-CentralRepoOps uses a single private repository as a control plane for large-scale operations across many repositories.
+CentralRepoOps uses a single private repository as a control plane for large-scale operations across many repositories, using [cross-repository safe outputs](/gh-aw/reference/cross-repository/) and [fine-grained authentication](/gh-aw/reference/auth/) to reach each target.
 
 Use this pattern for organization-wide rollouts, phased adoption (pilot waves first), central governance, and security-aware prioritization across tens or hundreds of repositories. Each orchestrator run delivers consistent policy gates, controlled fan-out (`max`), and a complete decision trail — without pushing `main` changes to individual target repositories.
 
+```mermaid
+flowchart LR
+    subgraph central["Central control repo"]
+        schedule([Schedule]) --> orch[Orchestrator\nfilter & prioritize]
+    end
+    orch --> w1[Repo A]
+    orch --> w2[Repo B]
+    orch --> w3[Repo N]
+```
+
 ## Example: Dependabot Rollout (Orchestrator + Worker)
+
+Let's say you want to roll out a new Dependabot configuration across 100 repositories. This example shows you how to do this based on
+a small subset.
 
 This pattern maps directly to your Dependabot rollout pair:
 
@@ -15,9 +28,6 @@ This pattern maps directly to your Dependabot rollout pair:
 - `dependabot-rollout.md` executes *how* to configure each target repository.
 
 ### Orchestrator (central control)
-
-Let's say you want to roll out a new Dependabot configuration across 100 repositories. This example shows you how to do this based on
-a small subset.
 
 Navigate to your central repository and create a workflow file `.github/workflows/dependabot-rollout-orchestrator.md` with the following contents:
 
@@ -60,10 +70,7 @@ Categorize and orchestrate Dependabot rollout across repositories.
 5. **Summarize** - Report total candidates, categorization breakdown, selected repos with rationale
 ```
 
-Compile this workflow to generate the lock file: `gh aw compile`.
-Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_READ_ORG_TOKEN&description=GitHub+Agentic+Workflows+-+Org+read+access&contents=read) `GH_AW_READ_ORG_TOKEN` (this link pre-fills the token name, description, and Contents: Read permission) with the organization as an owner,
-select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read-only`.
-Add this into your Actions repository secrets. This gives the orchestrator read access to all candidate repositories.
+Compile this workflow: `gh aw compile`. Create a `GH_AW_READ_ORG_TOKEN` secret — a fine-grained PAT with `Contents: Read-only` scoped to all target repositories — and add it to your Actions secrets. See [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup.
 
 ### Worker (cross-repository execution)
 
@@ -85,7 +92,6 @@ concurrency:
   group: gh-aw-${{ github.workflow }}-${{ github.event.inputs.target_repo }}
 
 engine:
-  id: copilot
   concurrency:
     group: gh-aw-copilot-${{ github.workflow }}-${{ github.event.inputs.target_repo }}
 
@@ -105,7 +111,7 @@ tools:
     toolsets: [repos]
 
 safe-outputs:
-  github-token: ${{ secretsGH_AW_CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: ${{ github.event.inputs.target_repo }}
     title-prefix: '[dependabot] '
@@ -235,215 +241,12 @@ updates:
 In the PR/issue body, explain **why** you chose this specific configuration (not a generic template).
 ````
 
-Compile this workflow to generate the lock file: `gh aw compile`.
-Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=ORG_REPO_CHECKOUT_TOKEN&description=GitHub+Agentic+Workflows+-+Checkout+token&contents=write&actions=write) `ORG_REPO_CHECKOUT_TOKEN` (this link pre-fills the token name, description, and permissions) with the organization as an owner,
-select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read & write`, `Actions: Read & write`.
-This allows the worker to check out the target repository.
+Compile the workflow: `gh aw compile`. Then create two secrets scoped to target repositories (see [Authentication](/gh-aw/reference/auth/) for setup):
 
-Also create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=REPO_SAFE_OUTPUTS_TOKEN&description=GitHub+Agentic+Workflows+-+Safe+outputs+token&contents=write&issues=write&pull_requests=write) `REPO_SAFE_OUTPUTS_TOKEN` (this link pre-fills the token name, description, and permissions) with the organization as an owner,
-select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Write`, `Issues: Write`, `Pull Requests: Write`.
-This allows the worker to create pull requests and issues in the target repository based on the orchestrator's instructions.
+- `ORG_REPO_CHECKOUT_TOKEN` — `Contents: Read & write`, `Actions: Read & write` (for checkout)
+- `REPO_SAFE_OUTPUTS_TOKEN` — `Contents: Write`, `Issues: Write`, `Pull Requests: Write` (for safe outputs)
 
-After the setup is complete, you can run the orchestrator with `workflow_dispatch` (`target_repos`) or let the schedule trigger run automatically.
-
-## Richer Triggers with a Trigger File
-
-Embedding a `schedule:` trigger directly in the orchestrator is the simplest setup, but it limits the orchestrator to time-based execution only. A **trigger file** — a plain, hand-authored GitHub Actions workflow — solves this by separating the trigger definition from the agent logic:
-
-- The compiled orchestrator exposes a `workflow_call` trigger.
-- A stable, rarely-changing `.yml` file defines the actual GitHub events that kick off the run.
-- The trigger file calls the compiled orchestrator via `workflow_call`, forwarding any inputs and secrets.
-
-This means you can update when and why the orchestrator runs — reacting to a label, a repository push, a security alert, or a manual dispatch — without touching or recompiling the agentic workflow.
-
-### Add `workflow_call` to the Orchestrator
-
-Extend the orchestrator's `on:` section with `workflow_call` and declare any inputs you want callers to pass:
-
-```aw wrap
----
-on:
-  schedule: weekly on monday
-  workflow_call:
-    inputs:
-      reason:
-        description: "Why this run was triggered (label name, event type, etc.)"
-        type: string
-        default: "scheduled"
-
-tools:
-  github:
-    github-token: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
-    toolsets: [repos]
-
-safe-outputs:
-  dispatch-workflow:
-    workflows: [dependabot-rollout]
-    max: 5
----
-
-# Dependabot Rollout Orchestrator
-
-...
-```
-
-Compile the workflow after adding `workflow_call`: `gh aw compile`.
-
-### Create the Stable Trigger File
-
-Add a plain GitHub Actions workflow alongside the compiled orchestrator. This file is written by hand, committed once, and rarely needs to change:
-
-```yaml title=".github/workflows/central-ops-trigger.yml"
-name: Central Ops Trigger
-
-on:
-  # Trigger when a repository is labeled for Dependabot rollout
-  issues:
-    types: [labeled]
-
-  # Trigger on any push to main (e.g. config change)
-  push:
-    branches: [main]
-
-  # Allow manual runs with context
-  workflow_dispatch:
-    inputs:
-      reason:
-        description: "Reason for manual trigger"
-        required: false
-        default: "manual"
-
-jobs:
-  trigger:
-    uses: ./.github/workflows/dependabot-rollout-orchestrator.lock.yml
-    with:
-      reason: ${{ github.event_name }}
-    secrets: inherit
-```
-
-> [!NOTE]
-> The trigger file references the compiled **lock file** (`*.lock.yml`), not the markdown source. Recompiling the orchestrator regenerates the lock file in place; the trigger file does not need to change.
-
-> [!TIP]
-> Use `secrets: inherit` to forward all repository secrets to the called workflow automatically. If you prefer explicit control, list each secret under `secrets:` in the `uses` block.
-
-### Calling the Orchestrator from Another Repository
-
-The trigger file can also live in a **different repository** — for example, inside each target repo — and call back into the orchestrator in the central control repository. This lets individual repositories decide *when* to request a rollout without requiring direct access to the central repo.
-
-```yaml title=".github/workflows/request-dependabot-rollout.yml"
-name: Request Dependabot Rollout
-
-on:
-  # Trigger when a maintainer labels the repo for rollout
-  issues:
-    types: [labeled]
-  workflow_dispatch:
-
-jobs:
-  trigger:
-    # Call the orchestrator workflow in the central control repo
-    uses: my-org/central-ops/.github/workflows/dependabot-rollout-orchestrator.lock.yml@main
-    with:
-      reason: "${{ github.event_name }} in ${{ github.repository }}"
-    secrets:
-      GH_AW_READ_ORG_TOKEN: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
-```
-
-### Trade-offs: Schedule Only vs Trigger File
-
-| | Schedule only | Trigger file + `workflow_call` |
-|---|---|---|
-| **Setup** | Single file, no extra config | Two files (orchestrator + trigger file) |
-| **Trigger flexibility** | Cron/schedule only | Any GitHub event (issues, push, PRs, labels…) |
-| **Change trigger without recompile** | No — trigger is embedded in the agentic workflow | Yes — edit the plain `.yml` trigger file |
-| **Pass event context to agent** | Not possible | Yes — via `workflow_call` inputs |
-| **Stability** | Trigger changes on every recompile | Trigger file stays fixed across recompiles |
-| **When to use** | Simple recurring jobs with no event dependency | Jobs that should react to repository activity or need flexible scheduling |
-
-The schedule-only approach is perfectly fine for a standalone nightly or weekly orchestrator. Move to the trigger file pattern when you need to react to repository events, pass extra context to the agent, or decouple trigger changes from the compilation cycle.
-
-## Cross-Repository Trigger File
-
-<a id="cross-repo-setup"></a>
-
-A trigger file can live in a **different repository** (for example, in each application repo) and call back into the agentic workflow hosted in a central platform repo. This pattern is useful for multi-tenant platforms where each application repo triggers a shared agentic workflow.
-
-```yaml title=".github/workflows/platform-relay.yml (in application repo)"
-name: Platform Relay
-
-on:
-  issue_comment:
-    types: [created]
-
-jobs:
-  relay:
-    uses: my-org/platform-repo/.github/workflows/platform-gateway.lock.yml@main
-    with:
-      issue_number: ${{ github.event.issue.number }}
-      source_repo: ${{ github.repository }}
-    secrets: inherit
-```
-
-### Repository Visibility
-
-The callee (platform) repository must meet one of these requirements:
-
-- **Public** — accessible to anyone
-- **Internal** — accessible within the organization
-- **Private with Actions access** — in repository **Settings → Actions → General**, under *Access*, select "Accessible from repositories in the [organization] organization"
-
-### Secrets Configuration
-
-`COPILOT_GITHUB_TOKEN` must be configured in the **caller** repository's secrets. When using `secrets: inherit`, all caller secrets are forwarded to the platform workflow automatically. This means:
-
-- Premium Copilot requests bill to the **caller's** token, not the platform's
-- Each application team manages their own `COPILOT_GITHUB_TOKEN`
-- The platform repo does not need to hold tokens for all callers
-
-### How It Works
-
-When the compiler detects `workflow_call` in the `on:` section, it generates a cross-repo-aware checkout step in the activation job. A `resolve-host-repo` step inspects `GITHUB_WORKFLOW_REF` at runtime to determine whether the executing workflow lives in a different repository than the one that triggered the event. When a cross-repo invocation is detected, the activation job checks out the **platform repo's** `.github` folder — where the workflow markdown and runtime imports live — rather than the caller's repository.
-
-This handles both direct `workflow_call` events and event-driven relays (for example, a trigger file that listens for `issue_comment` and then calls `workflow_call`) because `GITHUB_WORKFLOW_REF` always contains the path of the currently executing workflow file regardless of the triggering event.
-
-### Cross-Organization Setup
-
-The setup above works when the caller and callee repositories are in the **same organization** (the `GITHUB_TOKEN` can access internal repos within the org). When the platform repo is in a **different organization**, the caller's `GITHUB_TOKEN` cannot check out the platform repo's files, producing an error such as:
-
-```
-fatal: repository 'https://github.com/other-org/platform-repo/' not found
-```
-
-Use `inlined-imports: true` on the platform workflow to make the lock file self-contained. All imported content is embedded into the `.lock.yml` at compile time and no cross-organization checkout is needed at runtime:
-
-```aw wrap
----
-on:
-  workflow_call:
-engine: copilot
-inlined-imports: true
-imports:
-  - shared/common-tools.md
-  - shared/security-setup.md
----
-
-# Platform Gateway Workflow
-
-Workflow instructions here.
-```
-
-After adding `inlined-imports: true`, recompile and commit the updated `.lock.yml`:
-
-```bash
-gh aw compile platform-gateway
-git add .github/workflows/platform-gateway.lock.yml
-git commit -m "compile: embed imports for cross-org workflow_call"
-git push
-```
-
-> [!NOTE]
-> With `inlined-imports: true`, any change to an imported file requires recompiling the workflow to take effect. See [Self-Contained Lock Files](/gh-aw/reference/imports/#self-contained-lock-files-inlined-imports-true) for full details and trade-offs.
+After setup, trigger via `workflow_dispatch` or let the schedule run automatically.
 
 ## Best Practices
 
@@ -451,9 +254,10 @@ git push
 - Use safe output limits (`max`) and explicit target workflow allowlists.
 - Add correlation IDs to worker dispatch inputs for tracking.
 
-## Related Patterns
+## Related Documentation
 
-- **[MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)** - Cross-repository automation capability
-- **[Cross-Repository Operations](/gh-aw/reference/cross-repository/)** - Checkout and target-repo configuration
-- **[Orchestration](/gh-aw/patterns/orchestration/)** - Generic orchestrator/worker dispatch pattern
-- **[SideRepoOps](/gh-aw/patterns/side-repo-ops/)** - Isolated control-plane setup
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Cross-repository automation
+- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) — Isolated control-plane setup
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and target-repo configuration
+- [Authentication](/gh-aw/reference/auth/) — PAT and GitHub App setup
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations

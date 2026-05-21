@@ -56,13 +56,6 @@ var templateInjectionValidationLog = newValidationLogger("template_injection")
 
 // Pre-compiled regex patterns for template injection detection
 var (
-	// inlineExpressionRegex matches GitHub Actions template expressions ${{ ... }}
-	inlineExpressionRegex = regexp.MustCompile(`\$\{\{[^}]+\}\}`)
-
-	// unsafeContextRegex matches high-risk context expressions that could contain user input
-	// These patterns are particularly dangerous when used directly in shell commands
-	unsafeContextRegex = regexp.MustCompile(`\$\{\{\s*(github\.event\.|steps\.[^}]+\.outputs\.|inputs\.)[^}]+\}\}`)
-
 	// allowedRunScriptExpressionRegex matches trusted compiler-owned expressions that are
 	// intentionally rendered in generated run scripts and are not user-controlled.
 	allowedRunScriptExpressionRegex = regexp.MustCompile(`^\$\{\{\s*(env\.[^}]+|vars\.[^}]+|runner\.[^}]+|github\.(repository|run_id|workspace)|steps\.parse-guard-vars\.outputs\.(approval_labels|blocked_users|trusted_users)|job\.services\[[^]]+\]\.ports\[[^]]+\])\s*\}\}$`)
@@ -73,7 +66,7 @@ var (
 // Used by the compiler regression guardrail to detect expressions that should have
 // been rewritten to env variables.
 func hasAnyExpressionInRunContent(yamlContent string) bool {
-	return hasExpressionInRunContent(yamlContent, inlineExpressionRegex)
+	return hasExpressionInRunContent(yamlContent, InlineExpressionPattern)
 }
 
 func hasExpressionInRunContent(yamlContent string, expressionRegex *regexp.Regexp) bool {
@@ -154,7 +147,7 @@ func validateNoTemplateInjectionFromParsed(workflow map[string]any) error {
 
 	for _, runContent := range runBlocks {
 		// Check if this run block contains inline expressions
-		if !inlineExpressionRegex.MatchString(runContent) {
+		if !InlineExpressionPattern.MatchString(runContent) {
 			continue
 		}
 
@@ -164,11 +157,11 @@ func validateNoTemplateInjectionFromParsed(workflow map[string]any) error {
 		contentWithoutHeredocs := removeHeredocContent(runContent)
 
 		// Extract all inline expressions from this run block (excluding heredocs)
-		expressions := inlineExpressionRegex.FindAllString(contentWithoutHeredocs, -1)
+		expressions := InlineExpressionPattern.FindAllString(contentWithoutHeredocs, -1)
 
 		// Check each expression for unsafe contexts
 		for _, expr := range expressions {
-			if unsafeContextRegex.MatchString(expr) {
+			if UnsafeContextPattern.MatchString(expr) {
 				// Found an unsafe pattern - extract a snippet for context
 				snippet := extractRunSnippet(contentWithoutHeredocs, expr)
 				violations = append(violations, TemplateInjectionViolation{
@@ -209,7 +202,7 @@ func validateNoGitHubExpressionsInRunScriptsFromParsed(workflow map[string]any) 
 		// Align with template-injection validation: heredoc bodies are written to files
 		// and are not executed as shell commands, so they are excluded from scanning.
 		contentWithoutHeredocs := removeHeredocContent(runContent)
-		expressions := inlineExpressionRegex.FindAllString(contentWithoutHeredocs, -1)
+		expressions := InlineExpressionPattern.FindAllString(contentWithoutHeredocs, -1)
 		for _, expr := range expressions {
 			if allowedRunScriptExpressionRegex.MatchString(expr) {
 				continue

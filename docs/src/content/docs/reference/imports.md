@@ -12,7 +12,9 @@ Use `imports:` in frontmatter or `{{#import ...}}` in markdown to share workflow
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - shared/common-tools.md
   - shared/mcp/tavily.md
@@ -30,7 +32,9 @@ Shared workflows that declare an `import-schema` accept runtime parameters. Use 
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - uses: shared/mcp/serena.md
     with:
@@ -56,6 +60,7 @@ In markdown, use `{{#runtime-import filepath}}` to inject the content of another
 ```aw wrap
 ---
 on: schedule
+
 engine: copilot
 ---
 
@@ -87,7 +92,9 @@ Use bundled shared components when you regularly import the same pair together:
 ---
 on:
   schedule: daily
+
 engine: copilot
+
 imports:
   - shared/reporting-otlp.md
 ---
@@ -162,7 +169,9 @@ Use `${{ github.aw.import-inputs.<key> }}` to substitute a top-level value; use 
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - uses: shared/deploy.md
     with:
@@ -189,7 +198,9 @@ Paths that do not start with `.github/`, `/`, or an `owner/repo/` prefix are res
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - shared/common-tools.md        # → .github/workflows/shared/common-tools.md
   - ../agents/helper.md           # → .github/agents/helper.md (.. goes up from .github/workflows/)
@@ -203,7 +214,9 @@ Paths starting with `.github/` or `/` are resolved from the repository root. Abs
 ```aw wrap
 ---
 on: pull_request
+
 engine: copilot
+
 imports:
   - .github/agents/code-reviewer.md   # resolved from repo root
   - .github/workflows/shared/app.md   # resolved from repo root
@@ -219,7 +232,9 @@ Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. Th
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - acme-org/shared-workflows/shared/reporting.md@v2.1.0   # pinned to a tag
   - acme-org/shared-workflows/shared/tools.md@main         # track a branch
@@ -495,8 +510,11 @@ Both cases are solved by bundling imports into the lock file at compile time:
 ---
 on:
   workflow_call:
+
 engine: copilot
+
 inlined-imports: true
+
 imports:
   - shared/common-tools.md
   - shared/security-setup.md
