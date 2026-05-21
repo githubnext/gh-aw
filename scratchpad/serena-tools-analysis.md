@@ -1,4 +1,4 @@
-# Serena Tools Usage - Deep Statistical Analysis
+# Serena Tools Usage - Statistical Analysis
 
 **Workflow Run:** [21560089409](https://github.com/github/gh-aw/actions/runs/21560089409/job/62122702303#step:33:1)  
 **Workflow:** Sergo - Serena Go Expert  
@@ -178,7 +178,7 @@ Only **26.09%** of registered Serena tools were actually used during execution. 
 
 1. **Over-provisioning:** Many specialized tools are available but not needed for typical workflows
 2. **Selective Usage:** Agent prefers general-purpose builtin tools (Bash, Read, Write) over specialized Serena tools
-3. **Workflow Patterns:** Current workflow primarily uses file operations rather than deep language service features
+3. **Workflow Patterns:** Current workflow primarily uses file operations rather than language service features
 
 ### Builtin vs Serena Tool Ratio
 
