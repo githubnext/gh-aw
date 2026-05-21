@@ -302,8 +302,9 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 }
 
 func isSupportedPackageInstallablePath(p string) bool {
-	// Normalize to reject path traversal (e.g. "workflows/../README.md" → "README.md")
-	cleaned := path.Clean(p)
+	// Normalize separators to forward slashes (consistent with joinRepositoryPackagePath) then
+	// clean to reject path traversal (e.g. "workflows/../README.md" → "README.md").
+	cleaned := path.Clean(filepath.ToSlash(p))
 	lowerCleaned := strings.ToLower(cleaned)
 	if strings.HasSuffix(lowerCleaned, ".md") {
 		return strings.HasPrefix(cleaned, "workflows/") || strings.HasPrefix(cleaned, ".github/workflows/")
