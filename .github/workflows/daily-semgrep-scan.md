@@ -4,7 +4,6 @@ description: Daily Semgrep security scan for SQL injection and other vulnerabili
 name: Daily Semgrep Scan
 imports:
   - shared/security-analysis-base.md
-  - shared/mcp/semgrep.md
   - shared/otlp.md
 on:
   schedule: daily
@@ -26,6 +25,17 @@ network:
 
 tools:
   cli-proxy: true
+steps:
+  - name: Run Semgrep scan
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+      docker run --rm \
+        -v "$GITHUB_WORKSPACE":/src \
+        -w /src \
+        semgrep/semgrep:latest \
+        semgrep --config=auto --json . > /tmp/gh-aw/agent/semgrep-findings.json
+      test -s /tmp/gh-aw/agent/semgrep-findings.json
 
 experiments:
   semgrep_output_format:
@@ -46,7 +56,9 @@ experiments:
 
 ---
 
-Scan the repository for SQL injection vulnerabilities using Semgrep.
+The Semgrep scan has already been run in a deterministic setup step. Read `/tmp/gh-aw/agent/semgrep-findings.json` and use it as the source of truth for all findings.
+
+Do not rerun Semgrep or call any Semgrep MCP tools. Use the precomputed JSON findings file to produce your report and emit `create-code-scanning-alert` calls only.
 
 {{#if experiments.semgrep_output_format == 'bullet_list' }}
 Report each finding as a flat bullet point in this format:
@@ -67,5 +79,7 @@ Write a narrative security assessment describing the vulnerability patterns foun
 
 Create one code scanning alert per finding.
 {{/if}}
+
+If the findings file reports no results, state that clearly and do not create any code scanning alerts.
 
 {{#runtime-import shared/noop-reminder.md}}

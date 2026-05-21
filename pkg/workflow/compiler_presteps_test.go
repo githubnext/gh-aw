@@ -195,6 +195,68 @@ Read a file from the checked-out repo.
 	}
 }
 
+// TestCustomStepsCanPrecomputeAgentInput verifies that regular frontmatter steps
+// can stage data in /tmp/gh-aw/agent for the later agent prompt to consume.
+func TestCustomStepsCanPrecomputeAgentInput(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-steps-agent-input-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+  security-events: read
+safe-outputs:
+  create-code-scanning-alert:
+    driver: "Semgrep Security Scanner"
+steps:
+  - name: Run Semgrep scan
+    run: |
+      mkdir -p /tmp/gh-aw/agent
+      printf '{"results":[]}\n' > /tmp/gh-aw/agent/semgrep-findings.json
+engine: claude
+strict: false
+---
+
+Read /tmp/gh-aw/agent/semgrep-findings.json and create code scanning alerts from it.
+`
+
+	testFile := filepath.Join(tmpDir, "test-custom-steps-agent-input.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with custom agent input step: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test-custom-steps-agent-input.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated workflow: %v", err)
+	}
+
+	lockContent := string(content)
+	if !strings.Contains(lockContent, "- name: Run Semgrep scan") {
+		t.Fatal("Expected custom Semgrep setup step in generated workflow")
+	}
+	if !strings.Contains(lockContent, "mkdir -p /tmp/gh-aw/agent") {
+		t.Error("Expected custom step to preserve the agent staging directory creation")
+	}
+	if !strings.Contains(lockContent, "/tmp/gh-aw/agent/semgrep-findings.json") {
+		t.Error("Expected generated workflow to preserve the staged Semgrep findings path")
+	}
+
+	customStepIndex := indexInNonCommentLines(lockContent, "- name: Run Semgrep scan")
+	aiStepIndex := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
+	if customStepIndex == -1 || aiStepIndex == -1 {
+		t.Fatal("Could not find expected custom step and AI execution step in generated workflow")
+	}
+	if customStepIndex >= aiStepIndex {
+		t.Errorf("Custom setup step (%d) should appear before AI execution step (%d)", customStepIndex, aiStepIndex)
+	}
+}
+
 // TestPreStepsOnly verifies that a workflow with only pre-steps (no custom steps or post-steps)
 // compiles correctly.
 func TestPreStepsOnly(t *testing.T) {
