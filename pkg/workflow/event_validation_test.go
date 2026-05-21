@@ -79,15 +79,6 @@ func TestValidateEventTypes(t *testing.T) {
 			errContains: "push",
 		},
 		{
-			name: "gh-aw synthetic key pull_request_reviewer is silently skipped",
-			frontmatter: map[string]any{
-				"on": map[string]any{
-					"pull_request_reviewer": nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
 			name: "gh-aw synthetic key needs is silently skipped",
 			frontmatter: map[string]any{
 				"on": map[string]any{

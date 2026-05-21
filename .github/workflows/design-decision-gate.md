@@ -3,9 +3,12 @@ emoji: "🏗️"
 description: Enforces Architecture Decision Records (ADRs) before implementation work can merge, detecting missing design decisions and generating draft ADRs using AI analysis
 on:
   pull_request:
-    types: [labeled]
+    types: [labeled, ready_for_review]
     names: ["implementation"]
-  pull_request_reviewer:
+  slash_command:
+    strategy: centralized
+    name: review
+    events: [pull_request_comment, pull_request_review_comment]
   workflow_dispatch:
     inputs:
       pr_number:

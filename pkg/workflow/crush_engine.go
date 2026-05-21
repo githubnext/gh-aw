@@ -76,6 +76,7 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		"crush",
 		true, // Include Node.js setup
 		true, // Crush requires post-install scripts for native binaries
+		resolveRuntimeCooldown(workflowData, "node"),
 	)
 
 	// Run crush --version to verify the installation and force any deferred binary downloads

@@ -3,7 +3,12 @@ emoji: "🧪"
 name: Test Quality Sentinel
 description: Analyzes test quality beyond code coverage percentages on every PR, detecting implementation-detail tests, happy-path-only tests, test inflation, and duplication
 on:
-  pull_request_reviewer:
+  pull_request:
+    types: [ready_for_review]
+  slash_command:
+    strategy: centralized
+    name: review
+    events: [pull_request_comment, pull_request_review_comment]
 permissions:
   contents: read
   pull-requests: read

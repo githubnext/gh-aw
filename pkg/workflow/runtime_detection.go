@@ -216,8 +216,9 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 	if !exists {
 		runtimeSetupLog.Printf("Adding new runtime requirement: %s (version=%s)", runtime.ID, newVersion)
 		requirements[runtime.ID] = &RuntimeRequirement{
-			Runtime: runtime,
-			Version: newVersion,
+			Runtime:  runtime,
+			Version:  newVersion,
+			Cooldown: true,
 		}
 		return
 	}
