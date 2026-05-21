@@ -416,9 +416,11 @@ touch %s
 	}
 
 	// When the AWF firewall is enabled, set git identity environment variables
-	// for commit authorship.
+	// for commit authorship and signal to the Pi extension that the AWF api-proxy
+	// sidecar is running so the /reflect preflight is not skipped.
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
+		env["AWF_REFLECT_ENABLED"] = "1"
 	}
 
 	// Apply safe-outputs env

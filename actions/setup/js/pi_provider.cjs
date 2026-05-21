@@ -177,52 +177,48 @@ function piProviderExtension(pi) {
   const log = DEFAULT_LOGGER;
   registerConfiguredProviders(pi, log);
 
-  // Resolve the active provider and its gateway URL once from the configured model.
-  // The /reflect endpoint is served on each provider's sidecar port, not on a separate
-  // management port.  Port 10000 (OpenAI sidecar) is only started when OpenAI credentials
-  // are configured; for a Copilot-only run it is never started, so a hardcoded port-10000
-  // URL would fail.  Use the gateway port matching the active provider instead, defaulting
-  // to the Copilot sidecar (port 10002) to match resolvePiBackend in pi_engine.go.
-  const model = getConfiguredModel();
-  const provider = extractProviderFromModel(model);
-  const providerGatewayUrl = provider ? resolveGatewayUrl(provider) : null;
-  const gatewayUrl = providerGatewayUrl || resolveGatewayUrl("copilot");
-  if (provider && !providerGatewayUrl) {
-    log(`provider=${provider}: no known AWF gateway port, falling back to Copilot gateway for /reflect`);
-  }
-  const reflectUrl = gatewayUrl ? `${gatewayUrl}/reflect` : AWF_API_PROXY_REFLECT_URL;
-
   pi.on("agent_start", async () => {
+    const model = getConfiguredModel();
+    const provider = extractProviderFromModel(model);
+
     if (provider) {
-      if (providerGatewayUrl) {
-        log(`provider=${provider} model=${model} gateway=${providerGatewayUrl}`);
+      const gatewayUrl = resolveGatewayUrl(provider);
+      if (gatewayUrl) {
+        log(`provider=${provider} model=${model} gateway=${gatewayUrl}`);
+      } else {
+        log(`provider=${provider} model=${model} (no known AWF gateway port for this provider)`);
       }
-      // Unknown-provider warning already logged at extension load time above.
     } else {
       log(`model=${model || "(not set)"} (no provider prefix — defaulting to Copilot gateway)`);
     }
 
     // Fetch AWF API proxy reflection data before the agent runs to capture initial proxy state.
     // This is best-effort: failures are logged but do not affect the agent session.
-    await fetchAWFReflect({
-      reflectUrl,
-      outputPath: AWF_REFLECT_OUTPUT_PATH,
-      timeoutMs: AWF_REFLECT_TIMEOUT_MS,
-      modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
-      logger: log,
-    });
+    // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+    if (process.env.AWF_REFLECT_ENABLED === "1") {
+      await fetchAWFReflect({
+        reflectUrl: AWF_API_PROXY_REFLECT_URL,
+        outputPath: AWF_REFLECT_OUTPUT_PATH,
+        timeoutMs: AWF_REFLECT_TIMEOUT_MS,
+        modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
+        logger: log,
+      });
+    }
   });
 
   pi.on("agent_end", async () => {
     // Fetch AWF API proxy reflection data after the agent finishes for the post-run step summary.
     // This is best-effort: failures are logged but do not affect the agent exit code.
-    await fetchAWFReflect({
-      reflectUrl,
-      outputPath: AWF_REFLECT_OUTPUT_PATH,
-      timeoutMs: AWF_REFLECT_TIMEOUT_MS,
-      modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
-      logger: log,
-    });
+    // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+    if (process.env.AWF_REFLECT_ENABLED === "1") {
+      await fetchAWFReflect({
+        reflectUrl: AWF_API_PROXY_REFLECT_URL,
+        outputPath: AWF_REFLECT_OUTPUT_PATH,
+        timeoutMs: AWF_REFLECT_TIMEOUT_MS,
+        modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
+        logger: log,
+      });
+    }
   });
 }
 
