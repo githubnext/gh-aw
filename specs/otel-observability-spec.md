@@ -473,6 +473,58 @@ The dedicated agent span (`gh-aw.*.agent`) follows OpenTelemetry [GenAI semantic
 | `gen_ai.usage.cache_read.input_tokens` | int | Cache read tokens |
 | `gen_ai.usage.cache_creation.input_tokens` | int | Cache write tokens |
 
+### 10.4 Outcome Evaluation Span Attributes
+
+Per-item outcome evaluation spans (`gh-aw.outcome.evaluation`) are emitted by the outcome-collector workflow. Each span represents one safe output item evaluated against the GitHub API.
+
+| Attribute | Type | Condition | Description |
+|---|---|---|---|
+| `gh-aw.outcome.type` | string | Required | Safe output type (e.g., `create_pull_request`, `create_issue`) |
+| `gh-aw.outcome.result` | string | Required | `accepted`, `rejected`, `pending`, `ignored`, `noop` |
+| `gh-aw.outcome.workflow` | string | Required | Source workflow name |
+| `gh-aw.outcome.run_id` | int | Required | Source run ID |
+| `gh-aw.outcome.repo` | string | Required | Repository |
+| `gh-aw.outcome.url` | string | When available | URL to the created object |
+| `gh-aw.outcome.detail` | string | When available | Result detail (e.g., `merged`, `closed`, `open`) |
+| `gh-aw.outcome.created_at` | string | When available | Item creation timestamp |
+| `gh-aw.outcome.event` | string | When available | Triggering event type |
+| `gh-aw.outcome.resolution_sec` | int | When resolved | Seconds from creation to resolution |
+| `gh-aw.outcome.pending_age_sec` | int | When pending | Seconds since creation |
+| `gh-aw.outcome.review_comments` | int | PRs only | Number of review comments |
+| `gh-aw.outcome.comments` | int | When available | Number of issue-level comments |
+| `gh-aw.outcome.changed_files` | int | PRs only | Files changed |
+| `gh-aw.outcome.additions` | int | PRs only | Lines added |
+| `gh-aw.outcome.deletions` | int | PRs only | Lines deleted |
+| `gh-aw.outcome.reactions_total` | int | When available | Total reaction count |
+| `gh-aw.outcome.reactions_positive` | int | When available | Positive reactions (+1, heart, hooray, rocket) |
+| `gh-aw.outcome.reactions_negative` | int | When available | Negative reactions (-1, confused) |
+| `gh-aw.outcome.zero_touch` | boolean | When true | Accepted with no human review comments or issue comments |
+
+### 10.5 Outcome Summary Span Attributes
+
+The fleet summary span (`gh-aw.outcome.summary`) aggregates all evaluated outcomes into a single span with economics metrics.
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gh-aw.outcome.runs_checked` | int | Number of runs evaluated |
+| `gh-aw.outcome.total` | int | Total actionable outcomes |
+| `gh-aw.outcome.accepted` | int | Accepted outcomes |
+| `gh-aw.outcome.rejected` | int | Rejected outcomes |
+| `gh-aw.outcome.ignored` | int | Ignored outcomes |
+| `gh-aw.outcome.pending` | int | Pending outcomes |
+| `gh-aw.outcome.noop` | int | Noop outcomes |
+| `gh-aw.outcome.acceptance_rate` | double | Accepted / (accepted + rejected) |
+| `gh-aw.outcome.waste_rate` | double | Rejected / total |
+| `gh-aw.outcome.noop_rate` | double | Noop / (total + noop) |
+| `gh-aw.outcome.zero_touch` | int | Count of zero-touch accepted outcomes |
+| `gh-aw.outcome.zero_touch_rate` | double | Zero-touch / accepted |
+| `gh-aw.outcome.median_resolution_sec` | int | Median seconds from creation to resolution |
+| `gh-aw.outcome.item_count` | int | Number of per-item spans emitted |
+| `gh-aw.outcome.date` | string | Evaluation date (YYYY-MM-DD) |
+| `gh-aw.outcome.events` | string | Comma-separated distinct trigger events |
+| `gh-aw.outcome.workflows` | string | Comma-separated distinct workflow names |
+| `gh-aw.outcome.types` | string | Comma-separated distinct outcome types |
+
 ---
 
 ## 11. Resource Attributes
@@ -604,7 +656,7 @@ This section maps the normative behavior in this specification to the current `g
 | §7 | Local Mirrors and Artifacts | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/constants.cjs`, `actions/setup/post.js` |
 | §8 | Security and Privacy Requirements | `pkg/workflow/observability_otlp.go`, `pkg/workflow/mcp_renderer.go`, `pkg/workflow/mcp_setup_generator.go`, `actions/setup/js/send_otlp_span.cjs` |
 | §9 | Trace Model | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs` |
-| §10 | Span Attribute Contract | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs` |
+| §10 | Span Attribute Contract | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/evaluate_outcomes.cjs`, `actions/setup/js/emit_outcome_spans.cjs` |
 | §11 | Resource Attributes | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs` |
 | §12 | Trace ID Propagation | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/aw_context.cjs`, `pkg/workflow/compiler_yaml.go` |
 
@@ -679,6 +731,8 @@ The following agentic workflows provide runtime conformance validation:
 
 - Added §9 Trace Model: span naming, hierarchy, kinds, status, exception events
 - Added §10 Span Attribute Contract: required and conditional attributes for setup, conclusion, and agent spans
+- Added §10.4 Outcome Evaluation Span Attributes: reactions, zero-touch, comments
+- Added §10.5 Outcome Summary Span Attributes: zero-touch rate, median resolution, economics metrics
 - Added §11 Resource Attributes: required and conditional resource attributes, instrumentation scope
 - Added §12 Trace ID Propagation and Lookup: resolution order, storage, cross-job and dispatch propagation
 - Added §14.1 Runtime Conformance Workflows
