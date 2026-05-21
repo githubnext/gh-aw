@@ -40,7 +40,7 @@ Quality-of-life improvements and more security hardening:
 A substantial patch resolving 21 community-reported issues:
 
 - **BYOK Copilot mode** ([#26544](https://github.com/github/gh-aw/pull/26544)): New `byok-copilot` feature flag wires offline Copilot support.
-- **SideRepoOps maintenance workflow** ([#26382](https://github.com/github/gh-aw/pull/26382)): The compiler now auto-generates `agentics-maintenance.yml` for target repositories in SideRepoOps patterns.
+- **Side repo maintenance workflow** ([#26382](https://github.com/github/gh-aw/pull/26382)): The compiler now auto-generates `agentics-maintenance.yml` for target repositories in side repository patterns.
 - **MCP servers as local CLIs** ([#25928](https://github.com/github/gh-aw/pull/25928)): MCP servers can now be mounted as local CLI commands after the gateway starts, enabling richer tool integrations.
 
 ### [v0.68.3](https://github.com/github/gh-aw/releases/tag/v0.68.3) — April 14

@@ -5,7 +5,7 @@ sidebar:
   order: 9
 ---
 
-GitHub Agentic Workflows includes several "ephemeral" features that automatically expire resources and reduce noise in your repositories. They control costs by stopping scheduled workflows at deadlines, auto-close issues and discussions, hide older comments, and isolate automation via the [SideRepoOps](/gh-aw/patterns/side-repo-ops/) pattern.
+GitHub Agentic Workflows includes several "ephemeral" features that automatically expire resources and reduce noise in your repositories. They control costs by stopping scheduled workflows at deadlines, auto-close issues and discussions, hide older comments, and isolate automation via the [side repository pattern](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation).
 
 ## Expiration Features
 
@@ -182,11 +182,11 @@ Before posting, the system finds and minimizes previous comments from the same w
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#hide-older-comments) for complete documentation.
 
-### SideRepoOps Pattern
+### Side Repository Pattern
 
 Run agentic workflows from a separate "side" repository that targets your main codebase. This isolates AI-generated issues, comments, and workflow runs from your main repository, keeping automation infrastructure separate from production code.
 
-See [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for complete setup and usage documentation.
+See [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation) for complete setup and usage documentation.
 
 ### Text Sanitization
 
@@ -217,4 +217,4 @@ safe-outputs:
 
 - [Triggers Reference](/gh-aw/reference/triggers/) - Complete trigger configuration including `stop-after`
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - All safe output types and expiration options
-- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Complete setup for side repository operations
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Complete setup for side repository operations

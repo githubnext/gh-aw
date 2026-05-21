@@ -248,8 +248,21 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			upgradeLog.Printf("Failed to update actions: %v", err)
 			// Don't fail the upgrade if action updates fail - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions: %v", err)))
-		} else if opts.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated GitHub Actions versions"))
+		} else {
+			if opts.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated GitHub Actions versions"))
+			}
+
+			// Only update "uses:" references in source .md files when actions-lock.json
+			// was successfully updated, so both files stay in sync. Compilation is
+			// deferred to Step 4.
+			upgradeLog.Print("Updating action references in workflow .md files")
+			if err := UpdateActionsInWorkflowFiles(opts.ctx, opts.workflowDir, "", opts.verbose, false, true, 0); err != nil {
+				msg := fmt.Sprintf("Failed to update action references in workflow files: %v", err)
+				upgradeLog.Print(msg)
+				// Non-critical: warn but don't fail the upgrade
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Warning: "+msg))
+			}
 		}
 	} else {
 		if opts.noFix {

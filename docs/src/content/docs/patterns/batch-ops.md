@@ -37,7 +37,7 @@ flowchart LR
 
 Example workflow:
 
-```aw wrap
+```aw wrap title=".github/workflows/stale-processor.md"
 ---
 on:
   schedule: daily on weekdays
@@ -90,7 +90,7 @@ flowchart LR
 
 Example workflow:
 
-```aw wrap
+```aw wrap title=".github/workflows/batch-worker.md"
 ---
 on:
   workflow_dispatch:
@@ -139,7 +139,7 @@ flowchart LR
 
 Example workflow:
 
-```aw wrap
+```aw wrap title=".github/workflows/rate-limited-batch.md"
 ---
 on:
   workflow_dispatch:
@@ -189,7 +189,7 @@ flowchart LR
 
 Example workflow:
 
-```aw wrap
+```aw wrap title=".github/workflows/batch-aggregator.md"
 ---
 on:
   workflow_dispatch:

@@ -5,7 +5,7 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-LabelOps uses GitHub labels as workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports two distinct approaches to label-based triggers: [`label_command`](/gh-aw/reference/command-triggers/) for command-style one-shot activation, and `names:` filtering for persistent label-state awareness.
+LabelOps uses GitHub labels as workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports two distinct approaches to label-based triggers: [`label_command`](/gh-aw/reference/command-triggers/) for command-style one-shot activation, and [`names:` filtering](/gh-aw/reference/triggers/#filtering-with-labels-names) for persistent label-state awareness.
 
 ```mermaid
 flowchart LR
@@ -28,7 +28,7 @@ flowchart LR
 
 Example workflow:
 
-```aw wrap
+```aw wrap title=".github/workflows/deploy-preview.md"
 ---
 on:
   label_command: deploy
@@ -50,43 +50,6 @@ The matched label name is available as `${{ needs.activation.outputs.label_comma
 
 After activation the `deploy` label is removed from the pull request, so a reviewer can apply it again to trigger another deployment without any cleanup step.
 
-### Syntax
-
-`label_command` accepts a shorthand string, a map with a single name, or a map with multiple names and an optional `events` restriction:
-
-```yaml
-# Shorthand — fires on issues, pull_request, and discussion
-on: "label-command deploy"
-
-# Map with a single name
-on:
-  label_command: deploy
-
-# Restrict to specific event types
-on:
-  label_command:
-    name: deploy
-    events: [issues, pull_request]
-
-# Multiple label names
-on:
-  label_command:
-    names: [deploy, redeploy]
-    events: [pull_request]
-
-# Keep label after activation (persistent state, not one-shot command)
-on:
-  label_command:
-    name: in-review
-    remove_label: false
-```
-
-The `remove_label` field (boolean, default `true`) controls whether the matched label is removed after the workflow activates. Set it to `false` when the label represents a persistent state rather than a transient command — for example, to mark that an item is currently being processed without consuming the label. When `remove_label: false`.
-
-The compiler generates `issues`, `pull_request`, and/or `discussion` events with `types: [labeled]`, filtered to the named labels. It also adds a `workflow_dispatch` trigger with an `item_number` input so you can test the workflow manually without applying a real label.
-
-### Accessing the matched label
-
 The label that triggered the workflow is exposed as an output of the activation job:
 
 ```
@@ -97,7 +60,7 @@ This is useful when a workflow handles multiple label commands and needs to bran
 
 ### Combining with slash commands
 
-`label_command` can be combined with `slash_command:` in the same workflow. The two triggers are OR'd — the workflow activates when either condition is met:
+`label_command` can be combined with [`slash_command:`](/gh-aw/patterns/chat-ops/) in the same workflow. The two triggers are OR'd — the workflow activates when either condition is met:
 
 ```yaml
 on:
@@ -111,9 +74,9 @@ This lets a workflow be triggered both by a `/deploy` comment and by applying a 
 
 ## Label Filtering
 
-Use `names:` filtering when you want the workflow to run whenever a label is present on an item and the label should remain attached. This is suitable for monitoring label state rather than reacting to a transient command.
+Another way to relate workflows to labels is to use [Label Trigger Filtering](/gh-aw/reference/triggers/#filtering-with-labels-names) to ensure that a workflow only runs when a particular label is present on an item.
 
-GitHub Agentic Workflows allows you to filter `labeled` and `unlabeled` events to trigger only for specific label names using the `names` field:
+For example:
 
 ```aw wrap
 ---
@@ -144,50 +107,21 @@ Check the issue for:
 Respond with a comment outlining next steps and recommended actions.
 ```
 
-This workflow activates only when the `bug`, `critical`, or `security` labels are added to an issue, not for other label changes. The labels remain on the issue after the workflow runs.
+In this example, the workflow activates only when the `bug`, `critical`, or `security` labels are added to an issue, not for other label changes. The labels remain on the issue after the workflow runs.
 
-```mermaid
-flowchart LR
-    event([labeled event]) --> filter{names: filter}
-    filter -- match --> agent[AI agent]
-    filter -- no match --> skip([Skip])
-    agent --> comment[Comment]
+## Applying and Removing Labels
+
+To let an agent apply or remove labels, use the [`add-labels`](/gh-aw/reference/safe-outputs/#add-labels-add-labels) and [`remove-labels`](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels) safe outputs. Use `allowed` to restrict which labels the agent can touch:
+
+```yaml
+safe-outputs:
+  add-labels:
+    allowed: [bug, team-*, area/*]   # restrict to specific labels or glob patterns
+  remove-labels:
+    allowed: [needs-triage]          # agents can remove triage label after processing
 ```
 
-### Choosing between `label_command` and `names:` filtering
-
-| | `label_command` | `names:` filtering |
-|---|---|---|
-| Label lifecycle | Removed automatically after trigger | Stays on the item |
-| Re-triggerable | Yes — reapply the label | Only on the next `labeled` event |
-| Typical use | "Do this now" commands | State-based routing |
-| Supported items | Issues, pull requests, discussions | Issues, pull requests |
-
-### Label Filter Syntax
-
-The `names` field accepts a single label (`names: urgent`) or an array (`names: [priority, needs-review, blocked]`). It works with both `issues` and `pull_request` events, and the field is compiled into a conditional `if` expression in the final workflow YAML.
-
-## Common LabelOps Patterns
-
-| Pattern | Trigger Labels | Agent Response |
-|---------|---------------|----------------|
-| **Priority Escalation** | `P0`, `critical`, `urgent` | Analyze severity, notify leads, provide SLA guidance |
-| **Label-Based Triage** | `needs-triage`, `triaged` | Suggest categorization, priority, affected components |
-| **Security Automation** | Security labels | Check disclosure risks, trigger review process |
-| **Release Management** | Release labels | Analyze timeline, identify blockers, draft release notes |
-
-## AI-Powered LabelOps
-
-- **Automatic Label Suggestions**: Analyze issues and apply labels for type, priority, and component. Use `safe-outputs.add-labels.allowed` to restrict which labels can be applied automatically.
-- **Component Auto-Labeling**: Identify affected components from file paths, APIs, and UI elements, then apply relevant component labels.
-- **Label Consolidation**: Schedule audits to identify duplicate, unused, and inconsistently named labels.
-
-## Best Practices
-
-- Use specific label names (`ready-for-review` not `ready`) to avoid unintended triggers.
-- Document label meanings in a LABELS.md file or GitHub label descriptions.
-- Limit automation scope with opt-in labels like `automation-enabled`.
-- Use safe outputs for all write operations to maintain security.
+Both operations accept glob patterns in `allowed` and `blocked`, and support cross-repository targets via `target-repo`. See the [Add Labels](/gh-aw/reference/safe-outputs/#add-labels-add-labels) and [Remove Labels](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels) reference for the full set of options.
 
 ## Related Documentation
 

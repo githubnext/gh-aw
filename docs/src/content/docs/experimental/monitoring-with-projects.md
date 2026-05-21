@@ -3,6 +3,10 @@ title: Monitoring with Projects
 description: Use GitHub Projects + safe-outputs to track and monitor workflow work items and progress.
 ---
 
+:::caution[Experimental]
+The monitoring with projects pattern is experimental and subject to change.
+:::
+
 Use this pattern when you want a durable “source of truth” for what your agentic workflows discovered, decided, and did.
 
 ## What this pattern is

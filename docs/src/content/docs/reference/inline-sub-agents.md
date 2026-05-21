@@ -1,5 +1,5 @@
 ---
-title: Copilot Inline Sub-Agents
+title: Inline Sub-Agents
 description: Define Copilot sub-agents directly inside a workflow markdown file using a level-2 heading delimiter.
 sidebar:
   order: 645
@@ -52,13 +52,16 @@ contents. Be concise and factual.
 
 ## Runtime behavior
 
-At runtime, `actions/setup` extracts each inline sub-agent block and writes it to:
+At runtime, each inline sub-agent block is extracted to a location that the AI engine can access natively. The destination path depends on the engine:
 
-```text
-.agents/agents/<name>.agent.md
-```
+| Engine | Destination path |
+|--------|-----------------|
+| `copilot` | `.github/agents/<name>.agent.md` |
+| `claude` | `.claude/agents/<name>.md` |
+| `codex` | `.codex/agents/<name>.md` |
+| `gemini` | `.gemini/agents/<name>.md` |
 
-The Copilot CLI discovers agent files in `.agents/agents/` natively. To use a sub-agent, instruct the parent workflow's prompt to invoke it by name:
+To use a sub-agent, instruct the parent workflow's prompt to invoke it by name:
 
 ```aw wrap
 ## Test Requirements
@@ -69,9 +72,7 @@ The Copilot CLI discovers agent files in `.agents/agents/` natively. To use a su
     unavailable or returns an error.
 ```
 
-The Copilot CLI finds `.agents/agents/file-summarizer.agent.md` and invokes it automatically.
-
-## Complete example
+## Example: File Summarization Sub-Agent
 
 The following excerpt shows a full workflow that defines and uses an inline sub-agent.
 
@@ -100,7 +101,7 @@ contents. Be concise and factual.
 
 The sub-agent block at the bottom is extracted before the workflow runs and has no effect on the parent workflow's instructions.
 
-## Multiple sub-agents
+## Example: Multiple Sub-Agents in One Workflow
 
 A single workflow file may contain more than one sub-agent block. Each block starts with its own `## agent: \`name\`` heading and ends at the next `##` heading or EOF.
 
@@ -123,6 +124,7 @@ Review the given code for bugs, style issues, and potential improvements.
 ## Related Documentation
 
 - [Importing Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/) — Importing agents from `.github/agents/`
+- [DeterministicOps](/gh-aw/patterns/deterministic-ops/) — Combining deterministic steps with AI reasoning
 - [Markdown](/gh-aw/reference/markdown/) — Workflow markdown body reference
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) — Overall workflow file organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) — YAML configuration options
