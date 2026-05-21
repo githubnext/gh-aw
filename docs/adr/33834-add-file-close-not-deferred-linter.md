@@ -14,7 +14,7 @@ An automated scan of the codebase (linter-miner run #12) found 3 instances where
 
 ### Decision
 
-We will add a new static-analysis linter, `fileclosenotdeferred`, that flags functions where a file opened by `os.Open`, `os.Create`, or `os.OpenFile` is closed via a non-deferred `Close()` call. The linter lives under `pkg/linters/file-close-not-deferred/`, is registered in `cmd/linters/main.go` alongside the existing analyzers, walks each `*ast.FuncDecl` body (including nested blocks) tracking per-file-variable state, and reports the open position when a variable has a manual `Close()` and no matching `defer`. Test files are excluded via the shared `pkg/linters/internal/filecheck.IsTestFile` helper.
+We will add a new static-analysis linter, `fileclosenotdeferred`, that flags functions where a file opened by `os.Open`, `os.Create`, or `os.OpenFile` is closed via a non-deferred `Close()` call. The linter lives under `pkg/linters/fileclosenotdeferred/`, is registered in `cmd/linters/main.go` alongside the existing analyzers, walks each `*ast.FuncDecl` body (excluding nested `*ast.FuncLit` closures to avoid false positives) tracking per-variable state keyed by `types.Object` (to correctly handle variable shadowing), and reports the open position when a variable has a manual `Close()` and no matching `defer`. Test files are excluded via the shared `pkg/linters/internal/filecheck.IsTestFile` helper.
 
 ### Alternatives Considered
 
@@ -44,7 +44,7 @@ Bundle this rule with future checks (e.g., `http.Response.Body` close, `sql.Rows
 
 #### Neutral
 - Test files are deliberately excluded via `filecheck.IsTestFile`, matching the convention used by the sibling linters. Test fixtures may legitimately close files inline.
-- The state struct uses the field name `hasManuaClose` (typo for `hasManualClose`) — internal only, no API impact, but reviewers may want to rename before finalizing.
+- The `hasManuaClose` typo has been corrected to `hasManualClose`; the state struct is internal only.
 - The diagnostic reports at the open position, not the manual-close position, so the warning points the reader to the place where `defer` should be inserted.
 
 ---
@@ -67,12 +67,12 @@ Bundle this rule with future checks (e.g., `http.Response.Body` close, `sql.Rows
 ### Registration
 
 1. The analyzer **MUST** be registered in `cmd/linters/main.go` via the `multichecker.Main` argument list alongside the existing custom analyzers.
-2. The package import in `cmd/linters/main.go` **MUST** use the path `github.com/github/gh-aw/pkg/linters/file-close-not-deferred`.
+2. The package import in `cmd/linters/main.go` **MUST** use the path `github.com/github/gh-aw/pkg/linters/fileclosenotdeferred`.
 
 ### Package Layout
 
-1. The linter source **MUST** live under `pkg/linters/file-close-not-deferred/`.
-2. Test fixtures **MUST** live under `pkg/linters/file-close-not-deferred/testdata/src/fileclosenotdeferred/` and **MUST** use `// want` comments compatible with `golang.org/x/tools/go/analysis/analysistest`.
+1. The linter source **MUST** live under `pkg/linters/fileclosenotdeferred/`.
+2. Test fixtures **MUST** live under `pkg/linters/fileclosenotdeferred/testdata/src/fileclosenotdeferred/` and **MUST** use `// want` comments compatible with `golang.org/x/tools/go/analysis/analysistest`.
 3. The test fixtures **MUST** include at least one positive case (manual `Close()` flagged), one negative case (`defer file.Close()` not flagged), and one blank-identifier case (`_, err := os.Open(...)` not flagged).
 
 ### Conformance

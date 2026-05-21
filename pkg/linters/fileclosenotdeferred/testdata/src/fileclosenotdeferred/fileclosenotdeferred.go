@@ -53,3 +53,36 @@ func IgnoredFile() error {
 	_, err := os.Open("test.txt")
 	return err
 }
+
+// not flagged: os.Open inside a closure — the closure is a separate execution
+// context and must not be attributed to the outer function's fileVars.
+func OpenInClosure() {
+	fn := func() error {
+		f, err := os.Open("test.txt")
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		return nil
+	}
+	_ = fn()
+}
+
+// not flagged: inner variable named 'f' shadows outer 'f'; the inner open
+// is deferred, so neither binding triggers the diagnostic.
+func ShadowedVar() error {
+	f, err := os.Open("outer.txt")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if true {
+		f, err := os.Open("inner.txt") // shadows outer f
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_ = f
+	}
+	return nil
+}

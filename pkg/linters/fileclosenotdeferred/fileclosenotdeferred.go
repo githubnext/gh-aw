@@ -5,6 +5,7 @@ package fileclosenotdeferred
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -17,7 +18,7 @@ import (
 var Analyzer = &analysis.Analyzer{
 	Name:     "fileclosenotdeferred",
 	Doc:      "reports file operations where Close() is not immediately deferred, which can lead to resource leaks",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/file-close-not-deferred",
+	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/fileclosenotdeferred",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -40,12 +41,20 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		// Track file variables: varName -> (open position, has defer)
-		fileVars := make(map[string]*fileVarState)
+		// Track file variables: types.Object -> *fileVarState (open position, hasDefer, hasManualClose)
+		// Keyed by types.Object so variable shadowing across inner scopes is handled correctly.
+		fileVars := make(map[types.Object]*fileVarState)
 
-		// Walk all statements in the function body, including nested blocks
+		// Walk all statements in the function body, including nested blocks,
+		// but stop at function literals so closures are analysed independently.
 		ast.Inspect(fn.Body, func(node ast.Node) bool {
 			if node == nil {
+				return false
+			}
+
+			// Do not descend into function literals — closures are independent execution
+			// contexts and should be analyzed separately to avoid false positives.
+			if _, ok := node.(*ast.FuncLit); ok {
 				return false
 			}
 
@@ -55,10 +64,11 @@ func run(pass *analysis.Pass) (any, error) {
 					if call, ok := rhs.(*ast.CallExpr); ok && isFileOpenCall(call) {
 						if i < len(assign.Lhs) {
 							if ident, ok := assign.Lhs[i].(*ast.Ident); ok && ident.Name != "_" {
-								fileVars[ident.Name] = &fileVarState{
-									openPos:   call.Pos(),
-									hasDefer:  false,
-									hasManuaClose: false,
+								obj := pass.TypesInfo.ObjectOf(ident)
+								if obj != nil {
+									fileVars[obj] = &fileVarState{
+										openPos: call.Pos(),
+									}
 								}
 							}
 						}
@@ -68,8 +78,8 @@ func run(pass *analysis.Pass) (any, error) {
 
 			// Look for defer file.Close()
 			if deferStmt, ok := node.(*ast.DeferStmt); ok {
-				if varName := getCloseCallVar(deferStmt.Call); varName != "" {
-					if state, found := fileVars[varName]; found {
+				if obj := getCloseCallObj(pass, deferStmt.Call); obj != nil {
+					if state, found := fileVars[obj]; found {
 						state.hasDefer = true
 					}
 				}
@@ -78,9 +88,9 @@ func run(pass *analysis.Pass) (any, error) {
 			// Look for non-deferred file.Close() in expression statements
 			if exprStmt, ok := node.(*ast.ExprStmt); ok {
 				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-					if varName := getCloseCallVar(call); varName != "" {
-						if state, found := fileVars[varName]; found {
-							state.hasManuaClose = true
+					if obj := getCloseCallObj(pass, call); obj != nil {
+						if state, found := fileVars[obj]; found {
+							state.hasManualClose = true
 						}
 					}
 				}
@@ -90,9 +100,9 @@ func run(pass *analysis.Pass) (any, error) {
 			if assign, ok := node.(*ast.AssignStmt); ok {
 				for _, rhs := range assign.Rhs {
 					if call, ok := rhs.(*ast.CallExpr); ok {
-						if varName := getCloseCallVar(call); varName != "" {
-							if state, found := fileVars[varName]; found {
-								state.hasManuaClose = true
+						if obj := getCloseCallObj(pass, call); obj != nil {
+							if state, found := fileVars[obj]; found {
+								state.hasManualClose = true
 							}
 						}
 					}
@@ -104,7 +114,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 		// Report files with manual close but no defer
 		for _, state := range fileVars {
-			if state.hasManuaClose && !state.hasDefer {
+			if state.hasManualClose && !state.hasDefer {
 				pass.Report(analysis.Diagnostic{
 					Pos:     state.openPos,
 					Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
@@ -117,9 +127,9 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 type fileVarState struct {
-	openPos       token.Pos
-	hasDefer      bool
-	hasManuaClose bool
+	openPos        token.Pos
+	hasDefer       bool
+	hasManualClose bool
 }
 
 // isFileOpenCall returns true if the call is os.Open, os.Create, or os.OpenFile
@@ -135,15 +145,16 @@ func isFileOpenCall(call *ast.CallExpr) bool {
 	return sel.Sel.Name == "Open" || sel.Sel.Name == "Create" || sel.Sel.Name == "OpenFile"
 }
 
-// getCloseCallVar returns the variable name if call is like file.Close()
-func getCloseCallVar(call *ast.CallExpr) string {
+// getCloseCallObj returns the types.Object for the receiver if call is like file.Close(),
+// enabling correct identification across variable shadowing.
+func getCloseCallObj(pass *analysis.Pass, call *ast.CallExpr) types.Object {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != "Close" {
-		return ""
+		return nil
 	}
 	ident, ok := sel.X.(*ast.Ident)
 	if !ok {
-		return ""
+		return nil
 	}
-	return ident.Name
+	return pass.TypesInfo.ObjectOf(ident)
 }

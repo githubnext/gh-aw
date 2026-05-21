@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/tools/go/analysis/analysistest"
 
-	fileclosenotdeferred "github.com/github/gh-aw/pkg/linters/file-close-not-deferred"
+	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 )
 
 func TestFileCloseNotDeferred(t *testing.T) {
