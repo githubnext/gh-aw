@@ -184,6 +184,7 @@ Some content here.`;
       expect(summary).toContain("Debug: request processed");
 
       // Check structure
+      expect(summary).toContain("## 📊 Information");
       expect(summary).toContain("<details>");
       expect(summary).toContain("```");
       expect(summary).toContain("</details>");
@@ -474,6 +475,7 @@ Some content here.`;
 
         const summaryCalls = mockCore.summary.addRaw.mock.calls.map(call => call[0]);
         expect(summaryCalls[0]).toContain("Gateway Summary");
+        expect(summaryCalls.join("\n")).toContain("## ⚠️ Firewall Steering");
         expect(summaryCalls.join("\n")).toContain("Token Steering Events (1)");
         expect(summaryCalls.join("\n")).toContain("req-124");
         expect(mockCore.summary.write).toHaveBeenCalled();
@@ -550,6 +552,8 @@ Some content here.`;
         await main();
 
         const summaryOutput = mockCore.summary.addRaw.mock.calls.map(call => call[0]).join("\n");
+        expect(summaryOutput).toContain("## 🤖 Commands and Tools");
+        expect(summaryOutput).toContain("## ⚠️ Firewall Steering");
         expect(summaryOutput).toContain("MCP Gateway Activity (1 request, 1 token_steering)");
         expect(summaryOutput).toContain("Token Steering Events (1)");
         expect(summaryOutput).toContain("req-123");
@@ -1000,6 +1004,7 @@ Some content here.`;
 
     test("generates details/summary section with event count", () => {
       const summary = generateDifcFilteredSummary(sampleEvents);
+      expect(summary).toContain("## ⚠️ Blocked Tool Calls");
       expect(summary).toContain("<details>");
       expect(summary).toContain("DIFC Filtered Events (1)");
       expect(summary).toContain("</details>");
@@ -1083,6 +1088,7 @@ Some content here.`;
         },
       ]);
 
+      expect(summary).toContain("## ⚠️ Firewall Steering");
       expect(summary).toContain("Token Steering Events (1)");
       expect(summary).toContain("| Time | Provider | Request ID | Message |");
       expect(summary).toContain("2026-03-18 17:30:00Z");
@@ -1192,6 +1198,7 @@ Some content here.`;
 
     test("generates details/summary with request and response counts", () => {
       const summary = generateRpcMessagesSummary({ requests: sampleRequests, responses: sampleResponses, other: [] }, []);
+      expect(summary).toContain("## 🤖 Commands and Tools");
       expect(summary).toContain("<details>");
       expect(summary).toContain("MCP Gateway Activity (2 requests, 1 response)");
       expect(summary).toContain("</details>");

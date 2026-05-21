@@ -47,6 +47,18 @@ function formatDurationMs(ms) {
 }
 
 /**
+ * Wraps a gateway summary block in the same section style used by agent log renderers.
+ * @param {string} icon
+ * @param {string} title
+ * @param {string} body
+ * @returns {string}
+ */
+function renderAgentStyleSection(icon, title, body) {
+  if (!body || !body.trim()) return "";
+  return `## ${icon} ${title}\n\n${body.trimEnd()}\n\n`;
+}
+
+/**
  * Parses token-usage.jsonl content and returns an aggregated summary.
  * Computes effective tokens (ET) per model using the GH_AW_MODEL_MULTIPLIERS env var.
  * @param {string} jsonlContent - The token-usage.jsonl file content
@@ -309,7 +321,7 @@ function generateTokenSteeringSummary(steeringEvents) {
 
   lines.push("");
   lines.push("</details>\n");
-  return lines.join("\n");
+  return renderAgentStyleSection("⚠️", "Firewall Steering", lines.join("\n"));
 }
 
 /**
@@ -349,7 +361,7 @@ function generateDifcFilteredSummary(filteredEvents) {
 
   lines.push("");
   lines.push("</details>\n");
-  return lines.join("\n");
+  return renderAgentStyleSection("⚠️", "Blocked Tool Calls", lines.join("\n"));
 }
 
 /**
@@ -761,7 +773,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents, tokenDeltas) {
     parts.push(generateDifcFilteredSummary(difcFilteredEvents));
   }
 
-  return parts.join("\n");
+  return renderAgentStyleSection("🤖", "Commands and Tools", parts.join("\n"));
 }
 
 /**
@@ -1032,7 +1044,7 @@ function generateGatewayLogSummary(gatewayLogContent, stderrLogContent) {
     summary.push("\n</details>");
   }
 
-  return summary.join("\n");
+  return renderAgentStyleSection("📊", "Information", summary.join("\n"));
 }
 
 // Export for testing
