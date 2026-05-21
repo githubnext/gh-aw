@@ -1537,10 +1537,7 @@ not-json
 
     test("computes delta for a tool call bracketed by two API calls", () => {
       // ET(t0) = 1*1000 + 4*50 = 1200; ET(t1) = 1*1500 + 4*80 = 1820; delta = 620
-      const tokenContent = [
-        tuLine("2026-05-19T21:10:00.000Z", 1000, 50),
-        tuLine("2026-05-19T21:10:10.000Z", 1500, 80),
-      ].join("\n");
+      const tokenContent = [tuLine("2026-05-19T21:10:00.000Z", 1000, 50), tuLine("2026-05-19T21:10:10.000Z", 1500, 80)].join("\n");
       const requests = [req("2026-05-19T21:10:05.000Z", "my-tool")];
       const deltas = computeToolCallTokenDeltas(tokenContent, requests);
       expect(deltas.get(0)).toBe(620);
@@ -1567,15 +1564,8 @@ not-json
 
     test("computes correct deltas for multiple sequential tool calls", () => {
       // ET[0] = 1200, ET[1] = 1820, ET[2] = 2400
-      const tokenContent = [
-        tuLine("2026-05-19T21:10:00.000Z", 1000, 50),
-        tuLine("2026-05-19T21:10:10.000Z", 1500, 80),
-        tuLine("2026-05-19T21:10:20.000Z", 2000, 100),
-      ].join("\n");
-      const requests = [
-        req("2026-05-19T21:10:05.000Z", "tool-a"),
-        req("2026-05-19T21:10:15.000Z", "tool-b"),
-      ];
+      const tokenContent = [tuLine("2026-05-19T21:10:00.000Z", 1000, 50), tuLine("2026-05-19T21:10:10.000Z", 1500, 80), tuLine("2026-05-19T21:10:20.000Z", 2000, 100)].join("\n");
+      const requests = [req("2026-05-19T21:10:05.000Z", "tool-a"), req("2026-05-19T21:10:15.000Z", "tool-b")];
       const deltas = computeToolCallTokenDeltas(tokenContent, requests);
       expect(deltas.get(0)).toBe(620); // 1820 - 1200
       expect(deltas.get(1)).toBe(580); // 2400 - 1820
@@ -1585,9 +1575,7 @@ not-json
   describe("generateRpcMessagesSummary with token deltas", () => {
     test("shows ΔET column when deltas are provided", () => {
       const entries = {
-        requests: [
-          { timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } },
-        ],
+        requests: [{ timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } }],
         responses: [],
         other: [],
       };
@@ -1600,9 +1588,7 @@ not-json
 
     test("omits ΔET column when no deltas are provided", () => {
       const entries = {
-        requests: [
-          { timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } },
-        ],
+        requests: [{ timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } }],
         responses: [],
         other: [],
       };

@@ -609,13 +609,7 @@ function computeToolCallTokenDeltas(tokenUsageContent, requests) {
       if (!entry || typeof entry !== "object" || !entry.timestamp) continue;
       const ts = new Date(entry.timestamp).getTime();
       if (isNaN(ts)) continue;
-      const et = computeEffectiveTokens(
-        entry.model || "",
-        entry.input_tokens || 0,
-        entry.output_tokens || 0,
-        entry.cache_read_tokens || 0,
-        entry.cache_write_tokens || 0
-      );
+      const et = computeEffectiveTokens(entry.model || "", entry.input_tokens || 0, entry.output_tokens || 0, entry.cache_read_tokens || 0, entry.cache_write_tokens || 0);
       etEntries.push({ ts, et });
     } catch {
       // skip malformed lines

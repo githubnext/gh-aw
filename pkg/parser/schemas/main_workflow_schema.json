@@ -5066,6 +5066,7 @@
               "type": "object",
               "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
               "deprecated": true,
+              "x-deprecation-message": "'create-agent-task' is deprecated. Use 'create-agent-session' instead.",
               "properties": {
                 "base": {
                   "type": "string",
@@ -11024,6 +11025,7 @@
         "network": {
           "type": "object",
           "deprecated": true,
+          "x-deprecation-message": "Per-MCP-server 'network' configuration is deprecated. Use the top-level workflow 'network:' field instead.",
           "$comment": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead.",
           "properties": {
             "allowed": {

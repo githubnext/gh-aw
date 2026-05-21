@@ -193,11 +193,13 @@ func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
 	t.Logf("Found %d deep deprecated fields in schema", len(fields))
 }
 
-// TestAllDeprecatedFieldsHaveXDeprecationMessage is a reference test that ensures
-// every deprecated field detected by the deep walker carries an x-deprecation-message.
-// This guarantees that any future field marked deprecated:true in the schema will
-// also have a user-facing migration hint, maintaining the "self-documenting deprecation"
-// invariant introduced by the generic walker.
+// TestAllDeprecatedFieldsHaveXDeprecationMessage is a reference test that ensures every
+// deprecated field detected by the deep properties walker carries an x-deprecation-message.
+// The walker traverses nested "properties" (plus oneOf/anyOf/allOf sub-schemas for property
+// discovery) but does not resolve $ref or inspect $defs directly, and does not catch
+// deprecated:true set on non-property subschemas (e.g. a deprecated oneOf variant).
+// This test therefore enforces the invariant for the set of fields the walker actually emits
+// warnings for — fields in $defs or deprecated oneOf variants must be kept consistent manually.
 func TestAllDeprecatedFieldsHaveXDeprecationMessage(t *testing.T) {
 	fields, err := GetMainWorkflowDeprecatedFieldsDeep()
 	if err != nil {
