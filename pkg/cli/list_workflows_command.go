@@ -119,7 +119,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 			// Output empty array for JSON
 			output := []WorkflowListItem{}
 			jsonBytes, _ := json.MarshalIndent(output, "", "  ")
-			fmt.Println(string(jsonBytes))
+			fmt.Fprintln(os.Stdout, string(jsonBytes))
 			return nil
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow files found."))
@@ -219,7 +219,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-		fmt.Println(string(jsonBytes))
+		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
 	}
 

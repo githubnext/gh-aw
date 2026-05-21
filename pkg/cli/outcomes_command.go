@@ -155,7 +155,7 @@ func RunOutcomes(config OutcomesConfig) error {
 				Summary: OutcomeSummary{},
 			}
 			out, _ := json.MarshalIndent(data, "", "  ")
-			fmt.Println(string(out))
+			fmt.Fprintln(os.Stdout, string(out))
 		}
 		return nil
 	}
@@ -195,7 +195,7 @@ func RunOutcomes(config OutcomesConfig) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-		fmt.Println(string(out))
+		fmt.Fprintln(os.Stdout, string(out))
 		return nil
 	}
 
