@@ -353,6 +353,9 @@ function main() {
   let pending = 0;
   let total = 0;
   let noop = 0;
+  let zeroTouchCount = 0;
+  /** @type {number[]} */
+  const resolutionTimes = [];
 
   // Clear the evaluations file
   fs.writeFileSync(EVAL_JSONL, "");
@@ -431,6 +434,9 @@ function main() {
       switch (evalResult.result) {
         case "accepted":
           accepted++;
+          if (evalResult.zero_touch === true) {
+            zeroTouchCount++;
+          }
           break;
         case "rejected":
           rejected++;
@@ -438,6 +444,9 @@ function main() {
         default:
           pending++;
           break;
+      }
+      if (typeof evalResult.resolution_sec === "number" && evalResult.resolution_sec > 0) {
+        resolutionTimes.push(evalResult.resolution_sec);
       }
 
       fs.appendFileSync(
@@ -486,14 +495,8 @@ function main() {
   const noopRate = total + noop > 0 ? noop / (total + noop) : 0;
 
   // Economics: zero-touch rate and median time-to-outcome
-  const allEvals = readJSONL(EVAL_JSONL);
-  const acceptedEvals = allEvals.filter(e => e.result === "accepted");
-  const zeroTouchCount = acceptedEvals.filter(e => e.zero_touch === true).length;
-  const zeroTouchRate = acceptedEvals.length > 0 ? zeroTouchCount / acceptedEvals.length : 0;
-  const resolutionTimes = allEvals
-    .filter(e => typeof e.resolution_sec === "number" && e.resolution_sec > 0)
-    .map(e => e.resolution_sec)
-    .sort((a, b) => a - b);
+  const zeroTouchRate = accepted > 0 ? zeroTouchCount / accepted : 0;
+  resolutionTimes.sort((a, b) => a - b);
   let medianResolutionSec = null;
   if (resolutionTimes.length > 0) {
     const mid = Math.floor(resolutionTimes.length / 2);

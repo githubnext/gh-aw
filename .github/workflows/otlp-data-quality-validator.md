@@ -80,23 +80,23 @@ Infer expectations from:
 ### Step 2: Validate trace completeness and integrity
 
 From the local JSONL mirror (`/tmp/gh-aw/otel.jsonl`), compute and report:
-- unique `trace_id` count (expect 1 per workflow run)
-- unique span identity count using `trace_id + span_id`
-- duplicate spans with same `trace_id + span_id`
+- unique `traceId` count (expect 1 per workflow run)
+- unique span identity count using `traceId + spanId`
+- duplicate spans with same `traceId + spanId`
 
 Validate the expected span hierarchy per the spec (§9.3):
-- all setup spans share a single global `parent_span_id`
+- all setup spans share a single global `parentSpanId`
 - each conclusion span parents under its job's setup span
 - agent spans parent under the conclusion span
 - root setup parent has no parent
 
 Validate required fields per span:
-- `trace_id` (32-char hex)
-- `span_id` (16-char hex)
+- `traceId` (32-char hex)
+- `spanId` (16-char hex)
 - `name` (must match pattern `gh-aw.<job-name>.<operation>`)
 - `kind` (INTERNAL=1 for setup/conclusion, CLIENT=3 for agent)
-- `start_time_unix_nano`
-- `end_time_unix_nano`
+- `startTimeUnixNano`
+- `endTimeUnixNano`
 
 Flag timestamp issues:
 - `start_time > end_time`

@@ -215,7 +215,7 @@ async function main() {
     buildAttr("gh-aw.outcome.acceptance_rate", getSummaryNumber("acceptance_rate", 0)),
     buildAttr("gh-aw.outcome.waste_rate", getSummaryNumber("waste_rate", 0)),
     buildAttr("gh-aw.outcome.noop_rate", getSummaryNumber("noop_rate", 0)),
-    buildAttr("gh-aw.outcome.zero_touch", getSummaryNumber("zero_touch", 0)),
+    buildAttr("gh-aw.outcome.zero_touch_count", getSummaryNumber("zero_touch", 0)),
     buildAttr("gh-aw.outcome.zero_touch_rate", getSummaryNumber("zero_touch_rate", 0)),
     buildAttr("gh-aw.outcome.item_count", evaluations.length),
   ];

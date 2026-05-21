@@ -516,7 +516,7 @@ The fleet summary span (`gh-aw.outcome.summary`) aggregates all evaluated outcom
 | `gh-aw.outcome.acceptance_rate` | double | Accepted / (accepted + rejected) |
 | `gh-aw.outcome.waste_rate` | double | Rejected / total |
 | `gh-aw.outcome.noop_rate` | double | Noop / (total + noop) |
-| `gh-aw.outcome.zero_touch` | int | Count of zero-touch accepted outcomes |
+| `gh-aw.outcome.zero_touch_count` | int | Count of zero-touch accepted outcomes |
 | `gh-aw.outcome.zero_touch_rate` | double | Zero-touch / accepted |
 | `gh-aw.outcome.median_resolution_sec` | int | Median seconds from creation to resolution |
 | `gh-aw.outcome.item_count` | int | Number of per-item spans emitted |
