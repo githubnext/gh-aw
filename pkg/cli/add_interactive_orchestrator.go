@@ -193,6 +193,8 @@ func (c *AddInteractiveConfig) showWorkflowDescriptions() {
 func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, initFiles []string, err error) {
 	addInteractiveLog.Print("Determining files to add")
 
+	// Prefer the pre-resolved workflows (populated by resolveWorkflows). Fall back
+	// to parsing the raw WorkflowSpecs when no workflows were resolved.
 	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
 		workflowSpecsForError := strings.Join(c.WorkflowSpecs, ", ")
 		for i, rw := range c.resolvedWorkflows.Workflows {
@@ -207,6 +209,7 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 				return nil, nil, fmt.Errorf("resolved manifest workflow at position %d from %q is missing its workflow name", i+1, workflowSpecsForError)
 			}
 			if rw.IsActionWorkflow {
+				// Raw GitHub Actions YAML files are installed as-is; no .lock.yml is produced.
 				workflowFiles = append(workflowFiles, workflowName+".yml")
 			} else {
 				workflowFiles = append(workflowFiles, workflowName+".md")
@@ -214,6 +217,8 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 			}
 		}
 	} else {
+		// Fallback: derive file names from unresolved spec strings. All are assumed to be
+		// agentic workflow .md files since we have no resolution metadata here.
 		workflowNames, nameErr := c.workflowNamesForInteractiveAdd()
 		if nameErr != nil {
 			return nil, nil, nameErr

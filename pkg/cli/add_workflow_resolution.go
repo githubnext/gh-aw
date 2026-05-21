@@ -223,6 +223,9 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
 	host := explicitHostForRepo(repoSpec.RepoSlug)
 	for _, installationSource := range pkg.InstallationSource {
+		// installationSource is guaranteed by isSupportedPackageInstallablePath to be
+		// either a .md agentic workflow or a .yml action workflow file; no other
+		// extensions can reach this point.
 		base := filepath.Base(installationSource)
 		var workflowName string
 		if isActionWorkflowPath(installationSource) {
