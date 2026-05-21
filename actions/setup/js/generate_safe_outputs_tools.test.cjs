@@ -172,6 +172,28 @@ describe("generate_safe_outputs_tools", () => {
     expect(dynamicTool).toBeDefined();
   });
 
+  it("removes configured required fields from input schema", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 5 } }));
+    fs.writeFileSync(
+      toolsMetaPath,
+      JSON.stringify({
+        description_suffixes: {},
+        repo_params: {},
+        required_field_removals: {
+          create_issue: ["title"],
+        },
+        dynamic_tools: [],
+      })
+    );
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const createIssueTool = result.find((/** @type {{name: string, inputSchema: {required?: string[]}}} */ t) => t.name === "create_issue");
+    expect(createIssueTool).toBeDefined();
+    expect(createIssueTool.inputSchema.required).toBeUndefined();
+  });
+
   it("handles empty config with no enabled tools", () => {
     fs.writeFileSync(configPath, JSON.stringify({}));
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
