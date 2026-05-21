@@ -55,170 +55,147 @@ type MCPServerInfo struct {
 	Roots     []*mcp.Root
 }
 
+// extractSafeOutputsConfig extracts the safe-outputs MCP server config from frontmatter.
+func extractSafeOutputsConfig(frontmatter map[string]any, serverFilter string) *RegistryMCPServerConfig {
+	safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]
+	if !hasSafeOutputs {
+		return nil
+	}
+	if serverFilter != "" && !strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
+		return nil
+	}
+	config := RegistryMCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Type:    "stdio",
+			Command: "node",
+			Env:     make(map[string]string),
+		},
+		Name: constants.SafeOutputsMCPServerID.String(),
+	}
+	if safeOutputsMap, ok := safeOutputsSection.(map[string]any); ok {
+		for toolType := range safeOutputsMap {
+			switch toolType {
+			case "create-issue", "create-discussion", "add-comment", "create-pull-request",
+				"create-pull-request-review-comment", "create-code-scanning-alert",
+				"add-labels", "update-issue", "push-to-pull-request-branch", "missing-tool":
+				config.Allowed = append(config.Allowed, toolType)
+			}
+		}
+	}
+	return &config
+}
+
+// extractSafeJobsConfig merges safe-jobs entries into the safe-outputs MCP server config.
+func extractSafeJobsConfig(frontmatter map[string]any, serverFilter string, configs []RegistryMCPServerConfig) []RegistryMCPServerConfig {
+	safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]
+	if !hasSafeJobs {
+		return configs
+	}
+	if serverFilter != "" && !strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
+		return configs
+	}
+	var config *RegistryMCPServerConfig
+	for i := range configs {
+		if configs[i].Name == constants.SafeOutputsMCPServerID.String() {
+			config = &configs[i]
+			break
+		}
+	}
+	if config == nil {
+		newConfig := RegistryMCPServerConfig{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type:    "stdio",
+				Command: "node",
+				Env:     make(map[string]string),
+			},
+			Name: constants.SafeOutputsMCPServerID.String(),
+		}
+		configs = append(configs, newConfig)
+		config = &configs[len(configs)-1]
+	}
+	if safeJobsMap, ok := safeJobsSection.(map[string]any); ok {
+		for jobName := range safeJobsMap {
+			config.Allowed = append(config.Allowed, jobName)
+		}
+	}
+	return configs
+}
+
+// extractMCPScriptsConfig extracts the mcp-scripts MCP server config from frontmatter.
+func extractMCPScriptsConfig(frontmatter map[string]any, serverFilter string) *RegistryMCPServerConfig {
+	mcpScriptsSection, hasMCPScripts := frontmatter["mcp-scripts"]
+	if !hasMCPScripts {
+		return nil
+	}
+	if serverFilter != "" && !strings.Contains(constants.MCPScriptsMCPServerID.String(), strings.ToLower(serverFilter)) {
+		return nil
+	}
+	config := RegistryMCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Type:    "http",
+			Command: "",
+			Env:     make(map[string]string),
+		},
+		Name: constants.MCPScriptsMCPServerID.String(),
+	}
+	if mcpScriptsMap, ok := mcpScriptsSection.(map[string]any); ok {
+		for toolName := range mcpScriptsMap {
+			if toolName == "mode" {
+				continue
+			}
+			config.Allowed = append(config.Allowed, toolName)
+		}
+	}
+	return &config
+}
+
 // ExtractMCPConfigurations extracts MCP server configurations from workflow frontmatter
 func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) ([]RegistryMCPServerConfig, error) {
 	mcpLog.Printf("Extracting MCP configurations with filter: %s", serverFilter)
 	var configs []RegistryMCPServerConfig
 
-	// Check for safe-outputs configuration first (built-in MCP)
-	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
+	if safeOutputsCfg := extractSafeOutputsConfig(frontmatter, serverFilter); safeOutputsCfg != nil {
 		mcpLog.Print("Found safe-outputs configuration")
-		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
-			config := RegistryMCPServerConfig{
-				BaseMCPServerConfig: types.BaseMCPServerConfig{
-					Type:    "stdio",
-					Command: "node",
-					Env:     make(map[string]string),
-				},
-				Name: constants.SafeOutputsMCPServerID.String(),
-				// Command and args will be set up dynamically when the server is started
-			}
-
-			// Parse safe-outputs configuration to determine enabled tools
-			if safeOutputsMap, ok := safeOutputsSection.(map[string]any); ok {
-				for toolType := range safeOutputsMap {
-					// Convert tool types to the actual MCP tool names
-					switch toolType {
-					case "create-issue":
-						config.Allowed = append(config.Allowed, "create-issue")
-					case "create-discussion":
-						config.Allowed = append(config.Allowed, "create-discussion")
-					case "add-comment":
-						config.Allowed = append(config.Allowed, "add-comment")
-					case "create-pull-request":
-						config.Allowed = append(config.Allowed, "create-pull-request")
-					case "create-pull-request-review-comment":
-						config.Allowed = append(config.Allowed, "create-pull-request-review-comment")
-					case "create-code-scanning-alert":
-						config.Allowed = append(config.Allowed, "create-code-scanning-alert")
-					case "add-labels":
-						config.Allowed = append(config.Allowed, "add-labels")
-					case "update-issue":
-						config.Allowed = append(config.Allowed, "update-issue")
-					case "push-to-pull-request-branch":
-						config.Allowed = append(config.Allowed, "push-to-pull-request-branch")
-					case "missing-tool":
-						config.Allowed = append(config.Allowed, "missing-tool")
-
-					}
-				}
-			}
-
-			configs = append(configs, config)
-		}
+		configs = append(configs, *safeOutputsCfg)
 	}
-
-	// Check for top-level safe-jobs configuration
-	if safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]; hasSafeJobs {
-		mcpLog.Print("Found safe-jobs configuration")
-		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
-			// Find existing safe-outputs config or create new one
-			var config *RegistryMCPServerConfig
-			for i := range configs {
-				if configs[i].Name == constants.SafeOutputsMCPServerID.String() {
-					config = &configs[i]
-					break
-				}
-			}
-
-			if config == nil {
-				newConfig := RegistryMCPServerConfig{
-					BaseMCPServerConfig: types.BaseMCPServerConfig{
-						Type:    "stdio",
-						Command: "node",
-						Env:     make(map[string]string),
-					},
-					Name: constants.SafeOutputsMCPServerID.String(),
-				}
-				configs = append(configs, newConfig)
-				config = &configs[len(configs)-1]
-			}
-
-			// Add each safe-job as a tool
-			if safeJobsMap, ok := safeJobsSection.(map[string]any); ok {
-				for jobName := range safeJobsMap {
-					config.Allowed = append(config.Allowed, jobName)
-				}
-			}
-		}
-	}
-
-	// Check for mcp-scripts configuration (built-in MCP)
-	if mcpScriptsSection, hasMCPScripts := frontmatter["mcp-scripts"]; hasMCPScripts {
+	configs = extractSafeJobsConfig(frontmatter, serverFilter, configs)
+	if mcpScriptsCfg := extractMCPScriptsConfig(frontmatter, serverFilter); mcpScriptsCfg != nil {
 		mcpLog.Print("Found mcp-scripts configuration")
-		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.MCPScriptsMCPServerID.String(), strings.ToLower(serverFilter)) {
-			config := RegistryMCPServerConfig{
-				BaseMCPServerConfig: types.BaseMCPServerConfig{
-					Type:    "http",
-					Command: "",
-					Env:     make(map[string]string),
-				},
-				Name: constants.MCPScriptsMCPServerID.String(),
-			}
-
-			// Parse mcp-scripts configuration to determine enabled tools
-			if mcpScriptsMap, ok := mcpScriptsSection.(map[string]any); ok {
-				for toolName := range mcpScriptsMap {
-					// Skip non-tool metadata keys like "mode"
-					if toolName == "mode" {
-						continue
-					}
-					config.Allowed = append(config.Allowed, toolName)
-				}
-			}
-
-			configs = append(configs, config)
-		}
+		configs = append(configs, *mcpScriptsCfg)
 	}
 
-	// Get mcp-servers section from frontmatter
 	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
 	if !hasMCPServers {
 		mcpLog.Print("No mcp-servers section found, checking for built-in tools")
-		// Process built-in MCP tools from tools section (github, playwright)
 		if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
 			return nil, err
 		}
 		mcpLog.Printf("Extracted %d MCP configurations total", len(configs))
-		return configs, nil // No mcp-servers configured, but we might have safe-outputs and built-in tools
+		return configs, nil
 	}
-
 	mcpServers, ok := mcpServersSection.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("mcp-servers section must be a map, got %T. Example:\nmcp-servers:\n  my-server:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", mcpServersSection)
 	}
-
-	// Process built-in MCP tools from tools section (github, playwright)
 	if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
 		return nil, err
 	}
-
-	// Process custom MCP servers from mcp-servers section
 	mcpLog.Printf("Processing %d custom MCP servers", len(mcpServers))
 	for serverName, serverValue := range mcpServers {
-		// Apply server filter if specified
 		if serverFilter != "" && !strings.Contains(strings.ToLower(serverName), strings.ToLower(serverFilter)) {
 			continue
 		}
-
-		// Handle custom MCP tools (those with explicit MCP configuration)
 		toolConfig, ok := serverValue.(map[string]any)
 		if !ok {
 			continue
 		}
-
 		config, err := ParseMCPConfig(serverName, toolConfig, toolConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse MCP config for %s: %w", serverName, err)
 		}
-
 		mcpLog.Printf("Parsed custom MCP server: %s (type=%s)", serverName, config.Type)
 		configs = append(configs, config)
 	}
-
 	mcpLog.Printf("Extracted %d MCP configurations total", len(configs))
 	return configs, nil
 }
@@ -252,180 +229,394 @@ func extractBuiltinMCPTools(frontmatter map[string]any, serverFilter string, con
 	return nil
 }
 
+// parseGitHubMCPOptions extracts mode and github-token options from the github tool config.
+func parseGitHubMCPOptions(toolValue any) (useRemote bool, customGitHubToken string) {
+	toolConfig, ok := toolValue.(map[string]any)
+	if !ok {
+		return false, ""
+	}
+	if modeField, hasMode := toolConfig["mode"]; hasMode {
+		if modeStr, ok := modeField.(string); ok && modeStr == "remote" {
+			useRemote = true
+		}
+	}
+	if token, hasToken := toolConfig["github-token"]; hasToken {
+		if tokenStr, ok := token.(string); ok {
+			customGitHubToken = tokenStr
+		}
+	}
+	return useRemote, customGitHubToken
+}
+
+// buildGitHubMCPBaseConfig builds the base RegistryMCPServerConfig for the GitHub MCP tool.
+func buildGitHubMCPBaseConfig(useRemote bool, customGitHubToken string) RegistryMCPServerConfig {
+	if useRemote {
+		config := RegistryMCPServerConfig{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type:    "http",
+				URL:     "https://api.githubcopilot.com/mcp/",
+				Headers: make(map[string]string),
+				Env:     make(map[string]string),
+			},
+			Name: "github",
+		}
+		if customGitHubToken != "" {
+			config.Env["GITHUB_TOKEN"] = customGitHubToken
+		}
+		config.Headers["X-MCP-Readonly"] = "true"
+		return config
+	}
+	config := RegistryMCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Type:    "docker",
+			Command: "docker",
+			Args: []string{
+				"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+				"-e", "GITHUB_READ_ONLY=1",
+				"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
+			},
+			Env: make(map[string]string),
+		},
+		Name: "github",
+	}
+	if githubToken, err := GetGitHubToken(); err == nil {
+		config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
+	} else {
+		config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
+	}
+	return config
+}
+
+// applyGitHubMCPCustomizations applies allowed tools, version, and extra args from the tool config.
+func applyGitHubMCPCustomizations(toolConfig map[string]any, config *RegistryMCPServerConfig, useRemote bool) {
+	if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
+		if allowedSlice, ok := allowed.([]any); ok {
+			for _, item := range allowedSlice {
+				if str, ok := item.(string); ok {
+					config.Allowed = append(config.Allowed, str)
+				}
+			}
+		}
+	}
+	if useRemote {
+		return
+	}
+	if version, exists := toolConfig["version"]; exists {
+		if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
+			dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
+			for i, arg := range config.Args {
+				if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
+					config.Args[i] = dockerImage
+					break
+				}
+			}
+		}
+	}
+	if argsValue, exists := toolConfig["args"]; exists {
+		if argsSlice, ok := argsValue.([]any); ok {
+			for _, arg := range argsSlice {
+				if argStr, ok := arg.(string); ok {
+					config.Args = append(config.Args, argStr)
+				}
+			}
+		}
+		if argsSlice, ok := argsValue.([]string); ok {
+			config.Args = append(config.Args, argsSlice...)
+		}
+	}
+}
+
+// buildPlaywrightMCPConfig builds a RegistryMCPServerConfig for the Playwright MCP tool.
+func buildPlaywrightMCPConfig(toolValue any) RegistryMCPServerConfig {
+	config := RegistryMCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Type:    "docker",
+			Command: "docker",
+			Args: []string{
+				"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+				"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
+				"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
+			},
+			Env: make(map[string]string),
+		},
+		Name: "playwright",
+	}
+	toolConfig, ok := toolValue.(map[string]any)
+	if !ok {
+		return config
+	}
+	if version, exists := toolConfig["version"]; exists {
+		if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
+			dockerImage := "mcr.microsoft.com/playwright:" + versionStr
+			for i, arg := range config.Args {
+				if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
+					config.Args[i] = dockerImage
+					break
+				}
+			}
+		}
+	}
+	if argsValue, exists := toolConfig["args"]; exists {
+		if argsSlice, ok := argsValue.([]any); ok {
+			for _, arg := range argsSlice {
+				if argStr, ok := arg.(string); ok {
+					config.Args = append(config.Args, argStr)
+				}
+			}
+		}
+		if argsSlice, ok := argsValue.([]string); ok {
+			config.Args = append(config.Args, argsSlice...)
+		}
+	}
+	return config
+}
+
 // processBuiltinMCPTool handles built-in MCP tools (github and playwright)
 func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) (*RegistryMCPServerConfig, error) {
-	// Apply server filter if specified
 	if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
 		return nil, nil
 	}
-
 	if toolName == "github" {
-		// Check for custom GitHub configuration to determine mode (local vs remote)
-		var useRemote bool
-		var customGitHubToken string
-
+		useRemote, customGitHubToken := parseGitHubMCPOptions(toolValue)
+		config := buildGitHubMCPBaseConfig(useRemote, customGitHubToken)
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check if mode is specified (remote or local)
-			if modeField, hasMode := toolConfig["mode"]; hasMode {
-				if modeStr, ok := modeField.(string); ok && modeStr == "remote" {
-					useRemote = true
-				}
-			}
-
-			// Check for custom github-token
-			if token, hasToken := toolConfig["github-token"]; hasToken {
-				if tokenStr, ok := token.(string); ok {
-					customGitHubToken = tokenStr
-				}
-			}
+			applyGitHubMCPCustomizations(toolConfig, &config, useRemote)
 		}
-
-		var config RegistryMCPServerConfig
-
-		if useRemote {
-			// Handle GitHub MCP server in remote mode (hosted)
-			config = RegistryMCPServerConfig{
-				BaseMCPServerConfig: types.BaseMCPServerConfig{
-					Type:    "http",
-					URL:     "https://api.githubcopilot.com/mcp/",
-					Headers: make(map[string]string),
-					Env:     make(map[string]string),
-				},
-				Name: "github",
-			}
-
-			// Store custom token for later use in workflow generation
-			if customGitHubToken != "" {
-				config.Env["GITHUB_TOKEN"] = customGitHubToken
-			}
-
-			// Always enforce read-only mode for GitHub MCP server
-			config.Headers["X-MCP-Readonly"] = "true"
-		} else {
-			// Handle GitHub MCP server - use local/Docker by default
-			config = RegistryMCPServerConfig{
-				BaseMCPServerConfig: types.BaseMCPServerConfig{
-					Type:    "docker", // GitHub defaults to Docker (local containerized)
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"-e", "GITHUB_READ_ONLY=1", // Always enforce read-only mode
-						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
-					},
-					Env: make(map[string]string),
-				},
-				Name: "github",
-			}
-
-			// Try to get GitHub token, but don't fail if it's not available
-			// This allows tests to run without GitHub authentication
-			if githubToken, err := GetGitHubToken(); err == nil {
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
-			} else {
-				// Set a placeholder that will be validated later during connection
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
-			}
-		}
-
-		// Check for custom GitHub configuration
-		if toolConfig, ok := toolValue.(map[string]any); ok {
-			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
-				if allowedSlice, ok := allowed.([]any); ok {
-					for _, item := range allowedSlice {
-						if str, ok := item.(string); ok {
-							config.Allowed = append(config.Allowed, str)
-						}
-					}
-				}
-			}
-
-			// Check for custom Docker image version (only applicable in local/Docker mode)
-			if !useRemote {
-				if version, exists := toolConfig["version"]; exists {
-					if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
-						dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
-						// Update the Docker image in args
-						for i, arg := range config.Args {
-							if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
-								config.Args[i] = dockerImage
-								break
-							}
-						}
-					}
-				}
-
-				// Check for custom args (only applicable in local/Docker mode)
-				if argsValue, exists := toolConfig["args"]; exists {
-					// Handle []any format
-					if argsSlice, ok := argsValue.([]any); ok {
-						for _, arg := range argsSlice {
-							if argStr, ok := arg.(string); ok {
-								config.Args = append(config.Args, argStr)
-							}
-						}
-					}
-					// Handle []string format
-					if argsSlice, ok := argsValue.([]string); ok {
-						config.Args = append(config.Args, argsSlice...)
-					}
-				}
-			}
-		}
-
-		return &config, nil
-	} else if toolName == "playwright" {
-		// Handle Playwright MCP server - always use Docker by default
-		config := RegistryMCPServerConfig{
-			BaseMCPServerConfig: types.BaseMCPServerConfig{
-				Type:    "docker", // Playwright defaults to Docker (containerized)
-				Command: "docker",
-				Args: []string{
-					"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-					"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-					"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
-				},
-				Env: make(map[string]string),
-			},
-			Name: "playwright",
-		}
-
-		// Check for custom Playwright configuration
-		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check for custom Docker image version
-			if version, exists := toolConfig["version"]; exists {
-				if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
-					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
-					// Update the Docker image in args
-					for i, arg := range config.Args {
-						if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
-							config.Args[i] = dockerImage
-							break
-						}
-					}
-				}
-			}
-
-			// Check for custom args
-			if argsValue, exists := toolConfig["args"]; exists {
-				// Handle []any format
-				if argsSlice, ok := argsValue.([]any); ok {
-					for _, arg := range argsSlice {
-						if argStr, ok := arg.(string); ok {
-							config.Args = append(config.Args, argStr)
-						}
-					}
-				}
-				// Handle []string format
-				if argsSlice, ok := argsValue.([]string); ok {
-					config.Args = append(config.Args, argsSlice...)
-				}
-			}
-		}
-
 		return &config, nil
 	}
-
+	if toolName == "playwright" {
+		config := buildPlaywrightMCPConfig(toolValue)
+		return &config, nil
+	}
 	return nil, nil
+}
+
+// parseMCPType infers or parses the MCP server type from the config map.
+func parseMCPType(mcpConfig map[string]any, toolName string) (string, error) {
+	if typeVal, hasType := mcpConfig["type"]; hasType {
+		typeStr, ok := typeVal.(string)
+		if !ok {
+			return "", fmt.Errorf("type field must be a string, got %T. Valid types are: stdio, http. Example:\nmcp-servers:\n  %s:\n    type: stdio\n    command: \"npx @my/tool\"", typeVal, toolName)
+		}
+		if typeStr == "local" {
+			return "stdio", nil
+		}
+		return typeStr, nil
+	}
+	if _, hasURL := mcpConfig["url"]; hasURL {
+		mcpLog.Printf("Inferred MCP type 'http' for tool %s based on url field", toolName)
+		return "http", nil
+	}
+	if _, hasCommand := mcpConfig["command"]; hasCommand {
+		mcpLog.Printf("Inferred MCP type 'stdio' for tool %s based on command field", toolName)
+		return "stdio", nil
+	}
+	if _, hasContainer := mcpConfig["container"]; hasContainer {
+		mcpLog.Printf("Inferred MCP type 'stdio' for tool %s based on container field", toolName)
+		return "stdio", nil
+	}
+	return "", fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container. Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", toolName, toolName)
+}
+
+// appendMCPContainerEnvArgs adds sorted env vars to the Docker run args and config.Env.
+func appendMCPContainerEnvArgs(mcpConfig map[string]any, config *RegistryMCPServerConfig) {
+	env, hasEnv := mcpConfig["env"]
+	if !hasEnv {
+		return
+	}
+	envMap, ok := env.(map[string]any)
+	if !ok {
+		return
+	}
+	var envKeys []string
+	for key := range envMap {
+		envKeys = append(envKeys, key)
+	}
+	sort.Strings(envKeys)
+	for _, key := range envKeys {
+		if valueStr, ok := envMap[key].(string); ok {
+			config.Args = append(config.Args, "-e", key)
+			config.Env[key] = valueStr
+		}
+	}
+}
+
+// appendMCPContainerMountArgs adds sorted volume mounts to the Docker run args and config.Mounts.
+func appendMCPContainerMountArgs(mcpConfig map[string]any, config *RegistryMCPServerConfig) {
+	mounts, hasMounts := mcpConfig["mounts"]
+	if !hasMounts {
+		return
+	}
+	mountsSlice, ok := mounts.([]any)
+	if !ok {
+		return
+	}
+	var mountStrings []string
+	for _, mount := range mountsSlice {
+		if mountStr, ok := mount.(string); ok {
+			mountStrings = append(mountStrings, mountStr)
+			config.Mounts = append(config.Mounts, mountStr)
+		}
+	}
+	sort.Strings(mountStrings)
+	for _, mountStr := range mountStrings {
+		config.Args = append(config.Args, "-v", mountStr)
+	}
+}
+
+// parseMCPStdioContainer populates config from a container-based stdio MCP server definition.
+func parseMCPStdioContainer(mcpConfig map[string]any, toolName string, config *RegistryMCPServerConfig) error {
+	container, hasContainer := mcpConfig["container"]
+	if !hasContainer {
+		return nil
+	}
+	containerStr, ok := container.(string)
+	if !ok {
+		return nil
+	}
+	mcpLog.Printf("Tool %s uses container: %s", toolName, containerStr)
+	config.Container = containerStr
+	config.Command = "docker"
+	config.Args = []string{"run", "--rm", "-i"}
+	appendMCPContainerEnvArgs(mcpConfig, config)
+	appendMCPContainerMountArgs(mcpConfig, config)
+	if entrypoint, hasEntrypoint := mcpConfig["entrypoint"]; hasEntrypoint {
+		if entrypointStr, ok := entrypoint.(string); ok {
+			config.Entrypoint = entrypointStr
+			config.Args = append(config.Args, "--entrypoint", entrypointStr)
+		}
+	}
+	config.Args = append(config.Args, containerStr)
+	if entrypointArgs, hasEntrypointArgs := mcpConfig["entrypointArgs"]; hasEntrypointArgs {
+		if entrypointArgsSlice, ok := entrypointArgs.([]any); ok {
+			for _, arg := range entrypointArgsSlice {
+				if argStr, ok := arg.(string); ok {
+					config.Args = append(config.Args, argStr)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// parseMCPStdioCommand populates config from a command-based stdio MCP server definition.
+func parseMCPStdioCommand(mcpConfig map[string]any, toolName string, config *RegistryMCPServerConfig) error {
+	command, hasCommand := mcpConfig["command"]
+	if !hasCommand {
+		return fmt.Errorf(
+			"stdio MCP tool '%s' must specify either 'command' or 'container' field. Cannot specify both. "+
+				"Example with command:\n"+
+				"mcp-servers:\n"+
+				"  %s:\n"+
+				"    command: \"npx @my/tool\"\n"+
+				"    args: [\"--port\", \"3000\"]\n\n"+
+				"Example with container:\n"+
+				"mcp-servers:\n"+
+				"  %s:\n"+
+				"    container: \"myorg/my-tool:latest\"\n"+
+				"    env:\n"+
+				"      API_KEY: \"${{ secrets.API_KEY }}\"",
+			toolName, toolName, toolName,
+		)
+	}
+	commandStr, ok := command.(string)
+	if !ok {
+		return fmt.Errorf("command field must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", command, toolName)
+	}
+	config.Command = commandStr
+	if args, hasArgs := mcpConfig["args"]; hasArgs {
+		if argsSlice, ok := args.([]any); ok {
+			for _, arg := range argsSlice {
+				if argStr, ok := arg.(string); ok {
+					config.Args = append(config.Args, argStr)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// parseMCPStdioEnvNetwork extracts env vars and network proxy-args from a stdio config.
+func parseMCPStdioEnvNetwork(mcpConfig map[string]any, config *RegistryMCPServerConfig) {
+	if env, hasEnv := mcpConfig["env"]; hasEnv {
+		if envMap, ok := env.(map[string]any); ok {
+			for key, value := range envMap {
+				if valueStr, ok := value.(string); ok {
+					config.Env[key] = valueStr
+				}
+			}
+		}
+	}
+	if network, hasNetwork := mcpConfig["network"]; hasNetwork {
+		if networkMap, ok := network.(map[string]any); ok {
+			if proxyArgs, hasProxyArgs := networkMap["proxy-args"]; hasProxyArgs {
+				if proxyArgsSlice, ok := proxyArgs.([]any); ok {
+					for _, arg := range proxyArgsSlice {
+						if argStr, ok := arg.(string); ok {
+							config.ProxyArgs = append(config.ProxyArgs, argStr)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// parseMCPStdio dispatches container vs command stdio parsing, then extracts env and network.
+func parseMCPStdio(mcpConfig map[string]any, toolName string, config *RegistryMCPServerConfig) error {
+	if _, hasContainer := mcpConfig["container"]; hasContainer {
+		if err := parseMCPStdioContainer(mcpConfig, toolName, config); err != nil {
+			return err
+		}
+	} else {
+		if err := parseMCPStdioCommand(mcpConfig, toolName, config); err != nil {
+			return err
+		}
+	}
+	parseMCPStdioEnvNetwork(mcpConfig, config)
+	return nil
+}
+
+// parseMCPHTTP populates config from an HTTP MCP server definition.
+func parseMCPHTTP(mcpConfig map[string]any, toolName string, config *RegistryMCPServerConfig) error {
+	url, hasURL := mcpConfig["url"]
+	if !hasURL {
+		return fmt.Errorf(
+			"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
+				"Example:\n"+
+				"mcp-servers:\n"+
+				"  %s:\n"+
+				"    type: http\n"+
+				"    url: \"https://api.example.com/mcp\"\n"+
+				"    headers:\n"+
+				"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
+			toolName, toolName,
+		)
+	}
+	urlStr, ok := url.(string)
+	if !ok {
+		return fmt.Errorf(
+			"url field must be a string, got %T. Example:\n"+
+				"mcp-servers:\n"+
+				"  %s:\n"+
+				"    type: http\n"+
+				"    url: \"https://api.example.com/mcp\"\n"+
+				"    headers:\n"+
+				"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
+			url, toolName)
+	}
+	mcpLog.Printf("Tool %s uses HTTP transport with URL: %s", toolName, urlStr)
+	config.URL = urlStr
+	if headers, hasHeaders := mcpConfig["headers"]; hasHeaders {
+		if headersMap, ok := headers.(map[string]any); ok {
+			for key, value := range headersMap {
+				if valueStr, ok := value.(string); ok {
+					config.Headers[key] = valueStr
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // ParseMCPConfig parses MCP configuration from various formats (map or JSON string)
@@ -438,8 +629,6 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 		},
 		Name: toolName,
 	}
-
-	// Parse allowed tools
 	if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
 		if allowedSlice, ok := allowed.([]any); ok {
 			for _, item := range allowedSlice {
@@ -449,51 +638,22 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			}
 		}
 	}
-
 	var mcpConfig map[string]any
-
-	// Handle different MCP section formats
 	switch v := mcpSection.(type) {
 	case map[string]any:
 		mcpConfig = v
 	case string:
-		// Parse JSON string
 		if err := json.Unmarshal([]byte(v), &mcpConfig); err != nil {
 			return config, fmt.Errorf("invalid JSON in mcp configuration: %w", err)
 		}
 	default:
 		return config, fmt.Errorf("mcp configuration must be a map or JSON string, got %T. Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", v, toolName)
 	}
-
-	// Extract type (explicit or inferred)
-	if typeVal, hasType := mcpConfig["type"]; hasType {
-		if typeStr, ok := typeVal.(string); ok {
-			// Normalize "local" to "stdio"
-			if typeStr == "local" {
-				config.Type = "stdio"
-			} else {
-				config.Type = typeStr
-			}
-		} else {
-			return config, fmt.Errorf("type field must be a string, got %T. Valid types are: stdio, http. Example:\nmcp-servers:\n  %s:\n    type: stdio\n    command: \"npx @my/tool\"", typeVal, toolName)
-		}
-	} else {
-		// Infer type from presence of fields
-		if _, hasURL := mcpConfig["url"]; hasURL {
-			config.Type = "http"
-			mcpLog.Printf("Inferred MCP type 'http' for tool %s based on url field", toolName)
-		} else if _, hasCommand := mcpConfig["command"]; hasCommand {
-			config.Type = "stdio"
-			mcpLog.Printf("Inferred MCP type 'stdio' for tool %s based on command field", toolName)
-		} else if _, hasContainer := mcpConfig["container"]; hasContainer {
-			config.Type = "stdio"
-			mcpLog.Printf("Inferred MCP type 'stdio' for tool %s based on container field", toolName)
-		} else {
-			return config, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container. Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", toolName, toolName)
-		}
+	mcpType, err := parseMCPType(mcpConfig, toolName)
+	if err != nil {
+		return config, err
 	}
-
-	// Extract registry field (available for both stdio and http)
+	config.Type = mcpType
 	if registry, hasRegistry := mcpConfig["registry"]; hasRegistry {
 		if registryStr, ok := registry.(string); ok {
 			config.Registry = registryStr
@@ -501,186 +661,18 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			return config, fmt.Errorf("registry field must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    registry: \"https://registry.npmjs.org/@my/tool\"\n    command: \"npx @my/tool\"", registry, toolName)
 		}
 	}
-
-	// Extract configuration based on type
 	mcpLog.Printf("Extracting %s configuration for tool: %s", config.Type, toolName)
 	switch config.Type {
 	case "stdio":
-		// Handle container field (simplified Docker run)
-		if container, hasContainer := mcpConfig["container"]; hasContainer {
-			if containerStr, ok := container.(string); ok {
-				mcpLog.Printf("Tool %s uses container: %s", toolName, containerStr)
-				config.Container = containerStr
-				config.Command = "docker"
-				config.Args = []string{"run", "--rm", "-i"}
-
-				// Add environment variables
-				if env, hasEnv := mcpConfig["env"]; hasEnv {
-					if envMap, ok := env.(map[string]any); ok {
-						// Sort environment variable keys to ensure deterministic arg order
-						var envKeys []string
-						for key := range envMap {
-							envKeys = append(envKeys, key)
-						}
-						sort.Strings(envKeys)
-
-						for _, key := range envKeys {
-							if valueStr, ok := envMap[key].(string); ok {
-								config.Args = append(config.Args, "-e", key)
-								config.Env[key] = valueStr
-							}
-						}
-					}
-				}
-
-				// Add volume mounts if configured (sorted for deterministic output)
-				if mounts, hasMounts := mcpConfig["mounts"]; hasMounts {
-					if mountsSlice, ok := mounts.([]any); ok {
-						// Collect mounts first
-						var mountStrings []string
-						for _, mount := range mountsSlice {
-							if mountStr, ok := mount.(string); ok {
-								mountStrings = append(mountStrings, mountStr)
-								config.Mounts = append(config.Mounts, mountStr)
-							}
-						}
-						// Sort for deterministic output
-						sort.Strings(mountStrings)
-						for _, mountStr := range mountStrings {
-							config.Args = append(config.Args, "-v", mountStr)
-						}
-					}
-				}
-
-				// Add entrypoint override if specified
-				if entrypoint, hasEntrypoint := mcpConfig["entrypoint"]; hasEntrypoint {
-					if entrypointStr, ok := entrypoint.(string); ok {
-						config.Entrypoint = entrypointStr
-						config.Args = append(config.Args, "--entrypoint", entrypointStr)
-					}
-				}
-
-				config.Args = append(config.Args, containerStr)
-
-				// Add entrypoint args after the container image
-				if entrypointArgs, hasEntrypointArgs := mcpConfig["entrypointArgs"]; hasEntrypointArgs {
-					if entrypointArgsSlice, ok := entrypointArgs.([]any); ok {
-						for _, arg := range entrypointArgsSlice {
-							if argStr, ok := arg.(string); ok {
-								config.Args = append(config.Args, argStr)
-							}
-						}
-					}
-				}
-			}
-		} else {
-			// Handle command and args
-			if command, hasCommand := mcpConfig["command"]; hasCommand {
-				if commandStr, ok := command.(string); ok {
-					config.Command = commandStr
-				} else {
-					return config, fmt.Errorf("command field must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", command, toolName)
-				}
-			} else {
-				return config, fmt.Errorf(
-					"stdio MCP tool '%s' must specify either 'command' or 'container' field. Cannot specify both. "+
-						"Example with command:\n"+
-						"mcp-servers:\n"+
-						"  %s:\n"+
-						"    command: \"npx @my/tool\"\n"+
-						"    args: [\"--port\", \"3000\"]\n\n"+
-						"Example with container:\n"+
-						"mcp-servers:\n"+
-						"  %s:\n"+
-						"    container: \"myorg/my-tool:latest\"\n"+
-						"    env:\n"+
-						"      API_KEY: \"${{ secrets.API_KEY }}\"",
-					toolName, toolName, toolName,
-				)
-			}
-
-			if args, hasArgs := mcpConfig["args"]; hasArgs {
-				if argsSlice, ok := args.([]any); ok {
-					for _, arg := range argsSlice {
-						if argStr, ok := arg.(string); ok {
-							config.Args = append(config.Args, argStr)
-						}
-					}
-				}
-			}
+		if err := parseMCPStdio(mcpConfig, toolName, &config); err != nil {
+			return config, err
 		}
-
-		// Extract environment variables for stdio
-		if env, hasEnv := mcpConfig["env"]; hasEnv {
-			if envMap, ok := env.(map[string]any); ok {
-				for key, value := range envMap {
-					if valueStr, ok := value.(string); ok {
-						config.Env[key] = valueStr
-					}
-				}
-			}
-		}
-
-		// Extract network configuration for stdio (container-based tools)
-		if network, hasNetwork := mcpConfig["network"]; hasNetwork {
-			if networkMap, ok := network.(map[string]any); ok {
-				// Extract proxy arguments from network config
-				if proxyArgs, hasProxyArgs := networkMap["proxy-args"]; hasProxyArgs {
-					if proxyArgsSlice, ok := proxyArgs.([]any); ok {
-						for _, arg := range proxyArgsSlice {
-							if argStr, ok := arg.(string); ok {
-								config.ProxyArgs = append(config.ProxyArgs, argStr)
-							}
-						}
-					}
-				}
-			}
-		}
-
 	case "http":
-		if url, hasURL := mcpConfig["url"]; hasURL {
-			if urlStr, ok := url.(string); ok {
-				mcpLog.Printf("Tool %s uses HTTP transport with URL: %s", toolName, urlStr)
-				config.URL = urlStr
-			} else {
-				return config, fmt.Errorf(
-					"url field must be a string, got %T. Example:\n"+
-						"mcp-servers:\n"+
-						"  %s:\n"+
-						"    type: http\n"+
-						"    url: \"https://api.example.com/mcp\"\n"+
-						"    headers:\n"+
-						"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
-					url, toolName)
-			}
-		} else {
-			return config, fmt.Errorf(
-				"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
-					"Example:\n"+
-					"mcp-servers:\n"+
-					"  %s:\n"+
-					"    type: http\n"+
-					"    url: \"https://api.example.com/mcp\"\n"+
-					"    headers:\n"+
-					"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
-				toolName, toolName,
-			)
+		if err := parseMCPHTTP(mcpConfig, toolName, &config); err != nil {
+			return config, err
 		}
-
-		// Extract headers
-		if headers, hasHeaders := mcpConfig["headers"]; hasHeaders {
-			if headersMap, ok := headers.(map[string]any); ok {
-				for key, value := range headersMap {
-					if valueStr, ok := value.(string); ok {
-						config.Headers[key] = valueStr
-					}
-				}
-			}
-		}
-
 	default:
 		return config, fmt.Errorf("unsupported MCP type '%s' for tool '%s'. Valid types are: stdio, http. Example:\nmcp-servers:\n  %s:\n    type: stdio\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", config.Type, toolName, toolName)
 	}
-
 	return config, nil
 }
