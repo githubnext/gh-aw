@@ -288,9 +288,15 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			// The agent writes its step summary content to AgentStepSummaryPath, which is
 			// appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath,
-			// Exclude every env var whose step-env value is a secret so the agent
-			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY"}),
+			// CODEX_API_KEY and OPENAI_API_KEY are NOT excluded here because AWF's
+			// api-proxy service handles credential isolation automatically when
+			// apiProxy.enabled is true: it strips the real key from the agent
+			// container and injects a placeholder (sk-placeholder-for-api-proxy)
+			// so Codex's startup auth check passes. Using --exclude-env for these
+			// vars would prevent the placeholder injection and cause Codex to abort
+			// with "Missing environment variable: OPENAI_API_KEY".
+			// See: https://github.com/github/gh-aw/issues/32446
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{}),
 		})
 	} else {
 		// Build the command without AWF wrapping.
