@@ -28,6 +28,10 @@
       "copilot/gpt-5*",
       "openai/gpt-5*"
     ],
+    "gpt-5.4": [
+      "copilot/gpt-5.4*",
+      "openai/gpt-5.4*"
+    ],
     "gpt-5-mini": [
       "copilot/gpt-5*mini*",
       "openai/gpt-5*mini*"
