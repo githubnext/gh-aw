@@ -263,7 +263,7 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	fmt.Println(string(jsonData))
+	fmt.Fprintln(os.Stdout, string(jsonData))
 	return nil
 }
 

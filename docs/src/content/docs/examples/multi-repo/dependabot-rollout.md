@@ -1,35 +1,34 @@
 ---
-title: CentralRepoOps
-description: Operate and roll out changes across many repositories from a single private control repository.
+title: Dependabot Rollout
+description: Roll out a customized Dependabot configuration across many repositories using an orchestrator and worker workflow pair from a central control repository.
+sidebar:
+  badge: { text: 'Multi-Repo', variant: 'note' }
 ---
 
-CentralRepoOps uses a single private repository as a control plane for large-scale operations across many repositories, using [cross-repository safe outputs](/gh-aw/reference/cross-repository/) and [fine-grained authentication](/gh-aw/reference/auth/) to reach each target.
+This example shows how to roll out a new Dependabot configuration across 100 repositories using the [central control plane pattern](/gh-aw/patterns/multi-repo-ops/#the-central-control-plane-pattern-org-wide-rollouts). An **orchestrator** workflow filters and prioritizes target repositories, then dispatches a **worker** workflow that analyzes each repo and creates an intelligently customized pull request.
 
-Use this pattern for organization-wide rollouts, phased adoption (pilot waves first), central governance, and security-aware prioritization across tens or hundreds of repositories. Each orchestrator run delivers consistent policy gates, controlled fan-out (`max`), and a complete decision trail — without pushing `main` changes to individual target repositories.
+Both workflows live in a single private control repository.
+
+## How It Works
 
 ```mermaid
 flowchart LR
     subgraph central["Central control repo"]
-        schedule([Schedule]) --> orch[Orchestrator\nfilter & prioritize]
+        schedule([Weekly schedule]) --> orch[Orchestrator\nfilter & prioritize]
     end
-    orch --> w1[Repo A]
-    orch --> w2[Repo B]
-    orch --> w3[Repo N]
+    orch -->|dispatch_workflow| w1[Worker: Repo A\ncreate PR]
+    orch -->|dispatch_workflow| w2[Worker: Repo B\ncreate PR]
+    orch -->|dispatch_workflow| w3[Worker: Repo N\ncreate PR]
 ```
 
-## Example: Dependabot Rollout (Orchestrator + Worker)
+1. The orchestrator runs weekly, scans org repos, skips ones that already have Dependabot configured, and dispatches up to 5 workers per run.
+2. Each worker checks out the target repo, analyzes its structure, and creates a customized `dependabot.yml` pull request — or opens an issue if Renovate or other conflicts are detected.
 
-Let's say you want to roll out a new Dependabot configuration across 100 repositories. This example shows you how to do this based on
-a small subset.
+## Setup
 
-This pattern maps directly to your Dependabot rollout pair:
+### 1. Create the Orchestrator
 
-- `dependabot-rollout-orchestrator.md` decides *where* to roll out next.
-- `dependabot-rollout.md` executes *how* to configure each target repository.
-
-### Orchestrator (central control)
-
-Navigate to your central repository and create a workflow file `.github/workflows/dependabot-rollout-orchestrator.md` with the following contents:
+In your central control repository, create `.github/workflows/dependabot-rollout-orchestrator.md`:
 
 ```aw wrap
 ---
@@ -70,11 +69,11 @@ Categorize and orchestrate Dependabot rollout across repositories.
 5. **Summarize** - Report total candidates, categorization breakdown, selected repos with rationale
 ```
 
-Compile this workflow: `gh aw compile`. Create a `GH_AW_READ_ORG_TOKEN` secret — a fine-grained PAT with `Contents: Read-only` scoped to all target repositories — and add it to your Actions secrets. See [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup.
+Compile this workflow: `gh aw compile`. Then create the `GH_AW_READ_ORG_TOKEN` secret — a fine-grained PAT with `Contents: Read-only` scoped to all target repositories. See [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup.
 
-### Worker (cross-repository execution)
+### 2. Create the Worker
 
-Next, create the worker workflow `.github/workflows/dependabot-rollout.md` in your central repository that will operate on each target repository via checkout:
+Create the worker workflow `.github/workflows/dependabot-rollout.md` in the same central repository. It checks out each target repo via `checkout:` and creates a customized PR (or issue) via cross-repo safe outputs:
 
 ````aw wrap
 ---
@@ -241,23 +240,40 @@ updates:
 In the PR/issue body, explain **why** you chose this specific configuration (not a generic template).
 ````
 
-Compile the workflow: `gh aw compile`. Then create two secrets scoped to target repositories (see [Authentication](/gh-aw/reference/auth/) for setup):
+Compile: `gh aw compile`.
 
-- `ORG_REPO_CHECKOUT_TOKEN` — `Contents: Read & write`, `Actions: Read & write` (for checkout)
-- `REPO_SAFE_OUTPUTS_TOKEN` — `Contents: Write`, `Issues: Write`, `Pull Requests: Write` (for safe outputs)
+### 3. Create Secrets
 
-After setup, trigger via `workflow_dispatch` or let the schedule run automatically.
+Create two fine-grained PATs scoped to target repositories (see [Authentication](/gh-aw/reference/auth/) for full setup):
+
+| Secret | Permissions | Purpose |
+|--------|-------------|---------|
+| `ORG_REPO_CHECKOUT_TOKEN` | `Contents: Read & write`, `Actions: Read & write` | Checkout target repos |
+| `GH_AW_CROSS_REPO_PAT` | `Contents: Write`, `Issues: Write`, `Pull Requests: Write` | Create PRs and issues |
+| `GH_AW_READ_ORG_TOKEN` | `Contents: Read-only` | Read org repos in orchestrator and worker |
+
+## Running the Rollout
+
+After setup, the orchestrator runs automatically every Monday, processing up to 5 repositories per run. To trigger manually:
+
+```bash
+gh workflow run dependabot-rollout-orchestrator.lock.yml
+```
+
+Track progress by reviewing the Actions runs and the PRs created in each target repository.
 
 ## Best Practices
 
-- Keep orchestrator permissions narrow; delegate repo-specific writes to workers.
-- Use safe output limits (`max`) and explicit target workflow allowlists.
-- Add correlation IDs to worker dispatch inputs for tracking.
+- Keep `max: 5` on the orchestrator during initial rollout; increase once you've validated the worker output
+- Add `[dependabot]` title-prefix to make PRs easy to filter across repositories
+- Use `concurrency` groups to prevent duplicate worker runs for the same target repo
+- Review a few worker PRs manually before trusting the full automation
 
 ## Related Documentation
 
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Cross-repository automation
-- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) — Isolated control-plane setup
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and target-repo configuration
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Central control plane pattern and other topologies
+- [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) — Upstream-to-downstream sync example
+- [Cross-Repository Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/) — Hub-and-spoke tracking example
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and `target-repo` configuration
 - [Authentication](/gh-aw/reference/auth/) — PAT and GitHub App setup
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations

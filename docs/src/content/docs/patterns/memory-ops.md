@@ -1,22 +1,17 @@
 ---
 title: MemoryOps
-description: Techniques for using cache-memory and repo-memory to build stateful workflows that track progress, share data, and compute trends
+description: Design patterns for using memory to build stateful workflows that track progress, share data, and compute trends
 sidebar:
   badge: { text: 'Patterns', variant: 'note' }
 ---
 
-MemoryOps enables workflows to persist state across runs using `cache-memory` and `repo-memory`. Build workflows that remember their progress, resume after interruptions, share data between workflows, and avoid API throttling.
-
-Use MemoryOps for incremental processing, trend analysis, multi-step tasks, and workflow coordination.
-
-> [!TIP]
-> State your high-level goal in the workflow prompt and let the agentic engine handle the details.
+MemoryOps is a set of design patterns using [Cache Memory](/gh-aw/reference/cache-memory/) and [Repo Memory](/gh-aw/reference/repo-memory/) to persist state across workflow runs. Use memory to build workflows that record their progress, resume after interruptions, share data between workflows, incremental processing, trend analysis, multi-step tasks, and workflow coordination.
 
 ## Memory Types
 
-### Cache Memory
+Two types of memory stores are available. Each has different use cases and access patterns.
 
-Fast, ephemeral storage using GitHub Actions cache (7 days retention):
+[Cache Memory](/gh-aw/reference/cache-memory/) gives fast, ephemeral storage using GitHub Actions cache (7 days retention):
 
 ```yaml
 tools:
@@ -24,12 +19,9 @@ tools:
     key: my-workflow-state
 ```
 
-**Use for**: Temporary state, session data, short-term caching  
-**Location**: `/tmp/gh-aw/cache-memory/`
+Use for temporary state, session data, short-term caching. The memory is available at `/tmp/gh-aw/cache-memory/`.
 
-### Repository Memory
-
-Persistent, version-controlled storage in a dedicated Git branch:
+[Repo Memory](/gh-aw/reference/repo-memory/) gives persistent, version-controlled storage in a dedicated Git branch:
 
 ```yaml
 tools:
@@ -38,8 +30,7 @@ tools:
     file-glob: ["*.json", "*.jsonl"]
 ```
 
-**Use for**: Historical data, trend tracking, permanent state  
-**Location**: `/tmp/gh-aw/repo-memory/default/`
+Use for historical data, trend tracking, permanent state. By default the memory is available at `/tmp/gh-aw/repo-memory/default/`.
 
 ## Pattern 1: Exhaustive Processing
 
@@ -89,7 +80,7 @@ Real examples: `.github/workflows/daily-news.md`, `.github/workflows/cli-consist
 
 ## Pattern 3: Shared Information
 
-Share data between workflows using repo-memory branches. A producer workflow stores data; consumers read it using the same branch name.
+Share data between workflows using [repo-memory](/gh-aw/reference/repo-memory/) branches. A producer workflow stores data; consumers read it using the same branch name.
 
 *Producer workflow:*
 ```markdown
@@ -199,19 +190,6 @@ tail -n 90 history.jsonl > history-trimmed.jsonl
 mv history-trimmed.jsonl history.jsonl
 ```
 
-### Validate State
-
-Check integrity before processing:
-
-```bash
-if [ -f state.json ] && jq empty state.json 2>/dev/null; then
-  echo "Valid state"
-else
-  echo "Corrupt state, reinitializing..."
-  echo '{}' > state.json
-fi
-```
-
 ## Security Considerations
 
 Memory stores are visible to anyone with repository access. Never store credentials, API tokens, PII, or secrets — only aggregate statistics and anonymized data.
@@ -236,6 +214,8 @@ echo '{"user": "alice", "email": "alice@example.com"}' > users.json
 
 ## Related Documentation
 
+- [Cache Memory](/gh-aw/reference/cache-memory/) — Full cache-memory reference
+- [Repository Memory](/gh-aw/reference/repo-memory/) — Full repo-memory reference
 - [MCP Servers](/gh-aw/guides/mcps/) - Memory MCP server configuration
 - [DeterministicOps](/gh-aw/patterns/deterministic-ops/) - Data preprocessing and extraction
 - [Safe Outputs](/gh-aw/reference/custom-safe-outputs/) - Storing workflow outputs

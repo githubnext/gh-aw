@@ -47,11 +47,11 @@ Not by default, but yes with proper configuration. Cross-repository access requi
 1. A **Personal Access Token (PAT)** with access to target repositories
 2. Configuring the token in your workflow
 
-See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating across repositories, or [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for running workflows from a separate repository.
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating across repositories, including running workflows from a separate side repository.
 
 ### Can I use agentic workflows in private repositories?
 
-Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for patterns using private repositories.
+Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation) for patterns using private repositories.
 
 ### Can I edit workflows directly on GitHub.com without recompiling?
 
@@ -222,7 +222,7 @@ safe-outputs:
   create-issue:
 ```
 
-With an empty list, every `#N` and `owner/repo#N` reference in the output is wrapped in backticks, which prevents GitHub from resolving them as cross-references and avoids cluttering other repositories' timelines. This is especially useful for [SideRepoOps](/gh-aw/patterns/side-repo-ops/) workflows that write content about issues in a main repository from a separate sidecar repository.
+With an empty list, every `#N` and `owner/repo#N` reference in the output is wrapped in backticks, which prevents GitHub from resolving them as cross-references and avoids cluttering other repositories' timelines. This is especially useful for workflows that write content about issues in a main repository from a separate sidecar repository.
 
 To allow references only from the current repository while still escaping all others:
 

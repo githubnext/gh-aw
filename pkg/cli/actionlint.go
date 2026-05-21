@@ -307,7 +307,7 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 	err = cmd.Run()
 
 	// Check for timeout
-	if runCtx.Err() == context.DeadlineExceeded {
+	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
 		fileList := "files"
 		if len(lockFiles) == 1 {
 			fileList = filepath.Base(lockFiles[0])
@@ -317,7 +317,7 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 		}
 		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue", int(timeoutDuration.Minutes()), fileList)
 	}
-	if runCtx.Err() == context.Canceled {
+	if errors.Is(runCtx.Err(), context.Canceled) {
 		return errors.New("actionlint was canceled before completion (for example by Ctrl+C or caller cancellation)")
 	}
 

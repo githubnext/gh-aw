@@ -392,7 +392,7 @@ Here are our tips!
 
 ---
 
-## Pattern 8: SideRepoOps - Isolated Automation Infrastructure 🏗️
+## Pattern 8: Side Repository - Isolated Automation Infrastructure 🏗️
 
 Run workflows from a separate "side" repository that targets your main codebase, keeping AI-generated issues, comments, and workflow runs isolated from production code. Provides an easy way to get started with agentic workflows without cluttering your main repository.
 
@@ -427,13 +427,13 @@ Here are our tips!
 - Set up appropriate notifications
 - Plan for eventual migration if successful
 
-**Learn more**: [SideRepoOps](/gh-aw/patterns/side-repo-ops/)
+**Learn more**: [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation)
 
 ---
 
 ## Pattern 9: TrialOps - Safe Workflow Validation 🧪
 
-A specialized testing pattern that extends SideRepoOps for validating workflows in temporary trial repositories before production deployment. Creates isolated private repositories where workflows execute and capture safe outputs without affecting actual codebases.
+A specialized testing pattern that extends the side repository approach for validating workflows in temporary trial repositories before production deployment. Creates isolated private repositories where workflows execute and capture safe outputs without affecting actual codebases.
 
 Use these when:
 
@@ -463,7 +463,7 @@ Many successful agent systems combine multiple operational patterns:
 - **ChatOps + IssueOps**: User triggers analysis via `/analyze`, which creates issue with results
 - **WorkQueueOps + MultiRepoOps**: Daily dependency updates across organization
 - **ResearchPlanAssignOps + ProjectOps**: Research creates project board populated with planned work
-- **SideRepoOps + TrialOps**: Test in trial repo, then deploy to side repo, then main repo
+- **MultiRepoOps (side repo) + TrialOps**: Test in trial repo, then deploy to side repo, then main repo
 
 ## Choosing the Right Operational Pattern
 
@@ -471,7 +471,7 @@ When designing agent operations, consider:
 
 1. **Trigger mechanism**: Manual (ChatOps), scheduled (DispatchOps), or event-driven (IssueOps, LabelOps)?
 2. **Scope**: Single repo or multi-repo (MultiRepoOps)?
-3. **Isolation needs**: Production or separate (SideRepoOps, TrialOps)?
+3. **Isolation needs**: Production or separate (MultiRepoOps side repo, TrialOps)?
 4. **Coordination**: Simple or complex (ProjectOps, ResearchPlanAssignOps)?
 5. **State management**: Stateless or stateful (LabelOps, ProjectOps)?
 

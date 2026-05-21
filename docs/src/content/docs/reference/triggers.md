@@ -22,12 +22,14 @@ GitHub Agentic Workflows supports all standard GitHub Actions triggers plus addi
 Run workflows manually from the GitHub UI, API, or via `gh aw run`/`gh aw trial`. [Full syntax reference](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).
 
 **Basic trigger:**
+
 ```yaml wrap
 on:
   workflow_dispatch:
 ```
 
 **With input parameters:**
+
 ```yaml wrap
 on:
   workflow_dispatch:
@@ -81,6 +83,7 @@ Provide a comprehensive summary with key findings and recommendations.
 ```
 
 **Supported input types:**
+
 - `string` - Free-form text input
 - `boolean` - True/false checkbox
 - `choice` - Dropdown selection with predefined options
@@ -92,7 +95,7 @@ The `environment` input type automatically populates a dropdown with environment
 
 Run workflows on a recurring schedule using human-friendly expressions or [cron syntax](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
 
-**Fuzzy Scheduling (Recommended):**
+**Fuzzy Scheduling:**
 
 Use fuzzy schedules to automatically scatter execution times and avoid load spikes:
 
@@ -170,13 +173,9 @@ on:
 
 When enabled, the issue is locked at workflow start and unlocked after completion (or before safe-output processing). The unlock step uses `always()` to ensure cleanup even on failure. Useful for workflows that make multiple sequential updates to an issue or need to prevent race conditions.
 
-**Requirements:**
-- Requires `issues: write` permission (automatically added to activation and conclusion jobs)
-- Pull requests are silently skipped (they cannot be locked via the issues API)
-- Already-locked issues are skipped without error
+Example workflow:
 
-**Example workflow:**
-```aw wrap
+```aw wrap title=".github/workflows/locked-issue-processor.md"
 ---
 on:
   issues:
@@ -203,7 +202,7 @@ Context: "${{ steps.sanitized.outputs.text }}"
 
 Trigger on pull request events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
 
-**Code availability:** When triggered by a pull request event, the coding agent has access to both the PR branch and the default branch.
+When triggered by a pull request event, the coding agent has access to both the PR branch and the default branch.
 
 ```yaml wrap
 on:
@@ -224,7 +223,8 @@ on:
     forks: ["trusted-org/*"]  # Allow forks from trusted-org
 ```
 
-**Available patterns:**
+Fork specifications:
+
 - `["*"]` - Allow all forks (use with caution)
 - `["owner/*"]` - Allow forks from specific organization or user
 - `["owner/repo"]` - Allow specific repository
@@ -234,7 +234,9 @@ The compiler uses repository ID comparison for reliable fork detection that is n
 
 ### Comment Triggers
 
-**Note:** `issue_comment` events also fire for comments on pull requests (GitHub models PR comments as issue comments). When a comment is on a pull request, the coding agent has access to both the PR branch and the default branch.
+The triggers `issue_comment:`, `pull_request_review_comment:`, and `discussion_comment:` activate workflows when comments are created or edited.
+
+Note that `issue_comment` events also fire for comments on pull requests (GitHub models PR comments as issue comments). When a comment is on a pull request, the coding agent has access to both the PR branch and the default branch.
 
 ```yaml wrap
 on:
@@ -329,8 +331,6 @@ Valid `state` values: `error`, `failure`, `pending`, `success`, `inactive`, `in_
 > [!NOTE]
 > The `state` field compiles into a GitHub Actions `if:` condition: `github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'failure')`. This means the workflow still runs when triggered by other events in the same `on:` block.
 
-#### Required Permissions
-
 Workflows triggered by `deployment_status` need `deployments: read` to access the event payload:
 
 ```yaml wrap
@@ -338,59 +338,6 @@ permissions:
   contents: read
   deployments: read
 ```
-
-#### Natural Language Shorthands
-
-```yaml wrap
-on: "deployment failed"             # deployment_status with state == 'failure'
-on: "deployment error"              # deployment_status with state == 'error'
-on: "deployment failed or error"    # deployment_status with state == 'failure' or 'error'
-```
-
-These shorthands also include `workflow_dispatch` automatically.
-
-#### Deployment Incident Monitor Example
-
-```aw wrap
----
-on:
-  deployment_status:
-    state: [error, failure]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  actions: read
-  deployments: read
-
-tools:
-  github:
-    toolsets: [repos, actions]
-
-safe-outputs:
-  create-issue:
-    expires: 7d
-    title-prefix: "[Incident] "
-    labels: [incident, deployment-failure]
-    close-older-issues: true
-    skip-if-match: 'is:issue is:open label:incident label:deployment-failure'
-  noop:
----
-
-# Deployment Incident Monitor
-
-A deployment to ${{ github.event.deployment.environment }} has failed with state: ${{ github.event.deployment_status.state }}.
-
-Investigate the root cause:
-1. Check the deployment workflow logs for the failing step
-2. Review recent commits to the deployed branch for potential causes
-3. Check if this environment has had recent failures (look for existing incident issues)
-
-If a new incident is found, create an issue summarizing the failure, the likely root cause, and the recommended next step.
-If an incident issue for this deployment already exists, call noop.
-```
-
-See the [Natural Language Shorthands](#other-shorthands) section for additional shorthand formats.
 
 ### Repository Dispatch Trigger (`repository_dispatch:`)
 
@@ -432,20 +379,6 @@ on:
 ```markdown
 Issue ${{ github.event.client_payload.issue_key }}: ${{ github.event.client_payload.summary }}
 ```
-
-#### Natural Language Shorthand
-
-```yaml wrap
-on: api dispatch jira-issue-created   # repository_dispatch with custom event type
-```
-
-See [Other Shorthands](#other-shorthands) for the full list of dispatch shorthands.
-
-#### Triggering from Jira
-
-In **Project → Automation**, create a rule with trigger **Issue created** and action **Send web request** pointing at the dispatch endpoint above. Pass Jira smart values as `client_payload` fields (e.g., `{{issue.key}}`).
-
-See the FAQ entry [Can I trigger an agentic workflow from an external system like Jira?](/gh-aw/reference/faq/#can-i-trigger-an-agentic-workflow-from-an-external-system-like-jira) for a complete walkthrough.
 
 ### Command Triggers (`slash_command:`)
 
@@ -494,7 +427,11 @@ The `remove_label` field (boolean, default `true`) controls whether the label is
 
 `label_command` can be combined with `slash_command:` — the workflow activates when either condition is met. See [LabelOps](/gh-aw/patterns/label-ops/) for patterns and examples.
 
-### Label Filtering (`names:`)
+## Trigger Filtering
+
+Triggers can be filtered by label names, and more. These filters compile into guarded `if:` conditions that ensure the workflow only runs when the specified criteria are met, while allowing other events to pass through unaffected.
+
+### Filtering with Labels (`names:`)
 
 Filter issue and pull request triggers by label names using the `names:` field. Unlike `label_command`, the label stays on the item after the workflow runs.
 
@@ -514,6 +451,217 @@ on: pull_request labeled needs-review, ready-to-merge
 ```
 
 All shorthand formats compile to standard GitHub Actions syntax and automatically include the `workflow_dispatch` trigger. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps workflows](/gh-aw/patterns/label-ops/) for automation examples.
+
+### Filtering with Simple Conditions (`:if`)
+
+For conditions that can be expressed directly with GitHub Actions context, use `if:` without a custom job:
+
+```yaml wrap
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+if: github.event.pull_request.draft == false
+---
+```
+
+### Filtering with Search Queries (`skip-if-match:`, `skip-if-no-match:`)
+
+For conditions based on GitHub search results, use [`skip-if-match:`](#skip-if-match-condition-skip-if-match) or [`skip-if-no-match:`](#skip-if-no-match-condition-skip-if-no-match) in the `on:` section — these accept standard [GitHub search query syntax](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) and are evaluated in the pre-activation job, producing the same skipped-not-failed behavior:
+
+```yaml wrap
+---
+on:
+  issues:
+    types: [opened]
+  # Skip if a duplicate issue already exists (GitHub search query syntax)
+  skip-if-match: 'is:issue is:open label:duplicate'
+---
+```
+
+### Filtering by Repository Access Roles (`on.roles:`, `on.skip-roles`)
+
+Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]`.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  roles: [admin, maintainer, write]  # Default
+```
+
+```yaml wrap
+on:
+  workflow_dispatch:
+  roles: all                         # Allow any user (⚠️ use with caution)
+```
+
+You can also skip workflow execution for users with specific repository permission levels. Useful for exempting team members from automated checks that should only apply to external contributors.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-roles: [admin, maintainer, write]
+```
+
+Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
+
+### Filtering by Bot (`on.bots:`, `on.skip-bots:`)
+
+You can configure which GitHub bot accounts can trigger workflows. Useful for allowing specific automation bots while maintaining security controls.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  bots:
+    - "dependabot[bot]"
+    - "renovate[bot]"
+    - "agentic-workflows-dev[bot]"
+```
+
+Likewise you can skip workflow execution when triggered by specific GitHub actors (users or bots). 
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-bots: [github-actions, copilot, dependabot]
+```
+
+**Common bot names**:
+
+- `dependabot[bot]` - GitHub Dependabot for dependency updates
+- `renovate[bot]` - Renovate bot for automated dependency management
+- `github-actions[bot]` - GitHub Actions bot
+- `agentic-workflows-dev[bot]` - Development bot for testing workflows
+
+**Bot name matching**: Automatic flexible matching handles bot names with or without the `[bot]` suffix. For example, specifying `github-actions` matches both `github-actions` and `github-actions[bot]` actors automatically.
+
+### Filtering by Author Associations (`on.skip-author-associations`)
+
+You can skip workflow execution when a specific event is triggered by an author with a matching event payload `author_association` field (for example `github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`).
+
+```yaml wrap
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  skip-author-associations:
+    issue_comment: contributor
+    pull_request_review_comment: [first_time_contributor, none]
+```
+
+### Filtering by Custom Steps (`on.steps:`)
+
+You may inject deterministic steps directly into the pre-activation job using `on.steps:`. This saves **one workflow job** compared to the multi-job pattern and is the recommended approach for lightweight filtering:
+
+```yaml wrap title=".github/workflows/smart-responder.md"
+---
+on:
+  issues:
+    types: [opened]
+  steps:
+    - id: check
+      env:
+        LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+      run: echo "$LABELS" | grep -q '"bug"'
+      # exits 0 (outcome: success) if the label is found, 1 (outcome: failure) if not
+
+safe-outputs:
+  add-comment:
+
+if: needs.pre_activation.outputs.check_result == 'success'
+---
+
+# Bug Issue Responder
+
+Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
+```
+
+Each step with an `id` gets an auto-wired output `<id>_result` set to `${{ steps.<id>.outcome }}` — `success` when the step's exit code is 0, `failure` when non-zero. Gate the workflow by checking `needs.pre_activation.outputs.<id>_result == 'success'`.
+
+To pass an explicit value rather than relying on exit codes, set a step output and re-expose it via `jobs.pre-activation.outputs`:
+
+```yaml wrap
+jobs:
+  pre-activation:
+    outputs:
+      has_bug_label: ${{ steps.check.outputs.has_bug_label }}
+
+if: needs.pre_activation.outputs.has_bug_label == 'true'
+```
+
+When `on.steps:` need GitHub API access, use `on.permissions:` to grant the required scopes to the pre-activation job:
+
+```yaml wrap
+on:
+  schedule: every 30m
+  permissions:
+    issues: read
+  steps:
+    - id: search
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const open = await github.rest.issues.listForRepo({ ...context.repo, state: 'open' });
+          core.setOutput('has_work', open.data.length > 0 ? 'true' : 'false');
+
+jobs:
+  pre-activation:
+    outputs:
+      has_work: ${{ steps.search.outputs.has_work }}
+
+if: needs.pre_activation.outputs.has_work == 'true'
+```
+
+See [Pre-Activation Steps](#pre-activation-steps-onsteps) and [Pre-Activation Permissions](#pre-activation-permissions-onpermissions) for full documentation.
+
+### Filtering by Custom Jobs (`jobs:`)
+
+For complex custom trigger filtering you can use a separate `jobs:` entry when filtering requires heavy tooling (checkout, compiled tools, multiple runners):
+
+```yaml wrap title=".github/workflows/smart-responder.md"
+---
+on:
+  issues:
+    types: [opened]
+
+safe-outputs:
+  add-comment:
+
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.check.outputs.result }}
+    steps:
+      - id: check
+        env:
+          LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | grep -q '"bug"'; then
+            echo "result=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=false" >> "$GITHUB_OUTPUT"
+          fi
+
+if: needs.filter.outputs.should-run == 'true'
+---
+
+# Bug Issue Responder
+
+Triage bug report: "${{ github.event.issue.title }}" and add-comment with a summary of the next steps.
+```
+
+The compiler automatically adds the filter job as a dependency of the activation job, so when the condition is false the workflow run is **skipped** (not failed), keeping the Actions tab clean.
+
+## Additional Trigger Options
+
+Trigger support additional options for reactions, status comments, authentication tokens, and more. These options are configured in the same `on:` block as the trigger and apply to all triggers defined within that block.
 
 ### Reactions (`reaction:`)
 
@@ -555,8 +703,6 @@ on:
 
 For all other trigger types, `status-comment` must be explicitly set to `true` to enable it. To suppress status comments, omit `status-comment:` or set it to `false`.
 
-#### Selective target control (object form)
-
 Use an object to enable status comments while selectively disabling specific targets. The object form implies status comments are enabled; each field defaults to `true`:
 
 ```yaml wrap
@@ -578,9 +724,6 @@ on:
 | `issues` | boolean | `true` | Enable status comments for `issues` and `issue_comment` events |
 | `pull-requests` | boolean | `true` | Enable status comments for `pull_request` and `pull_request_review_comment` events |
 | `discussions` | boolean | `true` | Enable status comments for `discussion` and `discussion_comment` events |
-
-> [!NOTE]
-> Setting all three fields to `false` is a compilation error. If no targets are enabled, use `status-comment: false` instead.
 
 ### Activation Token (`on.github-token:`, `on.github-app:`)
 
@@ -676,8 +819,6 @@ on: weekly on monday
 ```
 
 A pre-activation check runs the search query against the current repository. If matches reach or exceed the threshold (default `max: 1`), the workflow is skipped. The query is automatically scoped to the current repository and supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
-
-#### Cross-Repo and Org-Wide Queries
 
 By default the query is scoped to the current repository. Use `scope: none` to disable this and search across an entire org. For cross-repo or org-wide searches that require elevated permissions, configure `github-token` or `github-app` at the top-level `on:` section — the same token is shared across all skip-if checks and the activation job:
 
@@ -841,144 +982,11 @@ Supported permission scopes: `actions`, `checks`, `contents`, `deployments`, `di
 
 `on.permissions` is merged on top of any permissions already required by the pre-activation job (e.g., `contents: read` for dev-mode checkout, `actions: read` for rate limiting).
 
-### Repository Access Roles (`on.roles:`)
-
-Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]`.
-
-```yaml wrap
-on:
-  issues:
-    types: [opened]
-  roles: [admin, maintainer, write]  # Default
-```
-
-```yaml wrap
-on:
-  workflow_dispatch:
-  roles: all                         # Allow any user (⚠️ use with caution)
-```
-
-You can also use a single role string, for example `roles: write`.
-
-Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
-
-> [!TIP]
-> Run `gh aw fix workflow.md --write` to automatically migrate top-level `roles:` to `on.roles:` using the built-in codemod.
-
-### Bot Filtering (`on.bots:`)
-
-Configure which GitHub bot accounts can trigger workflows. Useful for allowing specific automation bots while maintaining security controls.
-
-```yaml wrap
-on:
-  issues:
-    types: [opened]
-  bots:
-    - "dependabot[bot]"
-    - "renovate[bot]"
-    - "agentic-workflows-dev[bot]"
-```
-
-**Behavior**:
-
-- When specified, only the listed bot accounts can trigger the workflow
-- The bot must be active (installed) on the repository to trigger the workflow
-- Combine with `on.roles:` for comprehensive access control
-- Applies to all workflow triggers (`pull_request`, `issues`, etc.)
-- When `on.roles: all` is set, bot filtering is not enforced
-
-**Common bot names**:
-
-- `dependabot[bot]` - GitHub Dependabot for dependency updates
-- `renovate[bot]` - Renovate bot for automated dependency management
-- `github-actions[bot]` - GitHub Actions bot
-- `agentic-workflows-dev[bot]` - Development bot for testing workflows
-
-### Skip Roles (`on.skip-roles`)
-
-Skip workflow execution for users with specific repository permission levels. Useful for exempting team members from automated checks that should only apply to external contributors.
-
-```yaml wrap
-on:
-  issues:
-    types: [opened]
-  skip-roles: [admin, maintainer, write]
-```
-
-**Available roles**: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`
-
-**Behavior**:
-
-- Workflow is cancelled during pre-activation when triggered by users with listed roles
-- Check runs before agent execution to avoid unnecessary compute costs
-- Merged as union when importing workflows (all skip-roles from imported workflows are combined)
-- Useful for AI moderation workflows that should only check external user content
-
-**Example use case**: An AI content moderation workflow that checks issues for policy violations but exempts trusted team members with write access or higher.
-
-### Skip Bots (`on.skip-bots`)
-
-Skip workflow execution when triggered by specific GitHub actors (users or bots). Complements `skip-roles` by filtering based on actor identity rather than permission level.
-
-```yaml wrap
-on:
-  issues:
-    types: [opened]
-  skip-bots: [github-actions, copilot, dependabot]
-```
-
-**Bot name matching**: Automatic flexible matching handles bot names with or without the `[bot]` suffix. For example, specifying `github-actions` matches both `github-actions` and `github-actions[bot]` actors automatically.
-
-**Behavior**:
-
-- Workflow is cancelled during pre-activation when `github.actor` matches any listed actor
-- Check runs before agent execution to avoid unnecessary compute costs
-- Merged as union when importing workflows (all skip-bots from imported workflows are combined)
-- Accepts both user accounts and bot accounts
-
-**String or array format**:
-
-```yaml wrap
-# Single bot
-skip-bots: github-actions
-
-# Multiple bots
-skip-bots: [github-actions, copilot, renovate]
-```
-
-**Example use cases**:
-
-- Skip AI workflows when triggered by automation bots to avoid bot-to-bot interactions
-- Prevent workflow loops where one workflow's output triggers another
-- Exempt specific known bots from content checks or policy enforcement
-
-### Skip Author Associations (`on.skip-author-associations`)
-
-Skip workflow execution at the pre-activation job level when a specific event is triggered by an author with a matching event payload `author_association` field (for example `github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`).
-
-```yaml wrap
-on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-  skip-author-associations:
-    issue_comment: contributor
-    pull_request_review_comment: [first_time_contributor, none]
-```
-
-**Behavior**:
-
-- Compiles to a job-level `if` expression (no pre-activation script step cost for matched skips)
-- Uses the event-specific payload field (`github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`)
-- Values are case-insensitive in frontmatter (`contributor` and `CONTRIBUTOR` are treated the same)
-- Supports a single string or an array of strings per event key
-
 ## Trigger Shorthands
 
 Instead of writing full YAML trigger configurations, you can use natural-language shorthand strings with `on:`. The compiler expands these into standard GitHub Actions trigger syntax and automatically includes `workflow_dispatch` so the workflow can also be run manually.
 
-For label-based shorthands (`on: issue labeled bug`, `on: pull_request labeled needs-review`), see [Label Filtering](#label-filtering-names) above. For the label-command pattern, see [Label Command Trigger](#label-command-trigger-label_command) above.
+For label-based shorthands (`on: issue labeled bug`, `on: pull_request labeled needs-review`), see [Label Filtering](#filtering-with-labels-names) above. For the label-command pattern, see [Label Command Trigger](#label-command-trigger-label_command) above.
 
 ### Push and Pull Request
 
@@ -992,24 +1000,6 @@ on: pull_request opened affecting docs/**  # Activity type + path filter
 ```
 
 `pull` is an alias for `pull_request`. Valid activity types: `opened`, `edited`, `closed`, `reopened`, `synchronize`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `review_requested`, `merged`.
-
-#### Glob Pattern Validation
-
-The compiler validates glob patterns in `branches`, `branches-ignore`, `tags`, `tags-ignore`, and `paths`/`paths-ignore` filter fields at compile time for `push`, `pull_request`, `pull_request_target`, and `workflow_run` triggers. Invalid patterns produce a compilation error:
-
-```yaml wrap
-on:
-  push:
-    paths:
-      - ./src/**/*.go   # error: invalid glob pattern "./src/**/*.go" in on.push.paths
-    branches:
-      - main branch     # error: invalid glob pattern "main branch" in on.push.branches
-```
-
-Common invalid patterns:
-- **`./`-prefixed paths** — use `src/**` not `./src/**`
-- **Spaces in ref patterns** — branch/tag names cannot contain spaces
-- **Unclosed brackets** — e.g. `feat[` without a closing `]`
 
 ### Issues and Discussions
 
@@ -1045,5 +1035,6 @@ on: "deployment failed or error"    # deployment_status with state == 'failure' 
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
+- [DeterministicOps](/gh-aw/patterns/deterministic-ops/) - Combining deterministic steps with AI reasoning
 - [LabelOps](/gh-aw/patterns/label-ops/) - Label-based automation workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization

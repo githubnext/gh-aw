@@ -202,7 +202,7 @@ func validateMCPServerConfiguration(cmdPath string) error {
 
 	if err != nil {
 		// Check for common error cases
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			mcpValidationLog.Print("Status command timed out")
 			return errors.New("status command timed out - this may indicate a configuration issue")
 		}

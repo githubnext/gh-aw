@@ -28,6 +28,8 @@ tools:
 Read the issue #${{ github.event.issue.number }}. Add a comment to the issue listing useful resources and links.
 ```
 
+A workflow file may optionally include one or more inline sub-agent definitions after the main markdown body. See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for details.
+
 ## File Organization
 
 Agentic workflows are stored in the `.github/workflows` folder as Markdown files (`*.md`)
@@ -71,19 +73,6 @@ The `gh-aw-metadata` line is always first, enabling reliable machine parsing. Th
 The **markdown body** is loaded at runtime and can be edited directly on GitHub.com without recompilation. Only **frontmatter changes** require recompilation.
 
 See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance on when and how to recompile workflows.
-
-## Copilot Inline Sub-Agent Blocks
-
-A workflow file may optionally include one or more inline sub-agent definitions after the main markdown body. Each block begins with a `## agent: \`name\`` heading and is extracted at runtime to `.agents/agents/<name>.agent.md`. See [Copilot Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for details.
-
-```markdown
-## agent: `file-summarizer`
----
-model: claude-haiku-4.5
-description: Summarizes a file in a few sentences
----
-You are a file summarization assistant. Return a brief summary of the given file.
-```
 
 ## Best Practices
 

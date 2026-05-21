@@ -13,6 +13,16 @@ Use feature sync when maintaining related projects in separate repositories (mon
 
 ## How It Works
 
+```mermaid
+flowchart LR
+    subgraph upstream["Upstream repo"]
+        push([Push to main]) --> agent[Sync agent]
+    end
+    agent -->|create-pull-request| ds1[downstream-service]
+    agent -->|create-pull-request| ds2[api-service]
+    agent -->|create-pull-request| ds3[mobile-backend]
+```
+
 The workflow monitors specific paths in the main repository and creates pull requests in target repositories when changes occur, adapting the changes for each target's structure while maintaining full audit trails.
 
 ## Basic Feature Sync

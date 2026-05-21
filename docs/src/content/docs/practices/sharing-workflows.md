@@ -132,5 +132,5 @@ Those decisions affect reliability more than the file format does.
 - [Imports Reference](/gh-aw/reference/imports/)
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/)
 - [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private)
-- [SideRepoOps](/gh-aw/patterns/side-repo-ops/)
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
