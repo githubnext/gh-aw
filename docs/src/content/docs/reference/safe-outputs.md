@@ -266,7 +266,7 @@ safe-outputs:
 
 **State Reasons**: `completed`, `not_planned`, `duplicate` (default: `completed`). Can also be set per-item in agent output.
 
-**`allow-body: false`**: When set, any `body` field the agent provides is silently dropped (with a warning logged) and the issue is closed without posting a comment. Use this when you want to guarantee a clean close with no duplicate comment — for example, when a prior `add-comment` step already posted the summary.
+**`allow-body: false`**: When set, any `body` field the agent provides is dropped (a warning is logged) and the issue is closed without posting a comment. Use this when you want to guarantee a clean close with no duplicate comment — for example, when a prior `add-comment` step already posted the summary.
 
 ### Comment Creation (`add-comment:`)
 
@@ -1097,7 +1097,7 @@ safe-outputs:
 
 **Resolution Reasons**: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`.
 
-**`allow-body: false`**: When set, any `body` field the agent provides is silently dropped (with a warning logged) and the discussion is closed without posting a comment. Use this when you want to guarantee a clean close with no duplicate comment — for example, when a prior `add-comment` step already posted the summary.
+**`allow-body: false`**: When set, any `body` field the agent provides is dropped (a warning is logged) and the discussion is closed without posting a comment. Use this when you want to guarantee a clean close with no duplicate comment — for example, when a prior `add-comment` step already posted the summary.
 
 ### Discussion Updates (`update-discussion:`)
 
