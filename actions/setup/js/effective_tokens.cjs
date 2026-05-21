@@ -10,7 +10,8 @@ const fs = require("fs");
  * docs/src/content/docs/reference/effective-tokens-specification.md.
  *
  * Formula:
- *   base_weighted_tokens = (w_in × I) + (w_cache × C) + (w_out × O) + (w_reason × R) + (w_cache_write × W)
+ *   effective_input_tokens = max(I - C, 0)
+ *   base_weighted_tokens = (w_in × effective_input_tokens) + (w_cache × C) + (w_out × O) + (w_reason × R) + (w_cache_write × W)
  *   effective_tokens     = m × base_weighted_tokens
  *
  * Token class default weights (from spec Section 4.2):
@@ -142,12 +143,13 @@ function getModelMultiplier(model) {
  * Computes the base weighted token count for a single invocation.
  *
  * Formula (base spec Section 4.3 + cache_write implementation extension):
- *   base = (w_in × I) + (w_cache × C) + (w_out × O) + (w_reason × R) + (w_cache_write × W)
+ *   effective_input = max(I - C, 0)
+ *   base = (w_in × effective_input) + (w_cache × C) + (w_out × O) + (w_reason × R) + (w_cache_write × W)
  *
  * Note: cache_write (W) with weight w_cache_write is an implementation extension;
  * the core spec formula covers I, C, O, and R only.
  *
- * @param {number} inputTokens - Raw input tokens (I)
+ * @param {number} inputTokens - Raw input tokens (I), including cached input when reported by provider
  * @param {number} outputTokens - Raw output tokens (O)
  * @param {number} cacheReadTokens - Cached input tokens (C)
  * @param {number} cacheWriteTokens - Cache write tokens (W)
@@ -156,7 +158,10 @@ function getModelMultiplier(model) {
  */
 function computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens = 0) {
   const w = getTokenClassWeights();
-  return w.input * (inputTokens || 0) + w.cached_input * (cacheReadTokens || 0) + w.output * (outputTokens || 0) + w.reasoning * (reasoningTokens || 0) + w.cache_write * (cacheWriteTokens || 0);
+  const input = inputTokens || 0;
+  const cached = cacheReadTokens || 0;
+  const effectiveInput = Math.max(input - cached, 0);
+  return w.input * effectiveInput + w.cached_input * cached + w.output * (outputTokens || 0) + w.reasoning * (reasoningTokens || 0) + w.cache_write * (cacheWriteTokens || 0);
 }
 
 /**
@@ -263,7 +268,7 @@ function buildETComputationTable(effectiveTokens, tokenUsageMarkdown = null) {
 
   const lines = [];
   lines.push("<details>");
-  lines.push(`<summary>ET computation details (formula: ${w.input}×input + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier)</summary>`);
+  lines.push(`<summary>ET computation details (formula: ${w.input}×max(input-cached,0) + ${w.cached_input}×cached + ${w.output}×output + ${w.reasoning}×reasoning + ${w.cache_write}×cache_write, then ×model multiplier)</summary>`);
   lines.push("");
 
   if (tokenUsageMarkdown) {
@@ -273,8 +278,11 @@ function buildETComputationTable(effectiveTokens, tokenUsageMarkdown = null) {
   } else {
     const usage = readAgentUsage();
     if (usage) {
-      const inputWeighted = w.input * (usage.input_tokens || 0);
-      const cachedWeighted = w.cached_input * (usage.cache_read_tokens || 0);
+      const inputTokens = usage.input_tokens || 0;
+      const cachedInputTokens = usage.cache_read_tokens || 0;
+      const effectiveInputTokens = Math.max(inputTokens - cachedInputTokens, 0);
+      const inputWeighted = w.input * effectiveInputTokens;
+      const cachedWeighted = w.cached_input * cachedInputTokens;
       const outputWeighted = w.output * (usage.output_tokens || 0);
       const cacheWriteWeighted = w.cache_write * (usage.cache_write_tokens || 0);
       // Reasoning tokens are not tracked in agent_usage.json (they are captured per-model in
@@ -284,8 +292,8 @@ function buildETComputationTable(effectiveTokens, tokenUsageMarkdown = null) {
 
       lines.push("| Token class | Count | Weight | Weighted tokens |");
       lines.push("|-------------|------:|------:|---------------:|");
-      lines.push(`| Input | ${(usage.input_tokens || 0).toLocaleString()} | ×${w.input} | ${Math.round(inputWeighted).toLocaleString()} |`);
-      lines.push(`| Cached input | ${(usage.cache_read_tokens || 0).toLocaleString()} | ×${w.cached_input} | ${Math.round(cachedWeighted).toLocaleString()} |`);
+      lines.push(`| Input (minus cached) | ${effectiveInputTokens.toLocaleString()} | ×${w.input} | ${Math.round(inputWeighted).toLocaleString()} |`);
+      lines.push(`| Cached input | ${cachedInputTokens.toLocaleString()} | ×${w.cached_input} | ${Math.round(cachedWeighted).toLocaleString()} |`);
       lines.push(`| Output | ${(usage.output_tokens || 0).toLocaleString()} | ×${w.output} | ${Math.round(outputWeighted).toLocaleString()} |`);
       lines.push(`| Cache write | ${(usage.cache_write_tokens || 0).toLocaleString()} | ×${w.cache_write} | ${Math.round(cacheWriteWeighted).toLocaleString()} |`);
       lines.push(`| **Base weighted** | | | **${Math.round(baseWeighted).toLocaleString()}** |`);

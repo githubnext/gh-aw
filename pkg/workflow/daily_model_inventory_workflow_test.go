@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestDailyModelInventoryWorkflowPrefetchesReflectBeforeAgent(t *testing.T) {
+func TestDailyModelInventoryWorkflowFetchesReflectInAgentPrompt(t *testing.T) {
 	lockContent, err := os.ReadFile("../../.github/workflows/daily-model-inventory.lock.yml")
 	if err != nil {
 		t.Fatalf("failed to read compiled workflow: %v", err)
@@ -16,19 +16,21 @@ func TestDailyModelInventoryWorkflowPrefetchesReflectBeforeAgent(t *testing.T) {
 
 	lockContentStr := string(lockContent)
 
-	if !strings.Contains(lockContentStr, "Fetch Copilot reflect inventory") {
-		t.Fatalf("expected compiled workflow to prefetch Copilot reflect inventory")
+	if strings.Contains(lockContentStr, "- name: Fetch Copilot reflect inventory") {
+		t.Fatalf("expected compiled workflow to avoid pre-job Copilot reflect fetch step")
 	}
 
-	if !strings.Contains(lockContentStr, "--allow-all-tools") {
-		t.Fatalf("expected compiled workflow to allow full bash tool access")
+	sourceContent, err := os.ReadFile("../../.github/workflows/daily-model-inventory.md")
+	if err != nil {
+		t.Fatalf("failed to read workflow source: %v", err)
+	}
+	sourceContentStr := string(sourceContent)
+
+	if !strings.Contains(sourceContentStr, "### Step 0: Fetch Copilot Models from API Proxy") {
+		t.Fatalf("expected workflow prompt to include Copilot reflect fetch Step 0")
 	}
 
-	if strings.Contains(lockContentStr, `shell(mkdir -p /tmp/gh-aw/model-inventory && (curl -fsS http://api-proxy:10000/reflect > /tmp/gh-aw/model-inventory/reflect.json || printf "%s" "{\"endpoints\":[],\"error\":\"reflect endpoint unavailable\"}" > /tmp/gh-aw/model-inventory/reflect.json))`) {
-		t.Fatalf("expected compiled workflow to avoid the complex Copilot shell allow-tool for /reflect fallback")
-	}
-
-	if strings.Contains(lockContentStr, `shell(jq ".endpoints[] | select(.provider == \"copilot\") | .models" /tmp/gh-aw/model-inventory/reflect.json)`) {
-		t.Fatalf("expected compiled workflow to avoid quoted jq filters in Copilot shell allow-tool entries")
+	if !strings.Contains(sourceContentStr, "curl -fsS http://api-proxy:10000/reflect") {
+		t.Fatalf("expected workflow prompt to fetch Copilot reflect data from api-proxy")
 	}
 }
