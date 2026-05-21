@@ -154,6 +154,12 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		return "", fmt.Errorf("failed to extract frontmatter from included file %s: %w", filePath, err)
 	}
 
+	if _, hasInfer := result.Frontmatter["infer"]; hasInfer {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("Frontmatter field 'infer' in %s is deprecated. Use 'disable-model-invocation' instead.", filePath),
+		))
+	}
+
 	// Check if file is under .github/workflows/ for strict validation
 	isWorkflowFile := isUnderWorkflowsDirectory(filePath)
 

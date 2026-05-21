@@ -3,11 +3,32 @@
 package parser
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create stderr pipe: %v", err)
+	}
+	os.Stderr = w
+
+	fn()
+
+	_ = w.Close()
+	os.Stderr = oldStderr
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read stderr: %v", err)
+	}
+	return buf.String()
+}
 
 func TestProcessIncludedFileWithNameAndDescription(t *testing.T) {
 	tempDir := t.TempDir()
@@ -117,6 +138,40 @@ This is a custom agent file with the disable-model-invocation field.`
 
 	if !strings.Contains(result, "# Test Agent") {
 		t.Errorf("Expected markdown content not found in result")
+	}
+}
+
+// TestProcessIncludedFileWithInferFieldWarns verifies the deprecated "infer" field
+// emits a warning recommending "disable-model-invocation".
+func TestProcessIncludedFileWithInferFieldWarns(t *testing.T) {
+	tempDir := t.TempDir()
+	agentsDir := filepath.Join(tempDir, ".github", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("Failed to create agents directory: %v", err)
+	}
+
+	testFile := filepath.Join(agentsDir, "legacy-infer.agent.md")
+	testContent := `---
+name: Legacy Infer Agent
+infer: true
+---
+
+# Legacy Infer Agent
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	stderr := captureStderr(t, func() {
+		_, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+		if err != nil {
+			t.Fatalf("processIncludedFileWithVisited() error = %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "disable-model-invocation") {
+		t.Fatalf("expected deprecation warning to mention disable-model-invocation, got: %q", stderr)
 	}
 }
 
