@@ -1032,6 +1032,8 @@ function getContentToCheck(messageType, message, result) {
       return message.body || "";
     case "comment_memory":
       return result?.managedBody || message.body || "";
+    case "create_pull_request":
+      return result?.managedBody || message.body || "";
     default:
       return null;
   }
@@ -1059,6 +1061,30 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody, 
   });
 
   core.info(`✓ Updated issue ${repo}#${issueNumber}`);
+}
+
+/**
+ * Update the body of a pull request with resolved temporary IDs
+ * @param {any} github - GitHub API client
+ * @param {any} context - GitHub Actions context
+ * @param {string} repo - Repository in "owner/repo" format
+ * @param {number} prNumber - Pull request number to update
+ * @param {string} updatedBody - Updated body content with resolved temp IDs
+ * @returns {Promise<void>}
+ */
+async function updatePullRequestBody(github, context, repo, prNumber, updatedBody, allowedMentionAliases = []) {
+  const [owner, repoName] = repo.split("/");
+
+  core.info(`Updating pull request ${repo}#${prNumber} body with resolved temporary IDs`);
+
+  await github.rest.pulls.update({
+    owner,
+    repo: repoName,
+    pull_number: prNumber,
+    body: sanitizeContent(updatedBody, { allowedAliases: allowedMentionAliases }),
+  });
+
+  core.info(`✓ Updated pull request ${repo}#${prNumber}`);
 }
 
 /**
@@ -1227,6 +1253,10 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
                 } else {
                   core.debug(`Skipping synthetic update for comment_memory - comment ID not tracked`);
                 }
+                break;
+              case "create_pull_request":
+                await updatePullRequestBody(github, context, tracked.result.repo, tracked.result.number, updatedContent, allowedMentionAliases);
+                updateCount++;
                 break;
               default:
                 core.debug(`Unknown output type: ${tracked.type}`);
