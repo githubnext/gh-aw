@@ -178,16 +178,26 @@ Examples:
 
 				repoOverrideEarly, _ := cmd.Flags().GetString("repo")
 				if repoOverrideEarly != "" {
-					// When --repo is specified, try local file-based resolution first.
-					// This handles the common case where --repo refers to the current
-					// repository (e.g. set by GITHUB_REPOSITORY in MCP server containers),
-					// so local lock files are available and we can resolve the display name.
+					// When --repo is specified, only use local lock-file resolution when
+					// the target repo is the current repository. Local lock files are
+					// authoritative for the current repo and allow us to map the workflow
+					// ID (e.g. "audit-workflows") to its GitHub Actions display name
+					// (e.g. "Agentic Workflow Audit Agent"), which gh run list requires.
 					//
-					// If local resolution fails (truly remote repo with no local lock files),
-					// fall back to using the normalized workflow ID directly.
-					if resolved, resolveErr := workflow.FindWorkflowName(args[0]); resolveErr == nil {
-						workflowName = resolved
-						logsCommandLog.Printf("Resolved workflow name for repo-overridden query: %s -> %s", args[0], workflowName)
+					// For cross-repo queries, skip local resolution to avoid mapping a
+					// local display name onto a different repository's workflow topology.
+					//
+					// Note: the argument must be a workflow ID (e.g. "test-claude"),
+					// not a display name (e.g. "Test Claude"). Display-name lookup
+					// requires local lock files, which are unavailable for remote repos.
+					if repoIsLocal(repoOverrideEarly) {
+						if resolved, resolveErr := workflow.FindWorkflowName(args[0]); resolveErr == nil {
+							workflowName = resolved
+							logsCommandLog.Printf("Resolved workflow name via local lock files: %s -> %s", args[0], workflowName)
+						} else {
+							workflowName = normalizeWorkflowID(args[0])
+							logsCommandLog.Printf("Local resolution failed, using normalized workflow name: %s", workflowName)
+						}
 					} else {
 						workflowName = normalizeWorkflowID(args[0])
 						logsCommandLog.Printf("Using normalized workflow name for remote repo: %s", workflowName)
@@ -399,3 +409,30 @@ Examples:
 // parseAgentLog runs the JavaScript log parser on agent logs and writes markdown to log.md
 
 // parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
+
+// repoIsLocal reports whether the given --repo flag value refers to the current local
+// repository. It extracts the owner/repo portion (stripping an optional HOST/ prefix),
+// then compares against the GITHUB_REPOSITORY environment variable (set by the MCP
+// server container) and, if that is absent, against the repository detected from the
+// local git checkout via GetCurrentRepoSlug.
+//
+// This is used by the logs command to decide whether local lock files are authoritative
+// for resolving a workflow display name: they are authoritative only when --repo points
+// to the same repository that is checked out locally.
+func repoIsLocal(repo string) bool {
+	// Strip optional HOST/ prefix (e.g. "github.com/owner/repo" → "owner/repo")
+	ownerRepo, _ := normalizeRepoForAPI(repo)
+
+	// Fast path: GITHUB_REPOSITORY is always the current repo in MCP server containers.
+	if envRepo := os.Getenv("GITHUB_REPOSITORY"); envRepo != "" {
+		return strings.EqualFold(ownerRepo, envRepo)
+	}
+
+	// Fallback: detect from git remote / gh CLI (result is cached on first call).
+	currentRepo, err := GetCurrentRepoSlug()
+	if err != nil {
+		logsCommandLog.Printf("Could not determine current repo slug for comparison: %v", err)
+		return false
+	}
+	return strings.EqualFold(ownerRepo, currentRepo)
+}
