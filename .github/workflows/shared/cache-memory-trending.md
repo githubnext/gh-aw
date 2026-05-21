@@ -30,7 +30,7 @@ import-schema:
   workflow-name:
     type: string
     required: true
-    description: "Workflow name slug used in history file paths (e.g. api-consumption)"
+    description: "Workflow name slug used in history directory paths — use lowercase letters, digits, and hyphens only (e.g. api-consumption). Becomes the last segment of /tmp/gh-aw/cache-memory/trending/<slug>/"
   retention-days:
     type: integer
     default: 90
@@ -74,7 +74,7 @@ fi
 echo "Existing history entries: $entry_count"
 ```
 
-Choose the collection window based on `entry_count` (assuming one deduplicated row per day after the merge in Step T3; ${{ github.aw.import-inputs.backfill-threshold }} entries is roughly ${{ github.aw.import-inputs.backfill-threshold }} days of daily data, which is enough for stable 7-day and 30-day trend calculations):
+Choose the collection window based on `entry_count`. After the merge in Step T3 there is one deduplicated row per calendar day, so `entry_count` is a reliable proxy for the number of days of history. ${{ github.aw.import-inputs.backfill-threshold }} days is the minimum needed for stable 7-day and 30-day trend calculations:
 
 - **If `entry_count >= ${{ github.aw.import-inputs.backfill-threshold }}`** (history is already rich): collect only incremental data — target the last 1–2 days.
 - **If `entry_count < ${{ github.aw.import-inputs.backfill-threshold }}`** (first run, cache miss, or sparse history): run a one-time backfill — look back `${{ github.aw.import-inputs.backfill-window }}` days.
@@ -123,12 +123,12 @@ def load_history(path: Path) -> list[dict]:
 def upsert_by_date(entries: list[dict]) -> list[dict]:
     """Deduplicate by date (last-write-wins), then sort ascending by date."""
     by_date: dict[str, dict] = {}
-    for idx, row in enumerate(entries):
+    for row_index, row in enumerate(entries, start=1):
         day = row.get("date")
         if day:
             by_date[day] = row
         else:
-            print(f"warning: skipped history row without 'date' at index={idx}")
+            print(f"warning: skipped history row without 'date' at row_index={row_index}")
     return [by_date[d] for d in sorted(by_date.keys())]
 
 def apply_retention(entries: list[dict], retention_days: int) -> list[dict]:
@@ -227,7 +227,16 @@ trend_30d = pct_change_period(df["value"], 30)
 df["is_anomaly"] = detect_anomalies(df["value"])
 
 # Trend direction label helper
+# Changes of more than ±5% are considered significant trends (↑/↓);
+# changes within ±5% are considered stable (→).
 def trend_label(pct: float | None) -> str:
+    """Return an arrow-prefixed label for a percent-change value.
+
+    Args:
+        pct: Percent change, or None when there is insufficient data.
+    Returns:
+        A human-readable string such as '↑ +12.3%', '↓ -8.0%', or '→ +1.2%'.
+    """
     if pct is None:
         return "→ (insufficient data)"
     if pct > 5:
