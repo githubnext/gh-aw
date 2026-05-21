@@ -659,6 +659,64 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 	}
 }
 
+func TestMainWorkflowSchemaPushToPullRequestBranchHasMaxPatchSize(t *testing.T) {
+	schemaPath := "schemas/main_workflow_schema.json"
+	schemaContent, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schemaMap map[string]any
+	if err := json.Unmarshal(schemaContent, &schemaMap); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	properties, ok := schemaMap["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("'properties' not found in main workflow schema")
+	}
+
+	safeOutputs, ok := properties["safe-outputs"].(map[string]any)
+	if !ok {
+		t.Fatal("'safe-outputs' not found in main workflow schema")
+	}
+
+	safeOutputsProps, ok := safeOutputs["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("'safe-outputs.properties' not found in main workflow schema")
+	}
+
+	pushCfg, ok := safeOutputsProps["push-to-pull-request-branch"].(map[string]any)
+	if !ok {
+		t.Fatal("'safe-outputs.push-to-pull-request-branch' not found")
+	}
+
+	pushOneOf, ok := pushCfg["oneOf"].([]any)
+	if !ok || len(pushOneOf) == 0 {
+		t.Fatal("'safe-outputs.push-to-pull-request-branch.oneOf' not found")
+	}
+
+	var pushProperties map[string]any
+	for _, candidate := range pushOneOf {
+		candidateMap, ok := candidate.(map[string]any)
+		if !ok {
+			continue
+		}
+		p, ok := candidateMap["properties"].(map[string]any)
+		if ok {
+			pushProperties = p
+			break
+		}
+	}
+	if pushProperties == nil {
+		t.Fatal("'safe-outputs.push-to-pull-request-branch' object schema with properties not found")
+	}
+
+	if _, ok := pushProperties["max-patch-size"].(map[string]any); !ok {
+		t.Fatal("'max-patch-size' not found under safe-outputs.push-to-pull-request-branch")
+	}
+}
+
 // TestNormalizeForJSONSchema verifies that normalizeForJSONSchema correctly converts
 // YAML-native integer types to float64 while leaving other types unchanged.
 func TestNormalizeForJSONSchema(t *testing.T) {
