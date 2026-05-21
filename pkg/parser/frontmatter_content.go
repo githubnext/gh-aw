@@ -12,6 +12,9 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// levelPattern matches heading markers (H1-H3) at the start of a line with flexible spacing
+var levelPattern = regexp.MustCompile(`^(#{1,3})[\s\t]+`)
+
 // FrontmatterResult holds parsed frontmatter and markdown content
 type FrontmatterResult struct {
 	Frontmatter map[string]any
@@ -239,7 +242,6 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 
 	// Create regex pattern to match headers at any level (H1-H3) with flexible spacing
 	headerPattern := regexp.MustCompile(`^(#{1,3})[\s\t]+` + regexp.QuoteMeta(sectionName) + `[\s\t]*$`)
-	levelPattern := regexp.MustCompile(`^(#{1,3})[\s\t]+`)
 
 	for scanner.Scan() {
 		line := scanner.Text()

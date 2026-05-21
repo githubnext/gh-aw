@@ -17,6 +17,18 @@ import (
 
 var generateActionMetadataLog = logger.New("cli:generate_action_metadata")
 
+// jsdocDescriptionPattern matches a JSDoc block comment description line
+var jsdocDescriptionPattern = regexp.MustCompile(`/\*\*\s*\n\s*\*\s*([^\n]+)`)
+
+// coreGetInputPattern matches core.getInput('name') or core.getInput("name") calls
+var coreGetInputPattern = regexp.MustCompile(`core\.getInput\(['"]([^'"]+)['"]\)`)
+
+// coreSetOutputPattern matches core.setOutput('name', ...) or core.setOutput("name", ...) calls
+var coreSetOutputPattern = regexp.MustCompile(`core\.setOutput\(['"]([^'"]+)['"]`)
+
+// requireCJSPattern matches require('./filename.cjs') or require("./filename.cjs") calls
+var requireCJSPattern = regexp.MustCompile(`require\(['"]\.\/([^'"]+\.cjs)['"]\)`)
+
 // ActionMetadata represents metadata extracted from a JavaScript file
 type ActionMetadata struct {
 	Name         string
@@ -179,8 +191,7 @@ func extractActionMetadata(filename, content string) (*ActionMetadata, error) {
 // extractDescription extracts description from JSDoc comment
 func extractDescription(content string) string {
 	// Look for JSDoc block comment at the start of main() or file
-	jsdocRegex := regexp.MustCompile(`/\*\*\s*\n\s*\*\s*([^\n]+)`)
-	matches := jsdocRegex.FindStringSubmatch(content)
+	matches := jsdocDescriptionPattern.FindStringSubmatch(content)
 	if len(matches) > 1 {
 		return strings.TrimSpace(matches[1])
 	}
@@ -205,8 +216,7 @@ func extractInputs(content string) []ActionInput {
 	seen := make(map[string]bool)
 
 	// Match core.getInput('name') or core.getInput("name")
-	inputRegex := regexp.MustCompile(`core\.getInput\(['"]([^'"]+)['"]\)`)
-	matches := inputRegex.FindAllStringSubmatch(content, -1)
+	matches := coreGetInputPattern.FindAllStringSubmatch(content, -1)
 
 	for _, match := range matches {
 		if len(match) > 1 {
@@ -237,8 +247,7 @@ func extractOutputs(content string) []ActionOutput {
 	seen := make(map[string]bool)
 
 	// Match core.setOutput('name', ...) or core.setOutput("name", ...)
-	outputRegex := regexp.MustCompile(`core\.setOutput\(['"]([^'"]+)['"]`)
-	matches := outputRegex.FindAllStringSubmatch(content, -1)
+	matches := coreSetOutputPattern.FindAllStringSubmatch(content, -1)
 
 	for _, match := range matches {
 		if len(match) > 1 {
@@ -267,8 +276,7 @@ func extractDependencies(content string) []string {
 	seen := make(map[string]bool)
 
 	// Match require('./filename.cjs') or require("./filename.cjs")
-	requireRegex := regexp.MustCompile(`require\(['"]\.\/([^'"]+\.cjs)['"]\)`)
-	matches := requireRegex.FindAllStringSubmatch(content, -1)
+	matches := requireCJSPattern.FindAllStringSubmatch(content, -1)
 
 	for _, match := range matches {
 		if len(match) > 1 {
