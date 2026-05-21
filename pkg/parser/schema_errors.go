@@ -420,8 +420,7 @@ func rewriteAdditionalPropertiesError(message string) string {
 	// Check if this is an "additional properties not allowed" error
 	if strings.Contains(strings.ToLower(message), "additional propert") && strings.Contains(strings.ToLower(message), "not allowed") {
 		// Extract property names from the message using regex
-		re := regexp.MustCompile(`additional propert(?:y|ies) (.+?) not allowed`)
-		match := re.FindStringSubmatch(message)
+		match := additionalPropertiesPattern.FindStringSubmatch(message)
 
 		if len(match) >= 2 {
 			properties := normalizeAdditionalPropertyList(match[1])

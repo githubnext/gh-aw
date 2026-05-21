@@ -17,6 +17,9 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 )
 
+// includeDirectivePattern matches @include or @include? directives with their path argument
+var includeDirectivePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
+
 // FetchIncludeFromSource fetches an include file from GitHub directly using a workflowspec format path.
 // The includePath should be in the format: owner/repo/path/to/file.md[@ref]
 // If the includePath is a relative path, it's resolved relative to the baseSpec.
@@ -406,14 +409,12 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", spec.String())
 
 	// Parse the workflow content to find @include directives
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
-
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	seen := make(map[string]bool)
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		matches := includePattern.FindStringSubmatch(line)
+		matches := includeDirectivePattern.FindStringSubmatch(line)
 		if matches == nil {
 			continue
 		}

@@ -12,6 +12,12 @@ import (
 
 var jsonPathLog = logger.New("parser:json_path_locator")
 
+// additionalPropertiesPattern matches "additional propert(y|ies) ... not allowed" error messages
+var additionalPropertiesPattern = regexp.MustCompile(`additional propert(?:y|ies) (.+?) not allowed`)
+
+// quotedPropertyPattern matches single-quoted property names like 'prop_name'
+var quotedPropertyPattern = regexp.MustCompile(`'([^']+)'`)
+
 // JSONPathLocation represents a location in YAML source corresponding to a JSON path
 type JSONPathLocation struct {
 	Line   int
@@ -227,16 +233,14 @@ type PathSegment struct {
 func extractAdditionalPropertyNames(errorMessage string) []string {
 	// Look for the pattern: additional properties ... not allowed
 	// Use regex to match the full property list section
-	re := regexp.MustCompile(`additional propert(?:y|ies) (.+?) not allowed`)
-	match := re.FindStringSubmatch(errorMessage)
+	match := additionalPropertiesPattern.FindStringSubmatch(errorMessage)
 
 	if len(match) < 2 {
 		return []string{}
 	}
 
 	// Extract all quoted property names from the matched string
-	propPattern := regexp.MustCompile(`'([^']+)'`)
-	propMatches := propPattern.FindAllStringSubmatch(match[1], -1)
+	propMatches := quotedPropertyPattern.FindAllStringSubmatch(match[1], -1)
 
 	var properties []string
 	for _, propMatch := range propMatches {
