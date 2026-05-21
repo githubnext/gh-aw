@@ -17,6 +17,64 @@ import (
 var includeLog = logger.New("parser:include_processor")
 
 // processIncludesWithVisited processes import directives with cycle detection
+// emitIncludeDeprecationWarning emits a deprecation warning for legacy @include / {{#import}} syntax.
+func emitIncludeDeprecationWarning(directive *ImportDirectiveMatch) {
+	if !directive.IsLegacy {
+		return
+	}
+	optionalMarker := ""
+	if directive.IsOptional {
+		optionalMarker = "?"
+	}
+	var suggestion string
+	if strings.HasPrefix(strings.TrimSpace(directive.Original), "{{") {
+		suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} for content injection or the 'imports:' frontmatter field for configuration merging.",
+			optionalMarker, directive.Path)
+	} else {
+		suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} instead.", optionalMarker, directive.Path)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. %s",
+		directive.Original, suggestion)))
+}
+
+// resolveAndProcessInclude resolves an include directive path and processes the included file.
+// Returns (content, skip, error) — skip=true means the directive should be silently skipped.
+func resolveAndProcessInclude(directive *ImportDirectiveMatch, baseDir string, extractTools bool, visited map[string]bool) (string, bool, error) {
+	includePath := directive.Path
+	var filePath, sectionName string
+	if strings.Contains(includePath, "#") {
+		parts := strings.SplitN(includePath, "#", 2)
+		filePath, sectionName = parts[0], parts[1]
+	} else {
+		filePath = includePath
+	}
+	fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
+	if err != nil {
+		includeLog.Printf("Failed to resolve include path '%s': %v", filePath, err)
+		if directive.IsOptional {
+			if !extractTools {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional include file not found: %s. You can create this file to configure the workflow.", filePath)))
+			}
+			return "", true, nil
+		}
+		return "", false, fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
+	}
+	if visited[fullPath] {
+		includeLog.Printf("Skipping already included file: %s", fullPath)
+		if !extractTools {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Already included: %s, skipping", filePath)))
+		}
+		return "", true, nil
+	}
+	includeLog.Printf("Processing include file: %s", fullPath)
+	visited[fullPath] = true
+	includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, visited)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
+	}
+	return includedContent, false, nil
+}
+
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
 	// Fast path: skip scanner allocation when no include/import directives are present.
 	// ParseImportDirective only matches lines starting with '@' or '{{#import'.
@@ -30,106 +88,107 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 		}
 		return content, nil
 	}
-
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		// Parse import directive
 		directive := ParseImportDirective(line)
 		if directive != nil {
-			// Emit deprecation warning for legacy syntax
-			if directive.IsLegacy {
-				// Security: Escape strings to prevent quote injection in warning messages
-				// Use %q format specifier to safely quote strings containing special characters
-				optionalMarker := ""
-				if directive.IsOptional {
-					optionalMarker = "?"
-				}
-				// Choose the recommended replacement based on which deprecated form was used.
-				// {{#import}} directives → recommend {{#runtime-import}} or imports: frontmatter.
-				// @include / @import directives → recommend {{#import}} (already deprecated itself,
-				// but still a closer equivalent than jumping straight to runtime-import).
-				var suggestion string
-				if strings.HasPrefix(strings.TrimSpace(directive.Original), "{{") {
-					suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} for content injection or the 'imports:' frontmatter field for configuration merging.",
-						optionalMarker,
-						directive.Path)
-				} else {
-					suggestion = fmt.Sprintf("Use {{#runtime-import%s %s}} instead.",
-						optionalMarker,
-						directive.Path)
-				}
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. %s",
-					directive.Original,
-					suggestion)))
-			}
-
-			isOptional := directive.IsOptional
-			includePath := directive.Path
-
-			// Handle section references (file.md#Section)
-			var filePath, sectionName string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-				sectionName = parts[1]
-			} else {
-				filePath = includePath
-			}
-
-			// Resolve file path first to get the canonical path
-			fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
+			emitIncludeDeprecationWarning(directive)
+			includedContent, skip, err := resolveAndProcessInclude(directive, baseDir, extractTools, visited)
 			if err != nil {
-				includeLog.Printf("Failed to resolve include path '%s': %v", filePath, err)
-				if isOptional {
-					// For optional includes, show a friendly informational message to stdout
-					if !extractTools {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional include file not found: %s. You can create this file to configure the workflow.", filePath)))
-					}
-					continue
-				}
-				// For required includes, fail compilation with an error
-				return "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
+				return "", err
 			}
-
-			// Check for repeated imports using the resolved full path
-			if visited[fullPath] {
-				includeLog.Printf("Skipping already included file: %s", fullPath)
-				if !extractTools {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Already included: %s, skipping", filePath)))
-				}
+			if skip {
 				continue
 			}
-
-			// Mark as visited using the resolved full path
-			includeLog.Printf("Processing include file: %s", fullPath)
-			visited[fullPath] = true
-
-			// Process the included file
-			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, visited)
-			if err != nil {
-				// For any processing errors, fail compilation
-				return "", fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
-			}
-
 			if extractTools {
-				// For tools mode, add each JSON on a separate line
 				result.WriteString(includedContent + "\n")
 			} else {
 				result.WriteString(includedContent)
 			}
-		} else {
-			// Regular line, just pass through (unless extracting tools)
-			if !extractTools {
-				result.WriteString(line + "\n")
-			}
+		} else if !extractTools {
+			result.WriteString(line + "\n")
 		}
 	}
-
 	return result.String(), nil
+}
+
+// checkUnexpectedFrontmatterFields warns about frontmatter fields not in the allowed set.
+func checkUnexpectedFrontmatterFields(frontmatter map[string]any, filePath string) {
+	validFields := map[string]bool{
+		"tools": true, "engine": true, "env": true, "network": true, "mcp-servers": true,
+		"imports": true, "name": true, "description": true, "steps": true, "jobs": true,
+		"safe-outputs": true, "mcp-scripts": true, "services": true, "runtimes": true,
+		"permissions": true, "secret-masking": true, "applyTo": true, "inputs": true,
+		"import-schema": true, "infer": true, "disable-model-invocation": true, "features": true,
+	}
+	var unexpectedFields []string
+	for key := range frontmatter {
+		if !validFields[key] {
+			unexpectedFields = append(unexpectedFields, key)
+		}
+	}
+	if len(unexpectedFields) > 0 {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
+			fmt.Sprintf("Ignoring unexpected frontmatter fields in %s: %s",
+				filePath, strings.Join(unexpectedFields, ", "))))
+	}
+}
+
+// validateFilteredFrontmatter validates only the recognized configuration sections.
+func validateFilteredFrontmatter(result *FrontmatterResult, filePath string, isAgentFile bool) {
+	hasExpressions := frontmatterContainsExpressions(result.Frontmatter)
+	filteredFrontmatter := map[string]any{}
+	if !isAgentFile && !hasExpressions {
+		if tools, hasTools := result.Frontmatter["tools"]; hasTools {
+			filteredFrontmatter["tools"] = tools
+		}
+	}
+	if engine, hasEngine := result.Frontmatter["engine"]; hasEngine {
+		filteredFrontmatter["engine"] = engine
+	}
+	if network, hasNetwork := result.Frontmatter["network"]; hasNetwork {
+		filteredFrontmatter["network"] = network
+	}
+	if !hasExpressions {
+		if mcpServers, hasMCPServers := result.Frontmatter["mcp-servers"]; hasMCPServers {
+			filteredFrontmatter["mcp-servers"] = mcpServers
+		}
+	}
+	if len(filteredFrontmatter) > 0 {
+		if err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(filteredFrontmatter, filePath); err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
+				fmt.Sprintf("Invalid configuration in %s: %v", filePath, err)))
+		}
+	}
+}
+
+// applyRelaxedValidation applies warning-only validation for non-workflow files.
+func applyRelaxedValidation(result *FrontmatterResult, filePath string, isAgentFile bool) {
+	if len(result.Frontmatter) == 0 {
+		return
+	}
+	checkUnexpectedFrontmatterFields(result.Frontmatter, filePath)
+	validateFilteredFrontmatter(result, filePath, isAgentFile)
+}
+
+// extractToolsFromIncludedFile extracts the tools configuration from a processed included file.
+func extractToolsFromIncludedFile(result *FrontmatterResult, filePath string, isAgentFile, isWorkflowFile bool, validationErr error) (string, error) {
+	if isAgentFile {
+		return "{}", nil
+	}
+	if validationErr == nil || isWorkflowFile {
+		return extractToolsFromFrontmatter(result.Frontmatter)
+	}
+	if tools, hasTools := result.Frontmatter["tools"]; hasTools {
+		toolsJSON, err := json.Marshal(tools)
+		if err != nil {
+			return "{}", nil
+		}
+		return strings.TrimSpace(string(toolsJSON)), nil
+	}
+	return "{}", nil
 }
 
 // processIncludedFile processes a single included file, optionally extracting a section
@@ -141,9 +200,6 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)
 	}
 	includeLog.Printf("Read %d bytes from included file: %s", len(content), filePath)
-
-	// Validate included file frontmatter based on file location.
-	// For builtin virtual files, use the process-level cache to avoid repeated YAML parsing.
 	var result *FrontmatterResult
 	if strings.HasPrefix(filePath, BuiltinPathPrefix) {
 		result, err = ExtractFrontmatterFromBuiltinFile(filePath, content)
@@ -153,145 +209,32 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	if err != nil {
 		return "", fmt.Errorf("failed to extract frontmatter from included file %s: %w", filePath, err)
 	}
-
-	// Check if file is under .github/workflows/ for strict validation
 	isWorkflowFile := isUnderWorkflowsDirectory(filePath)
-
-	// Check if file is a custom agent file (.github/agents/*.md)
-	// Custom agent files use GitHub Copilot's format where 'tools' is an array, not an object
 	isAgentFile := isCustomAgentFile(filePath)
-
-	// Always try strict validation first (but skip for agent files which have a different schema,
-	// and skip for builtin virtual files which are immutable trusted assets validated at development time).
 	var validationErr error
 	if !isAgentFile && !strings.HasPrefix(filePath, BuiltinPathPrefix) {
 		validationErr = ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
 	}
-
 	if validationErr != nil {
 		if isWorkflowFile {
-			// For workflow files, strict validation must pass
 			includeLog.Printf("Validation failed for workflow file %s: %v", filePath, validationErr)
 			return "", fmt.Errorf("invalid frontmatter in included file %s: %w", filePath, validationErr)
-		} else {
-			includeLog.Printf("Validation failed for non-workflow file %s, applying relaxed validation", filePath)
-			// For non-workflow files, fall back to relaxed validation with warnings
-			if len(result.Frontmatter) > 0 {
-				// Valid fields for non-workflow frontmatter (fields that are allowed in shared workflows)
-				// This list matches the allowed fields in shared workflows (main_workflow_schema minus forbidden fields)
-				validFields := map[string]bool{
-					"tools":                    true,
-					"engine":                   true,
-					"env":                      true,
-					"network":                  true,
-					"mcp-servers":              true,
-					"imports":                  true,
-					"name":                     true,
-					"description":              true,
-					"steps":                    true,
-					"jobs":                     true,
-					"safe-outputs":             true,
-					"mcp-scripts":              true,
-					"services":                 true,
-					"runtimes":                 true,
-					"permissions":              true,
-					"secret-masking":           true,
-					"applyTo":                  true,
-					"inputs":                   true,
-					"import-schema":            true, // Declares parameter schema for 'uses'/'with' import syntax
-					"infer":                    true, // Custom agent format field (Copilot) - deprecated, use disable-model-invocation
-					"disable-model-invocation": true, // Custom agent format field (Copilot)
-					"features":                 true,
-				}
-
-				// Check for unexpected frontmatter fields
-				var unexpectedFields []string
-				for key := range result.Frontmatter {
-					if !validFields[key] {
-						unexpectedFields = append(unexpectedFields, key)
-					}
-				}
-
-				if len(unexpectedFields) > 0 {
-					// Show warning for unexpected frontmatter fields
-					fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
-						fmt.Sprintf("Ignoring unexpected frontmatter fields in %s: %s",
-							filePath, strings.Join(unexpectedFields, ", "))))
-				}
-
-				// Validate the tools, engine, network, and mcp-servers sections if present
-				// Skip tools/mcp-servers validation for custom agent files as they use a different format (array vs object)
-				// Skip validation entirely if any frontmatter values contain unsubstituted ${{ }}
-				// expressions — these are import-schema parameterised fields whose actual values
-				// are provided by the importing workflow; schema validation happens after substitution.
-				hasExpressions := frontmatterContainsExpressions(result.Frontmatter)
-				filteredFrontmatter := map[string]any{}
-				if !isAgentFile && !hasExpressions {
-					if tools, hasTools := result.Frontmatter["tools"]; hasTools {
-						filteredFrontmatter["tools"] = tools
-					}
-				}
-				if engine, hasEngine := result.Frontmatter["engine"]; hasEngine {
-					filteredFrontmatter["engine"] = engine
-				}
-				if network, hasNetwork := result.Frontmatter["network"]; hasNetwork {
-					filteredFrontmatter["network"] = network
-				}
-				if !hasExpressions {
-					if mcpServers, hasMCPServers := result.Frontmatter["mcp-servers"]; hasMCPServers {
-						filteredFrontmatter["mcp-servers"] = mcpServers
-					}
-				}
-				// Note: we don't validate imports field as it's handled separately
-				if len(filteredFrontmatter) > 0 {
-					if err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(filteredFrontmatter, filePath); err != nil {
-						fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
-							fmt.Sprintf("Invalid configuration in %s: %v", filePath, err)))
-					}
-				}
-			}
 		}
+		includeLog.Printf("Validation failed for non-workflow file %s, applying relaxed validation", filePath)
+		applyRelaxedValidation(result, filePath, isAgentFile)
 	}
-
 	if extractTools {
-		// For custom agent files, skip tools extraction as they use a different format (array vs object)
-		// Agent files are meant to be passed directly to the engine (e.g., via --agent flag)
-		if isAgentFile {
-			return "{}", nil
-		}
-
-		// Extract tools from frontmatter, using filtered frontmatter for non-workflow files with validation errors
-		if validationErr == nil || isWorkflowFile {
-			// If validation passed or it's a workflow file (which must have valid frontmatter),
-			// use the already-parsed frontmatter to avoid a redundant YAML re-parse.
-			return extractToolsFromFrontmatter(result.Frontmatter)
-		} else {
-			// For non-workflow files with validation errors, only extract tools section
-			if tools, hasTools := result.Frontmatter["tools"]; hasTools {
-				toolsJSON, err := json.Marshal(tools)
-				if err != nil {
-					return "{}", nil
-				}
-				return strings.TrimSpace(string(toolsJSON)), nil
-			}
-			return "{}", nil
-		}
+		return extractToolsFromIncludedFile(result, filePath, isAgentFile, isWorkflowFile, validationErr)
 	}
-
-	// Extract markdown content
 	markdownContent, err := ExtractMarkdownContent(string(content))
 	if err != nil {
 		return "", fmt.Errorf("failed to extract markdown from %s: %w", filePath, err)
 	}
-
-	// Process nested includes recursively
 	includedDir := filepath.Dir(filePath)
 	markdownContent, err = processIncludesWithVisited(markdownContent, includedDir, extractTools, visited)
 	if err != nil {
 		return "", fmt.Errorf("failed to process nested includes in %s: %w", filePath, err)
 	}
-
-	// If section specified, extract only that section
 	if sectionName != "" {
 		sectionContent, err := ExtractMarkdownSection(markdownContent, sectionName)
 		if err != nil {
@@ -299,7 +242,6 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		}
 		return strings.Trim(sectionContent, "\n") + "\n", nil
 	}
-
 	return strings.Trim(markdownContent, "\n") + "\n", nil
 }
 

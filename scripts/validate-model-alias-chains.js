@@ -28,7 +28,7 @@ function validateAliasChains(aliasMap) {
   const resolving = new Set();
   const memo = new Map();
 
-  const entriesFor = (alias) => (Array.isArray(aliasMap[alias]) ? aliasMap[alias] : []);
+  const entriesFor = alias => (Array.isArray(aliasMap[alias]) ? aliasMap[alias] : []);
 
   function dfs(alias, chain) {
     if (memo.has(alias)) {

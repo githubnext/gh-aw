@@ -336,172 +336,135 @@ func stripDetailLinePrefix(detail string) string {
 	return pathPositionPrefixPattern.ReplaceAllString(detail, "")
 }
 
+// readFileFrontmatterContext reads a file and extracts context lines and frontmatter for error reporting.
+func readFileFrontmatterContext(filePath, cleanPath string) (contextLines []string, frontmatterContent string, frontmatterStart int) {
+	frontmatterStart = 2 // Default: frontmatter starts at line 2
+	if filePath == "" {
+		return []string{"---", "# (frontmatter validation failed)", "---"}, "", frontmatterStart
+	}
+	content, readErr := os.ReadFile(cleanPath)
+	if readErr != nil {
+		return []string{"---", "# (frontmatter validation failed)", "---"}, "", frontmatterStart
+	}
+	lines := strings.Split(string(content), "\n")
+	frontmatterStartIdx, frontmatterEndIdx, actualFrontmatterContent := findFrontmatterBounds(lines)
+	if frontmatterStartIdx >= 0 && frontmatterEndIdx > frontmatterStartIdx {
+		frontmatterContent = actualFrontmatterContent
+		frontmatterStart = frontmatterStartIdx + 2
+		contextStart := max(0, frontmatterStartIdx)
+		contextEnd := min(len(lines), frontmatterEndIdx+1)
+		for i := contextStart; i < contextEnd; i++ {
+			contextLines = append(contextLines, lines[i])
+		}
+	}
+	if len(contextLines) == 0 {
+		contextLines = []string{"---", "# (frontmatter validation failed)", "---"}
+	}
+	return contextLines, frontmatterContent, frontmatterStart
+}
+
+// buildAdjustedContextLines builds context lines around a specific line number in a file.
+func buildAdjustedContextLines(filePath, cleanPath string, adjustedLine int) []string {
+	if filePath == "" {
+		return nil
+	}
+	content, readErr := os.ReadFile(cleanPath)
+	if readErr != nil {
+		return nil
+	}
+	allLines := strings.Split(string(content), "\n")
+	contextSize := 7
+	expectedFirstLine := adjustedLine - contextSize/2
+	fileStart := max(0, expectedFirstLine-1)
+	var adjustedContextLines []string
+	for lineNum := expectedFirstLine; lineNum < 1; lineNum++ {
+		adjustedContextLines = append(adjustedContextLines, "")
+	}
+	fileEnd := min(len(allLines), fileStart+contextSize-len(adjustedContextLines))
+	for i := fileStart; i < fileEnd; i++ {
+		adjustedContextLines = append(adjustedContextLines, allLines[i])
+	}
+	return adjustedContextLines
+}
+
+// formatPreciseLocationError returns a compiler error with precise file location when a JSON path is found.
+// Returns nil if the location was not found in the frontmatter.
+func formatPreciseLocationError(jsonPaths []JSONPathInfo, schemaJSON, frontmatterContent, filePath string, frontmatterStart int, contextLines []string, cleanPath string) error {
+	primaryPath := jsonPaths[0]
+	location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, primaryPath.Path, primaryPath.Message)
+	if !location.Found {
+		return nil
+	}
+	adjustedLine := location.Line + frontmatterStart - 1
+	adjustedContextLines := buildAdjustedContextLines(filePath, cleanPath, adjustedLine)
+	if len(adjustedContextLines) == 0 {
+		adjustedContextLines = contextLines
+	}
+	detailLines := make([]string, 0, len(jsonPaths))
+	for _, pathInfo := range jsonPaths {
+		detailLines = append(detailLines, formatSchemaFailureDetail(pathInfo, schemaJSON, frontmatterContent, frontmatterStart))
+	}
+	message := stripDetailLinePrefix(detailLines[0])
+	if len(detailLines) != 1 {
+		message = "Multiple schema validation failures:\n- " + strings.Join(detailLines, "\n- ")
+	}
+	compilerErr := console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   filePath,
+			Line:   adjustedLine,
+			Column: location.Column,
+		},
+		Type:    "error",
+		Message: message,
+		Context: adjustedContextLines,
+	}
+	return &FormattedParserError{formatted: console.FormatError(compilerErr)}
+}
+
+// formatFallbackJSONSchemaError returns a compiler error when precise location is unavailable.
+func formatFallbackJSONSchemaError(errorMsg, schemaJSON, frontmatterContent, filePath string, frontmatterStart int, contextLines []string) error {
+	message := rewriteAdditionalPropertiesError(errorMsg)
+	suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "", frontmatterContent)
+	if suggestions != "" {
+		message = message + ". " + suggestions
+	}
+	compilerErr := console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   filePath,
+			Line:   frontmatterStart,
+			Column: 1,
+		},
+		Type:    "error",
+		Message: message,
+		Context: contextLines,
+	}
+	return &FormattedParserError{formatted: console.FormatError(compilerErr)}
+}
+
 // validateWithSchemaAndLocation validates frontmatter against a JSON schema with location information
 func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, context, filePath string) error {
 	schemaCompilerLog.Printf("Validating with location info: context=%s, file=%s", context, filePath)
-	// First try the basic validation
 	err := validateWithSchema(frontmatter, schemaJSON, context)
 	if err == nil {
 		return nil
 	}
-
-	// If there's an error, try to format it with precise location information
 	errorMsg := err.Error()
-
-	// Check if this is a jsonschema validation error before cleaning
 	isJSONSchemaError := strings.Contains(errorMsg, "jsonschema validation failed")
-
-	// Clean up the jsonschema error message to remove unhelpful prefixes
 	if isJSONSchemaError {
 		errorMsg = cleanJSONSchemaErrorMessage(errorMsg)
 	}
-
-	// Try to read the actual file content for better context
-	var contextLines []string
-	var frontmatterContent string
-	var frontmatterStart = 2 // Default: frontmatter starts at line 2
-
-	// Sanitize the path to prevent path traversal attacks
 	cleanPath := filepath.Clean(filePath)
-
-	if filePath != "" {
-		if content, readErr := os.ReadFile(cleanPath); readErr == nil {
-			lines := strings.Split(string(content), "\n")
-
-			// Look for frontmatter section with improved detection
-			frontmatterStartIdx, frontmatterEndIdx, actualFrontmatterContent := findFrontmatterBounds(lines)
-
-			if frontmatterStartIdx >= 0 && frontmatterEndIdx > frontmatterStartIdx {
-				frontmatterContent = actualFrontmatterContent
-				frontmatterStart = frontmatterStartIdx + 2 // +2 because we skip the opening "---" and use 1-based indexing
-
-				// Use the frontmatter section plus a bit of context as context lines
-				contextStart := max(0, frontmatterStartIdx)
-				contextEnd := min(len(lines), frontmatterEndIdx+1)
-
-				for i := contextStart; i < contextEnd; i++ {
-					contextLines = append(contextLines, lines[i])
-				}
-			}
-		}
-	}
-
-	// Fallback context if we couldn't read the file
-	if len(contextLines) == 0 {
-		contextLines = []string{"---", "# (frontmatter validation failed)", "---"}
-	}
-
-	// Try to extract precise location information from the error
+	contextLines, frontmatterContent, frontmatterStart := readFileFrontmatterContext(filePath, cleanPath)
 	if isJSONSchemaError {
-		// Extract JSON path information from the validation error
 		jsonPaths := ExtractJSONPathFromValidationError(err)
 		schemaCompilerLog.Printf("Extracted %d JSON path(s) from validation error for %s", len(jsonPaths), context)
-
-		// If we have paths and frontmatter content, try to get precise locations
 		if len(jsonPaths) > 0 && frontmatterContent != "" {
-			detailLines := make([]string, 0, len(jsonPaths))
-			for _, pathInfo := range jsonPaths {
-				detailLines = append(detailLines, formatSchemaFailureDetail(pathInfo, schemaJSON, frontmatterContent, frontmatterStart))
-			}
-
-			// Use the first error path for primary context rendering.
-			primaryPath := jsonPaths[0]
-			location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, primaryPath.Path, primaryPath.Message)
-
-			if location.Found {
-				// Adjust line number to account for frontmatter position in file
-				adjustedLine := location.Line + frontmatterStart - 1
-
-				// Create context lines around the adjusted line number in the full file
-				var adjustedContextLines []string
-				if filePath != "" {
-					// Use the same sanitized path
-					if content, readErr := os.ReadFile(cleanPath); readErr == nil {
-						allLines := strings.Split(string(content), "\n")
-						// Create context around the adjusted line (±3 lines).
-						// renderContext expects context[0] to map to line (adjustedLine - contextSize/2),
-						// so we must pad the beginning with empty strings for lines before the file starts.
-						contextSize := 7 // ±3 lines around the error
-						expectedFirstLine := adjustedLine - contextSize/2
-						fileStart := max(0, expectedFirstLine-1) // 0-indexed, clamped to file start
-
-						// Pad with empty strings for lines that are before the file
-						for lineNum := expectedFirstLine; lineNum < 1; lineNum++ {
-							adjustedContextLines = append(adjustedContextLines, "")
-						}
-
-						// Add real lines from the file
-						fileEnd := min(len(allLines), fileStart+contextSize-len(adjustedContextLines))
-						for i := fileStart; i < fileEnd; i++ {
-							adjustedContextLines = append(adjustedContextLines, allLines[i])
-						}
-					}
-				}
-
-				// If we couldn't create adjusted context, fall back to frontmatter context
-				if len(adjustedContextLines) == 0 {
-					adjustedContextLines = contextLines
-				}
-
-				// Include every schema failure with path + line + column.
-				// For multiple failures, each detail line keeps its "'path' (line N, col M):" prefix
-				// so the developer can navigate to every failure location.
-				// For a single failure, strip that prefix: the IDE-format "file:line:col: error:"
-				// header already communicates the position, so repeating it in the message body
-				// is redundant noise.
-				// Start with the stripped single-failure form; override below for multi-failure.
-				message := stripDetailLinePrefix(detailLines[0])
-				if len(detailLines) != 1 {
-					message = "Multiple schema validation failures:\n- " + strings.Join(detailLines, "\n- ")
-				}
-
-				// Create a compiler error with precise location information
-				compilerErr := console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   filePath,
-						Line:   adjustedLine,
-						Column: location.Column, // Use original column, we'll extend to word in console rendering
-					},
-					Type:    "error",
-					Message: message,
-					Context: adjustedContextLines,
-					// Hints removed as per requirements
-				}
-
-				// Format and return the error
-				formattedErr := console.FormatError(compilerErr)
-				return &FormattedParserError{formatted: formattedErr}
+			if preciseErr := formatPreciseLocationError(jsonPaths, schemaJSON, frontmatterContent, filePath, frontmatterStart, contextLines, cleanPath); preciseErr != nil {
+				return preciseErr
 			}
 		}
-
-		// Rewrite "additional properties not allowed" errors to be more friendly
-		message := rewriteAdditionalPropertiesError(errorMsg)
-
-		// Add schema-based suggestions for fallback case
-		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "", frontmatterContent)
-		if suggestions != "" {
-			message = message + ". " + suggestions
-		}
-
-		// Fallback: Create a compiler error with basic location information
-		compilerErr := console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   filePath,
-				Line:   frontmatterStart,
-				Column: 1, // Use column 1 for fallback, we'll extend to word in console rendering
-			},
-			Type:    "error",
-			Message: message,
-			Context: contextLines,
-			// Hints removed as per requirements
-		}
-
-		// Format and return the error
-		formattedErr := console.FormatError(compilerErr)
-		return &FormattedParserError{formatted: formattedErr}
+		return formatFallbackJSONSchemaError(errorMsg, schemaJSON, frontmatterContent, filePath, frontmatterStart, contextLines)
 	}
-
-	// Fallback to the original error if we can't format it nicely
 	return err
 }
 
