@@ -86,11 +86,15 @@ func extractSafeOutputsConfig(frontmatter map[string]any, serverFilter string) *
 }
 
 // extractSafeJobsConfig merges safe-jobs entries into the safe-outputs MCP server config.
+// Note: top-level safe-jobs is a legacy path; new workflows should use safe-outputs.jobs instead.
+// The compiler rejects top-level safe-jobs during compilation, so this path only applies in
+// relaxed-validation contexts such as MCP config inspection.
 func extractSafeJobsConfig(frontmatter map[string]any, serverFilter string, configs []RegistryMCPServerConfig) []RegistryMCPServerConfig {
 	safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]
 	if !hasSafeJobs {
 		return configs
 	}
+	mcpLog.Print("Found top-level safe-jobs (legacy); prefer safe-outputs.jobs for new workflows")
 	if serverFilter != "" && !strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 		return configs
 	}
@@ -472,7 +476,7 @@ func parseMCPStdioContainer(mcpConfig map[string]any, toolName string, config *R
 	}
 	containerStr, ok := container.(string)
 	if !ok {
-		return nil
+		return fmt.Errorf("tool %s: 'container' must be a string, got %T", toolName, container)
 	}
 	mcpLog.Printf("Tool %s uses container: %s", toolName, containerStr)
 	config.Container = containerStr

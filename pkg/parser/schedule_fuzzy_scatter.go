@@ -325,7 +325,7 @@ func scatterHourly(fuzzyCron, prefix, weekdaySpec, workflowIdentifier string) (s
 	} else {
 		result = fmt.Sprintf("%d */%d * * *", minute, interval)
 	}
-	scheduleFuzzyScatterLog.Printf("FUZZY:HOURLY/%d scattered: minute=%d, result=%s", interval, minute, result)
+	scheduleFuzzyScatterLog.Printf("%s%d scattered: minute=%d, result=%s", prefix, interval, minute, result)
 	return result, nil
 }
 
