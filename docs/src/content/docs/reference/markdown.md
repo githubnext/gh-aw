@@ -84,9 +84,9 @@ See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance 
 
 The markdown body of workflows (excluding frontmatter) is automatically scanned for malicious content when added via `gh aw add`, during trial mode, and at compile time for imported files. The scanner rejects workflows containing: Unicode abuse (zero-width characters, bidirectional overrides), hidden content (suspicious HTML comments, CSS-hidden elements), obfuscated links (data URIs, `javascript:` URLs, IP-based URLs, URL shorteners), dangerous HTML tags (`<script>`, `<iframe>`, `<object>`, `<form>`, event handlers), embedded executable content (SVG scripts, executable MIME data URIs), and social engineering patterns (prompt injection, base64-encoded commands, pipe-to-shell patterns). These checks cannot be overridden.
 
-## Inline Sub-Agents
+## Copilot Inline Sub-Agents
 
-You can define sub-agents directly inside a workflow file using a level-2 heading:
+You can define Copilot sub-agents directly inside a workflow file using a level-2 heading:
 
 ```markdown
 ## agent: `name`
@@ -99,12 +99,12 @@ Agent instructions go here.
 
 Each sub-agent block ends at the next `##` heading or EOF. At runtime the blocks are extracted to `.agents/agents/<name>.agent.md`, where the Copilot CLI discovers and invokes them by name.
 
-See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax reference.
+See [Copilot Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax reference.
 
 ## Related Documentation
 
 - [Editing Workflows](/gh-aw/guides/editing-workflows/) - When to recompile vs edit directly
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow file organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration options
-- [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining sub-agents inside a workflow file
+- [Copilot Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining Copilot sub-agents inside a workflow file
 - [Security Guide](/gh-aw/introduction/architecture/) - Comprehensive security guidance

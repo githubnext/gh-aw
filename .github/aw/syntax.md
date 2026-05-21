@@ -779,23 +779,44 @@ Each ecosystem identifier enables network access to the domains required by that
 | Identifier | Runtimes / Languages | Package Manager / Domains |
 |---|---|---|
 | `defaults` | All (always include) | Certificates, JSON schema, Ubuntu mirrors, Microsoft sources |
-| `dotnet` | C#, F#, VB.NET | NuGet (`nuget.org`, `api.nuget.org`, `dotnetcli.blob.core.windows.net`, etc.) |
-| `python` | Python | pip, conda, PyPI (`pypi.org`, `files.pythonhosted.org`, `conda.anaconda.org`, etc.) |
-| `node` | Node.js, JavaScript, TypeScript | npm, yarn, pnpm (`registry.npmjs.org`, `yarnpkg.com`, etc.) |
-| `go` | Go | Go modules (`proxy.golang.org`, `sum.golang.org`, `pkg.go.dev`) |
-| `java` | Java, Kotlin, Scala, Groovy | Maven, Gradle (`repo1.maven.org`, `plugins.gradle.org`, etc.) |
-| `ruby` | Ruby | RubyGems, Bundler (`rubygems.org`, `gems.ruby-china.com`, etc.) |
-| `rust` | Rust | Cargo, crates.io (`crates.io`, `static.crates.io`) |
-| `swift` | Swift | Swift Package Manager, CocoaPods (`swiftpackageindex.com`, `cocoapods.org`) |
-| `php` | PHP | Composer, Packagist (`packagist.org`, `getcomposer.org`, etc.) |
-| `dart` | Dart, Flutter | pub.dev (`pub.dev`, `storage.googleapis.com`) |
-| `haskell` | Haskell | Hackage, Stack (`hackage.haskell.org`, `s3.amazonaws.com/haskell-platform`) |
-| `perl` | Perl | CPAN (`cpan.org`, `www.cpan.org`, `metacpan.org`) |
+| `github` | Any | GitHub domains (`github.com`, `*.githubusercontent.com`, `codeload.github.com`, etc.) |
+| `local` | Any | Loopback (`localhost`, `127.0.0.1`, `::1`) |
+| `dev-tools` | Any | CI/CD services (Codecov, Shields.io, Snyk, Renovate, CircleCI, etc.) |
+| `default-safe-outputs` | Any | Compound: `defaults` + `dev-tools` + `github` + `local` — recommended for `safe-outputs.allowed-domains` |
+| `containers` | Docker, OCI | Docker Hub, GHCR, Quay, GCR, MCR (`registry.hub.docker.com`, `ghcr.io`, etc.) |
+| `linux-distros` | Any | apt, yum/dnf (Debian, Alpine, Fedora, `deb.debian.org`, `dl-cdn.alpinelinux.org`, etc.) |
+| `playwright` | Any | Playwright browser automation (`cdn.playwright.dev`, `playwright.download.prss.microsoft.com`) |
+| `chrome` | Any | Headless Chrome/Puppeteer (`*.google.com`, `*.googleapis.com`, `*.gvt1.com`) |
+| `fonts` | Any | Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) |
 | `terraform` | Terraform, OpenTofu | HashiCorp registry (`registry.terraform.io`, `releases.hashicorp.com`) |
-| `containers` | Docker, OCI | Docker Hub, GHCR, Quay (`registry.hub.docker.com`, `ghcr.io`, etc.) |
-| `github` | Any | GitHub domains (`github.com`, `api.github.com`, `objects.githubusercontent.com`, etc.) |
-| `linux-distros` | Any | apt, yum/dnf (`archive.ubuntu.com`, `packages.microsoft.com`, etc.) |
-| `playwright` | Any | Playwright browser automation (`playwright.azureedge.net`, etc.) |
+| `bazel` | Any | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
+| `clojure` | Clojure | Clojars (`clojars.org`) |
+| `dart` | Dart, Flutter | pub.dev (`pub.dev`, `storage.googleapis.com`) |
+| `deno` | JavaScript, TypeScript | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
+| `dotnet` | C#, F#, VB.NET | NuGet (`nuget.org`, `api.nuget.org`, `dotnetcli.blob.core.windows.net`, etc.) |
+| `elixir` | Elixir | Hex (`hex.pm`, `cdn.hex.pm`) |
+| `go` | Go | Go modules (`proxy.golang.org`, `sum.golang.org`, `pkg.go.dev`) |
+| `haskell` | Haskell | Hackage, GHCup (`hackage.haskell.org`, `get-ghcup.haskell.org`, `downloads.haskell.org`) |
+| `java` | Java, Groovy | Maven, Gradle (`repo1.maven.org`, `plugins.gradle.org`, `api.adoptium.net`, etc.) |
+| `julia` | Julia | Julia packages (`pkg.julialang.org`, `storage.julialang.net`) |
+| `kotlin` | Kotlin | JetBrains packages (`download.jetbrains.com`, `packages.jetbrains.team`) |
+| `latex` | LaTeX, TeX | CTAN, TUG, MiKTeX (`ctan.org`, `tug.org`, `packages.miktex.org`) — **note**: TeX Live `tlmgr` uses redirected CTAN mirrors not reachable through the firewall; prefer `apt-get install texlive-full` (via `defaults`) or MiKTeX |
+| `lean` | Lean | Lean packages (`lean-lang.org`, `reservoir.lean-lang.org`) |
+| `lua` | Lua | LuaRocks (`luarocks.org`) |
+| `node` | Node.js, JavaScript, TypeScript | npm, yarn, pnpm, Bun (`registry.npmjs.org`, `yarnpkg.com`, `bun.sh`, etc.) |
+| `node-cdns` | JavaScript, TypeScript | Node.js CDN assets (jsDelivr, jQuery CDN — `cdn.jsdelivr.net`, `code.jquery.com`) |
+| `ocaml` | OCaml | opam (`opam.ocaml.org`) |
+| `perl` | Perl | CPAN (`cpan.org`, `metacpan.org`) |
+| `php` | PHP | Composer, Packagist (`packagist.org`, `getcomposer.org`) |
+| `powershell` | PowerShell | PowerShell Gallery (`powershellgallery.com`) |
+| `python` | Python | pip, conda, PyPI (`pypi.org`, `files.pythonhosted.org`, `conda.anaconda.org`, etc.) |
+| `python-native` | Python (native extensions) | PyPI + crates.io — for pyo3/maturin builds |
+| `r` | R | CRAN (`cran.r-project.org`, `cloud.r-project.org`) |
+| `ruby` | Ruby | RubyGems, Bundler (`rubygems.org`, `api.rubygems.org`, etc.) |
+| `rust` | Rust | Cargo, crates.io (`crates.io`, `static.crates.io`, `sh.rustup.rs`) |
+| `scala` | Scala | sbt, JitPack (`repo.scala-sbt.org`, `jitpack.io`) |
+| `swift` | Swift | Swift Package Manager, CocoaPods (`swift.org`, `download.swift.org`, `cocoapods.org`) |
+| `zig` | Zig | Zig packages (`ziglang.org`) |
 
 **Network Inference Rule:** When a workflow will run `dotnet restore`, `pip install`, `npm install`, `go mod download`, `mvn install`, etc., infer the ecosystem from the repository language and include it. Examples:
 

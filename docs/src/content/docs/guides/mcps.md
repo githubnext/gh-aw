@@ -20,9 +20,11 @@ Create a workflow file at `.github/workflows/my-workflow.md`:
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   issues: read
+
 tools:
   github:
     toolsets: [default]
@@ -63,7 +65,7 @@ The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`. W
 
 ### Operating Modes
 
-Remote mode (`mode: remote`) connects to a hosted server for faster startup with no Docker required. Local mode (`mode: local`) runs in Docker, enabling version pinning for offline or restricted environments. See [Remote vs Local Mode](/gh-aw/reference/github-tools/#github-tools-access-modes).
+Remote mode (`mode: remote`) connects to a hosted server with no Docker required. Local mode (`mode: local`) runs in Docker, enabling version pinning for offline or restricted environments. See [Remote vs Local Mode](/gh-aw/reference/github-tools/#github-tools-access-modes).
 
 The GitHub MCP server always operates read-only. Write operations are handled through [safe outputs](/gh-aw/reference/safe-outputs/), which run in a separate permission-controlled job.
 
@@ -233,12 +235,15 @@ gh aw mcp add my-workflow server-name --registry https://custom.registry.com/v1 
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   issues: read
+
 tools:
   github:
     toolsets: [default]
+
 safe-outputs:
   add-comment:
 ---
@@ -253,13 +258,16 @@ Analyze issue #${{ github.event.issue.number }} and add a comment with category,
 ```aw wrap
 ---
 on: weekly on sunday
+
 permissions:
   contents: read
   security-events: read
   discussions: write
+
 tools:
   github:
     toolsets: [default, code_security, discussions]
+
 safe-outputs:
   create-discussion:
     category: "Security"

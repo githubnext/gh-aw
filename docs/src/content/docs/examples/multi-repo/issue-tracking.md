@@ -24,12 +24,15 @@ Create tracking issues in central repository when component issues are opened:
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -59,12 +62,15 @@ Update tracking issues when component issues change status:
 on:
   issues:
     types: [closed, reopened, labeled, unlabeled]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   add-comment:
@@ -92,12 +98,15 @@ on:
   issues:
     types: [opened]
     # Triggered when issue has 'cross-component' label
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -129,12 +138,15 @@ on:
         description: 'URL of external issue to track'
         required: true
         type: string
+
 permissions:
   contents: read
+
 tools:
   github:
     toolsets: [issues]
   web-fetch:
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -161,12 +173,15 @@ Triage component issues and route to appropriate trackers:
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -191,11 +206,14 @@ Create weekly summary of tracked issues:
 ```aw wrap
 ---
 on: weekly on monday
+
 permissions:
   contents: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-discussion:
@@ -220,12 +238,15 @@ Maintain references between component and tracking issues:
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -253,12 +274,15 @@ Route issues to different trackers based on priority:
 on:
   issues:
     types: [opened, labeled]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
