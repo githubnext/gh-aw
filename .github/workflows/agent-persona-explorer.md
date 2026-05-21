@@ -8,6 +8,23 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+experiments:
+  sub_agent_strategy:
+    variants: [per_scenario, batch]
+    description: "Test whether batch scenario testing reduces token costs vs. per-scenario sub-agent calls"
+    hypothesis: "H0: no change in effective_tokens or duration. H1: batch reduces tokens by ≥20% and duration by ≥15% without quality loss"
+    metric: effective_tokens
+    secondary_metrics: [run_duration_minutes, scenarios_tested, output_quality_score]
+    guardrail_metrics:
+      - name: discussion_created
+        threshold: "==1"
+      - name: scenarios_analyzed
+        threshold: ">=3"
+    min_samples: 14
+    weight: [50, 50]
+    start_date: "2026-05-22"
+    analysis_type: t_test
+    tags: [cost_optimization, token_efficiency, sub_agents]
 # Token Budget Guardrails:
 # - timeout: Reduced from 600 to 180 minutes for faster feedback
 # - Prompt optimization: Reduced scenario testing scope (6-8 instead of 15-20)
@@ -80,6 +97,27 @@ Store all scenarios in cache memory.
 
 **Token Budget Optimization**: Test a **representative subset of 3-4 scenarios** (not all scenarios) to reduce token consumption and ensure budget remains for Phase 5 publishing.
 
+{{#if experiments.sub_agent_strategy == 'batch' }}
+Invoke the "agentic-workflows" custom agent **once** with all 3-4 selected scenarios presented together in a structured list:
+
+1. **Present all scenarios** in a single prompt listing each scenario by persona name and task description
+2. **Parse the consolidated response** to extract per-scenario assessments:
+   - Does each suggestion include appropriate triggers (`on:`)?
+   - Does it suggest correct tools (github, web-fetch, playwright, etc.)?
+   - Does it configure safe-outputs properly?
+   - Does it apply security best practices (minimal permissions, network restrictions)?
+   - Does it create a clear, actionable prompt?
+3. **Store the analysis** in cache memory with the same structure as the per-scenario mode:
+   - Scenario identifier
+   - Agent's suggested configuration (**summarize, don't include full YAML**)
+   - Quality assessment (1-5 scale):
+     - Trigger appropriateness
+     - Tool selection accuracy
+     - Security practices
+     - Prompt clarity
+     - Completeness
+   - Notable patterns or issues (be concise)
+{{else}}
 For each selected scenario, invoke the "agentic-workflows" custom agent tool and:
 
 1. **Present the scenario** as if you were that persona requesting a new workflow
@@ -99,6 +137,7 @@ For each selected scenario, invoke the "agentic-workflows" custom agent tool and
      - Prompt clarity
      - Completeness
    - Notable patterns or issues (be concise)
+{{/if}}
 
 **Important**: 
 - You are ONLY testing the agent's responses, NOT creating actual workflows

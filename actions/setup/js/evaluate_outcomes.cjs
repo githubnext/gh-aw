@@ -163,6 +163,11 @@ function secondsBetween(from, to) {
  * @property {number | null} changed_files
  * @property {number | null} additions
  * @property {number | null} deletions
+ * @property {number | null} reactions_total
+ * @property {number | null} reactions_positive
+ * @property {number | null} reactions_negative
+ * @property {number | null} comments
+ * @property {boolean} zero_touch
  */
 
 /**
@@ -186,6 +191,11 @@ function evaluateItem(item, defaultRepo) {
     changed_files: null,
     additions: null,
     deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
   };
 
   if (!url) {
@@ -206,6 +216,18 @@ function evaluateItem(item, defaultRepo) {
     }
     out.result = "accepted";
     out.detail = data.state;
+    out.comments = typeof data.comments === "number" ? data.comments : null;
+
+    // Reactions on issues
+    if (data.reactions && typeof data.reactions === "object") {
+      const r = data.reactions;
+      const positive = (r["+1"] || 0) + (r.heart || 0) + (r.hooray || 0) + (r.rocket || 0);
+      const negative = (r["-1"] || 0) + (r.confused || 0);
+      out.reactions_total = (r.total_count != null) ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
+      out.reactions_positive = positive;
+      out.reactions_negative = negative;
+    }
+
     if (data.state === "closed" && data.created_at && data.closed_at) {
       out.resolution_sec = secondsBetween(data.created_at, data.closed_at);
     }
@@ -228,6 +250,22 @@ function evaluateItem(item, defaultRepo) {
     out.changed_files = typeof data.changed_files === "number" ? data.changed_files : null;
     out.additions = typeof data.additions === "number" ? data.additions : null;
     out.deletions = typeof data.deletions === "number" ? data.deletions : null;
+    out.comments = typeof data.comments === "number" ? data.comments : null;
+
+    // Reactions
+    if (data.reactions && typeof data.reactions === "object") {
+      const r = data.reactions;
+      const positive = (r["+1"] || 0) + (r.heart || 0) + (r.hooray || 0) + (r.rocket || 0);
+      const negative = (r["-1"] || 0) + (r.confused || 0);
+      out.reactions_total = (r.total_count != null) ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
+      out.reactions_positive = positive;
+      out.reactions_negative = negative;
+    }
+
+    // Zero-touch: merged with no human review comments and no issue-level comments
+    if (data.merged === true && out.review_comments === 0 && out.comments === 0) {
+      out.zero_touch = true;
+    }
 
     if (data.merged === true) {
       out.result = "accepted";
@@ -315,6 +353,9 @@ function main() {
   let pending = 0;
   let total = 0;
   let noop = 0;
+  let zeroTouchCount = 0;
+  /** @type {number[]} */
+  const resolutionTimes = [];
 
   // Clear the evaluations file
   fs.writeFileSync(EVAL_JSONL, "");
@@ -393,6 +434,9 @@ function main() {
       switch (evalResult.result) {
         case "accepted":
           accepted++;
+          if (evalResult.zero_touch === true) {
+            zeroTouchCount++;
+          }
           break;
         case "rejected":
           rejected++;
@@ -400,6 +444,9 @@ function main() {
         default:
           pending++;
           break;
+      }
+      if (typeof evalResult.resolution_sec === "number" && evalResult.resolution_sec > 0) {
+        resolutionTimes.push(evalResult.resolution_sec);
       }
 
       fs.appendFileSync(
@@ -420,6 +467,11 @@ function main() {
           changed_files: evalResult.changed_files,
           additions: evalResult.additions,
           deletions: evalResult.deletions,
+          reactions_total: evalResult.reactions_total,
+          reactions_positive: evalResult.reactions_positive,
+          reactions_negative: evalResult.reactions_negative,
+          comments: evalResult.comments,
+          zero_touch: evalResult.zero_touch || false,
         }) + "\n"
       );
     }
@@ -442,6 +494,15 @@ function main() {
   const wasteRate = total > 0 ? rejected / total : 0;
   const noopRate = total + noop > 0 ? noop / (total + noop) : 0;
 
+  // Economics: zero-touch rate and median time-to-outcome
+  const zeroTouchRate = accepted > 0 ? zeroTouchCount / accepted : 0;
+  resolutionTimes.sort((a, b) => a - b);
+  let medianResolutionSec = null;
+  if (resolutionTimes.length > 0) {
+    const mid = Math.floor(resolutionTimes.length / 2);
+    medianResolutionSec = resolutionTimes.length % 2 !== 0 ? resolutionTimes[mid] : Math.round((resolutionTimes[mid - 1] + resolutionTimes[mid]) / 2);
+  }
+
   writeJSONAtomic(SUMMARY_PATH, {
     runs_checked: checked,
     total_outcomes: total,
@@ -453,6 +514,9 @@ function main() {
     acceptance_rate: Math.round(acceptanceRate * 10000) / 10000,
     waste_rate: Math.round(wasteRate * 10000) / 10000,
     noop_rate: Math.round(noopRate * 10000) / 10000,
+    zero_touch: zeroTouchCount,
+    zero_touch_rate: Math.round(zeroTouchRate * 10000) / 10000,
+    median_resolution_sec: medianResolutionSec,
     date: new Date().toISOString().slice(0, 10),
   });
 
