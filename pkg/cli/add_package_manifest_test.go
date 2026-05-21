@@ -563,11 +563,15 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 		// .md files: allowed under workflows/ and .github/workflows/
 		{"workflows/review.md", true},
 		{".github/workflows/nightly-review.md", true},
-		// .yml action workflow files: allowed only under .github/workflows/
+		// .yml action workflow files: allowed only under .github/workflows/ (direct children only)
 		{".github/workflows/deploy.yml", true},
 		{".github/workflows/ci.yml", true},
+		// mixed-case extensions are accepted
+		{".github/workflows/CI.YML", true},
 		// .yml files under workflows/ are NOT supported
 		{"workflows/deploy.yml", false},
+		// nested subdirectories under .github/workflows/ are NOT supported for .yml
+		{".github/workflows/subdir/ci.yml", false},
 		// .lock.yml files are NOT supported (generated artifacts)
 		{".github/workflows/deploy.lock.yml", false},
 		{"workflows/deploy.lock.yml", false},
@@ -577,6 +581,8 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 		{".github/workflows/config.yaml", false},
 		// path traversal
 		{"../evil.md", false},
+		{"workflows/../README.md", false},
+		{".github/workflows/../x.yml", false},
 		{"", false},
 	}
 	for _, tt := range tests {

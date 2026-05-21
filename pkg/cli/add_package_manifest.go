@@ -301,19 +301,26 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 	return normalized
 }
 
-func isSupportedPackageInstallablePath(path string) bool {
-	lowerPath := strings.ToLower(path)
-	if strings.HasSuffix(lowerPath, ".md") {
-		return strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/")
+func isSupportedPackageInstallablePath(p string) bool {
+	// Normalize to reject path traversal (e.g. "workflows/../README.md" → "README.md")
+	cleaned := path.Clean(p)
+	lowerCleaned := strings.ToLower(cleaned)
+	if strings.HasSuffix(lowerCleaned, ".md") {
+		return strings.HasPrefix(cleaned, "workflows/") || strings.HasPrefix(cleaned, ".github/workflows/")
 	}
-	if isActionWorkflowPath(path) {
-		return strings.HasPrefix(path, ".github/workflows/")
+	if isActionWorkflowPath(cleaned) {
+		if !strings.HasPrefix(cleaned, ".github/workflows/") {
+			return false
+		}
+		// Reject nested subdirectories: only direct children of .github/workflows/ are allowed.
+		remaining := strings.TrimPrefix(cleaned, ".github/workflows/")
+		return !strings.Contains(remaining, "/")
 	}
 	return false
 }
 
-func isActionWorkflowPath(path string) bool {
-	lowerPath := strings.ToLower(path)
+func isActionWorkflowPath(p string) bool {
+	lowerPath := strings.ToLower(p)
 	return strings.HasSuffix(lowerPath, ".yml") && !strings.HasSuffix(lowerPath, ".lock.yml")
 }
 

@@ -199,14 +199,14 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 		workflowSpecsForError := strings.Join(c.WorkflowSpecs, ", ")
 		for i, rw := range c.resolvedWorkflows.Workflows {
 			if rw == nil {
-				return nil, nil, fmt.Errorf("resolved manifest workflow at position %d from %q is nil", i+1, workflowSpecsForError)
+				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q is nil", i+1, workflowSpecsForError)
 			}
 			if rw.Spec == nil {
-				return nil, nil, fmt.Errorf("resolved manifest workflow at position %d from %q is missing its specification", i+1, workflowSpecsForError)
+				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q is missing its specification", i+1, workflowSpecsForError)
 			}
 			workflowName := strings.TrimSpace(rw.Spec.WorkflowName)
 			if workflowName == "" {
-				return nil, nil, fmt.Errorf("resolved manifest workflow at position %d from %q is missing its workflow name", i+1, workflowSpecsForError)
+				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q is missing its workflow name", i+1, workflowSpecsForError)
 			}
 			if rw.IsActionWorkflow {
 				// Raw GitHub Actions YAML files are installed as-is; no .lock.yml is produced.

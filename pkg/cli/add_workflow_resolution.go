@@ -227,12 +227,8 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		// either a .md agentic workflow or a .yml action workflow file; no other
 		// extensions can reach this point.
 		base := filepath.Base(installationSource)
-		var workflowName string
-		if isActionWorkflowPath(installationSource) {
-			workflowName = strings.TrimSuffix(base, ".yml")
-		} else {
-			workflowName = strings.TrimSuffix(base, ".md")
-		}
+		// Use filepath.Ext for case-insensitive extension removal (e.g. ".YML" or ".MD").
+		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug: repoSpec.RepoSlug,
