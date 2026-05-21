@@ -62,8 +62,8 @@ Run **Step T1** from the cache-memory trending pattern above to inspect the cach
 
 Use the `agentic-workflows` MCP `logs` tool:
 
-- **Incremental** (`entry_count >= 30`): `logs(start_date="-1d")`
-- **Backfill** (`entry_count < 30`): `logs(start_date="-90d")`
+- **Incremental** (history is already rich per the threshold in **Step T1**): `logs(start_date="-1d")`
+- **Backfill** (first run, cache miss, or sparse history per the threshold in **Step T1**): `logs(start_date="-90d")`
 
 Record which mode you used (`incremental` vs `backfill`) and the chosen `start_date` in Step 6 (the discussion "Cache Memory Status" details block).
 

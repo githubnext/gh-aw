@@ -329,14 +329,22 @@ jobs:
           RETENTION_DAYS = 90
           
           def load_history(path: Path) -> list[dict]:
-              """Load existing JSONL history, returning an empty list if file is absent."""
+              """Load existing JSONL history, returning an empty list if file is absent.
+          
+              Lines that cannot be parsed as JSON (e.g. from an interrupted prior write)
+              are skipped with a warning so subsequent runs can self-heal.
+              """
               entries = []
               if path.exists():
                   with open(path) as f:
-                      for line in f:
-                          line = line.strip()
-                          if line:
+                      for row_index, raw in enumerate(f, start=1):
+                          line = raw.strip()
+                          if not line:
+                              continue
+                          try:
                               entries.append(json.loads(line))
+                          except json.JSONDecodeError as exc:
+                              print(f"warning: skipped malformed JSON at row_index={row_index}: {exc}")
               return entries
           
           def upsert_by_date(entries: list[dict]) -> list[dict]:
@@ -351,16 +359,27 @@ jobs:
               return [by_date[d] for d in sorted(by_date.keys())]
           
           def apply_retention(entries: list[dict], retention_days: int) -> list[dict]:
-              """Remove entries older than retention_days."""
-              cutoff = (datetime.utcnow() - timedelta(days=retention_days)).strftime("%Y-%m-%d")
+              """Remove entries older than retention_days, keeping exactly retention_days calendar days.
+          
+              The cutoff is inclusive: entries whose date equals today minus (retention_days - 1) are kept,
+              so a retention_days=90 policy retains exactly 90 days (today through 89 days ago).
+              """
+              cutoff = (datetime.utcnow().date() - timedelta(days=retention_days - 1)).isoformat()
               return [e for e in entries if e.get("date", "") >= cutoff]
           
           def save_history(path: Path, entries: list[dict]) -> None:
-              """Write entries back as JSONL (creates parent directories as needed)."""
+              """Write entries back as JSONL using an atomic rename to prevent corruption.
+          
+              Writes to a sibling `.tmp` file first, then replaces the target via os.replace()
+              so an interrupted write never leaves a truncated history file.
+              """
+              import os
               path.parent.mkdir(parents=True, exist_ok=True)
-              with open(path, "w") as f:
+              tmp_path = path.with_suffix(".tmp")
+              with open(tmp_path, "w") as f:
                   for entry in entries:
                       f.write(json.dumps(entry) + "\n")
+              os.replace(tmp_path, path)
           
           # --- Merge logic ---
           existing = load_history(HISTORY_FILE)
