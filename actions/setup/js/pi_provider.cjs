@@ -185,16 +185,19 @@ function piProviderExtension(pi) {
   // to the Copilot sidecar (port 10002) to match resolvePiBackend in pi_engine.go.
   const model = getConfiguredModel();
   const provider = extractProviderFromModel(model);
-  const gatewayUrl = resolveGatewayUrl(provider || "copilot");
+  const providerGatewayUrl = provider ? resolveGatewayUrl(provider) : null;
+  const gatewayUrl = providerGatewayUrl || resolveGatewayUrl("copilot");
+  if (provider && !providerGatewayUrl) {
+    log(`provider=${provider}: no known AWF gateway port, falling back to Copilot gateway for /reflect`);
+  }
   const reflectUrl = gatewayUrl ? `${gatewayUrl}/reflect` : AWF_API_PROXY_REFLECT_URL;
 
   pi.on("agent_start", async () => {
     if (provider) {
-      if (gatewayUrl) {
-        log(`provider=${provider} model=${model} gateway=${gatewayUrl}`);
-      } else {
-        log(`provider=${provider} model=${model} (no known AWF gateway port for this provider)`);
+      if (providerGatewayUrl) {
+        log(`provider=${provider} model=${model} gateway=${providerGatewayUrl}`);
       }
+      // Unknown-provider warning already logged at extension load time above.
     } else {
       log(`model=${model || "(not set)"} (no provider prefix — defaulting to Copilot gateway)`);
     }

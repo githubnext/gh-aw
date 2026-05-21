@@ -123,7 +123,7 @@ describe("pi_provider.cjs", () => {
   });
 
   it("defaults to Copilot gateway port (10002) when no provider prefix is set", async () => {
-    process.env.GH_AW_PI_MODEL = "claude-sonnet-4";
+    process.env.GH_AW_PI_MODEL = "my-custom-model";
     const fetchedUrls = [];
     global.fetch = vi.fn().mockImplementation(url => {
       fetchedUrls.push(url);
@@ -142,5 +142,29 @@ describe("pi_provider.cjs", () => {
     await handlers.agent_start();
 
     expect(fetchedUrls[0]).toBe("http://api-proxy:10002/reflect");
+  });
+
+  it("falls back to Copilot gateway port (10002) and logs a warning for an unknown provider", async () => {
+    process.env.GH_AW_PI_MODEL = "unknown-provider/my-model";
+    const fetchedUrls = [];
+    global.fetch = vi.fn().mockImplementation(url => {
+      fetchedUrls.push(url);
+      return Promise.reject(new Error("network disabled"));
+    });
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+
+    // Falls back to Copilot gateway (port 10002) and emits a warning at load time.
+    expect(fetchedUrls[0]).toBe("http://api-proxy:10002/reflect");
+    expect(stderrOutput.some(line => line.includes("no known AWF gateway port") && line.includes("falling back to Copilot gateway"))).toBe(true);
   });
 });
