@@ -50,3 +50,7 @@ jobs:
       - name: Run errormessage linter on changed files
         if: steps.changed.outputs.files != ''
         run: /tmp/gh-aw-linters -errormessage.changed-files="${{ steps.changed.outputs.files }}" ./...
+
+      - name: Check for bare fmt.Println in pkg/cli
+        run: |
+          ! grep -rn 'fmt\.Println(' pkg/cli/ --include='*.go' | grep -v '_test\.go'

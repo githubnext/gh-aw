@@ -410,6 +410,6 @@ func printChecksText(result *ChecksResult) error {
 	}
 
 	// Always print the normalized state to stdout for machine consumption.
-	fmt.Println(string(result.State))
+	fmt.Fprintln(os.Stdout, string(result.State))
 	return nil
 }
