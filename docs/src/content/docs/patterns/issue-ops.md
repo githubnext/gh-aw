@@ -5,18 +5,33 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-IssueOps transforms GitHub issues into automation triggers that analyze, categorize, and respond to issues automatically. Use it for auto-triage, smart routing, initial responses, and quality checks. GitHub Agentic Workflows makes this natural through issue triggers and [safe-outputs](/gh-aw/reference/safe-outputs/) that handle automated responses securely without write permissions for the main AI job.
+IssueOps transforms GitHub issues into automation triggers that analyze, categorize, and respond to issues automatically. Use it for auto-triage, smart routing, initial responses, and quality checks. GitHub Agentic Workflows makes this natural through [issue triggers](/gh-aw/reference/triggers/) and [safe-outputs](/gh-aw/reference/safe-outputs/) that handle automated responses securely without write permissions for the main AI job.
 
 When issues are created, workflows activate automatically. The AI analyzes content and provides intelligent responses through automated comments.
+
+## Example: Issue Triage Assistant
+
+This workflow responds to new issues with contextual guidance. It analyzes the title and description for bug reports needing information, feature requests to categorize, questions to answer, or potential duplicates. The AI then comments with helpful next steps or immediate assistance.
+
+```mermaid
+flowchart LR
+    event([Issue opened]) --> agent[AI triage]
+    agent --> label[Labels]
+    agent --> comment[Comment]
+```
+
+Example workflow:
 
 ```aw wrap
 ---
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 safe-outputs:
   add-comment:
     max: 2
@@ -29,48 +44,6 @@ Analyze new issue content and provide helpful guidance. Examine the title and de
 
 This creates an intelligent triage system that responds to new issues with contextual guidance.
 
-## Safe Output Architecture
-
-IssueOps workflows use the `add-comment` safe output to ensure secure comment creation with minimal permissions. The main job runs with `contents: read` while comment creation happens in a separate job with `issues: write` permissions, automatically sanitizing AI content and preventing spam:
-
-```yaml wrap
-safe-outputs:
-  add-comment:
-    max: 3                    # Optional: allow multiple comments (default: 1)
-    target: "triggering"      # Default: comment on the triggering issue/PR
-```
-
-## Accessing Issue Context
-
-Access sanitized issue content through `steps.sanitized.outputs.text`, which combines title and description while removing security risks (@mentions, URIs, injections):
-
-```yaml wrap
-Analyze this issue: "${{ steps.sanitized.outputs.text }}"
-```
-
-## Common IssueOps Patterns
-
-### Automated Bug Report Triage
-
-```aw wrap
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read
-safe-outputs:
-  add-labels:
-    allowed: [bug, needs-info, enhancement, question, documentation]  # Restrict to specific labels
-    max: 2                                                            # Maximum 2 labels per issue
----
-
-# Bug Report Triage
-
-Analyze new issues and add appropriate labels: "bug" (with repro steps), "needs-info" (missing details), "enhancement" (features), "question" or "documentation" (help/docs). Maximum 2 labels from the allowed list.
-```
-
 ## Organizing Work with Sub-Issues
 
 Break large work into agent-ready tasks using parent-child issue hierarchies. Create hierarchies with the `parent` field and temporary IDs, or link existing issues with `link-sub-issue`:
@@ -80,6 +53,7 @@ Break large work into agent-ready tasks using parent-child issue hierarchies. Cr
 on:
   command:
     name: plan
+
 safe-outputs:
   create-issue:
     title-prefix: "[task] "
@@ -94,9 +68,14 @@ Create a parent tracking issue, then sub-issues linked via parent field:
 {"type": "create_issue", "parent": "aw_abc123", "title": "Task 1", "body": "First task"}
 ```
 
-> [!TIP]
-> Hide sub-issues
-> Filter sub-issues from `/issues` with `no:parent-issue`: `/issues?q=no:parent-issue`
+## Related Documentation
 
-Assign sub-issues to Copilot with `assignees: copilot` for parallel execution.
+- [ChatOps](/gh-aw/patterns/chat-ops/) — Interactive slash command automation
+- [LabelOps](/gh-aw/patterns/label-ops/) — Label-triggered automation
+- [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing
+- [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
+- [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets
+- [Concurrency](/gh-aw/reference/concurrency/) — Prevent race conditions
+- [Cache Memory](/gh-aw/reference/cache-memory/) — Persistent state across runs
 

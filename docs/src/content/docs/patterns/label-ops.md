@@ -5,18 +5,37 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-LabelOps uses GitHub labels as workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports two distinct approaches to label-based triggers: `label_command` for command-style one-shot activation, and `names:` filtering for persistent label-state awareness.
+LabelOps uses GitHub labels as workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports two distinct approaches to label-based triggers: [`label_command`](/gh-aw/reference/command-triggers/) for command-style one-shot activation, and `names:` filtering for persistent label-state awareness.
 
-## Label Command Trigger
-
+```mermaid
+flowchart LR
+    label([Label applied]) --> cmd{label_command?}
+    cmd -- yes --> remove[Auto-removed]
+    cmd -- no --> keep[Stays on item]
+```
 The `label_command` trigger treats a label as a one-shot command: applying the label fires the workflow, and the label is **automatically removed** so it can be re-applied to re-trigger. This is the right choice when you want a label to mean "do this now" rather than "this item has this property."
+
+## Example: Deploy Preview
+
+This workflow triggers when a `deploy` label is applied to a pull request. It builds and deploys a preview environment, then posts the URL as a comment. The workflow runs with read-only permissions while [safe-outputs](/gh-aw/reference/safe-outputs/) handle the comment creation securely.
+
+```mermaid
+flowchart LR
+    apply([Apply deploy label]) --> fire[Trigger fires, label removed]
+    fire --> agent[AI agent]
+    agent --> comment[Comment with URL]
+```
+
+Example workflow:
 
 ```aw wrap
 ---
 on:
   label_command: deploy
+
 permissions:
   contents: read
+
 safe-outputs:
   add-comment:
     max: 1
@@ -102,9 +121,11 @@ on:
   issues:
     types: [labeled]
     names: [bug, critical, security]
+
 permissions:
   contents: read
   actions: read
+
 safe-outputs:
   add-comment:
     max: 1
@@ -124,6 +145,14 @@ Respond with a comment outlining next steps and recommended actions.
 ```
 
 This workflow activates only when the `bug`, `critical`, or `security` labels are added to an issue, not for other label changes. The labels remain on the issue after the workflow runs.
+
+```mermaid
+flowchart LR
+    event([labeled event]) --> filter{names: filter}
+    filter -- match --> agent[AI agent]
+    filter -- no match --> skip([Skip])
+    agent --> comment[Comment]
+```
 
 ### Choosing between `label_command` and `names:` filtering
 
@@ -160,9 +189,10 @@ The `names` field accepts a single label (`names: urgent`) or an array (`names: 
 - Limit automation scope with opt-in labels like `automation-enabled`.
 - Use safe outputs for all write operations to maintain security.
 
-## Additional Resources
+## Related Documentation
 
-- [Trigger Events](/gh-aw/reference/triggers/) - Complete trigger configuration including label filtering
-- [IssueOps](/gh-aw/patterns/issue-ops/) - Learn about issue-triggered workflows
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Secure output handling
-- [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete workflow configuration options
+- [IssueOps](/gh-aw/patterns/issue-ops/) — Issue-triggered workflows
+- [ChatOps](/gh-aw/patterns/chat-ops/) — Slash command automation
+- [Trigger Events](/gh-aw/reference/triggers/) — Complete trigger configuration including label filtering
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
+- [Frontmatter Reference](/gh-aw/reference/frontmatter/) — Complete workflow configuration options

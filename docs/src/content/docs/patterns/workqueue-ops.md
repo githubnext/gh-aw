@@ -5,7 +5,14 @@ sidebar:
   badge: { text: 'Queue-based', variant: 'note' }
 ---
 
-WorkQueueOps is a pattern for systematically processing a large backlog of work items. Instead of processing everything at once, work is queued, tracked, and consumed incrementally — surviving interruptions, rate limits, and multi-day horizons. Use it when operations are idempotent and progress visibility matters.
+WorkQueueOps is a pattern for systematically processing a large backlog of work items. Instead of processing everything at once, work is queued using issue checklists, [cache-memory](/gh-aw/reference/cache-memory/), or Discussions as durable backends, tracked, and consumed incrementally — surviving interruptions, rate limits, and multi-day horizons. Use it when operations are idempotent and progress visibility matters.
+
+```mermaid
+flowchart LR
+    queue[(Queue)] --> process[Process next N items]
+    process --> mark[Mark complete]
+    mark --> queue
+```
 
 ## Queue Strategy 1: Issue Checklist as Queue
 
@@ -45,6 +52,12 @@ You are processing a work queue stored as checkboxes in issue #${{ inputs.queue_
 4. If all items are checked, close the issue with a summary comment.
 ```
 
+```mermaid
+flowchart LR
+    issue[Issue checklist] --> process[Process unchecked items]
+    process --> check[Check off completed]
+```
+
 ## Queue Strategy 2: Sub-Issues as Queue
 
 Create one sub-issue per work item. The agent queries open sub-issues of a parent tracking issue, processes each one, and closes it when done. Scales to hundreds of items with individual discussion threads per item. Use `max:` limits on `close-issue` to avoid notification storms.
@@ -80,6 +93,12 @@ You are processing a queue of open sub-issues. The parent tracking issue is labe
 4. Add a progress comment on the parent issue showing how many items remain.
 
 If no sub-issues are open, post a comment on the parent issue saying the queue is empty.
+```
+
+```mermaid
+flowchart LR
+    parent[Parent tracking issue] --> subissues[Open sub-issues]
+    subissues --> process[Process & close per item]
 ```
 
 ## Queue Strategy 3: Cache-Memory Queue
@@ -129,6 +148,12 @@ You process items from a persistent JSON queue at `/tmp/gh-aw/cache-memory/workq
 If `pending` is empty, announce that the queue is exhausted.
 ```
 
+```mermaid
+flowchart LR
+    json[workqueue.json] --> process[Process pending items]
+    process --> save[Save updated queue]
+```
+
 ## Queue Strategy 4: Discussion-Based Queue
 
 Use a GitHub Discussion to track pending work items. Unresolved replies represent pending work; processing an item means resolving its reply. Best for community-sourced queues and async collaboration where humans need to inspect items before or after processing. Requires `discussions` in the GitHub toolset.
@@ -165,6 +190,12 @@ Each unresolved top-level reply is a work item.
 3. Create a summary discussion post documenting what was processed today.
 ```
 
+```mermaid
+flowchart LR
+    discussion[Work Queue discussion] --> replies[Unresolved replies]
+    replies --> process[Process & resolve]
+```
+
 ## Idempotency and Concurrency
 
 All WorkQueueOps patterns should be **idempotent**: running the same item twice should not cause double processing.
@@ -176,7 +207,7 @@ All WorkQueueOps patterns should be **idempotent**: running the same item twice 
 | Concurrency groups | Use `concurrency.group` with `cancel-in-progress: false` to prevent parallel runs |
 | Retry budgets | Track failed items separately; set a retry limit before giving up |
 
-## Related Pages
+## Related Documentation
 
 - [BatchOps](/gh-aw/patterns/batch-ops/) — Process large volumes in parallel chunks rather than sequentially
 - [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign pattern for developer-supervised work

@@ -130,27 +130,13 @@ safe-outputs:
 Perform detailed security analysis using specialized agent files and tools.
 ```
 
-## Defining Agents Inline
+## Defining Copilot Sub-agents Inline
 
-Instead of (or alongside) importing agent files from `.github/agents/`, you can define agents directly inside the workflow markdown file using a `## agent: \`name\`` heading:
-
-```markdown
-## agent: `code-reviewer`
----
-model: claude-sonnet-4.5
-description: Reviews code for quality and correctness
----
-You are a code review agent. Analyze the provided code for bugs, style issues,
-and potential improvements. Be specific and actionable.
-```
-
-At runtime, each inline sub-agent block is extracted to `.agents/agents/<name>.agent.md`. The Copilot CLI discovers these files natively, so you can invoke the agent by name in your workflow prompt without any additional configuration.
-
-See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the complete syntax reference, including name constraints and frontmatter fields.
+Instead of (or alongside) importing agent files from `.github/agents/`, you can define agents directly inside the workflow markdown. See [Copilot Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the complete syntax reference, including name constraints and frontmatter fields.
 
 ## Related Documentation
 
 - [Imports Reference](/gh-aw/reference/imports/) - Complete import system documentation
-- [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining sub-agents inside a workflow file
+- [Copilot Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining Copilot sub-agents inside a workflow file
 - [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Managing workflow imports
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference

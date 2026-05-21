@@ -23,11 +23,12 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | Alias | Fallback patterns (tried in order) |
 |-------|-------------------------------------|
 | `sonnet` | `copilot/*sonnet*`, `anthropic/*sonnet*` |
-| `sonnet-6x` | `copilot/*sonnet-4.5*`, `copilot/*sonnet-4-5*`, `anthropic/*sonnet-4.5*`, `anthropic/*sonnet-4-5*`, `copilot/*sonnet-3.7*`, `copilot/*sonnet-3-7*`, `anthropic/*sonnet-3.7*`, `anthropic/*sonnet-3-7*`, `copilot/*sonnet-3.5*`, `copilot/*sonnet-3-5*`, `anthropic/*sonnet-3.5*`, `anthropic/*sonnet-3-5*` |
+| `sonnet-6x` | `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*` |
 | `haiku` | `copilot/*haiku*`, `anthropic/*haiku*` |
 | `opus` | `copilot/*opus*`, `anthropic/*opus*` |
 | `gpt-4.1` | `copilot/gpt-4.1*`, `openai/gpt-4.1*` |
 | `gpt-5` | `copilot/gpt-5*`, `openai/gpt-5*` |
+| `gpt-5.4` | `copilot/gpt-5.4*`, `openai/gpt-5.4*` |
 | `gpt-5-mini` | `copilot/gpt-5*mini*`, `openai/gpt-5*mini*` |
 | `gpt-5-nano` | `copilot/gpt-5*nano*`, `openai/gpt-5*nano*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
@@ -40,8 +41,14 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `vision` | `copilot/gemini-*image*`, `gemini/gemini-*image*`, `copilot/gemini-*flash*`, `gemini/gemini-*flash*` |
 | `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
-| `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash-lite`, `copilot/raptor*mini*` |
 | `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
+| `gemini-3-pro` | `copilot/gemini-3*pro*`, `google/gemini-3*pro*`, `gemini/gemini-3*pro*` |
+| `gemini-3-flash` | `copilot/gemini-3*flash*`, `google/gemini-3*flash*`, `gemini/gemini-3*flash*` |
+| `gemini-3.1-pro` | `copilot/gemini-3.1*pro*`, `google/gemini-3.1*pro*`, `gemini/gemini-3.1*pro*` |
+| `gemini-3.1-flash` | `copilot/gemini-3.1*flash*`, `google/gemini-3.1*flash*`, `gemini/gemini-3.1*flash*` |
+| `antigravity` | `copilot/antigravity*`, `google/antigravity*`, `gemini/antigravity*` |
+| `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `gemini/*computer-use*`, `openai/*computer-use*` |
+| `robotics` | `copilot/*robotics*`, `google/*robotics*`, `gemini/*robotics*` |
 
 ### Meta-Aliases
 
@@ -50,6 +57,7 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 | Meta-alias | Expands to |
 |------------|------------|
 | `small` | `mini` |
+| `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
 | `auto` | `large` |
 | `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5` → `gemini-pro` → `haiku` → `any` |
@@ -57,6 +65,7 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 | `claude` | `agent` → `sonnet-6x` → `haiku` → `any` |
 | `codex` | `agent` → `gpt-5-codex` → `gpt-5` → `any` |
 | `gemini` | `agent` → `gemini-pro` → `gemini-flash` → `any` |
+| `summarization` | `haiku` → `gpt-5-mini` → `gemini-flash-lite` → `mini` |
 
 ## Model Multipliers
 
@@ -119,8 +128,8 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-4.1` | 1 |
 | `gpt-4.1-2025-04-14` | 1 |
 | `gpt-41-copilot` | 1 |
-| `gpt-4.1-mini` | 0.1 |
-| `gpt-4.1-nano` | 0.05 |
+| `gpt-4.1-mini` | 1 |
+| `gpt-4.1-nano` | 1 |
 | `gpt-4-turbo` | 1 |
 | `gpt-4` | 1 |
 | `gpt-5` | 1 |
@@ -146,8 +155,8 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.2-2025-12-11` | 3 |
 | `gpt-5.2-chat-latest` | 3 |
 | `gpt-5.2-codex` | 3 |
-| `gpt-5.2-pro` | 2 |
-| `gpt-5.2-pro-2025-12-11` | 2 |
+| `gpt-5.2-pro` | 3 |
+| `gpt-5.2-pro-2025-12-11` | 3 |
 | `gpt-5.3-chat-latest` | 3 |
 | `gpt-5.3-codex` | 6 |
 | `gpt-5.3-codex-api-preview` | 6 |
@@ -155,10 +164,10 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.4-2026-03-05` | 6 |
 | `gpt-5.4-mini` | 6 |
 | `gpt-5.4-mini-2026-03-17` | 6 |
-| `gpt-5.4-nano` | 0.05 |
-| `gpt-5.4-nano-2026-03-17` | 0.05 |
-| `gpt-5.4-pro` | 2 |
-| `gpt-5.4-pro-2026-03-05` | 2 |
+| `gpt-5.4-nano` | 6 |
+| `gpt-5.4-nano-2026-03-17` | 6 |
+| `gpt-5.4-pro` | 6 |
+| `gpt-5.4-pro-2026-03-05` | 6 |
 | `gpt-5.5` | 7.5 |
 | `gpt-5.5-2026-04-23` | 7.5 |
 | `gpt-5.5-pro` | 2 |
@@ -208,9 +217,12 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-flash-latest` | 0.2 |
 | `gemini-flash-lite-latest` | 0.1 |
 | `gemini-pro-latest` | 1 |
+| `gemini-3-flash` | 0.33 |
 | `gemini-3-flash-preview` | 0.33 |
+| `gemini-3-pro` | 6 |
 | `gemini-3-pro-preview` | 6 |
 | `gemini-3-pro-image-preview` | 6 |
+| `gemini-3.1-pro` | 6 |
 | `gemini-3.1-pro-preview` | 6 |
 | `gemini-3.1-pro-preview-customtools` | 6 |
 | `gemini-3.1-flash-live-preview` | 0.1 |

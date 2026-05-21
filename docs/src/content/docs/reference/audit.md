@@ -167,15 +167,19 @@ Inside GitHub Actions workflows, agents access these commands through the `agent
 ```aw wrap
 ---
 description: Post audit findings as a PR comment after each agent run
+
 on:
   workflow_run:
     workflows: ['my-workflow']
     types: [completed]
+
 engine: copilot
+
 tools:
   github:
     toolsets: [pull_requests]
   agentic-workflows:
+
 permissions:
   contents: read
   actions: read
@@ -192,6 +196,7 @@ Use the `agentic-workflows` MCP tool `audit` with run ID ${{ github.event.workfl
 ```aw wrap
 ---
 description: Detect regressions between two workflow runs
+
 on:
   workflow_dispatch:
     inputs:
@@ -201,11 +206,14 @@ on:
       current_run_id:
         description: 'Current run ID to compare'
         required: true
+
 engine: copilot
+
 tools:
   github:
     toolsets: [issues]
   agentic-workflows:
+
 permissions:
   contents: read
   actions: read
@@ -222,15 +230,19 @@ Use the `agentic-workflows` MCP tool `audit` with run IDs ${{ inputs.base_run_id
 ```aw wrap
 ---
 description: File GitHub issues for high-severity audit findings
+
 on:
   workflow_run:
     workflows: ['my-workflow']
     types: [completed]
+
 engine: copilot
+
 tools:
   github:
     toolsets: [issues]
   agentic-workflows:
+
 permissions:
   contents: read
   actions: read
@@ -247,15 +259,19 @@ Use the `agentic-workflows` MCP tool `audit` with run ID ${{ github.event.workfl
 ```aw wrap
 ---
 description: Weekly audit digest with trend analysis
+
 on:
   schedule: weekly
+
 engine: copilot
+
 tools:
   github:
     toolsets: [discussions]
   agentic-workflows:
   cache-memory:
     key: audit-monitoring-trends
+
 permissions:
   contents: read
   actions: read

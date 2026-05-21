@@ -34,7 +34,9 @@ See [GitHub Repository Checkout](/gh-aw/reference/checkout/) for the full config
 
 ## Cross-Repository Reading
 
-The [GitHub Tools](/gh-aw/reference/github-tools/) are used to read information such as issues and pull requests from repositories. By default, these tools can access the current repository and all public repositories (if permitted by the network firewall). This set can be further restricted by using [GitHub Repository Access Restrictions](/gh-aw/reference/github-tools/#github-repository-access-restrictions-toolsgithuballowed-repos).
+The [GitHub Tools](/gh-aw/reference/github-tools/) are used to read information such as issues and pull requests from repositories. By default, these tools can access the current repository and all public repositories (if permitted by the network firewall).
+
+### Authorizing Additional Cross-Repository Reading
 
 To read from other private repositories, you must configure additional authorization. Configure a PAT or GitHub App in your GitHub Tools configuration:
 
@@ -54,11 +56,52 @@ This enables operations like:
 
 See [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) for full details on creating a PAT, using a GitHub App, or using the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN`.
 
+### Restricting Cross-Repository Reading (`tools.github.allowed-repos`)
+
+You can also configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution by using the `tools.github.allowed-repos` setting. This is a guardrail to prevent unintended access to repositories. 
+
+The setting `tools.github.allowed-repos` specifies which repositories the agent can access through GitHub tools:
+
+- `"all"` — All repositories accessible by the configured token
+- `"public"` — Public repositories only
+- `"current"` — The repository where the workflow is running (normalized to `${{ github.repository }}` in the emitted guard policy)
+- `"${{ github.repository }}"` — Equivalent to `"current"`, kept for backward compatibility
+- Array of patterns — Specific repositories and wildcards:
+  - `"owner/repo"` — Exact repository match
+  - `"owner/*"` — All repositories under an owner
+  - `"owner/prefix*"` — Repositories with a name prefix under an owner
+
+This defaults to `"all"` when omitted. Patterns must be lowercase. Wildcards are only permitted at the end of the repository name component.
+
+Use `current` in reusable or generated workflows that need to express "this repository only" without hard-coding `owner/repo`:
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [issues, pull_requests]
+    allowed-repos: current
+    min-integrity: approved
+```
+
+For example:
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    allowed-repos:
+      - "myorg/*"
+      - "partner/shared-repo"
+      - "myorg/api-*"
+    min-integrity: approved
+```
+
 ## Cross-Repository Safe Outputs
 
 Most safe output types support creating resources in external repositories using `target-repo` and `allowed-repos` parameters.
 
-### Target Repository (`target-repo`)
+### Target Repository (`safe-outputs.*.target-repo`)
 
 Specify a single target repository for resource creation:
 
@@ -86,13 +129,13 @@ safe-outputs:
 
 Use this when the target repository is not known at workflow authoring time — for example, when building a workflow that routes issues to different repositories based on labels or content.
 
-:::caution
+:::note
 The following safe-output types do **not** support `target-repo: "*"`: `create-pull-request-review-comment`, `reply-to-pull-request-review-comment`, `submit-pull-request-review`, `create-agent-session`, and `manage-project-items`. Use an explicit `owner/repo` value or `allowed-repos` for these types.
 :::
 
-### Allowed Repositories (`allowed-repos`)
+### Allowed Repositories (`safe-outputs.*.allowed-repos`)
 
-Allow the agent to dynamically select from multiple repositories:
+Allow your agentic workflow to dynamically select from multiple repositories:
 
 ```yaml wrap
 safe-outputs:
@@ -105,7 +148,7 @@ safe-outputs:
 
 When `allowed-repos` is specified:
 
-- Agent can include a `repo` field in output to select which repository
+- The agentic step can include a `repo` field to select which repository
 - Target repository (from `target-repo` or current repo) is always implicitly allowed
 - Creates a union of allowed destinations
 
@@ -153,68 +196,11 @@ Check compatibility with shared libraries in `./libs/shared` and verify configur
 
 ### Example: Hub-and-Spoke Tracking
 
-This creates issues in a central tracking repository when issues are opened in component repositories:
-
-```aw wrap
----
-on:
-  issues:
-    types: [opened, labeled]
-
-permissions:
-  contents: read
-  issues: read
-
-safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
-  create-issue:
-    target-repo: "org/central-tracker"
-    title-prefix: "[component-a] "
-    labels: [tracking, multi-repo]
-    max: 1
----
-
-# Cross-Repository Issue Tracker
-
-When issues are created in this component repository, create tracking issues in the central coordination repo.
-
-Analyze the issue and create a tracking issue that:
-- Links back to the original component issue
-- Summarizes the problem and impact
-- Tags relevant teams for coordination
-```
+Create issues in a central tracking repo when issues open in component repos using `target-repo` on `create-issue`. See the [MultiRepoOps pattern](/gh-aw/patterns/multi-repo-ops/) for a complete walkthrough including hub-and-spoke, upstream-to-downstream, and org-wide broadcast topologies.
 
 ### Example: Cross-Repository Analysis
 
-This checks out multiple repositories and compares code patterns across them:
-
-```aw wrap
----
-on:
-  issue_comment:
-    types: [created]
-
-tools:
-  github:
-    toolsets: [repos, issues, pull_requests]
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
-
-permissions:
-  contents: read
-  issues: read
-
-safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_WRITE_PAT }}
-  add-comment:
-    max: 1
----
-
-# Multi-Repository Code Search
-
-Search for similar patterns across org/repo-a, org/repo-b, and org/repo-c.
-
-Analyze how each repository implements authentication and provide a comparison.
-```
+Use `tools.github` with `github-token` to read from multiple repositories, then write results back with `add-comment` and `target-repo`. See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for examples.
 
 ### Example: Deterministic Multi-Repo Workflows
 

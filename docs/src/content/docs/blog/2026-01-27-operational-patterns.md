@@ -124,7 +124,7 @@ Here are our tips!
 - Include progress reports in PR descriptions
 - Allow human intervention at any phase
 
-**Learn more**: [DailyOps Examples](/gh-aw/patterns/daily-ops/)
+**Learn more**: [WorkQueueOps](/gh-aw/patterns/workqueue-ops/)
 
 ---
 
@@ -461,7 +461,7 @@ These workflows do the following:
 Many successful agent systems combine multiple operational patterns:
 
 - **ChatOps + IssueOps**: User triggers analysis via `/analyze`, which creates issue with results
-- **DailyOps + MultiRepoOps**: Daily dependency updates across organization
+- **WorkQueueOps + MultiRepoOps**: Daily dependency updates across organization
 - **ResearchPlanAssignOps + ProjectOps**: Research creates project board populated with planned work
 - **SideRepoOps + TrialOps**: Test in trial repo, then deploy to side repo, then main repo
 
@@ -469,7 +469,7 @@ Many successful agent systems combine multiple operational patterns:
 
 When designing agent operations, consider:
 
-1. **Trigger mechanism**: Manual (ChatOps), scheduled (DailyOps), or event-driven (IssueOps, LabelOps)?
+1. **Trigger mechanism**: Manual (ChatOps), scheduled (DispatchOps), or event-driven (IssueOps, LabelOps)?
 2. **Scope**: Single repo or multi-repo (MultiRepoOps)?
 3. **Isolation needs**: Production or separate (SideRepoOps, TrialOps)?
 4. **Coordination**: Simple or complex (ProjectOps, ResearchPlanAssignOps)?
