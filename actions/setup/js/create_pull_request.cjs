@@ -2091,6 +2091,7 @@ ${patchPreview}`;
         success: true,
         number: pullRequest.number,
         url: pullRequest.html_url,
+        managedBody: body,
         branch_name: branchName,
         temporaryId: temporaryId,
         repo: itemRepo,

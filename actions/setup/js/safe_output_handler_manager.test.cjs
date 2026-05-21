@@ -1112,6 +1112,7 @@ describe("Safe Output Handler Manager", () => {
         success: true,
         number: 10,
         url: "https://github.com/owner/repo/pull/10",
+        managedBody: "Managed: Closes #aw_issue1\n\n<!-- footer -->",
         temporaryId: "aw_pr1",
         repo: "owner/repo",
       });

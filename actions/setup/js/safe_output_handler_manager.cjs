@@ -1033,7 +1033,7 @@ function getContentToCheck(messageType, message, result) {
     case "comment_memory":
       return result?.managedBody || message.body || "";
     case "create_pull_request":
-      return message.body || "";
+      return result?.managedBody || message.body || "";
     default:
       return null;
   }
