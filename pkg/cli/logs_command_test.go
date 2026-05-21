@@ -302,12 +302,11 @@ func TestLogsCommandStdinRejectsPositionalArgs(t *testing.T) {
 
 // TestLogsCommand_RepoBypassesLocalWorkflowResolution verifies that specifying
 // --repo prevents a "workflow not found" error from local file lookup when a
-// positional workflow name argument is supplied. Instead of calling
-// workflow.FindWorkflowName (which requires local lock files), the command
-// normalizes the name and passes it directly to the download orchestrator.
-// Because there is no running GitHub API in unit tests the orchestrator itself
-// will fail; the test asserts only that the error is NOT the local-resolution
-// "workflow not found" message.
+// positional workflow name argument is supplied and no local lock file exists.
+// In that case the command normalizes the name and passes it directly to the
+// download orchestrator. Because there is no running GitHub API in unit tests
+// the orchestrator itself will fail; the test asserts only that the error is
+// NOT the local-resolution "workflow not found" message.
 func TestLogsCommand_RepoBypassesLocalWorkflowResolution(t *testing.T) {
 	tmpDir := t.TempDir()
 	origDir, err := os.Getwd()
@@ -331,4 +330,51 @@ func TestLogsCommand_RepoBypassesLocalWorkflowResolution(t *testing.T) {
 	// (Any other error from downstream API calls is acceptable in unit tests.)
 	assert.NotContains(t, execErr.Error(), "workflow 'nonexistent-remote-workflow' not found",
 		"--repo should bypass local workflow name resolution and not produce a local-not-found error")
+}
+
+// TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists verifies that when
+// --repo is set but a local lock file exists (the common MCP server case where
+// GITHUB_REPOSITORY is the current repo), FindWorkflowName is still called to
+// resolve the workflow ID to its GitHub Actions display name. Without this, the
+// raw workflow ID (e.g. "audit-workflows") would be passed to `gh run list
+// --workflow` instead of the display name (e.g. "Agentic Workflow Audit Agent"),
+// causing GitHub's API to report "could not find any workflows named X".
+func TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := os.Getenv("GH_AW_WORKFLOWS_DIR")
+	if workflowsDir == "" {
+		workflowsDir = tmpDir + "/.github/workflows"
+	}
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Create the markdown file (required by ResolveWorkflowName).
+	require.NoError(t, os.WriteFile(workflowsDir+"/my-test-workflow.md", []byte("---\nname: my-test-workflow\n---\n"), 0644))
+
+	// Create a lock file whose display name differs from the workflow ID.
+	// This simulates the real scenario where audit-workflows.lock.yml has
+	// name: "Agentic Workflow Audit Agent" while the ID is "audit-workflows".
+	lockContent := "name: \"My Test Workflow Display Name\"\non: push\n"
+	require.NoError(t, os.WriteFile(workflowsDir+"/my-test-workflow.lock.yml", []byte(lockContent), 0644))
+
+	t.Setenv("GH_AW_WORKFLOWS_DIR", workflowsDir)
+
+	cmd := NewLogsCommand()
+	cmd.SetArgs([]string{"my-test-workflow", "--repo", "owner/repo"})
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+
+	execErr := cmd.Execute()
+
+	// The command must fail in unit tests (no real GitHub API access).
+	require.Error(t, execErr)
+
+	// Local "workflow not found" must NOT appear: the lock file exists, so
+	// FindWorkflowName should succeed and the display name should be used.
+	assert.NotContains(t, execErr.Error(), "workflow 'my-test-workflow' not found",
+		"when a local lock file exists, --repo should still resolve via FindWorkflowName")
+
+	// The raw workflow ID must NOT appear as the failing name in a gh run list
+	// "could not find" error, because the resolved display name should be used.
+	assert.NotContains(t, execErr.Error(), "could not find any workflows named my-test-workflow",
+		"when a local lock file exists, the display name (not the workflow ID) should be passed to gh run list")
 }

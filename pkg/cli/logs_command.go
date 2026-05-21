@@ -178,15 +178,20 @@ Examples:
 
 				repoOverrideEarly, _ := cmd.Flags().GetString("repo")
 				if repoOverrideEarly != "" {
-					// When --repo is specified, bypass local file-based workflow name
-					// resolution. Normalize the input (strip .md/.lock.yml extensions)
-					// and use it directly as the workflow filter for the remote repo.
+					// When --repo is specified, try local file-based resolution first.
+					// This handles the common case where --repo refers to the current
+					// repository (e.g. set by GITHUB_REPOSITORY in MCP server containers),
+					// so local lock files are available and we can resolve the display name.
 					//
-					// Note: the argument must be a workflow ID (e.g. "test-claude"),
-					// not a display name (e.g. "Test Claude"). Display-name lookup
-					// requires local lock files, which are unavailable for remote repos.
-					workflowName = normalizeWorkflowID(args[0])
-					logsCommandLog.Printf("Using normalized workflow name for remote repo: %s", workflowName)
+					// If local resolution fails (truly remote repo with no local lock files),
+					// fall back to using the normalized workflow ID directly.
+					if resolved, resolveErr := workflow.FindWorkflowName(args[0]); resolveErr == nil {
+						workflowName = resolved
+						logsCommandLog.Printf("Resolved workflow name for repo-overridden query: %s -> %s", args[0], workflowName)
+					} else {
+						workflowName = normalizeWorkflowID(args[0])
+						logsCommandLog.Printf("Using normalized workflow name for remote repo: %s", workflowName)
+					}
 				} else {
 					// Use flexible workflow name matching (workflow ID or display name)
 					resolvedName, err := workflow.FindWorkflowName(args[0])
