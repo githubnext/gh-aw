@@ -1472,7 +1472,7 @@ ${diffs}
     expect(result.error).toContain("protected files");
   });
 
-  it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {
+  it("should push branch and include compare URL when protected-files fallback creates review issue", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
@@ -1497,17 +1497,18 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
-    expect(pushSignedSpy).not.toHaveBeenCalled();
+    expect(pushSignedSpy).toHaveBeenCalledTimes(1);
     expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
-    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
+    expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
 
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
-    expect(createCall.body).toContain("gh run download");
-    expect(createCall.body).toContain("git am --3way");
-    expect(createCall.body).not.toContain("/compare/main...");
+    expect(createCall.body).toContain("/compare/main...");
+    expect(extractCompareUrlFromIssueBody(createCall.body)).toBeTruthy();
+    expect(createCall.body).not.toContain("gh run download");
+    expect(createCall.body).not.toContain("git am --3way");
   });
 
-  it("should use patch-artifact fallback instructions for protected-files fallback in bundle transport", async () => {
+  it("should push branch and include compare URL for protected-files fallback in bundle transport", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const bundlePath = path.join(tempDir, "aw-protected.bundle");
     fs.writeFileSync(bundlePath, "bundle content");
@@ -1534,13 +1535,14 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
-    expect(pushSignedSpy).not.toHaveBeenCalled();
-    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
+    expect(pushSignedSpy).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.update).toHaveBeenCalledTimes(1);
 
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
-    expect(createCall.body).toContain("gh run download");
-    expect(createCall.body).toContain("git am --3way");
-    expect(createCall.body).not.toContain("/compare/main...");
+    expect(createCall.body).toContain("/compare/main...");
+    expect(extractCompareUrlFromIssueBody(createCall.body)).toBeTruthy();
+    expect(createCall.body).not.toContain("gh run download");
+    expect(createCall.body).not.toContain("git am --3way");
   });
 });
 
