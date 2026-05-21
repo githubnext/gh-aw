@@ -182,6 +182,11 @@ describe("emit_outcome_spans.cjs", () => {
       rejected: 1,
       ignored: 0,
       pending: 0,
+      noop: 0,
+      noop_rate: 0,
+      zero_touch: 1,
+      zero_touch_rate: 1,
+      median_resolution_sec: 42,
       acceptance_rate: 0.5,
       waste_rate: 0.5,
       date: "2026-05-13",
@@ -198,6 +203,15 @@ describe("emit_outcome_spans.cjs", () => {
           url: "https://github.com/github/gh-aw/issues/1",
           repo: "github/gh-aw",
           timestamp: "2026-05-13T09:00:00Z",
+          review_comments: 0,
+          changed_files: 3,
+          additions: 10,
+          deletions: 2,
+          reactions_total: 5,
+          reactions_positive: 4,
+          reactions_negative: 1,
+          comments: 0,
+          zero_touch: true,
         }),
         JSON.stringify({
           type: "comment",
@@ -263,10 +277,29 @@ describe("emit_outcome_spans.cjs", () => {
 
     expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
     expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.date", value: "2026-05-13" });
+    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.zero_touch_count", value: 1 });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.url", value: "https://github.com/github/gh-aw/issues/1" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.detail", value: "created item" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.created_at", value: "2026-05-13T09:00:00Z" });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.review_comments", value: 0 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.changed_files", value: 3 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.additions", value: 10 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.deletions", value: 2 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.reactions_total", value: 5 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.reactions_positive", value: 4 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.reactions_negative", value: 1 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.comments", value: 0 });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.zero_touch", value: true });
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.review_comments")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.changed_files")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.additions")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.deletions")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.reactions_total")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.reactions_positive")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.reactions_negative")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.comments")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.zero_touch")).toBeUndefined();
 
     expect(mockAppendToOTLPJSONL).toHaveBeenCalledOnce();
     expect(mockSendOTLPToAllEndpoints).not.toHaveBeenCalled();

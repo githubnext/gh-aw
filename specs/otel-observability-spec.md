@@ -1,9 +1,9 @@
 ---
 title: OTel Observability Specification
-version: 0.1.0
+version: 0.2.0
 status: Working Draft
 date: 2026-05-19
-last_updated: 2026-05-19
+last_updated: 2026-05-21
 editors:
   - GitHub gh-aw Team
 ---
@@ -38,10 +38,14 @@ Changes to `observability.otlp`, OTLP environment injection, MCP gateway tracing
 6. [Export and Gateway Integration](#6-export-and-gateway-integration)
 7. [Local Mirrors and Artifacts](#7-local-mirrors-and-artifacts)
 8. [Security and Privacy Requirements](#8-security-and-privacy-requirements)
-9. [Implementation Mapping](#9-implementation-mapping)
-10. [Compliance Testing](#10-compliance-testing)
-11. [References](#11-references)
-12. [Change Log](#12-change-log)
+9. [Trace Model](#9-trace-model)
+10. [Span Attribute Contract](#10-span-attribute-contract)
+11. [Resource Attributes](#11-resource-attributes)
+12. [Trace ID Propagation and Lookup](#12-trace-id-propagation-and-lookup)
+13. [Implementation Mapping](#13-implementation-mapping)
+14. [Compliance Testing](#14-compliance-testing)
+15. [References](#15-references)
+16. [Change Log](#16-change-log)
 
 ---
 
@@ -85,7 +89,7 @@ The following documents are informative companions and do not override this spec
 
 ## 2. Conformance
 
-An implementation conforms to this specification if it satisfies all MUST and MUST NOT requirements in Sections 4 through 10.
+An implementation conforms to this specification if it satisfies all MUST and MUST NOT requirements in Sections 4 through 12.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
@@ -97,7 +101,7 @@ This specification defines three conformance levels:
 |---|---|
 | **Level 1 - Config** | Correct parsing and normalization of `observability.otlp` and workflow environment injection as defined in Sections 4 and 5. |
 | **Level 2 - Runtime** | Level 1 plus MCP gateway integration and degraded-mode export behavior from Section 6. |
-| **Level 3 - Complete** | Level 2 plus local mirror, artifact, implementation-mapping, and compliance obligations in Sections 7 through 10. |
+| **Level 3 - Complete** | Level 2 plus local mirror, artifact, trace model, span attribute contract, resource attributes, trace ID propagation, implementation-mapping, and compliance obligations in Sections 7 through 12. |
 
 ---
 
@@ -267,7 +271,378 @@ The JavaScript OTLP helper layer SHOULD remain non-fatal:
 
 ---
 
-## 9. Implementation Mapping
+## 9. Trace Model
+
+### 9.1 Overview
+
+gh-aw emits OpenTelemetry trace spans directly to configured OTLP-compatible vendor endpoints. gh-aw does **not** require or run an OpenTelemetry Collector. All transformation, batching, retry, endpoint selection, and authentication happens in-process before sending to the vendor OTLP endpoint.
+
+Tracing is best-effort. Export failures MUST NOT fail the workflow.
+
+### 9.2 Span Naming Convention
+
+All gh-aw span names MUST follow the pattern: `gh-aw.<job-name>.<operation>`.
+
+When no job name is available, the fallback `job` MUST be used, yielding names such as `gh-aw.job.setup`.
+
+### 9.3 Span Hierarchy
+
+A single trace ID is shared across all jobs in a workflow run. All setup spans share a global parent span ID so they render as siblings in OTLP backends.
+
+```text
+Single Trace: trace_id (32-char hex, shared across all jobs in a run)
+├── Root Setup Parent: parent_span_id (global, shared across all jobs)
+│
+├── Activation Job
+│   ├── gh-aw.activation.setup        (parent: root setup parent)
+│   └── gh-aw.activation.conclusion   (parent: activation setup span)
+│
+├── Agent Job
+│   ├── gh-aw.agent.setup             (parent: root setup parent)
+│   ├── gh-aw.agent.conclusion         (parent: agent setup span)
+│   │   └── gh-aw.agent.agent          (parent: agent conclusion span)
+│   │       [dedicated AI latency measurement]
+│   │
+│
+└── Other Jobs
+    ├── gh-aw.<job-name>.setup         (parent: root setup parent)
+    └── gh-aw.<job-name>.conclusion    (parent: job setup span)
+```
+
+### 9.4 Span Kinds
+
+Span kind assignments MUST follow these rules:
+
+| Span | OTLP `kind` | Rationale |
+|---|---|---|
+| `gh-aw.*.setup` | `SPAN_KIND_INTERNAL` (1) | Internal job lifecycle |
+| `gh-aw.*.conclusion` | `SPAN_KIND_INTERNAL` (1) | Internal job lifecycle |
+| `gh-aw.*.agent` | `SPAN_KIND_CLIENT` (3) | Outbound AI model request |
+
+### 9.5 Span Status
+
+Conclusion spans MUST set `status.code` based on the job outcome:
+
+| Outcome | `status.code` |
+|---|---|
+| `success` | `OK` (1) |
+| `failure`, `timeout`, `cancelled` | `ERROR` (2) |
+
+### 9.6 Exception Events
+
+When errors are present in `agent_output.json`, the conclusion span MUST emit OTel exception events:
+
+```json
+{
+  "timeUnixNano": "...",
+  "name": "exception",
+  "attributes": [
+    {"key": "exception.type", "value": {"stringValue": "gh-aw.<ErrorType>"}},
+    {"key": "exception.message", "value": {"stringValue": "Error description"}}
+  ]
+}
+```
+
+Exception type resolution:
+
+1. If the error message matches the format `type:message`, use `gh-aw.<type>` as the exception type.
+2. Otherwise, derive the type from the run status: `gh-aw.AgentError`, `gh-aw.AgentFailed`, `gh-aw.AgentTimedOut`, or `gh-aw.AgentCancelled`.
+
+---
+
+## 10. Span Attribute Contract
+
+This section defines the attributes each span type MUST or MAY carry.
+
+### 10.1 Setup Span Attributes
+
+**Required attributes** (MUST be present on every setup span):
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gh-aw.job.name` | string | Job name from action input |
+| `gh-aw.workflow.name` | string | Workflow name or ID |
+| `gh-aw.run.id` | string | GitHub Actions run ID |
+| `gh-aw.run.attempt` | string | Run attempt number |
+| `gh-aw.run.actor` | string | User or bot initiating the run |
+| `gh-aw.repository` | string | `owner/repo` |
+| `gh-aw.staged` | boolean | Whether this is a staging deployment |
+
+**Conditional attributes** (MUST be present when the value is available):
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gen_ai.system` | string | Mapped AI system name (e.g., `github_models`, `anthropic`, `openai`) |
+| `gh-aw.engine.id` | string | Raw engine identifier (`copilot`, `claude`, `codex`, `gemini`, custom) |
+| `gh-aw.event_name` | string | GitHub event type |
+| `gh-aw.trigger.item_type` | string | Triggering item (`issue`, `pull_request`, `discussion`, etc.) |
+| `gh-aw.trigger.item_number` | string | Triggering item ID/number |
+| `gh-aw.trigger.label` | string | Label on triggering item |
+| `gh-aw.trigger.comment_id` | string | Comment ID on triggering item |
+| `gh-aw.episode.id` | string | Episode/session ID for cross-run correlation |
+| `gh-aw.episode.kind` | string | `run` or `workflow_call` |
+| `gh-aw.hop.id` | string | Current workflow invocation ID |
+| `gh-aw.hop.parent_id` | string | Parent workflow invocation ID |
+| `gh-aw.origin.event` | string | Origin event type |
+| `gh-aw.root.repo` | string | Root repository (for dispatched workflows) |
+| `gh-aw.root.workflow_id` | string | Root workflow ID |
+| `gh-aw.frontmatter.source` | string | Frontmatter source type |
+| `gh-aw.frontmatter.emoji` | string | Frontmatter emoji |
+| `gh-aw.frontmatter.body_modified` | boolean | Whether body was edited |
+| `gh-aw.experiment.<name>` | string | Per-experiment variant assignment |
+| `gh-aw.experiments` | string | Compact JSON of all experiment assignments |
+| `gh-aw.deployment.state` | string | Deployment status |
+| `gh-aw.workflow_run.conclusion` | string | Workflow-level outcome |
+
+### 10.2 Conclusion Span Attributes
+
+**Required attributes** (MUST be present on every conclusion span):
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gh-aw.workflow.name` | string | Workflow name |
+| `gh-aw.run.id` | string | Run ID |
+| `gh-aw.run.attempt` | string | Attempt number |
+| `gh-aw.run.actor` | string | Actor |
+| `gh-aw.repository` | string | Repository |
+| `gh-aw.run.status` | string | Run outcome (`success`, `failure`, `timeout`, `cancelled`) |
+| `gh-aw.error_count` | int | Number of errors |
+| `gh-aw.warning_count` | int | Number of warnings |
+| `gh-aw.action_minutes` | double | Duration in minutes |
+| `gh-aw.output.item_count` | int | Safe output items produced |
+| `gh-aw.otlp.export_errors` | int | Count of OTLP export failures during this run |
+
+**Conditional attributes** (MUST be present when the value is available):
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gh-aw.job.name` | string | Job name |
+| `gen_ai.system` | string | AI system |
+| `gh-aw.engine.id` | string | Engine ID |
+| `gen_ai.request.model` | string | Requested model name |
+| `gh-aw.tracker.id` | string | Tracker identifier |
+| `gh-aw.event_name` | string | Event type |
+| `gh-aw.staged` | boolean | Staging flag |
+| `gh-aw.trigger.*` | string | Trigger context (same fields as setup span) |
+| `gh-aw.frontmatter.*` | string | Frontmatter metadata (same fields as setup span) |
+| `gh-aw.effective_tokens` | int | Effective token count |
+| `gh-aw.turns` | int | Number of agent turns |
+| `gh-aw.estimated_cost_usd` | double | Estimated cost |
+| `gh-aw.agent.conclusion` | string | Agent job outcome |
+| `gh-aw.detection.conclusion` | string | Threat detection outcome |
+| `gh-aw.detection.reason` | string | Detection reasoning |
+| `gh-aw.otlp.export_error_details` | string | Export failure details |
+| `gh-aw.error.count` | int | Output error count |
+| `gh-aw.error.messages` | string | Error messages joined by ` \| ` |
+| `gh-aw.output.item_types` | string | Comma-separated types of safe output items |
+| `gh-aw.github.rate_limit.remaining` | int | API rate limit remaining |
+| `gh-aw.github.rate_limit.limit` | int | API rate limit total |
+| `gh-aw.github.rate_limit.used` | int | API rate limit used |
+| `gh-aw.github.rate_limit.resource` | string | Rate limit resource category |
+| `gh-aw.github.rate_limit.reset` | string | ISO 8601 rate limit reset time |
+| `gh-aw.outcome.total` | int | Total outcomes |
+| `gh-aw.outcome.accepted` | int | Accepted outcomes |
+| `gh-aw.outcome.rejected` | int | Rejected outcomes |
+| `gh-aw.outcome.pending` | int | Pending outcomes |
+| `gh-aw.outcome.ignored` | int | Ignored outcomes |
+| `gh-aw.outcome.acceptance_rate` | double | Acceptance rate |
+| `gh-aw.outcome.waste_rate` | double | Waste rate |
+
+### 10.3 Agent Span Attributes
+
+The dedicated agent span (`gh-aw.*.agent`) follows OpenTelemetry [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/).
+
+**Required attributes** (MUST be present when available from the AI engine):
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gen_ai.system` | string | Mapped AI system name |
+| `gen_ai.request.model` | string | Requested model |
+| `gen_ai.response.model` | string | Resolved runtime model |
+| `gen_ai.operation.name` | string | Always `"chat"` |
+| `gen_ai.workflow.name` | string | Workflow name |
+| `gen_ai.usage.input_tokens` | int | Input tokens consumed |
+| `gen_ai.usage.output_tokens` | int | Output tokens generated |
+| `gen_ai.usage.total_tokens` | int | Total tokens (input + output, excluding cache) |
+| `gen_ai.response.finish_reasons` | string[] | Stop reasons (e.g., `["stop"]`, `["length"]`, `["timeout"]`) |
+
+**Optional attributes** (MAY be present):
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gen_ai.usage.cache_read.input_tokens` | int | Cache read tokens |
+| `gen_ai.usage.cache_creation.input_tokens` | int | Cache write tokens |
+
+### 10.4 Outcome Evaluation Span Attributes
+
+Per-item outcome evaluation spans (`gh-aw.outcome.evaluation`) are emitted by the outcome-collector workflow. Each span represents one safe output item evaluated against the GitHub API.
+
+| Attribute | Type | Condition | Description |
+|---|---|---|---|
+| `gh-aw.outcome.type` | string | Required | Safe output type (e.g., `create_pull_request`, `create_issue`) |
+| `gh-aw.outcome.result` | string | Required | `accepted`, `rejected`, `pending`, `ignored`, `noop` |
+| `gh-aw.outcome.workflow` | string | Required | Source workflow name |
+| `gh-aw.outcome.run_id` | int | Required | Source run ID |
+| `gh-aw.outcome.repo` | string | Required | Repository |
+| `gh-aw.outcome.url` | string | When available | URL to the created object |
+| `gh-aw.outcome.detail` | string | When available | Result detail (e.g., `merged`, `closed`, `open`) |
+| `gh-aw.outcome.created_at` | string | When available | Item creation timestamp |
+| `gh-aw.outcome.event` | string | When available | Triggering event type |
+| `gh-aw.outcome.resolution_sec` | int | When resolved | Seconds from creation to resolution |
+| `gh-aw.outcome.pending_age_sec` | int | When pending | Seconds since creation |
+| `gh-aw.outcome.review_comments` | int | PRs only | Number of review comments |
+| `gh-aw.outcome.comments` | int | When available | Number of issue-level comments |
+| `gh-aw.outcome.changed_files` | int | PRs only | Files changed |
+| `gh-aw.outcome.additions` | int | PRs only | Lines added |
+| `gh-aw.outcome.deletions` | int | PRs only | Lines deleted |
+| `gh-aw.outcome.reactions_total` | int | When available | Total reaction count |
+| `gh-aw.outcome.reactions_positive` | int | When available | Positive reactions (+1, heart, hooray, rocket) |
+| `gh-aw.outcome.reactions_negative` | int | When available | Negative reactions (-1, confused) |
+| `gh-aw.outcome.zero_touch` | boolean | When true | Accepted with no human review comments or issue comments |
+
+### 10.5 Outcome Summary Span Attributes
+
+The fleet summary span (`gh-aw.outcome.summary`) aggregates all evaluated outcomes into a single span with economics metrics.
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gh-aw.outcome.runs_checked` | int | Number of runs evaluated |
+| `gh-aw.outcome.total` | int | Total actionable outcomes |
+| `gh-aw.outcome.accepted` | int | Accepted outcomes |
+| `gh-aw.outcome.rejected` | int | Rejected outcomes |
+| `gh-aw.outcome.ignored` | int | Ignored outcomes |
+| `gh-aw.outcome.pending` | int | Pending outcomes |
+| `gh-aw.outcome.noop` | int | Noop outcomes |
+| `gh-aw.outcome.acceptance_rate` | double | Accepted / (accepted + rejected) |
+| `gh-aw.outcome.waste_rate` | double | Rejected / total |
+| `gh-aw.outcome.noop_rate` | double | Noop / (total + noop) |
+| `gh-aw.outcome.zero_touch_count` | int | Count of zero-touch accepted outcomes |
+| `gh-aw.outcome.zero_touch_rate` | double | Zero-touch / accepted |
+| `gh-aw.outcome.median_resolution_sec` | int | Median seconds from creation to resolution |
+| `gh-aw.outcome.item_count` | int | Number of per-item spans emitted |
+| `gh-aw.outcome.date` | string | Evaluation date (YYYY-MM-DD) |
+| `gh-aw.outcome.events` | string | Comma-separated distinct trigger events |
+| `gh-aw.outcome.workflows` | string | Comma-separated distinct workflow names |
+| `gh-aw.outcome.types` | string | Comma-separated distinct outcome types |
+
+---
+
+## 11. Resource Attributes
+
+Resource attributes are applied to all OTLP spans and describe the service and execution environment.
+
+### 11.1 Required Resource Attributes
+
+A conforming implementation MUST include these resource attributes on every exported span:
+
+| Attribute | Type | Description | Example |
+|---|---|---|---|
+| `service.name` | string | `gh-aw.<workflow-id>` or `gh-aw` | `gh-aw.daily-report` |
+| `service.version` | string | gh-aw CLI version or commit SHA | `v0.23.4` |
+| `github.repository` | string | `owner/repo` | `github/gh-aw` |
+| `github.run_id` | string | GitHub Actions run ID | `12345678` |
+| `github.run_attempt` | string | Run attempt number | `1` |
+| `github.actions.run_url` | string | URL to the run | `https://github.com/owner/repo/actions/runs/123` |
+
+### 11.2 Conditional Resource Attributes
+
+These resource attributes MUST be included when the corresponding value is available:
+
+| Attribute | Type | Description |
+|---|---|---|
+| `github.event_name` | string | Event type (e.g., `push`, `pull_request`) |
+| `github.ref` | string | Git ref (branch/tag) |
+| `github.ref_name` | string | Ref name |
+| `github.head_ref` | string | Head ref (for PRs) |
+| `github.sha` | string | Commit SHA |
+| `github.job` | string | Job name |
+| `github.workflow_ref` | string | Workflow ref |
+| `github.actor_id` | string | Actor ID |
+| `runner.os` | string | Runner OS (`Linux`, `Windows`, `macOS`) |
+| `runner.arch` | string | Runner architecture (`X64`, `ARM64`) |
+| `runner.name` | string | Runner name/label |
+| `runner.environment` | string | Runner environment |
+| `gh-aw.awf.version` | string | Agentic Workflows Framework version |
+| `gh-aw.awmg.version` | string | Agentic Workflows Manager version |
+| `deployment.environment` | string | `staging` or `production` |
+
+### 11.3 Instrumentation Scope
+
+All gh-aw spans MUST be emitted under an instrumentation scope with:
+
+| Field | Value |
+|---|---|
+| `scope.name` | `gh-aw` |
+| `scope.version` | The gh-aw CLI version |
+
+---
+
+## 12. Trace ID Propagation and Lookup
+
+### 12.1 Trace ID Format
+
+The OTLP trace ID is a 32-character lowercase hexadecimal string (16 random bytes). The span ID is a 16-character lowercase hexadecimal string (8 random bytes).
+
+Do **not** confuse the OTLP trace ID with `workflow_call_id`, which is derived from the GitHub run ID and attempt number. The OTLP trace ID is the value to search for in vendor backends (Sentry, Honeycomb, Datadog, Grafana Tempo, etc.).
+
+### 12.2 Trace ID Resolution Order
+
+The setup span MUST resolve the trace ID using the following priority order:
+
+1. **Explicit option** — `options.traceId` passed to the setup function (used for activation job reuse).
+2. **Action input** — `INPUT_TRACE_ID` environment variable (from `trace-id` action input, used for cross-job propagation).
+3. **Parent context** — `aw_info.context.otel_trace_id` (propagated from parent workflow via `aw_context`).
+4. **Generate new** — 32-character random hex string via `randomBytes(16).toString("hex")`.
+
+The conclusion span MUST resolve the trace ID using:
+
+1. **Job environment** — `GITHUB_AW_OTEL_TRACE_ID` (set by this job's setup step).
+2. **Parent context** — `aw_info.context.otel_trace_id` (inherited from parent).
+3. **Legacy fallback** — `aw_info.context.workflow_call_id` (converted to hex).
+4. **Generate new** — 32-character random hex string.
+
+### 12.3 Trace ID Storage
+
+After generating or resolving a trace ID, the setup step MUST:
+
+1. **Write to `$GITHUB_OUTPUT`** so downstream jobs can access:
+   - `trace-id` — 32-char hex trace ID
+   - `span-id` — 16-char hex setup span ID
+   - `parent-span-id` — 16-char hex global parent span ID
+
+2. **Write to `$GITHUB_ENV`** so downstream steps in the same job can access:
+   - `GITHUB_AW_OTEL_TRACE_ID` — Trace ID
+   - `GITHUB_AW_OTEL_PARENT_SPAN_ID` — Setup span ID (parent for conclusion span)
+   - `GITHUB_AW_OTEL_JOB_START_MS` — Epoch milliseconds when setup completed
+
+### 12.4 Cross-Job Propagation
+
+The compiler MUST wire setup outputs through the job dependency graph so all jobs in a run share a single trace ID. Downstream jobs receive `needs.<setup-job>.outputs.trace-id` and `needs.<setup-job>.outputs.parent-span-id` as action inputs.
+
+### 12.5 Dispatch and Composite Action Propagation
+
+When a workflow dispatches a child workflow or composite action, parent trace context MUST be passed via `aw_context`:
+
+- `aw_context.otel_trace_id` → child inherits parent trace ID
+- `aw_context.otel_parent_span_id` → child setup span parents under parent's setup span
+
+This context is written to `/tmp/gh-aw/aw_info.json` and propagated through action inputs.
+
+### 12.6 Trace ID Lookup
+
+To find a trace in an OTLP backend:
+
+1. Locate the OTLP trace ID from the GitHub Actions job summary or the `trace-id` output.
+2. Search the backend by trace ID (32-char hex string).
+3. For local debugging, query the JSONL mirror:
+
+```bash
+jq '.resourceSpans[].scopeSpans[].spans[] | {name, traceId, spanId, status}' /tmp/gh-aw/otel.jsonl
+```
+
+---
+
+## 13. Implementation Mapping
 
 This section maps the normative behavior in this specification to the current `gh-aw` implementation. These mappings MUST be kept in sync when behavior changes.
 
@@ -280,12 +655,16 @@ This section maps the normative behavior in this specification to the current `g
 | §6.5 | Trace Context Variables | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/aw_context.cjs` |
 | §7 | Local Mirrors and Artifacts | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/constants.cjs`, `actions/setup/post.js` |
 | §8 | Security and Privacy Requirements | `pkg/workflow/observability_otlp.go`, `pkg/workflow/mcp_renderer.go`, `pkg/workflow/mcp_setup_generator.go`, `actions/setup/js/send_otlp_span.cjs` |
+| §9 | Trace Model | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs` |
+| §10 | Span Attribute Contract | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/evaluate_outcomes.cjs`, `actions/setup/js/emit_outcome_spans.cjs` |
+| §11 | Resource Attributes | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs` |
+| §12 | Trace ID Propagation | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/aw_context.cjs`, `pkg/workflow/compiler_yaml.go` |
 
 When behavior changes in any mapped file, this table SHOULD be updated in the same change set.
 
 ---
 
-## 10. Compliance Testing
+## 14. Compliance Testing
 
 A conforming implementation MUST include automated coverage for the following behaviors.
 
@@ -301,12 +680,28 @@ A conforming implementation MUST include automated coverage for the following be
 | `T-OTEL-OBS-008` | Local mirror persistence | Helper emission writes `/tmp/gh-aw/otel.jsonl` even when OTLP export fails or is absent. | `actions/setup/js/send_otlp_span.test.cjs` |
 | `T-OTEL-OBS-009` | Trace context propagation | Setup writes valid trace and parent span IDs into runtime environment. | `actions/setup/js/action_setup_otlp.test.cjs`, `actions/setup/js/otlp.test.cjs` |
 | `T-OTEL-OBS-010` | Artifact inclusion | Observability artifacts include the OTEL JSONL mirror when artifact collection is enabled. | `pkg/workflow/compiled_lock_files_test.go` |
+| `T-OTEL-OBS-011` | Span naming convention | All emitted span names follow `gh-aw.<job-name>.<operation>` pattern. | `actions/setup/js/send_otlp_span.test.cjs` |
+| `T-OTEL-OBS-012` | Span hierarchy | Setup spans share a global parent span ID; conclusion spans parent under the setup span. | `actions/setup/js/action_setup_otlp.test.cjs`, `actions/setup/js/action_conclusion_otlp.test.cjs` |
+| `T-OTEL-OBS-013` | Span attribute contract | Setup and conclusion spans contain all required attributes from §10. | `actions/setup/js/action_setup_otlp.test.cjs`, `actions/setup/js/action_conclusion_otlp.test.cjs` |
+| `T-OTEL-OBS-014` | Resource attributes | All exported spans include required resource attributes from §11. | `actions/setup/js/send_otlp_span.test.cjs` |
+| `T-OTEL-OBS-015` | Trace ID resolution order | Trace ID follows the priority chain: explicit option → action input → parent context → generate new. | `actions/setup/js/action_setup_otlp.test.cjs` |
 
 Additional tests SHOULD be added when new helper APIs, new OTLP normalization rules, or new runtime sinks become normative.
 
+### 14.1 Runtime Conformance Workflows
+
+The following agentic workflows provide runtime conformance validation:
+
+| Workflow | Purpose | Coverage |
+|---|---|---|
+| [`smoke-otel-backends.md`](../.github/workflows/smoke-otel-backends.md) | End-to-end OTLP smoke test | Local mirror + Sentry/Grafana/Datadog visibility |
+| [`daily-otel-instrumentation-advisor.md`](../.github/workflows/daily-otel-instrumentation-advisor.md) | Daily code review + live data validation | Sentry + Grafana backend data |
+| [`daily-grafana-otel-instrumentation-advisor.md`](../.github/workflows/daily-grafana-otel-instrumentation-advisor.md) | Grafana-only variant | Grafana Tempo data |
+| [`otlp-data-quality-validator.md`](../.github/workflows/otlp-data-quality-validator.md) | OTLP data quality validation | JSONL + vendor traces + attribute contract |
+
 ---
 
-## 11. References
+## 15. References
 
 ### Normative References
 
@@ -321,9 +716,29 @@ Additional tests SHOULD be added when new helper APIs, new OTLP normalization ru
 - [specs/aw-harness.md](./aw-harness.md)
 - [specs/safe-output-outcome-evaluation.md](./safe-output-outcome-evaluation.md)
 
+### Runtime Conformance Workflows
+
+- [.github/workflows/smoke-otel-backends.md](../.github/workflows/smoke-otel-backends.md) — End-to-end OTLP smoke test
+- [.github/workflows/daily-otel-instrumentation-advisor.md](../.github/workflows/daily-otel-instrumentation-advisor.md) — Daily code review + live data validation
+- [.github/workflows/daily-grafana-otel-instrumentation-advisor.md](../.github/workflows/daily-grafana-otel-instrumentation-advisor.md) — Grafana-only variant
+- [.github/workflows/otlp-data-quality-validator.md](../.github/workflows/otlp-data-quality-validator.md) — OTLP data quality validation
+
 ---
 
-## 12. Change Log
+## 16. Change Log
+
+### Version 0.2.0 (Working Draft)
+
+- Added §9 Trace Model: span naming, hierarchy, kinds, status, exception events
+- Added §10 Span Attribute Contract: required and conditional attributes for setup, conclusion, and agent spans
+- Added §10.4 Outcome Evaluation Span Attributes: reactions, zero-touch, comments
+- Added §10.5 Outcome Summary Span Attributes: zero-touch rate, median resolution, economics metrics
+- Added §11 Resource Attributes: required and conditional resource attributes, instrumentation scope
+- Added §12 Trace ID Propagation and Lookup: resolution order, storage, cross-job and dispatch propagation
+- Added §14.1 Runtime Conformance Workflows
+- Added compliance tests T-OTEL-OBS-011 through T-OTEL-OBS-015
+- Updated implementation mapping table with §9–§12 entries
+- Renumbered §9–§12 to §13–§16
 
 ### Version 0.1.0 (Working Draft)
 

@@ -148,6 +148,11 @@ async function main() {
     const changedFiles = typeof eval_.changed_files === "number" ? eval_.changed_files : null;
     const additions = typeof eval_.additions === "number" ? eval_.additions : null;
     const deletions = typeof eval_.deletions === "number" ? eval_.deletions : null;
+    const reactionsTotal = typeof eval_.reactions_total === "number" ? eval_.reactions_total : null;
+    const reactionsPositive = typeof eval_.reactions_positive === "number" ? eval_.reactions_positive : null;
+    const reactionsNegative = typeof eval_.reactions_negative === "number" ? eval_.reactions_negative : null;
+    const comments = typeof eval_.comments === "number" ? eval_.comments : null;
+    const zeroTouch = eval_.zero_touch === true;
 
     const attributes = [
       buildAttr("gh-aw.exporter.name", "outcome-collector"),
@@ -168,6 +173,11 @@ async function main() {
     if (changedFiles !== null) attributes.push(buildAttr("gh-aw.outcome.changed_files", changedFiles));
     if (additions !== null) attributes.push(buildAttr("gh-aw.outcome.additions", additions));
     if (deletions !== null) attributes.push(buildAttr("gh-aw.outcome.deletions", deletions));
+    if (reactionsTotal !== null) attributes.push(buildAttr("gh-aw.outcome.reactions_total", reactionsTotal));
+    if (reactionsPositive !== null) attributes.push(buildAttr("gh-aw.outcome.reactions_positive", reactionsPositive));
+    if (reactionsNegative !== null) attributes.push(buildAttr("gh-aw.outcome.reactions_negative", reactionsNegative));
+    if (comments !== null) attributes.push(buildAttr("gh-aw.outcome.comments", comments));
+    if (zeroTouch) attributes.push(buildAttr("gh-aw.outcome.zero_touch", true));
 
     // Map result to OTLP status: accepted=OK, rejected=ERROR, noop=UNSET, pending/ignored=UNSET
     const statusCode = result === "rejected" ? 2 : result === "accepted" ? 1 : 0;
@@ -205,6 +215,8 @@ async function main() {
     buildAttr("gh-aw.outcome.acceptance_rate", getSummaryNumber("acceptance_rate", 0)),
     buildAttr("gh-aw.outcome.waste_rate", getSummaryNumber("waste_rate", 0)),
     buildAttr("gh-aw.outcome.noop_rate", getSummaryNumber("noop_rate", 0)),
+    buildAttr("gh-aw.outcome.zero_touch_count", getSummaryNumber("zero_touch", 0)),
+    buildAttr("gh-aw.outcome.zero_touch_rate", getSummaryNumber("zero_touch_rate", 0)),
     buildAttr("gh-aw.outcome.item_count", evaluations.length),
   ];
 
@@ -212,15 +224,20 @@ async function main() {
     summaryAttributes.push(buildAttr("gh-aw.outcome.date", summary.date));
   }
 
-  // Median time-to-resolution for resolved items
-  const resolutionTimes = evaluations
-    .filter(e => typeof e.resolution_sec === "number" && e.resolution_sec > 0)
-    .map(e => e.resolution_sec)
-    .sort((a, b) => a - b);
-  if (resolutionTimes.length > 0) {
-    const mid = Math.floor(resolutionTimes.length / 2);
-    const median = resolutionTimes.length % 2 !== 0 ? resolutionTimes[mid] : Math.round((resolutionTimes[mid - 1] + resolutionTimes[mid]) / 2);
-    summaryAttributes.push(buildAttr("gh-aw.outcome.median_resolution_sec", median));
+  // Median time-to-resolution: prefer summary value, fall back to local computation
+  const summaryMedian = summary && typeof summary.median_resolution_sec === "number" ? summary.median_resolution_sec : null;
+  if (summaryMedian !== null) {
+    summaryAttributes.push(buildAttr("gh-aw.outcome.median_resolution_sec", summaryMedian));
+  } else {
+    const resolutionTimes = evaluations
+      .filter(e => typeof e.resolution_sec === "number" && e.resolution_sec > 0)
+      .map(e => e.resolution_sec)
+      .sort((a, b) => a - b);
+    if (resolutionTimes.length > 0) {
+      const mid = Math.floor(resolutionTimes.length / 2);
+      const median = resolutionTimes.length % 2 !== 0 ? resolutionTimes[mid] : Math.round((resolutionTimes[mid - 1] + resolutionTimes[mid]) / 2);
+      summaryAttributes.push(buildAttr("gh-aw.outcome.median_resolution_sec", median));
+    }
   }
 
   // Trigger type distribution
