@@ -20,7 +20,7 @@ Apply these in order — each check can halve costs:
 - [ ] **Cadence**: If the result is not time-sensitive, schedule less often (`hourly` → `daily`, `daily` → `weekly`)
 - [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
 - [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
-- [ ] **AgenticOps**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
+- [ ] **AgenticOps**: Add `agentic-token-audit` / `agentic-token-optimizer` workflows so the repository keeps finding waste automatically
 - [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "effective_tokens"` before promoting
 
 ---
@@ -374,12 +374,12 @@ See also: [Frontmatter syntax](syntax.md#observability)
 
 Use the token-focused workflows from the AgenticOps pattern to optimize continuously at the repository level:
 
-- `copilot-token-audit` — scheduled audit of token usage across workflows
-- `copilot-token-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings
+- `agentic-token-audit` — scheduled audit of token usage across workflows
+- `agentic-token-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings
 
 Loop: export OTEL → summarize repository-wide usage → open optimization issues for highest-value fixes → re-measure after changes land.
 
-See `.github/workflows/` in the `gh-aw` repository for derived `copilot-token-audit` and `copilot-token-optimizer` examples.
+See `.github/workflows/` in the `gh-aw` repository for package-installed `agentic-token-audit` and `agentic-token-optimizer` examples.
 
 ---
 
