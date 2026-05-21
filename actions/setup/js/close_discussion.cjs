@@ -284,9 +284,7 @@ async function main(config = {}) {
       if (!allowBody) {
         // allow-body: false — drop any body the agent provided and close without a comment
         if (item.body) {
-          core.warning(
-            `close_discussion: allow-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`
-          );
+          core.warning(`close_discussion: allow-body is false — dropping non-empty body (length=${item.body.length}) and closing without a comment`);
         } else {
           core.info("close_discussion: allow-body is false — closing without a comment");
         }

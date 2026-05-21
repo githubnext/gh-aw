@@ -33,6 +33,10 @@ type ResolvedWorkflow struct {
 	HasWorkflowDispatch bool
 	// IsPrivate indicates if the workflow has private: true in its frontmatter
 	IsPrivate bool
+	// IsActionWorkflow indicates that the source is a raw GitHub Actions YAML file (.yml)
+	// rather than an agentic workflow markdown file (.md). When true, the file is installed
+	// directly to .github/workflows/ without frontmatter processing or compilation.
+	IsActionWorkflow bool
 }
 
 // ResolvedWorkflows contains all resolved workflows ready to be added
@@ -154,6 +158,20 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
 		}
 
+		// Action workflow files (.yml) are raw GitHub Actions YAML — skip all markdown
+		// frontmatter processing and install them as-is.
+		if isActionWorkflowPath(resolvedSpec.WorkflowPath) {
+			resolutionLog.Printf("Resolved action workflow: spec=%s, content_size=%d bytes",
+				spec.String(), len(fetched.Content))
+			resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
+				Spec:             resolvedSpec,
+				Content:          fetched.Content,
+				SourceInfo:       fetched,
+				IsActionWorkflow: true,
+			})
+			continue
+		}
+
 		// Extract description from content
 		description := ExtractWorkflowDescription(string(fetched.Content))
 
@@ -205,13 +223,19 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
 	host := explicitHostForRepo(repoSpec.RepoSlug)
 	for _, installationSource := range pkg.InstallationSource {
+		// installationSource is guaranteed by isSupportedPackageInstallablePath to be
+		// either a .md agentic workflow or a .yml action workflow file; no other
+		// extensions can reach this point.
+		base := filepath.Base(installationSource)
+		// Use filepath.Ext for case-insensitive extension removal (e.g. ".YML" or ".MD").
+		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug: repoSpec.RepoSlug,
 				Version:  repoSpec.Version,
 			},
 			WorkflowPath: installationSource,
-			WorkflowName: strings.TrimSuffix(filepath.Base(installationSource), ".md"),
+			WorkflowName: workflowName,
 			Host:         host,
 		})
 	}
