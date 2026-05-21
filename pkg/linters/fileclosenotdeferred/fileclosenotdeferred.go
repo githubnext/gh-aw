@@ -66,6 +66,15 @@ func run(pass *analysis.Pass) (any, error) {
 							if ident, ok := assign.Lhs[i].(*ast.Ident); ok && ident.Name != "_" {
 								obj := pass.TypesInfo.ObjectOf(ident)
 								if obj != nil {
+									// If this object was already tracked from a prior open on the
+									// same binding (plain = reassignment), report any unresolved
+									// violation immediately before overwriting the state.
+									if prev, exists := fileVars[obj]; exists && prev.hasManualClose && !prev.hasDefer {
+										pass.Report(analysis.Diagnostic{
+											Pos:     prev.openPos,
+											Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
+										})
+									}
 									fileVars[obj] = &fileVarState{
 										openPos: call.Pos(),
 									}

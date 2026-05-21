@@ -86,3 +86,19 @@ func ShadowedVar() error {
 	}
 	return nil
 }
+
+// flagged: same variable reassigned via plain = after manual close; the first
+// open's violation must not be hidden by the second open's defer.
+func ReopenWithManualCloseThenDefer() error {
+	f, err := os.Open("first.txt") // want `file Close\(\) should be deferred immediately after successful open to prevent resource leaks`
+	if err != nil {
+		return err
+	}
+	f.Close()               // manual close — violation for first open
+	f, err = os.Open("second.txt")
+	if err != nil {
+		return err
+	}
+	defer f.Close() // deferred — ok for second open
+	return nil
+}
