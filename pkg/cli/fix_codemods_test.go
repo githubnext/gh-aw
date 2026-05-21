@@ -98,6 +98,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"features-inline-agents-removal",
 		"mount-as-clis-to-cli-proxy",
 		"bash-single-quoted-args-rewrite",
+		"infer-to-disable-model-invocation",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -181,5 +182,6 @@ func expectedCodemodOrder() []string {
 		"sandbox-mcp-container-removal",
 		"sandbox-mcp-version-removal",
 		"sandbox-agent-false-removal",
+		"infer-to-disable-model-invocation",
 	}
 }
