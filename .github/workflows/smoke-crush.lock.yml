@@ -486,6 +486,8 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.49
       - name: Install Crush CLI
         run: npm install -g @charmland/crush@0.59.0
+        env:
+          NPM_CONFIG_MIN_RELEASE_AGE: '3'
       - name: Verify Crush CLI installation
         run: crush --version
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -1320,6 +1322,8 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.49
       - name: Install Crush CLI
         run: npm install -g @charmland/crush@0.59.0
+        env:
+          NPM_CONFIG_MIN_RELEASE_AGE: '3'
       - name: Verify Crush CLI installation
         run: crush --version
       - name: Write Crush Config

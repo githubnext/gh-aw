@@ -62,7 +62,6 @@ on:
   pull_request:
     types:
     - ready_for_review
-    - review_requested
   workflow_dispatch:
     inputs:
       aw_context:
@@ -74,8 +73,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}-all-reviewers"
-  queue: max
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
 
 run-name: "PR Code Quality Reviewer"
 
@@ -90,8 +88,7 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
-      github.event.pull_request.state != 'closed')
+      needs.pre_activation.outputs.activated == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -257,20 +254,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_02fd99f51c13f0fc_EOF'
+          cat << 'GH_AW_PROMPT_03f9bc9676534c1b_EOF'
           <system>
-          GH_AW_PROMPT_02fd99f51c13f0fc_EOF
+          GH_AW_PROMPT_03f9bc9676534c1b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_02fd99f51c13f0fc_EOF'
+          cat << 'GH_AW_PROMPT_03f9bc9676534c1b_EOF'
           <safe-output-tools>
           Tools: create_pull_request_review_comment(max:10), submit_pull_request_review, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_02fd99f51c13f0fc_EOF
+          GH_AW_PROMPT_03f9bc9676534c1b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_02fd99f51c13f0fc_EOF'
+          cat << 'GH_AW_PROMPT_03f9bc9676534c1b_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -299,12 +296,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_02fd99f51c13f0fc_EOF
+          GH_AW_PROMPT_03f9bc9676534c1b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_02fd99f51c13f0fc_EOF'
+          cat << 'GH_AW_PROMPT_03f9bc9676534c1b_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
@@ -312,7 +309,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/pr-code-quality-reviewer.md}}
-          GH_AW_PROMPT_02fd99f51c13f0fc_EOF
+          GH_AW_PROMPT_03f9bc9676534c1b_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -531,9 +528,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_e3ac6cda71044145_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_11433c4998bea54d_EOF'
           {"create_pull_request_review_comment":{"max":10,"side":"RIGHT"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"submit_pull_request_review":{"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_e3ac6cda71044145_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_11433c4998bea54d_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -761,7 +758,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_2e25bf5f987f9cae_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_9e7251805d038456_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -810,7 +807,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_2e25bf5f987f9cae_EOF
+          GH_AW_MCP_CONFIG_9e7251805d038456_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1437,9 +1434,7 @@ jobs:
             }
 
   pre_activation:
-    if: >
-      (github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
-      github.event.pull_request.state != 'closed'
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id
     runs-on: ubuntu-slim
     permissions:
       contents: read
