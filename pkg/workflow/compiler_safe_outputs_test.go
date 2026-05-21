@@ -495,7 +495,9 @@ func TestParseOnSection_PullRequestReviewerDefaultsToReviewAndWorkflowID(t *test
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"review", "reviewer-workflow-id"}, workflowData.Command)
-	assert.Equal(t, []string{"pull_request_comment", "pull_request_review_comment"}, workflowData.CommandEvents)
+	// Reviewer workflows must not register for comment events in the central router
+	// to prevent accidental double-triggers when PR comments are posted.
+	assert.Nil(t, workflowData.CommandEvents)
 	assert.True(t, workflowData.CommandCentralized)
 }
 
@@ -520,7 +522,9 @@ func TestParseOnSection_PullRequestReviewerOwnsCommandAndEvents(t *testing.T) {
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/reviewer.md")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"review", "reviewer-workflow-id"}, workflowData.Command)
-	assert.Equal(t, []string{"pull_request_comment", "pull_request_review_comment"}, workflowData.CommandEvents)
+	// pull_request_reviewer takes ownership and clears comment events to prevent
+	// the central router from dispatching the workflow on comment triggers.
+	assert.Nil(t, workflowData.CommandEvents)
 	assert.True(t, workflowData.CommandCentralized)
 }
 

@@ -307,7 +307,16 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	}
 
 	if data.PullRequestReviewer {
-		reviewerGuard := "(github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.state != 'closed'"
+		// Use an allowlist so that only the events this reviewer workflow is designed
+		// to handle can trigger the job. The previous denylist form
+		//   (event != 'pull_request' && event != 'pull_request_review') || PR.state != 'closed'
+		// was logically inverted: the first clause evaluated to TRUE for every event
+		// that is neither pull_request nor pull_request_review (e.g.
+		// pull_request_review_comment), causing the job to run on comment events.
+		// The allowlist below permits only:
+		//   • workflow_dispatch – used by the central router for lifecycle dispatch
+		//   • pull_request / pull_request_review – only when the PR is still open
+		reviewerGuard := "github.event_name == 'workflow_dispatch' || ((github.event_name == 'pull_request' || github.event_name == 'pull_request_review') && github.event.pull_request.state != 'closed')"
 		if data.If == "" {
 			data.If = reviewerGuard
 		} else {
