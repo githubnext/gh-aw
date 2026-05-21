@@ -827,6 +827,11 @@ func mergeObservabilityConfigs(configs []string) string {
 // raw observability section (as parsed from an import's frontmatter).  Only
 // string values are accepted; non-string values are silently ignored.
 // Returns nil when the field is absent or empty.
+//
+// Note: this intentionally duplicates the logic of
+// workflow.extractOTLPCustomAttributesFromObsMap.  The parser package must not
+// import the workflow package (circular-dependency risk), so the helper lives
+// here as a local copy.  Both implementations must stay in sync.
 func extractOTLPAttributesFromObsMap(obs map[string]any) map[string]string {
 	if obs == nil {
 		return nil

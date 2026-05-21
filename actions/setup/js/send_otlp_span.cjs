@@ -596,9 +596,11 @@ function parseOTLPCustomAttributes() {
  *
  * Template variables use the syntax `{{ key }}` where `key` is an OTLP
  * attribute key already computed for the current span (e.g.
- * `{{ gh-aw.episode.id }}` or `{{ github.actor }}`).  Unknown variable
- * names resolve to an empty string.  Surrounding whitespace inside the
- * braces is ignored.
+ * `{{ gh-aw.episode.id }}` or `{{ gh-aw.run.actor }}`).  Variable names may
+ * contain word characters (`[a-zA-Z0-9_]`), dots (`.`), and hyphens (`-`);
+ * other characters (e.g. colons or slashes) are not supported and will not
+ * match.  Unknown variable names resolve to an empty string.  Surrounding
+ * whitespace inside the braces is ignored.
  *
  * @param {string} template - The attribute value template string.
  * @param {Record<string, string>} vars - Map of available variable names to
