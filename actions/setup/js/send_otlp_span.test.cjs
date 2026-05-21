@@ -1389,7 +1389,7 @@ describe("sendJobSetupSpan", () => {
     expect(resourceAttrs["github.workflow_ref"]).toBe("owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
   });
 
-  it("defaults gh-aw.run.attempt to '1' when GITHUB_RUN_ATTEMPT is not set", async () => {
+  it("defaults github.aw.run.attempt to '1' when GITHUB_RUN_ATTEMPT is not set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1583,7 +1583,7 @@ describe("sendJobSetupSpan", () => {
     expect(resourceKeys).not.toContain("github.event_name");
   });
 
-  it("includes gh-aw.event_name as span attribute when GITHUB_EVENT_NAME is set", async () => {
+  it("includes github.aw.event_name as span attribute when GITHUB_EVENT_NAME is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1597,7 +1597,7 @@ describe("sendJobSetupSpan", () => {
     expect(span.attributes).toContainEqual({ key: "github.aw.event_name", value: { stringValue: "workflow_dispatch" } });
   });
 
-  it("omits gh-aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
+  it("omits github.aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1841,7 +1841,7 @@ describe("sendJobSetupSpan", () => {
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("aabbccdd1122334455667788aabbccdd11223344");
   });
 
-  it("includes gh-aw.awf.version and gh-aw.awmg.version resource attributes from aw_info.json", async () => {
+  it("includes github.aw.awf.version and github.aw.awmg.version resource attributes from aw_info.json", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1863,7 +1863,7 @@ describe("sendJobSetupSpan", () => {
     expect(resourceAttrs).toContainEqual({ key: "github.aw.awmg.version", value: { stringValue: "v4.5.6-awmg" } });
   });
 
-  it("omits gh-aw.engine.id attribute when engine is not set", async () => {
+  it("omits github.aw.engine.id attribute when engine is not set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1891,7 +1891,7 @@ describe("sendJobSetupSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("reads gh-aw.engine.id from aw_info.json when env var is absent", async () => {
+    it("reads github.aw.engine.id from aw_info.json when env var is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -1913,7 +1913,7 @@ describe("sendJobSetupSpan", () => {
       expect(attrs["github.aw.engine.id"]).toBe("claude");
     });
 
-    it("reads gh-aw.engine.id from aw_context when aw_info.json has no engine_id", async () => {
+    it("reads github.aw.engine.id from aw_context when aw_info.json has no engine_id", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2142,7 +2142,7 @@ describe("sendJobSetupSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("emits gh-aw.trigger.item_type and gh-aw.trigger.item_number from aw_info.context", async () => {
+    it("emits github.aw.trigger.item_type and github.aw.trigger.item_number from aw_info.context", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2166,7 +2166,7 @@ describe("sendJobSetupSpan", () => {
       expect(keys).not.toContain("github.aw.trigger.comment_id");
     });
 
-    it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
+    it("emits github.aw.trigger.label when trigger_label is non-empty", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2188,7 +2188,7 @@ describe("sendJobSetupSpan", () => {
       expect(span.attributes).toContainEqual({ key: "github.aw.trigger.label", value: { stringValue: "copilot" } });
     });
 
-    it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
+    it("emits github.aw.trigger.comment_id when comment_id is non-empty", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2285,7 +2285,7 @@ describe("sendJobSetupSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("includes gh-aw.experiment.<name> and gh-aw.experiments attributes when assignments file exists", async () => {
+    it("includes github.aw.experiment.<name> and github.aw.experiments attributes when assignments file exists", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -2404,7 +2404,7 @@ describe("buildExperimentAttributes", () => {
     expect(buildExperimentAttributes({})).toEqual([]);
   });
 
-  it("builds one attribute per experiment plus the aggregated gh-aw.experiments attribute", () => {
+  it("builds one attribute per experiment plus the aggregated github.aw.experiments attribute", () => {
     const attrs = buildExperimentAttributes({ caveman: "yes", style: "detailed" });
     const attrMap = Object.fromEntries(attrs.map(a => [a.key, a.value.stringValue]));
     expect(attrMap["github.aw.experiment.caveman"]).toBe("yes");
@@ -2413,18 +2413,18 @@ describe("buildExperimentAttributes", () => {
     expect(JSON.parse(attrMap["github.aw.experiments"])).toEqual({ caveman: "yes", style: "detailed" });
   });
 
-  it("skips assignments with non-string or empty-string variants and still adds gh-aw.experiments for valid ones", () => {
+  it("skips assignments with non-string or empty-string variants and still adds github.aw.experiments for valid ones", () => {
     const attrs = buildExperimentAttributes({ good: "A", bad: "" });
     const keys = attrs.map(a => a.key);
     expect(keys).toContain("github.aw.experiment.good");
     expect(keys).not.toContain("github.aw.experiment.bad");
-    // gh-aw.experiments is present and only contains the valid variant
+    // github.aw.experiments is present and only contains the valid variant
     const experimentsAttr = attrs.find(a => a.key === "github.aw.experiments");
     expect(experimentsAttr).toBeDefined();
     expect(JSON.parse(experimentsAttr.value.stringValue)).toEqual({ good: "A" });
   });
 
-  it("returns empty array and omits gh-aw.experiments when all variants are empty strings", () => {
+  it("returns empty array and omits github.aw.experiments when all variants are empty strings", () => {
     const attrs = buildExperimentAttributes({ exp1: "", exp2: "" });
     expect(attrs).toEqual([]);
   });
@@ -2553,7 +2553,7 @@ describe("sendJobConclusionSpan", () => {
     expect(span.traceId).toBe("a".repeat(32));
   });
 
-  it("emits a dedicated gh-aw.<job>.agent span when startMs and agent_output mtime are available", async () => {
+  it("emits a dedicated github.aw.<job>.agent span when startMs and agent_output mtime are available", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -2826,7 +2826,7 @@ describe("sendJobConclusionSpan", () => {
     expect(agentSpan.kind).toBe(3); // SPAN_KIND_CLIENT
   });
 
-  it("includes gen_ai.request.model, gen_ai.system, gh-aw.engine.id, gen_ai.operation.name and gen_ai.workflow.name on the agent span from aw_info.json", async () => {
+  it("includes gen_ai.request.model, gen_ai.system, github.aw.engine.id, gen_ai.operation.name and gen_ai.workflow.name on the agent span from aw_info.json", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -2925,7 +2925,7 @@ describe("sendJobConclusionSpan", () => {
     expect(systemKeys[0].value.stringValue).toBe("anthropic");
   });
 
-  it("omits gen_ai.request.model, gen_ai.system, gh-aw.engine.id and gen_ai.workflow.name from the agent span when model, engine_id and workflow_name are absent", async () => {
+  it("omits gen_ai.request.model, gen_ai.system, github.aw.engine.id and gen_ai.workflow.name from the agent span when model, engine_id and workflow_name are absent", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3240,7 +3240,7 @@ describe("sendJobConclusionSpan", () => {
     expect(keys).not.toContain("gen_ai.request.model");
   });
 
-  it("emits gh-aw.detection.conclusion and gh-aw.detection.reason when both are set", async () => {
+  it("emits github.aw.detection.conclusion and github.aw.detection.reason when both are set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3257,7 +3257,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["github.aw.detection.reason"]).toBe("threat_detected");
   });
 
-  it("emits gh-aw.detection.conclusion without gh-aw.detection.reason when reason is absent", async () => {
+  it("emits github.aw.detection.conclusion without github.aw.detection.reason when reason is absent", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3273,7 +3273,7 @@ describe("sendJobConclusionSpan", () => {
     expect(keys).not.toContain("github.aw.detection.reason");
   });
 
-  it("omits gh-aw.detection.conclusion and gh-aw.detection.reason when neither env var is set", async () => {
+  it("omits github.aw.detection.conclusion and github.aw.detection.reason when neither env var is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3288,7 +3288,7 @@ describe("sendJobConclusionSpan", () => {
     expect(keys).not.toContain("github.aw.detection.reason");
   });
 
-  it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
+  it("includes github.aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3303,7 +3303,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["github.aw.run.attempt"]).toBe("3");
   });
 
-  it("defaults gh-aw.run.attempt to '1' when neither awInfo nor GITHUB_RUN_ATTEMPT is set", async () => {
+  it("defaults github.aw.run.attempt to '1' when neither awInfo nor GITHUB_RUN_ATTEMPT is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3317,7 +3317,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["github.aw.run.attempt"]).toBe("1");
   });
 
-  it("reads gh-aw.workflow.name from aw_info.json when present", async () => {
+  it("reads github.aw.workflow.name from aw_info.json when present", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3380,7 +3380,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["github.aw.workflow.name"]).toBe("github-workflow");
   });
 
-  it("sets gh-aw.workflow.name to empty string when all sources are absent", async () => {
+  it("sets github.aw.workflow.name to empty string when all sources are absent", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3455,7 +3455,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["github.aw.tracker.id"]).toBe("copilot-token-optimizer");
   });
 
-  it("emits gh-aw.otlp.export_errors on the conclusion job span", async () => {
+  it("emits github.aw.otlp.export_errors on the conclusion job span", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3477,7 +3477,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["github.aw.otlp.export_errors"]).toBe(3);
   });
 
-  it("emits gh-aw.otlp.export_error_details on the conclusion job span", async () => {
+  it("emits github.aw.otlp.export_error_details on the conclusion job span", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3535,7 +3535,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["github.aw.otlp.export_error_details"]).toContain("first.example.com:4318 status=500 reason=");
   });
 
-  it("emits gh-aw.otlp.export_errors on non-conclusion job spans", async () => {
+  it("emits github.aw.otlp.export_errors on non-conclusion job spans", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3772,7 +3772,7 @@ describe("sendJobConclusionSpan", () => {
     expect(resourceKeys).not.toContain("github.event_name");
   });
 
-  it("includes gh-aw.event_name as span attribute when GITHUB_EVENT_NAME is set", async () => {
+  it("includes github.aw.event_name as span attribute when GITHUB_EVENT_NAME is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3786,7 +3786,7 @@ describe("sendJobConclusionSpan", () => {
     expect(span.attributes).toContainEqual({ key: "github.aw.event_name", value: { stringValue: "pull_request" } });
   });
 
-  it("omits gh-aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
+  it("omits github.aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3989,7 +3989,7 @@ describe("sendJobConclusionSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("adds gh-aw.error.count and gh-aw.error.messages attributes when agent_output.json has errors on failure", async () => {
+    it("adds github.aw.error.count and github.aw.error.messages attributes when agent_output.json has errors on failure", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4016,7 +4016,7 @@ describe("sendJobConclusionSpan", () => {
       expect(errorMessages.value.stringValue).toBe("Rate limit exceeded | Tool call failed");
     });
 
-    it("adds gh-aw.error attributes when agent_output.json has errors on success", async () => {
+    it("adds github.aw.error attributes when agent_output.json has errors on success", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4086,7 +4086,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.status.message).toBe("agent timed_out: Execution exceeded 30 minute limit");
     });
 
-    it("sets gh-aw.run.status=timeout (not failure) when conclusion is timed_out", async () => {
+    it("sets github.aw.run.status=timeout (not failure) when conclusion is timed_out", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4142,7 +4142,7 @@ describe("sendJobConclusionSpan", () => {
       const errorMessages = span.attributes.find(a => a.key === "github.aw.error.messages");
       expect(errorMessages).toBeDefined();
       expect(errorMessages.value.stringValue).toBe("Error 1 | Error 2 | Error 3 | Error 4 | Error 5");
-      // gh-aw.error.count reflects the full error count (7), not the capped count
+      // github.aw.error.count reflects the full error count (7), not the capped count
       const errorCount = span.attributes.find(a => a.key === "github.aw.error.count");
       expect(errorCount.value.intValue).toBe(7);
     });
@@ -4479,7 +4479,7 @@ describe("sendJobConclusionSpan", () => {
       expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
     });
 
-    it("falls back to gh-aw.AgentError when message has no colon prefix", async () => {
+    it("falls back to github.aw.AgentError when message has no colon prefix", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4504,7 +4504,7 @@ describe("sendJobConclusionSpan", () => {
       expect(msgAttr.value.stringValue).toBe("Something went wrong");
     });
 
-    it("falls back to gh-aw.AgentError when colon prefix contains invalid characters", async () => {
+    it("falls back to github.aw.AgentError when colon prefix contains invalid characters", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4529,7 +4529,7 @@ describe("sendJobConclusionSpan", () => {
       expect(msgAttr.value.stringValue).toBe("Error with spaces:details here");
     });
 
-    it("falls back to gh-aw.AgentError when colon prefix exceeds 64 characters", async () => {
+    it("falls back to github.aw.AgentError when colon prefix exceeds 64 characters", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4566,7 +4566,7 @@ describe("sendJobConclusionSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("sets gh-aw.run.status=failure and STATUS_CODE_ERROR when conclusion is absent but outputErrors exist", async () => {
+    it("sets github.aw.run.status=failure and STATUS_CODE_ERROR when conclusion is absent but outputErrors exist", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -4633,7 +4633,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.status.code).toBe(1);
     });
 
-    it("keeps gh-aw.run.status=success and STATUS_CODE_OK when conclusion is absent and there are no outputErrors", async () => {
+    it("keeps github.aw.run.status=success and STATUS_CODE_OK when conclusion is absent and there are no outputErrors", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5287,7 +5287,7 @@ describe("sendJobConclusionSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("sets gh-aw.staged=false and deployment.environment=production when staged is not set", async () => {
+    it("sets github.aw.staged=false and deployment.environment=production when staged is not set", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5305,7 +5305,7 @@ describe("sendJobConclusionSpan", () => {
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
     });
 
-    it("sets gh-aw.staged=true and deployment.environment=staging when awInfo.staged=true", async () => {
+    it("sets github.aw.staged=true and deployment.environment=staging when awInfo.staged=true", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5330,7 +5330,7 @@ describe("sendJobConclusionSpan", () => {
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "staging" } });
     });
 
-    it("sets gh-aw.staged=false and deployment.environment=production when awInfo.staged=false", async () => {
+    it("sets github.aw.staged=false and deployment.environment=production when awInfo.staged=false", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5355,7 +5355,7 @@ describe("sendJobConclusionSpan", () => {
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
     });
 
-    it("includes gh-aw.awf.version and gh-aw.awmg.version on conclusion span resources from aw_info.json", async () => {
+    it("includes github.aw.awf.version and github.aw.awmg.version on conclusion span resources from aw_info.json", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5390,7 +5390,7 @@ describe("sendJobConclusionSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("emits gh-aw.trigger.item_type and gh-aw.trigger.item_number from aw_info.context", async () => {
+    it("emits github.aw.trigger.item_type and github.aw.trigger.item_number from aw_info.context", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5414,7 +5414,7 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("github.aw.trigger.comment_id");
     });
 
-    it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
+    it("emits github.aw.trigger.label when trigger_label is non-empty", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5436,7 +5436,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.attributes).toContainEqual({ key: "github.aw.trigger.label", value: { stringValue: "bug" } });
     });
 
-    it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
+    it("emits github.aw.trigger.comment_id when comment_id is non-empty", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -5513,7 +5513,7 @@ describe("sendJobConclusionSpan", () => {
       readFileSpy.mockRestore();
     });
 
-    it("includes gh-aw.experiment.<name> and gh-aw.experiments attributes in conclusion span", async () => {
+    it("includes github.aw.experiment.<name> and github.aw.experiments attributes in conclusion span", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 

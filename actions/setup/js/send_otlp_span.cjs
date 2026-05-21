@@ -1830,7 +1830,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   // When GH_AW_AGENT_CONCLUSION and workflowRunConclusion are both absent (e.g. in the
   // agent job's own post-step where needs.<job>.result is not yet visible), fall back to
-  // observable failure evidence so gh-aw.run.status and status.code are accurate.
+  // observable failure evidence so github.aw.run.status and status.code are accurate.
   if (!rawRunStatus && outputErrors.length > 0) {
     runStatus = "failure";
     statusCode = 2;

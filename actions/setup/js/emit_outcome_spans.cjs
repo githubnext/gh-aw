@@ -13,8 +13,8 @@
  * for per-workflow, per-type, and per-result drill-down.
  *
  * Span naming:
- *   - Per-item:  gh-aw.outcome.evaluation
- *   - Summary:   gh-aw.outcome.summary
+ *   - Per-item:  github.aw.outcome.evaluation
+ *   - Summary:   github.aw.outcome.summary
  *
  * Errors are non-fatal: export failures must never break the workflow.
  */

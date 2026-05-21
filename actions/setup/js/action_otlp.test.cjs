@@ -387,7 +387,7 @@ describe("action_conclusion_otlp run()", () => {
     delete process.env.GH_AW_AGENT_CONCLUSION;
   });
 
-  it("omits gh-aw.agent.conclusion attribute when GH_AW_AGENT_CONCLUSION is not set", async () => {
+  it("omits github.aw.agent.conclusion attribute when GH_AW_AGENT_CONCLUSION is not set", async () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     delete process.env.GH_AW_AGENT_CONCLUSION;
     let capturedBody;

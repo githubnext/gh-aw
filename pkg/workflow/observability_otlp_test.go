@@ -263,7 +263,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 		// Env should contain the OTEL vars
 		require.NotEmpty(t, wd.Env, "Env should be set")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}", "should contain endpoint var")
-		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "should contain service name")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: github.aw", "should contain service name")
 	})
 
 	t.Run("injects if-missing env var when if-missing is set to ignore", func(t *testing.T) {
@@ -316,7 +316,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 
 		require.NotEmpty(t, wd.Env, "Env should be set")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com:4317")
-		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: github.aw")
 		assert.True(t, strings.HasPrefix(wd.Env, "env:"), "Env should start with 'env:'")
 	})
 
@@ -353,7 +353,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 
 		assert.Contains(t, wd.Env, "MY_VAR: hello", "existing env var should remain")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com")
-		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: github.aw")
 		// Should still be a single env: block
 		assert.Equal(t, 1, strings.Count(wd.Env, "env:"), "should have exactly one env: key")
 	})
@@ -369,7 +369,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 			},
 		}
 		c.injectOTLPConfig(wd)
-		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw.repo-triage-weekly", "service name should include sanitized workflow ID")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: github.aw.repo-triage-weekly", "service name should include sanitized workflow ID")
 	})
 
 	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS when headers are configured", func(t *testing.T) {
@@ -551,7 +551,7 @@ func TestInjectOTLPConfig_RawFrontmatterFallback(t *testing.T) {
 
 		require.NotEmpty(t, wd.Env, "Env should be set even without ParsedFrontmatter")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_ENDPOINT }}", "endpoint should be injected from raw")
-		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "service name should be set")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: github.aw", "service name should be set")
 		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_OTEL_HEADERS }}", "headers should be injected from raw")
 	})
 
@@ -587,21 +587,21 @@ func TestIsOTLPHeadersPresent(t *testing.T) {
 		{
 			name: "Env without OTEL_EXPORTER_OTLP_HEADERS returns false",
 			data: &WorkflowData{
-				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  OTEL_SERVICE_NAME: gh-aw",
+				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  OTEL_SERVICE_NAME: github.aw",
 			},
 			expected: false,
 		},
 		{
 			name: "Env with OTEL_EXPORTER_OTLP_HEADERS returns true",
 			data: &WorkflowData{
-				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  OTEL_SERVICE_NAME: gh-aw\n  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer tok",
+				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  OTEL_SERVICE_NAME: github.aw\n  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer tok",
 			},
 			expected: true,
 		},
 		{
 			name: "Env with secret expression headers returns true",
 			data: &WorkflowData{
-				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}\n  OTEL_SERVICE_NAME: gh-aw\n  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTLP_HEADERS }}",
+				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}\n  OTEL_SERVICE_NAME: github.aw\n  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTLP_HEADERS }}",
 			},
 			expected: true,
 		},
@@ -663,12 +663,12 @@ func TestInjectOTLPConfig_HeadersPresenceAfterInjection(t *testing.T) {
 func TestOTELServiceName(t *testing.T) {
 	t.Run("uses workflow-specific service name when workflow ID is present", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{WorkflowID: "Repo Triage/Weekly"})
-		assert.Equal(t, "gh-aw.repo-triage-weekly", got, "should use WorkflowID as service name suffix when present")
+		assert.Equal(t, "github.aw.repo-triage-weekly", got, "should use WorkflowID as service name suffix when present")
 	})
 
 	t.Run("falls back to workflow name when workflow ID is empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{Name: "Repo Triage/Weekly"})
-		assert.Equal(t, "gh-aw.repo-triage-weekly", got, "should fall back to workflow name when WorkflowID is empty")
+		assert.Equal(t, "github.aw.repo-triage-weekly", got, "should fall back to workflow name when WorkflowID is empty")
 	})
 
 	t.Run("workflow ID takes precedence over workflow name", func(t *testing.T) {
@@ -676,17 +676,17 @@ func TestOTELServiceName(t *testing.T) {
 			WorkflowID: "Unique Workflow ID",
 			Name:       "Shared Display Name",
 		})
-		assert.Equal(t, "gh-aw.unique-workflow-id", got, "should prefer WorkflowID over workflow name when both are present")
+		assert.Equal(t, "github.aw.unique-workflow-id", got, "should prefer WorkflowID over workflow name when both are present")
 	})
 
 	t.Run("falls back when workflow ID and name are empty", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{})
-		assert.Equal(t, "gh-aw", got, "should return default service name when WorkflowID and name are empty")
+		assert.Equal(t, "github.aw", got, "should return default service name when WorkflowID and name are empty")
 	})
 
 	t.Run("falls back when workflow data is nil", func(t *testing.T) {
 		got := otelServiceName(nil)
-		assert.Equal(t, "gh-aw", got, "should return default service name when workflow data is nil")
+		assert.Equal(t, "github.aw", got, "should return default service name when workflow data is nil")
 	})
 }
 

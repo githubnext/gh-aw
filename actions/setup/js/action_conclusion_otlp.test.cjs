@@ -88,7 +88,7 @@ describe("action_conclusion_otlp.cjs", () => {
     });
 
     describe("span name construction", () => {
-      it("should use default span name 'gh-aw.job.conclusion' when INPUT_JOB_NAME is not set", async () => {
+      it("should use default span name 'github.aw.job.conclusion' when INPUT_JOB_NAME is not set", async () => {
         await run();
 
         expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
