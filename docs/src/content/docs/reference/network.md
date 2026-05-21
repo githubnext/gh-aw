@@ -166,12 +166,12 @@ network:
     - "api.example.com"  # Custom domain (not part of known ecosystem)
 ````
 
-### Warning Messages
+### Informational Messages
 
-When strict mode encounters an individual ecosystem domain, it emits a warning suggesting the appropriate ecosystem identifier:
+When strict mode encounters an individual ecosystem domain, it emits an informational message suggesting the appropriate ecosystem identifier:
 
 ````text
-warning: strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python', 'npmjs.org' → 'node'
+recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python', 'npmjs.org' → 'node'
 ````
 
 ## Implementation
