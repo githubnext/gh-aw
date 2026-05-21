@@ -90,12 +90,13 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
-      github.event.pull_request.state != 'closed')
+      needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'workflow_dispatch' || ((github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review') && github.event.pull_request.state != 'closed'))
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
     outputs:
@@ -1438,8 +1439,8 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
-      github.event.pull_request.state != 'closed'
+      github.event_name == 'workflow_dispatch' || ((github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
+      github.event.pull_request.state != 'closed')
     runs-on: ubuntu-slim
     permissions:
       contents: read

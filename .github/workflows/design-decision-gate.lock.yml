@@ -97,13 +97,15 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') ||
-      github.event.pull_request.state != 'closed') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'implementation'))
+      needs.pre_activation.outputs.activated == 'true' && (((github.event_name == 'workflow_dispatch' || ((github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review') && github.event.pull_request.state != 'closed')) && (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' || github.event.label.name == 'implementation'))
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
     outputs:
@@ -1552,8 +1554,8 @@ jobs:
 
   pre_activation:
     if: >
-      (((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.state != 'closed') &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) &&
+      ((github.event_name == 'workflow_dispatch' || ((github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
+      github.event.pull_request.state != 'closed')) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'implementation')
     runs-on: ubuntu-slim
     permissions:
