@@ -44,7 +44,7 @@ const poissonNormalApproximationThreshold = 15.0
 // observations required for confidence intervals to be considered statistically
 // meaningful.  Forecasts based on fewer observations are returned but flagged
 // IsReliable = false.
-const minObservationsForReliableForecast = 5
+const minObservationsForReliableForecast = 10
 
 // ForecastMonteCarloSummary contains the probability distribution of projected
 // effective-token counts derived from a Monte Carlo simulation.
