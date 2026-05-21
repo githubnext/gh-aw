@@ -1675,13 +1675,13 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
           // Push failed - create fallback issue instead of PR (if fallback is enabled)
           core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-            if (manifestProtectionFallback) {
-              // Push failed specifically for a protected-file modification. Don't create
-              // a generic push-failed issue — fall through to the manifestProtectionFallback
-              // block below, which will create the proper protected-file review issue with
-              // patch artifact download instructions (because push failed for this branch).
-              core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
-              manifestProtectionPushFailedError = pushError;
+          if (manifestProtectionFallback) {
+            // Push failed specifically for a protected-file modification. Don't create
+            // a generic push-failed issue — fall through to the manifestProtectionFallback
+            // block below, which will create the proper protected-file review issue with
+            // patch artifact download instructions (because push failed for this branch).
+            core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
+            manifestProtectionPushFailedError = pushError;
           } else if (!fallbackAsIssue) {
             // Fallback is disabled - return error without creating issue
             core.error("fallback-as-issue is disabled - not creating fallback issue");
