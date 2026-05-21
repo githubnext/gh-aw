@@ -139,7 +139,7 @@ describe("isLabelTransientError", () => {
   });
 
   it("returns true for a 503 service unavailable error (isTransientError path)", () => {
-    // isTransientError is message-based: the message must contain "503 service unavailable"
+    // isTransientError checks both message content AND status codes; this exercises the message path
     const err = new Error("503 service unavailable");
     expect(isLabelTransientError(err)).toBe(true);
   });
@@ -314,6 +314,15 @@ describe("sanitizeFallbackAssignees", () => {
   it("trims whitespace from assignee names", () => {
     const result = sanitizeFallbackAssignees([" alice ", " bob "]);
     expect(result).toEqual(["alice", "bob"]);
+  });
+
+  it("truncates to MAX_ASSIGNEES (5) and calls core.warning", () => {
+    const warnSpy = vi.spyOn(global.core, "warning");
+    const assignees = ["a1", "a2", "a3", "a4", "a5", "a6"];
+    const result = sanitizeFallbackAssignees(assignees);
+    expect(result).toHaveLength(5);
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0][0]).toMatch(/assignees limit exceeded/i);
   });
 
   it("filters out non-string entries", () => {

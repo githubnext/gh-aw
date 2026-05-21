@@ -179,7 +179,10 @@ function neutralizeClosingKeywordsForIssueBody(content) {
   if (!content) {
     return content;
   }
-  return String(content).replace(/\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+((?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+)\b/gi, (_match, keyword, issueRef) => `${keyword} ${String(issueRef).replace("#", "\\#")}`);
+  const closingKeywordPattern = /\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+((?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+)\b/gi;
+  const escapeIssueRef = (_match, keyword, issueRef) =>
+    `${keyword} ${String(issueRef).replace("#", "\\#")}`;
+  return String(content).replace(closingKeywordPattern, escapeIssueRef);
 }
 
 /**
