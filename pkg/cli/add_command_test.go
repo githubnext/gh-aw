@@ -531,3 +531,80 @@ func TestAddWorkflowWithTracking_UsesActualFetchedPath(t *testing.T) {
 		"source: owner/repo/my-workflow.md",
 		"source field must NOT use the short-form path that causes 404 on gh aw update")
 }
+
+// TestAddWorkflowWithTracking_ActionWorkflow verifies that action workflow (.yml) files are
+// copied as-is to the target directory without frontmatter processing or compilation.
+func TestAddWorkflowWithTracking_ActionWorkflow(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-action-workflow-*")
+	workflowsDir := setupMinimalGitRepo(t, tempDir)
+
+	rawYML := []byte("name: CI\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: []\n")
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "owner/repo",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/ci.yml",
+		WorkflowName: "ci",
+	}
+	sourceInfo := &FetchedWorkflow{
+		Content:    rawYML,
+		CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		IsLocal:    false,
+		SourcePath: ".github/workflows/ci.yml",
+	}
+	resolved := &ResolvedWorkflow{
+		Spec:             spec,
+		Content:          rawYML,
+		SourceInfo:       sourceInfo,
+		IsActionWorkflow: true,
+	}
+
+	err := addWorkflowWithTracking(context.Background(), resolved, nil, AddOptions{})
+	require.NoError(t, err)
+
+	// The .yml file should be written verbatim
+	written, err := os.ReadFile(filepath.Join(workflowsDir, "ci.yml"))
+	require.NoError(t, err)
+	assert.YAMLEq(t, string(rawYML), string(written), "action workflow content should be copied verbatim")
+
+	// No .md or .lock.yml should be created
+	_, errMD := os.Stat(filepath.Join(workflowsDir, "ci.md"))
+	assert.True(t, os.IsNotExist(errMD), "no .md file should be created for action workflows")
+	_, errLock := os.Stat(filepath.Join(workflowsDir, "ci.lock.yml"))
+	assert.True(t, os.IsNotExist(errLock), "no .lock.yml should be created for action workflows")
+}
+
+// TestAddWorkflowWithTracking_ActionWorkflow_Force verifies that the --force flag overwrites
+// an existing action workflow file.
+func TestAddWorkflowWithTracking_ActionWorkflow_Force(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-action-workflow-force-*")
+	workflowsDir := setupMinimalGitRepo(t, tempDir)
+
+	oldContent := []byte("name: Old\n")
+	newContent := []byte("name: New\n")
+
+	destFile := filepath.Join(workflowsDir, "ci.yml")
+	require.NoError(t, os.WriteFile(destFile, oldContent, 0644))
+
+	spec := &WorkflowSpec{WorkflowPath: ".github/workflows/ci.yml", WorkflowName: "ci"}
+	resolved := &ResolvedWorkflow{
+		Spec:             spec,
+		Content:          newContent,
+		SourceInfo:       &FetchedWorkflow{Content: newContent, IsLocal: false, SourcePath: ".github/workflows/ci.yml"},
+		IsActionWorkflow: true,
+	}
+
+	// Without --force: should fail
+	err := addWorkflowWithTracking(context.Background(), resolved, nil, AddOptions{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+
+	// With --force: should overwrite
+	err = addWorkflowWithTracking(context.Background(), resolved, nil, AddOptions{Force: true})
+	require.NoError(t, err)
+	written, err := os.ReadFile(destFile)
+	require.NoError(t, err)
+	assert.Equal(t, newContent, written)
+}

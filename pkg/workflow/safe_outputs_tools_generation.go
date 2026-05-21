@@ -313,8 +313,8 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 
 	meta := ToolsMeta{
 		DescriptionSuffixes:   descriptionSuffixes,
-		RepoParams:             repoParams,
-		DynamicTools:           dynamicTools,
+		RepoParams:            repoParams,
+		DynamicTools:          dynamicTools,
 		RequiredFieldRemovals: requiredFieldRemovals,
 	}
 

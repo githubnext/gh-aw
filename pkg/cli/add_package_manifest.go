@@ -222,7 +222,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	seen := make(map[string]struct{})
 	for _, file := range rawFiles {
 		if !isSupportedPackageInstallablePath(file) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: workflow files must be markdown (.md) files under workflows/ or .github/workflows/", file, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: supported files are markdown (.md) files under workflows/ or .github/workflows/, or action workflow (.yml) files under .github/workflows/", file, manifestPath))
 			continue
 		}
 		if _, exists := seen[file]; exists {
@@ -302,8 +302,18 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 }
 
 func isSupportedPackageInstallablePath(path string) bool {
-	return strings.HasSuffix(strings.ToLower(path), ".md") &&
-		(strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/"))
+	lowerPath := strings.ToLower(path)
+	if strings.HasSuffix(lowerPath, ".md") {
+		return strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/")
+	}
+	if strings.HasSuffix(lowerPath, ".yml") {
+		return strings.HasPrefix(path, ".github/workflows/")
+	}
+	return false
+}
+
+func isActionWorkflowPath(path string) bool {
+	return strings.HasSuffix(strings.ToLower(path), ".yml")
 }
 
 func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
