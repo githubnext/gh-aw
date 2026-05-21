@@ -195,7 +195,7 @@ describe("effective_tokens", () => {
       expect(base).toBe(8); // 1.0 × max(50-80,0) + 0.1 × 80
     });
 
-    test("clamp boundary applies cached weight only when cached equals input", () => {
+    test("T-ET-boundary: effective input is zero when cached equals input", () => {
       const base = computeBaseWeightedTokens(80, 0, 80, 0, 0);
       expect(base).toBe(8); // 1.0 × max(80-80,0) + 0.1 × 80
     });
