@@ -592,71 +592,23 @@ function parseOTLPCustomAttributes() {
 }
 
 /**
- * Expand a single attribute value template string.
- *
- * Template variables use the syntax `{{ key }}` where `key` is an OTLP
- * attribute key already computed for the current span (e.g.
- * `{{ github.aw.episode.id }}` or `{{ github.aw.run.actor }}`).  Variable names may
- * contain word characters (`[a-zA-Z0-9_]`), dots (`.`), and hyphens (`-`);
- * other characters (e.g. colons or slashes) are not supported and will not
- * match.  Unknown variable names resolve to an empty string.  Surrounding
- * whitespace inside the braces is ignored.
- *
- * @param {string} template - The attribute value template string.
- * @param {Record<string, string>} vars - Map of available variable names to
- *   their resolved string values.
- * @returns {string} The expanded string value.
- */
-function expandOTLPAttributeTemplate(template, vars) {
-  return template.replace(/\{\{\s*([\w.\-]+)\s*\}\}/g, (_, name) => {
-    const value = vars[name];
-    return value !== undefined ? String(value) : "";
-  });
-}
-
-/**
  * Build additional OTLP attribute objects from the GH_AW_OTLP_ATTRIBUTES
- * environment variable, expanding any template variables using the values
- * already computed for the current span.
+ * environment variable.
  *
- * The `spanAttributes` array is used as the source of template variables: for
- * each already-built attribute `{ key, value: { stringValue } }`, the key is
- * available as a template variable so that, for example,
- * `{{ github.aw.episode.id }}` resolves to the episode ID without needing
- * separate code paths.  Non-string attribute values (int, bool) are coerced
- * to strings for template purposes.
+ * Attribute values are used as-is (use GitHub Actions expressions like
+ * `${{ vars.MY_VALUE }}` in workflow frontmatter for dynamic values).
+ * Attributes whose value is an empty string are omitted.  When no custom
+ * attributes are configured, an empty array is returned.
  *
- * Custom attributes whose expanded value is empty are omitted.  When no
- * custom attributes are configured, an empty array is returned.
- *
- * @param {Array<{key: string, value: object}>} spanAttributes - The span's
- *   already-computed attributes used as template variable sources.
  * @returns {Array<{key: string, value: object}>}
  */
-function buildCustomOTLPAttributes(spanAttributes) {
+function buildCustomOTLPAttributes() {
   const customDefs = parseOTLPCustomAttributes();
   if (!customDefs) return [];
 
-  // Build a vars map from all already-computed span attributes.
-  /** @type {Record<string, string>} */
-  const vars = {};
-  for (const attr of spanAttributes) {
-    const v = attr.value;
-    if (v.stringValue !== undefined) {
-      vars[attr.key] = v.stringValue;
-    } else if (v.intValue !== undefined) {
-      vars[attr.key] = String(v.intValue);
-    } else if (v.boolValue !== undefined) {
-      vars[attr.key] = String(v.boolValue);
-    } else if (v.doubleValue !== undefined) {
-      vars[attr.key] = String(v.doubleValue);
-    }
-  }
-
   const result = [];
-  for (const [key, template] of Object.entries(customDefs)) {
-    if (typeof key !== "string" || !key || typeof template !== "string") continue;
-    const value = expandOTLPAttributeTemplate(template, vars);
+  for (const [key, value] of Object.entries(customDefs)) {
+    if (typeof key !== "string" || !key || typeof value !== "string") continue;
     if (value !== "") {
       result.push(buildAttr(key, value));
     }
@@ -1240,9 +1192,8 @@ async function sendJobSetupSpan(options = {}) {
   const experimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
-  // Append user-defined custom attributes from observability.otlp.attributes with
-  // template variables expanded against the already-computed span attributes.
-  attributes.push(...buildCustomOTLPAttributes(attributes));
+  // Append user-defined custom attributes from observability.otlp.attributes.
+  attributes.push(...buildCustomOTLPAttributes());
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
@@ -1952,9 +1903,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
-  // Append user-defined custom attributes from observability.otlp.attributes with
-  // template variables expanded against the already-computed span attributes.
-  attributes.push(...buildCustomOTLPAttributes(attributes));
+  // Append user-defined custom attributes from observability.otlp.attributes.
+  attributes.push(...buildCustomOTLPAttributes());
 
   // Enrich conclusion span with outcome evaluation fleet metrics when available.
   // Written by the outcome-collector workflow's pre-agent step.
@@ -2199,6 +2149,5 @@ module.exports = {
   appendToOTLPJSONL,
   buildExperimentAttributes,
   parseOTLPCustomAttributes,
-  expandOTLPAttributeTemplate,
   buildCustomOTLPAttributes,
 };

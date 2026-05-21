@@ -259,9 +259,8 @@ async function main() {
     summaryAttributes.push(buildAttr("github.aw.outcome.types", types.join(",")));
   }
 
-  // Append user-defined custom attributes from observability.otlp.attributes with
-  // template variables expanded against the already-computed summary span attributes.
-  summaryAttributes.push(...buildCustomOTLPAttributes(summaryAttributes));
+  // Append user-defined custom attributes from observability.otlp.attributes.
+  summaryAttributes.push(...buildCustomOTLPAttributes());
 
   const summarySpan = buildOTLPSpan({
     traceId,

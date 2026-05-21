@@ -36,7 +36,6 @@ const {
   hasProxyConfigured,
   resolveEngineId,
   parseOTLPCustomAttributes,
-  expandOTLPAttributeTemplate,
   buildCustomOTLPAttributes,
 } = await import("./send_otlp_span.cjs");
 
@@ -5844,50 +5843,14 @@ describe("parseOTLPCustomAttributes", () => {
 
   it("returns the parsed object when the env var is a valid JSON object", () => {
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ github.aw.episode.id }}",
-      "langfuse.user.id": "{{ github.actor }}",
+      "langfuse.session.id": "my-session",
+      "langfuse.user.id": "my-user",
     });
     const result = parseOTLPCustomAttributes();
     expect(result).toEqual({
-      "langfuse.session.id": "{{ github.aw.episode.id }}",
-      "langfuse.user.id": "{{ github.actor }}",
+      "langfuse.session.id": "my-session",
+      "langfuse.user.id": "my-user",
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// expandOTLPAttributeTemplate
-// ---------------------------------------------------------------------------
-
-describe("expandOTLPAttributeTemplate", () => {
-  const vars = {
-    "github.aw.episode.id": "episode-abc",
-    "github.actor": "octocat",
-    "github.aw.run.id": "12345",
-  };
-
-  it("replaces a single template variable", () => {
-    expect(expandOTLPAttributeTemplate("{{ github.aw.episode.id }}", vars)).toBe("episode-abc");
-  });
-
-  it("replaces multiple template variables in one string", () => {
-    expect(expandOTLPAttributeTemplate("{{ github.actor }}/{{ github.aw.run.id }}", vars)).toBe("octocat/12345");
-  });
-
-  it("ignores surrounding whitespace inside the braces", () => {
-    expect(expandOTLPAttributeTemplate("{{  github.aw.episode.id  }}", vars)).toBe("episode-abc");
-  });
-
-  it("replaces unknown variables with empty string", () => {
-    expect(expandOTLPAttributeTemplate("{{ unknown.key }}", vars)).toBe("");
-  });
-
-  it("returns non-template strings unchanged", () => {
-    expect(expandOTLPAttributeTemplate("static-value", vars)).toBe("static-value");
-  });
-
-  it("returns empty string when template is empty", () => {
-    expect(expandOTLPAttributeTemplate("", vars)).toBe("");
   });
 });
 
@@ -5912,36 +5875,32 @@ describe("buildCustomOTLPAttributes", () => {
   });
 
   it("returns an empty array when GH_AW_OTLP_ATTRIBUTES is not set", () => {
-    expect(buildCustomOTLPAttributes([])).toEqual([]);
+    expect(buildCustomOTLPAttributes()).toEqual([]);
   });
 
-  it("expands template variables against the span attributes", () => {
+  it("returns static attribute values as-is", () => {
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ github.aw.episode.id }}",
-      "langfuse.user.id": "{{ github.actor }}",
+      "langfuse.session.id": "my-session",
+      "langfuse.user.id": "my-user",
     });
-    const spanAttrs = [
-      buildAttr("github.aw.episode.id", "episode-xyz"),
-      buildAttr("github.actor", "monalisa"),
-    ];
-    const result = buildCustomOTLPAttributes(spanAttrs);
-    expect(result).toContainEqual({ key: "langfuse.session.id", value: { stringValue: "episode-xyz" } });
-    expect(result).toContainEqual({ key: "langfuse.user.id", value: { stringValue: "monalisa" } });
+    const result = buildCustomOTLPAttributes();
+    expect(result).toContainEqual({ key: "langfuse.session.id", value: { stringValue: "my-session" } });
+    expect(result).toContainEqual({ key: "langfuse.user.id", value: { stringValue: "my-user" } });
   });
 
-  it("omits custom attributes whose expanded value is empty", () => {
+  it("omits custom attributes whose value is an empty string", () => {
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "my.attr": "{{ nonexistent.var }}",
+      "my.attr": "",
     });
-    const result = buildCustomOTLPAttributes([]);
+    const result = buildCustomOTLPAttributes();
     expect(result).toHaveLength(0);
   });
 
-  it("preserves static (non-template) attribute values", () => {
+  it("preserves static attribute values", () => {
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
       "deployment.environment": "production",
     });
-    const result = buildCustomOTLPAttributes([]);
+    const result = buildCustomOTLPAttributes();
     expect(result).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
   });
 });
@@ -5998,10 +5957,10 @@ describe("sendJobSetupSpan custom attributes", () => {
       episode_id: "99001122-1:owner/repo/.github/workflows/test.lock.yml@refs/heads/main",
     });
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ github.aw.episode.id }}",
-      "session.id": "{{ github.aw.episode.id }}",
-      "langfuse.user.id": "{{ github.aw.run.actor }}",
-      "user.id": "{{ github.aw.run.actor }}",
+      "langfuse.session.id": "my-session-id",
+      "session.id": "my-session-id",
+      "langfuse.user.id": "my-user-id",
+      "user.id": "my-user-id",
     });
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
@@ -6015,11 +5974,10 @@ describe("sendJobSetupSpan custom attributes", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrMap = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
 
-    const expectedEpisodeId = "99001122-1:owner/repo/.github/workflows/test.lock.yml@refs/heads/main";
-    expect(attrMap["langfuse.session.id"]).toBe(expectedEpisodeId);
-    expect(attrMap["session.id"]).toBe(expectedEpisodeId);
-    expect(attrMap["langfuse.user.id"]).toBe("octocat");
-    expect(attrMap["user.id"]).toBe("octocat");
+    expect(attrMap["langfuse.session.id"]).toBe("my-session-id");
+    expect(attrMap["session.id"]).toBe("my-session-id");
+    expect(attrMap["langfuse.user.id"]).toBe("my-user-id");
+    expect(attrMap["user.id"]).toBe("my-user-id");
 
   });
 });
@@ -6076,8 +6034,8 @@ describe("sendJobConclusionSpan custom attributes", () => {
     process.env.GITHUB_RUN_ATTEMPT = "1";
     process.env.GITHUB_AW_OTEL_TRACE_ID = "a".repeat(32);
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ github.aw.episode.id }}",
-      "langfuse.user.id": "{{ github.aw.run.actor }}",
+      "langfuse.session.id": "my-session-id",
+      "langfuse.user.id": "my-user-id",
     });
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
@@ -6098,8 +6056,7 @@ describe("sendJobConclusionSpan custom attributes", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrMap = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
 
-    const expectedEpisodeId = "88002233-1:owner/repo/.github/workflows/test.lock.yml@refs/heads/main";
-    expect(attrMap["langfuse.session.id"]).toBe(expectedEpisodeId);
-    expect(attrMap["langfuse.user.id"]).toBe("monalisa");
+    expect(attrMap["langfuse.session.id"]).toBe("my-session-id");
+    expect(attrMap["langfuse.user.id"]).toBe("my-user-id");
   });
 });
