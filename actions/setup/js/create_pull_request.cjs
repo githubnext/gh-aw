@@ -1576,79 +1576,81 @@ async function main(config = {}) {
       }
 
       // Push the commits from the bundle to the remote branch
-      if (manifestProtectionFallback) {
-        core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
-        manifestProtectionPushFailedError = new Error("Push skipped because protected-files fallback-to-issue was triggered");
-      } else {
+      try {
+        branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+
+        await pushSignedCommits({
+          githubClient,
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          branch: branchName,
+          baseRef: `origin/${baseBranch}`,
+          cwd: process.cwd(),
+          signedCommits,
+          resolvedTemporaryIds,
+          currentRepo: itemRepo,
+        });
+        core.info("Changes pushed to branch (from bundle)");
+
+        // Count new commits on PR branch relative to base
         try {
-          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+          const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+          newCommitCount = parseInt(countStr.trim(), 10);
+          core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+        } catch {
+          core.info("Could not count new commits - extra empty commit will be skipped");
+        }
+      } catch (initialPushError) {
+        /** @type {unknown} */
+        let pushError = initialPushError;
+        let pushRecovered = false;
+        const pushErrorMessage = pushError instanceof Error ? pushError.message : String(pushError);
+        const isSignedMergeReplayRefusal = signedCommits && /pushSignedCommits: refusing unsigned push/.test(pushErrorMessage) && /merge commit/i.test(pushErrorMessage);
 
-          await pushSignedCommits({
-            githubClient,
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            branch: branchName,
-            baseRef: `origin/${baseBranch}`,
-            cwd: process.cwd(),
-            signedCommits,
-            resolvedTemporaryIds,
-            currentRepo: itemRepo,
-          });
-          core.info("Changes pushed to branch (from bundle)");
-
-          // Count new commits on PR branch relative to base
+        if (isSignedMergeReplayRefusal) {
+          core.warning("Signed push rejected merge commit topology from bundle; rewriting branch and retrying signed push");
           try {
-            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
-            newCommitCount = parseInt(countStr.trim(), 10);
-            core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
-          } catch {
-            core.info("Could not count new commits - extra empty commit will be skipped");
-          }
-        } catch (initialPushError) {
-          /** @type {unknown} */
-          let pushError = initialPushError;
-          let pushRecovered = false;
-          const pushErrorMessage = pushError instanceof Error ? pushError.message : String(pushError);
-          const isSignedMergeReplayRefusal = signedCommits && /pushSignedCommits: refusing unsigned push/.test(pushErrorMessage) && /merge commit/i.test(pushErrorMessage);
+            await rewriteBundleBranchAsSingleCommit(baseBranch, exec);
+            await pushSignedCommits({
+              githubClient,
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              branch: branchName,
+              baseRef: `origin/${baseBranch}`,
+              cwd: process.cwd(),
+              signedCommits,
+              resolvedTemporaryIds,
+              currentRepo: itemRepo,
+            });
+            core.info("Changes pushed to branch after bundle rewrite retry");
 
-          if (isSignedMergeReplayRefusal) {
-            core.warning("Signed push rejected merge commit topology from bundle; rewriting branch and retrying signed push");
             try {
-              await rewriteBundleBranchAsSingleCommit(baseBranch, exec);
-              await pushSignedCommits({
-                githubClient,
-                owner: repoParts.owner,
-                repo: repoParts.repo,
-                branch: branchName,
-                baseRef: `origin/${baseBranch}`,
-                cwd: process.cwd(),
-                signedCommits,
-                resolvedTemporaryIds,
-                currentRepo: itemRepo,
-              });
-              core.info("Changes pushed to branch after bundle rewrite retry");
-
-              try {
-                const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
-                newCommitCount = parseInt(countStr.trim(), 10);
-                core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
-              } catch {
-                core.info("Could not count new commits - extra empty commit will be skipped");
-              }
-              pushRecovered = true;
-            } catch (retryPushError) {
-              pushError = retryPushError;
+              const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+              newCommitCount = parseInt(countStr.trim(), 10);
+              core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+            } catch {
+              core.info("Could not count new commits - extra empty commit will be skipped");
             }
+            pushRecovered = true;
+          } catch (retryPushError) {
+            pushError = retryPushError;
           }
+        }
 
-          if (!pushRecovered) {
-            core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+        if (!pushRecovered) {
+          core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-            if (!fallbackAsIssue) {
-              const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
-              return { success: false, error, error_type: "push_failed" };
-            }
-
+          if (manifestProtectionFallback) {
+            // Push failed specifically for a protected-file modification. Don't create
+            // a generic push-failed issue — fall through to the manifestProtectionFallback
+            // block below, which will create the proper protected-file review issue with
+            // patch artifact download instructions (since the branch was not pushed).
+            core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
+            manifestProtectionPushFailedError = pushError;
+          } else if (!fallbackAsIssue) {
+            const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+            return { success: false, error, error_type: "push_failed" };
+          } else {
             core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
             const runUrl = buildWorkflowRunUrl(context, context.repo);
@@ -1864,58 +1866,54 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
         }
 
         // Push the applied commits to the branch (with fallback to issue creation on failure)
-        if (manifestProtectionFallback) {
-          core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
-          manifestProtectionPushFailedError = new Error("Push skipped because protected-files fallback-to-issue was triggered");
-        } else {
+        try {
+          branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+
+          await pushSignedCommits({
+            githubClient,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            branch: branchName,
+            baseRef: `origin/${baseBranch}`,
+            cwd: process.cwd(),
+            signedCommits,
+            resolvedTemporaryIds,
+            currentRepo: itemRepo,
+          });
+          core.info("Changes pushed to branch");
+
+          // Count new commits on PR branch relative to base, used to restrict
+          // the extra empty CI-trigger commit to exactly 1 new commit.
           try {
-            branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
+            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+            newCommitCount = parseInt(countStr.trim(), 10);
+            core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+          } catch {
+            // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
+            core.info("Could not count new commits - extra empty commit will be skipped");
+          }
+        } catch (pushError) {
+          // Push failed - create fallback issue instead of PR (if fallback is enabled)
+          core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-            await pushSignedCommits({
-              githubClient,
-              owner: repoParts.owner,
-              repo: repoParts.repo,
-              branch: branchName,
-              baseRef: `origin/${baseBranch}`,
-              cwd: process.cwd(),
-              signedCommits,
-              resolvedTemporaryIds,
-              currentRepo: itemRepo,
-            });
-            core.info("Changes pushed to branch");
-
-            // Count new commits on PR branch relative to base, used to restrict
-            // the extra empty CI-trigger commit to exactly 1 new commit.
-            try {
-              const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
-              newCommitCount = parseInt(countStr.trim(), 10);
-              core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
-            } catch {
-              // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
-              core.info("Could not count new commits - extra empty commit will be skipped");
-            }
-          } catch (pushError) {
-            // Push failed - create fallback issue instead of PR (if fallback is enabled)
-            core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-
-            if (manifestProtectionFallback) {
-              // Push failed specifically for a protected-file modification. Don't create
-              // a generic push-failed issue — fall through to the manifestProtectionFallback
-              // block below, which will create the proper protected-file review issue with
-              // patch artifact download instructions (since the branch was not pushed).
-              core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
-              manifestProtectionPushFailedError = pushError;
-            } else if (!fallbackAsIssue) {
-              // Fallback is disabled - return error without creating issue
-              core.error("fallback-as-issue is disabled - not creating fallback issue");
-              const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
-              return {
-                success: false,
-                error,
-                error_type: "push_failed",
-              };
-            } else {
-              core.warning("Git push operation failed - creating fallback issue instead of pull request");
+          if (manifestProtectionFallback) {
+            // Push failed specifically for a protected-file modification. Don't create
+            // a generic push-failed issue — fall through to the manifestProtectionFallback
+            // block below, which will create the proper protected-file review issue with
+            // patch artifact download instructions (since the branch was not pushed).
+            core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
+            manifestProtectionPushFailedError = pushError;
+          } else if (!fallbackAsIssue) {
+            // Fallback is disabled - return error without creating issue
+            core.error("fallback-as-issue is disabled - not creating fallback issue");
+            const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+            return {
+              success: false,
+              error,
+              error_type: "push_failed",
+            };
+          } else {
+            core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
               const runUrl = buildWorkflowRunUrl(context, context.repo);
               const runId = context.runId;
@@ -2004,7 +2002,6 @@ ${patchPreview}`;
               }
             } // end else (generic push-failed fallback)
           }
-        }
       } else {
         core.info("Skipping patch application (empty patch)");
 
@@ -2072,7 +2069,8 @@ ${patchPreview}`;
     } // end else (!hasBundleFile - patch path)
 
     // Protected file protection – fallback-to-issue path:
-    // The patch has been applied (and pushed, unless manifestProtectionPushFailedError is set).
+    // The patch has been applied and the branch has been pushed to origin (unless the push
+    // actually failed, in which case manifestProtectionPushFailedError is set).
     // Instead of creating a pull request, we create a review issue so a human can carefully
     // inspect the protected file changes before merging.
     // - Normal case (push succeeded): provides a GitHub compare URL to click and create the PR.

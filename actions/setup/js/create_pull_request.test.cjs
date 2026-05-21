@@ -1472,7 +1472,7 @@ ${diffs}
     expect(result.error).toContain("protected files");
   });
 
-  it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {
+  it("should push branch and use compare URL for protected-files fallback (am path)", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
@@ -1497,17 +1497,18 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
-    expect(pushSignedSpy).not.toHaveBeenCalled();
+    // Branch push is attempted — fallback-to-issue should push the branch so the issue can link to it
+    expect(pushSignedSpy).toHaveBeenCalledTimes(1);
     expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
-    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
 
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
-    expect(createCall.body).toContain("gh run download");
-    expect(createCall.body).toContain("git am --3way");
-    expect(createCall.body).not.toContain("/compare/main...");
+    // Issue body should contain a compare URL, not patch-artifact download instructions
+    expect(createCall.body).toContain("/compare/");
+    expect(createCall.body).not.toContain("gh run download");
+    expect(createCall.body).not.toContain("git am --3way");
   });
 
-  it("should use patch-artifact fallback instructions for protected-files fallback in bundle transport", async () => {
+  it("should push branch and use compare URL for protected-files fallback (bundle transport)", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const bundlePath = path.join(tempDir, "aw-protected.bundle");
     fs.writeFileSync(bundlePath, "bundle content");
@@ -1534,13 +1535,89 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
-    expect(pushSignedSpy).not.toHaveBeenCalled();
-    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
+    // Branch push is attempted — fallback-to-issue should push the branch so the issue can link to it
+    expect(pushSignedSpy).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
 
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
+    // Issue body should contain a compare URL, not patch-artifact download instructions
+    expect(createCall.body).toContain("/compare/");
+    expect(createCall.body).not.toContain("gh run download");
+    expect(createCall.body).not.toContain("git am --3way");
+  });
+
+  it("should use push-failed template when push actually fails for protected-files fallback (am path)", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
+    fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
+    const pushFailedTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_push_failed_fallback.md");
+    fs.copyFileSync(pushFailedTemplateSrc, path.join(promptsDir, "manifest_protection_push_failed_fallback.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.github.rest.issues = {
+      create: vi.fn().mockResolvedValue({ data: { number: 78, html_url: "https://github.com/test-owner/test-repo/issues/78" } }),
+      update: vi.fn().mockResolvedValue({ data: {} }),
+    };
+
+    // Simulate push failing (e.g. missing workflows permission)
+    pushSignedSpy.mockRejectedValue(new Error("Push rejected: missing workflows permission"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "fallback-to-issue",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(78);
+    expect(pushSignedSpy).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+    // Push failed — issue body should use the push-failed template with artifact download instructions
+    const createCall = global.github.rest.issues.create.mock.calls[0][0];
     expect(createCall.body).toContain("gh run download");
-    expect(createCall.body).toContain("git am --3way");
-    expect(createCall.body).not.toContain("/compare/main...");
+    expect(createCall.body).not.toContain("/compare/");
+  });
+
+  it("should use push-failed template when push actually fails for protected-files fallback (bundle transport)", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    const bundlePath = path.join(tempDir, "aw-protected.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const templateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_create_pr_fallback.md");
+    fs.copyFileSync(templateSrc, path.join(promptsDir, "manifest_protection_create_pr_fallback.md"));
+    const pushFailedTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_push_failed_fallback.md");
+    fs.copyFileSync(pushFailedTemplateSrc, path.join(promptsDir, "manifest_protection_push_failed_fallback.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.github.rest.issues = {
+      create: vi.fn().mockResolvedValue({ data: { number: 78, html_url: "https://github.com/test-owner/test-repo/issues/78" } }),
+      update: vi.fn().mockResolvedValue({ data: {} }),
+    };
+
+    // Simulate push failing (e.g. missing workflows permission)
+    pushSignedSpy.mockRejectedValue(new Error("Push rejected: missing workflows permission"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "fallback-to-issue",
+    });
+    const result = await handler({ patch_path: patchPath, bundle_path: bundlePath, title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(78);
+    expect(pushSignedSpy).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+    // Push failed — issue body should use the push-failed template with artifact download instructions
+    const createCall = global.github.rest.issues.create.mock.calls[0][0];
+    expect(createCall.body).toContain("gh run download");
+    expect(createCall.body).not.toContain("/compare/");
   });
 });
 
