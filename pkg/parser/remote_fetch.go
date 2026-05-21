@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/errorutil"
@@ -418,6 +417,15 @@ func resolveRefToSHAViaGit(owner, repo, ref, host string) (string, error) {
 	return sha, nil
 }
 
+// newRESTClientForHost returns a REST client targeting host when non-empty,
+// falling back to the default client (which respects GH_HOST) otherwise.
+func newRESTClientForHost(host string) (*api.RESTClient, error) {
+	if host != "" {
+		return api.NewRESTClient(api.ClientOptions{Host: host})
+	}
+	return api.DefaultRESTClient()
+}
+
 // resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
 func resolveRefToSHA(owner, repo, ref, host string) (string, error) {
 	// If ref is already a full SHA (40 hex characters), return it as-is
@@ -425,34 +433,38 @@ func resolveRefToSHA(owner, repo, ref, host string) (string, error) {
 		return ref, nil
 	}
 
-	// Use gh CLI to get the commit SHA for the ref
-	// This works for branches, tags, and short SHAs
-	// Using go-gh to properly handle enterprise GitHub instances via GH_HOST
-	apiPath := fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref)
-	var args []string
-	if host != "" {
-		args = []string{"api", "--hostname", host, apiPath, "--jq", ".sha"}
-	} else {
-		args = []string{"api", apiPath, "--jq", ".sha"}
-	}
-	stdout, stderr, err := gh.Exec(args...)
-
+	// Use REST client to get the commit SHA for the ref.
+	// This works for branches, tags, and short SHAs, and properly handles
+	// enterprise GitHub instances via the host parameter.
+	client, err := newRESTClientForHost(host)
 	if err != nil {
-		outputStr := stderr.String()
-		if gitutil.IsAuthError(outputStr) {
+		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
-			// Try fallback using git ls-remote for public repositories
 			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref, host)
 			if gitErr != nil {
-				// If git fallback also fails, return both errors
 				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %w", err, gitErr)
 			}
 			return sha, nil
 		}
-		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
+		return "", fmt.Errorf("failed to create REST client: %w", err)
 	}
 
-	sha := strings.TrimSpace(stdout.String())
+	var commit struct {
+		SHA string `json:"sha"`
+	}
+	if err := client.Get(fmt.Sprintf("repos/%s/%s/commits/%s", owner, repo, ref), &commit); err != nil {
+		if gitutil.IsAuthError(err.Error()) {
+			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
+			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref, host)
+			if gitErr != nil {
+				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %w", err, gitErr)
+			}
+			return sha, nil
+		}
+		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %w", ref, owner, repo, err)
+	}
+
+	sha := commit.SHA
 	if sha == "" {
 		return "", fmt.Errorf("empty SHA returned for ref %s in %s/%s", ref, owner, repo)
 	}
@@ -758,13 +770,7 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 	// Create a REST client targeting the correct host.
 	// When host is explicitly specified (e.g., "github.com"), use it directly so that
 	// cross-host fetches work correctly even when GH_HOST is set to a different instance.
-	var client *api.RESTClient
-	var err error
-	if host != "" {
-		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
-	} else {
-		client, err = api.DefaultRESTClient()
-	}
+	client, err := newRESTClientForHost(host)
 	if err != nil {
 		// When the REST client cannot be created due to missing auth (e.g., running inside an
 		// agentic workflow without gh CLI credentials), fall back to git-based download so that
@@ -851,15 +857,7 @@ func listWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]st
 	remoteLog.Printf("Listing workflow files for %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)
 
 	// Create REST client
-	var (
-		client *api.RESTClient
-		err    error
-	)
-	if host != "" {
-		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
-	} else {
-		client, err = api.DefaultRESTClient()
-	}
+	client, err := newRESTClientForHost(host)
 	if err != nil {
 		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
 		return listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, host)
