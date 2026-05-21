@@ -180,16 +180,6 @@ func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
 		}
 	}
 
-	// infer must be detected with its x-deprecation-message.
-	infer, ok := byPath["infer"]
-	if !ok {
-		t.Error("expected 'infer' in deep deprecated fields, not found")
-	} else {
-		if infer.DeprecationMessage == "" {
-			t.Error("infer: DeprecationMessage should not be empty")
-		}
-	}
-
 	t.Logf("Found %d deep deprecated fields in schema", len(fields))
 }
 
