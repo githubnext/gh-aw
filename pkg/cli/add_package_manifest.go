@@ -306,7 +306,7 @@ func isSupportedPackageInstallablePath(path string) bool {
 	if strings.HasSuffix(lowerPath, ".md") {
 		return strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/")
 	}
-	if strings.HasSuffix(lowerPath, ".yml") && !strings.HasSuffix(lowerPath, ".lock.yml") {
+	if isActionWorkflowPath(path) {
 		return strings.HasPrefix(path, ".github/workflows/")
 	}
 	return false
