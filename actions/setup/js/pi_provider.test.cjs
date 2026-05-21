@@ -75,4 +75,72 @@ describe("pi_provider.cjs", () => {
 
     expect(stderrOutput.some(line => line.includes("provider=copilot model=copilot/claude-sonnet-4"))).toBe(true);
   });
+
+  it("calls /reflect on the Copilot gateway port (10002) for a copilot model", async () => {
+    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+    const fetchedUrls = [];
+    global.fetch = vi.fn().mockImplementation(url => {
+      fetchedUrls.push(url);
+      return Promise.reject(new Error("network disabled"));
+    });
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+    await handlers.agent_end();
+
+    expect(fetchedUrls.every(url => url === "http://api-proxy:10002/reflect")).toBe(true);
+    expect(fetchedUrls.length).toBe(2);
+  });
+
+  it("calls /reflect on the Anthropic gateway port (10001) for an anthropic model", async () => {
+    process.env.GH_AW_PI_MODEL = "anthropic/claude-opus-4";
+    const fetchedUrls = [];
+    global.fetch = vi.fn().mockImplementation(url => {
+      fetchedUrls.push(url);
+      return Promise.reject(new Error("network disabled"));
+    });
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+
+    expect(fetchedUrls[0]).toBe("http://api-proxy:10001/reflect");
+  });
+
+  it("defaults to Copilot gateway port (10002) when no provider prefix is set", async () => {
+    process.env.GH_AW_PI_MODEL = "claude-sonnet-4";
+    const fetchedUrls = [];
+    global.fetch = vi.fn().mockImplementation(url => {
+      fetchedUrls.push(url);
+      return Promise.reject(new Error("network disabled"));
+    });
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+
+    expect(fetchedUrls[0]).toBe("http://api-proxy:10002/reflect");
+  });
 });

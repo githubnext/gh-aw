@@ -18,9 +18,11 @@
 const fs = require("fs");
 const path = require("path");
 
-// AWF API proxy management endpoint for discovering configured LLM providers and available models.
-// The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
-// Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
+// AWF API proxy /reflect endpoint for discovering configured LLM providers and available models.
+// The api-proxy sidecar exposes /reflect on each started provider port inside the AWF Docker
+// network. Port 10000 is the OpenAI sidecar port; it is only started when OpenAI credentials
+// are configured. Use the active provider's gateway port when calling /reflect directly rather
+// than relying on port 10000 being available. This constant is kept as a last-resort fallback.
 const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
 // Path inside the agent container where the reflect payload is persisted. The directory is
 // co-located with other AWF firewall observability data so it is included in the agent artifact.
@@ -142,8 +144,9 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
 /**
  * Fetch the AWF API proxy /reflect endpoint and persist the response to disk.
  *
- * The /reflect endpoint is exposed by the api-proxy sidecar on its management port (10000)
- * and returns the list of configured LLM providers together with their available model lists.
+ * The /reflect endpoint is exposed by the api-proxy sidecar on each started provider port.
+ * The active provider's gateway port should be used rather than a hardcoded port, since
+ * port 10000 (the OpenAI sidecar) is only started when OpenAI credentials are configured.
  * This information is saved to AWF_REFLECT_OUTPUT_PATH so the post-run GitHub Actions step
  * (awf_reflect_summary.cjs) can include it in the step summary without requiring the
  * containers to still be running.

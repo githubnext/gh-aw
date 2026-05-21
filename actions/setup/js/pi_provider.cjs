@@ -177,12 +177,19 @@ function piProviderExtension(pi) {
   const log = DEFAULT_LOGGER;
   registerConfiguredProviders(pi, log);
 
-  pi.on("agent_start", async () => {
-    const model = getConfiguredModel();
-    const provider = extractProviderFromModel(model);
+  // Resolve the active provider and its gateway URL once from the configured model.
+  // The /reflect endpoint is served on each provider's sidecar port, not on a separate
+  // management port.  Port 10000 (OpenAI sidecar) is only started when OpenAI credentials
+  // are configured; for a Copilot-only run it is never started, so a hardcoded port-10000
+  // URL would fail.  Use the gateway port matching the active provider instead, defaulting
+  // to the Copilot sidecar (port 10002) to match resolvePiBackend in pi_engine.go.
+  const model = getConfiguredModel();
+  const provider = extractProviderFromModel(model);
+  const gatewayUrl = resolveGatewayUrl(provider || "copilot");
+  const reflectUrl = gatewayUrl ? `${gatewayUrl}/reflect` : AWF_API_PROXY_REFLECT_URL;
 
+  pi.on("agent_start", async () => {
     if (provider) {
-      const gatewayUrl = resolveGatewayUrl(provider);
       if (gatewayUrl) {
         log(`provider=${provider} model=${model} gateway=${gatewayUrl}`);
       } else {
@@ -195,7 +202,7 @@ function piProviderExtension(pi) {
     // Fetch AWF API proxy reflection data before the agent runs to capture initial proxy state.
     // This is best-effort: failures are logged but do not affect the agent session.
     await fetchAWFReflect({
-      reflectUrl: AWF_API_PROXY_REFLECT_URL,
+      reflectUrl,
       outputPath: AWF_REFLECT_OUTPUT_PATH,
       timeoutMs: AWF_REFLECT_TIMEOUT_MS,
       modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
@@ -207,7 +214,7 @@ function piProviderExtension(pi) {
     // Fetch AWF API proxy reflection data after the agent finishes for the post-run step summary.
     // This is best-effort: failures are logged but do not affect the agent exit code.
     await fetchAWFReflect({
-      reflectUrl: AWF_API_PROXY_REFLECT_URL,
+      reflectUrl,
       outputPath: AWF_REFLECT_OUTPUT_PATH,
       timeoutMs: AWF_REFLECT_TIMEOUT_MS,
       modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
