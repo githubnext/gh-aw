@@ -17,7 +17,7 @@ tools:
     toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators
-    file-glob: "**"
+    file-glob: ["*.json", "*.md"]
     max-file-size: 102400  # 100KB
     max-patch-size: 51200  # 5x the default limit (default: 10240)
 safe-outputs:
@@ -31,6 +31,8 @@ safe-outputs:
   update-issue:
     max: 5
 timeout-minutes: 30
+# Raised above 25M default: meta-orchestrator monitors all workflows; set ceiling to catch runaway health checks.
+max-effective-tokens: 30000000
 imports:
   - shared/reporting.md
   - shared/otlp.md
@@ -371,5 +373,12 @@ Created X issues | Updated X | Closed X
 ```
 
 Execute all phases systematically and maintain a proactive approach to workflow health management.
+
+## Token Budget Guidelines
+
+- Use the pre-computed `failing-workflows.json` from the pre-agent step as the primary source; avoid re-fetching metrics the step already extracted.
+- Prioritize P0/P1 issues; skip detailed analysis for P3 and lower unless the budget allows.
+- Create at most 5 issues per run; batch minor warnings into a single summary issue.
+- Stop immediately after issues are created and shared memory is updated; no extra validation passes.
 
 {{#runtime-import shared/noop-reminder.md}}

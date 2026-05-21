@@ -304,7 +304,7 @@
         },
         "branch": {
           "type": "string",
-          "description": "Source branch name containing the changes. If omitted, uses the current working branch."
+          "description": "Source branch name containing the changes. If omitted, uses the current working branch. If the workflow configuration sets safe-outputs.create-pull-request.allowed-branches, then the branch name MUST be given and match one of these patterns."
         },
         "base": {
           "type": "string",

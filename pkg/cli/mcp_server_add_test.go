@@ -9,48 +9,82 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
 	"time"
 
 	"github.com/github/gh-aw/pkg/testutil"
-
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestMCPServer_AddTool tests that the add tool is exposed and functional
-func TestMCPServer_AddTool(t *testing.T) {
-	// Skip if the binary doesn't exist
-	binaryPath := "../../gh-aw"
+const (
+	testMCPServerListToolsTimeout = 10 * time.Second
+	testMCPServerAddToolTimeout   = 60 * time.Second
+	// Pinned commit SHA keeps this integration test deterministic across future upstream changes.
+	testAddToolWorkflowSource = "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
+)
+
+func setupMCPServerSession(t *testing.T, binaryPath, workingDir string, timeout time.Duration) (context.Context, *mcp.ClientSession) {
+	t.Helper()
+
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
 	}
 
-	// Create MCP client
+	absBinaryPath, err := filepath.Abs(binaryPath)
+	require.NoError(t, err, "Expected to resolve absolute path for MCP server binary")
+
 	client := mcp.NewClient(&mcp.Implementation{
 		Name:    "test-client",
 		Version: "1.0.0",
 	}, nil)
 
-	// Start the MCP server as a subprocess with custom command path
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
+	if workingDir != "" {
+		serverCmd.Dir = workingDir
+	}
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	session, err := client.Connect(ctx, transport, nil)
-	if err != nil {
-		t.Fatalf("Failed to connect to MCP server: %v", err)
-	}
-	defer session.Close()
+	require.NoError(t, err, "Expected MCP client to connect to subprocess server")
+	t.Cleanup(func() {
+		cancel()
+		session.Close()
+	})
 
-	// List tools to verify add is present
+	return ctx, session
+}
+
+func setupMCPServerAddRepo(t *testing.T) (string, string) {
+	t.Helper()
+
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Expected workflows directory to be created")
+	require.NoError(t, initTestGitRepo(tmpDir), "Expected git repository scaffolding to be initialized")
+
+	return tmpDir, workflowsDir
+}
+
+func extractTextContent(result *mcp.CallToolResult) string {
+	var outputText strings.Builder
+	for _, content := range result.Content {
+		if textContent, ok := content.(*mcp.TextContent); ok {
+			outputText.WriteString(textContent.Text)
+		}
+	}
+
+	return outputText.String()
+}
+
+// TestMCPServer_AddTool tests that the add tool is exposed and functional
+func TestMCPServer_AddTool(t *testing.T) {
+	ctx, session := setupMCPServerSession(t, "../../gh-aw", "", testMCPServerListToolsTimeout)
+
 	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
-	if err != nil {
-		t.Fatalf("Failed to list tools: %v", err)
-	}
+	require.NoError(t, err, "Expected list tools request to succeed")
 
-	// Verify add tool exists
 	var addTool *mcp.Tool
 	for i := range result.Tools {
 		if result.Tools[i].Name == "add" {
@@ -59,124 +93,113 @@ func TestMCPServer_AddTool(t *testing.T) {
 		}
 	}
 
-	if addTool == nil {
-		t.Fatal("add tool not found in MCP server tools")
-	}
+	require.NotNil(t, addTool, "Expected add tool to be registered by MCP server")
+	assert.NotEmpty(t, addTool.Description, "Expected add tool description to be non-empty")
+	assert.GreaterOrEqual(t, len(addTool.Description), 50, "Expected add tool description to be sufficiently descriptive")
+	assert.Contains(t, addTool.Description, "workflows", "Expected add tool description to mention workflows")
+	require.NotNil(t, addTool.InputSchema, "Expected add tool to expose input schema for MCP clients")
+	assert.Contains(t, addTool.InputSchema, "properties", "Expected add tool input schema to define properties")
+	assert.Contains(t, addTool.InputSchema, "required", "Expected add tool input schema to mark required fields")
+}
 
-	// Verify the tool has proper description
-	if addTool.Description == "" {
-		t.Error("add tool has empty description")
-	}
+// TestMCPServer_AddTool_Success tests that add tool can add a workflow successfully.
+func TestMCPServer_AddTool_Success(t *testing.T) {
+	tmpDir, workflowsDir := setupMCPServerAddRepo(t)
+	ctx, session := setupMCPServerSession(t, "../../gh-aw", tmpDir, testMCPServerAddToolTimeout)
 
-	// Verify the description mentions key functionality
-	if len(addTool.Description) < 50 {
-		t.Errorf("add tool description seems too short: %s", addTool.Description)
-	}
+	callResult, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "add",
+		Arguments: map[string]any{
+			"workflows": []any{testAddToolWorkflowSource},
+			"name":      "daily-team-status-test",
+		},
+	})
+	require.NoError(t, err, "Expected add tool call to succeed for valid workflow source")
+	require.NotNil(t, callResult, "Expected add tool call result to be returned")
+	assert.False(t, callResult.IsError, "Expected add tool result to indicate success")
 
-	// Verify description contains key phrases
-	if !strings.Contains(addTool.Description, "workflows") {
-		t.Error("add tool description should mention 'workflows'")
-	}
+	outputText := extractTextContent(callResult)
+	assert.NotEmpty(t, outputText, "Expected add tool to return non-empty output text")
+	assert.Contains(t, outputText, "daily-team-status-test", "Expected add tool output to mention the target workflow name")
+
+	addedWorkflowPath := filepath.Join(workflowsDir, "daily-team-status-test.md")
+	assert.FileExists(t, addedWorkflowPath, "Expected add tool to write workflow file in .github/workflows")
+
+	addedWorkflowContent, err := os.ReadFile(addedWorkflowPath)
+	require.NoError(t, err, "Expected to read workflow file added by MCP add tool")
+	assert.Contains(t, string(addedWorkflowContent), "source:", "Expected added workflow frontmatter to include source metadata")
 }
 
 // TestMCPServer_AddToolInvocation tests calling the add tool
 func TestMCPServer_AddToolInvocation(t *testing.T) {
-	// Skip if the binary doesn't exist
-	binaryPath := "../../gh-aw"
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
-	}
+	tmpDir, workflowsDir := setupMCPServerAddRepo(t)
+	require.DirExists(t, workflowsDir, "Expected setup helper to create workflows directory")
+	ctx, session := setupMCPServerSession(t, "../../gh-aw", tmpDir, testMCPServerAddToolTimeout)
 
-	// Get absolute path to binary
-	absBinaryPath, err := filepath.Abs(binaryPath)
-	if err != nil {
-		t.Fatalf("Failed to get absolute path to binary: %v", err)
-	}
-
-	// Create a temporary directory
-	tmpDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		t.Fatalf("Failed to create workflows directory: %v", err)
-	}
-
-	// Initialize git repository using shared helper
-	if err := initTestGitRepo(tmpDir); err != nil {
-		t.Fatalf("Failed to initialize git repository: %v", err)
-	}
-
-	// Change to the temporary directory
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-	os.Chdir(tmpDir)
-
-	// Create MCP client
-	client := mcp.NewClient(&mcp.Implementation{
-		Name:    "test-client",
-		Version: "1.0.0",
-	}, nil)
-
-	// Start the MCP server as a subprocess with custom command path (absolute path)
-	serverCmd := exec.Command(absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
-	serverCmd.Dir = tmpDir
-	transport := &mcp.CommandTransport{Command: serverCmd}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	session, err := client.Connect(ctx, transport, nil)
-	if err != nil {
-		t.Fatalf("Failed to connect to MCP server: %v", err)
-	}
-	defer session.Close()
-
-	// Test 1: Call with just repository (should fail - repo-only specs no longer supported)
-	t.Run("RepoOnlySpecError", func(t *testing.T) {
-		_, err := session.CallTool(ctx, &mcp.CallToolParams{
-			Name: "add",
-			Arguments: map[string]any{
+	tests := []struct {
+		name           string
+		arguments      map[string]any
+		expectErr      bool
+		errContains    []string
+		allowToolError bool
+	}{
+		{
+			name: "repo-only spec returns error",
+			arguments: map[string]any{
 				"workflows": []any{"githubnext/agentics"},
 			},
-		})
+			expectErr:   true,
+			errContains: []string{"failed to add workflows"},
+		},
+		{
+			name:           "missing workflows returns validation error",
+			arguments:      map[string]any{},
+			allowToolError: true,
+			errContains:    []string{"workflows", "required"},
+		},
+	}
 
-		// Should return an error because repo-only specs are invalid
-		if err == nil {
-			t.Fatal("Expected error for repo-only spec, got success")
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "add",
+				Arguments: tt.arguments,
+			})
 
-		// Error message should indicate the invalid format
-		errStr := err.Error()
-		t.Logf("add tool error (repo-only spec): %s", errStr)
-		if !strings.Contains(errStr, "failed to add workflows") {
-			t.Errorf("Expected error to mention 'failed to add workflows', got: %s", errStr)
-		}
-	})
+			if tt.allowToolError {
+				if err != nil {
+					for _, expectedErrPart := range tt.errContains {
+						assert.Contains(t, err.Error(), expectedErrPart, "Expected validation protocol error to include required detail")
+					}
+					return
+				}
 
-	// Test 2: Call with missing workflows parameter (should fail)
-	t.Run("MissingWorkflows", func(t *testing.T) {
-		result, err := session.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "add",
-			Arguments: map[string]any{},
-		})
+				require.NotNil(t, result, "Expected tool result when validation error is returned in MCP content")
+				assert.True(t, result.IsError, "Expected tool result to indicate error for missing required workflows argument")
 
-		// The SDK may return either a protocol error (err != nil) or a tool error
-		// (result.IsError=true, err=nil) depending on the SDK version. In v1.5.0+,
-		// schema validation for missing required fields returns a tool error.
-		if err != nil {
-			// Protocol error: verify it mentions workflows/required
-			errMsg := err.Error()
-			if !strings.Contains(errMsg, "workflows") && !strings.Contains(errMsg, "required") {
-				t.Errorf("Expected error message to mention missing 'workflows' parameter, got: %s", errMsg)
+				outputText := extractTextContent(result)
+				if outputText == "" {
+					t.Log("Validation error returned without text content")
+					return
+				}
+
+				t.Logf("Validation tool error: %s", outputText)
+				for _, expectedErrPart := range tt.errContains {
+					assert.Contains(t, outputText, expectedErrPart, "Expected MCP validation output to contain required error details")
+				}
+				return
 			}
-			return
-		}
-		if result == nil || !result.IsError {
-			t.Fatal("Expected error when calling add tool with missing workflows parameter")
-		}
-		if len(result.Content) > 0 {
-			if tc, ok := result.Content[0].(*mcp.TextContent); ok {
-				t.Logf("Validation tool error: %s", tc.Text)
+
+			if tt.expectErr {
+				require.Error(t, err, "Expected add tool call to fail for invalid input scenario")
+				for _, expectedErrPart := range tt.errContains {
+					assert.Contains(t, err.Error(), expectedErrPart, "Expected error to include informative failure details")
+				}
+				return
 			}
-		}
-	})
+
+			require.NoError(t, err, "Expected add tool call to succeed")
+			assert.NotNil(t, result, "Expected add tool call to return a result")
+		})
+	}
 }

@@ -718,6 +718,62 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("should enforce create_pull_request allowed_branches against resolved branch", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+          base_branch: "main",
+          allowed_branches: ["feature/*"],
+        },
+      });
+
+      process.env.GITHUB_HEAD_REF = "feature/from-detection";
+      process.env.GITHUB_REF_NAME = "feature/from-detection";
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "main",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(responseData.branch).toBe("feature/from-detection");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "create_pull_request",
+            branch: "feature/from-detection",
+          })
+        );
+      } finally {
+        delete process.env.GITHUB_HEAD_REF;
+        delete process.env.GITHUB_REF_NAME;
+      }
+    });
+
+    it("should reject create_pull_request when branch does not match allowed_branches", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+          allowed_branches: ["feature/*"],
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "hotfix/not-allowed",
+        title: "Test PR",
+        body: "Test description",
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("does not match allowed-branches");
+      expect(responseData.error).toContain("feature/*");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
     it("should validate the resolved current branch before recording a PR intent", async () => {
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
         create_pull_request: {

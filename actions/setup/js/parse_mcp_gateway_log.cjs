@@ -50,7 +50,7 @@ function formatDurationMs(ms) {
  * Parses token-usage.jsonl content and returns an aggregated summary.
  * Computes effective tokens (ET) per model using the GH_AW_MODEL_MULTIPLIERS env var.
  * @param {string} jsonlContent - The token-usage.jsonl file content
- * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object} | null}
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object, entries: Array} | null}
  */
 function parseTokenUsageJsonl(jsonlContent) {
   const summary = {
@@ -62,6 +62,8 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalDurationMs: 0,
     totalEffectiveTokens: 0,
     byModel: {},
+    /** @type {{ model: string, inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, durationMs: number, deltaET: number }[]} */
+    entries: [],
   };
 
   const lines = jsonlContent.split("\n");
@@ -76,13 +78,14 @@ function parseTokenUsageJsonl(jsonlContent) {
       const outputTokens = entry.output_tokens || 0;
       const cacheReadTokens = entry.cache_read_tokens || 0;
       const cacheWriteTokens = entry.cache_write_tokens || 0;
+      const durationMs = entry.duration_ms || 0;
 
       summary.totalInputTokens += inputTokens;
       summary.totalOutputTokens += outputTokens;
       summary.totalCacheReadTokens += cacheReadTokens;
       summary.totalCacheWriteTokens += cacheWriteTokens;
       summary.totalRequests++;
-      summary.totalDurationMs += entry.duration_ms || 0;
+      summary.totalDurationMs += durationMs;
 
       const model = entry.model || "unknown";
       summary.byModel[model] ??= {
@@ -101,7 +104,9 @@ function parseTokenUsageJsonl(jsonlContent) {
       m.cacheReadTokens += cacheReadTokens;
       m.cacheWriteTokens += cacheWriteTokens;
       m.requests++;
-      m.durationMs += entry.duration_ms || 0;
+      m.durationMs += durationMs;
+
+      summary.entries.push({ model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, durationMs, deltaET: 0 });
     } catch {
       // skip malformed lines
     }
@@ -118,39 +123,43 @@ function parseTokenUsageJsonl(jsonlContent) {
   }
   summary.totalEffectiveTokens = totalEffectiveTokens;
 
+  // Compute per-turn delta ET
+  for (const entry of summary.entries) {
+    entry.deltaET = computeEffectiveTokens(entry.model, entry.inputTokens, entry.outputTokens, entry.cacheReadTokens, entry.cacheWriteTokens);
+  }
+
   return summary;
 }
 
 /**
  * Generates a markdown summary section for token usage data.
- * Includes an Effective Tokens (ET) column per model and a ● ET summary line.
- * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object} | null} summary
+ * Renders one row per turn in chronological order with per-turn delta ET (ΔET)
+ * and a running compounded ET total (ET), followed by an aggregate totals row
+ * and a ● ET footer line.
+ * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object, entries: Array} | null} summary
  * @returns {string} Markdown section, or empty string if no data
  */
 function generateTokenUsageSummary(summary) {
   if (!summary || summary.totalRequests === 0) return "";
 
   const lines = [];
-  lines.push("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
-  lines.push("|-------|------:|-------:|-----------:|------------:|---:|---------:|---------:|");
+  lines.push("| # | Model | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
+  lines.push("|--:|-------|------:|-------:|-----------:|------------:|----:|---:|---------:|");
 
-  // Sort models by total tokens descending
-  const models = Object.entries(summary.byModel).sort(([, a], [, b]) => {
-    const aTotal = a.inputTokens + a.outputTokens + a.cacheReadTokens + a.cacheWriteTokens;
-    const bTotal = b.inputTokens + b.outputTokens + b.cacheReadTokens + b.cacheWriteTokens;
-    return bTotal - aTotal;
-  });
-
-  for (const [model, usage] of models) {
-    const et = formatET(Math.round(usage.effectiveTokens || 0));
+  const entries = summary.entries || [];
+  let compoundedET = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const deltaET = Math.round(entry.deltaET || 0);
+    compoundedET += deltaET;
     lines.push(
-      `| ${model} | ${usage.inputTokens.toLocaleString()} | ${usage.outputTokens.toLocaleString()} | ${usage.cacheReadTokens.toLocaleString()} | ${usage.cacheWriteTokens.toLocaleString()} | ${et} | ${usage.requests} | ${formatDurationMs(usage.durationMs)} |`
+      `| ${i + 1} | ${entry.model} | ${entry.inputTokens.toLocaleString()} | ${entry.outputTokens.toLocaleString()} | ${entry.cacheReadTokens.toLocaleString()} | ${entry.cacheWriteTokens.toLocaleString()} | ${formatET(deltaET)} | ${formatET(compoundedET)} | ${formatDurationMs(entry.durationMs)} |`
     );
   }
 
   const totalET = formatET(Math.round(summary.totalEffectiveTokens || 0));
   lines.push(
-    `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${totalET}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
+    `| **Total** | | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | | **${totalET}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
 
   // Footer line with ET summary using ● symbol
@@ -573,14 +582,80 @@ function buildRpcSummaryRow(cells) {
 }
 
 /**
+ * Computes effective-token deltas for each REQUEST entry relative to the surrounding
+ * LLM API calls recorded in token-usage.jsonl.
+ *
+ * For each request at timestamp T, the algorithm finds:
+ *   - prev: the last token-usage entry with timestamp < T
+ *   - next: the first token-usage entry with timestamp > T
+ * and returns delta = effectiveTokens(next) − effectiveTokens(prev).
+ *
+ * @param {string} tokenUsageContent - Raw content of token-usage.jsonl
+ * @param {Array<Object>} requests - REQUEST entries from rpc-messages.jsonl
+ * @returns {Map<number, number>} Map from request index to ΔET (omits entries with delta ≤ 0)
+ */
+function computeToolCallTokenDeltas(tokenUsageContent, requests) {
+  const deltas = new Map();
+  if (!tokenUsageContent || !requests || requests.length === 0) return deltas;
+
+  // Parse and sort token-usage entries by timestamp
+  /** @type {Array<{ts: number, et: number}>} */
+  const etEntries = [];
+  for (const line of tokenUsageContent.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const entry = JSON.parse(trimmed);
+      if (!entry || typeof entry !== "object" || !entry.timestamp) continue;
+      const ts = new Date(entry.timestamp).getTime();
+      if (isNaN(ts)) continue;
+      const et = computeEffectiveTokens(entry.model || "", entry.input_tokens || 0, entry.output_tokens || 0, entry.cache_read_tokens || 0, entry.cache_write_tokens || 0);
+      etEntries.push({ ts, et });
+    } catch {
+      // skip malformed lines
+    }
+  }
+
+  etEntries.sort((a, b) => a.ts - b.ts);
+  if (etEntries.length < 2) return deltas;
+
+  for (let i = 0; i < requests.length; i++) {
+    const req = requests[i];
+    if (!req.timestamp) continue;
+    const callTs = new Date(req.timestamp).getTime();
+    if (isNaN(callTs)) continue;
+
+    let prevIdx = -1;
+    let nextIdx = -1;
+    for (let j = 0; j < etEntries.length; j++) {
+      if (etEntries[j].ts < callTs) {
+        prevIdx = j; // keep updating to get the last one before callTs
+      } else if (etEntries[j].ts > callTs && nextIdx === -1) {
+        nextIdx = j; // first entry after callTs
+      }
+    }
+
+    if (prevIdx === -1 || nextIdx === -1) continue;
+
+    const delta = etEntries[nextIdx].et - etEntries[prevIdx].et;
+    if (delta > 0) {
+      deltas.set(i, delta);
+    }
+  }
+
+  return deltas;
+}
+
+/**
  * Generates a markdown step summary for rpc-messages.jsonl entries (mcpg v0.2.0+ format).
  * Shows a table of REQUEST entries (tool calls), a count of RESPONSE entries, any other
  * message types, and the DIFC_FILTERED section if there are blocked events.
  * @param {{requests: Array<Object>, responses: Array<Object>, other: Array<Object>}} entries
  * @param {Array<Object>} difcFilteredEvents - DIFC_FILTERED events parsed separately
+ * @param {Map<number, number>} [tokenDeltas] - Optional map of request index → ΔET
  * @returns {string} Markdown summary, or empty string if nothing to show
  */
-function generateRpcMessagesSummary(entries, difcFilteredEvents) {
+function generateRpcMessagesSummary(entries, difcFilteredEvents, tokenDeltas) {
   const { requests, responses, other } = entries;
   const blockedCount = difcFilteredEvents ? difcFilteredEvents.length : 0;
   const totalMessages = requests.length + responses.length + other.length + blockedCount;
@@ -622,16 +697,29 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
     callLines.push("");
 
     if (requests.length > 0) {
+      const hasDeltas = tokenDeltas && tokenDeltas.size > 0;
       callLines.push("#### REQUEST");
       callLines.push("");
-      callLines.push("| Time | Server | Tool / Method |");
-      callLines.push("|------|--------|---------------|");
+      if (hasDeltas) {
+        callLines.push("| Time | Server | Tool / Method | ΔET |");
+        callLines.push("|------|--------|---------------|----:|");
+      } else {
+        callLines.push("| Time | Server | Tool / Method |");
+        callLines.push("|------|--------|---------------|");
+      }
 
-      for (const req of requests) {
+      for (let i = 0; i < requests.length; i++) {
+        const req = requests[i];
         const time = formatRpcMessageTime(req.timestamp);
         const server = escapeMarkdownTableCell(req.server_id || "-");
         const label = formatRpcInlineCodeLabel(getRpcRequestLabel(req));
-        callLines.push(`| ${time} | ${server} | ${label} |`);
+        if (hasDeltas) {
+          const delta = tokenDeltas.get(i);
+          const deltaCell = delta ? `+${delta.toLocaleString()}` : "-";
+          callLines.push(`| ${time} | ${server} | ${label} | ${escapeMarkdownTableCell(deltaCell)} |`);
+        } else {
+          callLines.push(`| ${time} | ${server} | ${label} |`);
+        }
       }
 
       callLines.push("");
@@ -712,8 +800,7 @@ async function main() {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
       core.info(`Found rpc-messages.jsonl (${rpcMessagesContent.length} bytes)`);
       if (rpcMessagesContent.length === 0) {
-        core.setFailed(`${ERR_SYSTEM}: rpc-messages.jsonl is present but zero bytes — MCP telemetry capture failed (server may not have started or crashed before any RPC)`);
-        return;
+        core.warning("rpc-messages.jsonl is present but zero bytes; continuing without RPC summary");
       }
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
@@ -766,7 +853,20 @@ async function main() {
       core.info(`rpc-messages.jsonl: ${rpcEntries.requests.length} request(s), ${rpcEntries.responses.length} response(s), ${rpcEntries.other.length} other, ${difcFilteredEvents.length} DIFC_FILTERED`);
 
       if (totalMessages > 0 || difcFilteredEvents.length > 0) {
-        const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents);
+        // Compute effective-token deltas by correlating request timestamps with token-usage.jsonl
+        let tokenDeltas = new Map();
+        if (fs.existsSync(TOKEN_USAGE_PATH) && rpcEntries.requests.length > 0) {
+          try {
+            const tokenUsageContent = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
+            tokenDeltas = computeToolCallTokenDeltas(tokenUsageContent, rpcEntries.requests);
+            if (tokenDeltas.size > 0) {
+              core.info(`Computed effective-token deltas for ${tokenDeltas.size} of ${rpcEntries.requests.length} request(s)`);
+            }
+          } catch {
+            // Non-fatal: delta column is omitted when token-usage.jsonl is unreadable
+          }
+        }
+        const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents, tokenDeltas);
         if (rpcSummary.length > 0) {
           core.summary.addRaw(rpcSummary);
         }
@@ -949,6 +1049,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseRpcMessagesJsonl,
     getRpcRequestLabel,
     generateRpcMessagesSummary,
+    computeToolCallTokenDeltas,
     printAllGatewayFiles,
     parseTokenUsageJsonl,
     generateTokenUsageSummary,

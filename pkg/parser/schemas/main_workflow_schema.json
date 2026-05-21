@@ -2996,7 +2996,9 @@
     },
     "infer": {
       "type": "boolean",
+      "deprecated": true,
       "description": "DEPRECATED: Use 'disable-model-invocation' instead. Controls whether the custom agent should infer additional context from the conversation. This field is maintained for backward compatibility with existing custom agent files.",
+      "x-deprecation-message": "'infer' is deprecated. Use 'disable-model-invocation' instead.",
       "examples": [false]
     },
     "disable-model-invocation": {
@@ -5064,6 +5066,7 @@
               "type": "object",
               "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
               "deprecated": true,
+              "x-deprecation-message": "'create-agent-task' is deprecated. Use 'create-agent-session' instead.",
               "properties": {
                 "base": {
                   "type": "string",
@@ -5657,7 +5660,8 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Deprecated alias for required-title-prefix",
-                  "deprecated": true
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.close-discussion. Use 'required-title-prefix' instead."
                 },
                 "required-category": {
                   "type": "string",
@@ -5802,7 +5806,8 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Deprecated alias for required-title-prefix",
-                  "deprecated": true
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.close-issue. Use 'required-title-prefix' instead."
                 },
                 "target": {
                   "type": "string",
@@ -5884,7 +5889,8 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Deprecated alias for required-title-prefix",
-                  "deprecated": true
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.close-pull-request. Use 'required-title-prefix' instead."
                 },
                 "target": {
                   "type": "string",
@@ -5957,7 +5963,8 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Deprecated alias for required-title-prefix",
-                  "deprecated": true
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.mark-pull-request-as-ready-for-review. Use 'required-title-prefix' instead."
                 },
                 "target": {
                   "type": "string",
@@ -6301,6 +6308,23 @@
                 "base-branch": {
                   "type": "string",
                   "description": "Base branch for the pull request. Defaults to the workflow's branch (github.ref_name) if not specified. Useful for cross-repository PRs targeting non-default branches (e.g., 'vnext', 'release/v1.0')."
+                },
+                "allowed-branches": {
+                  "description": "Optional list of allowed source branch patterns (glob syntax, e.g. 'feature/*', 'release/*'). When configured, the effective create_pull_request branch must match one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-branches\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of source branch patterns (glob syntax supported)",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of source branch patterns (e.g. '${{ inputs[\\'allowed-branches\\'] }}')"
+                    }
+                  ]
                 },
                 "allowed-base-branches": {
                   "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}').",
@@ -7039,6 +7063,7 @@
                   "type": "array",
                   "description": "Deprecated alias for allowed-reviewers",
                   "deprecated": true,
+                  "x-deprecation-message": "'reviewers' is deprecated in safe-outputs.add-reviewer. Use 'allowed-reviewers' instead.",
                   "items": {
                     "type": "string"
                   },
@@ -7064,6 +7089,7 @@
                 "team-reviewers": {
                   "description": "Deprecated alias for allowed-team-reviewers",
                   "deprecated": true,
+                  "x-deprecation-message": "'team-reviewers' is deprecated in safe-outputs.add-reviewer. Use 'allowed-team-reviewers' instead.",
                   "oneOf": [
                     {
                       "type": "string"
@@ -7720,7 +7746,8 @@
                     "type": "string"
                   },
                   "description": "Deprecated alias for required-labels",
-                  "deprecated": true
+                  "deprecated": true,
+                  "x-deprecation-message": "'allowed-labels' is deprecated in safe-outputs.merge-pull-request. Use 'required-labels' instead."
                 },
                 "allowed-branches": {
                   "type": "array",
@@ -7789,7 +7816,8 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Deprecated alias for required-title-prefix",
-                  "deprecated": true
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.push-to-pull-request-branch. Use 'required-title-prefix' instead."
                 },
                 "required-labels": {
                   "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs[\\'required-labels\\'] }}').",
@@ -7811,6 +7839,7 @@
                 "labels": {
                   "description": "Deprecated alias for required-labels",
                   "deprecated": true,
+                  "x-deprecation-message": "'labels' is deprecated in safe-outputs.push-to-pull-request-branch. Use 'required-labels' instead.",
                   "oneOf": [
                     {
                       "type": "array",
@@ -10996,6 +11025,7 @@
         "network": {
           "type": "object",
           "deprecated": true,
+          "x-deprecation-message": "Per-MCP-server 'network' configuration is deprecated. Use the top-level workflow 'network:' field instead.",
           "$comment": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead.",
           "properties": {
             "allowed": {

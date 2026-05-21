@@ -4475,6 +4475,22 @@ safe-outputs:
     # (optional)
     base-branch: "example-value"
 
+    # Optional list of allowed source branch patterns (glob syntax, e.g.
+    # 'feature/*', 'release/*'). When configured, the effective create_pull_request
+    # branch must match one of these patterns. Accepts an array or a GitHub Actions
+    # expression resolving to a comma-separated list (e.g. '${{
+    # inputs[\'allowed-branches\'] }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: Array of source branch patterns (glob syntax supported)
+    allowed-branches: []
+      # Array items: string
+
+    # Format 2: GitHub Actions expression resolving to a comma-separated list of
+    # source branch patterns (e.g. '${{ inputs[\'allowed-branches\'] }}')
+    allowed-branches: "example-value"
+
     # Optional list of allowed base branch patterns (glob syntax, e.g. 'main',
     # 'release/*'). When configured, the agent may provide a `base` field in
     # create_pull_request output to override base-branch for a single run, but only if

@@ -324,6 +324,98 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 	})
 }
 
+func TestCorrelateToolCallsWithTokenDelta(t *testing.T) {
+	t.Run("assigns delta to tool calls bracketed by API calls", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-delta")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		// Two API calls; tool call happens between them.
+		// ET for first entry (model "unknown", default weights, m=1):
+		//   1.0*1000 + 4.0*50 = 1200
+		// ET for second entry:
+		//   1.0*1500 + 4.0*80 = 1820
+		// Expected delta = 1820 - 1200 = 620
+		content := `{"timestamp":"2026-05-19T21:10:00.000Z","model":"unknown","provider":"test","input_tokens":1000,"output_tokens":50,"cache_read_tokens":0,"cache_write_tokens":0}
+{"timestamp":"2026-05-19T21:10:10.000Z","model":"unknown","provider":"test","input_tokens":1500,"output_tokens":80,"cache_read_tokens":0,"cache_write_tokens":0}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		toolCalls := []MCPToolCall{
+			{
+				Timestamp:  "2026-05-19T21:10:05.000Z",
+				ServerName: "test-server",
+				ToolName:   "test-tool",
+			},
+		}
+		result := correlateToolCallsWithTokenDelta(toolCalls, filePath)
+		require.Len(t, result, 1)
+		assert.Equal(t, 620, result[0].EffectiveTokenDelta, "expected delta = ET(next) - ET(prev)")
+	})
+
+	t.Run("leaves delta zero when tool call has no preceding API call", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-delta-no-prev")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"timestamp":"2026-05-19T21:10:10.000Z","model":"unknown","provider":"test","input_tokens":1000,"output_tokens":50,"cache_read_tokens":0,"cache_write_tokens":0}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		toolCalls := []MCPToolCall{
+			{
+				Timestamp:  "2026-05-19T21:10:05.000Z", // before the only API call
+				ServerName: "test-server",
+				ToolName:   "test-tool",
+			},
+		}
+		result := correlateToolCallsWithTokenDelta(toolCalls, filePath)
+		require.Len(t, result, 1)
+		assert.Equal(t, 0, result[0].EffectiveTokenDelta, "no delta when no preceding API call")
+	})
+
+	t.Run("leaves delta zero when tool call has no following API call", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-delta-no-next")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"timestamp":"2026-05-19T21:10:00.000Z","model":"unknown","provider":"test","input_tokens":1000,"output_tokens":50,"cache_read_tokens":0,"cache_write_tokens":0}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		toolCalls := []MCPToolCall{
+			{
+				Timestamp:  "2026-05-19T21:10:05.000Z", // after the only API call
+				ServerName: "test-server",
+				ToolName:   "test-tool",
+			},
+		}
+		result := correlateToolCallsWithTokenDelta(toolCalls, filePath)
+		require.Len(t, result, 1)
+		assert.Equal(t, 0, result[0].EffectiveTokenDelta, "no delta when no following API call")
+	})
+
+	t.Run("handles empty token usage file path", func(t *testing.T) {
+		toolCalls := []MCPToolCall{{Timestamp: "2026-05-19T21:10:05.000Z", ToolName: "t"}}
+		result := correlateToolCallsWithTokenDelta(toolCalls, "")
+		require.Len(t, result, 1)
+		assert.Equal(t, 0, result[0].EffectiveTokenDelta, "no delta with empty file path")
+	})
+
+	t.Run("assigns correct deltas to multiple sequential tool calls", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-delta-multi")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		// Three API calls, two tool calls between consecutive pairs.
+		content := `{"timestamp":"2026-05-19T21:10:00.000Z","model":"unknown","provider":"test","input_tokens":1000,"output_tokens":50,"cache_read_tokens":0,"cache_write_tokens":0}
+{"timestamp":"2026-05-19T21:10:10.000Z","model":"unknown","provider":"test","input_tokens":1500,"output_tokens":80,"cache_read_tokens":0,"cache_write_tokens":0}
+{"timestamp":"2026-05-19T21:10:20.000Z","model":"unknown","provider":"test","input_tokens":2000,"output_tokens":100,"cache_read_tokens":0,"cache_write_tokens":0}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+		// ET[0] = 1000 + 4*50 = 1200
+		// ET[1] = 1500 + 4*80 = 1820  → delta1 = 620
+		// ET[2] = 2000 + 4*100 = 2400 → delta2 = 580
+
+		toolCalls := []MCPToolCall{
+			{Timestamp: "2026-05-19T21:10:05.000Z", ServerName: "s", ToolName: "tool-a"},
+			{Timestamp: "2026-05-19T21:10:15.000Z", ServerName: "s", ToolName: "tool-b"},
+		}
+		result := correlateToolCallsWithTokenDelta(toolCalls, filePath)
+		require.Len(t, result, 2)
+		assert.Equal(t, 620, result[0].EffectiveTokenDelta, "delta for tool-a")
+		assert.Equal(t, 580, result[1].EffectiveTokenDelta, "delta for tool-b")
+	})
+}
+
 func TestCacheEfficiency(t *testing.T) {
 	t.Run("remains zero to avoid transforming raw token counts", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "cache-eff")

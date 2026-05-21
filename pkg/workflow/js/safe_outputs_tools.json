@@ -296,7 +296,7 @@
             "number",
             "string"
           ],
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers — it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
         },
         "pr_number": {
           "type": [
@@ -319,7 +319,7 @@
         },
         "reply_to_id": {
           "type": "string",
-          "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments \u2014 ignored for issue and pull request comments."
+          "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments — ignored for issue and pull request comments."
         },
         "comment_id": {
           "type": [
@@ -367,7 +367,7 @@
         },
         "branch": {
           "type": "string",
-          "description": "Source branch name containing the changes. If omitted, uses the current working branch."
+          "description": "Source branch name containing the changes. If omitted, uses the current working branch. If the workflow configuration sets safe-outputs.create-pull-request.allowed-branches, then the branch name MUST be given and match one of these patterns."
         },
         "base": {
           "type": "string",
@@ -431,7 +431,7 @@
             "number",
             "string"
           ],
-          "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) \u2014 omitting it will cause the comment to fail."
+          "description": "Pull request number to add the review comment to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds the comment to the PR that triggered this workflow. Required when the workflow target is '*' (any PR) — omitting it will cause the comment to fail."
         },
         "start_line": {
           "type": [
@@ -631,12 +631,15 @@
           "items": {
             "type": "string"
           },
-          "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required \u2014 omitting it will cause a validation error."
+          "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required — omitting it will cause a validation error."
         },
         "item_number": {
-          "type": ["number", "string"],
+          "type": [
+            "number",
+            "string"
+          ],
           "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
-          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
+          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required — omitting it will silently skip the label operation."
         },
         "secrecy": {
           "type": "string",
@@ -667,7 +670,10 @@
           "description": "Label names to remove (e.g., ['smoke', 'needs-triage']). Non-existent labels are silently skipped."
         },
         "item_number": {
-          "type": ["number", "string"],
+          "type": [
+            "number",
+            "string"
+          ],
           "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
           "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, removes labels from the item that triggered this workflow."
         },
@@ -711,7 +717,7 @@
             "number",
             "string"
           ],
-          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow. Only works for pull_request event triggers. For workflow_dispatch, schedule, or other triggers, pull_request_number is required \u2014 omitting it will silently skip the reviewer assignment."
+          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow. Only works for pull_request event triggers. For workflow_dispatch, schedule, or other triggers, pull_request_number is required — omitting it will silently skip the reviewer assignment."
         },
         "secrecy": {
           "type": "string",
@@ -750,7 +756,7 @@
         },
         "milestone_title": {
           "type": "string",
-          "description": "Milestone title to assign the issue to (e.g., \"v1.0\"). Used as an alternative to milestone_number \u2014 the handler looks up the milestone by title. Either milestone_number or milestone_title must be provided."
+          "description": "Milestone title to assign the issue to (e.g., \"v1.0\"). Used as an alternative to milestone_number — the handler looks up the milestone by title. Either milestone_number or milestone_title must be provided."
         },
         "secrecy": {
           "type": "string",
@@ -1017,11 +1023,25 @@
         }
       },
       "anyOf": [
-        { "required": ["title"] },
-        { "required": ["body"] },
         {
-          "required": ["update_branch"],
-          "properties": { "update_branch": { "const": true } }
+          "required": [
+            "title"
+          ]
+        },
+        {
+          "required": [
+            "body"
+          ]
+        },
+        {
+          "required": [
+            "update_branch"
+          ],
+          "properties": {
+            "update_branch": {
+              "const": true
+            }
+          }
         }
       ],
       "additionalProperties": false
@@ -1129,6 +1149,54 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "upload_artifact",
+    "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be referenced by their original absolute path (auto-copied into the staging area under /tmp/gh-aw/safeoutputs/upload-artifacts/) or by a short relative filename if already staged. Use /tmp/gh-aw/... paths for staging-related references. Shell variable syntax (for example, \"$VAR/...\") must NOT appear in path values because variables are not expanded in JSON strings. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorized step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the file or directory to upload. Three formats are accepted: (1) filename only (e.g., \"chart.png\") for files already in the upload staging directory at /tmp/gh-aw/safeoutputs/upload-artifacts/; (2) absolute path (e.g., \"/tmp/gh-aw/charts/chart.png\") to auto-copy from disk into the staging directory; (3) workspace-relative path (e.g., \"reports/summary.json\") resolved from the workspace root. Do NOT use shell variable syntax like \"$VAR/...\" because shell variables are not expanded in JSON string values. Example: \"path\": \"activity_overview.png\" is correct for staged files, while \"path\": \"$VAR/gh-aw/safeoutputs/upload-artifacts/activity_overview.png\" is invalid. Required unless filters is provided."
+        },
+        "filters": {
+          "type": "object",
+          "description": "Glob-based file selection filters. Required unless path is provided.",
+          "properties": {
+            "include": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Glob patterns for files to include (e.g., [\"reports/**/*.json\"])"
+            },
+            "exclude": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Glob patterns for files to exclude (e.g., [\"**/*.env\", \"**/*.pem\"])"
+            }
+          },
+          "additionalProperties": false
+        },
+        "temporary_id": {
+          "type": "string",
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Optional temporary identifier for this artifact upload. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_chart1', '#aw_img_out'. The bare 'aw_chart1' form is also accepted. Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' — for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the artifact content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the artifact source (e.g., \"low\", \"medium\", \"high\")."
         }
       },
       "additionalProperties": false
@@ -1563,7 +1631,7 @@
   },
   {
     "name": "report_incomplete",
-    "description": "Signal that the task could not be completed due to an infrastructure or tool failure (e.g., MCP server crash, missing authentication, inaccessible repository). Use this when required tools or data are unavailable and the task cannot be meaningfully performed. This is distinct from noop (no action needed) \u2014 it indicates an active failure that prevented the task from running. The workflow framework will treat this as a failure signal even when the agent exits successfully.",
+    "description": "Signal that the task could not be completed due to an infrastructure or tool failure (e.g., MCP server crash, missing authentication, inaccessible repository). Use this when required tools or data are unavailable and the task cannot be meaningfully performed. This is distinct from noop (no action needed) — it indicates an active failure that prevented the task from running. The workflow framework will treat this as a failure signal even when the agent exits successfully.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -1759,54 +1827,6 @@
         "memory_id": {
           "type": "string",
           "description": "Memory identifier to validate. Defaults to 'default' if not specified."
-        }
-      },
-      "additionalProperties": false
-    }
-  },
-  {
-    "name": "upload_artifact",
-    "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be referenced by their original absolute path (auto-copied into the staging area under /tmp/gh-aw/safeoutputs/upload-artifacts/) or by a short relative filename if already staged. Use /tmp/gh-aw/... paths for staging-related references. Shell variable syntax (for example, \"$VAR/...\") must NOT appear in path values because variables are not expanded in JSON strings. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorized step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "path": {
-          "type": "string",
-          "description": "Path to the file or directory to upload. Three formats are accepted: (1) filename only (e.g., \"chart.png\") for files already in the upload staging directory at /tmp/gh-aw/safeoutputs/upload-artifacts/; (2) absolute path (e.g., \"/tmp/gh-aw/charts/chart.png\") to auto-copy from disk into the staging directory; (3) workspace-relative path (e.g., \"reports/summary.json\") resolved from the workspace root. Do NOT use shell variable syntax like \"$VAR/...\" because shell variables are not expanded in JSON string values. Example: \"path\": \"activity_overview.png\" is correct for staged files, while \"path\": \"$VAR/gh-aw/safeoutputs/upload-artifacts/activity_overview.png\" is invalid. Required unless filters is provided."
-        },
-        "filters": {
-          "type": "object",
-          "description": "Glob-based file selection filters. Required unless path is provided.",
-          "properties": {
-            "include": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Glob patterns for files to include (e.g., [\"reports/**/*.json\"])"
-            },
-            "exclude": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Glob patterns for files to exclude (e.g., [\"**/*.env\", \"**/*.pem\"])"
-            }
-          },
-          "additionalProperties": false
-        },
-        "temporary_id": {
-          "type": "string",
-          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
-          "description": "Optional temporary identifier for this artifact upload. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_chart1', '#aw_img_out'. The bare 'aw_chart1' form is also accepted. Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' — for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
-        },
-        "secrecy": {
-          "type": "string",
-          "description": "Confidentiality level of the artifact content (e.g., \"public\", \"internal\", \"private\")."
-        },
-        "integrity": {
-          "type": "string",
-          "description": "Trustworthiness level of the artifact source (e.g., \"low\", \"medium\", \"high\")."
         }
       },
       "additionalProperties": false

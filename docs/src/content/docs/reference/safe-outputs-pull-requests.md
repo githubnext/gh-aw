@@ -42,6 +42,9 @@ safe-outputs:
     target-repo: "owner/repo"     # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     base-branch: "vnext"          # target branch for PR (default: github.base_ref || github.ref_name)
+    allowed-branches:             # allow agent-selected source branches matching these globs
+      - feature/*
+      - release/*
     allowed-base-branches:        # allow agent to override base branch at runtime (glob patterns)
       - main
       - release/*
@@ -72,6 +75,8 @@ safe-outputs:
       - main
       - release/*
 ```
+
+The `allowed-branches` field constrains which source branch names may be used for `create_pull_request`. The effective branch selected by the handler (agent-provided branch, or checkout branch fallback when omitted) must match one of the configured glob patterns. This is useful when your repository enforces source branch naming conventions (for example, only `feature/*` and `release/*`).
 
 **Example use case:** A workflow in `org/engineering` that creates PRs in `org/docs` targeting the `vnext` branch for feature documentation:
 

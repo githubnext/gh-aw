@@ -15,43 +15,7 @@ import (
 // - No trailing punctuation (periods, exclamation marks, question marks)
 // - This is a common convention for CLI tools (e.g., Git, kubectl, gh)
 func TestShortDescriptionConsistency(t *testing.T) {
-
-	// Create commands that have subcommands
-	mcpCmd := cli.NewMCPCommand()
-	prCmd := cli.NewPRCommand()
-
-	// Collect all commands to test (including the parent commands with subcommands)
-	allCommands := []*cobra.Command{
-		rootCmd,
-		newCmd,
-		removeCmd,
-		enableCmd,
-		disableCmd,
-		compileCmd,
-		runCmd,
-		versionCmd,
-		cli.NewStatusCommand(),
-		cli.NewInitCommand(),
-		cli.NewLogsCommand(),
-		cli.NewTrialCommand(validateEngine),
-		cli.NewAddCommand(validateEngine),
-		cli.NewDeployCommand(validateEngine),
-		cli.NewAddWizardCommand(validateEngine),
-		cli.NewUpdateCommand(validateEngine),
-		cli.NewAuditCommand(),
-		mcpCmd,
-		cli.NewMCPServerCommand(),
-		prCmd,
-	}
-
-	// Add MCP subcommands
-	allCommands = append(allCommands, mcpCmd.Commands()...)
-
-	// Add PR subcommands
-	allCommands = append(allCommands, prCmd.Commands()...)
-
-	// Check each command's Short description
-	for _, cmd := range allCommands {
+	for _, cmd := range collectCommandTree(rootCmd) {
 		t.Run("command "+cmd.Name()+" has no trailing punctuation", func(t *testing.T) {
 			short := cmd.Short
 			if short == "" {
@@ -68,6 +32,14 @@ func TestShortDescriptionConsistency(t *testing.T) {
 			}
 		})
 	}
+}
+
+func collectCommandTree(root *cobra.Command) []*cobra.Command {
+	commands := []*cobra.Command{root}
+	for _, subCmd := range root.Commands() {
+		commands = append(commands, collectCommandTree(subCmd)...)
+	}
+	return commands
 }
 
 // TestLongDescriptionHasSentences verifies that Long descriptions use proper

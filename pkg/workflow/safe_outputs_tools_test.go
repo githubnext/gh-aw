@@ -3,9 +3,14 @@
 package workflow
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEnhanceToolDescription(t *testing.T) {
@@ -373,4 +378,43 @@ func TestEnhanceToolDescription(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestSafeOutputsToolsJSONInSync verifies that the compiler-embedded copy of
+// safe_outputs_tools.json (pkg/workflow/js/) and the runtime copy
+// (actions/setup/js/) define the same tool names in the same order.
+// If this test fails, update both files when adding or removing tools.
+func TestSafeOutputsToolsJSONInSync(t *testing.T) {
+	type toolEntry struct {
+		Name string `json:"name"`
+	}
+
+	// Parse the embedded compiler copy (already loaded as safeOutputsToolsJSONContent).
+	var compilerTools []toolEntry
+	require.NoError(t, json.Unmarshal([]byte(safeOutputsToolsJSONContent), &compilerTools), "failed to parse compiler copy of safe_outputs_tools.json")
+
+	// Locate the runtime copy relative to this file's position in the repo.
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "could not determine source file path")
+	repoRoot := filepath.Join(filepath.Dir(thisFile), "..", "..")
+	runtimePath := filepath.Join(repoRoot, "actions", "setup", "js", "safe_outputs_tools.json")
+
+	runtimeBytes, err := os.ReadFile(runtimePath)
+	require.NoError(t, err, "failed to read runtime copy of safe_outputs_tools.json at %s", runtimePath)
+
+	var runtimeTools []toolEntry
+	require.NoError(t, json.Unmarshal(runtimeBytes, &runtimeTools), "failed to parse runtime copy of safe_outputs_tools.json")
+
+	// Extract names for comparison.
+	compilerNames := make([]string, len(compilerTools))
+	for i, t := range compilerTools {
+		compilerNames[i] = t.Name
+	}
+	runtimeNames := make([]string, len(runtimeTools))
+	for i, t := range runtimeTools {
+		runtimeNames[i] = t.Name
+	}
+
+	assert.Equal(t, compilerNames, runtimeNames,
+		"pkg/workflow/js/safe_outputs_tools.json and actions/setup/js/safe_outputs_tools.json must define the same tools in the same order; update both files together")
 }

@@ -23,6 +23,7 @@ const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs"
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 
 /**
  * @param {string} error
@@ -54,6 +55,45 @@ function buildIntentErrorResponse(error) {
 function hasUpdatePullRequestFields(args) {
   const safeArgs = args || {};
   return typeof safeArgs.title === "string" || typeof safeArgs.body === "string" || safeArgs.update_branch === true;
+}
+
+/**
+ * Parse branch pattern configuration from array or comma-separated string.
+ * @param {string[]|string|undefined} value
+ * @returns {string[]}
+ */
+function parseAllowedBranchPatterns(value) {
+  if (Array.isArray(value)) {
+    return value.map(item => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * @param {string} branch
+ * @param {string[]} allowedPatterns
+ * @returns {boolean}
+ */
+function isAllowedBranch(branch, allowedPatterns) {
+  for (const pattern of allowedPatterns) {
+    if (branch === pattern) {
+      return true;
+    }
+    if (pattern === "*") {
+      // Add this fast-path
+      return true;
+    }
+    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(branch)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -363,6 +403,22 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    const allowedBranches = parseAllowedBranchPatterns(prConfig.allowed_branches);
+    if (allowedBranches.length > 0 && !isAllowedBranch(entry.branch, allowedBranches)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Branch '${entry.branch}' does not match allowed-branches. Allowed patterns: ${allowedBranches.join(", ")}`,
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
     const intentValidationError = validateCreatePullRequestIntent(entry);

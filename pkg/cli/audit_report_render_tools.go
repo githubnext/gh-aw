@@ -121,6 +121,38 @@ func renderMCPToolUsageTable(mcpData *MCPToolUsageData) {
 	if mcpData.GuardPolicySummary != nil && mcpData.GuardPolicySummary.TotalBlocked > 0 {
 		renderGuardPolicySummary(mcpData.GuardPolicySummary)
 	}
+
+	// Render tool call timeline with effective-token deltas when available
+	var callsWithDelta []MCPToolCall
+	for _, tc := range mcpData.ToolCalls {
+		if tc.EffectiveTokenDelta > 0 {
+			callsWithDelta = append(callsWithDelta, tc)
+		}
+	}
+	if len(callsWithDelta) > 0 {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  Tool Call Timeline (Effective Token Δ):")
+		fmt.Fprintln(os.Stderr)
+
+		timelineConfig := console.TableConfig{
+			Headers: []string{"Time", "Server", "Tool", "ΔET"},
+			Rows:    make([][]string, 0, len(callsWithDelta)),
+		}
+		for _, tc := range callsWithDelta {
+			ts := tc.Timestamp
+			if len(ts) > 19 {
+				ts = ts[:19] + "Z"
+			}
+			row := []string{
+				ts,
+				stringutil.Truncate(tc.ServerName, 20),
+				stringutil.Truncate(tc.ToolName, 35),
+				"+" + console.FormatNumber(tc.EffectiveTokenDelta),
+			}
+			timelineConfig.Rows = append(timelineConfig.Rows, row)
+		}
+		fmt.Fprint(os.Stderr, console.RenderTable(timelineConfig))
+	}
 }
 
 // renderMCPServerHealth renders MCP server health summary

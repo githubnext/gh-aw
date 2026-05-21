@@ -825,3 +825,38 @@ func TestWarnDeprecatedFrontmatterFields_MultipleFields(t *testing.T) {
 	assert.Contains(t, stderr, "serena", "warning should mention serena")
 	assert.Equal(t, 2, compiler.warningCount, "one warning per deprecated field")
 }
+
+// TestWarnDeprecatedFrontmatterFields_Infer verifies that using the deprecated
+// top-level 'infer' field emits the schema-driven deprecation warning pointing
+// to 'disable-model-invocation'.
+func TestWarnDeprecatedFrontmatterFields_Infer(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"infer": false,
+	}
+	stderr := captureStderr(func() {
+		compiler.warnDeprecatedFrontmatterFields(frontmatter)
+	})
+
+	assert.Contains(t, stderr, "disable-model-invocation", "warning should mention the replacement field")
+	assert.Equal(t, 1, compiler.warningCount, "one warning for infer")
+}
+
+// TestWarnDeprecatedFrontmatterFields_SafeOutputsDeprecatedAliases verifies that
+// deprecated safe-outputs aliases (e.g. title-prefix) emit schema-driven warnings.
+func TestWarnDeprecatedFrontmatterFields_SafeOutputsDeprecatedAliases(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"safe-outputs": map[string]any{
+			"close-issue": map[string]any{
+				"title-prefix": "[old] ",
+			},
+		},
+	}
+	stderr := captureStderr(func() {
+		compiler.warnDeprecatedFrontmatterFields(frontmatter)
+	})
+
+	assert.Contains(t, stderr, "required-title-prefix", "warning should mention required-title-prefix replacement")
+	assert.Equal(t, 1, compiler.warningCount, "one warning for the deprecated alias")
+}

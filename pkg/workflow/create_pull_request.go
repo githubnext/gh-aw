@@ -7,7 +7,7 @@ import (
 var createPRLog = logger.New("workflow:create_pull_request")
 
 var createPRStringOrArrayFields = []string{"reviewers", "team-reviewers", "assignees"}
-var createPRExpressionArrayFields = []string{"labels", "allowed-repos", "allowed-base-branches"}
+var createPRExpressionArrayFields = []string{"labels", "allowed-repos", "allowed-base-branches", "allowed-branches"}
 
 // getFallbackAsIssue returns the effective fallback-as-issue setting (defaults to true).
 func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
@@ -34,6 +34,7 @@ type CreatePullRequestsConfig struct {
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository pull requests
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories that pull requests can be created in (additionally to the target-repo)
 	AllowedBaseBranches            []string `yaml:"allowed-base-branches,omitempty"`               // List of allowed base branch globs (e.g. "release/*"). Enables agent-provided `base` override when configured.
+	AllowedBranches                []string `yaml:"allowed-branches,omitempty"`                    // List of allowed source branch globs (e.g. "feature/*"). Branch in create_pull_request payload must match when configured.
 	Expires                        int      `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
 	AutoMerge                      *string  `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request when all required checks pass
 	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)

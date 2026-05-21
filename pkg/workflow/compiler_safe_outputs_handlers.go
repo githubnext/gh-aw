@@ -420,6 +420,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
 			AddTemplatableStringSlice("allowed_base_branches", c.AllowedBaseBranches).
+			AddTemplatableStringSlice("allowed_branches", c.AllowedBranches).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddDefault("max_patch_files", maxPatchFiles).
 			AddIfNotEmpty("github-token", c.GitHubToken).

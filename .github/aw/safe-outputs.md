@@ -170,12 +170,16 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
       protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
+      allowed-branches:               # Optional: glob patterns for allowed source branch names per run
+        - "feature/*"
       allowed-base-branches:          # Optional: glob patterns for allowed base branch overrides per run
         - "release/*"
         - "main"
   ```
 
   **Dynamic Base Branch**: When `allowed-base-branches` is set, the agent can provide a `base` field in its output to override the default base branch for a single run — but only if the value matches one of the configured glob patterns. Without `allowed-base-branches`, only the static `base-branch:` is used. Accepts a literal array or a GitHub Actions expression resolving to a comma-separated list (e.g. `${{ inputs.allowed-base-branches }}`).
+
+  **Allowed Source Branches**: When `allowed-branches` is set, the branch used for PR creation (agent-provided `branch` or the current checkout branch when omitted) must match one of the configured glob patterns.
 
   **File Restrictions**: **Always specify `allowed-files`** — this is the primary guardrail for `create-pull-request`. Scope it to specific file extensions (e.g., `"**/*.md"`, `"**/*.ts"`) or directory paths (e.g., `"src/**"`, `"docs/**"`) matching the workflow's purpose. Omitting `allowed-files` allows the agent to touch any file in the repository, which significantly expands blast radius. Use `excluded-files` to additionally strip specific files (e.g. lock files) from the patch before any checks. The `protected-files` field controls handling of sensitive files (package manifests, CI configs, agent instruction files): `blocked` (default, hard-block), `fallback-to-issue` (push branch and create a review issue), or `allowed` (no restriction — use only when the workflow is explicitly designed to manage these files). Object form is also supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 

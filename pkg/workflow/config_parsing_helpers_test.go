@@ -1198,8 +1198,8 @@ func TestAddTemplatableStringSliceBuilder(t *testing.T) {
 }
 
 // TestParsePullRequestsConfigExpressionFields verifies that create-pull-request
-// accepts GitHub Actions expression strings for labels, allowed-repos, and
-// allowed-base-branches.
+// accepts GitHub Actions expression strings for labels, allowed-repos,
+// allowed-base-branches, and allowed-branches.
 func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1224,6 +1224,12 @@ func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
 			field:    "allowed-base-branches",
 			expr:     "${{ inputs['allowed-base-branches'] }}",
 			getField: func(c *CreatePullRequestsConfig) []string { return c.AllowedBaseBranches },
+		},
+		{
+			name:     "allowed-branches as expression",
+			field:    "allowed-branches",
+			expr:     "${{ inputs['allowed-branches'] }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.AllowedBranches },
 		},
 	}
 
@@ -1382,6 +1388,17 @@ func TestHandlerConfigExpressionFields(t *testing.T) {
 			wantValue: "${{ inputs['allowed-base-branches'] }}",
 		},
 		{
+			name: "create_pull_request allowed_branches expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					AllowedBranches: []string{"${{ inputs['allowed-branches'] }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "allowed_branches",
+			wantValue: "${{ inputs['allowed-branches'] }}",
+		},
+		{
 			name: "add_comment allowed_repos expression stored as string",
 			safeOuts: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
@@ -1458,7 +1475,7 @@ func TestExpressionFieldsRejectedForInvalidStrings(t *testing.T) {
 	// create-pull-request: non-expression bare string returns nil config
 	compiler := &Compiler{}
 
-	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches"} {
+	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches", "allowed-branches"} {
 		t.Run("create-pull-request/"+field+"/non-expression", func(t *testing.T) {
 			outputMap := map[string]any{
 				"create-pull-request": map[string]any{
