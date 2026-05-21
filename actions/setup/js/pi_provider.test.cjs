@@ -75,4 +75,49 @@ describe("pi_provider.cjs", () => {
 
     expect(stderrOutput.some(line => line.includes("provider=copilot model=copilot/claude-sonnet-4"))).toBe(true);
   });
+
+  it("calls /reflect on the management port (10000) when AWF_REFLECT_ENABLED is set", async () => {
+    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+    process.env.AWF_REFLECT_ENABLED = "1";
+    const fetchedUrls = [];
+    global.fetch = vi.fn().mockImplementation(url => {
+      fetchedUrls.push(url);
+      return Promise.reject(new Error("network disabled"));
+    });
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+    await handlers.agent_end();
+
+    expect(fetchedUrls.every(url => url === "http://api-proxy:10000/reflect")).toBe(true);
+    expect(fetchedUrls.length).toBe(2);
+  });
+
+  it("skips /reflect when AWF_REFLECT_ENABLED is not set", async () => {
+    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+    delete process.env.AWF_REFLECT_ENABLED;
+    global.fetch = vi.fn().mockRejectedValue(new Error("network disabled"));
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+    await handlers.agent_end();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });

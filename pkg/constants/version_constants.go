@@ -51,7 +51,7 @@ const DefaultGeminiVersion Version = "0.39.1"
 const DefaultCrushVersion Version = "0.59.0"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.72.1"
+const DefaultPiVersion Version = "0.75.4"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"

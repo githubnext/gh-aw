@@ -692,6 +692,6 @@ Imports a custom inline engine definition from a shared workflow.
 		"lock file should contain Codex installation step")
 	assert.Contains(t, lockStr, `GH_AW_INFO_ENGINE_ID: "codex"`,
 		"lock file should set engine ID to codex")
-	assert.Contains(t, lockStr, "codex ${",
+	assert.Contains(t, lockStr, "codex exec${",
 		"lock file should contain codex exec invocation")
 }
