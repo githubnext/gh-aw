@@ -64,7 +64,7 @@ def recommendation_buckets(seed: dict[str, Any], workflows: dict[str, dict[str, 
                     candidate_paths = [pre.normalize_text(path) for path in entry.get("paths", [])]
                 else:
                     path_value = entry.get("path")
-                    candidate_paths = [pre.normalize_text(path_value or "")]
+                    candidate_paths = [] if path_value is None else [pre.normalize_text(path_value)]
             else:
                 candidate_paths = [pre.normalize_text(entry)]
             for path in candidate_paths:
