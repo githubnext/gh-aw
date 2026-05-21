@@ -660,6 +660,98 @@ func TestInjectOTLPConfig_HeadersPresenceAfterInjection(t *testing.T) {
 	})
 }
 
+// TestIsOTLPAttributesPresent verifies that isOTLPAttributesPresent correctly detects
+// whether GH_AW_OTLP_ATTRIBUTES is present in the workflow env block.
+func TestIsOTLPAttributesPresent(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		expected bool
+	}{
+		{
+			name:     "nil WorkflowData returns false",
+			data:     nil,
+			expected: false,
+		},
+		{
+			name:     "empty Env returns false",
+			data:     &WorkflowData{},
+			expected: false,
+		},
+		{
+			name: "Env without GH_AW_OTLP_ATTRIBUTES returns false",
+			data: &WorkflowData{
+				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  OTEL_SERVICE_NAME: github.aw",
+			},
+			expected: false,
+		},
+		{
+			name: "Env with GH_AW_OTLP_ATTRIBUTES returns true",
+			data: &WorkflowData{
+				Env: `env:
+  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com
+  OTEL_SERVICE_NAME: github.aw
+  GH_AW_OTLP_ATTRIBUTES: '{"langfuse.session.id":"abc"}'`,
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isOTLPAttributesPresent(tt.data)
+			assert.Equal(t, tt.expected, got, "isOTLPAttributesPresent")
+		})
+	}
+}
+
+// TestGenerateOTLPAttributesMaskStep verifies that generateOTLPAttributesMaskStep
+// emits a step that delegates to mask_otlp_attributes.sh.
+func TestGenerateOTLPAttributesMaskStep(t *testing.T) {
+	step := generateOTLPAttributesMaskStep()
+
+	assert.Contains(t, step, "- name: Mask OTLP custom attribute values", "should have the masking step name")
+	assert.Contains(t, step, "mask_otlp_attributes.sh", "should delegate to the mask_otlp_attributes.sh script")
+	assert.Contains(t, step, "${RUNNER_TEMP}/gh-aw/actions/", "should reference the runtime actions directory")
+}
+
+// TestInjectOTLPConfig_AttributesPresenceAfterInjection verifies that
+// isOTLPAttributesPresent returns true after injectOTLPConfig injects attributes.
+func TestInjectOTLPConfig_AttributesPresenceAfterInjection(t *testing.T) {
+	t.Run("isOTLPAttributesPresent returns true after attributes are injected", func(t *testing.T) {
+		c := &Compiler{}
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+						Attributes: map[string]string{
+							"langfuse.session.id": "my-session",
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.True(t, isOTLPAttributesPresent(wd), "isOTLPAttributesPresent should return true after attributes are injected")
+	})
+
+	t.Run("isOTLPAttributesPresent returns false when no attributes are configured", func(t *testing.T) {
+		c := &Compiler{}
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.False(t, isOTLPAttributesPresent(wd), "isOTLPAttributesPresent should return false when no attributes are configured")
+	})
+}
+
 func TestOTELServiceName(t *testing.T) {
 	t.Run("uses workflow-specific service name when workflow ID is present", func(t *testing.T) {
 		got := otelServiceName(&WorkflowData{WorkflowID: "Repo Triage/Weekly"})

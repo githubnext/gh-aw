@@ -240,6 +240,29 @@ func generateOTLPHeadersMaskStep() string {
 	return sb.String()
 }
 
+// isOTLPAttributesPresent returns true when GH_AW_OTLP_ATTRIBUTES has been
+// injected into the workflow-level env block.  This indicates that attribute
+// value masking is needed so that user-supplied values do not leak into
+// GitHub Actions runner logs.
+func isOTLPAttributesPresent(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	return strings.Contains(data.Env, "GH_AW_OTLP_ATTRIBUTES")
+}
+
+// generateOTLPAttributesMaskStep returns a GitHub Actions step that runs
+// mask_otlp_attributes.sh to issue the ::add-mask:: workflow command for every
+// value in the GH_AW_OTLP_ATTRIBUTES JSON object.  Masking the values prevents
+// user-supplied custom span attribute values (e.g. session IDs, user IDs) from
+// appearing in plaintext in GitHub Actions runner logs.
+func generateOTLPAttributesMaskStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Mask OTLP custom attribute values\n")
+	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/mask_otlp_attributes.sh\"\n")
+	return sb.String()
+}
+
 // otlpEndpointEntry is the wire format used when encoding the GH_AW_OTLP_ENDPOINTS
 // environment variable as a JSON array.  Each entry carries the endpoint URL and
 // its optional normalized (comma-separated key=value) headers string.

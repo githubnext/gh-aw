@@ -59,6 +59,10 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 	if isOTLPHeadersPresent(data) {
 		yaml.WriteString(generateOTLPHeadersMaskStep())
 	}
+	// Mask custom OTLP attribute values so user-supplied values cannot leak into runner logs.
+	if isOTLPAttributesPresent(data) {
+		yaml.WriteString(generateOTLPAttributesMaskStep())
+	}
 
 	// Add pre-steps before checkout and the subsequent built-in steps in this agent job.
 	// This allows users to mint short-lived tokens (via custom actions) in the same
