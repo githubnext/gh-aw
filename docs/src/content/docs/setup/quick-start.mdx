@@ -112,11 +112,6 @@ With GitHub Agentic Workflows, you are in control! Your repository automation is
 
 To customize it now:
 
-> [!NOTE]
-> Workflows have two files: the `.md` file you edit and a generated `.lock.yml` file that GitHub Actions runs. `gh aw compile` regenerates the `.lock.yml` file from your markdown whenever you change the workflow configuration.
->
-> Within the `.md` file, the **frontmatter** (the configuration block between the `---` markers at the top) controls when the workflow runs, which AI engine powers it, and what tools it can access — changes here require recompiling. The **body** below contains your natural language task description and instructions — changes here take effect immediately on the next run.
-
 1. Open the workflow markdown file located at `.github/workflows/daily-repo-status.md` in your repository.
 
 2. Edit the section "What to include" to list things you are having trouble with regularly in your repository: your issue backlog, your CI setup, your testing, the performance of your software, your roadmap. Any or all of these, or anything else you want to improve. You can also customize the style and process sections to guide the coding agent's behavior.
