@@ -265,6 +265,16 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 		}
 
+	case "create_check_run":
+		if config := safeOutputs.CreateCheckRun; config != nil {
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d check run(s) can be created.", templatableIntValue(config.Max)))
+			}
+			if config.Name != "" {
+				constraints = append(constraints, fmt.Sprintf("Check run name: %q.", config.Name))
+			}
+		}
+
 	case "add_labels":
 		if config := safeOutputs.AddLabels; config != nil {
 			if templatableIntValue(config.Max) > 0 {

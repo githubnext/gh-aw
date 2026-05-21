@@ -639,6 +639,7 @@ type SafeOutputsConfig struct {
 	ResolvePullRequestReviewThread  *ResolvePullRequestReviewThreadConfig  `yaml:"resolve-pull-request-review-thread,omitempty"`   // Resolve a review thread on a pull request
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AutofixCodeScanningAlert        *AutofixCodeScanningAlertConfig        `yaml:"autofix-code-scanning-alert,omitempty"`
+	CreateCheckRun                  *CreateCheckRunConfig                  `yaml:"create-check-run,omitempty"` // Create GitHub Check Runs to report agent analysis results
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	RemoveLabels                    *RemoveLabelsConfig                    `yaml:"remove-labels,omitempty"`
 	AddReviewer                     *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`

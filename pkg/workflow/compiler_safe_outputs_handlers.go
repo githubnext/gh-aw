@@ -225,6 +225,18 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
+	"create_check_run": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateCheckRun == nil {
+			return nil
+		}
+		c := cfg.CreateCheckRun
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("name", c.Name).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+	},
 	"create_agent_session": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CreateAgentSessions == nil {
 			return nil

@@ -172,6 +172,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
 			}
 
+			// Handle create-check-run
+			createCheckRunConfig := c.parseCreateCheckRunConfig(outputMap)
+			if createCheckRunConfig != nil {
+				config.CreateCheckRun = createCheckRunConfig
+			}
+
 			// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 				if domainsArray, ok := allowedDomains.([]any); ok {
