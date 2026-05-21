@@ -610,6 +610,11 @@ lint-errors:
 	@echo "Running error message quality linter..."
 	@go run scripts/lint_error_messages.go
 
+.PHONY: validate-model-alias-chains
+validate-model-alias-chains:
+	@echo "Validating built-in model alias resolution chains..."
+	@node scripts/validate-model-alias-chains.js
+
 # Check file sizes and function counts
 .PHONY: check-file-sizes
 check-file-sizes:
@@ -623,7 +628,7 @@ check-validator-sizes:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint
+lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains
 	@echo "✓ All validations passed"
 
 # Install the binary locally

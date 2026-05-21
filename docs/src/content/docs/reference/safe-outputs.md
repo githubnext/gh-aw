@@ -259,11 +259,14 @@ safe-outputs:
     target-repo: "owner/repo"         # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     state-reason: "duplicate"         # completed (default), not_planned, duplicate
+    allow-body: false               # prevent closing comment (drop body if provided)
 ```
 
 **Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
 
 **State Reasons**: `completed`, `not_planned`, `duplicate` (default: `completed`). Can also be set per-item in agent output.
+
+**`allow-body: false`**: When set, any `body` field the agent provides is dropped (a warning is logged) and the issue is closed without posting a comment. Use this when you want to guarantee a clean close with no duplicate comment — for example, when a prior `add-comment` step already posted the summary.
 
 ### Comment Creation (`add-comment:`)
 
@@ -1087,11 +1090,14 @@ safe-outputs:
     max: 1                       # max closures (default: 1)
     target-repo: "owner/repo"    # cross-repository
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+    allow-body: false          # prevent closing comment (drop body if provided)
 ```
 
 **Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
 
 **Resolution Reasons**: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`.
+
+**`allow-body: false`**: When set, any `body` field the agent provides is dropped (a warning is logged) and the discussion is closed without posting a comment. Use this when you want to guarantee a clean close with no duplicate comment — for example, when a prior `add-comment` step already posted the summary.
 
 ### Discussion Updates (`update-discussion:`)
 

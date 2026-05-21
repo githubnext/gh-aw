@@ -454,4 +454,6 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and maintain consistency in scoring and recommendations across all PRs.
 
+{{#runtime-import .github/triage.md}}
+
 {{#runtime-import shared/noop-reminder.md}}

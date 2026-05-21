@@ -253,7 +253,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"close_discussion": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"body":              {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body":              {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"reason":            {Type: "string", Enum: []string{"RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"}},
 			"discussion_number": {OptionalPositiveInteger: true},
 			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
@@ -262,7 +262,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"close_issue": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body":         {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"issue_number": {OptionalPositiveInteger: true},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

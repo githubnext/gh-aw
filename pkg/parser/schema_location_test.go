@@ -308,6 +308,73 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsAllowedBase
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsPatchLimitsInCreatePullRequest(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": map[string]any{},
+		},
+		"permissions": map[string]any{
+			"contents":      "read",
+			"pull-requests": "read",
+		},
+		"engine": map[string]any{
+			"id":    "copilot",
+			"model": "gpt-5.4",
+		},
+		"network": map[string]any{
+			"allowed": []any{"defaults"},
+		},
+		"tools": map[string]any{
+			"edit": map[string]any{},
+			"bash": true,
+		},
+		"safe-outputs": map[string]any{
+			"create-pull-request": map[string]any{
+				"max-patch-size":  2048,
+				"max-patch-files": 300,
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("expected patch limits to be accepted under safe-outputs.create-pull-request, got error: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsPatchSizeInPushToPullRequestBranch(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": map[string]any{},
+		},
+		"permissions": map[string]any{
+			"contents":      "read",
+			"pull-requests": "read",
+		},
+		"engine": map[string]any{
+			"id":    "copilot",
+			"model": "gpt-5.4",
+		},
+		"network": map[string]any{
+			"allowed": []any{"defaults"},
+		},
+		"tools": map[string]any{
+			"edit": map[string]any{},
+			"bash": true,
+		},
+		"safe-outputs": map[string]any{
+			"push-to-pull-request-branch": map[string]any{
+				"max-patch-size": 2048,
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("expected max-patch-size to be accepted under safe-outputs.push-to-pull-request-branch, got error: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsTopLevelCommand(t *testing.T) {
 	frontmatter := map[string]any{
 		"on":      "push",

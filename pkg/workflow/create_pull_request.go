@@ -35,6 +35,8 @@ type CreatePullRequestsConfig struct {
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories that pull requests can be created in (additionally to the target-repo)
 	AllowedBaseBranches            []string `yaml:"allowed-base-branches,omitempty"`               // List of allowed base branch globs (e.g. "release/*"). Enables agent-provided `base` override when configured.
 	AllowedBranches                []string `yaml:"allowed-branches,omitempty"`                    // List of allowed source branch globs (e.g. "feature/*"). Branch in create_pull_request payload must match when configured.
+	MaxPatchSize                   int      `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for create-pull-request only. Overrides safe-outputs.max-patch-size when set.
+	MaxPatchFiles                  int      `yaml:"max-patch-files,omitempty"`                     // Maximum allowed unique files in create-pull-request patch only. Overrides safe-outputs.max-patch-files when set.
 	Expires                        int      `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
 	AutoMerge                      *string  `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request when all required checks pass
 	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)

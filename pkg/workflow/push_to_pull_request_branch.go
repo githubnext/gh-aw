@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var pushToPullRequestBranchLog = logger.New("workflow:push_to_pull_request_branch")
@@ -26,6 +27,7 @@ type PushToPullRequestBranchConfig struct {
 	ProtectedFilesExclude          []string `yaml:"-"`                                             // Files/prefixes to exclude from the default protected list (from object-form protected-files.exclude). Not sourced from YAML directly; populated during parsing.
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
+	MaxPatchSize                   int      `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for push-to-pull-request-branch only. Overrides safe-outputs.max-patch-size when set.
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "bundle" (default, uses git bundle and preserves merge topology/per-commit metadata) or "am" (uses git format-patch).
 	FallbackAsPullRequest          *bool    `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
 	SignedCommits                  *bool    `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
@@ -173,6 +175,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 
 			// Parse excluded-files: list of glob patterns for files to exclude via git :(exclude) pathspecs
 			pushToBranchConfig.ExcludedFiles = ParseStringArrayFromConfig(configMap, "excluded-files", pushToPullRequestBranchLog)
+
+			// Parse max-patch-size override (optional, must be > 0)
+			if maxPatchSize, exists := configMap["max-patch-size"]; exists {
+				if maxPatchSizeInt, ok := typeutil.ParseIntValue(maxPatchSize); ok && maxPatchSizeInt > 0 {
+					pushToBranchConfig.MaxPatchSize = maxPatchSizeInt
+				}
+			}
 
 			// Parse patch-format: valid values are "bundle" (default) and "am"
 			patchFormatEnums := []string{"am", "bundle"}

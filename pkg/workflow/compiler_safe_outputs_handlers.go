@@ -99,6 +99,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("state_reason", c.StateReason).
+			AddBoolPtr("allow_body", c.AllowBody).
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
@@ -114,6 +115,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddBoolPtr("allow_body", c.AllowBody).
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
@@ -397,9 +399,15 @@ var handlerRegistry = map[string]handlerBuilder{
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
 		}
+		if c.MaxPatchSize > 0 {
+			maxPatchSize = c.MaxPatchSize
+		}
 		maxPatchFiles := 100 // default 100 unique files
 		if cfg.MaximumPatchFiles > 0 {
 			maxPatchFiles = cfg.MaximumPatchFiles
+		}
+		if c.MaxPatchFiles > 0 {
+			maxPatchFiles = c.MaxPatchFiles
 		}
 		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
@@ -448,6 +456,9 @@ var handlerRegistry = map[string]handlerBuilder{
 		maxPatchSize := 1024 // default 1024 KB
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
+		}
+		if c.MaxPatchSize > 0 {
+			maxPatchSize = c.MaxPatchSize
 		}
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).

@@ -2552,6 +2552,8 @@ This section provides complete definitions for all remaining safe output types. 
 }
 ```
 
+> **Note**: The schema above reflects the default configuration (`allow-body: true`). When `allow-body: false` is configured, the `body` field MUST be removed from the `required` array at compile time and the tool description MUST be amended with the additional constraint: "Closing comments are disabled: do not include a body field."
+
 **Operational Semantics**:
 
 1. **Comment First**: A closing comment is posted before the issue state is changed to `closed`.
@@ -2559,6 +2561,7 @@ This section provides complete definitions for all remaining safe output types. 
 3. **Idempotent Comment**: If the issue is already closed, the closing comment is still posted.
 4. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
 5. **Footer Injection**: Appends attribution footer to the closing comment when configured.
+6. **Body Suppression**: When `allow-body` is `false`, the handler MUST NOT post a closing comment. Any `body` value provided by the agent SHALL be discarded before the close operation is executed. The implementation MUST log a warning if a non-empty `body` value was discarded.
 
 **Configuration Parameters**:
 
@@ -2567,6 +2570,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `allowed-repos`: Cross-repo allowlist
 - `footer`: Footer override
 - `staged`: Staged mode override
+- `allow-body`: Controls whether the agent MAY include a closing comment body. When set to `false`, the handler MUST NOT post a closing comment; any `body` field emitted by the agent SHALL be discarded and the implementation MUST log a warning if a non-empty value was discarded. The `body` field MUST be removed from the MCP tool's `required` array at compile time and the tool description MUST be amended with the constraint "Closing comments are disabled: do not include a body field." Defaults to `true`.
 
 **Security Requirements**:
 
@@ -2835,6 +2839,8 @@ This section provides complete definitions for all remaining safe output types. 
 }
 ```
 
+> **Note**: The schema above reflects the default configuration (`allow-body: true`). When `allow-body: false` is configured, the `body` field MUST be removed from the `required` array at compile time and the tool description MUST be amended with the additional constraint: "Closing comments are disabled: do not include a body field."
+
 **Operational Semantics**:
 
 1. **Comment First**: A closing comment is posted before the discussion state is changed to `closed`.
@@ -2842,6 +2848,7 @@ This section provides complete definitions for all remaining safe output types. 
 3. **Context Resolution**: When `discussion_number` is omitted, resolves from the workflow trigger context.
 4. **Idempotent Comment**: If the discussion is already closed, the closing comment is still posted.
 5. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
+6. **Body Suppression**: When `allow-body` is `false`, the handler MUST NOT post a closing comment. Any `body` value provided by the agent SHALL be discarded before the close operation is executed. The implementation MUST log a warning if a non-empty `body` value was discarded.
 
 **Configuration Parameters**:
 
@@ -2850,6 +2857,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `allowed-repos`: Cross-repo allowlist
 - `footer`: Footer override
 - `staged`: Staged mode override
+- `allow-body`: Controls whether the agent MAY include a closing comment body. When set to `false`, the handler MUST NOT post a closing comment; any `body` field emitted by the agent SHALL be discarded and the implementation MUST log a warning if a non-empty value was discarded. The `body` field MUST be removed from the MCP tool's `required` array at compile time and the tool description MUST be amended with the constraint "Closing comments are disabled: do not include a body field." Defaults to `true`.
 
 **Security Requirements**:
 
