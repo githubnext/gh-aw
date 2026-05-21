@@ -287,41 +287,6 @@ steps:
       echo "Combined inventory written to $INVENTORY"
       cat "$INVENTORY"
 
-  - name: Fetch Copilot reflect inventory
-    shell: bash
-    run: |
-      set -euo pipefail
-      OUT="/tmp/gh-aw/model-inventory/reflect.json"
-      mkdir -p "$(dirname "$OUT")"
-      if ! curl -fsS http://api-proxy:10000/reflect > "$OUT"; then
-        printf '%s' '{"endpoints":[],"error":"reflect endpoint unavailable"}' > "$OUT"
-      fi
-      # For configured endpoints where /reflect returned null models, fetch directly from
-      # models_url (the api-proxy injects auth headers). Mirrors enrichReflectModels() in
-      # awf_reflect.cjs — see .github/aw/llms.md for endpoint port/URL reference.
-      while IFS= read -r entry; do
-        provider=$(printf '%s' "$entry" | jq -r '.provider')
-        models_url=$(printf '%s' "$entry" | jq -r '.models_url')
-        echo "Fetching models for $provider from $models_url"
-        if raw=$(curl -fsS "$models_url" 2>&1); then
-          ids=$(printf '%s' "$raw" | jq -c '[.data[].id] // empty' 2>&1) || {
-            echo "Warning: failed to parse models response for $provider: $ids"
-            ids=""
-          }
-          if [ -n "$ids" ]; then
-            jq --arg p "$provider" --argjson m "$ids" \
-              '(.endpoints[] | select(.provider == $p) | .models) |= $m' \
-              "$OUT" > "${OUT}.tmp" && mv "${OUT}.tmp" "$OUT"
-            echo "Enriched $provider with $(printf '%s' "$ids" | jq 'length') model(s)"
-          else
-            echo "Warning: no model IDs extracted for $provider"
-          fi
-        else
-          echo "Warning: failed to fetch models_url for $provider ($models_url): $raw"
-        fi
-      done < <(jq -c '.endpoints[]? | select(.configured == true and .models == null and .models_url != null)' "$OUT" 2>/dev/null || true)
-      echo "Copilot reflect metadata written to $OUT"
-
 tools:
   cli-proxy: true
   playwright:
@@ -359,10 +324,10 @@ them into:
 - Combined inventory: `/tmp/gh-aw/model-inventory/inventory.json`
 - Individual provider files: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
-- Copilot live provider metadata: `/tmp/gh-aw/model-inventory/reflect.json` (filter
-  `.endpoints[] | select(.provider == "copilot") | .models`). If the file contains an
-  `error` field, treat Copilot data as unavailable for this run and continue with the
-  remaining providers.
+- Copilot live provider metadata: `/tmp/gh-aw/model-inventory/reflect.json` (generated in
+  Step 0 below; filter `.endpoints[] | select(.provider == "copilot") | .models`). If the
+  file contains an `error` field, treat Copilot data as unavailable for this run and
+  continue with the remaining providers.
 
 Each enriched `models.json` entry has the form (fields vary by provider):
 ```json
@@ -379,10 +344,11 @@ Each enriched `models.json` entry has the form (fields vary by provider):
   ]
 }
 ```
-Note: Copilot model data is pre-fetched into `/tmp/gh-aw/model-inventory/reflect.json` by the
-"Fetch Copilot reflect inventory" pre-step, which enriches null models via `models_url` where
-possible (see `.github/aw/llms.md`). Copilot serves models from multiple vendors (Anthropic,
-OpenAI, Google), and those models may include `vendor` metadata.
+Note: Copilot model data is fetched during agent execution in Step 0 below because the AWF
+`api-proxy` hostname is only reachable from within the agent Docker network. The fetch
+enriches null models via `models_url` where possible (see `.github/aw/llms.md`). Copilot
+serves models from multiple vendors (Anthropic, OpenAI, Google), and those models may include
+`vendor` metadata.
 
 If a provider's API key was not configured, the entry will have `"error": "... not set"` and an
 empty `models` array. Skip providers with errors or empty model lists.
@@ -412,10 +378,52 @@ The alias pattern syntax is:
 
 ## Task
 
+### Step 0: Fetch Copilot Models from API Proxy
+
+Before loading the inventory, fetch Copilot model metadata from the AWF `api-proxy` `/reflect`
+endpoint from within this agent execution context and write it to:
+`/tmp/gh-aw/model-inventory/reflect.json`.
+
+Run:
+
+```bash
+set -euo pipefail
+OUT="/tmp/gh-aw/model-inventory/reflect.json"
+mkdir -p "$(dirname "$OUT")"
+if ! curl -fsS http://api-proxy:10000/reflect > "$OUT"; then
+  printf '%s' '{"endpoints":[],"error":"reflect endpoint unavailable"}' > "$OUT"
+fi
+# For configured endpoints where /reflect returned null models, fetch directly from
+# models_url (the api-proxy injects auth headers). Mirrors enrichReflectModels() in
+# awf_reflect.cjs — see .github/aw/llms.md for endpoint port/URL reference.
+while IFS= read -r entry; do
+  provider=$(printf '%s' "$entry" | jq -r '.provider')
+  models_url=$(printf '%s' "$entry" | jq -r '.models_url')
+  echo "Fetching models for $provider from $models_url"
+  if raw=$(curl -fsS "$models_url" 2>&1); then
+    ids=$(printf '%s' "$raw" | jq -c '[.data[].id] // empty' 2>&1) || {
+      echo "Warning: failed to parse models response for $provider: $ids"
+      ids=""
+    }
+    if [ -n "$ids" ]; then
+      jq --arg p "$provider" --argjson m "$ids" \
+        '(.endpoints[] | select(.provider == $p) | .models) |= $m' \
+        "$OUT" > "${OUT}.tmp" && mv "${OUT}.tmp" "$OUT"
+      echo "Enriched $provider with $(printf '%s' "$ids" | jq 'length') model(s)"
+    else
+      echo "Warning: no model IDs extracted for $provider"
+    fi
+  else
+    echo "Warning: failed to fetch models_url for $provider ($models_url): $raw"
+  fi
+done < <(jq -c '.endpoints[]? | select(.configured == true and .models == null and .models_url != null)' "$OUT" 2>/dev/null || true)
+echo "Copilot reflect metadata written to $OUT"
+```
+
 ### Step 1: Load and Validate the Inventory
 
 Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. Then read
-the pre-fetched `/tmp/gh-aw/model-inventory/reflect.json` and extract the configured
+the `/tmp/gh-aw/model-inventory/reflect.json` file from Step 0 and extract the configured
 `copilot` endpoint (`.endpoints[] | select(.provider == "copilot" and .configured)`).
 
 List the providers that returned data and the count of models available from each, including
