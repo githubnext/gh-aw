@@ -51,6 +51,13 @@ jobs:
         if: steps.changed.outputs.files != ''
         run: /tmp/gh-aw-linters -errormessage.changed-files="${{ steps.changed.outputs.files }}" ./...
 
-      - name: Check for bare fmt.Println in pkg/cli
+      - name: Check for bare fmt.Println/Printf in pkg/cli
         run: |
-          ! grep -rn 'fmt\.Println(' pkg/cli/ --include='*.go' | grep -v '_test\.go'
+          set -euo pipefail
+          matches=$(grep -rn --include='*.go' -E 'fmt\.(Println|Printf)\(' pkg/cli/ || true)
+          filtered=$(echo "$matches" | grep -v '_test\.go' || true)
+          if [ -n "$filtered" ]; then
+            echo "ERROR: bare fmt.Println/Printf found in pkg/cli/ (use fmt.Fprintln/Fprintf with os.Stdout or os.Stderr):"
+            echo "$filtered"
+            exit 1
+          fi
