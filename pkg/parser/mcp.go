@@ -85,46 +85,6 @@ func extractSafeOutputsConfig(frontmatter map[string]any, serverFilter string) *
 	return &config
 }
 
-// extractSafeJobsConfig merges safe-jobs entries into the safe-outputs MCP server config.
-// Note: top-level safe-jobs is a legacy path; new workflows should use safe-outputs.jobs instead.
-// The compiler rejects top-level safe-jobs during compilation, so this path only applies in
-// relaxed-validation contexts such as MCP config inspection.
-func extractSafeJobsConfig(frontmatter map[string]any, serverFilter string, configs []RegistryMCPServerConfig) []RegistryMCPServerConfig {
-	safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]
-	if !hasSafeJobs {
-		return configs
-	}
-	mcpLog.Print("Found top-level safe-jobs (legacy); prefer safe-outputs.jobs for new workflows")
-	if serverFilter != "" && !strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
-		return configs
-	}
-	var config *RegistryMCPServerConfig
-	for i := range configs {
-		if configs[i].Name == constants.SafeOutputsMCPServerID.String() {
-			config = &configs[i]
-			break
-		}
-	}
-	if config == nil {
-		newConfig := RegistryMCPServerConfig{
-			BaseMCPServerConfig: types.BaseMCPServerConfig{
-				Type:    "stdio",
-				Command: "node",
-				Env:     make(map[string]string),
-			},
-			Name: constants.SafeOutputsMCPServerID.String(),
-		}
-		configs = append(configs, newConfig)
-		config = &configs[len(configs)-1]
-	}
-	if safeJobsMap, ok := safeJobsSection.(map[string]any); ok {
-		for jobName := range safeJobsMap {
-			config.Allowed = append(config.Allowed, jobName)
-		}
-	}
-	return configs
-}
-
 // extractMCPScriptsConfig extracts the mcp-scripts MCP server config from frontmatter.
 func extractMCPScriptsConfig(frontmatter map[string]any, serverFilter string) *RegistryMCPServerConfig {
 	mcpScriptsSection, hasMCPScripts := frontmatter["mcp-scripts"]
@@ -162,7 +122,6 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		mcpLog.Print("Found safe-outputs configuration")
 		configs = append(configs, *safeOutputsCfg)
 	}
-	configs = extractSafeJobsConfig(frontmatter, serverFilter, configs)
 	if mcpScriptsCfg := extractMCPScriptsConfig(frontmatter, serverFilter); mcpScriptsCfg != nil {
 		mcpLog.Print("Found mcp-scripts configuration")
 		configs = append(configs, *mcpScriptsCfg)
