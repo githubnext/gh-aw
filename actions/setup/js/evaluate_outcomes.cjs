@@ -223,7 +223,7 @@ function evaluateItem(item, defaultRepo) {
       const r = data.reactions;
       const positive = (r["+1"] || 0) + (r.heart || 0) + (r.hooray || 0) + (r.rocket || 0);
       const negative = (r["-1"] || 0) + (r.confused || 0);
-      out.reactions_total = (r.total_count != null) ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
+      out.reactions_total = r.total_count != null ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
       out.reactions_positive = positive;
       out.reactions_negative = negative;
     }
@@ -257,7 +257,7 @@ function evaluateItem(item, defaultRepo) {
       const r = data.reactions;
       const positive = (r["+1"] || 0) + (r.heart || 0) + (r.hooray || 0) + (r.rocket || 0);
       const negative = (r["-1"] || 0) + (r.confused || 0);
-      out.reactions_total = (r.total_count != null) ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
+      out.reactions_total = r.total_count != null ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
       out.reactions_positive = positive;
       out.reactions_negative = negative;
     }
