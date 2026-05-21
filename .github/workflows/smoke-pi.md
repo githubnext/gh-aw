@@ -18,8 +18,7 @@ engine:
   model: copilot/claude-sonnet-4-20250514
 strict: true
 runtimes:
-  node:
-    cooldown: false
+  node: {}
 imports:
   - shared/gh.md
   - shared/reporting-otlp.md

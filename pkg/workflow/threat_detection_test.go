@@ -1779,18 +1779,13 @@ func TestBuildDetectionEngineExecutionStepPropagatesHarnessScriptOverride(t *tes
 	}
 }
 
-func TestBuildDetectionEngineExecutionStepPropagatesRuntimeCooldownOverride(t *testing.T) {
+func TestBuildDetectionEngineExecutionStepOmitsPiCooldownEnv(t *testing.T) {
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		AI: "pi",
 		EngineConfig: &EngineConfig{
 			ID: "pi",
-		},
-		Runtimes: map[string]any{
-			"node": map[string]any{
-				"cooldown": false,
-			},
 		},
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{},
@@ -1807,6 +1802,6 @@ func TestBuildDetectionEngineExecutionStepPropagatesRuntimeCooldownOverride(t *t
 		t.Fatal("expected detection steps to include the Pi install step")
 	}
 	if strings.Contains(rendered, "NPM_CONFIG_MIN_RELEASE_AGE:") {
-		t.Fatalf("expected detection steps to omit npm cooldown env when runtimes.node.cooldown=false")
+		t.Fatalf("expected detection steps to omit npm cooldown env for Pi installs")
 	}
 }
