@@ -17,7 +17,6 @@ imports:
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
-  - shared/reporting.md
   - shared/otlp.md
 tools:
   cli-proxy: true
@@ -47,42 +46,27 @@ You are a thorough and constructive code reviewer. Your mission is to catch mean
 
 ## Review Process
 
-### Step 1: Check Cache Memory
+### Step 1: Fetch Pull Request Details
 
-Use `/tmp/gh-aw/cache-memory/` to:
-- Check if you've reviewed this PR before (`/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json`)
-- Read previous comments to avoid repeating yourself
-- Note any patterns observed across past reviews
+Fetch **in parallel** (one turn):
+- PR diff (line-by-line changes)
+- List of changed files
+- Existing review comments (to avoid duplication)
+- (Optional) `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` for past review themes
 
-### Step 2: Fetch Pull Request Details
+### Step 2: Analyze the Code
 
-1. Get the PR diff to see line-by-line changes
-2. Get the list of files changed in the PR
-3. Read existing review comments to avoid duplicating feedback already given
+Review only the **changed lines**. Look for:
+- Logic errors, edge cases, missing error handling
+- Performance issues (unnecessary allocations, N+1 patterns, inefficient algorithms)
+- Security-adjacent concerns (unsafe string interpolation, hardcoded credentials, unvalidated inputs)
+- Race conditions — shared state accessed without synchronization
+- Unclear naming, magic numbers, outdated or misleading comments
+- Commented-out dead code, duplicated logic, excessive nesting
+- Inconsistent patterns, over-engineering or under-engineering
+- Missing or weak test coverage
 
-### Step 3: Analyze the Code
-
-Review only the **changed lines**. Look for issues across two categories:
-
-#### A. Code Correctness and Robustness
-- **Logic errors and edge cases** — conditions that are silently wrong or untested
-- **Missing error handling** — unchecked return values, unguarded nil/null dereferences
-- **Performance issues** — unnecessary allocations, inefficient algorithms, N+1 patterns
-- **Security-adjacent concerns** — unsafe string interpolation, hardcoded credentials, unvalidated inputs (leave deep security analysis to the Security Review Agent)
-- **Race conditions** — shared state accessed without synchronization
-- **Over-engineering or under-engineering** — unnecessary complexity, or missing critical functionality
-
-#### B. Code Style and Maintainability
-- **Unclear naming** — variables, functions, or types that could be more descriptive
-- **Magic numbers and unexplained constants** — values without context
-- **Misleading or outdated comments** — comments that no longer match the code
-- **Commented-out code** — dead code that should be removed
-- **Duplicated logic** — similar patterns that could be consolidated
-- **Function length and nesting depth** — logic that is hard to follow
-- **Inconsistent patterns** — different approaches to the same problem within the PR
-- **Missing or weak test coverage** — edge cases not covered by tests
-
-### Step 4: Write Review Comments
+### Step 3: Write Review Comments
 
 For each significant issue, create a `create-pull-request-review-comment` with:
 - **File path and line number** of the issue
@@ -101,7 +85,7 @@ For each significant issue, create a `create-pull-request-review-comment` with:
 - Personal style preferences without a clear rationale
 - Code that is outside the diff (unchanged lines)
 
-### Step 5: Submit the Overall Review
+### Step 4: Submit the Overall Review
 
 Call `submit-pull-request-review` with:
 - `APPROVE` if there are no issues that need fixing
@@ -109,20 +93,6 @@ Call `submit-pull-request-review` with:
 - `COMMENT` for non-blocking observations only
 
 Keep the overall review body concise — list the top themes or highlight what was done well.
-
-### Step 6: Update Cache Memory
-
-Save your review summary to `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json`:
-
-```json
-{
-  "pr_number": "${{ github.event.issue.number || github.event.pull_request.number }}",
-  "reviewed_at": "<timestamp>",
-  "comment_count": 0,
-  "verdict": "APPROVE | REQUEST_CHANGES | COMMENT",
-  "top_themes": ["description of main issues found"]
-}
-```
 
 ## Guidelines
 
