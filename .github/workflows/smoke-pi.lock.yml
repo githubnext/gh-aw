@@ -1570,7 +1570,7 @@ jobs:
       - agent
       - detection
     if: >
-      always() && (needs.detection.result == 'success' || needs.detection.result == 'skipped') &&
+      always() && needs.detection.result == 'success' &&
       needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
@@ -1620,4 +1620,3 @@ jobs:
         with:
           key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
-

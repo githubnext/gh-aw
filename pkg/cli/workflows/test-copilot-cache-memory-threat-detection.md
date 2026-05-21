@@ -34,7 +34,7 @@ This workflow demonstrates `cache-memory` combined with standard threat detectio
 When detection is enabled the compiled output must contain:
 - `actions/cache/restore` (instead of `actions/cache`) in the agent job
 - An `update_cache_memory` job that depends on `detection`
-- `update_cache_memory` condition using `always()` and accepting detection `skipped`
+- `update_cache_memory` condition using `always()` and requiring detection `success`
 
 Steps:
 1. Check what files exist in `/tmp/gh-aw/cache-memory/` from previous runs

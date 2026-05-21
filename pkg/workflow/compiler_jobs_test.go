@@ -3363,9 +3363,8 @@ func TestPushRepoMemoryJobConditionalDetection(t *testing.T) {
 	}
 }
 
-// TestUpdateCacheMemoryJobConditionalDetection verifies that update_cache_memory already uses
-// always() and buildDetectionPassedCondition() (accepting 'success' or 'skipped') when
-// detection is expression-controlled, so the job still runs when detection is skipped at runtime.
+// TestUpdateCacheMemoryJobConditionalDetection verifies that update_cache_memory keeps always()
+// but requires detection success (not skipped) when detection is expression-controlled.
 func TestUpdateCacheMemoryJobConditionalDetection(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
@@ -3402,13 +3401,16 @@ func TestUpdateCacheMemoryJobConditionalDetection(t *testing.T) {
 		t.Fatal("expected non-nil update_cache_memory job")
 	}
 
-	// Job condition must use always() so it runs even when detection is skipped at runtime
+	// Job condition must include always() so explicit condition checks are evaluated.
 	if !strings.Contains(job.If, "always()") {
 		t.Errorf("update_cache_memory if: %q should contain 'always()'", job.If)
 	}
-	// Job condition must accept detection being skipped
-	if !strings.Contains(job.If, "'skipped'") {
-		t.Errorf("update_cache_memory if: %q should accept 'skipped' detection result", job.If)
+	// Job condition must require detection success and must not accept skipped.
+	if !strings.Contains(job.If, "needs.detection.result == 'success'") {
+		t.Errorf("update_cache_memory if: %q should require detection success", job.If)
+	}
+	if strings.Contains(job.If, "'skipped'") {
+		t.Errorf("update_cache_memory if: %q must not accept skipped detection result", job.If)
 	}
 	// Detection must be in Needs
 	if !slices.Contains(job.Needs, string(constants.DetectionJobName)) {
