@@ -110,8 +110,9 @@ disable-model-invocation: true
 	result, applied, err := codemod.Apply(content, frontmatter)
 
 	require.NoError(t, err)
-	assert.False(t, applied)
-	assert.Equal(t, content, result)
+	assert.True(t, applied)
+	assert.NotContains(t, result, "infer:")
+	assert.Contains(t, result, "disable-model-invocation: true")
 }
 
 func TestInferToDisableModelInvocation_PreservesOtherFields(t *testing.T) {

@@ -24,10 +24,15 @@ func getInferToDisableModelInvocationCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Skip if disable-model-invocation is already present to avoid conflict.
+			// If disable-model-invocation is already present, treat it as authoritative
+			// and just remove the now-invalid 'infer' line.
 			if _, hasDisable := frontmatter["disable-model-invocation"]; hasDisable {
-				inferFieldCodemodLog.Print("Both 'infer' and 'disable-model-invocation' present - skipping migration")
-				return content, false, nil
+				inferFieldCodemodLog.Print("Both 'infer' and 'disable-model-invocation' present - removing 'infer'")
+				newContent, applied, err := applyFrontmatterLineTransform(content, removeInferLine)
+				if applied {
+					inferFieldCodemodLog.Print("Removed 'infer' field (kept existing 'disable-model-invocation')")
+				}
+				return newContent, applied, err
 			}
 
 			inferBool, ok := inferValue.(bool)
@@ -50,6 +55,23 @@ func getInferToDisableModelInvocationCodemod() Codemod {
 			return newContent, applied, err
 		},
 	}
+}
+
+func removeInferLine(lines []string) ([]string, bool) {
+	result := make([]string, 0, len(lines))
+	modified := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "infer:") {
+			modified = true
+			inferFieldCodemodLog.Printf("Removed 'infer' field on line %d", i+1)
+			continue
+		}
+		result = append(result, line)
+	}
+
+	return result, modified
 }
 
 func migrateInferToDisableModelInvocation(lines []string, disableValue bool) ([]string, bool) {
