@@ -85,7 +85,7 @@ engine: copilot
 				t.Fatalf("Failed to read lock file: %v", err)
 			}
 			lockContent := string(raw)
-			// Normalise whitespace for substring matching across line-wrapped YAML.
+			// Normalize whitespace for substring matching across line-wrapped YAML.
 			normalised := strings.Join(strings.Fields(lockContent), " ")
 
 			if tt.expectedIfContains != "" {
