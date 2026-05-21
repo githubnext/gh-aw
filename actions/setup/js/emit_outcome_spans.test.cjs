@@ -255,51 +255,51 @@ describe("emit_outcome_spans.cjs", () => {
     expect(spans).toHaveLength(3);
     expect(summarySpan).toEqual(
       expect.objectContaining({
-        spanName: "gh-aw.outcome.summary",
+        spanName: "github.aw.outcome.summary",
         parentSpanId: "cafebabecafebabe",
         statusCode: 1,
       })
     );
     expect(spans[1]).toEqual(
       expect.objectContaining({
-        spanName: "gh-aw.outcome.evaluation",
+        spanName: "github.aw.outcome.evaluation",
         parentSpanId: summarySpan.spanId,
         statusCode: 1,
       })
     );
     expect(spans[2]).toEqual(
       expect.objectContaining({
-        spanName: "gh-aw.outcome.evaluation",
+        spanName: "github.aw.outcome.evaluation",
         parentSpanId: summarySpan.spanId,
         statusCode: 2,
       })
     );
 
-    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
-    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.date", value: "2026-05-13" });
-    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.zero_touch_count", value: 1 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.url", value: "https://github.com/github/gh-aw/issues/1" });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.detail", value: "created item" });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.created_at", value: "2026-05-13T09:00:00Z" });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.review_comments", value: 0 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.changed_files", value: 3 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.additions", value: 10 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.deletions", value: 2 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.reactions_total", value: 5 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.reactions_positive", value: 4 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.reactions_negative", value: 1 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.comments", value: 0 });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.zero_touch", value: true });
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.review_comments")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.changed_files")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.additions")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.deletions")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.reactions_total")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.reactions_positive")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.reactions_negative")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.comments")).toBeUndefined();
-    expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.zero_touch")).toBeUndefined();
+    expect(summarySpan.attributes).toContainEqual({ key: "github.aw.exporter.name", value: "outcome-collector" });
+    expect(summarySpan.attributes).toContainEqual({ key: "github.aw.outcome.date", value: "2026-05-13" });
+    expect(summarySpan.attributes).toContainEqual({ key: "github.aw.outcome.zero_touch_count", value: 1 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.exporter.name", value: "outcome-collector" });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.url", value: "https://github.com/github/gh-aw/issues/1" });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.detail", value: "created item" });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.created_at", value: "2026-05-13T09:00:00Z" });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.review_comments", value: 0 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.changed_files", value: 3 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.additions", value: 10 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.deletions", value: 2 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.reactions_total", value: 5 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.reactions_positive", value: 4 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.reactions_negative", value: 1 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.comments", value: 0 });
+    expect(spans[1].attributes).toContainEqual({ key: "github.aw.outcome.zero_touch", value: true });
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.review_comments")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.changed_files")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.additions")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.deletions")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.reactions_total")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.reactions_positive")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.reactions_negative")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.comments")).toBeUndefined();
+    expect(spans[2].attributes.find(attr => attr.key === "github.aw.outcome.zero_touch")).toBeUndefined();
 
     expect(mockAppendToOTLPJSONL).toHaveBeenCalledOnce();
     expect(mockSendOTLPToAllEndpoints).not.toHaveBeenCalled();

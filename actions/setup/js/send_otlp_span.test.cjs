@@ -213,34 +213,34 @@ describe("buildEpisodeAttributesFromContext", () => {
       "200",
       "3"
     );
-    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "episode-42" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "workflow_call" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "199-1:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.origin.event", value: { stringValue: "workflow_run" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.root.repo", value: { stringValue: "owner/repo" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.root.workflow_id", value: { stringValue: "owner/repo/.github/workflows/root.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "199-1:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.episode.id", value: { stringValue: "episode-42" } });
+    expect(attrs).toContainEqual({ key: "github.aw.episode.kind", value: { stringValue: "workflow_call" } });
+    expect(attrs).toContainEqual({ key: "github.aw.hop.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.hop.parent_id", value: { stringValue: "199-1:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.origin.event", value: { stringValue: "workflow_run" } });
+    expect(attrs).toContainEqual({ key: "github.aw.root.repo", value: { stringValue: "owner/repo" } });
+    expect(attrs).toContainEqual({ key: "github.aw.root.workflow_id", value: { stringValue: "owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.workflow_call.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.workflow_call.parent_id", value: { stringValue: "199-1:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
   });
 
   it("falls back to legacy workflow_call_id when canonical lineage fields are absent", () => {
     process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/child.yml@refs/heads/main";
     const attrs = buildEpisodeAttributesFromContext({ context: { workflow_call_id: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } }, "200", "3");
-    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.episode.id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.hop.id", value: { stringValue: "200-3:owner/repo/.github/workflows/child.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.hop.parent_id", value: { stringValue: "200-3:owner/repo/.github/workflows/parent.yml@refs/heads/main" } });
   });
 
   it("falls back to the current run when no inherited lineage exists", () => {
     process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/root.yml@refs/heads/main";
     const attrs = buildEpisodeAttributesFromContext({}, "300", "4");
-    expect(attrs).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "run" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
-    expect(attrs).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.episode.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.episode.kind", value: { stringValue: "run" } });
+    expect(attrs).toContainEqual({ key: "github.aw.hop.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
+    expect(attrs).toContainEqual({ key: "github.aw.workflow_call.id", value: { stringValue: "300-4:owner/repo/.github/workflows/root.yml@refs/heads/main" } });
     const keys = attrs.map(attr => attr.key);
-    expect(keys).not.toContain("gh-aw.workflow_call.parent_id");
+    expect(keys).not.toContain("github.aw.workflow_call.parent_id");
   });
 });
 
@@ -255,7 +255,7 @@ describe("buildOTLPPayload", () => {
     const payload = buildOTLPPayload({
       traceId,
       spanId,
-      spanName: "gh-aw.job.setup",
+      spanName: "github.aw.job.setup",
       startMs: 1000,
       endMs: 2000,
       serviceName: "gh-aw",
@@ -279,7 +279,7 @@ describe("buildOTLPPayload", () => {
     const span = rs.scopeSpans[0].spans[0];
     expect(span.traceId).toBe(traceId);
     expect(span.spanId).toBe(spanId);
-    expect(span.name).toBe("gh-aw.job.setup");
+    expect(span.name).toBe("github.aw.job.setup");
     expect(span.kind).toBe(SPAN_KIND_INTERNAL);
     expect(span.startTimeUnixNano).toBe(toNanoString(1000));
     expect(span.endTimeUnixNano).toBe(toNanoString(2000));
@@ -1276,19 +1276,19 @@ describe("sendJobSetupSpan", () => {
 
     const body = JSON.parse(init.body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.name).toBe("gh-aw.agent.setup");
+    expect(span.name).toBe("github.aw.agent.setup");
     expect(span.traceId).toBe(traceId);
     expect(span.spanId).toBe(spanId);
 
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
-    expect(attrs["gh-aw.job.name"]).toBe("agent");
-    expect(attrs["gh-aw.workflow.name"]).toBe("my-workflow");
+    expect(attrs["github.aw.job.name"]).toBe("agent");
+    expect(attrs["github.aw.workflow.name"]).toBe("my-workflow");
     expect(attrs["gen_ai.system"]).toBe("github_models");
-    expect(attrs["gh-aw.engine.id"]).toBe("copilot");
-    expect(attrs["gh-aw.run.id"]).toBe("123456789");
-    expect(attrs["gh-aw.run.attempt"]).toBe("2");
-    expect(attrs["gh-aw.run.actor"]).toBe("octocat");
-    expect(attrs["gh-aw.repository"]).toBe("owner/repo");
+    expect(attrs["github.aw.engine.id"]).toBe("copilot");
+    expect(attrs["github.aw.run.id"]).toBe("123456789");
+    expect(attrs["github.aw.run.attempt"]).toBe("2");
+    expect(attrs["github.aw.run.actor"]).toBe("octocat");
+    expect(attrs["github.aw.repository"]).toBe("owner/repo");
   });
 
   it("includes frontmatter source/emoji/body-modified metadata from aw_info.json on setup spans", async () => {
@@ -1314,9 +1314,9 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
-    expect(attrs["gh-aw.frontmatter.source"]).toBe("github/gh-aw/.github/workflows/example.md@main");
-    expect(attrs["gh-aw.frontmatter.emoji"]).toBe("🧪");
-    expect(attrs["gh-aw.frontmatter.body_modified"]).toBe(true);
+    expect(attrs["github.aw.frontmatter.source"]).toBe("github/gh-aw/.github/workflows/example.md@main");
+    expect(attrs["github.aw.frontmatter.emoji"]).toBe("🧪");
+    expect(attrs["github.aw.frontmatter.body_modified"]).toBe(true);
   });
 
   it("falls back to setup env frontmatter source/emoji/body-modified metadata when aw_info.json is unavailable", async () => {
@@ -1341,9 +1341,9 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
-    expect(attrs["gh-aw.frontmatter.source"]).toBe("github/gh-aw/.github/workflows/env.md@main");
-    expect(attrs["gh-aw.frontmatter.emoji"]).toBe("🧭");
-    expect(attrs["gh-aw.frontmatter.body_modified"]).toBe(false);
+    expect(attrs["github.aw.frontmatter.source"]).toBe("github/gh-aw/.github/workflows/env.md@main");
+    expect(attrs["github.aw.frontmatter.emoji"]).toBe("🧭");
+    expect(attrs["github.aw.frontmatter.body_modified"]).toBe(false);
   });
 
   it("uses setup workflow identity and inbound aw_context when aw_info.json is not available yet", async () => {
@@ -1380,10 +1380,10 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
-    expect(attrs["gh-aw.workflow.name"]).toBe("Smoke Workflow Call");
-    expect(attrs["gh-aw.episode.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main");
-    expect(attrs["gh-aw.hop.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
-    expect(attrs["gh-aw.hop.parent_id"]).toBe("parent-hop-root");
+    expect(attrs["github.aw.workflow.name"]).toBe("Smoke Workflow Call");
+    expect(attrs["github.aw.episode.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-call-workflow.lock.yml@refs/heads/main");
+    expect(attrs["github.aw.hop.id"]).toBe("25280567207-1:owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
+    expect(attrs["github.aw.hop.parent_id"]).toBe("parent-hop-root");
 
     const resourceAttrs = Object.fromEntries(body.resourceSpans[0].resource.attributes.map(a => [a.key, attrValue(a)]));
     expect(resourceAttrs["github.workflow_ref"]).toBe("owner/repo/.github/workflows/smoke-workflow-call.lock.yml@refs/heads/main");
@@ -1400,7 +1400,7 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-    expect(attrs["gh-aw.run.attempt"]).toBe("1");
+    expect(attrs["github.aw.run.attempt"]).toBe("1");
   });
 
   it("uses trace ID from options.traceId for cross-job correlation", async () => {
@@ -1594,7 +1594,7 @@ describe("sendJobSetupSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.attributes).toContainEqual({ key: "gh-aw.event_name", value: { stringValue: "workflow_dispatch" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.event_name", value: { stringValue: "workflow_dispatch" } });
   });
 
   it("omits gh-aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
@@ -1608,7 +1608,7 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
-    expect(keys).not.toContain("gh-aw.event_name");
+    expect(keys).not.toContain("github.aw.event_name");
   });
 
   it("includes github.ref as resource attribute when GITHUB_REF is set", async () => {
@@ -1859,8 +1859,8 @@ describe("sendJobSetupSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
-    expect(resourceAttrs).toContainEqual({ key: "gh-aw.awf.version", value: { stringValue: "v1.2.3-awf" } });
-    expect(resourceAttrs).toContainEqual({ key: "gh-aw.awmg.version", value: { stringValue: "v4.5.6-awmg" } });
+    expect(resourceAttrs).toContainEqual({ key: "github.aw.awf.version", value: { stringValue: "v1.2.3-awf" } });
+    expect(resourceAttrs).toContainEqual({ key: "github.aw.awmg.version", value: { stringValue: "v4.5.6-awmg" } });
   });
 
   it("omits gh-aw.engine.id attribute when engine is not set", async () => {
@@ -1875,7 +1875,7 @@ describe("sendJobSetupSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
     expect(keys).not.toContain("gen_ai.system");
-    expect(keys).not.toContain("gh-aw.engine.id");
+    expect(keys).not.toContain("github.aw.engine.id");
   });
 
   describe("engine ID resolution in setup span", () => {
@@ -1910,7 +1910,7 @@ describe("sendJobSetupSpan", () => {
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
       expect(attrs["gen_ai.system"]).toBe("anthropic");
-      expect(attrs["gh-aw.engine.id"]).toBe("claude");
+      expect(attrs["github.aw.engine.id"]).toBe("claude");
     });
 
     it("reads gh-aw.engine.id from aw_context when aw_info.json has no engine_id", async () => {
@@ -1925,7 +1925,7 @@ describe("sendJobSetupSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
-      expect(attrs["gh-aw.engine.id"]).toBe("copilot");
+      expect(attrs["github.aw.engine.id"]).toBe("copilot");
     });
 
     it("prefers aw_info.json engine_id over aw_context engine_id", async () => {
@@ -1947,7 +1947,7 @@ describe("sendJobSetupSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
-      expect(attrs["gh-aw.engine.id"]).toBe("claude");
+      expect(attrs["github.aw.engine.id"]).toBe("claude");
     });
 
     it("falls back to GH_AW_INFO_ENGINE_ID env var when aw_info.json and aw_context have no engine_id", async () => {
@@ -1963,7 +1963,7 @@ describe("sendJobSetupSpan", () => {
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
       expect(attrs["gen_ai.system"]).toBe("openai");
-      expect(attrs["gh-aw.engine.id"]).toBe("codex");
+      expect(attrs["github.aw.engine.id"]).toBe("codex");
     });
   });
 
@@ -2079,7 +2079,7 @@ describe("sendJobSetupSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.staged", value: { boolValue: true } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.staged", value: { boolValue: true } });
 
       const resourceAttrs = body.resourceSpans[0].resource.attributes;
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "staging" } });
@@ -2122,7 +2122,7 @@ describe("sendJobSetupSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.staged", value: { boolValue: false } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.staged", value: { boolValue: false } });
 
       const resourceAttrs = body.resourceSpans[0].resource.attributes;
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
@@ -2159,11 +2159,11 @@ describe("sendJobSetupSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "issue" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "42" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_type", value: { stringValue: "issue" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_number", value: { stringValue: "42" } });
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.trigger.label");
-      expect(keys).not.toContain("gh-aw.trigger.comment_id");
+      expect(keys).not.toContain("github.aw.trigger.label");
+      expect(keys).not.toContain("github.aw.trigger.comment_id");
     });
 
     it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
@@ -2183,9 +2183,9 @@ describe("sendJobSetupSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "pull_request" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "99" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "copilot" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_type", value: { stringValue: "pull_request" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_number", value: { stringValue: "99" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.label", value: { stringValue: "copilot" } });
     });
 
     it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
@@ -2205,7 +2205,7 @@ describe("sendJobSetupSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.comment_id", value: { stringValue: "123456789" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.comment_id", value: { stringValue: "123456789" } });
     });
 
     it("omits trigger attributes when aw_info.json is absent", async () => {
@@ -2221,13 +2221,13 @@ describe("sendJobSetupSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.trigger.item_type");
-      expect(keys).not.toContain("gh-aw.trigger.item_number");
-      expect(keys).not.toContain("gh-aw.trigger.label");
-      expect(keys).not.toContain("gh-aw.trigger.comment_id");
-      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "555-2" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "run" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "555-2" } });
+      expect(keys).not.toContain("github.aw.trigger.item_type");
+      expect(keys).not.toContain("github.aw.trigger.item_number");
+      expect(keys).not.toContain("github.aw.trigger.label");
+      expect(keys).not.toContain("github.aw.trigger.comment_id");
+      expect(span.attributes).toContainEqual({ key: "github.aw.episode.id", value: { stringValue: "555-2" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.episode.kind", value: { stringValue: "run" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.workflow_call.id", value: { stringValue: "555-2" } });
     });
 
     it("uses aw_info context lineage fields as the live episode id for child workflows", async () => {
@@ -2261,14 +2261,14 @@ describe("sendJobSetupSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "episode-99" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "workflow_call" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "777-3" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "122-1" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.origin.event", value: { stringValue: "workflow_run" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.root.repo", value: { stringValue: "owner/repo" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "777-3" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "122-1" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.episode.id", value: { stringValue: "episode-99" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.episode.kind", value: { stringValue: "workflow_call" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.hop.id", value: { stringValue: "777-3" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.hop.parent_id", value: { stringValue: "122-1" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.origin.event", value: { stringValue: "workflow_run" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.root.repo", value: { stringValue: "owner/repo" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.workflow_call.id", value: { stringValue: "777-3" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.workflow_call.parent_id", value: { stringValue: "122-1" } });
     });
   });
 
@@ -2303,9 +2303,9 @@ describe("sendJobSetupSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-      expect(attrs["gh-aw.experiment.caveman"]).toBe("yes");
-      expect(attrs["gh-aw.experiment.style"]).toBe("detailed");
-      expect(attrs["gh-aw.experiments"]).toBe(JSON.stringify({ caveman: "yes", style: "detailed" }));
+      expect(attrs["github.aw.experiment.caveman"]).toBe("yes");
+      expect(attrs["github.aw.experiment.style"]).toBe("detailed");
+      expect(attrs["github.aw.experiments"]).toBe(JSON.stringify({ caveman: "yes", style: "detailed" }));
     });
 
     it("omits experiment attributes when assignments file is absent", async () => {
@@ -2319,8 +2319,8 @@ describe("sendJobSetupSpan", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys.some(k => k.startsWith("gh-aw.experiment."))).toBe(false);
-      expect(keys).not.toContain("gh-aw.experiments");
+      expect(keys.some(k => k.startsWith("github.aw.experiment."))).toBe(false);
+      expect(keys).not.toContain("github.aw.experiments");
     });
   });
 });
@@ -2407,19 +2407,19 @@ describe("buildExperimentAttributes", () => {
   it("builds one attribute per experiment plus the aggregated gh-aw.experiments attribute", () => {
     const attrs = buildExperimentAttributes({ caveman: "yes", style: "detailed" });
     const attrMap = Object.fromEntries(attrs.map(a => [a.key, a.value.stringValue]));
-    expect(attrMap["gh-aw.experiment.caveman"]).toBe("yes");
-    expect(attrMap["gh-aw.experiment.style"]).toBe("detailed");
+    expect(attrMap["github.aw.experiment.caveman"]).toBe("yes");
+    expect(attrMap["github.aw.experiment.style"]).toBe("detailed");
     // experiments JSON is sorted by key
-    expect(JSON.parse(attrMap["gh-aw.experiments"])).toEqual({ caveman: "yes", style: "detailed" });
+    expect(JSON.parse(attrMap["github.aw.experiments"])).toEqual({ caveman: "yes", style: "detailed" });
   });
 
   it("skips assignments with non-string or empty-string variants and still adds gh-aw.experiments for valid ones", () => {
     const attrs = buildExperimentAttributes({ good: "A", bad: "" });
     const keys = attrs.map(a => a.key);
-    expect(keys).toContain("gh-aw.experiment.good");
-    expect(keys).not.toContain("gh-aw.experiment.bad");
+    expect(keys).toContain("github.aw.experiment.good");
+    expect(keys).not.toContain("github.aw.experiment.bad");
     // gh-aw.experiments is present and only contains the valid variant
-    const experimentsAttr = attrs.find(a => a.key === "gh-aw.experiments");
+    const experimentsAttr = attrs.find(a => a.key === "github.aw.experiments");
     expect(experimentsAttr).toBeDefined();
     expect(JSON.parse(experimentsAttr.value.stringValue)).toEqual({ good: "A" });
   });
@@ -2494,7 +2494,7 @@ describe("sendJobConclusionSpan", () => {
   });
 
   it("skips OTLP export but writes JSONL mirror when GH_AW_OTLP_ENDPOINTS is not set", async () => {
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
     expect(fetch).not.toHaveBeenCalled();
     expect(appendSpy).toHaveBeenCalledOnce();
     const [filePath, content] = appendSpy.mock.calls[0];
@@ -2512,12 +2512,12 @@ describe("sendJobConclusionSpan", () => {
     process.env.GITHUB_ACTOR = "octocat";
     process.env.GITHUB_REPOSITORY = "owner/repo";
 
-    await sendJobConclusionSpan("gh-aw.job.safe-outputs");
+    await sendJobConclusionSpan("github.aw.job.safe-outputs");
 
     expect(mockFetch).toHaveBeenCalledOnce();
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.name).toBe("gh-aw.job.safe-outputs");
+    expect(span.name).toBe("github.aw.job.safe-outputs");
     expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
   });
@@ -2538,18 +2538,18 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.attributes).toContainEqual({ key: "gh-aw.episode.id", value: { stringValue: "episode-123" } });
-    expect(span.attributes).toContainEqual({ key: "gh-aw.episode.kind", value: { stringValue: "workflow_call" } });
-    expect(span.attributes).toContainEqual({ key: "gh-aw.hop.id", value: { stringValue: "888-4" } });
-    expect(span.attributes).toContainEqual({ key: "gh-aw.hop.parent_id", value: { stringValue: "122-1" } });
-    expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.id", value: { stringValue: "888-4" } });
-    expect(span.attributes).toContainEqual({ key: "gh-aw.workflow_call.parent_id", value: { stringValue: "122-1" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.episode.id", value: { stringValue: "episode-123" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.episode.kind", value: { stringValue: "workflow_call" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.hop.id", value: { stringValue: "888-4" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.hop.parent_id", value: { stringValue: "122-1" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.workflow_call.id", value: { stringValue: "888-4" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.workflow_call.parent_id", value: { stringValue: "122-1" } });
     expect(span.traceId).toBe("a".repeat(32));
   });
 
@@ -2572,7 +2572,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2580,19 +2580,19 @@ describe("sendJobConclusionSpan", () => {
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
     expect(agentSpan.endTimeUnixNano).toBe(toNanoString(endMs));
 
     const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(conclusionSpan.name).toBe("github.aw.agent.conclusion");
     expect(agentSpan.traceId).toBe(conclusionSpan.traceId);
     expect(agentSpan.parentSpanId).toBe(conclusionSpan.spanId);
     expect(agentSpan.parentSpanId).not.toBe("abcdef1234567890");
     expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
-    expect(agentSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
-    expect(conclusionSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
+    expect(agentSpan.attributes).toContainEqual({ key: "github.aw.output.item_count", value: { intValue: 2 } });
+    expect(conclusionSpan.attributes).toContainEqual({ key: "github.aw.output.item_count", value: { intValue: 2 } });
   });
 
   it("uses agent_cli_start_ms.txt as agent span start time when file is present", async () => {
@@ -2618,7 +2618,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: jobStartMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: jobStartMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2626,7 +2626,7 @@ describe("sendJobConclusionSpan", () => {
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     // Agent span must start from the CLI-step timestamp, not the job start time.
     expect(agentSpan.startTimeUnixNano).toBe(toNanoString(cliStartMs));
     expect(agentSpan.endTimeUnixNano).toBe(toNanoString(endMs));
@@ -2654,7 +2654,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2662,7 +2662,7 @@ describe("sendJobConclusionSpan", () => {
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     // Must fall back to options.startMs when the file is absent.
     expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
   });
@@ -2686,7 +2686,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2694,7 +2694,7 @@ describe("sendJobConclusionSpan", () => {
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     // Must fall back to options.startMs for invalid file content.
     expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
   });
@@ -2709,13 +2709,13 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion", { startMs: 1_700_000_000_000 });
+    await sendJobConclusionSpan("github.aw.job.conclusion", { startMs: 1_700_000_000_000 });
 
     statSpy.mockRestore();
     expect(mockFetch).toHaveBeenCalledOnce();
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.name).toBe("gh-aw.job.conclusion");
+    expect(span.name).toBe("github.aw.job.conclusion");
   });
 
   it("emits a dedicated agent span on timed_out when agent_output mtime is unavailable", async () => {
@@ -2731,20 +2731,20 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     expect(mockFetch).toHaveBeenCalledTimes(2);
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
     expect(BigInt(agentSpan.endTimeUnixNano)).toBeGreaterThan(BigInt(toNanoString(startMs)));
 
     const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(conclusionSpan.name).toBe("github.aw.agent.conclusion");
     expect(agentSpan.parentSpanId).toBe(conclusionSpan.spanId);
     expect(conclusionSpan.status.code).toBe(2);
     expect(conclusionSpan.status.message).toContain("agent timed_out");
@@ -2763,20 +2763,20 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     expect(mockFetch).toHaveBeenCalledTimes(2);
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
     expect(BigInt(agentSpan.endTimeUnixNano)).toBeGreaterThan(BigInt(toNanoString(startMs)));
 
     const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(conclusionSpan.name).toBe("github.aw.agent.conclusion");
     expect(agentSpan.parentSpanId).toBe(conclusionSpan.spanId);
     expect(conclusionSpan.status.code).toBe(2);
     expect(conclusionSpan.status.message).toContain("agent cancelled");
@@ -2791,14 +2791,14 @@ describe("sendJobConclusionSpan", () => {
 
     const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: 1_700_000_005_000 });
 
-    await sendJobConclusionSpan("gh-aw.safe-outputs.conclusion", { startMs: 1_700_000_000_000 });
+    await sendJobConclusionSpan("github.aw.safe-outputs.conclusion", { startMs: 1_700_000_000_000 });
 
     statSpy.mockRestore();
     expect(mockFetch).toHaveBeenCalledOnce();
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].spans).toHaveLength(1);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.name).toBe("gh-aw.safe-outputs.conclusion");
+    expect(span.name).toBe("github.aw.safe-outputs.conclusion");
   });
 
   it("emits the agent span with SPAN_KIND_CLIENT (3)", async () => {
@@ -2815,14 +2815,14 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     expect(agentSpan.kind).toBe(3); // SPAN_KIND_CLIENT
   });
 
@@ -2843,20 +2843,20 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
     expect(attrs["gen_ai.operation.name"]).toBe("chat");
     expect(attrs["gen_ai.request.model"]).toBe("claude-3-5-sonnet-20241022");
     expect(attrs["gen_ai.system"]).toBe("anthropic");
-    expect(attrs["gh-aw.engine.id"]).toBe("claude");
-    expect(attrs["gh-aw.engine"]).toBeUndefined();
+    expect(attrs["github.aw.engine.id"]).toBe("claude");
+    expect(attrs["github.aw.engine"]).toBeUndefined();
     expect(attrs["gen_ai.workflow.name"]).toBe("otel-advisor");
 
     const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
@@ -2883,7 +2883,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2913,7 +2913,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2939,7 +2939,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2952,7 +2952,7 @@ describe("sendJobConclusionSpan", () => {
     const keys = agentSpan.attributes.map(a => a.key);
     expect(keys).not.toContain("gen_ai.request.model");
     expect(keys).not.toContain("gen_ai.system");
-    expect(keys).not.toContain("gh-aw.engine.id");
+    expect(keys).not.toContain("github.aw.engine.id");
     expect(keys).not.toContain("gen_ai.workflow.name");
   });
 
@@ -2973,7 +2973,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -2983,7 +2983,7 @@ describe("sendJobConclusionSpan", () => {
     const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
     // Unknown engine ID falls back to the raw value for gen_ai.system
     expect(attrs["gen_ai.system"]).toBe("custom-engine");
-    expect(attrs["gh-aw.engine.id"]).toBe("custom-engine");
+    expect(attrs["github.aw.engine.id"]).toBe("custom-engine");
   });
 
   it("includes gen_ai.response.finish_reasons on the agent span when stop_reason is present in agent-stdio.log", async () => {
@@ -3003,14 +3003,14 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     const finishAttr = agentSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
     expect(finishAttr).toBeDefined();
     expect(finishAttr.value.arrayValue.values).toEqual([{ stringValue: "end_turn" }]);
@@ -3042,7 +3042,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -3076,14 +3076,14 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     const agentFinishAttr = agentSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
     expect(agentFinishAttr).toBeDefined();
     expect(agentFinishAttr.value.arrayValue.values).toEqual([{ stringValue: "unknown" }]);
@@ -3112,14 +3112,14 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
 
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     const finishAttr = agentSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
     expect(finishAttr).toBeDefined();
     expect(finishAttr.value.arrayValue.values).toEqual([{ stringValue: "max_tokens" }]);
@@ -3141,7 +3141,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -3149,7 +3149,7 @@ describe("sendJobConclusionSpan", () => {
     // Both agent span and conclusion span should carry finish_reasons=["timeout"]
     const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.name).toBe("github.aw.agent.agent");
     const agentFinishAttr = agentSpan.attributes.find(a => a.key === "gen_ai.response.finish_reasons");
     expect(agentFinishAttr).toBeDefined();
     expect(agentFinishAttr.value.arrayValue.values).toEqual([{ stringValue: "timeout" }]);
@@ -3179,7 +3179,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -3205,12 +3205,12 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.name).toBe("gh-aw.job.conclusion");
+    expect(span.name).toBe("github.aw.job.conclusion");
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
     expect(attrs["gen_ai.system"]).toBe("anthropic");
     expect(attrs["gen_ai.request.model"]).toBe("claude-3-5-sonnet-20241022");
@@ -3229,12 +3229,12 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.name).toBe("gh-aw.job.conclusion");
+    expect(span.name).toBe("github.aw.job.conclusion");
     const keys = span.attributes.map(a => a.key);
     expect(keys).not.toContain("gen_ai.system");
     expect(keys).not.toContain("gen_ai.request.model");
@@ -3248,13 +3248,13 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_DETECTION_CONCLUSION = "warning";
     process.env.GH_AW_DETECTION_REASON = "threat_detected";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
-    expect(attrs["gh-aw.detection.conclusion"]).toBe("warning");
-    expect(attrs["gh-aw.detection.reason"]).toBe("threat_detected");
+    expect(attrs["github.aw.detection.conclusion"]).toBe("warning");
+    expect(attrs["github.aw.detection.reason"]).toBe("threat_detected");
   });
 
   it("emits gh-aw.detection.conclusion without gh-aw.detection.reason when reason is absent", async () => {
@@ -3264,13 +3264,13 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GH_AW_DETECTION_CONCLUSION = "failure";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
-    expect(keys).toContain("gh-aw.detection.conclusion");
-    expect(keys).not.toContain("gh-aw.detection.reason");
+    expect(keys).toContain("github.aw.detection.conclusion");
+    expect(keys).not.toContain("github.aw.detection.reason");
   });
 
   it("omits gh-aw.detection.conclusion and gh-aw.detection.reason when neither env var is set", async () => {
@@ -3279,13 +3279,13 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
-    expect(keys).not.toContain("gh-aw.detection.conclusion");
-    expect(keys).not.toContain("gh-aw.detection.reason");
+    expect(keys).not.toContain("github.aw.detection.conclusion");
+    expect(keys).not.toContain("github.aw.detection.reason");
   });
 
   it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
@@ -3295,12 +3295,12 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_RUN_ATTEMPT = "3";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-    expect(attrs["gh-aw.run.attempt"]).toBe("3");
+    expect(attrs["github.aw.run.attempt"]).toBe("3");
   });
 
   it("defaults gh-aw.run.attempt to '1' when neither awInfo nor GITHUB_RUN_ATTEMPT is set", async () => {
@@ -3309,12 +3309,12 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-    expect(attrs["gh-aw.run.attempt"]).toBe("1");
+    expect(attrs["github.aw.run.attempt"]).toBe("1");
   });
 
   it("reads gh-aw.workflow.name from aw_info.json when present", async () => {
@@ -3332,13 +3332,13 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-    expect(attrs["gh-aw.workflow.name"]).toBe("aw-info-workflow");
+    expect(attrs["github.aw.workflow.name"]).toBe("aw-info-workflow");
   });
 
   it("falls back to GH_AW_INFO_WORKFLOW_NAME when aw_info.json is absent", async () => {
@@ -3356,13 +3356,13 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-    expect(attrs["gh-aw.workflow.name"]).toBe("env-workflow");
+    expect(attrs["github.aw.workflow.name"]).toBe("env-workflow");
   });
 
   it("falls back to GITHUB_WORKFLOW when aw_info.json and GH_AW_INFO_WORKFLOW_NAME are absent", async () => {
@@ -3372,12 +3372,12 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_WORKFLOW = "github-workflow";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-    expect(attrs["gh-aw.workflow.name"]).toBe("github-workflow");
+    expect(attrs["github.aw.workflow.name"]).toBe("github-workflow");
   });
 
   it("sets gh-aw.workflow.name to empty string when all sources are absent", async () => {
@@ -3386,12 +3386,12 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-    expect(attrs["gh-aw.workflow.name"]).toBe("");
+    expect(attrs["github.aw.workflow.name"]).toBe("");
   });
 
   it("includes effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is set", async () => {
@@ -3401,11 +3401,11 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
+    const etAttr = span.attributes.find(a => a.key === "github.aw.effective_tokens");
     expect(etAttr).toBeDefined();
     expect(etAttr.value.intValue).toBe(5000);
   });
@@ -3436,7 +3436,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+    await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs });
 
     statSpy.mockRestore();
     readFileSpy.mockRestore();
@@ -3445,14 +3445,14 @@ describe("sendJobConclusionSpan", () => {
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
 
-    expect(attrs["gh-aw.effective_tokens"]).toBe(5000);
-    expect(attrs["gh-aw.estimated_cost_usd"]).toBe(1.75);
-    expect(attrs["gh-aw.action_minutes"]).toBeGreaterThan(0);
-    expect(attrs["gh-aw.turns"]).toBe(7);
-    expect(attrs["gh-aw.error_count"]).toBe(2);
-    expect(attrs["gh-aw.warning_count"]).toBe(3);
-    expect(attrs["gh-aw.run.status"]).toBe("timeout");
-    expect(attrs["gh-aw.tracker.id"]).toBe("copilot-token-optimizer");
+    expect(attrs["github.aw.effective_tokens"]).toBe(5000);
+    expect(attrs["github.aw.estimated_cost_usd"]).toBe(1.75);
+    expect(attrs["github.aw.action_minutes"]).toBeGreaterThan(0);
+    expect(attrs["github.aw.turns"]).toBe(7);
+    expect(attrs["github.aw.error_count"]).toBe(2);
+    expect(attrs["github.aw.warning_count"]).toBe(3);
+    expect(attrs["github.aw.run.status"]).toBe("timeout");
+    expect(attrs["github.aw.tracker.id"]).toBe("copilot-token-optimizer");
   });
 
   it("emits gh-aw.otlp.export_errors on the conclusion job span", async () => {
@@ -3468,13 +3468,13 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    await sendJobConclusionSpan("github.aw.conclusion.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-    expect(attrs["gh-aw.otlp.export_errors"]).toBe(3);
+    expect(attrs["github.aw.otlp.export_errors"]).toBe(3);
   });
 
   it("emits gh-aw.otlp.export_error_details on the conclusion job span", async () => {
@@ -3492,13 +3492,13 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    await sendJobConclusionSpan("github.aw.conclusion.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-    expect(attrs["gh-aw.otlp.export_error_details"]).toBe("sentry.example.com:4318 status=401 reason=Unauthorized | grafana.example.com:4318 status=503 reason=Service Unavailable");
+    expect(attrs["github.aw.otlp.export_error_details"]).toBe("sentry.example.com:4318 status=401 reason=Unauthorized | grafana.example.com:4318 status=503 reason=Service Unavailable");
   });
 
   it("summarizes OTLP export error details before they exceed the attribute limit", async () => {
@@ -3524,15 +3524,15 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    await sendJobConclusionSpan("github.aw.conclusion.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-    expect(attrs["gh-aw.otlp.export_error_details"].length).toBeLessThanOrEqual(1024);
-    expect(attrs["gh-aw.otlp.export_error_details"]).toContain("… (+");
-    expect(attrs["gh-aw.otlp.export_error_details"]).toContain("first.example.com:4318 status=500 reason=");
+    expect(attrs["github.aw.otlp.export_error_details"].length).toBeLessThanOrEqual(1024);
+    expect(attrs["github.aw.otlp.export_error_details"]).toContain("… (+");
+    expect(attrs["github.aw.otlp.export_error_details"]).toContain("first.example.com:4318 status=500 reason=");
   });
 
   it("emits gh-aw.otlp.export_errors on non-conclusion job spans", async () => {
@@ -3548,13 +3548,13 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion");
+    await sendJobConclusionSpan("github.aw.agent.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-    expect(attrs["gh-aw.otlp.export_errors"]).toBe(2);
+    expect(attrs["github.aw.otlp.export_errors"]).toBe(2);
   });
 
   it("omits effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is absent", async () => {
@@ -3563,12 +3563,12 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
-    expect(keys).not.toContain("gh-aw.effective_tokens");
+    expect(keys).not.toContain("github.aw.effective_tokens");
   });
 
   it("uses GH_AW_INFO_VERSION as scope version when aw_info.json is absent", async () => {
@@ -3578,7 +3578,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GH_AW_INFO_VERSION = "v2.0.0";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.0.0");
@@ -3592,7 +3592,7 @@ describe("sendJobConclusionSpan", () => {
     // GH_AW_INFO_VERSION absent — simulates a custom engine with no default version
     process.env.GH_AW_INFO_CLI_VERSION = "v3.1.0";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v3.1.0");
@@ -3614,7 +3614,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     readFileSpy.mockRestore();
 
@@ -3629,7 +3629,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -3644,7 +3644,7 @@ describe("sendJobConclusionSpan", () => {
     const parentSpanId = "abcdef1234567890";
     process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = parentSpanId;
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -3657,7 +3657,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -3671,7 +3671,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_AW_OTEL_TRACE_ID = "F".repeat(32); // uppercase — should be normalised
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -3686,7 +3686,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GITHUB_REPOSITORY = "owner/repo";
     process.env.GITHUB_RUN_ID = "987654321";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3701,7 +3701,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_RUN_ATTEMPT = "2";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3715,7 +3715,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     delete process.env.GITHUB_RUN_ATTEMPT;
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3733,7 +3733,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.RUNNER_NAME = "GitHub Actions 1187452382";
     process.env.RUNNER_ENVIRONMENT = "github-hosted";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3751,7 +3751,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_EVENT_NAME = "pull_request";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3764,7 +3764,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3779,11 +3779,11 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_EVENT_NAME = "pull_request";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.attributes).toContainEqual({ key: "gh-aw.event_name", value: { stringValue: "pull_request" } });
+    expect(span.attributes).toContainEqual({ key: "github.aw.event_name", value: { stringValue: "pull_request" } });
   });
 
   it("omits gh-aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
@@ -3792,12 +3792,12 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
-    expect(keys).not.toContain("gh-aw.event_name");
+    expect(keys).not.toContain("github.aw.event_name");
   });
 
   it("includes github.ref as resource attribute when GITHUB_REF is set", async () => {
@@ -3807,7 +3807,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_REF = "refs/heads/main";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3822,7 +3822,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GITHUB_REF_NAME = "123/merge";
     process.env.GITHUB_HEAD_REF = "feature-branch";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3836,7 +3836,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3850,7 +3850,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3866,7 +3866,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_SHA = "abc1234567890def";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3879,7 +3879,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3896,7 +3896,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GITHUB_RUN_ID = "987654321";
     delete process.env.GITHUB_SERVER_URL;
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3915,7 +3915,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GITHUB_RUN_ID = "987654321";
     process.env.GITHUB_SERVER_URL = "https://github.example.com";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3933,7 +3933,7 @@ describe("sendJobConclusionSpan", () => {
     delete process.env.GITHUB_REPOSITORY;
     delete process.env.GITHUB_RUN_ID;
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3948,7 +3948,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GH_AW_INFO_VERSION = "v3.0.0";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -3967,7 +3967,7 @@ describe("sendJobConclusionSpan", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -4003,13 +4003,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = span.attributes;
-      const errorCount = attrs.find(a => a.key === "gh-aw.error.count");
-      const errorMessages = attrs.find(a => a.key === "gh-aw.error.messages");
+      const errorCount = attrs.find(a => a.key === "github.aw.error.count");
+      const errorMessages = attrs.find(a => a.key === "github.aw.error.messages");
       expect(errorCount).toBeDefined();
       expect(errorCount.value.intValue).toBe(2);
       expect(errorMessages).toBeDefined();
@@ -4030,17 +4030,17 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = span.attributes;
       expect(span.status.code).toBe(1);
-      expect(attrs).toContainEqual({ key: "gh-aw.error.count", value: { intValue: 2 } });
-      expect(attrs).toContainEqual({ key: "gh-aw.error.messages", value: { stringValue: "partial failure one | partial failure two" } });
+      expect(attrs).toContainEqual({ key: "github.aw.error.count", value: { intValue: 2 } });
+      expect(attrs).toContainEqual({ key: "github.aw.error.messages", value: { stringValue: "partial failure one | partial failure two" } });
       expect(span.events).toHaveLength(2);
       expect(span.events[0].name).toBe("exception");
-      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentError" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "partial failure one" } });
     });
 
@@ -4058,7 +4058,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4079,7 +4079,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4093,13 +4093,13 @@ describe("sendJobConclusionSpan", () => {
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
       process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue]));
       // Distinct "timeout" value allows queries that separate timeouts from generic failures.
-      expect(attrs["gh-aw.run.status"]).toBe("timeout");
+      expect(attrs["github.aw.run.status"]).toBe("timeout");
       // OTLP status.code must still be ERROR so the span is treated as a failure by backends.
       expect(span.status.code).toBe(2);
       expect(span.status.message).toBe("agent timed_out");
@@ -4112,7 +4112,7 @@ describe("sendJobConclusionSpan", () => {
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
       process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4135,15 +4135,15 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const errorMessages = span.attributes.find(a => a.key === "gh-aw.error.messages");
+      const errorMessages = span.attributes.find(a => a.key === "github.aw.error.messages");
       expect(errorMessages).toBeDefined();
       expect(errorMessages.value.stringValue).toBe("Error 1 | Error 2 | Error 3 | Error 4 | Error 5");
       // gh-aw.error.count reflects the full error count (7), not the capped count
-      const errorCount = span.attributes.find(a => a.key === "gh-aw.error.count");
+      const errorCount = span.attributes.find(a => a.key === "github.aw.error.count");
       expect(errorCount.value.intValue).toBe(7);
     });
 
@@ -4162,7 +4162,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4184,13 +4184,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.error.count");
-      expect(keys).not.toContain("gh-aw.error.messages");
+      expect(keys).not.toContain("github.aw.error.count");
+      expect(keys).not.toContain("github.aw.error.messages");
       expect(span.status.message).toBe("agent failure");
     });
 
@@ -4209,15 +4209,15 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const agentOutputCalls = readFileSpy.mock.calls.filter(([p]) => p === "/tmp/gh-aw/agent_output.json");
       expect(agentOutputCalls).toHaveLength(1);
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = span.attributes;
-      expect(attrs).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 4 } });
-      expect(attrs).toContainEqual({ key: "gh-aw.output.item_types", value: { stringValue: "issue,pull_request" } });
+      expect(attrs).toContainEqual({ key: "github.aw.output.item_count", value: { intValue: 4 } });
+      expect(attrs).toContainEqual({ key: "github.aw.output.item_types", value: { stringValue: "issue,pull_request" } });
     });
 
     it("does not add error attributes when agent_output.json is absent on failure", async () => {
@@ -4229,13 +4229,13 @@ describe("sendJobConclusionSpan", () => {
 
       // readFileSpy already throws ENOENT for all paths (set in beforeEach)
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.error.count");
-      expect(keys).not.toContain("gh-aw.error.messages");
+      expect(keys).not.toContain("github.aw.error.count");
+      expect(keys).not.toContain("github.aw.error.messages");
       expect(span.status.message).toBe("agent failure");
     });
 
@@ -4253,16 +4253,16 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(2);
       expect(span.events[0].name).toBe("exception");
-      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentError" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "Rate limit exceeded" } });
       expect(span.events[1].name).toBe("exception");
-      expect(span.events[1].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
+      expect(span.events[1].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentError" } });
       expect(span.events[1].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "Tool call failed" } });
     });
 
@@ -4281,7 +4281,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4297,7 +4297,7 @@ describe("sendJobConclusionSpan", () => {
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
       process.env.GH_AW_AGENT_CONCLUSION = "success";
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4313,13 +4313,13 @@ describe("sendJobConclusionSpan", () => {
 
       // readFileSpy already throws ENOENT for all paths (set in beforeEach)
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       expect(span.events[0].name).toBe("exception");
-      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentFailed" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentFailed" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent failure" } });
     });
 
@@ -4337,13 +4337,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       expect(span.events[0].name).toBe("exception");
-      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentFailed" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentFailed" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent failure" } });
     });
 
@@ -4354,13 +4354,13 @@ describe("sendJobConclusionSpan", () => {
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
       process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       expect(span.events[0].name).toBe("exception");
-      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentTimedOut" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentTimedOut" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent timed_out" } });
     });
 
@@ -4371,13 +4371,13 @@ describe("sendJobConclusionSpan", () => {
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
       process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       expect(span.events[0].name).toBe("exception");
-      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentCancelled" } });
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentCancelled" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "agent cancelled" } });
     });
 
@@ -4396,14 +4396,14 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(7);
       for (let i = 0; i < 7; i++) {
         expect(span.events[i].name).toBe("exception");
-        expect(span.events[i].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
+        expect(span.events[i].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "github.aw.AgentError" } });
         expect(span.events[i].attributes).toContainEqual({ key: "exception.message", value: { stringValue: `Error ${i + 1}` } });
       }
     });
@@ -4422,7 +4422,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4444,13 +4444,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
-      expect(typeAttr.value.stringValue).toBe("gh-aw.push_to_pull_request_branch");
+      expect(typeAttr.value.stringValue).toBe("github.aw.push_to_pull_request_branch");
       const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
       expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
     });
@@ -4469,12 +4469,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
-      expect(typeAttr.value.stringValue).toBe("gh-aw.push_to_pr");
+      expect(typeAttr.value.stringValue).toBe("github.aw.push_to_pr");
       const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
       expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
     });
@@ -4493,13 +4493,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
-      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
+      expect(typeAttr.value.stringValue).toBe("github.aw.AgentError");
       const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
       expect(msgAttr.value.stringValue).toBe("Something went wrong");
     });
@@ -4518,12 +4518,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
-      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
+      expect(typeAttr.value.stringValue).toBe("github.aw.AgentError");
       // Full original message kept when type extraction fails
       const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
       expect(msgAttr.value.stringValue).toBe("Error with spaces:details here");
@@ -4544,12 +4544,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
-      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
+      expect(typeAttr.value.stringValue).toBe("github.aw.AgentError");
     });
   });
 
@@ -4580,12 +4580,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue ?? a.value.boolValue]));
-      expect(attrs["gh-aw.run.status"]).toBe("failure");
+      expect(attrs["github.aw.run.status"]).toBe("failure");
       expect(span.status.code).toBe(2);
       expect(span.status.message).toBe("errors detected: push_to_pull_request_branch:push failed");
     });
@@ -4603,7 +4603,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4624,12 +4624,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue ?? a.value.boolValue]));
-      expect(attrs["gh-aw.run.status"]).toBe("success");
+      expect(attrs["github.aw.run.status"]).toBe("success");
       expect(span.status.code).toBe(1);
     });
 
@@ -4647,12 +4647,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue ?? a.value.boolValue]));
-      expect(attrs["gh-aw.run.status"]).toBe("success");
+      expect(attrs["github.aw.run.status"]).toBe("success");
       expect(span.status.code).toBe(1);
     });
   });
@@ -4684,16 +4684,16 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4823);
-      expect(attrs["gh-aw.github.rate_limit.limit"]).toBe(5000);
-      expect(attrs["gh-aw.github.rate_limit.used"]).toBe(177);
-      expect(attrs["gh-aw.github.rate_limit.resource"]).toBe("core");
-      expect(attrs["gh-aw.github.rate_limit.reset"]).toBe("2026-04-05T09:30:00.000Z");
+      expect(attrs["github.aw.github.rate_limit.remaining"]).toBe(4823);
+      expect(attrs["github.aw.github.rate_limit.limit"]).toBe(5000);
+      expect(attrs["github.aw.github.rate_limit.used"]).toBe(177);
+      expect(attrs["github.aw.github.rate_limit.resource"]).toBe("core");
+      expect(attrs["github.aw.github.rate_limit.reset"]).toBe("2026-04-05T09:30:00.000Z");
     });
 
     it("uses the last entry when the file contains multiple lines", async () => {
@@ -4711,13 +4711,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4500);
-      expect(attrs["gh-aw.github.rate_limit.used"]).toBe(500);
+      expect(attrs["github.aw.github.rate_limit.remaining"]).toBe(4500);
+      expect(attrs["github.aw.github.rate_limit.used"]).toBe(500);
     });
 
     it("omits rate-limit attributes when github_rate_limits.jsonl is absent", async () => {
@@ -4728,16 +4728,16 @@ describe("sendJobConclusionSpan", () => {
 
       // readFileSpy already throws ENOENT for all paths
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.github.rate_limit.remaining");
-      expect(keys).not.toContain("gh-aw.github.rate_limit.limit");
-      expect(keys).not.toContain("gh-aw.github.rate_limit.used");
-      expect(keys).not.toContain("gh-aw.github.rate_limit.resource");
-      expect(keys).not.toContain("gh-aw.github.rate_limit.reset");
+      expect(keys).not.toContain("github.aw.github.rate_limit.remaining");
+      expect(keys).not.toContain("github.aw.github.rate_limit.limit");
+      expect(keys).not.toContain("github.aw.github.rate_limit.used");
+      expect(keys).not.toContain("github.aw.github.rate_limit.resource");
+      expect(keys).not.toContain("github.aw.github.rate_limit.reset");
     });
 
     it("omits reset attribute when entry has no reset field", async () => {
@@ -4754,13 +4754,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
-      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4823);
-      expect(Object.keys(attrs)).not.toContain("gh-aw.github.rate_limit.reset");
+      expect(attrs["github.aw.github.rate_limit.remaining"]).toBe(4823);
+      expect(Object.keys(attrs)).not.toContain("github.aw.github.rate_limit.reset");
     });
 
     it("omits rate-limit attributes when the file contains only invalid JSON", async () => {
@@ -4776,12 +4776,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.github.rate_limit.remaining");
+      expect(keys).not.toContain("github.aw.github.rate_limit.remaining");
     });
   });
 
@@ -4817,7 +4817,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+      await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4838,7 +4838,7 @@ describe("sendJobConclusionSpan", () => {
 
       // readFileSpy already throws ENOENT for all paths
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+      await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4864,7 +4864,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+      await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4891,7 +4891,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+      await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
@@ -4936,7 +4936,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+      await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
@@ -4969,7 +4969,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion");
+      await sendJobConclusionSpan("github.aw.agent.conclusion");
 
       // Only one fetch call: the conclusion span (no agent sub-span)
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -5003,7 +5003,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+      await sendJobConclusionSpan("github.aw.conclusion.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
@@ -5033,7 +5033,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.detection.conclusion");
+      await sendJobConclusionSpan("github.aw.detection.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const keys = body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
@@ -5062,7 +5062,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const keys = body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => a.key);
@@ -5095,7 +5095,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion");
+      await sendJobConclusionSpan("github.aw.agent.conclusion");
 
       // Two calls: [0] = dedicated agent span, [1] = conclusion span
       expect(mockFetch.mock.calls.length).toBe(2);
@@ -5135,7 +5135,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion");
+      await sendJobConclusionSpan("github.aw.agent.conclusion");
 
       // Only one call: conclusion span (no dedicated span without agentStartMs)
       expect(mockFetch.mock.calls.length).toBe(1);
@@ -5170,7 +5170,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+      await sendJobConclusionSpan("github.aw.conclusion.conclusion");
 
       // Only one fetch call — no dedicated agent sub-span despite files being present
       expect(mockFetch.mock.calls.length).toBe(1);
@@ -5191,7 +5191,7 @@ describe("sendJobConclusionSpan", () => {
 
       // readFileSpy already throws ENOENT for all paths
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+      await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
@@ -5218,7 +5218,7 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+      await sendJobConclusionSpan("github.aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       // mockFetch.mock.calls[0] is the agent span, [1] is the conclusion span
       const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
@@ -5239,7 +5239,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_WORKFLOW_REF = "owner/repo/.github/workflows/my-workflow.yml@refs/heads/main";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -5252,7 +5252,7 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -5267,7 +5267,7 @@ describe("sendJobConclusionSpan", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
     process.env.GITHUB_JOB = "conclusion";
 
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    await sendJobConclusionSpan("github.aw.job.conclusion");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
@@ -5293,11 +5293,11 @@ describe("sendJobConclusionSpan", () => {
 
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const stagedAttr = span.attributes.find(a => a.key === "gh-aw.staged");
+      const stagedAttr = span.attributes.find(a => a.key === "github.aw.staged");
       expect(stagedAttr).toBeDefined();
       expect(stagedAttr.value.boolValue).toBe(false);
 
@@ -5318,11 +5318,11 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const stagedAttr = span.attributes.find(a => a.key === "gh-aw.staged");
+      const stagedAttr = span.attributes.find(a => a.key === "github.aw.staged");
       expect(stagedAttr).toBeDefined();
       expect(stagedAttr.value.boolValue).toBe(true);
 
@@ -5343,11 +5343,11 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      const stagedAttr = span.attributes.find(a => a.key === "gh-aw.staged");
+      const stagedAttr = span.attributes.find(a => a.key === "github.aw.staged");
       expect(stagedAttr).toBeDefined();
       expect(stagedAttr.value.boolValue).toBe(false);
 
@@ -5368,12 +5368,12 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const resourceAttrs = body.resourceSpans[0].resource.attributes;
-      expect(resourceAttrs).toContainEqual({ key: "gh-aw.awf.version", value: { stringValue: "v7.8.9-awf" } });
-      expect(resourceAttrs).toContainEqual({ key: "gh-aw.awmg.version", value: { stringValue: "v10.11.12-awmg" } });
+      expect(resourceAttrs).toContainEqual({ key: "github.aw.awf.version", value: { stringValue: "v7.8.9-awf" } });
+      expect(resourceAttrs).toContainEqual({ key: "github.aw.awmg.version", value: { stringValue: "v10.11.12-awmg" } });
     });
   });
 
@@ -5403,15 +5403,15 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "issue" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "7" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_type", value: { stringValue: "issue" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_number", value: { stringValue: "7" } });
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.trigger.label");
-      expect(keys).not.toContain("gh-aw.trigger.comment_id");
+      expect(keys).not.toContain("github.aw.trigger.label");
+      expect(keys).not.toContain("github.aw.trigger.comment_id");
     });
 
     it("emits gh-aw.trigger.label when trigger_label is non-empty", async () => {
@@ -5427,13 +5427,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_type", value: { stringValue: "pull_request" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.item_number", value: { stringValue: "456" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.label", value: { stringValue: "bug" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_type", value: { stringValue: "pull_request" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.item_number", value: { stringValue: "456" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.label", value: { stringValue: "bug" } });
     });
 
     it("emits gh-aw.trigger.comment_id when comment_id is non-empty", async () => {
@@ -5449,11 +5449,11 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.trigger.comment_id", value: { stringValue: "987654321" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.trigger.comment_id", value: { stringValue: "987654321" } });
     });
 
     it("emits frontmatter source/emoji/body-modified attributes when present", async () => {
@@ -5473,13 +5473,13 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-      expect(span.attributes).toContainEqual({ key: "gh-aw.frontmatter.source", value: { stringValue: "github/gh-aw/.github/workflows/example.md@main" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.frontmatter.emoji", value: { stringValue: "🧪" } });
-      expect(span.attributes).toContainEqual({ key: "gh-aw.frontmatter.body_modified", value: { boolValue: false } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.frontmatter.source", value: { stringValue: "github/gh-aw/.github/workflows/example.md@main" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.frontmatter.emoji", value: { stringValue: "🧪" } });
+      expect(span.attributes).toContainEqual({ key: "github.aw.frontmatter.body_modified", value: { boolValue: false } });
     });
 
     it("omits trigger attributes when aw_info.json is absent", async () => {
@@ -5488,15 +5488,15 @@ describe("sendJobConclusionSpan", () => {
 
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys).not.toContain("gh-aw.trigger.item_type");
-      expect(keys).not.toContain("gh-aw.trigger.item_number");
-      expect(keys).not.toContain("gh-aw.trigger.label");
-      expect(keys).not.toContain("gh-aw.trigger.comment_id");
+      expect(keys).not.toContain("github.aw.trigger.item_type");
+      expect(keys).not.toContain("github.aw.trigger.item_number");
+      expect(keys).not.toContain("github.aw.trigger.label");
+      expect(keys).not.toContain("github.aw.trigger.comment_id");
     });
   });
 
@@ -5526,14 +5526,14 @@ describe("sendJobConclusionSpan", () => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
-      expect(attrs["gh-aw.experiment.feature"]).toBe("on");
-      expect(attrs["gh-aw.experiment.model"]).toBe("fast");
-      expect(attrs["gh-aw.experiments"]).toBe(JSON.stringify({ feature: "on", model: "fast" }));
+      expect(attrs["github.aw.experiment.feature"]).toBe("on");
+      expect(attrs["github.aw.experiment.model"]).toBe("fast");
+      expect(attrs["github.aw.experiments"]).toBe(JSON.stringify({ feature: "on", model: "fast" }));
     });
 
     it("omits experiment attributes in conclusion span when assignments file is absent", async () => {
@@ -5542,13 +5542,13 @@ describe("sendJobConclusionSpan", () => {
 
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      await sendJobConclusionSpan("gh-aw.job.conclusion");
+      await sendJobConclusionSpan("github.aw.job.conclusion");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
-      expect(keys.some(k => k.startsWith("gh-aw.experiment."))).toBe(false);
-      expect(keys).not.toContain("gh-aw.experiments");
+      expect(keys.some(k => k.startsWith("github.aw.experiment."))).toBe(false);
+      expect(keys).not.toContain("github.aw.experiments");
     });
   });
 });
@@ -5844,12 +5844,12 @@ describe("parseOTLPCustomAttributes", () => {
 
   it("returns the parsed object when the env var is a valid JSON object", () => {
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ gh-aw.episode.id }}",
+      "langfuse.session.id": "{{ github.aw.episode.id }}",
       "langfuse.user.id": "{{ github.actor }}",
     });
     const result = parseOTLPCustomAttributes();
     expect(result).toEqual({
-      "langfuse.session.id": "{{ gh-aw.episode.id }}",
+      "langfuse.session.id": "{{ github.aw.episode.id }}",
       "langfuse.user.id": "{{ github.actor }}",
     });
   });
@@ -5861,21 +5861,21 @@ describe("parseOTLPCustomAttributes", () => {
 
 describe("expandOTLPAttributeTemplate", () => {
   const vars = {
-    "gh-aw.episode.id": "episode-abc",
+    "github.aw.episode.id": "episode-abc",
     "github.actor": "octocat",
-    "gh-aw.run.id": "12345",
+    "github.aw.run.id": "12345",
   };
 
   it("replaces a single template variable", () => {
-    expect(expandOTLPAttributeTemplate("{{ gh-aw.episode.id }}", vars)).toBe("episode-abc");
+    expect(expandOTLPAttributeTemplate("{{ github.aw.episode.id }}", vars)).toBe("episode-abc");
   });
 
   it("replaces multiple template variables in one string", () => {
-    expect(expandOTLPAttributeTemplate("{{ github.actor }}/{{ gh-aw.run.id }}", vars)).toBe("octocat/12345");
+    expect(expandOTLPAttributeTemplate("{{ github.actor }}/{{ github.aw.run.id }}", vars)).toBe("octocat/12345");
   });
 
   it("ignores surrounding whitespace inside the braces", () => {
-    expect(expandOTLPAttributeTemplate("{{  gh-aw.episode.id  }}", vars)).toBe("episode-abc");
+    expect(expandOTLPAttributeTemplate("{{  github.aw.episode.id  }}", vars)).toBe("episode-abc");
   });
 
   it("replaces unknown variables with empty string", () => {
@@ -5917,11 +5917,11 @@ describe("buildCustomOTLPAttributes", () => {
 
   it("expands template variables against the span attributes", () => {
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ gh-aw.episode.id }}",
+      "langfuse.session.id": "{{ github.aw.episode.id }}",
       "langfuse.user.id": "{{ github.actor }}",
     });
     const spanAttrs = [
-      buildAttr("gh-aw.episode.id", "episode-xyz"),
+      buildAttr("github.aw.episode.id", "episode-xyz"),
       buildAttr("github.actor", "monalisa"),
     ];
     const result = buildCustomOTLPAttributes(spanAttrs);
@@ -5998,10 +5998,10 @@ describe("sendJobSetupSpan custom attributes", () => {
       episode_id: "99001122-1:owner/repo/.github/workflows/test.lock.yml@refs/heads/main",
     });
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ gh-aw.episode.id }}",
-      "session.id": "{{ gh-aw.episode.id }}",
-      "langfuse.user.id": "{{ gh-aw.run.actor }}",
-      "user.id": "{{ gh-aw.run.actor }}",
+      "langfuse.session.id": "{{ github.aw.episode.id }}",
+      "session.id": "{{ github.aw.episode.id }}",
+      "langfuse.user.id": "{{ github.aw.run.actor }}",
+      "user.id": "{{ github.aw.run.actor }}",
     });
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
@@ -6076,8 +6076,8 @@ describe("sendJobConclusionSpan custom attributes", () => {
     process.env.GITHUB_RUN_ATTEMPT = "1";
     process.env.GITHUB_AW_OTEL_TRACE_ID = "a".repeat(32);
     process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
-      "langfuse.session.id": "{{ gh-aw.episode.id }}",
-      "langfuse.user.id": "{{ gh-aw.run.actor }}",
+      "langfuse.session.id": "{{ github.aw.episode.id }}",
+      "langfuse.user.id": "{{ github.aw.run.actor }}",
     });
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
@@ -6091,7 +6091,7 @@ describe("sendJobConclusionSpan custom attributes", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
-    await sendJobConclusionSpan("gh-aw.agent.conclusion");
+    await sendJobConclusionSpan("github.aw.agent.conclusion");
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);

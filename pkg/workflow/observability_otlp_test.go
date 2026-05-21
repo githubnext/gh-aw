@@ -1554,14 +1554,14 @@ frontmatter: map[string]any{
 "otlp": map[string]any{
 "endpoint": "https://traces.example.com",
 "attributes": map[string]any{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
+"langfuse.session.id": "{{ github.aw.episode.id }}",
 "langfuse.user.id":    "{{ github.actor }}",
 },
 },
 },
 },
 want: map[string]string{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
+"langfuse.session.id": "{{ github.aw.episode.id }}",
 "langfuse.user.id":    "{{ github.actor }}",
 },
 },
@@ -1604,7 +1604,7 @@ Observability: &ObservabilityConfig{
 OTLP: &OTLPConfig{
 Endpoint: "https://traces.example.com",
 Attributes: map[string]string{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
+"langfuse.session.id": "{{ github.aw.episode.id }}",
 "langfuse.user.id":    "{{ github.actor }}",
 },
 },
@@ -1614,7 +1614,7 @@ Attributes: map[string]string{
 c.injectOTLPConfig(wd)
 assert.Contains(t, wd.Env, "GH_AW_OTLP_ATTRIBUTES", "should inject GH_AW_OTLP_ATTRIBUTES env var")
 assert.Contains(t, wd.Env, "langfuse.session.id", "should include the attribute key")
-assert.Contains(t, wd.Env, "gh-aw.episode.id", "should include the template value")
+assert.Contains(t, wd.Env, "github.aw.episode.id", "should include the template value")
 })
 
 t.Run("injects GH_AW_OTLP_ATTRIBUTES when attributes are configured via RawFrontmatter", func(t *testing.T) {
@@ -1624,7 +1624,7 @@ RawFrontmatter: map[string]any{
 "otlp": map[string]any{
 "endpoint": "https://traces.example.com",
 "attributes": map[string]any{
-"session.id": "{{ gh-aw.episode.id }}",
+"session.id": "{{ github.aw.episode.id }}",
 "user.id":    "{{ github.actor }}",
 },
 },
@@ -1694,7 +1694,7 @@ assert.Equal(t, "", encodeOTLPCustomAttributes(map[string]string{}))
 
 t.Run("non-empty map is valid JSON", func(t *testing.T) {
 encoded := encodeOTLPCustomAttributes(map[string]string{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
+"langfuse.session.id": "{{ github.aw.episode.id }}",
 })
 assert.NotEmpty(t, encoded)
 assert.Contains(t, encoded, "langfuse.session.id")

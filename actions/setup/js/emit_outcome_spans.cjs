@@ -156,29 +156,29 @@ async function main() {
     const zeroTouch = eval_.zero_touch === true;
 
     const attributes = [
-      buildAttr("gh-aw.exporter.name", "outcome-collector"),
-      buildAttr("gh-aw.outcome.type", type),
-      buildAttr("gh-aw.outcome.result", result),
-      buildAttr("gh-aw.outcome.workflow", workflow),
-      buildAttr("gh-aw.outcome.run_id", sourceRunId),
-      buildAttr("gh-aw.outcome.repo", repo),
+      buildAttr("github.aw.exporter.name", "outcome-collector"),
+      buildAttr("github.aw.outcome.type", type),
+      buildAttr("github.aw.outcome.result", result),
+      buildAttr("github.aw.outcome.workflow", workflow),
+      buildAttr("github.aw.outcome.run_id", sourceRunId),
+      buildAttr("github.aw.outcome.repo", repo),
     ];
 
-    if (url) attributes.push(buildAttr("gh-aw.outcome.url", url));
-    if (detail) attributes.push(buildAttr("gh-aw.outcome.detail", detail));
-    if (timestamp) attributes.push(buildAttr("gh-aw.outcome.created_at", timestamp));
-    if (event) attributes.push(buildAttr("gh-aw.outcome.event", event));
-    if (resolutionSec !== null) attributes.push(buildAttr("gh-aw.outcome.resolution_sec", resolutionSec));
-    if (pendingAgeSec !== null) attributes.push(buildAttr("gh-aw.outcome.pending_age_sec", pendingAgeSec));
-    if (reviewComments !== null) attributes.push(buildAttr("gh-aw.outcome.review_comments", reviewComments));
-    if (changedFiles !== null) attributes.push(buildAttr("gh-aw.outcome.changed_files", changedFiles));
-    if (additions !== null) attributes.push(buildAttr("gh-aw.outcome.additions", additions));
-    if (deletions !== null) attributes.push(buildAttr("gh-aw.outcome.deletions", deletions));
-    if (reactionsTotal !== null) attributes.push(buildAttr("gh-aw.outcome.reactions_total", reactionsTotal));
-    if (reactionsPositive !== null) attributes.push(buildAttr("gh-aw.outcome.reactions_positive", reactionsPositive));
-    if (reactionsNegative !== null) attributes.push(buildAttr("gh-aw.outcome.reactions_negative", reactionsNegative));
-    if (comments !== null) attributes.push(buildAttr("gh-aw.outcome.comments", comments));
-    if (zeroTouch) attributes.push(buildAttr("gh-aw.outcome.zero_touch", true));
+    if (url) attributes.push(buildAttr("github.aw.outcome.url", url));
+    if (detail) attributes.push(buildAttr("github.aw.outcome.detail", detail));
+    if (timestamp) attributes.push(buildAttr("github.aw.outcome.created_at", timestamp));
+    if (event) attributes.push(buildAttr("github.aw.outcome.event", event));
+    if (resolutionSec !== null) attributes.push(buildAttr("github.aw.outcome.resolution_sec", resolutionSec));
+    if (pendingAgeSec !== null) attributes.push(buildAttr("github.aw.outcome.pending_age_sec", pendingAgeSec));
+    if (reviewComments !== null) attributes.push(buildAttr("github.aw.outcome.review_comments", reviewComments));
+    if (changedFiles !== null) attributes.push(buildAttr("github.aw.outcome.changed_files", changedFiles));
+    if (additions !== null) attributes.push(buildAttr("github.aw.outcome.additions", additions));
+    if (deletions !== null) attributes.push(buildAttr("github.aw.outcome.deletions", deletions));
+    if (reactionsTotal !== null) attributes.push(buildAttr("github.aw.outcome.reactions_total", reactionsTotal));
+    if (reactionsPositive !== null) attributes.push(buildAttr("github.aw.outcome.reactions_positive", reactionsPositive));
+    if (reactionsNegative !== null) attributes.push(buildAttr("github.aw.outcome.reactions_negative", reactionsNegative));
+    if (comments !== null) attributes.push(buildAttr("github.aw.outcome.comments", comments));
+    if (zeroTouch) attributes.push(buildAttr("github.aw.outcome.zero_touch", true));
 
     // Map result to OTLP status: accepted=OK, rejected=ERROR, noop=UNSET, pending/ignored=UNSET
     const statusCode = result === "rejected" ? 2 : result === "accepted" ? 1 : 0;
@@ -188,7 +188,7 @@ async function main() {
         traceId,
         spanId: generateSpanId(),
         parentSpanId: summarySpanId,
-        spanName: "gh-aw.outcome.evaluation",
+        spanName: "github.aw.outcome.evaluation",
         startMs: evalEndMs - 1, // point-in-time span
         endMs: evalEndMs,
         attributes,
@@ -205,30 +205,30 @@ async function main() {
   }
 
   const summaryAttributes = [
-    buildAttr("gh-aw.exporter.name", "outcome-collector"),
-    buildAttr("gh-aw.outcome.runs_checked", getSummaryNumber("runs_checked", 0)),
-    buildAttr("gh-aw.outcome.total", getSummaryNumber("total_outcomes", evaluations.length)),
-    buildAttr("gh-aw.outcome.accepted", getSummaryNumber("accepted", 0)),
-    buildAttr("gh-aw.outcome.rejected", getSummaryNumber("rejected", 0)),
-    buildAttr("gh-aw.outcome.ignored", getSummaryNumber("ignored", 0)),
-    buildAttr("gh-aw.outcome.pending", getSummaryNumber("pending", 0)),
-    buildAttr("gh-aw.outcome.noop", getSummaryNumber("noop", 0)),
-    buildAttr("gh-aw.outcome.acceptance_rate", getSummaryNumber("acceptance_rate", 0)),
-    buildAttr("gh-aw.outcome.waste_rate", getSummaryNumber("waste_rate", 0)),
-    buildAttr("gh-aw.outcome.noop_rate", getSummaryNumber("noop_rate", 0)),
-    buildAttr("gh-aw.outcome.zero_touch_count", getSummaryNumber("zero_touch", 0)),
-    buildAttr("gh-aw.outcome.zero_touch_rate", getSummaryNumber("zero_touch_rate", 0)),
-    buildAttr("gh-aw.outcome.item_count", evaluations.length),
+    buildAttr("github.aw.exporter.name", "outcome-collector"),
+    buildAttr("github.aw.outcome.runs_checked", getSummaryNumber("runs_checked", 0)),
+    buildAttr("github.aw.outcome.total", getSummaryNumber("total_outcomes", evaluations.length)),
+    buildAttr("github.aw.outcome.accepted", getSummaryNumber("accepted", 0)),
+    buildAttr("github.aw.outcome.rejected", getSummaryNumber("rejected", 0)),
+    buildAttr("github.aw.outcome.ignored", getSummaryNumber("ignored", 0)),
+    buildAttr("github.aw.outcome.pending", getSummaryNumber("pending", 0)),
+    buildAttr("github.aw.outcome.noop", getSummaryNumber("noop", 0)),
+    buildAttr("github.aw.outcome.acceptance_rate", getSummaryNumber("acceptance_rate", 0)),
+    buildAttr("github.aw.outcome.waste_rate", getSummaryNumber("waste_rate", 0)),
+    buildAttr("github.aw.outcome.noop_rate", getSummaryNumber("noop_rate", 0)),
+    buildAttr("github.aw.outcome.zero_touch_count", getSummaryNumber("zero_touch", 0)),
+    buildAttr("github.aw.outcome.zero_touch_rate", getSummaryNumber("zero_touch_rate", 0)),
+    buildAttr("github.aw.outcome.item_count", evaluations.length),
   ];
 
   if (summary && summary.date) {
-    summaryAttributes.push(buildAttr("gh-aw.outcome.date", summary.date));
+    summaryAttributes.push(buildAttr("github.aw.outcome.date", summary.date));
   }
 
   // Median time-to-resolution: prefer summary value, fall back to local computation
   const summaryMedian = summary && typeof summary.median_resolution_sec === "number" ? summary.median_resolution_sec : null;
   if (summaryMedian !== null) {
-    summaryAttributes.push(buildAttr("gh-aw.outcome.median_resolution_sec", summaryMedian));
+    summaryAttributes.push(buildAttr("github.aw.outcome.median_resolution_sec", summaryMedian));
   } else {
     const resolutionTimes = evaluations
       .filter(e => typeof e.resolution_sec === "number" && e.resolution_sec > 0)
@@ -237,26 +237,26 @@ async function main() {
     if (resolutionTimes.length > 0) {
       const mid = Math.floor(resolutionTimes.length / 2);
       const median = resolutionTimes.length % 2 !== 0 ? resolutionTimes[mid] : Math.round((resolutionTimes[mid - 1] + resolutionTimes[mid]) / 2);
-      summaryAttributes.push(buildAttr("gh-aw.outcome.median_resolution_sec", median));
+      summaryAttributes.push(buildAttr("github.aw.outcome.median_resolution_sec", median));
     }
   }
 
   // Trigger type distribution
   const events = [...new Set(evaluations.map(e => e.event).filter(Boolean))].sort();
   if (events.length > 0) {
-    summaryAttributes.push(buildAttr("gh-aw.outcome.events", events.join(",")));
+    summaryAttributes.push(buildAttr("github.aw.outcome.events", events.join(",")));
   }
 
   // Distinct workflows evaluated
   const workflows = [...new Set(evaluations.map(e => e.workflow).filter(Boolean))].sort();
   if (workflows.length > 0) {
-    summaryAttributes.push(buildAttr("gh-aw.outcome.workflows", workflows.join(",")));
+    summaryAttributes.push(buildAttr("github.aw.outcome.workflows", workflows.join(",")));
   }
 
   // Distinct outcome types seen
   const types = [...new Set(evaluations.map(e => e.type).filter(Boolean))].sort();
   if (types.length > 0) {
-    summaryAttributes.push(buildAttr("gh-aw.outcome.types", types.join(",")));
+    summaryAttributes.push(buildAttr("github.aw.outcome.types", types.join(",")));
   }
 
   // Append user-defined custom attributes from observability.otlp.attributes with
@@ -267,7 +267,7 @@ async function main() {
     traceId,
     spanId: summarySpanId,
     parentSpanId: parentSpanId || undefined,
-    spanName: "gh-aw.outcome.summary",
+    spanName: "github.aw.outcome.summary",
     startMs: evalEndMs - 100, // span covers the evaluation window
     endMs: evalEndMs,
     attributes: summaryAttributes,
