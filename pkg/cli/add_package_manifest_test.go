@@ -568,6 +568,9 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 		{".github/workflows/ci.yml", true},
 		// .yml files under workflows/ are NOT supported
 		{"workflows/deploy.yml", false},
+		// .lock.yml files are NOT supported (generated artifacts)
+		{".github/workflows/deploy.lock.yml", false},
+		{"workflows/deploy.lock.yml", false},
 		// unsupported extensions
 		{".github/workflows/script.sh", false},
 		{"README.md", false},

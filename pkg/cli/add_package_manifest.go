@@ -306,14 +306,15 @@ func isSupportedPackageInstallablePath(path string) bool {
 	if strings.HasSuffix(lowerPath, ".md") {
 		return strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/")
 	}
-	if strings.HasSuffix(lowerPath, ".yml") {
+	if strings.HasSuffix(lowerPath, ".yml") && !strings.HasSuffix(lowerPath, ".lock.yml") {
 		return strings.HasPrefix(path, ".github/workflows/")
 	}
 	return false
 }
 
 func isActionWorkflowPath(path string) bool {
-	return strings.HasSuffix(strings.ToLower(path), ".yml")
+	lowerPath := strings.ToLower(path)
+	return strings.HasSuffix(lowerPath, ".yml") && !strings.HasSuffix(lowerPath, ".lock.yml")
 }
 
 func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
