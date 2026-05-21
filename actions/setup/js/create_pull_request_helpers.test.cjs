@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
 import crypto from "crypto";
 
@@ -97,6 +97,10 @@ describe("summarizeListForLog", () => {
 // createBundleTempRef
 // ---------------------------------------------------------------------------
 describe("createBundleTempRef", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("produces a ref under refs/bundles/", () => {
     expect(createBundleTempRef("feature/my-branch")).toMatch(/^refs\/bundles\//);
   });
@@ -113,8 +117,7 @@ describe("createBundleTempRef", () => {
   });
 
   it("produces different refs when crypto returns different bytes", () => {
-    const randomBytesSpy = vi
-      .spyOn(crypto, "randomBytes")
+    vi.spyOn(crypto, "randomBytes")
       .mockReturnValueOnce(Buffer.from("aabbccdd", "hex"))
       .mockReturnValueOnce(Buffer.from("11223344", "hex"));
 
@@ -123,8 +126,6 @@ describe("createBundleTempRef", () => {
 
     expect(ref1).toBe("refs/bundles/create-pr-same-branch-aabbccdd");
     expect(ref2).toBe("refs/bundles/create-pr-same-branch-11223344");
-
-    randomBytesSpy.mockRestore();
   });
 });
 
