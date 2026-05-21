@@ -15,7 +15,7 @@ describe("merge_model_aliases", () => {
       {
         sonnet: ["custom/sonnet"],
         "custom-alias": ["custom/model"],
-      },
+      }
     );
 
     expect(merged).toEqual({
@@ -38,7 +38,7 @@ describe("merge_model_aliases", () => {
           auto: ["sonnet"],
         },
       }),
-      "utf8",
+      "utf8"
     );
 
     fs.writeFileSync(
@@ -52,7 +52,7 @@ describe("merge_model_aliases", () => {
           },
         },
       }),
-      "utf8",
+      "utf8"
     );
 
     const changed = mergeModelAliasesInConfig(configPath, aliasesPath);
