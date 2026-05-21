@@ -611,7 +611,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 			if err != nil {
 				return fmt.Errorf("failed to marshal JSON: %w", err)
 			}
-			fmt.Println(string(jsonBytes))
+			fmt.Fprintln(os.Stdout, string(jsonBytes))
 			return runErr
 		}
 	}

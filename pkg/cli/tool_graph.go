@@ -185,7 +185,7 @@ func generateToolGraph(processedRuns []ProcessedRun, verbose bool) {
 
 	// Generate and display Mermaid graph only
 	mermaidGraph := graph.GenerateMermaidGraph()
-	fmt.Println(mermaidGraph)
+	fmt.Fprintln(os.Stdout, mermaidGraph)
 }
 
 // extractToolSequencesFromRun extracts tool call sequences from a single run
