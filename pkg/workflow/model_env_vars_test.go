@@ -489,15 +489,15 @@ func TestCodexModelFlagPositionAfterExec(t *testing.T) {
 
 	// Find the model shell expansion pattern in the generated command
 	modelPattern := "${" + constants.EnvVarModelAgentCodex + ":+"
-	modelIdx := strings.Index(stepsContent, modelPattern)
-	if modelIdx == -1 {
+	beforeModel, _, found := strings.Cut(stepsContent, modelPattern)
+	if !found {
 		t.Fatalf("Model expansion pattern '%s' not found in steps:\n%s", modelPattern, stepsContent)
 	}
 
 	// Find "codex exec" before the model pattern. Using "codex exec" (not just "exec") avoids
 	// false positives from unrelated occurrences like "GH_AW_NODE_EXEC" in the step content.
 	execMarker := "codex exec"
-	execIdx := strings.LastIndex(stepsContent[:modelIdx], execMarker)
+	execIdx := strings.LastIndex(beforeModel, execMarker)
 	if execIdx == -1 {
 		t.Errorf("'codex exec' must appear before the model flag '%s' in the generated command.\n"+
 			"This indicates the model flag is placed before 'exec', causing Codex to ignore it.\n"+
