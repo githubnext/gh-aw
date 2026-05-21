@@ -60,7 +60,7 @@ describe("action_conclusion_otlp.cjs", () => {
       await run();
 
       expect(mockSendJobConclusionSpan).toHaveBeenCalledOnce();
-      expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
+      expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
     });
   });
 
@@ -88,10 +88,10 @@ describe("action_conclusion_otlp.cjs", () => {
     });
 
     describe("span name construction", () => {
-      it("should use default span name 'github.aw.job.conclusion' when INPUT_JOB_NAME is not set", async () => {
+      it("should use default span name 'gh-aw.job.conclusion' when INPUT_JOB_NAME is not set", async () => {
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
 
       it("should use job name from INPUT_JOB_NAME when set", async () => {
@@ -99,7 +99,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.agent.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.agent.conclusion", { startMs: undefined });
       });
 
       it("should use job name from INPUT_JOB-NAME (hyphen form) when INPUT_JOB_NAME is not set", async () => {
@@ -108,7 +108,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.agent.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.agent.conclusion", { startMs: undefined });
       });
 
       it("should log the full span name in the sending message", async () => {
@@ -116,7 +116,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(console.log).toHaveBeenCalledWith('[otlp] sending conclusion span "github.aw.setup.conclusion" to configured endpoints');
+        expect(console.log).toHaveBeenCalledWith('[otlp] sending conclusion span "gh-aw.setup.conclusion" to configured endpoints');
       });
 
       it("should handle different job names correctly", async () => {
@@ -124,7 +124,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.activation.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.activation.conclusion", { startMs: undefined });
       });
     });
 
@@ -135,13 +135,13 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: jobStartMs });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: jobStartMs });
       });
 
       it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is not set", async () => {
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
 
       it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is '0'", async () => {
@@ -149,7 +149,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
 
       it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is not a number", async () => {
@@ -157,7 +157,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
 
       it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is a negative number", async () => {
@@ -165,7 +165,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
 
       it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is Infinity", async () => {
@@ -173,7 +173,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("github.aw.job.conclusion", { startMs: undefined });
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
     });
   });
@@ -205,23 +205,23 @@ describe("action_conclusion_otlp.cjs", () => {
 
 describe("buildSpanName", () => {
   it("returns default span name when jobName is undefined", () => {
-    expect(buildSpanName(undefined)).toBe("github.aw.job.conclusion");
+    expect(buildSpanName(undefined)).toBe("gh-aw.job.conclusion");
   });
 
   it("returns default span name when jobName is empty string", () => {
-    expect(buildSpanName("")).toBe("github.aw.job.conclusion");
+    expect(buildSpanName("")).toBe("gh-aw.job.conclusion");
   });
 
   it("returns namespaced span name when jobName is provided", () => {
-    expect(buildSpanName("agent")).toBe("github.aw.agent.conclusion");
+    expect(buildSpanName("agent")).toBe("gh-aw.agent.conclusion");
   });
 
   it("handles job names with hyphens", () => {
-    expect(buildSpanName("my-job")).toBe("github.aw.my-job.conclusion");
+    expect(buildSpanName("my-job")).toBe("gh-aw.my-job.conclusion");
   });
 
   it("handles job names with dots", () => {
-    expect(buildSpanName("setup.v2")).toBe("github.aw.setup.v2.conclusion");
+    expect(buildSpanName("setup.v2")).toBe("gh-aw.setup.v2.conclusion");
   });
 });
 

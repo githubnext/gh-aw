@@ -4,7 +4,7 @@
 /**
  * action_conclusion_otlp.cjs
  *
- * Sends a `github.aw.<jobName>.conclusion` OTLP span (or `github.aw.job.conclusion`
+ * Sends a `gh-aw.<jobName>.conclusion` OTLP span (or `gh-aw.job.conclusion`
  * when no job name is configured).  Used by both:
  *
  *   - actions/setup/post.js   (dev/release/action mode)
@@ -14,8 +14,8 @@
  *
  * Environment variables read:
  *   INPUT_JOB_NAME – job name from the `job-name` action input; when set the
- *                    span is named "github.aw.<name>.conclusion", otherwise
- *                    "github.aw.job.conclusion".
+ *                    span is named "gh-aw.<name>.conclusion", otherwise
+ *                    "gh-aw.job.conclusion".
  *   GH_AW_AGENT_CONCLUSION        – agent job result passed from the agent job
  *                                   ("success", "failure", "timed_out", etc.);
  *                                   "failure" and "timed_out" set the span
@@ -34,11 +34,11 @@
  *                                          github_rate_limit_logger.cjs; the last
  *                                          entry is read and its fields are included
  *                                          in the span as:
- *                                            github.aw.github.rate_limit.remaining
- *                                            github.aw.github.rate_limit.limit
- *                                            github.aw.github.rate_limit.used
- *                                            github.aw.github.rate_limit.resource
- *                                            github.aw.github.rate_limit.reset
+ *                                            gh-aw.github.rate_limit.remaining
+ *                                            gh-aw.github.rate_limit.limit
+ *                                            gh-aw.github.rate_limit.used
+ *                                            gh-aw.github.rate_limit.resource
+ *                                            gh-aw.github.rate_limit.reset
  */
 
 const sendOtlpSpan = require("./send_otlp_span.cjs");
@@ -50,7 +50,7 @@ const { getActionInput } = require("./action_input_utils.cjs");
  * @returns {string}
  */
 function buildSpanName(jobName) {
-  return jobName ? `github.aw.${jobName}.conclusion` : "github.aw.job.conclusion";
+  return jobName ? `gh-aw.${jobName}.conclusion` : "gh-aw.job.conclusion";
 }
 
 /**

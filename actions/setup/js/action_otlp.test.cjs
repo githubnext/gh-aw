@@ -201,7 +201,7 @@ describe("action_setup_otlp run()", () => {
 
       const payload = JSON.parse(capturedBody);
       const spanName = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.name;
-      expect(spanName).toBe("github.aw.agent.setup");
+      expect(spanName).toBe("gh-aw.agent.setup");
       fetchSpy.mockRestore();
     } finally {
       fs.rmSync(tmpOut, { force: true });
@@ -283,7 +283,7 @@ describe("action_conclusion_otlp run()", () => {
 
     const payload = JSON.parse(capturedBody);
     const spanName = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.name;
-    expect(spanName).toBe("github.aw.agent.conclusion");
+    expect(spanName).toBe("gh-aw.agent.conclusion");
     fetchSpy.mockRestore();
   });
 
@@ -299,7 +299,7 @@ describe("action_conclusion_otlp run()", () => {
 
     const payload = JSON.parse(capturedBody);
     const spanName = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.name;
-    expect(spanName).toBe("github.aw.job.conclusion");
+    expect(spanName).toBe("gh-aw.job.conclusion");
     fetchSpy.mockRestore();
   });
 
@@ -318,7 +318,7 @@ describe("action_conclusion_otlp run()", () => {
     const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
     expect(span?.status?.code).toBe(2); // STATUS_CODE_ERROR
     expect(span?.status?.message).toBe("agent failure");
-    const conclusionAttr = span?.attributes?.find(a => a.key === "github.aw.agent.conclusion");
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
     expect(conclusionAttr?.value?.stringValue).toBe("failure");
     fetchSpy.mockRestore();
     delete process.env.GH_AW_AGENT_CONCLUSION;
@@ -339,7 +339,7 @@ describe("action_conclusion_otlp run()", () => {
     const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
     expect(span?.status?.code).toBe(2); // STATUS_CODE_ERROR
     expect(span?.status?.message).toBe("agent timed_out");
-    const conclusionAttr = span?.attributes?.find(a => a.key === "github.aw.agent.conclusion");
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
     expect(conclusionAttr?.value?.stringValue).toBe("timed_out");
     fetchSpy.mockRestore();
     delete process.env.GH_AW_AGENT_CONCLUSION;
@@ -360,7 +360,7 @@ describe("action_conclusion_otlp run()", () => {
     const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
     expect(span?.status?.code).toBe(1); // STATUS_CODE_OK
     expect(span?.status?.message).toBeUndefined();
-    const conclusionAttr = span?.attributes?.find(a => a.key === "github.aw.agent.conclusion");
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
     expect(conclusionAttr?.value?.stringValue).toBe("success");
     fetchSpy.mockRestore();
     delete process.env.GH_AW_AGENT_CONCLUSION;
@@ -381,13 +381,13 @@ describe("action_conclusion_otlp run()", () => {
     const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
     expect(span?.status?.code).toBe(2); // STATUS_CODE_ERROR
     expect(span?.status?.message).toBe("agent cancelled");
-    const conclusionAttr = span?.attributes?.find(a => a.key === "github.aw.agent.conclusion");
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
     expect(conclusionAttr?.value?.stringValue).toBe("cancelled");
     fetchSpy.mockRestore();
     delete process.env.GH_AW_AGENT_CONCLUSION;
   });
 
-  it("omits github.aw.agent.conclusion attribute when GH_AW_AGENT_CONCLUSION is not set", async () => {
+  it("omits gh-aw.agent.conclusion attribute when GH_AW_AGENT_CONCLUSION is not set", async () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "http://localhost:14317" }]);
     delete process.env.GH_AW_AGENT_CONCLUSION;
     let capturedBody;
@@ -401,7 +401,7 @@ describe("action_conclusion_otlp run()", () => {
     const payload = JSON.parse(capturedBody);
     const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
     expect(span?.status?.code).toBe(1); // STATUS_CODE_OK
-    const conclusionAttr = span?.attributes?.find(a => a.key === "github.aw.agent.conclusion");
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
     expect(conclusionAttr).toBeUndefined();
     fetchSpy.mockRestore();
   });

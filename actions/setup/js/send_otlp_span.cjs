@@ -206,24 +206,24 @@ function buildEpisodeAttributesFromContext(awInfo, runId, runAttempt) {
     return [];
   }
 
-  const attributes = [buildAttr("github.aw.episode.id", episodeId), buildAttr("github.aw.episode.kind", parentHopId ? "workflow_call" : "run")];
+  const attributes = [buildAttr("gh-aw.episode.id", episodeId), buildAttr("gh-aw.episode.kind", parentHopId ? "workflow_call" : "run")];
 
   if (currentHopId) {
-    attributes.push(buildAttr("github.aw.hop.id", currentHopId));
-    attributes.push(buildAttr("github.aw.workflow_call.id", currentHopId));
+    attributes.push(buildAttr("gh-aw.hop.id", currentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.id", currentHopId));
   }
   if (parentHopId) {
-    attributes.push(buildAttr("github.aw.hop.parent_id", parentHopId));
-    attributes.push(buildAttr("github.aw.workflow_call.parent_id", parentHopId));
+    attributes.push(buildAttr("gh-aw.hop.parent_id", parentHopId));
+    attributes.push(buildAttr("gh-aw.workflow_call.parent_id", parentHopId));
   }
   if (originEvent) {
-    attributes.push(buildAttr("github.aw.origin.event", originEvent));
+    attributes.push(buildAttr("gh-aw.origin.event", originEvent));
   }
   if (rootRepo) {
-    attributes.push(buildAttr("github.aw.root.repo", rootRepo));
+    attributes.push(buildAttr("gh-aw.root.repo", rootRepo));
   }
   if (rootWorkflowId) {
-    attributes.push(buildAttr("github.aw.root.workflow_id", rootWorkflowId));
+    attributes.push(buildAttr("gh-aw.root.workflow_id", rootWorkflowId));
   }
 
   return attributes;
@@ -413,10 +413,10 @@ function buildGitHubActionsResourceAttributes({
     resourceAttributes.push(buildAttr("runner.environment", runnerEnvironment));
   }
   if (awfVersion) {
-    resourceAttributes.push(buildAttr("github.aw.awf.version", awfVersion));
+    resourceAttributes.push(buildAttr("gh-aw.awf.version", awfVersion));
   }
   if (awmgVersion) {
-    resourceAttributes.push(buildAttr("github.aw.awmg.version", awmgVersion));
+    resourceAttributes.push(buildAttr("gh-aw.awmg.version", awmgVersion));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
   return resourceAttributes;
@@ -533,8 +533,8 @@ function appendToOTLPJSONL(payload) {
 /**
  * Build OTLP span attributes for the active experiment assignments.
  *
- * Adds one `github.aw.experiment.<name>` attribute per experiment (carrying the
- * selected variant string) and a single `github.aw.experiments` attribute with a
+ * Adds one `gh-aw.experiment.<name>` attribute per experiment (carrying the
+ * selected variant string) and a single `gh-aw.experiments` attribute with a
  * compact JSON string of only the valid emitted assignments (key-sorted for
  * determinism), which enables simple substring searches in backends that do
  * not support per-attribute filtering.
@@ -557,12 +557,12 @@ function buildExperimentAttributes(assignments) {
   for (const name of names) {
     const variant = assignments[name];
     if (typeof variant === "string" && variant) {
-      attrs.push(buildAttr(`github.aw.experiment.${name}`, variant));
+      attrs.push(buildAttr(`gh-aw.experiment.${name}`, variant));
       validAssignments[name] = variant;
     }
   }
   if (attrs.length > 0) {
-    attrs.push(buildAttr("github.aw.experiments", JSON.stringify(validAssignments)));
+    attrs.push(buildAttr("gh-aw.experiments", JSON.stringify(validAssignments)));
   }
   return attrs;
 }
@@ -1035,7 +1035,7 @@ function isValidSpanId(id) {
  */
 
 /**
- * Send a `github.aw.<jobName>.setup` span (or `github.aw.job.setup` when no job name
+ * Send a `gh-aw.<jobName>.setup` span (or `gh-aw.job.setup` when no job name
  * is configured) to the configured OTLP endpoint.
  *
  * This is designed to be called from `actions/setup/index.js` immediately after
@@ -1063,8 +1063,8 @@ function isValidSpanId(id) {
  *   `context.otel_parent_span_id` is used as the parent span ID so the child's setup span
  *   is properly nested under the parent's setup span in the trace hierarchy; and
  *   `context.item_type`, `context.item_number`, `context.trigger_label`, and `context.comment_id`
- *   are emitted as `github.aw.trigger.item_type`, `github.aw.trigger.item_number`, `github.aw.trigger.label`,
- *   and `github.aw.trigger.comment_id` attributes so every span can be linked back to the GitHub item
+ *   are emitted as `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`, `gh-aw.trigger.label`,
+ *   and `gh-aw.trigger.comment_id` attributes so every span can be linked back to the GitHub item
  *   (and specific comment) that triggered the workflow
  *
  * @param {SendJobSetupSpanOptions} [options]
@@ -1150,42 +1150,42 @@ async function sendJobSetupSpan(options = {}) {
   const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
 
   const attributes = [
-    buildAttr("github.aw.job.name", jobName),
-    buildAttr("github.aw.workflow.name", workflowName),
-    buildAttr("github.aw.run.id", runId),
-    buildAttr("github.aw.run.attempt", runAttempt),
-    buildAttr("github.aw.run.actor", actor),
-    buildAttr("github.aw.repository", repository),
+    buildAttr("gh-aw.job.name", jobName),
+    buildAttr("gh-aw.workflow.name", workflowName),
+    buildAttr("gh-aw.run.id", runId),
+    buildAttr("gh-aw.run.attempt", runAttempt),
+    buildAttr("gh-aw.run.actor", actor),
+    buildAttr("gh-aw.repository", repository),
   ];
 
   if (engineId) {
     const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;
     attributes.push(buildAttr("gen_ai.system", genAiSystem));
-    attributes.push(buildAttr("github.aw.engine.id", engineId));
+    attributes.push(buildAttr("gh-aw.engine.id", engineId));
   }
   if (eventName) {
-    attributes.push(buildAttr("github.aw.event_name", eventName));
+    attributes.push(buildAttr("gh-aw.event_name", eventName));
   }
   // Deployment state: prefer the env var (set from github.event.deployment_status.state
   // in the compiled workflow), fall back to aw_context propagation via awInfo.
   const deploymentStateSetup =
     process.env.GH_AW_GITHUB_EVENT_DEPLOYMENT_STATUS_STATE || (typeof awInfo.deployment_state === "string" ? awInfo.deployment_state : "") || (typeof awInfo.context?.deployment_state === "string" ? awInfo.context.deployment_state : "");
   if (deploymentStateSetup) {
-    attributes.push(buildAttr("github.aw.deployment.state", deploymentStateSetup));
+    attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateSetup));
   }
   // Workflow run conclusion: from aw_info or aw_context propagation.
   const workflowRunConclusion = (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
   if (workflowRunConclusion) {
-    attributes.push(buildAttr("github.aw.workflow_run.conclusion", workflowRunConclusion));
+    attributes.push(buildAttr("gh-aw.workflow_run.conclusion", workflowRunConclusion));
   }
-  attributes.push(buildAttr("github.aw.staged", staged));
-  if (itemType) attributes.push(buildAttr("github.aw.trigger.item_type", itemType));
-  if (itemNumber) attributes.push(buildAttr("github.aw.trigger.item_number", itemNumber));
-  if (triggerLabel) attributes.push(buildAttr("github.aw.trigger.label", triggerLabel));
-  if (commentId) attributes.push(buildAttr("github.aw.trigger.comment_id", commentId));
-  if (frontmatterSource) attributes.push(buildAttr("github.aw.frontmatter.source", frontmatterSource));
-  if (frontmatterEmoji) attributes.push(buildAttr("github.aw.frontmatter.emoji", frontmatterEmoji));
-  if (typeof bodyModified === "boolean") attributes.push(buildAttr("github.aw.frontmatter.body_modified", bodyModified));
+  attributes.push(buildAttr("gh-aw.staged", staged));
+  if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
+  if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
+  if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
+  if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
+  if (frontmatterSource) attributes.push(buildAttr("gh-aw.frontmatter.source", frontmatterSource));
+  if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
+  if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
 
   // Include experiment assignments so each span can be correlated with the
   // A/B variant selected for this run (written by pick_experiment.cjs).
@@ -1220,7 +1220,7 @@ async function sendJobSetupSpan(options = {}) {
     traceId,
     spanId,
     ...(parentSpanId ? { parentSpanId } : {}),
-    spanName: jobName ? `github.aw.${jobName}.setup` : "github.aw.job.setup",
+    spanName: jobName ? `gh-aw.${jobName}.setup` : "gh-aw.job.setup",
     startMs,
     endMs,
     serviceName,
@@ -1636,10 +1636,10 @@ function readAgentRuntimeMetrics() {
  *                                     the span status is set to STATUS_CODE_ERROR (2)
  * - `GH_AW_DETECTION_CONCLUSION`   – threat-detection scan outcome ("success", "warning",
  *                                     "failure", "skipped"); emitted as
- *                                     `github.aw.detection.conclusion` when present
+ *                                     `gh-aw.detection.conclusion` when present
  * - `GH_AW_DETECTION_REASON`       – machine-readable reason for the detection conclusion
  *                                     (e.g. "threat_detected", "agent_failure"); emitted as
- *                                     `github.aw.detection.reason` when present
+ *                                     `gh-aw.detection.reason` when present
  * - `INPUT_JOB_NAME`               – job name; set automatically by GitHub Actions from the
  *                                     `job-name` action input
  * - `GITHUB_AW_OTEL_TRACE_ID`      – trace ID written to GITHUB_ENV by the setup step;
@@ -1654,14 +1654,14 @@ function readAgentRuntimeMetrics() {
  * - `/tmp/gh-aw/aw_info.json`    – workflow/engine metadata written by the agent job;
  *                                   `context.item_type`, `context.item_number`, and
  *                                   `context.trigger_label` are emitted as
- *                                   `github.aw.trigger.item_type`, `github.aw.trigger.item_number`,
- *                                   and `github.aw.trigger.label` attributes so every span can
+ *                                   `gh-aw.trigger.item_type`, `gh-aw.trigger.item_number`,
+ *                                   and `gh-aw.trigger.label` attributes so every span can
  *                                   be linked back to the GitHub item that triggered the workflow
  * - `/tmp/gh-aw/agent_usage.json` – per-type token breakdown written by parse_token_usage.cjs;
  *                                    provides `input_tokens`, `output_tokens`,
  *                                    `cache_read_tokens`, and `cache_write_tokens` counters
  *
- * @param {string} spanName - OTLP span name (e.g. `"github.aw.job.conclusion"`)
+ * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.conclusion"`)
  * @param {{ startMs?: number }} [options]
  * @returns {Promise<void>}
  */
@@ -1781,7 +1781,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   // When GH_AW_AGENT_CONCLUSION and workflowRunConclusion are both absent (e.g. in the
   // agent job's own post-step where needs.<job>.result is not yet visible), fall back to
-  // observable failure evidence so github.aw.run.status and status.code are accurate.
+  // observable failure evidence so gh-aw.run.status and status.code are accurate.
   if (!rawRunStatus && outputErrors.length > 0) {
     runStatus = "failure";
     statusCode = 2;
@@ -1792,48 +1792,48 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     statusMessage = `agent ${agentConclusion}: ${errorMessages[0]}`.slice(0, 256);
   }
 
-  const attributes = [buildAttr("github.aw.workflow.name", workflowName), buildAttr("github.aw.run.id", runId), buildAttr("github.aw.run.attempt", runAttempt), buildAttr("github.aw.run.actor", actor), buildAttr("github.aw.repository", repository)];
-  attributes.push(buildAttr("github.aw.run.status", runStatus));
-  attributes.push(buildAttr("github.aw.error_count", outputErrors.length));
-  attributes.push(buildAttr("github.aw.warning_count", warningCount));
-  attributes.push(buildAttr("github.aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
+  const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.attempt", runAttempt), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+  attributes.push(buildAttr("gh-aw.run.status", runStatus));
+  attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
+  attributes.push(buildAttr("gh-aw.warning_count", warningCount));
+  attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
-  if (jobName) attributes.push(buildAttr("github.aw.job.name", jobName));
+  if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) {
     const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;
     attributes.push(buildAttr("gen_ai.system", genAiSystem));
-    attributes.push(buildAttr("github.aw.engine.id", engineId));
+    attributes.push(buildAttr("gh-aw.engine.id", engineId));
   }
   if (model) attributes.push(buildAttr("gen_ai.request.model", model));
-  if (trackerId) attributes.push(buildAttr("github.aw.tracker.id", trackerId));
-  if (eventName) attributes.push(buildAttr("github.aw.event_name", eventName));
+  if (trackerId) attributes.push(buildAttr("gh-aw.tracker.id", trackerId));
+  if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
   // Deployment state: prefer the env var (set from github.event.deployment_status.state
   // in the compiled workflow), fall back to aw_info.deployment_state or aw_context propagation.
   const deploymentStateConclusion =
     process.env.GH_AW_GITHUB_EVENT_DEPLOYMENT_STATUS_STATE || (typeof awInfo.deployment_state === "string" ? awInfo.deployment_state : "") || (typeof awInfo.context?.deployment_state === "string" ? awInfo.context.deployment_state : "");
   if (deploymentStateConclusion) {
-    attributes.push(buildAttr("github.aw.deployment.state", deploymentStateConclusion));
+    attributes.push(buildAttr("gh-aw.deployment.state", deploymentStateConclusion));
   }
   if (workflowRunConclusion) {
-    attributes.push(buildAttr("github.aw.workflow_run.conclusion", workflowRunConclusion));
+    attributes.push(buildAttr("gh-aw.workflow_run.conclusion", workflowRunConclusion));
   }
-  attributes.push(buildAttr("github.aw.staged", staged));
-  if (itemType) attributes.push(buildAttr("github.aw.trigger.item_type", itemType));
-  if (itemNumber) attributes.push(buildAttr("github.aw.trigger.item_number", itemNumber));
-  if (triggerLabel) attributes.push(buildAttr("github.aw.trigger.label", triggerLabel));
-  if (commentId) attributes.push(buildAttr("github.aw.trigger.comment_id", commentId));
-  if (frontmatterSource) attributes.push(buildAttr("github.aw.frontmatter.source", frontmatterSource));
-  if (frontmatterEmoji) attributes.push(buildAttr("github.aw.frontmatter.emoji", frontmatterEmoji));
-  if (typeof bodyModified === "boolean") attributes.push(buildAttr("github.aw.frontmatter.body_modified", bodyModified));
+  attributes.push(buildAttr("gh-aw.staged", staged));
+  if (itemType) attributes.push(buildAttr("gh-aw.trigger.item_type", itemType));
+  if (itemNumber) attributes.push(buildAttr("gh-aw.trigger.item_number", itemNumber));
+  if (triggerLabel) attributes.push(buildAttr("gh-aw.trigger.label", triggerLabel));
+  if (commentId) attributes.push(buildAttr("gh-aw.trigger.comment_id", commentId));
+  if (frontmatterSource) attributes.push(buildAttr("gh-aw.frontmatter.source", frontmatterSource));
+  if (frontmatterEmoji) attributes.push(buildAttr("gh-aw.frontmatter.emoji", frontmatterEmoji));
+  if (typeof bodyModified === "boolean") attributes.push(buildAttr("gh-aw.frontmatter.body_modified", bodyModified));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
-    attributes.push(buildAttr("github.aw.effective_tokens", effectiveTokens));
+    attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
   if (typeof runtimeMetrics.turns === "number") {
-    attributes.push(buildAttr("github.aw.turns", runtimeMetrics.turns));
+    attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
   }
   if (typeof runtimeMetrics.estimatedCostUsd === "number") {
-    attributes.push(buildAttr("github.aw.estimated_cost_usd", runtimeMetrics.estimatedCostUsd));
+    attributes.push(buildAttr("gh-aw.estimated_cost_usd", runtimeMetrics.estimatedCostUsd));
   }
   if (jobName === "agent") {
     // Emit OTel GenAI semantic attributes on agent conclusion spans even when the
@@ -1851,28 +1851,28 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
 
   if (agentConclusion) {
-    attributes.push(buildAttr("github.aw.agent.conclusion", agentConclusion));
+    attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
   }
   if (detectionConclusion) {
-    attributes.push(buildAttr("github.aw.detection.conclusion", detectionConclusion));
+    attributes.push(buildAttr("gh-aw.detection.conclusion", detectionConclusion));
   }
   if (detectionReason) {
-    attributes.push(buildAttr("github.aw.detection.reason", detectionReason));
+    attributes.push(buildAttr("gh-aw.detection.reason", detectionReason));
   }
-  attributes.push(buildAttr("github.aw.otlp.export_errors", readOTLPExportErrorCount()));
+  attributes.push(buildAttr("gh-aw.otlp.export_errors", readOTLPExportErrorCount()));
   const otlpExportErrorDetails = formatOTLPExportErrorDetails();
   if (otlpExportErrorDetails) {
-    attributes.push(buildAttr("github.aw.otlp.export_error_details", otlpExportErrorDetails));
+    attributes.push(buildAttr("gh-aw.otlp.export_error_details", otlpExportErrorDetails));
   }
   if (errorMessages.length > 0) {
-    attributes.push(buildAttr("github.aw.error.count", outputErrors.length));
-    attributes.push(buildAttr("github.aw.error.messages", errorMessages.join(" | ")));
+    attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
+    attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
   }
-  attributes.push(buildAttr("github.aw.output.item_count", outputItems.length));
+  attributes.push(buildAttr("gh-aw.output.item_count", outputItems.length));
   const rawItemTypes = outputItems.map(i => (i && typeof i.type === "string" ? i.type : "")).filter(Boolean);
   const itemTypes = [...new Set(rawItemTypes)].sort();
   if (itemTypes.length > 0) {
-    attributes.push(buildAttr("github.aw.output.item_types", itemTypes.join(",")));
+    attributes.push(buildAttr("gh-aw.output.item_types", itemTypes.join(",")));
   }
 
   // Enrich span with the most recent GitHub API rate-limit snapshot for post-run
@@ -1882,19 +1882,19 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const lastRateLimit = readLastRateLimitEntry();
   if (lastRateLimit) {
     if (typeof lastRateLimit.remaining === "number") {
-      attributes.push(buildAttr("github.aw.github.rate_limit.remaining", lastRateLimit.remaining));
+      attributes.push(buildAttr("gh-aw.github.rate_limit.remaining", lastRateLimit.remaining));
     }
     if (typeof lastRateLimit.limit === "number") {
-      attributes.push(buildAttr("github.aw.github.rate_limit.limit", lastRateLimit.limit));
+      attributes.push(buildAttr("gh-aw.github.rate_limit.limit", lastRateLimit.limit));
     }
     if (typeof lastRateLimit.used === "number") {
-      attributes.push(buildAttr("github.aw.github.rate_limit.used", lastRateLimit.used));
+      attributes.push(buildAttr("gh-aw.github.rate_limit.used", lastRateLimit.used));
     }
     if (lastRateLimit.resource) {
-      attributes.push(buildAttr("github.aw.github.rate_limit.resource", String(lastRateLimit.resource)));
+      attributes.push(buildAttr("gh-aw.github.rate_limit.resource", String(lastRateLimit.resource)));
     }
     if (lastRateLimit.reset) {
-      attributes.push(buildAttr("github.aw.github.rate_limit.reset", String(lastRateLimit.reset)));
+      attributes.push(buildAttr("gh-aw.github.rate_limit.reset", String(lastRateLimit.reset)));
     }
   }
 
@@ -1910,17 +1910,17 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Written by the outcome-collector workflow's pre-agent step.
   const outcomeSummary = readJSONIfExists("/tmp/gh-aw/outcome-summary.json");
   if (outcomeSummary && typeof outcomeSummary.total_outcomes === "number" && outcomeSummary.total_outcomes > 0) {
-    attributes.push(buildAttr("github.aw.outcome.total", outcomeSummary.total_outcomes));
-    attributes.push(buildAttr("github.aw.outcome.accepted", outcomeSummary.accepted || 0));
-    attributes.push(buildAttr("github.aw.outcome.rejected", outcomeSummary.rejected || 0));
-    attributes.push(buildAttr("github.aw.outcome.pending", outcomeSummary.pending || 0));
-    attributes.push(buildAttr("github.aw.outcome.ignored", outcomeSummary.ignored || 0));
-    attributes.push(buildAttr("github.aw.outcome.runs_checked", outcomeSummary.runs_checked || 0));
+    attributes.push(buildAttr("gh-aw.outcome.total", outcomeSummary.total_outcomes));
+    attributes.push(buildAttr("gh-aw.outcome.accepted", outcomeSummary.accepted || 0));
+    attributes.push(buildAttr("gh-aw.outcome.rejected", outcomeSummary.rejected || 0));
+    attributes.push(buildAttr("gh-aw.outcome.pending", outcomeSummary.pending || 0));
+    attributes.push(buildAttr("gh-aw.outcome.ignored", outcomeSummary.ignored || 0));
+    attributes.push(buildAttr("gh-aw.outcome.runs_checked", outcomeSummary.runs_checked || 0));
     if (typeof outcomeSummary.acceptance_rate === "number") {
-      attributes.push(buildAttr("github.aw.outcome.acceptance_rate", outcomeSummary.acceptance_rate));
+      attributes.push(buildAttr("gh-aw.outcome.acceptance_rate", outcomeSummary.acceptance_rate));
     }
     if (typeof outcomeSummary.waste_rate === "number") {
-      attributes.push(buildAttr("github.aw.outcome.waste_rate", outcomeSummary.waste_rate));
+      attributes.push(buildAttr("gh-aw.outcome.waste_rate", outcomeSummary.waste_rate));
     }
   }
 
@@ -1952,11 +1952,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     const shouldEmitSyntheticException = hasNoReadableAgentOutput && isAgentNonOK;
     if (outputErrors.length === 0) {
       if (shouldEmitSyntheticException) {
-        let exceptionType = "github.aw.AgentFailed";
+        let exceptionType = "gh-aw.AgentFailed";
         if (isAgentTimedOut) {
-          exceptionType = "github.aw.AgentTimedOut";
+          exceptionType = "gh-aw.AgentTimedOut";
         } else if (isAgentCancelled) {
-          exceptionType = "github.aw.AgentCancelled";
+          exceptionType = "gh-aw.AgentCancelled";
         }
         const exceptionMessage = (statusMessage || `agent ${agentConclusion}`).slice(0, MAX_ATTR_VALUE_LENGTH);
         return [{ timeUnixNano: toNanoString(eventTimeMs), name: "exception", attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)] }];
@@ -1972,7 +1972,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
         const colonIdx = msg.indexOf(":");
         const prefix = msg.slice(0, colonIdx);
         const hasValidPrefix = colonIdx > 0 && colonIdx < 64 && /^[a-z_][a-z0-9_.]*$/i.test(prefix);
-        const exceptionType = hasValidPrefix ? `github.aw.${prefix.toLowerCase()}` : "github.aw.AgentError";
+        const exceptionType = hasValidPrefix ? `gh-aw.${prefix.toLowerCase()}` : "gh-aw.AgentError";
         const exceptionMessage = (hasValidPrefix ? msg.slice(colonIdx + 1).trim() : msg).slice(0, MAX_ATTR_VALUE_LENGTH);
         return {
           timeUnixNano: errorTimeNano,
@@ -2059,7 +2059,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       traceId,
       spanId: generateSpanId(),
       parentSpanId: conclusionSpanId,
-      spanName: jobName ? `github.aw.${jobName}.agent` : "github.aw.job.agent",
+      spanName: jobName ? `gh-aw.${jobName}.agent` : "gh-aw.job.agent",
       startMs: agentStartMs,
       endMs: agentSpanEndMs,
       serviceName,

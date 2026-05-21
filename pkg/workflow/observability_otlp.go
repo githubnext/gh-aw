@@ -636,7 +636,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 }
 
 func otelServiceName(workflowData *WorkflowData) string {
-	const defaultServiceName = "github.aw"
+	const defaultServiceName = "gh-aw"
 	if workflowData == nil {
 		return defaultServiceName
 	}
