@@ -346,7 +346,9 @@ func TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists(t *testing.T) {
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
 
 	// Create the markdown file (required by ResolveWorkflowName).
-	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-test-workflow.md"), []byte("---\nname: my-test-workflow\n---\n"), 0644))
+	// The frontmatter name field is the GitHub Actions display name; the workflow
+	// ID is derived from the filename ("my-test-workflow").
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-test-workflow.md"), []byte("---\nname: My Test Workflow Display Name\n---\n"), 0644))
 
 	// Create a lock file whose display name differs from the workflow ID.
 	// This simulates the real scenario where audit-workflows.lock.yml has
@@ -373,6 +375,9 @@ func TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists(t *testing.T) {
 
 	// The raw workflow ID must NOT appear as the failing name in a gh run list
 	// "could not find" error, because the resolved display name should be used.
+	// In unit tests the API call fails with an HTTP 403 before GitHub can report
+	// a workflow-not-found message, so we verify the negative: the workflow ID
+	// ("my-test-workflow") is not echoed back as the unrecognised workflow name.
 	assert.NotContains(t, execErr.Error(), "could not find any workflows named my-test-workflow",
 		"when a local lock file exists, the display name (not the workflow ID) should be passed to gh run list")
 }
