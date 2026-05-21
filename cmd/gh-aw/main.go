@@ -301,13 +301,12 @@ Examples:
 			return err
 		}
 
-		// Clamp workers to at least 1.  A value of 0 (or negative) means the flag
-		// was not set; fall back to the default of max(1, nCPU-1).
+		// Clamp workers: 0 (flag not set) → nCPU-1; anything < 1 → 1.
 		if workers <= 0 {
 			workers = runtime.NumCPU() - 1
-		}
-		if workers < 1 {
-			workers = 1
+			if workers < 1 {
+				workers = 1
+			}
 		}
 
 		finishCompileUpdateCheck := cli.StartCompileUpdateCheck(cmd.Context(), noCheckUpdate, verbose)
