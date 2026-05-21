@@ -197,13 +197,17 @@ Before any nudge for a PR:
 
 For each PR that is not skipped:
 
-0. **Run formatters and push if needed**
+0. **Run formatters and push only when the lint gate failed**
+   - Inspect the PR's check runs / statuses and only attempt formatting when the failed required check is the `Lint Gate`.
+   - If the lint gate did not fail, skip this step.
+   - Before formatting, remember the current branch so you can return to it.
    - Checkout the PR branch: `git checkout <headRefName>`
-   - Run `make fmt` to format all code (Go, JavaScript, JSON)
-   - Check for changes: `git diff --quiet || echo "dirty"`
-   - If dirty, call `push_to_pull_request_branch` with the PR number to push the formatting fixes
-   - Return to the original branch: `git checkout -`
-   - Skip this step silently if `make fmt` exits non-zero (tools unavailable)
+   - Run `make fmt` to format all code (Go, JavaScript, JSON).
+   - If `make fmt` exits non-zero, discard any local changes, return to the original branch, and skip this step silently.
+   - If formatting made no changes, return to the original branch and continue.
+   - If any changed file is under `.github/workflows/`, give up on the formatter push for this PR, discard the local changes, return to the original branch, and continue.
+   - Otherwise, call `push_to_pull_request_branch` with the PR number to push the formatting fixes.
+   - After requesting the push, discard the local changes and return to the original branch before processing the next PR.
 
 1. **Update branch if possible**
    - If the PR is behind its base branch (or otherwise indicates branch update needed), attempt `update_pull_request` with `update_branch: true`.
