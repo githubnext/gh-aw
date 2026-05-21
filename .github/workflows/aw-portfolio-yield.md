@@ -30,6 +30,7 @@ safe-outputs:
     expires: 30d
 imports:
   - shared/mcp/grafana.md
+  - shared/mcp/sentry.md
   - shared/otlp.md
   - shared/otel-queries.md
 pre-agent-steps:
@@ -179,6 +180,7 @@ You are the semantic interpreter for the repository's agentic workflow portfolio
 - Do **not** recompute raw scores, ranking, overlap values, fractions, or portfolio math from scratch.
 - Do **not** invent telemetry, economics, confidence, or success evidence.
 - When telemetry exists, use the Grafana MCP server in this workflow to validate the precomputed telemetry with recent `gh-aw` traces before finalizing recommendations.
+- If Grafana telemetry lookup is unavailable, use the Sentry MCP server to validate traces before finalizing recommendations.
 - Do not perform write actions with GitHub tools.
 
 ## Required Interpretation Scope

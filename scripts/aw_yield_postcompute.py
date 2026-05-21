@@ -58,9 +58,18 @@ def recommendation_buckets(seed: dict[str, Any], workflows: dict[str, dict[str, 
         if lower not in buckets:
             continue
         for entry in entries or []:
-            path = entry["path"] if isinstance(entry, dict) else str(entry)
-            if path in workflows and path not in buckets[lower]:
-                buckets[lower].append(path)
+            candidate_paths: list[str]
+            if isinstance(entry, dict):
+                if isinstance(entry.get("paths"), list):
+                    candidate_paths = [pre.normalize_text(path) for path in entry.get("paths", [])]
+                else:
+                    path_value = entry.get("path")
+                    candidate_paths = [] if path_value is None else [pre.normalize_text(path_value)]
+            else:
+                candidate_paths = [pre.normalize_text(entry)]
+            for path in candidate_paths:
+                if path in workflows and path not in buckets[lower]:
+                    buckets[lower].append(path)
     return buckets
 
 
@@ -92,10 +101,12 @@ def normalize_agent_buckets(agent_summary: dict[str, Any], workflows: dict[str, 
             if not path:
                 continue
             if path not in workflows:
-                raise FinalizeError(f"Unknown workflow in recommendations: {path}")
+                notes.append(f"Ignored unknown workflow in recommendations: {path}")
+                continue
             other = seen.get(path)
             if other and other != bucket:
-                raise FinalizeError(f"Workflow '{path}' appears in multiple recommendation buckets")
+                notes.append(f"Ignored conflicting recommendation for '{path}' in bucket '{bucket}' (already in '{other}').")
+                continue
             seen[path] = bucket
             if path not in buckets[bucket]:
                 buckets[bucket].append(path)
