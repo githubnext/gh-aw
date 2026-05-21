@@ -175,6 +175,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       allowed-base-branches:          # Optional: glob patterns for allowed base branch overrides per run
         - "release/*"
         - "main"
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
+      max-patch-files: 50             # Optional: per-output cap on unique files in the patch (overrides global; default: 100)
   ```
 
   **Dynamic Base Branch**: When `allowed-base-branches` is set, the agent can provide a `base` field in its output to override the default base branch for a single run — but only if the value matches one of the configured glob patterns. Without `allowed-base-branches`, only the static `base-branch:` is used. Accepts a literal array or a GitHub Actions expression resolving to a comma-separated list (e.g. `${{ inputs.allowed-base-branches }}`).
@@ -337,14 +339,14 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```yaml
   safe-outputs:
     add-reviewer:
-      reviewers: [user1, copilot]     # Optional: restrict to specific reviewers
-      team-reviewers: [platform-team] # Optional: allowed team slugs
-      max: 3                          # Optional: max reviewers (default: 3)
-      target: "*"                     # Optional: "triggering" (default), "*", or number
-      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-reviewers: [user1, copilot]     # Optional: restrict to specific reviewer usernames (any allowed if omitted)
+      allowed-team-reviewers: [platform-team] # Optional: restrict to specific team slugs (any allowed if omitted)
+      max: 3                                  # Optional: max reviewers (default: 3)
+      target: "*"                             # Optional: "triggering" (default), "*", or number
+      target-repo: "owner/repo"               # Optional: cross-repository
   ```
 
-  At least one of `reviewers` or `team-reviewers` must be present in agent output. Use `reviewers: copilot` to assign Copilot PR reviewer bot. Requires PAT as `COPILOT_GITHUB_TOKEN`.
+  At least one reviewer or team reviewer must be present in agent output. Use `allowed-reviewers: [copilot]` to assign Copilot PR reviewer bot. Requires PAT as `COPILOT_GITHUB_TOKEN`. The legacy `reviewers` / `team-reviewers` field names are deprecated aliases.
 - `assign-milestone:` - Assign issues to milestones
 
   ```yaml
@@ -496,6 +498,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
       protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
   ```
 
   Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.

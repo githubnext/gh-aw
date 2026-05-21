@@ -227,7 +227,7 @@ function _resetCache() {
  * @returns {string} Suffix string, e.g. " · ● 12.5K" or ""
  */
 function getEffectiveTokensSuffix() {
-  const raw = process.env.GH_AW_EFFECTIVE_TOKENS;
+  const raw = process.env.GH_AW_EFFECTIVE_TOKENS ?? "";
   const parsed = parseInt(raw, 10);
 
   if (!isNaN(parsed) && parsed > 0) {
