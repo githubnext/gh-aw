@@ -65,8 +65,10 @@ on:
         description: 'Research topic'
         required: true
         type: string
+
 permissions:
   contents: read
+
 safe-outputs:
   create-discussion:
 ---
@@ -180,8 +182,10 @@ on:
   issues:
     types: [opened]
     lock-for-agent: true
+
 permissions:
   contents: read
+
 safe-outputs:
   add-comment:
     max: 3
@@ -353,13 +357,16 @@ on:
   deployment_status:
     state: [error, failure]
   workflow_dispatch:
+
 permissions:
   contents: read
   actions: read
   deployments: read
+
 tools:
   github:
     toolsets: [repos, actions]
+
 safe-outputs:
   create-issue:
     expires: 7d
@@ -833,6 +840,139 @@ if: needs.pre_activation.outputs.has_issues == 'true'
 Supported permission scopes: `actions`, `checks`, `contents`, `deployments`, `discussions`, `issues`, `packages`, `pages`, `pull-requests`, `repository-projects`, `security-events`, `statuses`.
 
 `on.permissions` is merged on top of any permissions already required by the pre-activation job (e.g., `contents: read` for dev-mode checkout, `actions: read` for rate limiting).
+
+### Repository Access Roles (`on.roles:`)
+
+Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]`.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  roles: [admin, maintainer, write]  # Default
+```
+
+```yaml wrap
+on:
+  workflow_dispatch:
+  roles: all                         # Allow any user (⚠️ use with caution)
+```
+
+You can also use a single role string, for example `roles: write`.
+
+Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
+
+> [!TIP]
+> Run `gh aw fix workflow.md --write` to automatically migrate top-level `roles:` to `on.roles:` using the built-in codemod.
+
+### Bot Filtering (`on.bots:`)
+
+Configure which GitHub bot accounts can trigger workflows. Useful for allowing specific automation bots while maintaining security controls.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  bots:
+    - "dependabot[bot]"
+    - "renovate[bot]"
+    - "agentic-workflows-dev[bot]"
+```
+
+**Behavior**:
+
+- When specified, only the listed bot accounts can trigger the workflow
+- The bot must be active (installed) on the repository to trigger the workflow
+- Combine with `on.roles:` for comprehensive access control
+- Applies to all workflow triggers (`pull_request`, `issues`, etc.)
+- When `on.roles: all` is set, bot filtering is not enforced
+
+**Common bot names**:
+
+- `dependabot[bot]` - GitHub Dependabot for dependency updates
+- `renovate[bot]` - Renovate bot for automated dependency management
+- `github-actions[bot]` - GitHub Actions bot
+- `agentic-workflows-dev[bot]` - Development bot for testing workflows
+
+### Skip Roles (`on.skip-roles`)
+
+Skip workflow execution for users with specific repository permission levels. Useful for exempting team members from automated checks that should only apply to external contributors.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-roles: [admin, maintainer, write]
+```
+
+**Available roles**: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`
+
+**Behavior**:
+
+- Workflow is cancelled during pre-activation when triggered by users with listed roles
+- Check runs before agent execution to avoid unnecessary compute costs
+- Merged as union when importing workflows (all skip-roles from imported workflows are combined)
+- Useful for AI moderation workflows that should only check external user content
+
+**Example use case**: An AI content moderation workflow that checks issues for policy violations but exempts trusted team members with write access or higher.
+
+### Skip Bots (`on.skip-bots`)
+
+Skip workflow execution when triggered by specific GitHub actors (users or bots). Complements `skip-roles` by filtering based on actor identity rather than permission level.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-bots: [github-actions, copilot, dependabot]
+```
+
+**Bot name matching**: Automatic flexible matching handles bot names with or without the `[bot]` suffix. For example, specifying `github-actions` matches both `github-actions` and `github-actions[bot]` actors automatically.
+
+**Behavior**:
+
+- Workflow is cancelled during pre-activation when `github.actor` matches any listed actor
+- Check runs before agent execution to avoid unnecessary compute costs
+- Merged as union when importing workflows (all skip-bots from imported workflows are combined)
+- Accepts both user accounts and bot accounts
+
+**String or array format**:
+
+```yaml wrap
+# Single bot
+skip-bots: github-actions
+
+# Multiple bots
+skip-bots: [github-actions, copilot, renovate]
+```
+
+**Example use cases**:
+
+- Skip AI workflows when triggered by automation bots to avoid bot-to-bot interactions
+- Prevent workflow loops where one workflow's output triggers another
+- Exempt specific known bots from content checks or policy enforcement
+
+### Skip Author Associations (`on.skip-author-associations`)
+
+Skip workflow execution at the pre-activation job level when a specific event is triggered by an author with a matching event payload `author_association` field (for example `github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`).
+
+```yaml wrap
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  skip-author-associations:
+    issue_comment: contributor
+    pull_request_review_comment: [first_time_contributor, none]
+```
+
+**Behavior**:
+
+- Compiles to a job-level `if` expression (no pre-activation script step cost for matched skips)
+- Uses the event-specific payload field (`github.event.comment.author_association`, `github.event.issue.author_association`, or `github.event.pull_request.author_association`)
+- Values are case-insensitive in frontmatter (`contributor` and `CONTRIBUTOR` are treated the same)
+- Supports a single string or an array of strings per event key
 
 ## Trigger Shorthands
 

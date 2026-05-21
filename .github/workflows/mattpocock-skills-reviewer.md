@@ -59,13 +59,12 @@ pre-agent-steps:
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
-      gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
-        --exclude '**/*.lock.yml' \
-        --exclude '**/generated/**' \
-        --exclude '**/dist/**' \
-        --exclude '**/build/**' \
-        | head -n 3000 \
-        > /tmp/gh-aw/agent/pr-diff.patch
+      { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
+          --exclude '**/*.lock.yml' \
+          --exclude '**/generated/**' \
+          --exclude '**/dist/**' \
+          --exclude '**/build/**' \
+          || true; } | head -n 3000 > /tmp/gh-aw/agent/pr-diff.patch
       LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
       gh pr view "$PR_NUMBER" \
         --repo $EXPR_GITHUB_REPOSITORY \

@@ -14,7 +14,9 @@ This guide shows how to add web search to workflows using the Tavily Model Conte
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 mcp-servers:
   tavily:
     command: npx

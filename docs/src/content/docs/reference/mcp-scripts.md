@@ -7,7 +7,7 @@ sidebar:
 
 The [`mcp-scripts:`](/gh-aw/reference/glossary/#mcp-scripts) element allows you to define custom [MCP](/gh-aw/reference/glossary/#mcp-model-context-protocol) (Model Context Protocol) tools directly in your workflow [frontmatter](/gh-aw/reference/glossary/#frontmatter) using JavaScript, shell scripts, or Python. These tools are generated at runtime and run as an HTTP MCP server **on the GitHub Actions runner, outside the agent container**. The agent reaches the server via `host.docker.internal`, keeping tool execution isolated from the AI sandbox while still providing controlled secret access.
 
-> [!CAUTION]
+> [!WARNING]
 > **MCP Scripts run outside the agent sandbox and must only implement READ-ONLY operations.**
 >
 > Because MCP Scripts execute directly on the GitHub Actions runner host — not inside the isolated agent container — they can access the runner's file system, network, and environment without the safety constraints of the sandbox. Implementing **write operations** (creating files, pushing commits, calling mutating APIs, etc.) in MCP Scripts bypasses the audit trail and approval gates that protect your repository.
@@ -267,15 +267,6 @@ Analyze provided text using the `analyze-text` tool and create a discussion with
 ## Security Considerations
 
 MCP Scripts tools run on the GitHub Actions **runner host** — outside the agent container — so they can access the runner's file system and environment but are isolated from the AI's own execution environment. Tools also provide secret isolation (only specified env vars are forwarded), process isolation (separate execution), and output sanitization (large outputs saved to files). Only predefined tools are available to agents.
-
-## Comparison with Other Options
-
-| Feature | MCP Scripts | Custom MCP Servers | Bash Tool |
-|---------|-------------|-------------------|-----------|
-| Setup | Inline in frontmatter | External service | Simple commands |
-| Languages | JavaScript, Shell, Python | Any language | Shell only |
-| Secret Access | Controlled via `env:` | Full access | Workflow env |
-| Isolation | Process-level | Service-level | None |
 
 ## Troubleshooting
 

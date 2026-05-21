@@ -18,6 +18,7 @@ Add an `experiments` map to the workflow frontmatter. Each key names an experime
 on:
   issues:
     types: [opened]
+
 engine: copilot
 
 experiments:
@@ -35,6 +36,7 @@ Use the object form to attach metadata that drives automated reporting, guardrai
 ---
 on:
   schedule: daily on weekdays
+
 engine: copilot
 
 experiments:
