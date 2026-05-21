@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"os/exec"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,6 @@ import (
 // individual tests can control it without interference from earlier tests.
 func resetDockerDaemonStateForTest() {
 	dockerDaemonLoader.Reset()
-	emitDaemonUnavailableWarningOnce = sync.Once{}
 }
 
 // TestValidateDockerImage_SkipsWhenDockerUnavailable verifies that
@@ -152,4 +150,3 @@ func TestMarkDockerDaemonUnavailable_SkipsSubsequentValidation(t *testing.T) {
 	err := validateDockerImage("ghcr.io/github/serena-mcp-server:latest", false, false)
 	assert.NoError(t, err, "should skip validation when daemon is already marked unavailable")
 }
-

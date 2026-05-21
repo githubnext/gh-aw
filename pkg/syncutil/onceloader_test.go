@@ -87,7 +87,8 @@ func TestOnceLoaderGetConcurrentSingleInvoke(t *testing.T) {
 	}
 }
 
-func TestOnceLoaderReset(t *testing.T) {	var loader OnceLoader[string]
+func TestOnceLoaderReset(t *testing.T) {
+	var loader OnceLoader[string]
 	var calls atomic.Int32
 
 	load := func() (string, error) {

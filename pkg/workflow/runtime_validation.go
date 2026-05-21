@@ -186,6 +186,12 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 	}
 
 	runtimeValidationLog.Printf("Validating container images for %d tools", len(workflowData.Tools))
+
+	// Snapshot daemon availability before iterating so we can detect a
+	// mid-loop transition (available → unavailable) and emit exactly one
+	// warning for it, correctly counted in the compiler's warning total.
+	daemonWasAvailable := isDockerDaemonRunning()
+
 	var errors []string
 	for toolName, toolConfig := range workflowData.Tools {
 		if config, ok := toolConfig.(map[string]any); ok {
@@ -217,6 +223,16 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 				}
 			}
 		}
+	}
+
+	// If the daemon appeared available at the start of the loop but became
+	// unreachable during a pull (requireDocker=false path only), emit a single
+	// visible warning here where we can also increment the warning count.
+	// For requireDocker=true, the per-image errors are already returned below
+	// and surfaced as a warning by the caller — no extra warning is needed.
+	if daemonWasAvailable && !isDockerDaemonRunning() && !c.requireDocker {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Docker daemon is not running — skipping container image validation"))
+		c.IncrementWarningCount()
 	}
 
 	if len(errors) > 0 {

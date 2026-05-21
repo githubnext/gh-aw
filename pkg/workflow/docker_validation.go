@@ -44,13 +44,10 @@ package workflow
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/syncutil"
 )
@@ -66,10 +63,6 @@ const dockerDaemonCheckTimeout = 3 * time.Second
 // ability to override the cached value via Override when a docker command
 // (e.g. docker pull) later discovers the daemon is not reachable.
 var dockerDaemonLoader syncutil.OnceLoader[bool]
-
-// emitDaemonUnavailableWarningOnce ensures the "daemon unavailable" warning
-// is printed at most once per process even when validating multiple images.
-var emitDaemonUnavailableWarningOnce sync.Once
 
 // isDockerDaemonRunning checks if the Docker daemon is responsive.
 // Uses a short timeout to avoid hanging when Docker is installed but the daemon is stopped.
@@ -96,16 +89,12 @@ func isDockerDaemonRunning() bool {
 	return available
 }
 
-// markDockerDaemonUnavailable records that the Docker daemon is not reachable and
-// emits a single visible warning. Subsequent calls to isDockerDaemonRunning will
-// return false immediately, so image validation for remaining tools is skipped
-// without further retries.
+// markDockerDaemonUnavailable records that the Docker daemon is not reachable.
+// Subsequent calls to isDockerDaemonRunning will return false immediately, so
+// image validation for remaining tools is skipped without further retries.
+// Callers are responsible for emitting any user-visible warning.
 func markDockerDaemonUnavailable() {
 	dockerDaemonLoader.Override(false, nil)
-
-	emitDaemonUnavailableWarningOnce.Do(func() {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Docker daemon is not running — skipping container image validation"))
-	})
 }
 
 // validateDockerImage checks if a Docker image exists and is accessible.
