@@ -732,6 +732,13 @@ func updateActionRefsInContent(ctx context.Context, content string, cache map[st
 			if latestVersion == ref {
 				continue // Version tag unchanged
 			}
+			// Prevent downgrades: if the proposed version is older than the current, skip.
+			currentVer := parseVersion(ref)
+			proposedVer := parseVersion(latestVersion)
+			if currentVer != nil && proposedVer != nil && currentVer.IsNewer(proposedVer) {
+				updateLog.Printf("Skipping %s in workflow file: proposed version %s is older than current %s (would be a downgrade)", repo, latestVersion, ref)
+				continue
+			}
 		}
 
 		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
