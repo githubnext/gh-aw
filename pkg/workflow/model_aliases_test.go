@@ -84,8 +84,8 @@ type awfConfigModelsResult struct {
 // TestBuildAWFConfigJSON_ModelsSection verifies model alias behaviour in BuildAWFConfigJSON.
 //
 // Models are serialised under apiProxy.models per the AWF config schema (apiProxy.models
-// is supported in AWF v0.25.38+). gh-aw now serializes only the workflow delta; builtins are
-// merged at runtime by actions/setup/js/merge_model_aliases.cjs.
+// is supported in AWF v0.25.38+). gh-aw now serializes only the workflow delta; AWF merges
+// against builtins from AWF_MODEL_ALIASES at runtime.
 func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 	t.Run("no models section when WorkflowData has only builtin aliases", func(t *testing.T) {
 		config := AWFCommandConfig{
