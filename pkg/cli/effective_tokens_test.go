@@ -138,9 +138,11 @@ func TestModelMultipliersDeprecatedMetadata20260521(t *testing.T) {
 
 	deprecated, ok := raw["deprecated_models"].(map[string]any)
 	require.True(t, ok, "deprecated_models metadata should be present as a map")
+	assert.Len(t, deprecated, 28, "deprecated_models metadata should list all currently stale models")
 	assert.Equal(t, true, deprecated["gpt-5"], "gpt-5 should be marked deprecated in metadata")
 	assert.Equal(t, true, deprecated["claude-sonnet-4.5"], "claude-sonnet-4.5 should be marked deprecated in metadata")
 	assert.Equal(t, true, deprecated["gemini-1.5-pro"], "gemini-1.5-pro should be marked deprecated in metadata")
+	assert.Equal(t, true, deprecated["gpt-4"], "gpt-4 should be marked deprecated in metadata")
 }
 
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
