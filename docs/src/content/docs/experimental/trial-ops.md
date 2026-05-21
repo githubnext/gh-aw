@@ -5,6 +5,10 @@ sidebar:
   badge: { text: 'Testing', variant: 'tip' }
 ---
 
+:::caution[Experimental]
+TrialOps features are experimental.
+:::
+
 TrialOps uses temporary trial repositories for safely validating and iterating on workflows before deployment to target repositories. The `trial` command creates isolated private repos where workflows execute and capture safe outputs (issues, PRs, comments) without affecting your actual codebase.
 
 ## How Trial Mode Works

@@ -14,51 +14,6 @@ It is most useful when you need context-aware routing and field updates. For sim
 
 In practice, this gives teams faster triage decisions, cleaner board state, stronger planning signals across related issues and pull requests, and more decision-ready status updates.
 
-## Prerequisites
-
-1. **A Project board** and copy the project URL. See [Creating a project](https://docs.github.com/en/issues/planning-and-tracking-with-projects/creating-projects/creating-a-project#creating-a-project).
-2. **A Project token** (PAT or GitHub App token). See [Project Token Authentication](#project-token-authentication).
-3. **A field contract** (for example: Status, Priority, Team, Iteration, Target Date). See [Understanding fields](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields).
-
-## Project Token Authentication
-
-Project operations need additional authentication because the default `GITHUB_TOKEN` is repository-scoped and cannot access Projects APIs for read/write project operations.
-
-### User-owned Projects
-
-If your project is user-owned, use a PAT and store it as a repository secret.
-
-- Use a [classic PAT](https://github.com/settings/tokens/new).
-- Required scopes:
-  - `project`
-  - `repo` (if private repositories are involved)
-
-### Organization-owned Projects
-
-If your project is organization-owned, use a fine-grained PAT or a GitHub App token and store it as a repository secret.
-
-- Use a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_WRITE_PROJECT_TOKEN&description=GitHub+Agentic+Workflows+-+Projects+authentication&contents=read&issues=read&pull_requests=read).
-- Configure:
-  - Resource owner: select the organization this project belongs to.
-  - Repository access: select the repositories that will run the workflow.
-  - Repository permissions: `Contents: Read`, and optionally `Issues: Read` / `Pull requests: Read` (or `Read and write`).
-  - Organization permissions: `Projects: Read` (or `Read and write`).
-
-You can also use a GitHub App token if your organization standardizes on App-based auth.
-For organization projects, make sure the app has **Organization Projects: Read and write** permission.
-See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
-
-### Recommended secret layout
-
-Use separate read and write tokens so you can enforce least privilege:
-- `GH_AW_READ_PROJECT_TOKEN` for `tools.github` + `projects` toolset.
-- `GH_AW_WRITE_PROJECT_TOKEN` for safe-output writes like `update-project`.
-
-```bash wrap
-gh aw secrets set GH_AW_READ_PROJECT_TOKEN --value "<read-token>"
-gh aw secrets set GH_AW_WRITE_PROJECT_TOKEN --value "<write-token>"
-```
-
 ## How it works
 
 ```mermaid
@@ -82,9 +37,19 @@ ProjectOps combines two capability layers:
   - **[`create-project`](/gh-aw/reference/safe-outputs/#project-creation-create-project)** — use when automation needs to bootstrap a new board for an initiative or team.
   - **[`add-comment`](/gh-aw/reference/safe-outputs/#comment-creation-add-comment)** — use when you want to explain routing decisions or request missing info on the triggering issue/PR.
 
-Let's look at examples of these in action, starting with the [Project Board Summarizer](#project-board-summarizer) (read-only analysis), then moving to controlled write operations with the [Project Board Maintainer](#project-board-maintainer) example.
+## Prerequisites
+
+1. **A Project board** and copy the project URL. See [Creating a project](https://docs.github.com/en/issues/planning-and-tracking-with-projects/creating-projects/creating-a-project#creating-a-project).
+2. **A Project token** (PAT or GitHub App token). See [Authentication (Projects)](/gh-aw/reference/auth-projects/).
+3. **A field contract** (for example: Status, Priority, Team, Iteration, Target Date). See [Understanding fields](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields).
+
+## Project Token Authentication
+
+The default `GITHUB_TOKEN` is repository-scoped and cannot access the Projects API. See [Authentication (Projects)](/gh-aw/reference/auth-projects/) for PAT, GitHub App, and secret layout instructions.
 
 ## Examples
+
+Let's look at examples of these in action, starting with the [Project Board Summarizer](#project-board-summarizer) (read-only analysis), then moving to controlled write operations with the [Project Board Maintainer](#project-board-maintainer) example.
 
 ### Project Board Summarizer
 
@@ -207,4 +172,4 @@ In production, keep the loop simple: issue arrives, agent classifies and propose
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
 - [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets for reading project state
 - [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) — Durable tracking with Projects
-- [Project Token Authentication](/gh-aw/patterns/project-ops/#project-token-authentication) — PAT and GitHub App setup for Projects
+- [Authentication (Projects)](/gh-aw/reference/auth-projects/) — PAT and GitHub App setup for Projects

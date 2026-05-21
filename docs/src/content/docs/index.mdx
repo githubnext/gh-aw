@@ -28,7 +28,7 @@ GitHub Agentic Workflows deliver this: repository automation, running the coding
 
 Use GitHub Copilot, Claude by Anthropic, Gemini from Google or OpenAI Codex for event-triggered and scheduled jobs to improve your repository. GitHub Agentic Workflows [augment](https://github.github.com/gh-aw/reference/faq/#determinism) your existing, deterministic CI/CD with [Continuous AI](https://githubnext.com/projects/continuous-ai) capabilities.
 
-Developed by experts, workflows run with added guardrails, using safe outputs and sandboxed execution to help keep your repository safe.
+Developed by GitHub and Microsoft, workflows run with added guardrails, using safe outputs and sandboxed execution to help keep your repository safe.
 
 > ⓘ Note: GitHub Agentic Workflows is in early development and may change significantly. Using agentic workflows requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
@@ -89,10 +89,12 @@ Here's a simple workflow that runs daily to create an upbeat status report:
 ---
 on:
   schedule: daily
+
 permissions:
   contents: read
   issues: read
   pull-requests: read
+
 safe-outputs:
   create-issue:
     title-prefix: "[team-status] "
@@ -113,9 +115,7 @@ Create an upbeat daily status report for the team as a GitHub issue.
 
 ```
 
-The `gh aw` cli augments this with a [lock file](/gh-aw/reference/faq/#what-is-a-workflow-lock-file) for a GitHub Actions Workflow (.lock.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment on a schedule or manually.
-
-The AI coding agent reads your repository context, analyzes issues, generates visualizations, and creates reports. All defined in natural language rather than complex code.
+The `gh aw` cli hardens this to a traditional GitHub Actions Workflow (.lock.yml) that runs an AI coding agent (Copilot CLI, Claude Code, Codex, ...) in a containerized environment on a schedule or manually. The AI coding agent reads your repository context, analyzes issues, generates visualizations, and creates reports. All defined in natural language rather than complex code.
 
 ## Gallery
 
