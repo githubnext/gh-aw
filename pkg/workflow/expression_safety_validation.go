@@ -23,13 +23,6 @@ const maxFuzzyMatchSuggestions = 7
 
 // Pre-compiled regexes for expression safety validation (performance optimization)
 var (
-	expressionRegex         = regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
-	needsStepsRegex         = regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
-	inputsRegex             = regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
-	workflowCallInputsRegex = regexp.MustCompile(`^inputs\.[a-zA-Z0-9_-]+$`)
-	awInputsRegex           = regexp.MustCompile(`^github\.aw\.inputs\.[a-zA-Z0-9_-]+$`)
-	awImportInputsRegex     = regexp.MustCompile(`^github\.aw\.import-inputs\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)?$`)
-	envRegex                = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
 	// comparisonExpressionPattern matches a full comparison expression so both sides can be
 	// validated recursively instead of allowing a safe-looking prefix to bypass validation.
 	comparisonExpressionPattern = regexp.MustCompile(`^(.+?)\s*(?:==|!=|<|>|<=|>=)\s*(.+)$`)
@@ -42,7 +35,7 @@ var (
 func validateExpressionSafety(markdownContent string) error {
 	expressionValidationLog.Print("Validating expression safety in markdown content")
 
-	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
+	matches := ExpressionPatternDotAll.FindAllStringSubmatch(markdownContent, -1)
 	expressionValidationLog.Printf("Found %d expressions to validate", len(matches))
 
 	var unauthorizedExpressions []string
@@ -67,12 +60,12 @@ func validateExpressionSafety(markdownContent string) error {
 			// If we can parse it, validate each literal expression in the tree
 			validationErr := VisitExpressionTree(parsed, func(expr *ExpressionNode) error {
 				return validateSingleExpression(expr.Expression, ExpressionValidationOptions{
-					NeedsStepsRe:            needsStepsRegex,
-					InputsRe:                inputsRegex,
-					WorkflowCallInputsRe:    workflowCallInputsRegex,
-					AwInputsRe:              awInputsRegex,
-					AwImportInputsRe:        awImportInputsRegex,
-					EnvRe:                   envRegex,
+					NeedsStepsRe:            NeedsStepsPattern,
+					InputsRe:                InputsPattern,
+					WorkflowCallInputsRe:    WorkflowCallInputsPattern,
+					AwInputsRe:              AWInputsPattern,
+					AwImportInputsRe:        AWImportInputsPattern,
+					EnvRe:                   EnvPattern,
 					UnauthorizedExpressions: &unauthorizedExpressions,
 				})
 			})
@@ -82,12 +75,12 @@ func validateExpressionSafety(markdownContent string) error {
 		} else {
 			// If parsing fails, fall back to validating the whole expression as a literal
 			err := validateSingleExpression(expression, ExpressionValidationOptions{
-				NeedsStepsRe:            needsStepsRegex,
-				InputsRe:                inputsRegex,
-				WorkflowCallInputsRe:    workflowCallInputsRegex,
-				AwInputsRe:              awInputsRegex,
-				AwImportInputsRe:        awImportInputsRegex,
-				EnvRe:                   envRegex,
+				NeedsStepsRe:            NeedsStepsPattern,
+				InputsRe:                InputsPattern,
+				WorkflowCallInputsRe:    WorkflowCallInputsPattern,
+				AwInputsRe:              AWInputsPattern,
+				AwImportInputsRe:        AWImportInputsPattern,
+				EnvRe:                   EnvPattern,
 				UnauthorizedExpressions: &unauthorizedExpressions,
 			})
 			if err != nil {

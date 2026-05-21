@@ -7,7 +7,13 @@ sidebar:
 
 BatchOps is a pattern for processing large volumes of work items efficiently. Instead of iterating sequentially through hundreds of items in a single workflow run, BatchOps splits work into chunks, parallelizes where possible, handles partial failures gracefully, and aggregates results into a consolidated report.
 
-## When to Use BatchOps vs Sequential Processing
+```mermaid
+flowchart LR
+    trigger([Trigger]) --> workers[Parallel batch workers]
+    workers --> agg[Aggregate results]
+```
+
+## When to Use BatchOps
 
 | Scenario | Recommendation |
 |----------|----------------|
@@ -21,6 +27,15 @@ BatchOps is a pattern for processing large volumes of work items efficiently. In
 ## Batch Strategy 1: Chunked Processing
 
 Split work into fixed-size pages using `GITHUB_RUN_NUMBER`. Each run processes one page, picking up the next slice on the next scheduled run. Items must have a stable sort key (creation date, issue number) so pagination is deterministic.
+
+```mermaid
+flowchart LR
+    run([Run N]) --> fetch[Fetch page N]
+    fetch --> agent[AI processes batch]
+    agent --> next([Run N+1, next page])
+```
+
+Example workflow:
 
 ```aw wrap
 ---
@@ -66,6 +81,15 @@ This run covers offset ${{ steps.compute-page.outputs.page_offset }} with page s
 
 Use GitHub Actions matrix to run multiple batch workers in parallel, each responsible for a non-overlapping shard. Use `fail-fast: false` so one shard failure doesn't cancel the others. Each shard gets its own token and API rate limit quota.
 
+```mermaid
+flowchart LR
+    trigger([Trigger]) --> s0[Shard 0]
+    trigger --> s1[Shard 1]
+    trigger --> s2[Shard 2]
+```
+
+Example workflow:
+
 ```aw wrap
 ---
 on:
@@ -105,6 +129,15 @@ Process only issues where `(issue_number % ${{ inputs.total_shards }}) == ${{ ma
 ## Batch Strategy 3: Rate-Limit-Aware Batching
 
 Throttle API calls by processing items in small sub-batches with explicit pauses. Slower than unbounded processing but dramatically reduces rate-limit errors. Use [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for built-in throttling.
+
+```mermaid
+flowchart LR
+    trigger([Trigger]) --> batch[Process sub-batch]
+    batch --> pause[Pause between batches]
+    pause --> report[Report totals]
+```
+
+Example workflow:
 
 ```aw wrap
 ---
@@ -146,6 +179,15 @@ Process all open issues in sub-batches of ${{ inputs.batch_size }}, pausing ${{ 
 ## Batch Strategy 4: Result Aggregation
 
 Collect results from multiple batch workers or runs and aggregate them into a single summary issue. Use [cache-memory](/gh-aw/reference/cache-memory/) to store intermediate results when runs span multiple days.
+
+```mermaid
+flowchart LR
+    runs[Past batch runs] --> cache[cache-memory]
+    cache --> agent[AI agent]
+    agent --> issue[Update tracking issue]
+```
+
+Example workflow:
 
 ```aw wrap
 ---
@@ -201,63 +243,7 @@ Aggregate results from previous batch runs stored in `/tmp/gh-aw/cache-memory/ba
 4. For each failed item, create a sub-issue so it can be retried.
 ```
 
-## Error Handling and Partial Failures
-
-Batch workflows must be resilient to individual item failures.
-
-**Retry pattern**: When using cache-memory queues, track `retry_count` per failed item. Retry items where `retry_count < 3`; after three failures move them to `permanently_failed` for human review. Increment the count and save the queue after each attempt.
-
-**Failure isolation**:
-
-- Use `fail-fast: false` in matrix jobs so one shard failure doesn't cancel others
-- Write per-item results before moving to the next item
-- Store errors with enough context to diagnose and retry
-
-## Real-World Example: Updating Labels Across 100+ Issues
-
-This example processes a label migration (rename `bug` to `type:bug`) across all open and closed issues.
-
-```aw wrap
----
-on:
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Preview changes without applying them"
-        default: "true"
-
-tools:
-  github:
-    toolsets: [issues]
-  bash:
-    - "jq"
-
-safe-outputs:
-  add-labels:
-    allowed: [type:bug]
-    max: 200
-  remove-labels:
-    allowed: [bug]
-    max: 200
-  add-comment:
-    max: 1
-
-concurrency:
-  group: label-migration
-  cancel-in-progress: false
----
-
-# Label Migration: `bug` → `type:bug`
-
-Migrate all issues with the label `bug` to use `type:bug`. List all issues (open and closed) with label `bug`, paginating to retrieve all of them.
-
-- If `${{ inputs.dry_run }}` is `true`: report how many issues would be updated and add a preview comment. Make no changes.
-- If `${{ inputs.dry_run }}` is `false`: for each issue add `type:bug` then remove `bug`. Process in sub-batches of 20 with 15-second pauses. Track successes and failures.
-
-Add a final comment with totals and a search link to verify no `bug` labels remain.
-```
-
-## Related Pages
+## Related Documentation
 
 - [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing with issue checklists, sub-issues, cache-memory, and Discussions
 - [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign for developer-supervised work

@@ -2023,7 +2023,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  if (!hasDedicatedAgentSpan) {
+  // Only attach token-usage attributes to the agent job's conclusion span as a
+  // fallback (when no dedicated agent sub-span was emitted).  Non-agent jobs
+  // (conclusion, detection, safe_outputs) also have agent_usage.json on disk
+  // (downloaded via the agent artifact) but must NOT emit token data — otherwise
+  // every sum(gen_ai.usage.*) query is inflated by the number of downstream jobs.
+  if (!hasDedicatedAgentSpan && jobName === "agent") {
     attributes.push(...usageAttrs);
   }
 

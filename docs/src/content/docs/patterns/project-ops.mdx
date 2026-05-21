@@ -83,9 +83,11 @@ Let's start with a simple agentic workflow that reviews project board state and 
 ---
 on:
   schedule: weekly on monday
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     github-token: ${{ secrets.GH_AW_READ_PROJECT_TOKEN }}
@@ -129,13 +131,16 @@ This workflow will run on new issues, analyze the issue and project state, and d
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     github-token: ${{ secrets.GH_AW_READ_PROJECT_TOKEN }}
     toolsets: [default, projects]
+
 safe-outputs:
   update-project:
     github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
@@ -185,9 +190,10 @@ In production, keep the loop simple: issue arrives, agent classifies and propose
 - Keep single-select values exact to avoid field drift.
 - If you only need simple event-based transitions, prefer [built-in GitHub Project workflows](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations).
 
-## Related documentation
+## Related Documentation
 
-- **[Project Token Authentication](/gh-aw/patterns/project-ops/#project-token-authentication)**
-- **[Safe Outputs Reference](/gh-aw/reference/safe-outputs/)**
-- **[Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/)**
-- **[IssueOps](/gh-aw/patterns/issue-ops/)**
+- [IssueOps](/gh-aw/patterns/issue-ops/) — Event-driven issue automation
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
+- [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets for reading project state
+- [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) — Durable tracking with Projects
+- [Project Token Authentication](/gh-aw/patterns/project-ops/#project-token-authentication) — PAT and GitHub App setup for Projects

@@ -16,10 +16,13 @@ The preferred way to add Serena is to copy the file [`shared/mcp/serena.md`](htt
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 permissions:
   contents: read
 # NOTE: first copy `shared/mcp/serena.md` into your repository before importing it
+
 imports:
   - uses: shared/mcp/serena.md
     with:
@@ -32,10 +35,13 @@ For Go-only workflows, use the convenience wrapper (copy [`shared/mcp/serena-go.
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 permissions:
   contents: read
 # NOTE: first copy `shared/mcp/serena-go.md` into your repository before importing it
+
 imports:
   - shared/mcp/serena-go.md
 ---
@@ -46,12 +52,15 @@ imports:
 ```aw wrap
 ---
 engine: copilot
+
 permissions:
   contents: read
+
 imports:
   - uses: shared/mcp/serena.md
     with:
       languages: ["go"]
+
 tools:
   github:
     toolsets: [default]
@@ -119,8 +128,10 @@ These tools enable agents to work at the **symbol level** rather than the file l
 ```aw wrap
 ---
 engine: copilot
+
 imports:
   - shared/mcp/serena-go.md
+
 tools:
   github:
     toolsets: [default]
