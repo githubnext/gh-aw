@@ -54,7 +54,7 @@ func TestCompileWorkflows_ContextCancelledDuringSpecificFiles(t *testing.T) {
 	// ctx.Done() guard is reached on subsequent iterations.
 	const numFiles = 5
 	var files []string
-	for i := 0; i < numFiles; i++ {
+	for i := range numFiles {
 		name := filepath.Join(workflowsDir, "workflow-"+string(rune('a'+i))+".md")
 		if err := os.WriteFile(name, []byte("# dummy"), 0644); err != nil {
 			t.Fatal(err)
