@@ -293,21 +293,6 @@ on:
     # (optional)
     strategy: "inline"
 
-  # Experimental synthetic reviewer lifecycle trigger. Built-in slash command
-  # support is always enabled. Set to an empty value to use the default slash
-  # command name (workflow id), or set a string to provide a custom slash command
-  # name. This includes `pull_request` events (`ready_for_review`,
-  # `review_requested`) and `pull_request_review` (`submitted` only; `edited` and
-  # `dismissed` are ignored).
-  # (optional)
-  # Accepted formats:
-
-  # Format 1: null
-  pull_request_reviewer: null
-
-  # Format 2: string
-  pull_request_reviewer: "example-value"
-
   # Push event trigger that runs the workflow when code is pushed to the repository
   # (optional)
   push:

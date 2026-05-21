@@ -88,7 +88,6 @@ var ghAwOnSectionKeys = map[string]bool{
 	"label_command":                      true,
 	"labels":                             true,
 	"needs":                              true,
-	"pull_request_reviewer":              true,
 	"reaction":                           true,
 	"roles":                              true,
 	"skip-author-associations":           true,

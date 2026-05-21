@@ -306,15 +306,6 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		data.On = c.injectWorkflowDispatchForIssue(data.On)
 	}
 
-	if data.PullRequestReviewer {
-		reviewerGuard := "(github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.state != 'closed'"
-		if data.If == "" {
-			data.If = reviewerGuard
-		} else {
-			data.If = "(" + data.If + ") && (" + reviewerGuard + ")"
-		}
-	}
-
 	// Generate concurrency configuration using the dedicated concurrency module
 	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger || isLabelCommandTrigger)
 
