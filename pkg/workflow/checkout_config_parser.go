@@ -162,6 +162,9 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		default:
 			return nil, errors.New("checkout.fetch-depth must be an integer")
 		}
+		if cfg.FetchDepth != nil && *cfg.FetchDepth < 0 {
+			return nil, errors.New("checkout.fetch-depth must be >= 0")
+		}
 	}
 
 	if v, ok := m["sparse-checkout"]; ok {

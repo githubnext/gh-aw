@@ -70,8 +70,26 @@ Review only the **changed lines**. Look for:
 
 For each significant issue, create a `create-pull-request-review-comment` with:
 - **File path and line number** of the issue
-- **Clear description** of what is wrong and why it matters
-- **Concrete suggestion** for how to fix it (include a code snippet when helpful)
+- **Immediately visible text**: one brief sentence stating the issue and its impact
+- **`<details>` block**: detailed explanation, code snippet fix, and rationale — collapsed by default
+
+Example:
+```markdown
+**Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.
+
+<details>
+<summary>💡 Suggested fix</summary>
+
+```go
+if user.Profile == nil {
+    return ErrNoProfile
+}
+```
+
+Callers that pass users without profiles (e.g., in tests) will hit this panic silently.
+
+</details>
+```
 
 **Prioritization** (use your 10-comment budget wisely):
 1. Correctness and security-adjacent bugs (highest priority, up to 4 comments)
@@ -99,8 +117,8 @@ Keep the overall review body concise — list the top themes or highlight what w
 ### Review Formatting
 
 - Use h3 (###) or lower for all headers in your review output to maintain proper document hierarchy.
-- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
-- Structure: Brief summary (always visible) → Key findings (always visible) → Detailed analysis (in `<details>`) → Recommendations (always visible)
+- Apply **progressive disclosure** in every comment: keep the immediately visible text to one brief sentence, then wrap detailed analysis and code suggestions in `<details><summary>💡 …</summary>` blocks.
+- Overall review body structure: verdict + one-line summary (always visible) → themes/highlights (in `<details>`)
 
 ### Review Focus
 - **Focus on changed lines only** — do not review the entire codebase
