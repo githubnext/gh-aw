@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/testutil"
 )
 
 // TestValidateStrictFirewall_LLMGatewaySupport tests the LLM gateway validation in strict mode
@@ -77,7 +79,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine allows domains from known ecosystems with warning suggesting ecosystem identifier in strict mode", func(t *testing.T) {
+	t.Run("copilot engine allows domains from known ecosystems with informational ecosystem guidance in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -89,14 +91,12 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 			},
 		}
 
-		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-		// Should have incremented warning count
-		if compiler.GetWarningCount() != initialWarnings+1 {
-			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		if compiler.GetWarningCount() != 0 {
+			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
 	})
 
@@ -117,7 +117,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("codex engine allows domains from known ecosystems with warning suggesting ecosystem identifier", func(t *testing.T) {
+	t.Run("codex engine allows domains from known ecosystems with informational ecosystem guidance", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -129,14 +129,12 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 			},
 		}
 
-		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("codex", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-		// Should have incremented warning count
-		if compiler.GetWarningCount() != initialWarnings+1 {
-			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		if compiler.GetWarningCount() != 0 {
+			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
 	})
 
@@ -260,9 +258,9 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 	})
 }
 
-// TestValidateStrictFirewall_EcosystemSuggestions tests ecosystem suggestions in warning messages
+// TestValidateStrictFirewall_EcosystemSuggestions tests ecosystem suggestions in informational messages
 func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
-	t.Run("warns with ecosystem suggestion when individual domain from ecosystem is used", func(t *testing.T) {
+	t.Run("prints informational ecosystem suggestion when individual domain from ecosystem is used", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -273,18 +271,51 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
-		initialWarnings := compiler.GetWarningCount()
-		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err != nil {
-			t.Errorf("Expected no error for individual ecosystem domain in strict mode, got: %v", err)
+		output := testutil.CaptureStderr(t, func() {
+			err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
+			if err != nil {
+				t.Errorf("Expected no error for individual ecosystem domain in strict mode, got: %v", err)
+			}
+		})
+		if compiler.GetWarningCount() != 0 {
+			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
-		// Should have emitted a warning
-		if compiler.GetWarningCount() != initialWarnings+1 {
-			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		if !strings.Contains(output, "recommend using ecosystem identifiers") ||
+			!strings.Contains(output, "'pypi.org'") ||
+			!strings.Contains(output, "'python'") {
+			t.Errorf("Expected informational ecosystem guidance in stderr, got: %q", output)
 		}
 	})
 
-	t.Run("warns with ecosystem suggestion for multiple domains from same ecosystem", func(t *testing.T) {
+	t.Run("prints informational ecosystem suggestion without strict mode warning prefix", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = true
+
+		networkPerms := &NetworkPermissions{
+			Allowed: []string{"files.pythonhosted.org", "pypi.org"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		}
+
+		output := testutil.CaptureStderr(t, func() {
+			err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
+			if err != nil {
+				t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
+			}
+		})
+		if !strings.Contains(output, "recommend using ecosystem identifiers") {
+			t.Errorf("Expected informational ecosystem guidance in stderr, got: %q", output)
+		}
+		if strings.Contains(output, "strict mode:") {
+			t.Errorf("Expected informational ecosystem guidance to omit strict mode warning prefix, got: %q", output)
+		}
+		if !strings.Contains(output, "'files.pythonhosted.org' → 'python', 'pypi.org' → 'python'") {
+			t.Errorf("Expected informational ecosystem guidance to include both python suggestions, got: %q", output)
+		}
+	})
+
+	t.Run("prints informational ecosystem suggestion for multiple domains from same ecosystem", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -295,18 +326,16 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
-		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-		// Should have emitted a warning
-		if compiler.GetWarningCount() != initialWarnings+1 {
-			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		if compiler.GetWarningCount() != 0 {
+			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
 	})
 
-	t.Run("warns with ecosystem suggestion for domains from different ecosystems", func(t *testing.T) {
+	t.Run("prints informational ecosystem suggestion for domains from different ecosystems", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -317,14 +346,12 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
-		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-		// Should have emitted a warning
-		if compiler.GetWarningCount() != initialWarnings+1 {
-			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		if compiler.GetWarningCount() != 0 {
+			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
 	})
 
@@ -350,7 +377,7 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 		}
 	})
 
-	t.Run("mixed custom and ecosystem domains shows warnings only for ecosystem domains", func(t *testing.T) {
+	t.Run("mixed custom and ecosystem domains print informational guidance without warning count", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -361,14 +388,12 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
-		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error for mixed domains in strict mode, got: %v", err)
 		}
-		// Should have emitted a warning for pypi.org only
-		if compiler.GetWarningCount() != initialWarnings+1 {
-			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		if compiler.GetWarningCount() != 0 {
+			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
 	})
 
@@ -448,7 +473,7 @@ func TestValidateStrictFirewall_CustomDomainBehavior(t *testing.T) {
 		}
 	})
 
-	t.Run("ecosystem domain with custom domains emits warning for ecosystem domain only", func(t *testing.T) {
+	t.Run("ecosystem domain with custom domains prints informational guidance without warning count", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -459,14 +484,12 @@ func TestValidateStrictFirewall_CustomDomainBehavior(t *testing.T) {
 			},
 		}
 
-		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error for ecosystem domain with custom domain, got: %v", err)
 		}
-		// Should have emitted a warning for pypi.org
-		if compiler.GetWarningCount() != initialWarnings+1 {
-			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		if compiler.GetWarningCount() != 0 {
+			t.Errorf("Expected no warnings for informational ecosystem guidance, got %d", compiler.GetWarningCount())
 		}
 	})
 
