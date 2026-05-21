@@ -21,8 +21,9 @@ name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation for review and issue triage
 files:
-  - workflows/review.md
+  - workflows/review.md                # agentic workflow — compiled on install
   - .github/workflows/nightly-review.md
+  - .github/workflows/ci.yml           # raw Actions YAML — copied verbatim
 ```
 
 ## Quick reference
@@ -34,7 +35,7 @@ files:
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
-| `files` | array of strings | No | Package-root-relative markdown files under `workflows/` or `.github/workflows/`. |
+| `files` | array of strings | No | Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
 
 ## Documentation
 
@@ -48,7 +49,10 @@ Missing `README.md` causes package validation to fail.
 
 ## Installable workflows
 
-If `files` is present, valid entries are used as the install bundle.
+If `files` is present, valid entries are used as the install bundle. Two entry kinds are supported:
+
+- **Agentic workflow markdown** — paths ending in `.md` under `workflows/` or `.github/workflows/`. Compiled to lock files on install.
+- **Raw GitHub Actions YAML** — paths ending in `.yml` (but not `.lock.yml`) that are direct children of `.github/workflows/`. Copied verbatim with no compilation or dependency fetching. `.yml` files under `workflows/` and nested subdirectories under `.github/workflows/` are not accepted.
 
 If `files` is omitted or contains no valid installable paths, `gh aw add` scans:
 

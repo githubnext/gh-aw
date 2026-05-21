@@ -8,10 +8,7 @@
       "extensions": [
         "golang.go",
         "GitHub.copilot-chat",
-        "GitHub.copilot",
-        "github.vscode-github-actions",
-        "astro-build.astro-vscode",
-        "DavidAnson.vscode-markdownlint"
+        "GitHub.copilot"
       ]
     },
     "codespaces": {

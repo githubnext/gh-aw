@@ -64,7 +64,7 @@ async function main() {
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
-  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>}} */
+  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>}} */
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
     toolsMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
