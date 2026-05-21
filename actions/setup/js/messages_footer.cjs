@@ -8,7 +8,6 @@
  * for safe-output workflows.
  */
 
-const path = require("path");
 const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPromptPath } = require("./messages_core.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
@@ -132,9 +131,7 @@ function getFooterInstallMessage(ctx) {
   // Create context with both camelCase and snake_case keys, including computed agentic_workflow_url
   const templateContext = toSnakeCase({ ...ctx, agenticWorkflowUrl });
 
-  // Resolve template path: GH_AW_PROMPTS_DIR / RUNNER_TEMP (production) > source tree (local dev/test)
-  const hasRuntimePromptsDir = !!(process.env.RUNNER_TEMP || process.env.GH_AW_PROMPTS_DIR);
-  const defaultInstallTemplatePath = hasRuntimePromptsDir ? getPromptPath("workflow_install_note.md") : path.join(__dirname, "../md/workflow_install_note.md");
+  const defaultInstallTemplatePath = getPromptPath("workflow_install_note.md");
 
   // Use custom installation message if configured
   return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplateFromFile(defaultInstallTemplatePath, templateContext);
