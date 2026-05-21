@@ -98,6 +98,7 @@ func TestGenerateNpmInstallSteps_IgnoreScriptsByDefault(t *testing.T) {
 		"claude",
 		false, // no Node.js setup step
 		false, // runInstallScripts=false (default)
+		true,  // cooldown enabled by default
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
@@ -105,6 +106,7 @@ func TestGenerateNpmInstallSteps_IgnoreScriptsByDefault(t *testing.T) {
 
 	assert.Contains(t, installStep, "--ignore-scripts", "Expected --ignore-scripts flag by default")
 	assert.Contains(t, installStep, "npm install --ignore-scripts -g @anthropic-ai/claude-code@latest")
+	assert.Contains(t, installStep, "NPM_CONFIG_MIN_RELEASE_AGE: '3'")
 }
 
 func TestGenerateNpmInstallSteps_RunInstallScriptsEnabled(t *testing.T) {
@@ -115,6 +117,7 @@ func TestGenerateNpmInstallSteps_RunInstallScriptsEnabled(t *testing.T) {
 		"claude",
 		false, // no Node.js setup step
 		true,  // runInstallScripts=true
+		true,  // cooldown enabled by default
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
@@ -122,6 +125,7 @@ func TestGenerateNpmInstallSteps_RunInstallScriptsEnabled(t *testing.T) {
 
 	assert.NotContains(t, installStep, "--ignore-scripts", "Expected no --ignore-scripts flag when runInstallScripts=true")
 	assert.Contains(t, installStep, "npm install -g @anthropic-ai/claude-code@latest")
+	assert.Contains(t, installStep, "NPM_CONFIG_MIN_RELEASE_AGE: '3'")
 }
 
 func TestGenerateNpmInstallStepsWithScope_LocalInstall(t *testing.T) {
@@ -133,6 +137,7 @@ func TestGenerateNpmInstallStepsWithScope_LocalInstall(t *testing.T) {
 		false, // no Node.js setup
 		false, // local install (not global)
 		false, // runInstallScripts=false
+		false, // cooldown disabled
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
@@ -140,6 +145,7 @@ func TestGenerateNpmInstallStepsWithScope_LocalInstall(t *testing.T) {
 
 	assert.Contains(t, installStep, "--ignore-scripts", "Expected --ignore-scripts flag")
 	assert.NotContains(t, installStep, " -g ", "Expected local install (no -g flag)")
+	assert.NotContains(t, installStep, "NPM_CONFIG_MIN_RELEASE_AGE", "Cooldown env should be omitted when disabled")
 }
 
 func TestValidateRunInstallScripts_Warning(t *testing.T) {

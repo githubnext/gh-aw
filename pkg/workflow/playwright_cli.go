@@ -81,6 +81,7 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 		needsNodeSetup, // true only when engine.command skips standard engine install steps
 		true,           // Global install so playwright-cli is on PATH
 		true,           // Allow install scripts for browser setup
+		resolveRuntimeCooldown(workflowData, "node"),
 	)
 
 	// Install playwright-cli skills so the coding agent can discover available commands.

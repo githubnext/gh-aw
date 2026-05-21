@@ -248,6 +248,9 @@ func runtimeConfigToMap(rc *RuntimeConfig) map[string]any {
 	if rc.ActionVersion != "" {
 		m["action-version"] = rc.ActionVersion
 	}
+	if rc.Cooldown != nil {
+		m["cooldown"] = *rc.Cooldown
+	}
 	if rc.RunInstallScripts != nil {
 		m["run-install-scripts"] = *rc.RunInstallScripts
 	}

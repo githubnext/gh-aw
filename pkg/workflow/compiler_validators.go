@@ -295,12 +295,6 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		c.IncrementWarningCount()
 	}
 
-	// Emit experimental warning for pull_request_reviewer synthetic trigger
-	if workflowData.PullRequestReviewer {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: pull_request_reviewer"))
-		c.IncrementWarningCount()
-	}
-
 	// Emit experimental warning for rate-limiting feature
 	if workflowData.RateLimit != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: rate limiting"))

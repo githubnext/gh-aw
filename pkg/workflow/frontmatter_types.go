@@ -12,6 +12,7 @@ type RuntimeConfig struct {
 	If                string `json:"if,omitempty"`                  // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
 	ActionRepo        string `json:"action-repo,omitempty"`         // Override the GitHub Actions repository (e.g., "actions/setup-node")
 	ActionVersion     string `json:"action-version,omitempty"`      // Override the action version (e.g., "v4")
+	Cooldown          *bool  `json:"cooldown,omitempty"`            // If false, disable the default dependency cooldown for installs associated with this runtime
 	RunInstallScripts *bool  `json:"run-install-scripts,omitempty"` // If true, allow pre/post install scripts for this runtime (supply chain risk; emits warning or error in strict mode)
 }
 

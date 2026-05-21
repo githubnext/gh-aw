@@ -2,7 +2,12 @@
 emoji: "🔍"
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 on:
-  pull_request_reviewer: matt
+  pull_request:
+    types: [ready_for_review]
+  slash_command:
+    strategy: centralized
+    name: matt
+    events: [pull_request_comment, pull_request_review_comment]
 permissions:
   contents: read
   pull-requests: read

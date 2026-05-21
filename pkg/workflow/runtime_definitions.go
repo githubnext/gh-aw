@@ -28,6 +28,7 @@ type RuntimeRequirement struct {
 	ExtraFields map[string]any // Additional 'with' fields from user's setup step (e.g., cache settings)
 	GoModFile   string         // Path to go.mod file for Go runtime (Go-specific)
 	IfCondition string         // Optional GitHub Actions if condition
+	Cooldown    bool           // If false, disables default dependency cooldown behavior for installs associated with this runtime
 }
 
 // knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)

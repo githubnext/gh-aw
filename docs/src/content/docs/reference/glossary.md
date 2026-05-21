@@ -494,15 +494,6 @@ Steps injected at a specific lifecycle position within a custom or built-in job'
 
 A frontmatter field that declares custom jobs that both the `pre_activation` and `activation` built-in jobs depend on. Use this when credentials or secrets must be fetched by a custom job before activation runs — for example, when `on.github-app` tokens come from a secrets-manager job. Values must reference custom jobs defined in the top-level `jobs:` section; built-in job names are rejected at compile time. See [Triggers Reference](/gh-aw/reference/triggers/).
 
-### Pull Request Reviewer Trigger (`on.pull_request_reviewer`)
-
-A synthetic frontmatter trigger for workflows that act as PR reviewers. Configured with `on.pull_request_reviewer: slash_command`, it compiles to centralized routing through the `agentic_commands.yml` dispatcher and automatically subscribes to PR reviewer lifecycle events (`pull_request.ready_for_review` and `pull_request_review` actions). The compiler applies PR-scoped concurrency with queue-max defaults and injects early cancellation when the PR is already closed at workflow start. Review events are resolved to the target workflow via XML markers in the review body using the existing `extractWorkflowId` mechanism. Introduced in [ADR-33273](https://github.com/github/gh-aw/blob/main/docs/adr/33273-synthetic-pull-request-reviewer-trigger.md). See [Triggers Reference](/gh-aw/reference/triggers/).
-
-```aw wrap
-on:
-  pull_request_reviewer: slash_command
-```
-
 ### Stop After
 
 A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601) or relative time deltas (`+48h`, `+7d`). Minimum granularity is hours. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset the deadline. See [Ephemerals](/gh-aw/reference/ephemerals/).

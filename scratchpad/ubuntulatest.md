@@ -347,7 +347,7 @@ DEBIAN_FRONTEND=noninteractive
 
 ## Creating a Docker Image Mimic
 
-To create a Docker image that mimics the GitHub Actions Ubuntu runner environment, follow these guidelines. Note that creating a complete replica is not practical due to the extensive software list, so focus on the tools your workflows actually need.
+To create a Docker image that mimics the GitHub Actions Ubuntu runner environment, follow these guidelines. Note that creating a complete replica is not practical due to the size of the software list, so focus on the tools your workflows actually need.
 
 ### Base Image
 
