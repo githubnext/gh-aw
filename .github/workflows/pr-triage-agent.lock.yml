@@ -256,6 +256,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/pr-code-review-config.md}}
+          {{#runtime-import .github/triage.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/pr-triage-agent.md}}
           GH_AW_PROMPT_cff59b2a1dc6993c_EOF
