@@ -22,6 +22,15 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+// issueURLPattern matches GitHub issue URLs like https://github.com/owner/repo/issues/123
+var issueURLPattern = regexp.MustCompile(`https://github\.com/[^/]+/[^/]+/issues/(\d+)`)
+
+// issueRefPattern matches issue references like #123
+var issueRefPattern = regexp.MustCompile(`^#(\d+)$`)
+
+// issueNumberPattern matches plain issue numbers like 123
+var issueNumberPattern = regexp.MustCompile(`^\d+$`)
+
 // executeTrialRun runs one complete set of trials for all workflow specs.
 // It is called (possibly multiple times) by RunWorkflowTrials via ExecuteWithRepeat.
 func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoSlug, logicalRepoSlug, cloneRepoSlug string, directTrialMode bool, opts TrialOptions) error {
@@ -234,20 +243,17 @@ func parseIssueSpec(input string) string {
 	input = strings.TrimSpace(input)
 
 	// First try to match GitHub issue URLs
-	urlRegex := regexp.MustCompile(`https://github\.com/[^/]+/[^/]+/issues/(\d+)`)
-	if matches := urlRegex.FindStringSubmatch(input); len(matches) >= 2 {
+	if matches := issueURLPattern.FindStringSubmatch(input); len(matches) >= 2 {
 		return matches[1]
 	}
 
 	// Try to match issue references like #123
-	refRegex := regexp.MustCompile(`^#(\d+)$`)
-	if matches := refRegex.FindStringSubmatch(input); len(matches) >= 2 {
+	if matches := issueRefPattern.FindStringSubmatch(input); len(matches) >= 2 {
 		return matches[1]
 	}
 
 	// Try to match plain numbers like 123
-	numberRegex := regexp.MustCompile(`^\d+$`)
-	if numberRegex.MatchString(input) {
+	if issueNumberPattern.MatchString(input) {
 		return input
 	}
 

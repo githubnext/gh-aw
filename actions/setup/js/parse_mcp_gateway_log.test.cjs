@@ -1506,6 +1506,22 @@ not-json
       const m2ET = summary.byModel["m2"].effectiveTokens;
       expect(summary.totalEffectiveTokens).toBe(m1ET + m2ET);
     });
+
+    test("does not double count cached tokens already included in input", () => {
+      const summary = parseTokenUsageJsonl(
+        JSON.stringify({
+          model: "m",
+          input_tokens: 1000,
+          output_tokens: 10,
+          cache_read_tokens: 900,
+          cache_write_tokens: 0,
+          duration_ms: 100,
+        })
+      );
+      expect(summary).not.toBeNull();
+      // base = 1.0 × (1000-900) + 0.1 × 900 + 4.0 × 10 = 230
+      expect(Math.round(summary.totalEffectiveTokens)).toBe(230);
+    });
   });
 
   describe("hasEffectiveTokensRateLimitError", () => {

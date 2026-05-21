@@ -125,11 +125,14 @@ func TestModelMultipliersInventoryUpdate20260521(t *testing.T) {
 	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4.1-mini"], 1e-9, "gpt-4.1-mini should match documented multiplier")
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4.1-nano"], 1e-9, "gpt-4.1-nano should match documented multiplier")
-	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.1-codex-mini"], 1e-9, "gpt-5.1-codex-mini should match documented multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["gpt-5.1-codex-mini"], 1e-9, "gpt-5.1-codex-mini should match documented multiplier of 0.33 (mini tier)")
 	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-pro"], 1e-9, "gpt-5.2-pro should match documented multiplier")
 	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-pro-2025-12-11"], 1e-9, "gpt-5.2-pro-2025-12-11 should match documented multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-nano-2026-03-17"], 1e-9, "gpt-5.4-nano-2026-03-17 should match documented multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-pro-2026-03-05"], 1e-9, "gpt-5.4-pro-2026-03-05 should match documented multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["gemini-3-flash"], 1e-9, "gemini-3-flash should be present with official billing multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3-pro"], 1e-9, "gemini-3-pro should be present with official billing multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro"], 1e-9, "gemini-3.1-pro should be present with official billing multiplier")
 }
 
 func TestModelMultipliersDeprecatedMetadata20260521(t *testing.T) {
@@ -138,11 +141,17 @@ func TestModelMultipliersDeprecatedMetadata20260521(t *testing.T) {
 
 	deprecated, ok := raw["deprecated_models"].(map[string]any)
 	require.True(t, ok, "deprecated_models metadata should be present as a map")
-	assert.Len(t, deprecated, 28, "deprecated_models metadata should list all currently stale models")
+	assert.Len(t, deprecated, 34, "deprecated_models metadata should list all currently stale models")
 	assert.Equal(t, true, deprecated["gpt-5"], "gpt-5 should be marked deprecated in metadata")
 	assert.Equal(t, true, deprecated["claude-sonnet-4.5"], "claude-sonnet-4.5 should be marked deprecated in metadata")
 	assert.Equal(t, true, deprecated["gemini-1.5-pro"], "gemini-1.5-pro should be marked deprecated in metadata")
 	assert.Equal(t, true, deprecated["gpt-4"], "gpt-4 should be marked deprecated in metadata")
+	assert.Equal(t, true, deprecated["gpt-41-copilot"], "gpt-41-copilot should be marked deprecated in metadata")
+	assert.Equal(t, true, deprecated["grok-code-fast-1"], "grok-code-fast-1 should be marked deprecated in metadata")
+	assert.Equal(t, true, deprecated["o1-mini"], "o1-mini should be marked deprecated in metadata")
+	assert.Equal(t, true, deprecated["raptor-mini"], "raptor-mini should be marked deprecated in metadata")
+	assert.Equal(t, true, deprecated["gemini-2.5-computer-use-preview"], "gemini-2.5-computer-use-preview should be marked deprecated in metadata")
+	assert.Equal(t, true, deprecated["gemini-3.1-flash-live-preview"], "gemini-3.1-flash-live-preview should be marked deprecated in metadata")
 }
 
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {

@@ -15,6 +15,12 @@ import (
 
 var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
 
+// invalidBranchCharsPattern matches characters not allowed in git branch names
+var invalidBranchCharsPattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
+// consecutiveHyphensPattern matches two or more consecutive hyphens
+var consecutiveHyphensPattern = regexp.MustCompile(`-{2,}`)
+
 // sanitizeBranchName sanitizes a string for use in a git branch name.
 // Git branch names cannot contain:
 // - spaces, ~, ^, :, \, ?, *, [, @{
@@ -27,12 +33,10 @@ func sanitizeBranchName(name string) string {
 
 	// Replace problematic characters with hyphens
 	// This regex matches any character that's not alphanumeric, hyphen, or underscore
-	invalidChars := regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
-	name = invalidChars.ReplaceAllString(name, "-")
+	name = invalidBranchCharsPattern.ReplaceAllString(name, "-")
 
 	// Remove consecutive hyphens
-	consecutiveHyphens := regexp.MustCompile(`-{2,}`)
-	name = consecutiveHyphens.ReplaceAllString(name, "-")
+	name = consecutiveHyphensPattern.ReplaceAllString(name, "-")
 
 	// Trim leading/trailing hyphens
 	name = strings.Trim(name, "-")
