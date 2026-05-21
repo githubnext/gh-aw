@@ -27,7 +27,7 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 			name:            "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
 			engine:          "codex",
 			expectedEnvVar:  constants.EnvVarModelAgentCodex,
-			expectedCommand: "${" + constants.EnvVarModelAgentCodex + `:+--model "`,
+			expectedCommand: "${" + constants.EnvVarModelAgentCodex + `:+ --model "`,
 		},
 	}
 
@@ -455,5 +455,51 @@ func TestGetModelEnvVarName(t *testing.T) {
 				t.Errorf("Engine %s: GetModelEnvVarName() = %q, want %q", tt.engine, got, tt.expected)
 			}
 		})
+	}
+}
+
+// TestCodexModelFlagPositionAfterExec verifies that the --model flag appears after the exec
+// subcommand in the generated Codex command, not before it.
+// Regression test for: Codex lock compiler places --model flag before exec subcommand.
+func TestCodexModelFlagPositionAfterExec(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-codex-model-position",
+		AI:   "codex",
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("codex")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// Find the model shell expansion pattern in the generated command
+	modelPattern := "${" + constants.EnvVarModelAgentCodex + ":+"
+	modelIdx := strings.Index(stepsContent, modelPattern)
+	if modelIdx == -1 {
+		t.Fatalf("Model expansion pattern '%s' not found in steps:\n%s", modelPattern, stepsContent)
+	}
+
+	// Find "exec" in the generated command (look for the last occurrence before the model pattern
+	// to handle multi-line step content)
+	execIdx := strings.LastIndex(stepsContent[:modelIdx], "exec")
+	if execIdx == -1 {
+		t.Errorf("'exec' subcommand must appear before the model flag '%s' in the generated command.\n"+
+			"This indicates the model flag is placed before 'exec', causing Codex to ignore it.\n"+
+			"Got:\n%s", modelPattern, stepsContent)
 	}
 }
