@@ -331,7 +331,7 @@ Process issue.
 	b.ReportAllocs()
 	for b.Loop() {
 		// Run batch actionlint on all lock files
-		_ = RunActionlintOnFiles(lockFiles, false, false)
+		_ = RunActionlintOnFiles(context.Background(), lockFiles, false, false)
 	}
 }
 
