@@ -17,7 +17,10 @@
 // Docker image validation degrades gracefully when Docker is unavailable.
 // The caller (validateContainerImages) collects errors and surfaces them as compiler warnings:
 //   - If Docker is not installed, validation is silently skipped (debug log only)
-//   - If the Docker daemon is not running, validation is silently skipped (debug log only)
+//   - If the Docker daemon is not running (detected at startup via `docker info`), validation is silently skipped
+//   - If the Docker daemon becomes unreachable mid-process (detected during `docker pull`),
+//     a single visible warning is emitted, the daemon state is cached as unavailable, and all
+//     remaining images are skipped without further retries
 //   - If an image cannot be pulled due to authentication (private repo), validation passes
 //   - If an image truly doesn't exist, returns an error
 //   - Detailed validation logging is available via debug logging when enabled
@@ -43,10 +46,10 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 var dockerValidationLog = newValidationLogger("docker")
@@ -55,18 +58,18 @@ var dockerValidationLog = newValidationLogger("docker")
 // If the daemon isn't running, this prevents long hangs on every docker command.
 const dockerDaemonCheckTimeout = 3 * time.Second
 
-// Cached result of Docker daemon availability check.
-// Checked once per process to avoid repeated slow checks when daemon is down.
-var (
-	dockerDaemonOnce      sync.Once
-	dockerDaemonAvailable bool
-)
+// dockerDaemonLoader caches the result of the Docker daemon availability check.
+// Using OnceLoader[bool] gives thread-safe one-shot initialisation with the
+// ability to override the cached value via Override when a docker command
+// (e.g. docker pull) later discovers the daemon is not reachable.
+var dockerDaemonLoader syncutil.OnceLoader[bool]
 
 // isDockerDaemonRunning checks if the Docker daemon is responsive.
 // Uses a short timeout to avoid hanging when Docker is installed but the daemon is stopped.
-// Results are cached for the process lifetime.
+// Results are cached via dockerDaemonLoader; the cached value can be overridden by
+// markDockerDaemonUnavailable when a later docker command detects the daemon is unreachable.
 func isDockerDaemonRunning() bool {
-	dockerDaemonOnce.Do(func() {
+	available, _ := dockerDaemonLoader.Get(func() (bool, error) {
 		dockerValidationLog.Print("Checking if Docker daemon is running")
 		ctx, cancel := context.WithTimeout(context.Background(), dockerDaemonCheckTimeout)
 		defer cancel()
@@ -76,14 +79,22 @@ func isDockerDaemonRunning() bool {
 		cmd.Stderr = nil
 		err := cmd.Run()
 
-		dockerDaemonAvailable = err == nil
-		if !dockerDaemonAvailable {
+		if err != nil {
 			dockerValidationLog.Printf("Docker daemon not running or not responsive: %v", err)
-		} else {
-			dockerValidationLog.Print("Docker daemon is running")
+			return false, nil //nolint:nilerr // intentional: cache false without an error
 		}
+		dockerValidationLog.Print("Docker daemon is running")
+		return true, nil
 	})
-	return dockerDaemonAvailable
+	return available
+}
+
+// markDockerDaemonUnavailable records that the Docker daemon is not reachable.
+// Subsequent calls to isDockerDaemonRunning will return false immediately, so
+// image validation for remaining tools is skipped without further retries.
+// Callers are responsible for emitting any user-visible warning.
+func markDockerDaemonUnavailable() {
+	dockerDaemonLoader.Override(false, nil)
 }
 
 // validateDockerImage checks if a Docker image exists and is accessible.
@@ -172,6 +183,24 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 			// This is likely a private image that requires authentication
 			// Don't fail validation for private/authenticated images
 			dockerValidationLog.Printf("Image %s appears to be private/authenticated, skipping validation", image)
+			return nil
+		}
+
+		// Check if the error means the Docker daemon became unreachable mid-process.
+		// This can happen when `docker info` succeeded earlier but the daemon stopped
+		// (or was never fully operational) by the time we issue docker pull.
+		// Treat this as a daemon-unavailable condition: update the cached state so
+		// subsequent images skip immediately, emit a single warning, and return nil
+		// (or an error when requireDocker is true).
+		// Use case-insensitive matching to handle Docker version differences.
+		outputLower := strings.ToLower(outputStr)
+		if strings.Contains(outputLower, "cannot connect to the docker daemon") ||
+			strings.Contains(outputLower, "is the docker daemon running") {
+			markDockerDaemonUnavailable()
+			if requireDocker {
+				return fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or omit the --validate-images flag to skip container image validation", image)
+			}
+			dockerValidationLog.Printf("Docker daemon not reachable during pull of %s, skipping container image validation", image)
 			return nil
 		}
 

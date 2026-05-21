@@ -189,7 +189,7 @@ The following toolsets are recommended as defaults for typical agentic workflows
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `actions_get` | Get details of a specific workflow run | `owner`, `repo`, `run_id` |
-| `actions_list` | List GitHub Actions workflows and runs | `owner`, `repo`, `workflow_id` |
+| `actions_list` | List GitHub Actions workflows and runs | `owner`, `repo`, `method`, `resource_id`, `per_page`, `page` |
 | `actions_run_trigger` | Trigger a workflow run | `owner`, `repo`, `workflow_id`, `ref`, `inputs` |
 | `get_job_logs` | Download logs for a specific workflow job | `owner`, `repo`, `job_id` |
 

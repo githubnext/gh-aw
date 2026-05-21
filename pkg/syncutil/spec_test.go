@@ -174,6 +174,46 @@ func TestSpec_PublicAPI_OnceLoader_Reset(t *testing.T) {
 	})
 }
 
+// TestSpec_PublicAPI_OnceLoader_Override validates the documented behavior of
+// the OnceLoader.Override method as described in the syncutil README.md.
+//
+// Specification:
+//   - Stores result and err as the cached value without invoking loader.
+//   - Subsequent Get calls return this value without invoking loader.
+func TestSpec_PublicAPI_OnceLoader_Override(t *testing.T) {
+	t.Run("documented: Get returns overridden value without calling loader", func(t *testing.T) {
+		var loader syncutil.OnceLoader[string]
+		var calls atomic.Int32
+
+		load := func() (string, error) {
+			calls.Add(1)
+			return "from-loader", nil
+		}
+
+		loader.Override("forced", nil)
+
+		v, err := loader.Get(load)
+
+		require.NoError(t, err, "Get after Override should not error")
+		assert.Equal(t, "forced", v, "documented: Get returns the overridden value")
+		assert.Equal(t, int32(0), calls.Load(), "documented: loader is never called after Override")
+	})
+
+	t.Run("documented: Override with error is returned by subsequent Get", func(t *testing.T) {
+		var loader syncutil.OnceLoader[string]
+		boom := errors.New("override-err")
+
+		loader.Override("", boom)
+
+		v, err := loader.Get(func() (string, error) {
+			return "should-not-run", nil
+		})
+
+		require.ErrorIs(t, err, boom, "documented: Get returns the overridden error")
+		assert.Empty(t, v, "documented: empty string returned alongside overridden error")
+	})
+}
+
 // TestSpec_ThreadSafety_OnceLoader validates the documented concurrency
 // guarantees of OnceLoader as described in the syncutil README.md.
 //
