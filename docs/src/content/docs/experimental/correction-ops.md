@@ -218,7 +218,7 @@ The production object changes across use cases, but the CorrectionOps shape does
 ## Related Documentation
 
 - [Staged Mode](/gh-aw/reference/staged-mode/) for the optional safe-write rollout guidance inside CorrectionOps
-- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for separating workflow infrastructure from the production repository
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for separating workflow infrastructure from the production repository
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating workflows across repository boundaries
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for controlling write targets and protections
 - [GitHub Tools](/gh-aw/reference/github-tools/) for cross-repository reads and operations

@@ -633,7 +633,7 @@ func outputResults(
 		if err != nil {
 			return err
 		}
-		fmt.Println(jsonStr)
+		fmt.Fprintln(os.Stdout, jsonStr)
 	} else if !config.Stats {
 		// Print summary for text output (skip if stats mode)
 		printCompilationSummary(stats, config.ShowAllErrors)

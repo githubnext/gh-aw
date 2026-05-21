@@ -1,11 +1,19 @@
 ---
 title: Multi-Repository Examples
-description: Complete examples for managing workflows across multiple GitHub repositories, including feature synchronization, cross-repo tracking, and organization-wide updates.
+description: Complete examples for managing workflows across multiple GitHub repositories, including feature synchronization, cross-repo tracking, quality monitoring, and organization-wide updates.
 ---
 
 Multi-repository operations enable coordinating work across multiple GitHub repositories while maintaining security and proper access controls. These examples demonstrate common patterns for cross-repo workflows.
 
 ## Featured Examples
+
+### [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/)
+
+Runs automated issue triage on a main repository from an isolated side repository, with a slash-command bridge for real-time `/triage` response. Keeps all automation logic separate from the main codebase. Use when you want to experiment with agentic triage without touching your main repository.
+
+### [Code Quality Monitoring](/gh-aw/examples/multi-repo/code-quality-monitoring/)
+
+Runs weekly code quality analysis from a side repository by checking out the target codebase locally, running linters and complexity checks, and creating focused actionable issues. Use for ongoing quality gates across repositories you don't want to modify.
 
 ### [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/)
 
@@ -15,6 +23,9 @@ Automates code synchronization from main repositories to sub-repositories or dow
 
 Centralizes issue tracking by automatically creating tracking issues in a central repository with status synchronization and multi-component coordination. Use for component-based architecture visibility, multi-team coordination, cross-project initiatives, or upstream dependency tracking.
 
+### [Dependabot Rollout](/gh-aw/examples/multi-repo/dependabot-rollout/)
+
+Rolls out a customized Dependabot configuration across many repositories using an orchestrator + worker pair from a central control repository. The orchestrator filters and prioritizes targets, then dispatches workers that analyze each repo and create tailored pull requests. Use for org-wide config standardization, security patch rollouts, or any scheduled multi-repo operation.
 ## Getting Started
 
 All multi-repo workflows require proper authentication:
@@ -30,9 +41,6 @@ gh aw secrets set GH_AW_CROSS_REPO_PAT --value "ghp_your_token_here"
 ```
 
 The PAT needs permissions **only on target repositories** (not the source repository where the workflow runs): `repo` for private repos, `contents: write` for commits, `issues: write` for issues, and `pull-requests: write` for PRs.
-
-> [!TIP]
-> **Security Best Practice**: If you only need to read from one repo and write to another, scope your PAT to have read access on the source and write access only on target repositories. Use separate tokens for different operations when possible.
 
 ### GitHub App Configuration
 

@@ -23,6 +23,9 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 45
 imports:
+  - uses: shared/cache-memory-trending.md
+    with:
+      workflow-name: api-consumption
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[api-consumption] "
@@ -55,32 +58,12 @@ Every day, analyse the **last 24 hours** of agentic workflow runs to understand:
 
 ## Step 1 — Collect Logs via MCP
 
-Before calling `logs`, inspect the cache state to choose a collection window:
+Run **Step T1** from the cache-memory trending pattern above to inspect the cache state and choose a collection window.
 
-```bash
-history_file="/tmp/gh-aw/cache-memory/trending/api-consumption/history.jsonl"
-entry_count=0
-if [ -f "$history_file" ]; then
-  if ! entry_count=$(wc -l < "$history_file"); then
-    echo "warning: unable to count existing history entries; defaulting to 0"
-    entry_count=0
-  fi
-fi
-```
+Use the `agentic-workflows` MCP `logs` tool:
 
-Use the `agentic-workflows` MCP `logs` tool with this rule (assuming one deduplicated row per day after Step 3 merge; 30 entries is roughly 30 days of daily points, enough for stable 7-day and 30-day trend visuals):
-
-- If `entry_count >= 30` (history is already rich): collect only incremental data:
-
-```
-logs(start_date="-1d")
-```
-
-- If `entry_count < 30` (first run, cache miss, or sparse history): run a one-time backfill window:
-
-```
-logs(start_date="-90d")
-```
+- **Incremental** (history is already rich per the threshold in **Step T1**): `logs(start_date="-1d")`
+- **Backfill** (first run, cache miss, or sparse history per the threshold in **Step T1**): `logs(start_date="-90d")`
 
 Record which mode you used (`incremental` vs `backfill`) and the chosen `start_date` in Step 6 (the discussion "Cache Memory Status" details block).
 
@@ -203,25 +186,9 @@ Example structure:
 
 ## Step 3 — Update Cache-Memory Trending History
 
-**Cache validation**: Before appending, check whether the cache was restored from a previous run:
+Run **Steps T2–T4** from the cache-memory trending pattern above.
 
-```bash
-history_file="/tmp/gh-aw/cache-memory/trending/api-consumption/history.jsonl"
-if [ -f "$history_file" ] && [ -s "$history_file" ]; then
-  entry_count=$(wc -l < "$history_file")
-  echo "Cache restored from previous run: yes ($entry_count existing entries)"
-else
-  echo "Cache restored from previous run: no (first run or empty cache)"
-fi
-```
-
-Update the rolling history file:
-
-```
-/tmp/gh-aw/cache-memory/trending/api-consumption/history.jsonl
-```
-
-Each line must be a single JSON object. Use `date` (YYYY-MM-DD) as the primary time key for retention logic; `recorded_at` uses the filesystem-safe format (no colons, no "T" separator) for traceability:
+Each history entry must include the following metric fields (in addition to the required `date` and `recorded_at` fields):
 
 ```json
 {
@@ -239,54 +206,6 @@ Each line must be a single JSON object. Use `date` (YYYY-MM-DD) as the primary t
   ],
   "avg_duration_s": 180,
   "p95_duration_s": 420
-}
-```
-
-Merge logic:
-- Load existing history entries from `history.jsonl` if present.
-- If mode is `incremental`: upsert today's summary by `date`.
-- If mode is `backfill`: upsert `backfill_entries[]` by `date`, then upsert today's summary (today wins for today).
-- Deduplicate by `date`, sort ascending by `date`, and rewrite the full file.
-
-Recommended implementation pattern (Python):
-
-```python
-def upsert_by_date(entries):
-    # Last-write-wins by date: later rows overwrite earlier rows with same date.
-    by_date = {}
-    for idx, row in enumerate(entries):
-        day = row.get("date")
-        if day:
-            by_date[day] = row
-        else:
-            print(f"warning: skipped history row without date at index={idx}")
-    return [by_date[d] for d in sorted(by_date.keys())]
-
-merged = []
-merged.extend(existing_history_entries)
-if mode == "backfill":
-    merged.extend(backfill_entries)
-# Append today last so today's data explicitly wins on same-date collisions.
-merged.append(today_summary)
-merged = upsert_by_date(merged)
-```
-
-Implement a **90-day retention policy** after merge: prune any lines whose `date` is older than 90 days and rewrite the file.
-
-Also write a metadata file:
-
-```
-/tmp/gh-aw/cache-memory/trending/api-consumption/metadata.json
-```
-
-```json
-{
-  "metric": "api-consumption",
-  "description": "Daily GitHub REST API consumption by agentic workflows",
-  "started_tracking": "<date of earliest entry>",
-  "last_updated": "<today>",
-  "data_points": <count>,
-  "retention_days": 90
 }
 ```
 

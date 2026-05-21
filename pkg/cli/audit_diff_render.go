@@ -36,8 +36,8 @@ func renderAuditDiffMarkdown(diffs []*AuditDiff) {
 	auditDiffRenderLog.Printf("Rendering %d audit diff(s) as markdown", len(diffs))
 	for i, diff := range diffs {
 		if i > 0 {
-			fmt.Println("---")
-			fmt.Println()
+			fmt.Fprintln(os.Stdout, "---")
+			fmt.Fprintln(os.Stdout)
 		}
 		renderSingleAuditDiffMarkdown(diff)
 	}
@@ -59,10 +59,10 @@ func renderAuditDiffPretty(diffs []*AuditDiff) {
 // renderSingleAuditDiffMarkdown outputs a single audit diff as markdown to stdout
 func renderSingleAuditDiffMarkdown(diff *AuditDiff) {
 	auditDiffRenderLog.Printf("Rendering audit diff as markdown: run1=%d, run2=%d", diff.Run1ID, diff.Run2ID)
-	fmt.Printf("### Audit Diff: Run #%d → Run #%d\n\n", diff.Run1ID, diff.Run2ID)
+	fmt.Fprintf(os.Stdout, "### Audit Diff: Run #%d → Run #%d\n\n", diff.Run1ID, diff.Run2ID)
 
 	if isEmptyAuditDiff(diff) {
-		fmt.Println("No behavioral changes detected between the two runs.")
+		fmt.Fprintln(os.Stdout, "No behavioral changes detected between the two runs.")
 		return
 	}
 
@@ -142,11 +142,11 @@ func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
 		return
 	}
 
-	fmt.Println("#### Firewall Changes")
-	fmt.Println()
+	fmt.Fprintln(os.Stdout, "#### Firewall Changes")
+	fmt.Fprintln(os.Stdout)
 
 	if len(diff.NewDomains) > 0 {
-		fmt.Printf("**New domains (%d)**\n", len(diff.NewDomains))
+		fmt.Fprintf(os.Stdout, "**New domains (%d)**\n", len(diff.NewDomains))
 		for _, entry := range diff.NewDomains {
 			total := entry.Run2Allowed + entry.Run2Blocked
 			statusIcon := firewallStatusEmoji(entry.Run2Status)
@@ -154,22 +154,22 @@ func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
 			if entry.IsAnomaly {
 				anomalyTag = " ⚠️"
 			}
-			fmt.Printf("- %s `%s` (%d requests, %s)%s\n", statusIcon, entry.Domain, total, entry.Run2Status, anomalyTag)
+			fmt.Fprintf(os.Stdout, "- %s `%s` (%d requests, %s)%s\n", statusIcon, entry.Domain, total, entry.Run2Status, anomalyTag)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 
 	if len(diff.RemovedDomains) > 0 {
-		fmt.Printf("**Removed domains (%d)**\n", len(diff.RemovedDomains))
+		fmt.Fprintf(os.Stdout, "**Removed domains (%d)**\n", len(diff.RemovedDomains))
 		for _, entry := range diff.RemovedDomains {
 			total := entry.Run1Allowed + entry.Run1Blocked
-			fmt.Printf("- `%s` (was %s, %d requests in previous run)\n", entry.Domain, entry.Run1Status, total)
+			fmt.Fprintf(os.Stdout, "- `%s` (was %s, %d requests in previous run)\n", entry.Domain, entry.Run1Status, total)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 
 	if len(diff.StatusChanges) > 0 {
-		fmt.Printf("**Status changes (%d)**\n", len(diff.StatusChanges))
+		fmt.Fprintf(os.Stdout, "**Status changes (%d)**\n", len(diff.StatusChanges))
 		for _, entry := range diff.StatusChanges {
 			icon1 := firewallStatusEmoji(entry.Run1Status)
 			icon2 := firewallStatusEmoji(entry.Run2Status)
@@ -177,19 +177,19 @@ func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
 			if entry.IsAnomaly {
 				anomalyTag = " ⚠️"
 			}
-			fmt.Printf("- `%s`: %s %s → %s %s%s\n", entry.Domain, icon1, entry.Run1Status, icon2, entry.Run2Status, anomalyTag)
+			fmt.Fprintf(os.Stdout, "- `%s`: %s %s → %s %s%s\n", entry.Domain, icon1, entry.Run1Status, icon2, entry.Run2Status, anomalyTag)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 
 	if len(diff.VolumeChanges) > 0 {
-		fmt.Printf("**Volume changes**\n")
+		fmt.Fprintf(os.Stdout, "**Volume changes**\n")
 		for _, entry := range diff.VolumeChanges {
 			total1 := entry.Run1Allowed + entry.Run1Blocked
 			total2 := entry.Run2Allowed + entry.Run2Blocked
-			fmt.Printf("- `%s`: %d → %d requests (%s)\n", entry.Domain, total1, total2, entry.VolumeChange)
+			fmt.Fprintf(os.Stdout, "- `%s`: %d → %d requests (%s)\n", entry.Domain, total1, total2, entry.VolumeChange)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 }
 
@@ -199,31 +199,31 @@ func renderMCPToolsDiffMarkdownSection(diff *MCPToolsDiff) {
 		return
 	}
 
-	fmt.Println("#### MCP Tool Changes")
-	fmt.Println()
+	fmt.Fprintln(os.Stdout, "#### MCP Tool Changes")
+	fmt.Fprintln(os.Stdout)
 
 	if len(diff.NewTools) > 0 {
-		fmt.Printf("**New tools (%d)**\n", len(diff.NewTools))
+		fmt.Fprintf(os.Stdout, "**New tools (%d)**\n", len(diff.NewTools))
 		for _, entry := range diff.NewTools {
 			anomalyTag := ""
 			if entry.IsAnomaly {
 				anomalyTag = " ⚠️"
 			}
-			fmt.Printf("- `%s/%s` (%d calls)%s\n", entry.ServerName, entry.ToolName, entry.Run2CallCount, anomalyTag)
+			fmt.Fprintf(os.Stdout, "- `%s/%s` (%d calls)%s\n", entry.ServerName, entry.ToolName, entry.Run2CallCount, anomalyTag)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 
 	if len(diff.RemovedTools) > 0 {
-		fmt.Printf("**Removed tools (%d)**\n", len(diff.RemovedTools))
+		fmt.Fprintf(os.Stdout, "**Removed tools (%d)**\n", len(diff.RemovedTools))
 		for _, entry := range diff.RemovedTools {
-			fmt.Printf("- `%s/%s` (was %d calls)\n", entry.ServerName, entry.ToolName, entry.Run1CallCount)
+			fmt.Fprintf(os.Stdout, "- `%s/%s` (was %d calls)\n", entry.ServerName, entry.ToolName, entry.Run1CallCount)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 
 	if len(diff.ChangedTools) > 0 {
-		fmt.Printf("**Changed tools (%d)**\n", len(diff.ChangedTools))
+		fmt.Fprintf(os.Stdout, "**Changed tools (%d)**\n", len(diff.ChangedTools))
 		for _, entry := range diff.ChangedTools {
 			anomalyTag := ""
 			if entry.IsAnomaly {
@@ -233,12 +233,12 @@ func renderMCPToolsDiffMarkdownSection(diff *MCPToolsDiff) {
 			if entry.Run1ErrorCount > 0 || entry.Run2ErrorCount > 0 {
 				errInfo = fmt.Sprintf(", errors: %d → %d", entry.Run1ErrorCount, entry.Run2ErrorCount)
 			}
-			fmt.Printf("- `%s/%s`: %d → %d calls (%s%s)%s\n",
+			fmt.Fprintf(os.Stdout, "- `%s/%s`: %d → %d calls (%s%s)%s\n",
 				entry.ServerName, entry.ToolName,
 				entry.Run1CallCount, entry.Run2CallCount,
 				entry.CallCountChange, errInfo, anomalyTag)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 }
 
@@ -248,25 +248,25 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 		return
 	}
 
-	fmt.Println("#### Run Metrics")
-	fmt.Println()
-	fmt.Printf("| Metric | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
-	fmt.Println("|--------|---------|---------|--------|")
+	fmt.Fprintln(os.Stdout, "#### Run Metrics")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "| Metric | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
+	fmt.Fprintln(os.Stdout, "|--------|---------|---------|--------|")
 
 	if diff.Run1TokenUsage > 0 || diff.Run2TokenUsage > 0 {
-		fmt.Printf("| Token usage | %d | %d | %s |\n", diff.Run1TokenUsage, diff.Run2TokenUsage, diff.TokenUsageChange)
+		fmt.Fprintf(os.Stdout, "| Token usage | %d | %d | %s |\n", diff.Run1TokenUsage, diff.Run2TokenUsage, diff.TokenUsageChange)
 	}
 	if diff.Run1Duration != "" || diff.Run2Duration != "" {
-		fmt.Printf("| Duration | %s | %s | %s |\n", diff.Run1Duration, diff.Run2Duration, diff.DurationChange)
+		fmt.Fprintf(os.Stdout, "| Duration | %s | %s | %s |\n", diff.Run1Duration, diff.Run2Duration, diff.DurationChange)
 	}
 	if diff.Run1Turns > 0 || diff.Run2Turns > 0 {
 		turnsChange := fmt.Sprintf("%+d", diff.TurnsChange)
-		fmt.Printf("| Turns | %d | %d | %s |\n", diff.Run1Turns, diff.Run2Turns, turnsChange)
+		fmt.Fprintf(os.Stdout, "| Turns | %d | %d | %s |\n", diff.Run1Turns, diff.Run2Turns, turnsChange)
 	}
 	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
-		fmt.Printf("| Tokens / turn | %d | %d | %s |\n", diff.Run1TokensPerTurn, diff.Run2TokensPerTurn, diff.TokensPerTurnChange)
+		fmt.Fprintf(os.Stdout, "| Tokens / turn | %d | %d | %s |\n", diff.Run1TokensPerTurn, diff.Run2TokensPerTurn, diff.TokensPerTurnChange)
 	}
-	fmt.Println()
+	fmt.Fprintln(os.Stdout)
 
 	if diff.TokenUsageDetails != nil {
 		renderTokenUsageDiffMarkdownSection(run1ID, run2ID, diff.TokenUsageDetails)
@@ -281,33 +281,33 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 
 // renderTokenUsageDiffMarkdownSection renders detailed token usage as a markdown sub-section
 func renderTokenUsageDiffMarkdownSection(run1ID, run2ID int64, diff *TokenUsageDiff) {
-	fmt.Println("#### Token Usage Details")
-	fmt.Println()
-	fmt.Printf("| Token Type | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
-	fmt.Println("|------------|---------|---------|--------|")
+	fmt.Fprintln(os.Stdout, "#### Token Usage Details")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "| Token Type | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
+	fmt.Fprintln(os.Stdout, "|------------|---------|---------|--------|")
 
 	if diff.Run1InputTokens > 0 || diff.Run2InputTokens > 0 {
-		fmt.Printf("| Input | %d | %d | %s |\n", diff.Run1InputTokens, diff.Run2InputTokens, diff.InputTokensChange)
+		fmt.Fprintf(os.Stdout, "| Input | %d | %d | %s |\n", diff.Run1InputTokens, diff.Run2InputTokens, diff.InputTokensChange)
 	}
 	if diff.Run1OutputTokens > 0 || diff.Run2OutputTokens > 0 {
-		fmt.Printf("| Output | %d | %d | %s |\n", diff.Run1OutputTokens, diff.Run2OutputTokens, diff.OutputTokensChange)
+		fmt.Fprintf(os.Stdout, "| Output | %d | %d | %s |\n", diff.Run1OutputTokens, diff.Run2OutputTokens, diff.OutputTokensChange)
 	}
 	if diff.Run1CacheReadTokens > 0 || diff.Run2CacheReadTokens > 0 {
-		fmt.Printf("| Cache read | %d | %d | %s |\n", diff.Run1CacheReadTokens, diff.Run2CacheReadTokens, diff.CacheReadTokensChange)
+		fmt.Fprintf(os.Stdout, "| Cache read | %d | %d | %s |\n", diff.Run1CacheReadTokens, diff.Run2CacheReadTokens, diff.CacheReadTokensChange)
 	}
 	if diff.Run1CacheWriteTokens > 0 || diff.Run2CacheWriteTokens > 0 {
-		fmt.Printf("| Cache write | %d | %d | %s |\n", diff.Run1CacheWriteTokens, diff.Run2CacheWriteTokens, diff.CacheWriteTokensChange)
+		fmt.Fprintf(os.Stdout, "| Cache write | %d | %d | %s |\n", diff.Run1CacheWriteTokens, diff.Run2CacheWriteTokens, diff.CacheWriteTokensChange)
 	}
 	if diff.Run1EffectiveTokens > 0 || diff.Run2EffectiveTokens > 0 {
-		fmt.Printf("| Effective | %d | %d | %s |\n", diff.Run1EffectiveTokens, diff.Run2EffectiveTokens, diff.EffectiveTokensChange)
+		fmt.Fprintf(os.Stdout, "| Effective | %d | %d | %s |\n", diff.Run1EffectiveTokens, diff.Run2EffectiveTokens, diff.EffectiveTokensChange)
 	}
 	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
-		fmt.Printf("| API requests | %d | %d | %s |\n", diff.Run1TotalRequests, diff.Run2TotalRequests, diff.RequestsDelta)
+		fmt.Fprintf(os.Stdout, "| API requests | %d | %d | %s |\n", diff.Run1TotalRequests, diff.Run2TotalRequests, diff.RequestsDelta)
 	}
 	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
-		fmt.Printf("| Cache efficiency | %.1f%% | %.1f%% | %s |\n", diff.Run1CacheEfficiency*100, diff.Run2CacheEfficiency*100, diff.CacheEfficiencyChange)
+		fmt.Fprintf(os.Stdout, "| Cache efficiency | %.1f%% | %.1f%% | %s |\n", diff.Run1CacheEfficiency*100, diff.Run2CacheEfficiency*100, diff.CacheEfficiencyChange)
 	}
-	fmt.Println()
+	fmt.Fprintln(os.Stdout)
 }
 
 // renderFirewallDiffPrettySection renders the firewall diff as a pretty console sub-section
@@ -610,24 +610,24 @@ func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDif
 
 // renderGitHubRateLimitDiffMarkdownSection renders the GitHub API rate limit diff as markdown
 func renderGitHubRateLimitDiffMarkdownSection(run1ID, run2ID int64, diff *GitHubRateLimitDiff) {
-	fmt.Println("#### GitHub API Usage")
-	fmt.Println()
-	fmt.Printf("| Metric | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
-	fmt.Println("|--------|---------|---------|--------|")
+	fmt.Fprintln(os.Stdout, "#### GitHub API Usage")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "| Metric | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
+	fmt.Fprintln(os.Stdout, "|--------|---------|---------|--------|")
 
 	if diff.Run1TotalAPICalls > 0 || diff.Run2TotalAPICalls > 0 {
-		fmt.Printf("| Total API calls | %d | %d | %s |\n", diff.Run1TotalAPICalls, diff.Run2TotalAPICalls, diff.APICallsChange)
+		fmt.Fprintf(os.Stdout, "| Total API calls | %d | %d | %s |\n", diff.Run1TotalAPICalls, diff.Run2TotalAPICalls, diff.APICallsChange)
 	}
 	if diff.Run1CoreConsumed > 0 || diff.Run2CoreConsumed > 0 {
-		fmt.Printf("| Core quota consumed | %d | %d | %s |\n", diff.Run1CoreConsumed, diff.Run2CoreConsumed, diff.CoreConsumedChange)
+		fmt.Fprintf(os.Stdout, "| Core quota consumed | %d | %d | %s |\n", diff.Run1CoreConsumed, diff.Run2CoreConsumed, diff.CoreConsumedChange)
 	}
 	if diff.Run1CoreRemaining > 0 || diff.Run2CoreRemaining > 0 {
-		fmt.Printf("| Core remaining | %d | %d | — |\n", diff.Run1CoreRemaining, diff.Run2CoreRemaining)
+		fmt.Fprintf(os.Stdout, "| Core remaining | %d | %d | — |\n", diff.Run1CoreRemaining, diff.Run2CoreRemaining)
 	}
 	if diff.Run1CoreLimit > 0 || diff.Run2CoreLimit > 0 {
-		fmt.Printf("| Core limit | %d | %d | — |\n", diff.Run1CoreLimit, diff.Run2CoreLimit)
+		fmt.Fprintf(os.Stdout, "| Core limit | %d | %d | — |\n", diff.Run1CoreLimit, diff.Run2CoreLimit)
 	}
-	fmt.Println()
+	fmt.Fprintln(os.Stdout)
 }
 
 // renderGitHubRateLimitDiffPrettySection renders the GitHub API rate limit diff as a pretty console sub-section
@@ -760,20 +760,20 @@ func renderToolCallsDiffMarkdownSection(run1ID, run2ID int64, diff *ToolCallsDif
 		return
 	}
 
-	fmt.Println("#### Tool Call Breakdown")
-	fmt.Println()
+	fmt.Fprintln(os.Stdout, "#### Tool Call Breakdown")
+	fmt.Fprintln(os.Stdout)
 
 	if len(diff.AllTools) > 0 {
-		fmt.Printf("| Tool | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
-		fmt.Println("|------|---------|---------|--------|")
+		fmt.Fprintf(os.Stdout, "| Tool | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
+		fmt.Fprintln(os.Stdout, "|------|---------|---------|--------|")
 		for _, entry := range diff.AllTools {
 			change := entry.CallCountChange
 			if change == "" {
 				change = "—"
 			}
-			fmt.Printf("| `%s` | %d | %d | %s |\n", entry.Name, entry.Run1CallCount, entry.Run2CallCount, change)
+			fmt.Fprintf(os.Stdout, "| `%s` | %d | %d | %s |\n", entry.Name, entry.Run1CallCount, entry.Run2CallCount, change)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 
 	if diff.BashDiff != nil {
@@ -783,27 +783,27 @@ func renderToolCallsDiffMarkdownSection(run1ID, run2ID int64, diff *ToolCallsDif
 
 // renderBashCommandsDiffMarkdownSection renders the bash commands diff sub-section as markdown.
 func renderBashCommandsDiffMarkdownSection(run1ID, run2ID int64, diff *BashCommandsDiff) {
-	fmt.Println("#### Bash Commands")
-	fmt.Println()
-	fmt.Printf("Total bash calls: Run #%d=%d, Run #%d=%d (%s)\n\n",
+	fmt.Fprintln(os.Stdout, "#### Bash Commands")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "Total bash calls: Run #%d=%d, Run #%d=%d (%s)\n\n",
 		run1ID, diff.Run1TotalCalls,
 		run2ID, diff.Run2TotalCalls,
 		diff.TotalCallsChange)
 
 	if len(diff.Commands) > 0 {
-		fmt.Printf("| Command | Run #%d | Run #%d | Change | Max Input (r1/r2) | Max Output (r1/r2) |\n", run1ID, run2ID)
-		fmt.Println("|---------|---------|---------|--------|-------------------|-------------------|")
+		fmt.Fprintf(os.Stdout, "| Command | Run #%d | Run #%d | Change | Max Input (r1/r2) | Max Output (r1/r2) |\n", run1ID, run2ID)
+		fmt.Fprintln(os.Stdout, "|---------|---------|---------|--------|-------------------|-------------------|")
 		for _, cmd := range diff.Commands {
 			change := cmd.CallCountChange
 			if change == "" {
 				change = "—"
 			}
-			fmt.Printf("| `%s` | %d | %d | %s | %s | %s |\n",
+			fmt.Fprintf(os.Stdout, "| `%s` | %d | %d | %s | %s | %s |\n",
 				cmd.Name, cmd.Run1CallCount, cmd.Run2CallCount, change,
 				formatMaxSizeCell(cmd.Run1MaxInputSize, cmd.Run2MaxInputSize),
 				formatMaxSizeCell(cmd.Run1MaxOutputSize, cmd.Run2MaxOutputSize))
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 }
 

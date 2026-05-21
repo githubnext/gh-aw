@@ -137,9 +137,9 @@ cat trials/combined-results.*.json | jq '.results[] | {workflow: .workflow_name,
 
 ## Related Documentation
 
-- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Run workflows from separate repositories
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Run workflows from separate repositories
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) - Coordinate across multiple repositories
-- [Orchestration](/gh-aw/patterns/orchestration/) - Orchestrate multi-issue initiatives
+- [OrchestratorOps](/gh-aw/patterns/orchestrator-ops/) — Orchestrate multi-step initiatives
 - [CLI Commands](/gh-aw/setup/cli/) - Complete CLI reference
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Configuration options
 - [Workflow Triggers](/gh-aw/reference/triggers/) - Including workflow_dispatch

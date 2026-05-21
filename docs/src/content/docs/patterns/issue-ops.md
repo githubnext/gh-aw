@@ -22,7 +22,7 @@ flowchart LR
 
 Example workflow:
 
-```aw wrap
+```aw wrap title=".github/workflows/issue-triage.md"
 ---
 on:
   issues:
