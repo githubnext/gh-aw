@@ -29,6 +29,7 @@ imports:
     with:
       branch-name: "memory/audit-workflows"
       description: "Historical audit data and patterns"
+      max-patch-size: 51200
   - ../skills/jqschema/SKILL.md
 
 
