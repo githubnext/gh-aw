@@ -82,14 +82,10 @@ function normalizeRuntimeModelRows(runtimeModelsData) {
    * @param {any} entry
    */
   function pushRow(provider, entry) {
-    const modelIds = extractRuntimeModelIds(
-      entry?.models || entry?.available_models || entry?.detected_models || entry?.model_ids || entry?.availableModels
-    );
+    const modelIds = extractRuntimeModelIds(entry?.models || entry?.available_models || entry?.detected_models || entry?.model_ids || entry?.availableModels);
     rows.push({
       provider: String(provider || entry?.provider || entry?.name || "unknown"),
-      endpoint: String(
-        entry?.endpoint || entry?.base_url || entry?.baseUrl || entry?.url || entry?.models_url || entry?.modelsUrl || "—"
-      ),
+      endpoint: String(entry?.endpoint || entry?.base_url || entry?.baseUrl || entry?.url || entry?.models_url || entry?.modelsUrl || "—"),
       models: modelIds,
     });
   }
@@ -110,9 +106,7 @@ function normalizeRuntimeModelRows(runtimeModelsData) {
     pushRow(runtimeModelsData.provider, runtimeModelsData);
   }
 
-  return rows
-    .filter(row => row.provider)
-    .sort((a, b) => a.provider.localeCompare(b.provider) || a.endpoint.localeCompare(b.endpoint));
+  return rows.filter(row => row.provider).sort((a, b) => a.provider.localeCompare(b.provider) || a.endpoint.localeCompare(b.endpoint));
 }
 
 /**
