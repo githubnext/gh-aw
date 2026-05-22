@@ -84,21 +84,25 @@ func buildLogsFileResponse(outputStr string) string {
 		mcpLogsGuardrailLog.Printf("Logs data already cached at: %s", filePath)
 	} else if os.IsNotExist(err) {
 		// Write with O_EXCL to avoid following symlinks or races.
-		f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, constants.FilePermPublic)
-		if err != nil {
-			mcpLogsGuardrailLog.Printf("Failed to create logs cache file: %v", err)
-			return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs cache file: %v", err))
-		}
-		_, writeErr := f.WriteString(outputStr)
-		closeErr := f.Close()
-		if writeErr != nil || closeErr != nil {
-			_ = os.Remove(filePath)
-			errMsg := writeErr
-			if errMsg == nil {
-				errMsg = closeErr
+		writeErr := func() (err error) {
+			f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, constants.FilePermPublic)
+			if err != nil {
+				return err
 			}
-			mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", errMsg)
-			return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", errMsg))
+			defer func() {
+				closeErr := f.Close()
+				if err == nil {
+					err = closeErr
+				}
+			}()
+
+			_, err = f.WriteString(outputStr)
+			return err
+		}()
+		if writeErr != nil {
+			_ = os.Remove(filePath)
+			mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", writeErr)
+			return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", writeErr))
 		}
 		if chmodErr := os.Chmod(filePath, constants.FilePermPublic); chmodErr != nil {
 			_ = os.Remove(filePath)
