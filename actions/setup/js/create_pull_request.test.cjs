@@ -1498,6 +1498,22 @@ ${diffs}
     expect(createReviewCall.body).toContain(".github/aw/instructions.md");
   });
 
+  it("should default to request_review when protected-files policy is unset", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+    const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
+    expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+  });
+
   it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");

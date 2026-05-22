@@ -395,6 +395,10 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.CreatePullRequests
+		protectedFilesPolicy := "request_review"
+		if c.ManifestFilesPolicy != nil {
+			protectedFilesPolicy = *c.ManifestFilesPolicy
+		}
 		maxPatchSize := 1024 // default 1024 KB
 		if cfg.MaximumPatchSize > 0 {
 			maxPatchSize = cfg.MaximumPatchSize
@@ -434,7 +438,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
 			AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
-			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
+			AddDefault("protected_files_policy", protectedFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			AddDefault("protect_top_level_dot_folders", true).
