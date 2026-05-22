@@ -89,7 +89,18 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 For each issue found:
 - Record the issue number, title, body, and closing date.
 - Check whether a DDUw-created PR (label `documentation automation`, title prefix `[docs]`) was merged that references or addresses the issue in the same time window. If such a PR exists, DDUw likely already handled it — skip this issue.
-- If no DDUw `[docs]` PR references the issue, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found, verify the documentation change it made is complete and skip the issue.
+- After the merged-PR check, search for DDUw `[docs]` PRs (labels `documentation` + `automation`, author `github-actions[bot]`) that were **closed without merging** in the last 30 days and reference the same issue or drift keyword/file path. Use:
+
+```bash
+gh api "search/issues?q=repo:${{ github.repository }}+is:pr+is:closed+is:unmerged+author:github-actions[bot]+label:documentation+label:automation+<DRIFT_KEYWORD>&per_page=20"
+```
+
+- A closed-unmerged DDUw `[docs]` PR is a strong rejection signal for that fix direction. Do **not** re-attempt the same docs fix.
+- Instead, create a `[doc-healer]` improvement issue that:
+  1. Names the rejected PR and the unresolved drift.
+  2. Proposes the inverse fix direction (for example, code change instead of docs-only change).
+  3. Tags the maintainer for an explicit next-step decision.
+- If there is no merged DDUw `[docs]` PR and no closed-unmerged rejection signal, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found, verify the documentation change it made is complete and skip the issue.
 
 If no unaddressed documentation issues are found, call `noop` and stop.
 
