@@ -88,6 +88,27 @@ func BadMultipleMutexes() {
 	mu2.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
 	
 	// ... do work ...
-	
+
 	mu2.Unlock()
+}
+
+type guarded struct {
+	mu sync.Mutex
+}
+
+// Wrong: selector-based mutex receiver without defer - should be flagged
+func BadSelectorPattern() {
+	var g guarded
+	g.mu.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
+	g.mu.Unlock()
+}
+
+// Wrong: repeated lock on same mutex should still report earlier unresolved violation
+func BadRepeatedLockBeforeGood() {
+	var mu sync.Mutex
+	mu.Lock() // want `mutex Unlock\(\) should be deferred immediately after Lock\(\) to prevent deadlocks on panic or early return`
+	mu.Unlock()
+
+	mu.Lock()
+	defer mu.Unlock()
 }

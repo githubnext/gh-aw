@@ -60,16 +60,16 @@ func run(pass *analysis.Pass) (any, error) {
 			if exprStmt, ok := node.(*ast.ExprStmt); ok {
 				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
 					if obj := getLockCallObj(pass, call); obj != nil {
-						// New lock call - initialize or update state
-						if _, exists := mutexVars[obj]; !exists {
-							mutexVars[obj] = &mutexVarState{
-								lockPos: call.Pos(),
-							}
-						} else {
-							// Reset state for new lock on same variable
-							mutexVars[obj] = &mutexVarState{
-								lockPos: call.Pos(),
-							}
+						// If this mutex was already tracked from a prior lock on the same
+						// binding, report any unresolved violation before overwriting state.
+						if prev, exists := mutexVars[obj]; exists && prev.hasManualUnlock && !prev.hasDefer {
+							pass.Report(analysis.Diagnostic{
+								Pos:     prev.lockPos,
+								Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
+							})
+						}
+						mutexVars[obj] = &mutexVarState{
+							lockPos: call.Pos(),
 						}
 					}
 				}
@@ -127,22 +127,7 @@ func getLockCallObj(pass *analysis.Pass, call *ast.CallExpr) types.Object {
 	if sel.Sel.Name != "Lock" && sel.Sel.Name != "RLock" {
 		return nil
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return nil
-	}
-	
-	// Check if the receiver is a mutex type
-	obj := pass.TypesInfo.ObjectOf(ident)
-	if obj == nil {
-		return nil
-	}
-	
-	if !isMutexType(pass.TypesInfo.TypeOf(ident)) {
-		return nil
-	}
-	
-	return obj
+	return getMutexReceiverObj(pass, sel.X)
 }
 
 // getUnlockCallObj returns the types.Object for the receiver if call is like mu.Unlock() or mu.RUnlock()
@@ -154,22 +139,23 @@ func getUnlockCallObj(pass *analysis.Pass, call *ast.CallExpr) types.Object {
 	if sel.Sel.Name != "Unlock" && sel.Sel.Name != "RUnlock" {
 		return nil
 	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
+	return getMutexReceiverObj(pass, sel.X)
+}
+
+func getMutexReceiverObj(pass *analysis.Pass, recv ast.Expr) types.Object {
+	if !isMutexType(pass.TypesInfo.TypeOf(recv)) {
 		return nil
 	}
-	
-	// Check if the receiver is a mutex type
-	obj := pass.TypesInfo.ObjectOf(ident)
-	if obj == nil {
-		return nil
+
+	switch r := recv.(type) {
+	case *ast.Ident:
+		return pass.TypesInfo.ObjectOf(r)
+	case *ast.SelectorExpr:
+		if sel := pass.TypesInfo.Selections[r]; sel != nil {
+			return sel.Obj()
+		}
 	}
-	
-	if !isMutexType(pass.TypesInfo.TypeOf(ident)) {
-		return nil
-	}
-	
-	return obj
+	return nil
 }
 
 // isMutexType returns true if t is sync.Mutex, sync.RWMutex, or a pointer to one
