@@ -1238,22 +1238,19 @@ async function main(config = {}) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
+    if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
+      const protectedFilesNoticeTemplatePath = getPromptPath("manifest_protection_request_review.md");
+      const protectedFilesNotice = renderTemplateFromFile(protectedFilesNoticeTemplatePath, {
+        files: manifestProtectionRequestReview.join(", "),
+      });
+      bodyLines.unshift(protectedFilesNotice, "", "");
+    }
     // Inject CAUTION at top of body (unshifted after header so it appears first in the final output)
     const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
     if (detectionCaution) {
       // unshift(caution, "", "") places the caution alert at index 0 and two blank
       // separator lines so the main body content follows after a full empty line.
       bodyLines.unshift(detectionCaution, "", "");
-    }
-    if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
-      const protectedFilesNotice = [
-        "> [!CAUTION]",
-        "> Protected files were modified in this change.",
-        "> This pull request is in `request_review` mode and requires explicit human scrutiny before merge.",
-        ">",
-        `> Protected files: ${manifestProtectionRequestReview.join(", ")}`,
-      ].join("\n");
-      bodyLines.unshift(protectedFilesNotice, "", "");
     }
 
     // Add fingerprint comment if present
@@ -2054,30 +2051,37 @@ ${patchPreview}`;
       if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
         const protectedFilesList = manifestProtectionRequestReview.map(file => `- \`${file}\``).join("\n");
         const requestChangesBody =
-          "Protected files were modified in this pull request and require manual scrutiny before merge.\n\n" +
-          "Please verify that each protected-file change is intentional, policy-compliant, and safe:\n\n" +
-          `${protectedFilesList}`;
+          "Protected files were modified in this pull request and require manual scrutiny before merge.\n\n" + "Please verify that each protected-file change is intentional, policy-compliant, and safe:\n\n" + `${protectedFilesList}`;
+        /** @type {{ owner: string, repo: string, pull_number: number, event: "REQUEST_CHANGES" | "COMMENT", body: string, commit_id?: string }} */
+        const requestChangesParams = {
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          pull_number: pullRequest.number,
+          event: "REQUEST_CHANGES",
+          body: requestChangesBody,
+        };
+        if (pullRequest.head && pullRequest.head.sha) {
+          requestChangesParams.commit_id = pullRequest.head.sha;
+        }
         core.info(`Creating REQUEST_CHANGES review for PR #${pullRequest.number} due to protected files`);
         try {
-          /** @type {{ owner: string, repo: string, pull_number: number, event: "REQUEST_CHANGES", body: string, commit_id?: string }} */
-          const requestChangesParams = {
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            pull_number: pullRequest.number,
-            event: "REQUEST_CHANGES",
-            body: requestChangesBody,
-          };
-          if (pullRequest.head && pullRequest.head.sha) {
-            requestChangesParams.commit_id = pullRequest.head.sha;
-          }
-          await withRetry(
-            () => githubClient.rest.pulls.createReview(requestChangesParams),
-            RATE_LIMIT_RETRY_CONFIG,
-            `create REQUEST_CHANGES review for PR #${pullRequest.number}`
-          );
+          await withRetry(() => githubClient.rest.pulls.createReview(requestChangesParams), RATE_LIMIT_RETRY_CONFIG, `create REQUEST_CHANGES review for PR #${pullRequest.number}`);
           core.info(`Created REQUEST_CHANGES review for PR #${pullRequest.number}`);
         } catch (requestChangesError) {
-          core.warning(`Failed to create REQUEST_CHANGES review for PR #${pullRequest.number}: ${requestChangesError instanceof Error ? requestChangesError.message : String(requestChangesError)}`);
+          const requestChangesErrorMessage = getErrorMessage(requestChangesError);
+          const ownPrMessages = ["Can not request changes on your own pull request", "Can not approve your own pull request"];
+          if (ownPrMessages.some(msg => requestChangesErrorMessage.includes(msg))) {
+            core.warning(`Cannot submit REQUEST_CHANGES on own PR #${pullRequest.number}. Retrying with COMMENT.`);
+            try {
+              const commentReviewParams = { ...requestChangesParams, event: "COMMENT" };
+              await withRetry(() => githubClient.rest.pulls.createReview(commentReviewParams), RATE_LIMIT_RETRY_CONFIG, `create COMMENT review fallback for PR #${pullRequest.number}`);
+              core.info(`Created COMMENT review fallback for PR #${pullRequest.number}`);
+            } catch (commentReviewError) {
+              core.warning(`Failed to create COMMENT review fallback for PR #${pullRequest.number}: ${commentReviewError instanceof Error ? commentReviewError.message : String(commentReviewError)}`);
+            }
+          } else {
+            core.warning(`Failed to create REQUEST_CHANGES review for PR #${pullRequest.number}: ${requestChangesErrorMessage}`);
+          }
         }
       }
 

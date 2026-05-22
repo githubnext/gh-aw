@@ -1337,6 +1337,11 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
     };
     const pushSignedCommitsModule = require("./push_signed_commits.cjs");
     pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const requestReviewTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_review.md");
+    fs.copyFileSync(requestReviewTemplateSrc, path.join(promptsDir, "manifest_protection_request_review.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     // Clear module cache so globals are picked up fresh
     delete require.cache[require.resolve("./create_pull_request.cjs")];
@@ -1512,6 +1517,26 @@ ${diffs}
     expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
     const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
     expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+  });
+
+  it("should retry with COMMENT when REQUEST_CHANGES review is rejected on own pull request", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    global.github.rest.pulls.createReview = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
+      .mockResolvedValueOnce({ data: { id: 78, html_url: "https://github.com/test/review/78" } });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "request_review",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+    expect(global.github.rest.pulls.createReview.mock.calls[0][0].event).toBe("REQUEST_CHANGES");
+    expect(global.github.rest.pulls.createReview.mock.calls[1][0].event).toBe("COMMENT");
   });
 
   it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {
