@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -30,11 +31,7 @@ var errorHelpersLog = logger.New("workflow:error_helpers")
 
 // FieldLocation represents a source file location for a validation error.
 // File and Line are optional; zero values mean "location unknown".
-type FieldLocation struct {
-	File   string
-	Line   int
-	Column int
-}
+type FieldLocation = console.ErrorPosition
 
 // WorkflowValidationError represents an error that occurred during input validation
 type WorkflowValidationError struct {

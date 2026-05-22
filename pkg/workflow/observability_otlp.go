@@ -350,7 +350,7 @@ func mergeOTLPCustomAttributes(base, override map[string]string) map[string]stri
 	if len(base) == 0 && len(override) == 0 {
 		return nil
 	}
-	merged := make(map[string]string, len(base)+len(override))
+	merged := make(map[string]string, safeAllocationCapacity(len(base), len(override)))
 	maps.Copy(merged, override)
 	// base takes precedence
 	maps.Copy(merged, base)

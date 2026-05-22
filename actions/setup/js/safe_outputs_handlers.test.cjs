@@ -550,6 +550,7 @@ describe("safe_outputs_handlers", () => {
       execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: targetRepoDir, stdio: "pipe" });
       execSync(`git update-ref refs/remotes/origin/main ${mainCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
       execSync(`git update-ref refs/remotes/origin/release-1.12.x ${releaseCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
+      execSync("git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main", { cwd: targetRepoDir, stdio: "pipe" });
 
       fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release local only\n");
       execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
@@ -907,7 +908,7 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should derive base_branch from the checked out side-repo branch for patch generation", async () => {
+    it("should use side-repo origin/HEAD base branch so patch includes branch commits since main", async () => {
       const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
 
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
@@ -925,13 +926,12 @@ describe("safe_outputs_handlers", () => {
 
       expect(result.isError).toBeUndefined();
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Found repo checkout at: ${targetRepoDir}`));
-      // No base-branch override is configured and the repo default branch is main,
-      // so matching release-1.12.x here confirms the handler derived the base branch
-      // from the checked-out side-repo branch.
+      // No base-branch override is configured. The checked-out branch is release-1.12.x,
+      // but origin/HEAD points to origin/main, so base_branch must resolve to main.
       expect(mockAppendSafeOutput).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "create_pull_request",
-          base_branch: "release-1.12.x",
+          base_branch: "main",
           branch: "release-1.12.x",
           patch_path: expect.any(String),
         })
@@ -939,8 +939,11 @@ describe("safe_outputs_handlers", () => {
 
       const appendedEntry = mockAppendSafeOutput.mock.calls.at(-1)[0];
       const patchContent = fs.readFileSync(appendedEntry.patch_path, "utf8");
-      expect(patchContent).toContain("Subject: [PATCH] local only fix");
-      expect(patchContent).not.toContain("Subject: [PATCH] release tracked commit");
+      // Diffing release-1.12.x against base main includes both release-only commits:
+      // the tracked release commit and the local-only fix.
+      expect(patchContent).toContain("local only fix");
+      expect(patchContent).toContain("release tracked commit");
+      expect(patchContent).not.toContain("MAIN_ONLY.md");
     });
   });
 

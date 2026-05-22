@@ -562,7 +562,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 var safeOutputHandlersByKey = buildSafeOutputHandlersByKey()
 
 func buildSafeOutputHandlersByKey() map[string]safeOutputHandlerDescriptor {
-	result := make(map[string]safeOutputHandlerDescriptor, len(safeOutputHandlers)+1)
+	result := make(map[string]safeOutputHandlerDescriptor, safeAllocationCapacity(len(safeOutputHandlers), 1))
 	for _, handler := range safeOutputHandlers {
 		if handler.Key != "" {
 			result[handler.Key] = handler

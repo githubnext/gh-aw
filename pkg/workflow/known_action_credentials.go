@@ -192,7 +192,7 @@ func mergeKnownActionEnvVars(a, b map[string]bool) map[string]bool {
 	if len(a) == 0 && len(b) == 0 {
 		return nil
 	}
-	merged := make(map[string]bool, len(a)+len(b))
+	merged := make(map[string]bool, safeAllocationCapacity(len(a), len(b)))
 	maps.Copy(merged, a)
 	maps.Copy(merged, b)
 	return merged

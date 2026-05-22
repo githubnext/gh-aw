@@ -406,7 +406,7 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 	ghTokenScopes := GetAllPermissionScopes()
 	appOnlyScopes := GetAllGitHubAppOnlyScopes()
 	// +1 for copilot-requests which is not in GetAllPermissionScopes
-	allScopes := make([]string, 0, len(ghTokenScopes)+len(appOnlyScopes)+1)
+	allScopes := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
 	for _, scope := range ghTokenScopes {
 		allScopes = append(allScopes, string(scope))
 	}

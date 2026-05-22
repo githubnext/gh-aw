@@ -596,4 +596,31 @@ describe("generateGitPatch – full mode base ref (merge-base, not stale origin)
       }
     }
   });
+
+  it("should fall back to local base branch when origin/<base> is unavailable", async () => {
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-fullmode-remote-empty-"));
+    try {
+      execSync("git init --bare -b main", { cwd: remoteDir });
+      execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir });
+
+      execSync("git checkout -b feature/local-fallback", { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "feature.txt"), "feature-only\n");
+      execSync("git add feature.txt", { cwd: repoDir });
+      execSync('git commit -m "feature commit"', { cwd: repoDir });
+
+      // Ensure origin/main is not present so Strategy 1 must use local `main`.
+      expect(() => execSync("git rev-parse --verify refs/remotes/origin/main", { cwd: repoDir, stdio: "pipe" })).toThrow();
+
+      const { generateGitPatch } = require("./generate_git_patch.cjs");
+      const result = await generateGitPatch("feature/local-fallback", "main", { cwd: repoDir, mode: "full" });
+
+      expect(result.success).toBe(true);
+      const patch = fs.readFileSync(result.patchPath, "utf8");
+      expect(patch).toContain("feature.txt");
+    } finally {
+      if (fs.existsSync(remoteDir)) {
+        fs.rmSync(remoteDir, { recursive: true, force: true });
+      }
+    }
+  });
 });

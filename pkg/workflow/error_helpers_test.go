@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -90,6 +91,15 @@ func TestNewValidationErrorWithLocation(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "...")
 	})
+}
+
+func TestFieldLocationAlias(t *testing.T) {
+	loc := FieldLocation{File: "workflow.md", Line: 12, Column: 4}
+
+	var pos console.ErrorPosition = loc
+	assert.Equal(t, "workflow.md", pos.File)
+	assert.Equal(t, 12, pos.Line)
+	assert.Equal(t, 4, pos.Column)
 }
 
 func TestOperationError(t *testing.T) {
