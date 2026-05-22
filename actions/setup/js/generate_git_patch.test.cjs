@@ -624,3 +624,166 @@ describe("generateGitPatch – full mode base ref (merge-base, not stale origin)
     }
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+// Incremental mode diffSize — must not inflate when agent merges base branch
+//
+// Regression test for: push_to_pull_request_branch diffSize is inflated when
+// the agent does `git merge origin/<baseBranch>` to resolve stale-PR conflicts.
+// Without the fix, git diff origin/<prBranch>..localBranch includes all upstream
+// commits merged from the base branch, producing an artificially large diffSize
+// that fails max_patch_size validation even when the agent's own changes are tiny.
+// ──────────────────────────────────────────────────────────────────────────
+
+describe("generateGitPatch – incremental mode diffSize excludes merged base-branch commits", () => {
+  let repoDir;
+  let remoteDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GITHUB_SHA: process.env.GITHUB_SHA };
+
+    global.core = { debug: () => {}, info: () => {}, warning: () => {}, error: () => {} };
+
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-incremental-merge-"));
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-incremental-merge-remote-"));
+
+    execSync("git init --bare -b main", { cwd: remoteDir });
+    execSync("git init -b main", { cwd: repoDir });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir });
+    execSync('git config user.name "Test"', { cwd: repoDir });
+    execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir });
+
+    // Initial commit on main
+    fs.writeFileSync(path.join(repoDir, "README.md"), "# Repo\n");
+    execSync("git add .", { cwd: repoDir });
+    execSync('git commit -m "init"', { cwd: repoDir });
+    execSync("git push origin main", { cwd: repoDir });
+
+    delete process.env.GITHUB_WORKSPACE;
+    delete process.env.GITHUB_SHA;
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+  });
+
+  afterEach(() => {
+    Object.entries(originalEnv).forEach(([k, v]) => {
+      if (v !== undefined) process.env[k] = v;
+      else delete process.env[k];
+    });
+    if (repoDir && fs.existsSync(repoDir)) {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+    if (remoteDir && fs.existsSync(remoteDir)) {
+      fs.rmSync(remoteDir, { recursive: true, force: true });
+    }
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+    delete global.core;
+  });
+
+  it("should not inflate diffSize when agent merges base branch into a stale PR branch", async () => {
+    // Reproduce the scenario from the issue:
+    //   1. PR branch is created and pushed (P2 = PR head on GitHub)
+    //   2. main advances with many upstream commits (M1..M480)
+    //   3. Agent checks out PR branch, does `git merge origin/main` (M = merge commit)
+    //   4. Agent makes their own small change (C1)
+    //   5. diffSize should only measure C1, NOT the 480 merged upstream commits
+
+    // Step 1: Create PR branch with a small change
+    execSync("git checkout -b pr-branch", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "pr-file.txt"), "PR initial change\n");
+    execSync("git add pr-file.txt", { cwd: repoDir });
+    execSync('git commit -m "PR: initial change"', { cwd: repoDir });
+    execSync("git push origin pr-branch", { cwd: repoDir });
+    execSync("git fetch origin pr-branch:refs/remotes/origin/pr-branch", { cwd: repoDir });
+    const prHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+
+    // Step 2: main advances with many upstream commits (simulating 480 commits).
+    // We use a large file to make the upstream changes substantial in size.
+    execSync("git checkout main", { cwd: repoDir });
+    const bigContent = "x".repeat(50 * 1024); // 50 KB of upstream changes
+    fs.writeFileSync(path.join(repoDir, "upstream-big.txt"), bigContent);
+    execSync("git add upstream-big.txt", { cwd: repoDir });
+    execSync('git commit -m "upstream: large change"', { cwd: repoDir });
+    // Add a few more commits to simulate the 480-commit scenario
+    for (let i = 1; i <= 5; i++) {
+      fs.writeFileSync(path.join(repoDir, `upstream-${i}.txt`), `upstream commit ${i}\n`);
+      execSync("git add .", { cwd: repoDir });
+      execSync(`git commit -m "upstream: commit ${i}"`, { cwd: repoDir });
+    }
+    execSync("git push origin main", { cwd: repoDir });
+
+    // Step 3: Agent checks out pr-branch and merges origin/main (simulating conflict resolution)
+    execSync("git checkout pr-branch", { cwd: repoDir });
+    execSync("git fetch origin main", { cwd: repoDir });
+    execSync("git merge origin/main --no-edit", { cwd: repoDir });
+
+    // Step 4: Agent makes their own small change (the actual contribution)
+    fs.writeFileSync(path.join(repoDir, "agent-fix.txt"), "small fix by agent\n");
+    execSync("git add agent-fix.txt", { cwd: repoDir });
+    execSync('git commit -m "agent: small fix"', { cwd: repoDir });
+
+    // Verify setup: origin/pr-branch still points to the old PR head (P2)
+    const remotePrHead = execSync("git rev-parse refs/remotes/origin/pr-branch", { cwd: repoDir }).toString().trim();
+    expect(remotePrHead).toBe(prHeadSha);
+
+    // Generate the incremental patch
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("pr-branch", "main", { cwd: repoDir, mode: "incremental" });
+
+    expect(result.success).toBe(true);
+
+    // The patch file itself will include the merge commit + upstream commits (transport artifact).
+    // But diffSize should only reflect the agent's actual contribution (agent-fix.txt),
+    // NOT the large upstream-big.txt and upstream-*.txt files that were merged in.
+    expect(typeof result.diffSize).toBe("number");
+
+    // The agent only changed agent-fix.txt (~18 bytes). The upstream changes are 50+ KB.
+    // Without the fix, diffSize would be > 50 KB (inflated by upstream-big.txt).
+    // With the fix, diffSize should be < 1 KB (just agent-fix.txt).
+    const diffSizeKb = (result.diffSize ?? 0) / 1024;
+    expect(diffSizeKb).toBeLessThan(1); // Agent's change is tiny
+
+    // Sanity check: the patch itself DOES include the merged upstream content
+    // (the transport includes all commits for git-am/bundle to work),
+    // but the SIZE CHECK uses the smaller diffSize, not the patch file size.
+    const patchSizeKb = (result.patchSize ?? 0) / 1024;
+    expect(patchSizeKb).toBeGreaterThan(1); // Transport patch includes upstream commits
+  });
+
+  it("should preserve correct diffSize when agent does NOT merge base branch", async () => {
+    // Verify that the fix does not regress the normal incremental case where
+    // the agent simply adds commits on top of the existing PR branch without
+    // merging the base branch.
+
+    // Step 1: Create PR branch
+    execSync("git checkout -b pr-no-merge", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "pr-file.txt"), "PR initial\n");
+    execSync("git add pr-file.txt", { cwd: repoDir });
+    execSync('git commit -m "PR: initial"', { cwd: repoDir });
+    execSync("git push origin pr-no-merge", { cwd: repoDir });
+    execSync("git fetch origin pr-no-merge:refs/remotes/origin/pr-no-merge", { cwd: repoDir });
+
+    // Step 2: main advances (agent does NOT merge it)
+    execSync("git checkout main", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "upstream.txt"), "x".repeat(10 * 1024));
+    execSync("git add upstream.txt", { cwd: repoDir });
+    execSync('git commit -m "upstream: change"', { cwd: repoDir });
+    execSync("git push origin main", { cwd: repoDir });
+
+    // Step 3: Agent adds commits on top of PR branch without merging main
+    execSync("git checkout pr-no-merge", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "agent-change.txt"), "agent contribution\n");
+    execSync("git add agent-change.txt", { cwd: repoDir });
+    execSync('git commit -m "agent: change"', { cwd: repoDir });
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("pr-no-merge", "main", { cwd: repoDir, mode: "incremental" });
+
+    expect(result.success).toBe(true);
+    expect(typeof result.diffSize).toBe("number");
+
+    // diffSize should reflect only the agent's change (< 1 KB), not upstream.txt (10 KB).
+    const diffSizeKb = (result.diffSize ?? 0) / 1024;
+    expect(diffSizeKb).toBeLessThan(1);
+  });
+});
