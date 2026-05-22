@@ -266,7 +266,7 @@ const (
 	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
 	//
 	// Keep this pinned to a Sonnet tier at or below 6x effective-token multiplier.
-	CopilotBYOKDefaultModel = "claude-sonnet-4.5"
+	CopilotBYOKDefaultModel = "claude-sonnet-4-5-20250929"
 
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
