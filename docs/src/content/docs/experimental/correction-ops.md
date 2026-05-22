@@ -7,27 +7,19 @@ description: Improve agentic workflows from trusted human corrections without re
 CorrectionOps is an experimental pattern. The guidance and workflow shape on this page may change as the pattern is tested in more real-world workflows.
 :::
 
-CorrectionOps is a workflow pattern that improves the workflow *around* the model rather than retraining it. It stores predictions at decision time, compares them with later trusted human truth, and uses that evidence to update instructions, routing, thresholds, and rollout decisions.
+CorrectionOps improves the workflow *around* the model rather than retraining it. It stores predictions at decision time, compares them with later trusted human truth, and uses that evidence to update instructions, routing, thresholds, and rollout decisions.
 
-The basic loop:
-
-1. Save what the workflow predicted
-2. Collect what humans later decided
-3. Use the difference to improve the workflow
+The basic loop: save what the workflow predicted, collect what humans later decided, and use the difference to improve the workflow.
 
 ## When to Use CorrectionOps
 
-Use CorrectionOps when humans still make or correct the real decision and you want the workflow to improve iteratively — by updating instructions, routing, thresholds, or rollout state — rather than all at once. Typical fits include labeling and classification, routing and prioritization, moderation and approvals, and summaries or recommendations that humans later correct.
-
-It is especially useful when the rollout path is gradual: start with `staged: true`, keep evaluation and reporting in Ops, use corrections to improve the workflow, and promote to direct writes only when the evidence is strong enough.
+Use CorrectionOps when humans still make or correct the real decision and you want the workflow to improve iteratively. Typical fits: labeling and classification, routing and prioritization, moderation and approvals, and summaries or recommendations that humans later correct. It is especially useful when the rollout path is gradual — start with `staged: true`, keep evaluation in Ops, and promote to direct writes only once evidence is strong enough.
 
 ## How It Works
 
-A clean CorrectionOps setup has two long-lived surfaces. Production stays authoritative. Ops hosts prediction, correction intake, reporting, instruction updates, and rollout control — early on without writing back to production, later with direct writes once promoted.
+A clean CorrectionOps setup has two long-lived surfaces. Production stays authoritative. Ops hosts prediction, correction intake, reporting, instruction updates, and rollout control — initially without writing back to production, later with direct writes once promoted.
 
-Most implementations reduce to three workflow classes: a thin relay that forwards stable facts into ops, a prediction workflow that persists snapshots and writes safely, and a compare/report/decide workflow that checks later human truth and updates the system when the evidence is strong enough.
-
-Keep relays, snapshot resolution, diffing, and grouping deterministic. Use the agent for semantic judgment, not for reconstructing event history or inferring provenance after the fact.
+Most implementations need three workflow classes: a thin relay forwarding stable facts into ops, a prediction workflow that persists snapshots, and a compare/report/decide workflow that checks human truth and updates the system. Keep relays, diffing, and grouping deterministic; use the agent for semantic judgment only.
 
 ## Example: Issue Labeling
 
@@ -57,7 +49,7 @@ flowchart TB
   H -.->|improves next run| A
 ```
 
-A single CorrectionOps worker can carry the pattern when permissions and triggers fit cleanly together:
+A single CorrectionOps worker can carry the pattern when permissions and triggers fit cleanly:
 
 ```aw wrap
 ---
@@ -81,15 +73,13 @@ safe-outputs:
 Read persisted predictions and later trusted truth, compare them deterministically, then either publish a health report or open a draft PR updating instructions.
 ```
 
-Unlike Reinforcement Learning from Human Feedback (RLHF), which updates model weights, CorrectionOps changes instruction files, routing rules, deterministic checks, thresholds, or rollout decisions — no separate evaluation repository required.
+Unlike RLHF, which updates model weights, CorrectionOps changes instructions and rollout state — no separate evaluation repository required.
 
 ### Full Workflow Pieces
 
-The example above breaks into four pieces:
-
 #### 1. Relay In The Source Repo
 
-Forwards stable facts and provenance into ops only — no diffs, no human-intent inference, no correctness decisions.
+Forwards stable facts and provenance into ops — no diffs, no intent inference, no correctness decisions.
 
 ```yaml title="prod-repo/.github/workflows/relay-correction-signals.yml"
 name: Relay Correction Signals
@@ -130,7 +120,7 @@ jobs:
 
 #### 2. Prediction Workflow In Ops
 
-Consumes normalized inputs, applies the current instructions, and persists a durable snapshot for later comparison.
+Applies the current instructions to normalized inputs and persists a durable prediction snapshot.
 
 ```aw wrap title="ops-repo/.github/workflows/predict-items.md"
 ---
@@ -153,12 +143,12 @@ safe-outputs:
 
 # Predict Items
 
-Read prepared items from `/tmp/gh-aw/agent/item-scan`, apply the current instructions, write review artifacts through safe outputs in Ops, and append a prediction snapshot containing the source identifier, predicted action, instruction version, and timestamp.
+Read prepared items from `/tmp/gh-aw/agent/item-scan`, apply current instructions, write review artifacts via safe outputs, and append a prediction snapshot (source identifier, predicted action, instruction version, timestamp).
 ```
 
 #### 3. Compare, Report, And Decide In Ops
 
-Reads predictions and later human truth, builds deterministic diffs first, then asks the agent to summarize patterns or propose instruction updates.
+Builds deterministic diffs from predictions and later human truth, then asks the agent to summarize patterns or propose instruction updates.
 
 ```aw wrap title="ops-repo/.github/workflows/review-corrections.md"
 ---
@@ -187,7 +177,7 @@ Read `correction-diffs.json` from `/tmp/gh-aw/agent/correction-review`. In `repo
 
 #### 4. Optional Deterministic Collector
 
-Add a separate collector when the later-truth boundary needs its own trigger, permissions, or serialized write path.
+Add a separate collector when the later-truth boundary needs its own trigger, permissions, or write path.
 
 ```yaml title="ops-repo/.github/workflows/collect-corrections.yml"
 name: Collect Corrections
@@ -206,19 +196,16 @@ jobs:
 
 ### Stable Contracts To Define First
 
-Before adding rollout logic or adaptation prompts, define four small deterministic contracts:
+Before adding rollout logic or adaptation prompts, define four deterministic contracts:
 
-1. relay payload: the minimal source identity, object identity, event type, actor facts, and timestamps forwarded into ops
-2. prediction snapshot: the durable record of what the workflow predicted and under which instruction version
-3. correction review input: the deterministic diff artifact used by reporting and adaptation
-4. rollout gate contract: what evidence or approvals are required before direct production writes are enabled
-
-The production object changes across use cases, but the CorrectionOps shape does not.
+1. **relay payload**: minimal source/object identity, event type, actor facts, and timestamps forwarded into ops
+2. **prediction snapshot**: durable record of the prediction and the instruction version that produced it
+3. **correction review input**: deterministic diff artifact consumed by reporting and adaptation
+4. **rollout gate contract**: evidence or approvals required before direct production writes are enabled
 
 ## Related Documentation
 
-- [Staged Mode](/gh-aw/reference/staged-mode/) for the optional safe-write rollout guidance inside CorrectionOps
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for separating workflow infrastructure from the production repository
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating workflows across repository boundaries
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for controlling write targets and protections
-- [GitHub Tools](/gh-aw/reference/github-tools/) for cross-repository reads and operations
+- [Staged Mode](/gh-aw/reference/staged-mode/) — safe-write rollout guidance for CorrectionOps
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — separating workflow infrastructure from production across repositories
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) — controlling write targets and protections
+- [GitHub Tools](/gh-aw/reference/github-tools/) — cross-repository reads and operations
