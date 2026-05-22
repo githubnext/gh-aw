@@ -30,12 +30,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
 var repoConfigLog = logger.New("workflow:repo_config")
+var repoConfigSecretNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // RepoConfigFileName is the path of the repository-level configuration file
 // relative to the git root.
@@ -192,6 +194,9 @@ func LoadRepoConfig(gitRoot string) (*RepoConfig, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", RepoConfigFileName, err)
 	}
+	if err := validateRepoConfigValues(&cfg); err != nil {
+		return nil, err
+	}
 
 	return &cfg, nil
 }
@@ -215,6 +220,17 @@ func validateRepoConfigJSON(data []byte, filePath string) error {
 	}
 
 	repoConfigLog.Print("Repo config JSON schema validation passed")
+	return nil
+}
+
+func validateRepoConfigValues(cfg *RepoConfig) error {
+	if cfg == nil || cfg.Maintenance == nil || cfg.Maintenance.Compile == nil {
+		return nil
+	}
+	secretName := cfg.Maintenance.Compile.GitHubTokenSecret
+	if secretName != "" && !repoConfigSecretNamePattern.MatchString(secretName) {
+		return fmt.Errorf("invalid %s: maintenance.compile.github_token_secret must match %s", RepoConfigFileName, repoConfigSecretNamePattern.String())
+	}
 	return nil
 }
 

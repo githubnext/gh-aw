@@ -1113,6 +1113,7 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	})
 
 	t.Run("compile-workflows can create pull requests with custom token secret", func(t *testing.T) {
+		const compileJobSectionSearchRange = 500
 		tmpDir := t.TempDir()
 		repoConfig := &RepoConfig{
 			Maintenance: &MaintenanceConfig{
@@ -1144,7 +1145,7 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		if compileIdx == -1 {
 			t.Fatal("Job compile-workflows not found in generated workflow")
 		}
-		jobSection := yaml[compileIdx : compileIdx+jobSectionSearchRange]
+		jobSection := yaml[compileIdx : compileIdx+compileJobSectionSearchRange]
 		if !strings.Contains(jobSection, "contents: write") {
 			t.Errorf("compile-workflows should request contents: write when PR creation is enabled, got:\n%s", jobSection)
 		}

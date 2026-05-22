@@ -2,13 +2,15 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const fs = require("fs");
+const { getGitAuthEnv } = require("./git_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 const RECOMPILE_ISSUE_TITLE = "[aw] agentic workflows out of sync";
 const RECOMPILE_PR_TITLE = "[aw] recompile agentic workflows";
 const RECOMPILE_PR_BRANCH = "aw/recompile-workflows";
+const MAX_RECOMPILE_DIFF_LENGTH = 50000;
 
 function shouldCreatePullRequest() {
   return process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST === "true";
@@ -109,23 +111,13 @@ async function pushRecompileBranch(owner, repo, branchName) {
   } catch {
     githubHost = "github.com";
   }
-  const remoteUrl = `https://x-access-token:${token}@${githubHost}/${owner}/${repo}.git`;
-
-  try {
-    await exec.exec("git", ["remote", "remove", "aw-maintenance-push"]);
-  } catch {
-    // Ignore missing remote.
-  }
-  await exec.exec("git", ["remote", "add", "aw-maintenance-push", remoteUrl]);
-  try {
-    await exec.exec("git", ["push", "aw-maintenance-push", `HEAD:refs/heads/${branchName}`, "--force-with-lease"]);
-  } finally {
-    try {
-      await exec.exec("git", ["remote", "remove", "aw-maintenance-push"]);
-    } catch {
-      // Non-fatal cleanup.
-    }
-  }
+  const remoteUrl = `https://${githubHost}/${owner}/${repo}.git`;
+  await exec.exec("git", ["push", remoteUrl, `HEAD:refs/heads/${branchName}`, "--force-with-lease"], {
+    env: {
+      ...process.env,
+      ...getGitAuthEnv(token),
+    },
+  });
 }
 
 async function findExistingRecompilePullRequest(owner, repo) {
@@ -153,7 +145,7 @@ async function handlePullRequest(owner, repo, detailedDiff) {
     return;
   }
 
-  const diffContent = detailedDiff.substring(0, 50000) + (detailedDiff.length > 50000 ? "\n\n... (diff truncated)" : "");
+  const diffContent = detailedDiff.substring(0, MAX_RECOMPILE_DIFF_LENGTH) + (detailedDiff.length > MAX_RECOMPILE_DIFF_LENGTH ? "\n\n... (diff truncated)" : "");
   const pullRequest = await github.rest.pulls.create({
     owner,
     repo,
@@ -168,7 +160,7 @@ async function handlePullRequest(owner, repo, detailedDiff) {
 }
 
 /**
- * Check if workflows need recompilation and create an issue if needed.
+ * Check if workflows need recompilation and create an issue or pull request if needed.
  * This script:
  * 1. Checks if there are out-of-sync workflow lock files
  * 2. Searches for existing open issues about recompiling workflows
