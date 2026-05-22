@@ -40,7 +40,7 @@ experiments:
     notify:
       issue: 31190
     issue: 31190
-runs-on: aw-gpu-runner-T4
+runs-on: ubuntu-latest
 
 runtimes:
   node:

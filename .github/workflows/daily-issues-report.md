@@ -9,7 +9,7 @@ permissions:
   pull-requests: read
   discussions: read
 engine: copilot
-runs-on: aw-gpu-runner-T4
+runs-on: ubuntu-latest
 strict: true
 tracker-id: daily-issues-report
 tools:

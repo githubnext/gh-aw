@@ -34,7 +34,7 @@ experiments:
     start_date: "2026-05-11"
     issue: 31324
 timeout-minutes: 15
-runs-on: aw-gpu-runner-T4
+runs-on: ubuntu-latest
 runtimes:
   node:
     version: "24"
