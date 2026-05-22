@@ -89,7 +89,20 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 For each issue found:
 - Record the issue number, title, body, and closing date.
 - Check whether a DDUw-created PR (label `documentation automation`, title prefix `[docs]`) was merged that references or addresses the issue in the same time window. If such a PR exists, DDUw likely already handled it — skip this issue.
-- If no DDUw `[docs]` PR references the issue, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found, verify the documentation change it made is complete and skip the issue.
+- After the merged-PR check, use the GitHub MCP search tool to find DDUw `[docs]` PR candidates (label `documentation`, label `automation`, author `github-actions[bot]`) that were closed in the last 30 days and reference the same issue or drift keyword/file path. Query pattern:
+
+  `repo:<OWNER/REPO> is:pr is:closed author:github-actions[bot] label:documentation label:automation <DRIFT_KEYWORD>`
+
+  Replace `<OWNER/REPO>` with the repository from the Context section (`${{ github.repository }}` at runtime), and replace `<DRIFT_KEYWORD>` with a stable term tied to the drift (for example: `#NNN`, `"reference/engines.md"`, or a unique feature term from the issue body).
+- For each candidate PR returned by search, use `pull_request_read` (`method: get`) and keep only PRs where `merged` is false.
+- Before treating it as rejection, inspect closure context with `issue_read` (`method: get` and `method: get_comments`): treat as rejected only when `closed_by` appears in GitHub MCP `list_repository_collaborators` results and comments/reviews indicate intentional direction (or explicit lack of acceptance), not an obvious transient/accidental closure.
+
+- A closed-unmerged DDUw `[docs]` PR is a strong rejection signal for that fix direction. Do **not** re-attempt the same docs fix.
+- Instead, create a `[doc-healer]` improvement issue that:
+  1. Names the rejected PR and the unresolved drift.
+  2. Proposes the inverse fix direction (for example, code change instead of docs-only change).
+  3. Tags `@<closed_by.login>` (login extracted from the `closed_by` user object in rejected PR issue data) for an explicit next-step decision. If `closed_by` is unavailable, do not suppress retries automatically; escalate uncertainty in the improvement issue body.
+- If there is no merged DDUw `[docs]` PR and no closed-unmerged rejection signal, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found, verify the documentation change it made is complete and skip the issue.
 
 If no unaddressed documentation issues are found, call `noop` and stop.
 

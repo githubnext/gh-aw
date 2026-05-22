@@ -966,14 +966,14 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	// Prepend setup steps to all cache steps
 	steps = append(setupSteps, steps...)
 
-	// Job condition: run if detection job succeeded (no threats found) or was skipped (no outputs to detect),
+	// Job condition: run only if detection job succeeded (no threats found),
 	// AND the agent job succeeded (do not persist cache when agent failed or was skipped).
-	// Using always() so the job runs even when detection is skipped (which sets result = 'skipped').
+	// Using always() so this condition is evaluated even if an upstream job is skipped/failed.
 	agentSucceeded := BuildEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
 		BuildStringLiteral("success"),
 	)
-	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionPassedCondition()), agentSucceeded))
+	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionSuccessCondition()), agentSucceeded))
 
 	// Set up permissions for the cache update job
 	// If using local actions (dev mode without action-tag), we need contents: read to checkout the actions folder

@@ -57,28 +57,50 @@ steps:
     working-directory: ./docs
     run: npm run build
 
-  - name: Start Astro dev server
-    working-directory: ./docs
-    run: npm run dev &
+  - name: Start docs server
+    run: |
+      nohup make dev-docs > /tmp/preview.log 2>&1 &
+      PID=$!
+      echo "$PID" > /tmp/server.pid
+      echo "Server PID: $PID"
 
   - name: Wait for dev server
     run: |
-      for i in $(seq 1 30); do
-        if curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; then
-          echo "Dev server is ready"
-          exit 0
+      MAX_WAIT=90
+      WAITED=0
+      until (echo > /dev/tcp/127.0.0.1/4321) > /dev/null 2>&1; do
+        if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+          echo "Docs server process exited before opening port 4321" >&2
+          cat /tmp/preview.log >&2
+          exit 1
         fi
-        echo "Waiting for dev server... attempt $i/30"
-        sleep 1
+        WAITED=$((WAITED + 3))
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "Docs server port 4321 did not open in ${MAX_WAIT}s" >&2
+          cat /tmp/preview.log >&2
+          exit 1
+        fi
+        echo "Waiting for docs port... ($WAITED/${MAX_WAIT}s)"
+        sleep 3
       done
-      echo "Dev server did not become ready in time" >&2
-      exit 1
+      WAITED=0
+      until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
+        WAITED=$((WAITED + 3))
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "Dev server did not become ready in ${MAX_WAIT}s" >&2
+          cat /tmp/preview.log >&2
+          exit 1
+        fi
+        echo "Waiting for dev server response... ($WAITED/${MAX_WAIT}s)"
+        sleep 3
+      done
+      echo "Dev server is ready"
 
 ---
 
 # Visual Regression Checker
 
-You are a visual quality agent. The documentation site has been checked out, built, and the dev server is already running at `http://localhost:4321/gh-aw/`. For this pull request, use playwright-cli commands in bash to capture screenshots of key pages and report any visual differences.
+You are a visual quality agent. The workflow started the docs server and verified readiness. It is running at `http://localhost:4321/gh-aw/`. For this pull request, use playwright-cli commands in bash to capture screenshots of key pages and report any visual differences.
 
 ## Steps
 

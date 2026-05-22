@@ -41,8 +41,8 @@ The compiled output must contain:
 - `detection` job with `if:` referencing `inputs.enable-threat-detection`
 - `actions/cache/restore` in the agent job (detection is present at compile time)
 - `update_cache_memory` job depending on `detection`
-- `update_cache_memory` condition using `always()` and accepting detection `skipped`
-  so cache is saved even when detection is skipped at runtime
+- `update_cache_memory` condition using `always()` and requiring detection `success`
+  so cache is only saved after detection actually runs and succeeds
 
 Steps:
 1. Check existing files in `/tmp/gh-aw/cache-memory/`

@@ -235,6 +235,20 @@ type OTLPConfig struct {
 	// This setting affects MCP gateway setup only. Other OTLP-aware steps still
 	// receive workflow-level OTEL_* environment variables.
 	IfMissing string `json:"if-missing,omitempty"`
+
+	// Attributes defines additional custom key-value string attributes to attach
+	// to every OTLP span emitted by this workflow (setup, agent, and conclusion).
+	// Values support template variables using {{ variable }} syntax, where the
+	// variable name is any OTLP attribute key already computed for the span
+	// (e.g. {{ gh-aw.episode.id }}, {{ github.actor }}).
+	//
+	// Example – emit Langfuse session/user attributes alongside the standard ones:
+	//   attributes:
+	//     langfuse.session.id: "{{ gh-aw.episode.id }}"
+	//     session.id:          "{{ gh-aw.episode.id }}"
+	//     langfuse.user.id:    "{{ github.actor }}"
+	//     user.id:             "{{ github.actor }}"
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.

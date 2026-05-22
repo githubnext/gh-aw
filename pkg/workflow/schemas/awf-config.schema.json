@@ -348,7 +348,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Environment variable names to exclude when envAll is true."
+          "description": "Environment variable names to exclude when envAll is true. IMPORTANT: Excluding LLM API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) without setting apiProxy.enabled=true will cause agent authentication failures. Use apiProxy.enabled=true for credential isolation instead of manual exclusion."
         }
       }
     },
