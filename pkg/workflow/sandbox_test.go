@@ -182,6 +182,8 @@ func TestApplySandboxDefaults(t *testing.T) {
 				assert.NotContains(t, result.Agent.Config.Filesystem.AllowWrite, defaultAgentWorkspaceWritePath)
 			}
 			for _, expectedPath := range tt.expectedAllowWrite {
+				require.NotNil(t, result.Agent.Config)
+				require.NotNil(t, result.Agent.Config.Filesystem)
 				assert.Contains(t, result.Agent.Config.Filesystem.AllowWrite, expectedPath)
 			}
 		})
