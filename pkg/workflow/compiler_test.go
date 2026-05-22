@@ -966,12 +966,11 @@ network:
 			}
 
 			// Check performance
-			if assert.LessOrEqual(t, duration, tt.maxDuration,
+			require.LessOrEqual(t, duration, tt.maxDuration,
 				"Compilation took %v, expected under %v (%.1fx slower than expected)",
-				duration, tt.maxDuration, float64(duration)/float64(tt.maxDuration)) {
-				t.Logf("Compilation completed in %v (%.1f%% of max allowed time)",
-					duration, 100*float64(duration)/float64(tt.maxDuration))
-			}
+				duration, tt.maxDuration, float64(duration)/float64(tt.maxDuration))
+			t.Logf("Compilation completed in %v (%.1f%% of max allowed time)",
+				duration, 100*float64(duration)/float64(tt.maxDuration))
 
 			// Verify lock file was created (if compilation succeeded)
 			if err == nil {
@@ -984,9 +983,9 @@ network:
 	}
 }
 
-// TestValidateTemplateInjection_MalformedYAMLFallbackSkipped verifies malformed YAML in the
+// TestValidateTemplateInjection_IgnoresMalformedYAMLInFallback verifies malformed YAML in the
 // fallback path does not produce a template-injection error.
-func TestValidateTemplateInjection_MalformedYAMLFallbackSkipped(t *testing.T) {
+func TestValidateTemplateInjection_IgnoresMalformedYAMLInFallback(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "template-injection-fallback")
 	markdownPath := filepath.Join(tmpDir, "test.md")
 	lockFile := stringutil.MarkdownToLockFile(markdownPath)
@@ -1011,7 +1010,7 @@ func runGitCommand(t *testing.T, repoDir string, args ...string) {
 	cmdArgs := append([]string{"-C", repoDir}, args...)
 	cmd := exec.Command("git", cmdArgs...)
 	output, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git %s should succeed: %s", strings.Join(args, " "), strings.TrimSpace(string(output)))
+	require.NoErrorf(t, err, "git %s should succeed: %s", strings.Join(args, " "), strings.TrimSpace(string(output)))
 }
 
 // TestReadLockFileFromHEAD_GitStates verifies readLockFileFromHEAD behavior across
@@ -1021,7 +1020,7 @@ func TestReadLockFileFromHEAD_GitStates(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.gitRoot = ""
 
-		_, err := compiler.readLockFileFromHEAD("/tmp/nonexistent.lock.yml")
+		_, err := compiler.readLockFileFromHEAD(filepath.Join(os.TempDir(), "nonexistent.lock.yml"))
 		require.Error(t, err, "Missing git root should return an error")
 		assert.Contains(t, err.Error(), "git root not available", "Error should explain missing git root")
 	})
