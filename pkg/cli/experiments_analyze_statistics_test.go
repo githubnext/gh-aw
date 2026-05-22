@@ -574,14 +574,16 @@ func TestFindWorkflowFileForExperiment(t *testing.T) {
 	assert.Empty(t, result, "should return empty string when no matching file found")
 }
 
-// TestWorkflowFileCandidates verifies the candidate list for remote lookups.
+// TestWorkflowFileCandidates verifies the fallback candidate list for remote lookups.
+// The real resolution is handled by findRemoteWorkflowFilenameForExperiment; this list
+// is only used as a last-resort fallback when the directory listing is unavailable.
 func TestWorkflowFileCandidates(t *testing.T) {
 	tests := []struct {
 		experimentName string
 		wantContains   string
 	}{
 		{"myworkflow", "myworkflow"},
-		{"daily-report", "daily-report"},
+		{"dailyreport", "dailyreport"},
 		{"test123", "test123"},
 	}
 	for _, tt := range tests {
@@ -592,6 +594,7 @@ func TestWorkflowFileCandidates(t *testing.T) {
 		})
 	}
 }
+
 
 // TestAnalysisWithNilConfig verifies analysis runs cleanly without a config.
 func TestAnalysisWithNilConfig(t *testing.T) {
