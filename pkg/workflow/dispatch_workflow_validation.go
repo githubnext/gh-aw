@@ -191,36 +191,7 @@ func parseRepoSlugLiteral(slug string) (string, string, bool) {
 // Returns a map of input definitions that can be used to generate MCP tool schemas
 func extractWorkflowDispatchInputs(workflowPath string) (map[string]any, error) {
 	dispatchWorkflowValidationLog.Printf("Extracting workflow_dispatch inputs from: %s", workflowPath)
-	workflow, err := readWorkflowYAML(workflowPath)
-	if err != nil {
-		return nil, err
-	}
-
-	onSection, hasOn := workflow["on"]
-	if !hasOn {
-		return make(map[string]any), nil
-	}
-	onMap, ok := onSection.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	workflowDispatch, hasWorkflowDispatch := onMap["workflow_dispatch"]
-	if !hasWorkflowDispatch {
-		return make(map[string]any), nil
-	}
-	workflowDispatchMap, ok := workflowDispatch.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	inputs, hasInputs := workflowDispatchMap["inputs"]
-	if !hasInputs {
-		return make(map[string]any), nil
-	}
-	inputsMap, ok := inputs.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	return inputsMap, nil
+	return extractInputsFromYAML(workflowPath, "workflow_dispatch")
 }
 
 // containsWorkflowDispatch reports whether the given 'on:' section value includes

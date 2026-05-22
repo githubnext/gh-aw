@@ -1,11 +1,7 @@
 package workflow
 
 import (
-	"fmt"
-	"sort"
-
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var safeOutputsDispatchWorkflowLog = logger.New("workflow:safe_outputs_dispatch")
@@ -51,15 +47,8 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 		}
 
 		// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
-		var extension string
-		if fileResult.lockExists {
-			extension = ".lock.yml"
-		} else if fileResult.ymlExists {
-			extension = ".yml"
-		} else if fileResult.mdExists {
-			// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
-			extension = ".lock.yml"
-		} else {
+		extension, found := resolveWorkflowExtension(fileResult)
+		if !found {
 			safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
 			continue
 		}
@@ -107,38 +96,19 @@ func workflowHasAwContextInput(fileResult *findWorkflowFileResult, workflowName 
 // the workflow's defined workflow_dispatch inputs as parameters.
 func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
 	safeOutputsDispatchWorkflowLog.Printf("Generating dispatch-workflow tool: workflow=%s, inputs=%d", workflowName, len(workflowInputs))
-
-	// Normalize workflow name to use underscores for tool name
-	toolName := stringutil.NormalizeSafeOutputIdentifier(workflowName)
-
-	// Build the description
-	description := fmt.Sprintf("Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in .github/workflows/ directory in the same repository.", workflowName)
-
-	// Build input schema properties from workflow_dispatch inputs
-	properties, required := buildInputSchema(workflowInputs, func(inputName string) string {
-		return fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, workflowName)
+	tool := generateWorkflowToolDefinition(workflowToolDefinitionOptions{
+		workflowName:      workflowName,
+		workflowInputs:    workflowInputs,
+		descriptionFormat: "Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in .github/workflows/ directory in the same repository.",
+		metadataKey:       "_workflow_name",
 	})
 
-	// Add internal workflow_name parameter (hidden from description but used internally)
-	// This will be injected by the safe output handler
-
-	// Build the complete tool definition
-	tool := map[string]any{
-		"name":           toolName,
-		"description":    description,
-		"_workflow_name": workflowName, // Internal metadata for handler routing
-		"inputSchema": map[string]any{
-			"type":                 "object",
-			"properties":           properties,
-			"additionalProperties": false,
-		},
+	inputSchema, _ := tool["inputSchema"].(map[string]any)
+	properties, _ := inputSchema["properties"].(map[string]any)
+	requiredCount := 0
+	if required, ok := inputSchema["required"].([]string); ok {
+		requiredCount = len(required)
 	}
-
-	if len(required) > 0 {
-		sort.Strings(required)
-		tool["inputSchema"].(map[string]any)["required"] = required
-	}
-
-	safeOutputsDispatchWorkflowLog.Printf("Generated dispatch-workflow tool: name=%s, properties=%d, required=%d", toolName, len(properties), len(required))
+	safeOutputsDispatchWorkflowLog.Printf("Generated dispatch-workflow tool: name=%s, properties=%d, required=%d", tool["name"], len(properties), requiredCount)
 	return tool
 }

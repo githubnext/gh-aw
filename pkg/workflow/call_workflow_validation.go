@@ -182,80 +182,19 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 // extractWorkflowCallInputs parses a workflow file and extracts the workflow_call inputs schema.
 // Returns a map of input definitions that can be used to generate MCP tool schemas.
 func extractWorkflowCallInputs(workflowPath string) (map[string]any, error) {
-	workflow, err := readWorkflowYAML(workflowPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return extractWorkflowCallInputsFromParsed(workflow), nil
+	return extractInputsFromYAML(workflowPath, "workflow_call")
 }
 
 // extractMDWorkflowCallInputs reads a .md workflow file's frontmatter and extracts
 // the workflow_call inputs schema, mirroring extractWorkflowCallInputs for .md sources.
 func extractMDWorkflowCallInputs(mdPath string) (map[string]any, error) {
-	content, err := os.ReadFile(mdPath) // #nosec G304 -- mdPath is validated via isPathWithinDir in findWorkflowFile
-	if err != nil {
-		return nil, err
-	}
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil || result == nil {
-		return make(map[string]any), nil
-	}
-	onSection, hasOn := result.Frontmatter["on"]
-	if !hasOn {
-		return make(map[string]any), nil
-	}
-	onMap, ok := onSection.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	workflowCall, hasWorkflowCall := onMap["workflow_call"]
-	if !hasWorkflowCall {
-		return make(map[string]any), nil
-	}
-	workflowCallMap, ok := workflowCall.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	inputs, hasInputs := workflowCallMap["inputs"]
-	if !hasInputs {
-		return make(map[string]any), nil
-	}
-	inputsMap, ok := inputs.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	return inputsMap, nil
+	return extractInputsFromMarkdown(mdPath, "workflow_call")
 }
 
 // extractWorkflowCallInputsFromParsed extracts workflow_call inputs from an already-parsed
 // workflow map (used for both .lock.yml and .yml files).
 func extractWorkflowCallInputsFromParsed(workflow map[string]any) map[string]any {
-	onSection, hasOn := workflow["on"]
-	if !hasOn {
-		return make(map[string]any)
-	}
-	onMap, ok := onSection.(map[string]any)
-	if !ok {
-		return make(map[string]any)
-	}
-	workflowCall, hasWorkflowCall := onMap["workflow_call"]
-	if !hasWorkflowCall {
-		return make(map[string]any)
-	}
-	workflowCallMap, ok := workflowCall.(map[string]any)
-	if !ok {
-		return make(map[string]any)
-	}
-	inputs, hasInputs := workflowCallMap["inputs"]
-	if !hasInputs {
-		return make(map[string]any)
-	}
-	inputsMap, ok := inputs.(map[string]any)
-	if !ok {
-		return make(map[string]any)
-	}
-	return inputsMap
+	return extractInputsFromParsedWorkflow(workflow, "workflow_call")
 }
 
 // mdHasWorkflowCall reads a .md workflow file's frontmatter and reports whether

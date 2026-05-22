@@ -2,10 +2,8 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var safeOutputsCallWorkflowLog = logger.New("workflow:safe_outputs_call_workflow")
@@ -47,15 +45,8 @@ func populateCallWorkflowFiles(data *WorkflowData, markdownPath string) {
 		}
 
 		// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
-		var extension string
-		if fileResult.lockExists {
-			extension = ".lock.yml"
-		} else if fileResult.ymlExists {
-			extension = ".yml"
-		} else if fileResult.mdExists {
-			// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
-			extension = ".lock.yml"
-		} else {
+		extension, found := resolveWorkflowExtension(fileResult)
+		if !found {
 			callWorkflowLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
 			continue
 		}
@@ -74,35 +65,19 @@ func populateCallWorkflowFiles(data *WorkflowData, markdownPath string) {
 // call_workflow_name and call_workflow_payload outputs for the conditional `uses:` jobs.
 func generateCallWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
 	safeOutputsCallWorkflowLog.Printf("Generating call-workflow tool: workflow=%s, inputs=%d", workflowName, len(workflowInputs))
-
-	// Normalize workflow name to use underscores for tool name
-	toolName := stringutil.NormalizeSafeOutputIdentifier(workflowName)
-
-	// Build the description
-	description := fmt.Sprintf("Call the '%s' reusable workflow via workflow_call. This workflow must support workflow_call and be in .github/workflows/ directory in the same repository.", workflowName)
-
-	// Build input schema properties from workflow_call inputs
-	properties, required := buildInputSchema(workflowInputs, func(inputName string) string {
-		return fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, workflowName)
+	tool := generateWorkflowToolDefinition(workflowToolDefinitionOptions{
+		workflowName:      workflowName,
+		workflowInputs:    workflowInputs,
+		descriptionFormat: "Call the '%s' reusable workflow via workflow_call. This workflow must support workflow_call and be in .github/workflows/ directory in the same repository.",
+		metadataKey:       "_call_workflow_name",
 	})
 
-	// Build the complete tool definition
-	tool := map[string]any{
-		"name":                toolName,
-		"description":         description,
-		"_call_workflow_name": workflowName, // Internal metadata for handler routing
-		"inputSchema": map[string]any{
-			"type":                 "object",
-			"properties":           properties,
-			"additionalProperties": false,
-		},
+	inputSchema, _ := tool["inputSchema"].(map[string]any)
+	properties, _ := inputSchema["properties"].(map[string]any)
+	requiredCount := 0
+	if required, ok := inputSchema["required"].([]string); ok {
+		requiredCount = len(required)
 	}
-
-	if len(required) > 0 {
-		sort.Strings(required)
-		tool["inputSchema"].(map[string]any)["required"] = required
-	}
-
-	safeOutputsCallWorkflowLog.Printf("Generated call-workflow tool: name=%s, properties=%d, required=%d", toolName, len(properties), len(required))
+	safeOutputsCallWorkflowLog.Printf("Generated call-workflow tool: name=%s, properties=%d, required=%d", tool["name"], len(properties), requiredCount)
 	return tool
 }
