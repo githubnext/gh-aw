@@ -2055,7 +2055,7 @@ ${patchPreview}`;
         const protectedFilesReviewTemplatePath = getPromptPath("manifest_protection_request_changes_review.md");
         requestChangesSections.push(
           renderTemplateFromFile(protectedFilesReviewTemplatePath, {
-            files: renderFilesList(manifestProtectionRequestReview.join(",")),
+            files: renderFilesList(manifestProtectionRequestReview),
           })
         );
       }
