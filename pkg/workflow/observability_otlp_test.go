@@ -1777,7 +1777,7 @@ func TestMergeOTLPCustomAttributes(t *testing.T) {
 
 func TestMergedOTLPCustomAttributesCapacity(t *testing.T) {
 	t.Run("handles zero inputs", func(t *testing.T) {
-		assert.Zero(t, mergedOTLPCustomAttributesCapacity(0, 0), "returns zero for empty inputs")
+		assert.Zero(t, mergedOTLPCustomAttributesCapacity(0, 0), "returns zero when both inputs are zero")
 		assert.Equal(t, 5, mergedOTLPCustomAttributesCapacity(0, 5), "preserves the override size when the base is empty")
 		assert.Equal(t, 5, mergedOTLPCustomAttributesCapacity(5, 0), "preserves the base size when the override is empty")
 	})
@@ -1790,6 +1790,7 @@ func TestMergedOTLPCustomAttributesCapacity(t *testing.T) {
 
 	t.Run("returns zero when the sum would overflow int", func(t *testing.T) {
 		assert.Zero(t, mergedOTLPCustomAttributesCapacity(math.MaxInt, 1), "returns zero when the capacity hint would overflow int")
+		assert.Zero(t, mergedOTLPCustomAttributesCapacity(math.MaxInt-1, 2), "returns zero when the capacity hint exceeds the safe boundary by one")
 	})
 }
 
