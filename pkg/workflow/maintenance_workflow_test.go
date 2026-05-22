@@ -1110,6 +1110,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		if strings.Contains(yaml, "compile --validate --validate-images --verbose") {
 			t.Errorf("Workflow should not require --validate-images in compile-workflows, but generated YAML includes it:\n%s", yaml)
 		}
+		if strings.Contains(yaml, "        env:\n        with:\n") {
+			t.Errorf("Workflow should not emit an empty env block in compile-workflows, but generated YAML includes one:\n%s", yaml)
+		}
 	})
 
 	t.Run("compile-workflows can create pull requests with custom token secret", func(t *testing.T) {

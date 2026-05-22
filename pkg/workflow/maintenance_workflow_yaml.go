@@ -874,10 +874,10 @@ jobs:
 
       - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
-        env:
 `)
 		if compileGitHubToken != "" {
-			yaml.WriteString(`          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `
+			yaml.WriteString(`        env:
+          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `
 `)
 		}
 		yaml.WriteString(`        with:
