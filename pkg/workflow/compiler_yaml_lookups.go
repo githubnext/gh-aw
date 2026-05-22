@@ -84,14 +84,14 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 // getDefaultAgentModel returns the model display value to use when no explicit model is configured.
 // For the copilot engine this matches the CopilotBYOKDefaultModel used in COPILOT_MODEL so that
 // GH_AW_INFO_MODEL and COPILOT_MODEL agree on the same fallback.
-// Returns "auto" for other known engines whose model is dynamically determined by the AI provider,
+// Returns "agent" for other known engines whose model is dynamically determined by the AI provider,
 // or empty string for custom/unknown engines.
 func getDefaultAgentModel(engineID string) string {
 	switch engineID {
 	case "copilot":
 		return constants.CopilotBYOKDefaultModel
 	case "claude", "codex", "gemini", "opencode", "crush", "pi":
-		return "auto"
+		return "agent"
 	default:
 		return ""
 	}

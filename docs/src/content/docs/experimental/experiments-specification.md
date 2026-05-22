@@ -9,7 +9,7 @@ sidebar:
 
 **Version**: 1.0.0  
 **Status**: Draft  
-**Latest Version**: [experiments-specification](/gh-aw/practices/experiments-specification/)  
+**Latest Version**: [experiments-specification](/gh-aw/experimental/experiments-specification/)  
 **Editors**: gh-aw maintainers
 
 ---

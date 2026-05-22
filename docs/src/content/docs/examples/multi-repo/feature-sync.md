@@ -1,5 +1,5 @@
 ---
-title: Feature Synchronization
+title: 'Example: Feature Synchronization'
 description: Synchronize features from a main repository to sub-repositories or downstream services with automated pull requests.
 sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }

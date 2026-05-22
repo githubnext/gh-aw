@@ -70,7 +70,6 @@ type builtinModelAliasesFile struct {
 // Meta-aliases (reference other aliases; resolved recursively by AWF):
 //   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite, copilot/raptor*mini*
 //   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
-//   - "auto"  → large (convenience alias for the default capable tier)
 //   - "any"   → copilot/*, anthropic/*, openai/*, google/*, gemini/*
 //   - "agent" → sonnet-6x, gpt-5.4, gpt-5, gemini-pro, haiku, any
 //

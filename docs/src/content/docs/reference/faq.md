@@ -51,7 +51,7 @@ See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating across repo
 
 ### Can I use agentic workflows in private repositories?
 
-Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation) for patterns using private repositories.
+Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#using-a-side-repository) for patterns using private repositories.
 
 ### Can I edit workflows directly on GitHub.com without recompiling?
 
@@ -160,7 +160,7 @@ imports:
   - githubnext/agentics/shared/common-tools.md
 ```
 
-This enables reusable tool configurations, network settings, and permissions across workflows. See [Imports](/gh-aw/reference/imports/) and [Packaging Imports](/gh-aw/guides/packaging-imports/) for details.
+This enables reusable tool configurations, network settings, and permissions across workflows. See [Imports](/gh-aw/reference/imports/) and [Packaging Imports](/gh-aw/guides/reusing-workflows/) for details.
 
 ### Can I run workflows on a schedule?
 

@@ -103,7 +103,7 @@ func TestModelAliasesImportMergeOrder(t *testing.T) {
 
 		// Builtins are still present.
 		assert.NotEmpty(t, merged["sonnet"], "builtin sonnet should still be present")
-		assert.NotEmpty(t, merged["auto"], "builtin auto should still be present")
+		assert.NotEmpty(t, merged["agent"], "builtin agent should still be present")
 	})
 }
 
@@ -151,5 +151,5 @@ func TestModelAliasesAWFConfigJSON(t *testing.T) {
 
 	// Other builtins preserved.
 	assert.NotEmpty(t, mappings["sonnet"], "builtin sonnet should still be in ModelMappings")
-	assert.NotEmpty(t, mappings["auto"], "builtin auto should still be in ModelMappings")
+	assert.NotEmpty(t, mappings["agent"], "builtin agent should still be in ModelMappings")
 }

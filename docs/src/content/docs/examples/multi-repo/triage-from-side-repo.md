@@ -1,5 +1,5 @@
 ---
-title: Triage from Side Repo
+title: 'Example: Triage from Side Repo'
 description: Run automated issue triage on a main repository from an isolated automation repository, with a slash-command bridge for real-time response.
 sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }

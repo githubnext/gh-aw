@@ -1,5 +1,5 @@
 ---
-title: Sharing Workflows
+title: Sharing Workflows in the Organization
 description: Share, reuse, and govern workflows across repositories and organizations.
 ---
 
@@ -19,7 +19,7 @@ gh aw add acme-org/agentic-workflows/ci-doctor@v1.2.0
 
 The `source:` field is automatically added to the installed workflow's frontmatter so the origin and version are tracked. Use `gh aw add-wizard` for interactive installation with guided prompts. Use `gh aw add` for scripted or CI-driven installation.
 
-See [Reusing Workflows](/gh-aw/guides/packaging-imports/) for the full command reference and options.
+See [Reusing Workflows](/gh-aw/guides/reusing-workflows/) for the full command reference and options.
 
 ### 2. Reusable workflow components
 
@@ -128,7 +128,7 @@ Those decisions affect reliability more than the file format does.
 
 ## Related Documentation
 
-- [Reusing Workflows](/gh-aw/guides/packaging-imports/)
+- [Reusing Workflows](/gh-aw/guides/reusing-workflows/)
 - [Imports Reference](/gh-aw/reference/imports/)
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/)
 - [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private)

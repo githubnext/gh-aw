@@ -280,7 +280,7 @@ timeout-minutes: 30
 Run the full test suite and fix any failures.
 ```
 
-See [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/) for setup instructions, including Docker and `sudo` requirements.
+See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) for setup instructions, including Docker and `sudo` requirements.
 
 ### Caching Build Artifacts Between Runs
 
@@ -313,5 +313,5 @@ Review the failing tests and apply a fix. Build artifacts are pre-cached.
 - [Network Permissions](/gh-aw/reference/network/) - Configure network access controls
 - [AI Engines](/gh-aw/reference/engines/) - Engine-specific configuration
 - [Tools](/gh-aw/reference/tools/) - Configure MCP tools and servers
-- [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/) - Use custom hardware for long-running jobs
+- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Use custom hardware for long-running jobs
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-runs-on-slim-timeout-minutes) - `timeout-minutes` syntax

@@ -684,7 +684,7 @@ This file is embedded at compile time into the `gh-aw` binary using a Go `//go:e
 
 **R-REG-008**: When adding support for a new model, maintainers MUST register the model in `pkg/cli/data/model_multipliers.json` with a concrete numeric multiplier before release. If calibration is incomplete, the model MUST be omitted from the registry and the implementation fallback behavior in R-REG-005 applies.
 
-**R-REG-009**: When a model is scheduled for removal from the registry, it MUST remain in `pkg/cli/data/model_multipliers.json` with a `deprecated` marker in a comment or companion metadata field for at least one minor version before it is deleted. Implementations SHOULD emit a warning when a `deprecated` model is encountered at runtime, advising callers to migrate to a supported model. A model entry MUST NOT be silently removed between consecutive minor versions; removal without the one-version deprecation notice is a breaking change and MUST be accompanied by a major version bump of the registry `version` field.
+**R-REG-009**: The registry MUST preserve complete model history. Models that are no longer returned by current provider inventories MUST remain in `pkg/cli/data/model_multipliers.json` unless maintainers manually delete them in an explicit change.
 
 ### Registry Versioning
 
@@ -700,7 +700,7 @@ To keep specification and implementation synchronized:
 
 1. Update this specification's registry requirements when adding, removing, or re-scaling model multipliers.
 2. Update `pkg/cli/data/model_multipliers.json` in the same change.
-3. When deprecating a model, add a `deprecated` comment alongside the entry and keep it in the registry for at least one minor version before removal (R-REG-009). Update the registry `version` field on removal.
+3. Keep historical model entries in the registry by default. Only remove entries via explicit manual deletion when needed (R-REG-009), and update the registry `version` field on removal.
 4. Verify loading and fallback behavior in `pkg/cli/effective_tokens_test.go` (`TestModelMultipliersJSONEmbedded`, `TestResolveEffectiveWeightsDefault`, and inventory checks).
 5. Run `make build` so the embedded registry is rebuilt into the `gh-aw` binary.
 6. Re-run registry validation coverage after any registry edit so malformed multiplier entries fail
@@ -728,7 +728,7 @@ Conforming releases SHOULD include a test assertion for newly added model multip
 ### Version 0.3.0 (Draft)
 
 - **Added**: Model Multiplier Registry section with normative requirements R-REG-001 through R-REG-009
-- **Added**: R-REG-009: model deprecation/sunset lifecycle norm (models must carry a `deprecated` marker for one minor version before removal)
+- **Updated**: R-REG-009 to require complete model history retention and explicit manual deletion instead of deprecated-model lifecycle markers
 - **Added**: Compliance test skeleton file `pkg/cli/effective_tokens_compliance_test.go` with Go test stubs for T-ET-001..T-ET-031
 - **Added**: T-ET-032 requirement for deterministic post-order aggregation in deep (3+ level) partially observed execution graphs
 - **Updated**: Compliance checklist §10.2 status column from "Required" to "Implemented" for all test IDs T-ET-001–T-ET-031 (all tests now implemented and passing)

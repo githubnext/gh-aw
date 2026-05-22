@@ -1,11 +1,11 @@
 ---
-title: Dependabot Rollout
+title: 'Example: Dependabot Rollout'
 description: Roll out a customized Dependabot configuration across many repositories using an orchestrator and worker workflow pair from a central control repository.
 sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }
 ---
 
-This example shows how to roll out a new Dependabot configuration across 100 repositories using the [central control plane pattern](/gh-aw/patterns/multi-repo-ops/#the-central-control-plane-pattern-org-wide-rollouts). An **orchestrator** workflow filters and prioritizes target repositories, then dispatches a **worker** workflow that analyzes each repo and creates an intelligently customized pull request.
+This example shows how to roll out a new Dependabot configuration across 100 repositories using the [central control plane pattern](/gh-aw/patterns/central-repo-ops/#using-a-central-control-repository). An **orchestrator** workflow filters and prioritizes target repositories, then dispatches a **worker** workflow that analyzes each repo and creates an intelligently customized pull request.
 
 Both workflows live in a single private control repository.
 
