@@ -381,7 +381,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const baseBranch =
       prConfig.base_branch ||
       (await getBaseBranch(repoParts, {
-        preferCheckedOutBranch: Boolean(repoCwd),
+        preferLocalDefaultBranchMetadata: Boolean(repoCwd),
         cwd: repoCwd || undefined,
       }));
 
@@ -674,7 +674,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // For side-repo checkouts, prefer repository default-branch resolution from
     // local origin/HEAD metadata before payload/API fallback.
     const baseBranch = await getBaseBranch(repoParts, {
-      preferCheckedOutBranch: Boolean(repoCwd),
+      preferLocalDefaultBranchMetadata: Boolean(repoCwd),
       cwd: repoCwd || undefined,
     });
 

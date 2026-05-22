@@ -22,10 +22,11 @@ const { execGitSync } = require("./git_helpers.cjs");
  *   If provided, the issue_comment PR lookup (step 4) and repository default-branch
  *   lookup (step 6b) use this instead of context.repo, which is needed for
  *   cross-repo scenarios where the target repo differs from the workflow repository.
- * @param {{preferCheckedOutBranch?: boolean, cwd?: string}|null} [options] - Optional resolution hints.
- *   When preferCheckedOutBranch is true and cwd is set, git is queried for
+ * @param {{preferLocalDefaultBranchMetadata?: boolean, preferCheckedOutBranch?: boolean, cwd?: string}|null} [options] - Optional resolution hints.
+ *   When preferLocalDefaultBranchMetadata is true and cwd is set, git is queried for
  *   refs/remotes/origin/HEAD in that repository to derive the repository default branch
  *   before falling back to payload/API-based default branch resolution.
+ *   preferCheckedOutBranch is a deprecated alias kept for backward compatibility.
  * @returns {Promise<string>} The base branch name
  */
 async function getBaseBranch(targetRepo = null, options = null) {
@@ -84,10 +85,12 @@ async function getBaseBranch(targetRepo = null, options = null) {
   // 5. Resolve repository default branch from local git metadata when explicitly
   // requested by the caller (side-repo workflows). This avoids using the current
   // checked-out branch (which may be a newly-created feature branch).
-  if (options?.preferCheckedOutBranch && options.cwd) {
+  const preferLocalDefaultBranchMetadata = options?.preferLocalDefaultBranchMetadata ?? options?.preferCheckedOutBranch;
+  const gitCwd = options?.cwd;
+  if (preferLocalDefaultBranchMetadata && gitCwd) {
     try {
       const symbolicRef = execGitSync(["symbolic-ref", "refs/remotes/origin/HEAD"], {
-        cwd: options.cwd,
+        cwd: gitCwd,
         stdio: ["pipe", "pipe", "pipe"],
         // Missing origin/HEAD is expected in some side-repo checkouts; avoid noisy annotations.
         suppressLogs: true,

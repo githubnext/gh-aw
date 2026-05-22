@@ -21,7 +21,11 @@ describe("getBaseBranch", () => {
     // Clear context and github globals
     delete global.context;
     delete global.github;
-    delete global.core;
+    global.core = {
+      debug: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+    };
   });
 
   afterEach(() => {
@@ -233,7 +237,7 @@ describe("getBaseBranch", () => {
       execSync("git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main", { cwd: repoDir, stdio: "pipe" });
 
       const { getBaseBranch } = await import("./get_base_branch.cjs");
-      const result = await getBaseBranch({ owner: "test-owner", repo: "test-repo" }, { preferCheckedOutBranch: true, cwd: repoDir });
+      const result = await getBaseBranch({ owner: "test-owner", repo: "test-repo" }, { preferLocalDefaultBranchMetadata: true, cwd: repoDir });
 
       expect(result).toBe("main");
     } finally {
@@ -259,9 +263,33 @@ describe("getBaseBranch", () => {
       };
 
       const { getBaseBranch } = await import("./get_base_branch.cjs");
-      const result = await getBaseBranch(null, { preferCheckedOutBranch: true, cwd: repoDir });
+      const result = await getBaseBranch(null, { preferLocalDefaultBranchMetadata: true, cwd: repoDir });
 
       expect(result).toBe("trunk");
+      expect(global.core.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to resolve repository default branch from refs/remotes/origin/HEAD"));
+    } finally {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should continue supporting preferCheckedOutBranch as an alias", async () => {
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-get-base-branch-alias-"));
+    try {
+      execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: repoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: repoDir, stdio: "pipe" });
+      const mainSha = execSync("git rev-parse main", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+      execSync(`git update-ref refs/remotes/origin/main ${mainSha}`, { cwd: repoDir, stdio: "pipe" });
+      execSync("git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main", { cwd: repoDir, stdio: "pipe" });
+
+      const { getBaseBranch } = await import("./get_base_branch.cjs");
+      const result = await getBaseBranch(null, { preferCheckedOutBranch: true, cwd: repoDir });
+
+      expect(result).toBe("main");
     } finally {
       fs.rmSync(repoDir, { recursive: true, force: true });
     }
