@@ -204,6 +204,34 @@ describe("awf_reflect_summary.cjs", () => {
       ]);
     });
 
+    it("normalizes provider-map models.json payloads", () => {
+      const providerMap = {
+        providers: {
+          openai: {
+            models_url: "http://api-proxy:10000/v1/models",
+            available_models: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }],
+          },
+          copilot: {
+            endpoint: "http://api-proxy:10002/models",
+            detected_models: ["claude-sonnet-4.6", "gpt-4o"],
+          },
+        },
+      };
+
+      expect(module.normalizeRuntimeModelRows(providerMap)).toEqual([
+        {
+          endpoint: "http://api-proxy:10002/models",
+          models: ["claude-sonnet-4.6", "gpt-4o"],
+          provider: "copilot",
+        },
+        {
+          endpoint: "http://api-proxy:10000/v1/models",
+          models: ["gpt-4o", "gpt-4o-mini"],
+          provider: "openai",
+        },
+      ]);
+    });
+
     it("normalizes single-provider models.json payloads", () => {
       const singleProvider = {
         provider: "anthropic",

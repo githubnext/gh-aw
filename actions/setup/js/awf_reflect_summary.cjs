@@ -81,7 +81,7 @@ function formatModelList(models, maxModels) {
  *
  * Supported payload shapes:
  *   - { endpoints: [...] }
- *   - { providers: { name: ... } }
+ *   - { providers: { [providerName]: { ... } } }
  *   - { provider: "x", models: [...] }
  *
  * @param {any} runtimeModelsData
@@ -124,7 +124,7 @@ function normalizeRuntimeModelRows(runtimeModelsData) {
     pushRow(runtimeModelsData.provider, runtimeModelsData);
   }
 
-  return rows.filter(row => row.provider).sort((a, b) => a.provider.localeCompare(b.provider) || a.endpoint.localeCompare(b.endpoint));
+  return rows.sort((a, b) => a.provider.localeCompare(b.provider) || a.endpoint.localeCompare(b.endpoint));
 }
 
 /**
