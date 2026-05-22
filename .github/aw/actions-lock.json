@@ -138,6 +138,11 @@
       "version": "v4.1.0",
       "sha": "4907a6ddec9925e35a0a9e82d7399ccc52663121"
     },
+    "docker/metadata-action@v6": {
+      "repo": "docker/metadata-action",
+      "version": "v6",
+      "sha": "80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9"
+    },
     "docker/metadata-action@v6.0.0": {
       "repo": "docker/metadata-action",
       "version": "v6.0.0",
