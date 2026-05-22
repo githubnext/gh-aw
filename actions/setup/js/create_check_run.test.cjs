@@ -314,24 +314,51 @@ describe("create_check_run", () => {
       expect(capturedParams.completed_at).toBeDefined();
     });
 
-    it("uses config name for check run name, falling back to GITHUB_WORKFLOW", async () => {
+    it("uses config name for check run name, falling back to GITHUB_WORKFLOW with (Result) suffix", async () => {
       process.env.GITHUB_WORKFLOW = "My Workflow";
       let capturedName;
       mockGithub.rest.checks.create = makeChecksCreate((p) => {
         capturedName = p.name;
       });
 
-      // With explicit config name
+      // With explicit config name different from workflow name — no dedup suffix
       const { main: mainWithName } = require("./create_check_run.cjs");
       const handlerWithName = await mainWithName({ name: "Explicit Name", max: 10 });
       await handlerWithName({ type: "create_check_run", conclusion: "success", title: "T", summary: "S" }, {});
       expect(capturedName).toBe("Explicit Name");
 
-      // Without config name — falls back to GITHUB_WORKFLOW
+      // Without config name — falls back to GITHUB_WORKFLOW but deduplicates with (Result) suffix
       const { main: mainNoName } = require("./create_check_run.cjs");
       const handlerNoName = await mainNoName({ max: 10 });
       await handlerNoName({ type: "create_check_run", conclusion: "success", title: "T", summary: "S" }, {});
-      expect(capturedName).toBe("My Workflow");
+      expect(capturedName).toBe("My Workflow (Result)");
+    });
+
+    it("appends (Result) suffix when configured name collides with GITHUB_WORKFLOW", async () => {
+      process.env.GITHUB_WORKFLOW = "My Workflow";
+      let capturedName;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedName = p.name;
+      });
+
+      // Config name explicitly set to same value as workflow name → dedup suffix applied
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ name: "My Workflow", max: 10 });
+      await handler({ type: "create_check_run", conclusion: "success", title: "T", summary: "S" }, {});
+      expect(capturedName).toBe("My Workflow (Result)");
+    });
+
+    it("does not append (Result) suffix when config name differs from GITHUB_WORKFLOW", async () => {
+      process.env.GITHUB_WORKFLOW = "My Workflow";
+      let capturedName;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedName = p.name;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ name: "My Agent Result", max: 10 });
+      await handler({ type: "create_check_run", conclusion: "success", title: "T", summary: "S" }, {});
+      expect(capturedName).toBe("My Agent Result");
     });
 
     it("returns check_run_id and check_run_url on success", async () => {

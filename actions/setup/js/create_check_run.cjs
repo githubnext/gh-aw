@@ -32,8 +32,16 @@ async function main(config = {}) {
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
 
-  // Resolve the check run name: config > workflow name env var > fallback
-  const defaultName = configuredName || process.env.GITHUB_WORKFLOW || "Agent Check";
+  // Resolve the check run name: config > workflow name env var > fallback.
+  // Auto-deduplicate: if the resolved name equals the workflow name, GitHub's UI
+  // may collapse the programmatic check run into the workflow's own check suite
+  // entry, hiding it in compact/mobile views. Appending "(Result)" ensures a
+  // distinct name so the check run remains visible on all GitHub UI surfaces.
+  const workflowName = process.env.GITHUB_WORKFLOW || "";
+  let defaultName = configuredName || workflowName || "Agent Check";
+  if (defaultName === workflowName && workflowName) {
+    defaultName = `${defaultName} (Result)`;
+  }
 
   core.info(`Create check run configuration: name="${defaultName}", max=${maxCount}`);
 
